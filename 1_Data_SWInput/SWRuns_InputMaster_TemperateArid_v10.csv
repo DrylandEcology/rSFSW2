@@ -1,0 +1,2 @@
+Label,ID,Region,X_WGS84,Y_WGS84,T372_X,T372_Y,ELEV_m,ELEV_5perc_m,ELEV_95perc_m,ASPECT,SLOPE,Include_YN,Mask_All,Mask_Current,Mask_Future,Mask_AvailableData,Prj_1Texture,Prj_2Disturbances,Prj_3GlobalVulnerability,Prj_4Invasives,Prj_5Agriculture,Prj_6VegetationBoundary,Prj_7LandUse
+00133_StudyDelineation,133,1,-70.3125,-52.34375,-70.312903,-52.298324,199,97.15,285.7,,,1,1,0,1,1,,,,,,,
