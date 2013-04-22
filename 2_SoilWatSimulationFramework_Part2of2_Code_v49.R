@@ -2686,136 +2686,171 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 						}
 					}
 				}
+				
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
-					#Get Columns Max, then scale those columns
-					colmax<-apply(tr_VegetationComposition[grepl("Litter", names(tr_VegetationComposition))], MARGIN=2, FUN=max)
-					tr_VegetationComposition[grepl("Litter", names(tr_VegetationComposition))] <- sweep(tr_VegetationComposition[grepl("Litter",names(tr_VegetationComposition))],MARGIN=2, STATS=colmax, FUN="/")
+					tr_VegComp_Adj <- tr_VegetationComposition	#Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
+					#Describe conditions for which the default vegetation biomass values are valid
+					std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing.season.threshold.tempC == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+					std.growing <- (1:12)[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+					#Default site for the grass description is SGS LTER
+					StandardGrasses_MAP_mm <- 340
+					StandardGrasses_VegComposition <- c(0.12, 0.22, 0.66) #Fraction of shrubs, C3, and C4
+					#Default site for the shrub description is Reynolds Creek, ID
+					StandardShrub_MAP_mm <- 250
+					StandardShrub_VegComposition <- c(0.7, 0.3, 0) #Fraction of shrubs, C3, and C4
+
+					#Calculate 'live biomass amount'
+					tr_VegComp_Adj$Sh.Amount.Live <- tr_VegComp_Adj$Sh.Biomass * tr_VegComp_Adj$Sh.Perc.Live
+					tr_VegComp_Adj$C3.Amount.Live <- tr_VegComp_Adj$C3.Biomass * tr_VegComp_Adj$C3.Perc.Live
+					tr_VegComp_Adj$C4.Amount.Live <- tr_VegComp_Adj$C4.Biomass * tr_VegComp_Adj$C4.Perc.Live
+					tr_VegComp_Adj$Annual.Amount.Live <- tr_VegComp_Adj$Annual.Biomass * tr_VegComp_Adj$Annual.Perc.Live
 					
-					colmax<-apply(tr_VegetationComposition[grepl("L.Bio", names(tr_VegetationComposition))], MARGIN=2, FUN=max)
-					tr_VegetationComposition[grepl("Biomass", names(tr_VegetationComposition))] <- sweep(tr_VegetationComposition[grepl("Biomass",names(tr_VegetationComposition))],MARGIN=2, STATS=colmax, FUN="/")
-					tr_VegetationComposition[grepl("L.Bio", names(tr_VegetationComposition))] <- sweep(tr_VegetationComposition[grepl("L.Bio",names(tr_VegetationComposition))],MARGIN=2, STATS=colmax, FUN="/")
+					#Scale monthly values of litter and live biomass amount by column-max; total biomass will be back calculated from 'live biomass amount' / 'percent live'
+					colmax <- apply(tr_VegComp_Adj[, itemp <- grepl("Litter", names(tr_VegComp_Adj)) | grepl("Amount.Live", names(tr_VegComp_Adj))], MARGIN=2, FUN=max)
+					colmin <- apply(tr_VegComp_Adj[, itemp], MARGIN=2, FUN=min)
+					tr_VegComp_Adj[, itemp] <- sweep(tr_VegComp_Adj[, itemp], MARGIN=2, STATS=colmax, FUN="/")
 					
-					#colmax <- apply(tr_VegetationComposition[!grepl("Perc", names(tr_VegetationComposition))], MARGIN=2, FUN=max)
-					#tr_VegetationComposition[!grepl("Perc", names(tr_VegetationComposition))] <- sweep(tr_VegetationComposition[!grepl("Perc",names(tr_VegetationComposition))],MARGIN=2, STATS=colmax, FUN="/")
-					#Pull different type compositions from Vegetation Compositions
-					shrubs_Composition <- tr_VegetationComposition[grepl("Sh", names(tr_VegetationComposition))]
-					C3_Composition <- tr_VegetationComposition[grepl("C3", names(tr_VegetationComposition))]
-					C4_Composition <- tr_VegetationComposition[grepl("C4", names(tr_VegetationComposition))]
-					AnnGrass_Composition <- tr_VegetationComposition[grepl("Annual", names(tr_VegetationComposition))]
-					
-					shrubs_Standard <- tr_VegetationComposition[grepl("Sh", names(tr_VegetationComposition))]
-					C3_Standard <- tr_VegetationComposition[grepl("C3", names(tr_VegetationComposition))]
-					C4_Standard <- tr_VegetationComposition[grepl("C4", names(tr_VegetationComposition))]
-					AnnGrass_Standard <- tr_VegetationComposition[grepl("Annual", names(tr_VegetationComposition))]
-					
+					#Pull different composition types
+					shrubs_Composition <- shrubs_Standard <- tr_VegComp_Adj[, grepl("Sh", names(tr_VegComp_Adj))]
+					C3_Composition <- C3_Standard <- tr_VegComp_Adj[, grepl("C3", names(tr_VegComp_Adj))]
+					C4_Composition <- C4_Standard <- tr_VegComp_Adj[, grepl("C4", names(tr_VegComp_Adj))]
+					AnnGrass_Composition <- AnnGrass_Standard <- tr_VegComp_Adj[, grepl("Annual", names(tr_VegComp_Adj))]
+			
 					adjCompPPT <- function(ShrubsMAP_mm, GrassMAP_mm) {
-						minimum.totalBiomass <- 0
-						Shrub_ANPP <- max(minimum.totalBiomass, .393*ShrubsMAP_mm-10.2)		
-						shrubs_Composition[,1:2] <<- sweep(shrubs_Composition[,1:2], MARGIN=2, STATS=Shrub_ANPP, FUN="*")
+						#Equations: Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
+						Shrub_ANPP <- function(MAP_mm) 0.393 * MAP_mm - 10.2
+						Grass_ANPP <- function(MAP_mm) 0.646 * MAP_mm - 102.5
 						
-						Grass_ANPP <- max(minimum.totalBiomass, 0.646*GrassMAP_mm - 102.5)
-						C3_Composition[,1:2] <<- sweep(C3_Composition[,1:2], MARGIN=2, STATS=Grass_ANPP, FUN="*")
-						C4_Composition[,1:2] <<- sweep(C4_Composition[,1:2], MARGIN=2, STATS=Grass_ANPP, FUN="*")
-						AnnGrass_Composition[,1:2] <<- sweep(AnnGrass_Composition[,1:2], MARGIN=2, STATS=Grass_ANPP, FUN="*")
+						#Intercepts to match outcomes of M & L 1993 equations under 'default' MAP with our previous default inputs for shrubs and sgs-grasslands
+						#Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
+						Shrub_ANPPintercept <- (StandardShrub_VegComposition[1]*colmax["Sh.Amount.Live"] + StandardShrub_VegComposition[2]*colmax["C3.Amount.Live"] + StandardShrub_VegComposition[3]*colmax["C4.Amount.Live"]) - Shrub_ANPP(StandardShrub_MAP_mm)	#Default input for shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
+						Grasses_ANPPintercept <- (StandardGrasses_VegComposition[1]*colmax["Sh.Amount.Live"] + StandardGrasses_VegComposition[2]*colmax["C3.Amount.Live"] + StandardGrasses_VegComposition[3]*colmax["C4.Amount.Live"]) - Grass_ANPP(StandardGrasses_MAP_mm)		#Default input for sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
+						
+						#Get scaling values for scaled biomass; guarantee that > minimum.totalBiomass
+						minimum.totalBiomass <- 0 #This is a SoilWat parameter
+						Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(ShrubsMAP_mm) + Shrub_ANPPintercept)
+						Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(GrassMAP_mm) + Grasses_ANPPintercept)
+						
+						#Scale live biomass amount by productivity; assumption: ANPP = peak standing live biomass
+						shrubs_Composition$Sh.Amount.Live <<- shrubs_Composition$Sh.Amount.Live * Shrub_BiomassScaler					
+						C3_Composition$C3.Amount.Live <<- C3_Composition$C3.Amount.Live * Grass_BiomassScaler					
+						C4_Composition$C4.Amount.Live <<- C4_Composition$C4.Amount.Live * Grass_BiomassScaler					
+						AnnGrass_Composition$Annual.Amount.Live <<- AnnGrass_Composition$Annual.Amount.Live * Grass_BiomassScaler					
+
+						#Scale litter amount by productivity and adjust for ratio of litter/live
+						shrubs_Composition$Sh.Litter <<- shrubs_Composition$Sh.Litter * Shrub_BiomassScaler * colmax["Sh.Litter"] / colmax["Sh.Amount.Live"]	
+						C3_Composition$C3.Litter <<- C3_Composition$C3.Litter * Grass_BiomassScaler * colmax["C3.Litter"] / colmax["C3.Amount.Live"]	
+						C4_Composition$C4.Litter <<- C4_Composition$C4.Litter * Grass_BiomassScaler * colmax["C4.Litter"] / colmax["C4.Amount.Live"]	
+						AnnGrass_Composition$Annual.Litter <<- AnnGrass_Composition$Annual.Litter * Grass_BiomassScaler * colmax["Annual.Litter"] / colmax["Annual.Amount.Live"]	
+						
+						#Guarantee that live fraction = ]0, 1]
+						shrubs_Composition$Sh.Perc.Live <<- pmin(1, pmax(sqrt(.Machine$double.eps), shrubs_Composition$Sh.Perc.Live))
+						C3_Composition$C3.Perc.Live <<- pmin(1, pmax(sqrt(.Machine$double.eps), C3_Composition$C3.Perc.Live))
+						C4_Composition$C4.Perc.Live <<- pmin(1, pmax(sqrt(.Machine$double.eps), C4_Composition$C4.Perc.Live))
+						AnnGrass_Composition$Annual.Perc.Live <<- pmin(1, pmax(sqrt(.Machine$double.eps), AnnGrass_Composition$Annual.Perc.Live))
+						
+						#Calculate total biomass based on scaled live biomass amount
+						shrubs_Composition$Sh.Biomass <<- shrubs_Composition$Sh.Amount.Live / shrubs_Composition$Sh.Perc.Live
+						C3_Composition$C3.Biomass <<- C3_Composition$C3.Amount.Live / C3_Composition$C3.Perc.Live
+						C4_Composition$C4.Biomass <<- C4_Composition$C4.Amount.Live / C4_Composition$C4.Perc.Live
+						AnnGrass_Composition$Annual.Biomass <<- AnnGrass_Composition$Annual.Amount.Live / AnnGrass_Composition$Annual.Perc.Live
 					}
-					#adjust compositions for Temp
+
+					#adjust phenology for mean monthly temperatures
 					if(any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) {
 						growing.season <- monthly.temp >= growing.season.threshold.tempC
 						
 						if(i_SWRunInformation$Y_WGS84 < 0) growing.season <- c(growing.season[7:12], growing.season[1:6]) #Standard growing season needs to be adjusted for southern Hemi
-						#Assumes that the "growing season" in the above patterns starts in March and ends after September, for all functional groups.
-						#Take the average winter months values and store them back in rows with -%GS, skip if no Winter
-						if(sum(!growing.season)>0) {
+						
+						predict.season <- function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq){
+							sapply(apply(biomass_Standard, MARGIN=2, function(x) {lf<-loess(x[std.season.padded] ~ std.season.seq, span=0.4); predict(lf, newdata=data.frame(std.season.seq=site.season.seq) ) }), FUN=function(x) max(0, x)) # guarantee that > 0
+						}
+						
+						#Adjust for timing and duration of non-growing season
+						if(sum(!growing.season) > 0) {
 							if(sum(!growing.season) < 12) {
-								growing.season <- c(growing.season[7:12], growing.season[1:6])
-								shrubs_Composition <- rbind(shrubs_Composition[7:12,], shrubs_Composition[1:6,])
-								C3_Composition <- rbind(C3_Composition[7:12,], C3_Composition[1:6,])
-								C4_Composition <- rbind(C4_Composition[7:12,], C4_Composition[1:6,])
-								AnnGrass_Composition <- rbind(AnnGrass_Composition[7:12,], AnnGrass_Composition[1:6,])
+								std.winter.padded <- (c(std.winter[1] - 1, std.winter, std.winter[length(std.winter)] + 1) - 1) %% 12 + 1
+								std.winter.seq <- 0:(length(std.winter.padded) - 1)
+								site.winter.seq <- seq(from=1, to=length(std.winter), length=sum(!growing.season))
+								site.winter.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(!growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[length(temp3)] #Calculate first month of winter
+								site.winter.months <- (site.winter.start + 1:sum(!growing.season) - 2) %% 12 + 1
 								
-								shrubs_Composition[!growing.season,] <- sapply(apply(shrubs_Standard, MARGIN=2, function(x) { mx<-c(1:5); lf<-loess(x[c(10:12, 1:2)] ~ mx, enp.target=2, degree=1, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(!growing.season))*5/sum(!growing.season)) ) }), FUN=function(x) max(0, x))
-								C3_Composition[!growing.season,] <- sapply(apply(C3_Standard, MARGIN=2, function(x) { mx<-c(1:5); lf<-loess(x[c(10:12, 1:2)] ~ mx, enp.target=2, degree=1, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(!growing.season))*5/sum(!growing.season)) ) }), FUN=function(x) max(0, x))
-								C4_Composition[!growing.season,] <- sapply(apply(C4_Standard, MARGIN=2, function(x) { mx<-c(1:5); lf<-loess(x[c(10:12, 1:2)] ~ mx, enp.target=2, degree=1, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(!growing.season))*5/sum(!growing.season)) ) }), FUN=function(x) max(0, x))
-								AnnGrass_Composition[!growing.season,] <- sapply(apply(AnnGrass_Standard, MARGIN=2, function(x) { mx<-c(1:5); lf<-loess(x[c(10:12, 1:2)] ~ mx, enp.target=2, degree=1, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(!growing.season))*5/sum(!growing.season)) ) }), FUN=function(x) max(0, x))
-								
-								growing.season <- c(growing.season[7:12], growing.season[1:6])
-								shrubs_Composition <- rbind(shrubs_Composition[7:12,], shrubs_Composition[1:6,])
-								C3_Composition <- rbind(C3_Composition[7:12,], C3_Composition[1:6,])
-								C4_Composition <- rbind(C4_Composition[7:12,], C4_Composition[1:6,])
-								AnnGrass_Composition <- rbind(AnnGrass_Composition[7:12,], AnnGrass_Composition[1:6,])
-							} else {
+								shrubs_Composition[site.winter.months,] <- predict.season(shrubs_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
+								C3_Composition[site.winter.months,] <- predict.season(C3_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
+								C4_Composition[site.winter.months,] <- predict.season(C4_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
+								AnnGrass_Composition[site.winter.months,] <- predict.season(AnnGrass_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
+							
+							} else { #if winter lasts 12 months
 								#Take the mean of the winter months
-								shrubs_Composition[!growing.season,] <- matrix(mean(shrubs_Standard[c(1:2,10:12),]), nrow=sum(!growing.season), ncol=dim(shrubs_Composition)[2], byrow=TRUE)
-								C3_Composition[!growing.season,] <- matrix(mean(C3_Standard[c(1:2,10:12),]), nrow=sum(!growing.season), ncol=dim(C3_Composition)[2], byrow=TRUE)
-								C4_Composition[!growing.season,] <- matrix(mean(C4_Standard[c(1:2,10:12),]), nrow=sum(!growing.season), ncol=dim(C4_Composition)[2], byrow=TRUE)
-								AnnGrass_Composition[!growing.season,] <- matrix(mean(AnnGrass_Standard[c(1:2,10:12),]), nrow=sum(!growing.season), ncol=dim(AnnGrass_Composition)[2], byrow=TRUE)
+								shrubs_Composition[] <- matrix(mean(shrubs_Standard[std.winter,]), nrow=12, ncol=ncol(shrubs_Composition), byrow=TRUE)
+								C3_Composition[] <- matrix(mean(C3_Standard[std.winter,]), nrow=12, ncol=ncol(C3_Composition), byrow=TRUE)
+								C4_Composition[] <- matrix(mean(C4_Standard[std.winter,]), nrow=12, ncol=ncol(C4_Composition), byrow=TRUE)
+								AnnGrass_Composition[] <- matrix(mean(AnnGrass_Standard[std.winter,]), nrow=12, ncol=ncol(AnnGrass_Composition), byrow=TRUE)
 							}
 						}
+						
+						#Adjust for timing and duration of growing season
 						if(sum(growing.season)>0) {
-							#Then assign values (proportion of seasonal maximum) for litter, biomass and % live) to all growing season months using linear interpolation between months above.
-							#It seems that if growing months <= 2 then critical errors occur and exits, so going to add in a condition
 							if(sum(growing.season) < 12) {
-								shrubs_Composition[growing.season,] <- sapply(apply(shrubs_Standard, MARGIN=2, function(x) { mx<-c(1:7); lf<-loess(x[3:9] ~ mx, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(growing.season))*7/sum(growing.season)) ) }), FUN=function(x) max(0, x))
-								C3_Composition[growing.season,] <- sapply(apply(C3_Standard, MARGIN=2, function(x) { mx<-c(1:7); lf<-loess(x[3:9] ~ mx, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(growing.season))*7/sum(growing.season)) ) }), FUN=function(x) max(0, x))
-								C4_Composition[growing.season,] <- sapply(apply(C4_Standard, MARGIN=2, function(x) { mx<-c(1:7); lf<-loess(x[3:9] ~ mx, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(growing.season))*7/sum(growing.season)) ) }), FUN=function(x) max(0, x))
-								AnnGrass_Composition[growing.season,] <- sapply(apply(AnnGrass_Standard, MARGIN=2, function(x) { mx<-c(1:7); lf<-loess(x[3:9] ~ mx, control=loess.control(surface="direct")); predict(lf, newdata=data.frame( mx=(1:sum(growing.season))*7/sum(growing.season)) ) }), FUN=function(x) max(0, x))
-							} else {
-								shrubs_Composition[growing.season,] <- matrix(apply(shrubs_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=dim(shrubs_Composition)[2], byrow=TRUE)
-								C3_Composition[growing.season,] <- matrix(apply(C3_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=dim(C3_Composition)[2], byrow=TRUE)
-								C4_Composition[growing.season,] <- matrix(apply(C4_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=dim(C4_Composition)[2], byrow=TRUE)
-								AnnGrass_Composition[growing.season,] <- matrix(apply(AnnGrass_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=dim(AnnGrass_Composition)[2], byrow=TRUE)
+								std.growing.padded <- (c(std.growing[1] - 1, std.growing, std.growing[length(std.growing)] + 1) - 1) %% 12 + 1
+								std.growing.seq <- 0:(length(std.growing.padded) - 1)
+								site.growing.seq <- seq(from=1, to=length(std.growing), length=sum(growing.season))
+								site.growing.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[1] #Calculate first month of growing season
+								site.growing.months <- (site.growing.start + 1:sum(growing.season) - 2) %% 12 + 1
+								
+								shrubs_Composition[site.growing.months,] <- predict.season(shrubs_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
+								C3_Composition[site.growing.months,] <- predict.season(C3_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
+								C4_Composition[site.growing.months,] <- predict.season(C4_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
+								AnnGrass_Composition[site.growing.months,] <- predict.season(AnnGrass_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
+								
+							} else { #if growing season lasts 12 months
+								shrubs_Composition[] <- matrix(apply(shrubs_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(shrubs_Composition), byrow=TRUE)
+								C3_Composition[] <- matrix(apply(C3_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(C3_Composition), byrow=TRUE)
+								C4_Composition[] <- matrix(apply(C4_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(C4_Composition), byrow=TRUE)
+								AnnGrass_Composition[] <- matrix(apply(AnnGrass_Standard[3:9,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(AnnGrass_Composition), byrow=TRUE)
 							}
 						}
-						if(i_SWRunInformation$Y_WGS84 < 0) {
+						if(i_SWRunInformation$Y_WGS84 < 0) { #Adjustements were done as if on nothern hemisphere
 							shrubs_Composition <- rbind(shrubs_Composition[7:12,], shrubs_Composition[1:6,])
 							C3_Composition <- rbind(C3_Composition[7:12,], C3_Composition[1:6,])
 							C4_Composition <- rbind(C4_Composition[7:12,], C4_Composition[1:6,])
 							AnnGrass_Composition <- rbind(AnnGrass_Composition[7:12,], AnnGrass_Composition[1:6,])
 						}
-						if(!any(create_treatments == "AdjMonthlyBioMass_Precipitation") | !i_sw_input_treatments$AdjMonthlyBioMass_Precipitation){
-							#use MAP_mm as 450 for shrub & use MAP_mm 340 for grass
-							adjCompPPT(ShrubsMAP_mm = 450, GrassMAP_mm = 340)
+						if(!(any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation)){
+							adjCompPPT(ShrubsMAP_mm=StandardShrub_MAP_mm, GrassMAP_mm=StandardGrasses_MAP_mm)
 						}
 					}
-					#adjust compositions for PPT
-					if(any(create_treatments == "AdjMonthlyBioMass_Precipitation") && i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) {
-						#basic monthly biomass adjusted for productivity as a function of precipitation
-						#Use seasonal patterns above to estimate litter, total biomass, and live biomass from MAP, based on ANPP=f(MAP) patterns from Milchunas & Lauenroth 1993: Shrub ANPP = 0.393MAP -10.2, Grass ANPP = 0.646MAP - 102.5
-						#IF MAP_mm is below a point we will get negative numbers for Composition -> consider setting to small values or 0
-						#Need to Test
-						adjCompPPT(ShrubsMAP_mm = MAP_mm, GrassMAP_mm = MAP_mm)
+					
+					#Adjust biomass amounts by productivity relationship with MAP
+					if(any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) {
+						adjCompPPT(ShrubsMAP_mm=MAP_mm, GrassMAP_mm=MAP_mm)
 					}
-					#to prod
+					
+					#Write to prodin
 					infilename <- file.path(dir.sw.runs.sc.in[sc], prodin)
 					infiletext <- readLines(con = infilename)
-					#Assumed grass.c3.fractionG, grass.c4.fractionG, grass.Annual.fractionG are set
-					Grass_Composition <- C3_Composition*grass.c3.fractionG + C4_Composition*grass.c4.fractionG + AnnGrass_Composition*grass.Annual.fractionG
-					tempdat <- matrix(data=NA, nrow=12, ncol=4)
-					colnames(tempdat) <- c("litt", "biom", "live", "laiconv")
-					for (m in st_mo) {
-						vec <- (unlist(strsplit(infiletext[85 + m], split="[[:space:]]")))
-						tempdat[m, ]  <- as.numeric(vec[grep("[[:digit:]]", vec)])
+					
+					put.toProdinWithLaiconv <- function(biomass_Composition, startline, infiletext){
+						for (m in st_mo) {
+							vec <- (unlist(strsplit(infiletext[startline + m], split="[[:space:]]")))
+							laiconv  <- as.numeric(vec[grep("[[:digit:]]", vec)])[4] #Get laiconv from file
+							infiletext[startline + m] <- paste(paste(	format(biomass_Composition[m, grepl("Litter", names(biomass_Composition))], digits=1, nsmall=1),
+																		format(biomass_Composition[m, grepl("Biomass", names(biomass_Composition))], digits=1, nsmall=1),
+																		format(biomass_Composition[m, grepl("Perc.Live", names(biomass_Composition))], digits=1, nsmall=3),
+																		format(laiconv, digits=1, nsmall=0), sep="\t"), "\t# ", month.name[m], sep="")
+						}
+						return(infiletext)
 					}
-					tempdat[,1] <- Grass_Composition[,1]
-					tempdat[,2] <- Grass_Composition[,2]
-					tempdat[,3] <- Grass_Composition[,3]
-					for(m in st_mo){
-						infiletext[85 + m] <- paste(paste(format(tempdat[m, 1], digits=1, nsmall=1), format(tempdat[m, 2], digits=1, nsmall=1), format(tempdat[m, 3], digits=1, nsmall=3), format(tempdat[m, 4], digits=1, nsmall=0), sep="\t"), "\t# ", month.name[m], sep="")
-					}
-					for (m in st_mo) {
-						vec <- (unlist(strsplit(infiletext[100 + m], split="[[:space:]]")))
-						tempdat[m, ]  <- as.numeric(vec[grep("[[:digit:]]", vec)])
-					}
-					tempdat[,1] <- shrubs_Composition[,1]
-					tempdat[,2] <- shrubs_Composition[,2]
-					tempdat[,3] <- shrubs_Composition[,3]
-					for(m in st_mo) {
-						infiletext[100 + m] <- paste(paste(format(tempdat[m, 1], digits=1, nsmall=1), format(tempdat[m, 2], digits=1, nsmall=1), format(tempdat[m, 3], digits=1, nsmall=3), format(tempdat[m, 4], digits=1, nsmall=0), sep="\t"), "\t# ", month.name[m], sep="")
-					}
+					
+					Grass_Composition <- C3_Composition*grass.c3.fractionG + C4_Composition*grass.c4.fractionG + AnnGrass_Composition*grass.Annual.fractionG	#Assumed grass.c3.fractionG, grass.c4.fractionG, grass.Annual.fractionG are set
+					infiletext <- put.toProdinWithLaiconv(biomass_Composition=Grass_Composition, startline=85, infiletext)
+					infiletext <- put.toProdinWithLaiconv(biomass_Composition=shrubs_Composition, startline=100, infiletext)
+
 					infile <- file(infilename, "w+b")
 					writeLines(text = infiletext, con = infile, sep = "\n")
 					close(infile)
 				}
+				
 				#adjust Root Profile - need composition fractions set above
 				if(any(create_treatments == "AdjRootProfile") && i_sw_input_treatments$AdjRootProfile && any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
 					

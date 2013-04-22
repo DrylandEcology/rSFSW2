@@ -293,7 +293,7 @@ if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input
 	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients.csv"
 	trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities.csv"
-	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly.csv"
+	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
 
 #------Northern/Southern Hemisphere adjustments
