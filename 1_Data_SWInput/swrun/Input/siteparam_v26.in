@@ -68,7 +68,7 @@
 # layer: deepest layer number of the region. 
 #        Layers are defined in soils.in.
 # ndx    layer
-	1		6
-	2		9
-	3		11
+	1		2
+	2		4
+	3		6
 # 4		8
