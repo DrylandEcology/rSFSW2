@@ -270,7 +270,7 @@ if (source_input == "datafiles&treatments" ) {
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
-	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v13.csv"
+	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_Prj00_v01.csv"
 }
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input datafiles in the folder ./datafiles
