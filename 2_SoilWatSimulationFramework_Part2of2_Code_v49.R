@@ -194,6 +194,7 @@
 #		- (drs) in 'create' at the end of each scenario-loop: control that transpiration regions are within limits of adjusted soil depth and rooting depth
 #		- (drs) fixed 'makeInputForExperimentalDesign' & !makeOutputDB: parsing of the files was incorrect if separator was already used by text; added a (hopefully) unique 'ExpInput_Seperator'
 #		- (drs) generalized experimental design: structure of 'datafile.Experimentals' does no longer need to be a copy of the structure of 'datafile.treatments'; currently, experimental design could now cover any changes to sw_input_treatments, sw_input_site, and sw_input_soils
+#		- (drs) fixed concatenation: 'tempFiles_N' wasn't exported to nodes
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -5395,8 +5396,11 @@ if(length(seq.todo) > 0){
 			registerDoMC(num_cores)
 		}
 		
-		workersN <- foreach::getDoParWorkers()
-		if(identical(parallel_backend, "mpi")) workersN <- (mpi.comm.size() - 1)
+		if(identical(parallel_backend, "mpi")){
+			workersN <- (mpi.comm.size() - 1)
+		} else {
+			workersN <- foreach::getDoParWorkers()
+		}
 		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 	} else {
 		workersN <- 1
@@ -5727,13 +5731,13 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 	if(runs.completed == length(seq.todo) & any(actions=="aggregate") | identical(actions, "concatenate")){
 		if(parallel_runs){
 			#objects to export
-			list.export <- c("collect_ResultsWithTemporaryDataFrame", "resultfiles.toConcatenate", "getMatches", "theFileList", "seq.todo", "deleteTemporaryAggregationFiles", "seq.concats")
+			list.export <- c("collect_ResultsWithTemporaryDataFrame", "resultfiles.toConcatenate", "getMatches", "theFileList", "seq.todo", "deleteTemporaryAggregationFiles", "seq.concats", "tempFiles_N")
 			list.noexport <- (temp <- ls())[-match(list.export, temp, nomatch=0)]			
 			
 			if(identical(parallel_backend, "mpi")) {
 				exportObjects(list.export)
 				concats.completed <- mpi.parLapply(seq.concats, function(i) collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
-				concats.completed <- sum(unlist(concats.completed))
+				concats.completed <- sum(as.numeric(unlist(concats.completed)), na.rm=TRUE)
 			}
 			if(identical(parallel_backend, "snow")){
 				snow::clusterExport(cl, list.export)
