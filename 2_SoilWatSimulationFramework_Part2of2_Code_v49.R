@@ -198,6 +198,9 @@
 #		- (drs) fixed aggregation of 'input_VegetationPeak': 2nd column wasn't labelled correctly
 #		- (drs) output of functions circ.xxx (e.g., xxx = {mean, range, sd}) give now numeric result, instead of class circular; i.e., this caused some inadverted problems converting results to vectors
 #		- (drs) added to aggregation of 'yearlymonthlyTemperateDrylandIndices': indices based on climate normals in addition to mean±SD of time series
+#		- (drs) added columns for source information to datafile.cloud, which will be promoted to the cloudin file
+#		- (drs) function 'get.LookupSnowDensityFromTable' replaces months with NA or 0 with an estimate of density for freshly fallen snow
+#		- (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1106,10 +1109,15 @@ if(any(actions == "create")){
 			#extract data from table by category
 			sdcategories <- sw_input_treatments$LookupSnowDensityFromTable
 			snowd <- matrix(data=unlist(sapply(sdcategories, FUN=function(i) {tr_input_SnowD[which(rownames(tr_input_SnowD) == as.character(i)), st_mo]})), ncol=12, byrow=TRUE)
-		
+			notes <- data.frame(matrix(data=unlist(sapply(sdcategories, FUN=function(i) {tr_input_SnowD[which(rownames(tr_input_SnowD) == as.character(i)), 13:14]})), ncol=2, byrow=TRUE))
+			
+			#add fresh snow density during month of no or zero data
+			if(sum(itemp <- (is.na(snowd) | snowd == 0)) > 0) snowd[itemp] <- 76 #76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
+			
 			#add data to sw_input_cloud and set the use flags
 			sw_input_cloud_use[i.temp <- grepl(pattern="snowd", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[, i.temp] <- snowd
+			sw_input_cloud[, i.temp][st_mo] <- snowd
+			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- c(notes[1], paste(sdcategories, "in", notes[2]))
 			
 			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
 		}
@@ -1934,9 +1942,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				i_sw_input_soils <- tempdat$sw_input_soils
 			}
 			if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) {
-				tempdat <- get.LookupSnowDensityFromTable(sdcategories=sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud)
+				tempdat <- get.LookupSnowDensityFromTable(sdcategories=i_sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud)
 				sw_input_cloud_use <- tempdat$sw_input_cloud_use
-				sw_input_cloud <- tempdat$sw_input_cloud
+				i_sw_input_cloud <- tempdat$sw_input_cloud
 			} 
 				
 			#Treatment chunks
@@ -2030,21 +2038,24 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#sky cover
 				if(sum(sw_input_cloud_use[grepl(pattern="SkyC", x=names(sw_input_cloud_use))]) > 0) {
 					sky <- with(i_sw_input_cloud, data.frame(SkyC_1, SkyC_2, SkyC_3, SkyC_4, SkyC_5, SkyC_6, SkyC_7, SkyC_8, SkyC_9, SkyC_10, SkyC_11, SkyC_12))
-					infiletext[1] <- paste(do.call("paste", as.list(format(as.double(sky), nsmall=1), sep="\t")), "\t# (site:", i_labels, "), sky cover (sunrise-sunset),%,Climate Atlas of the US,http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl", sep="\t")
+					infiletext[1] <- paste(do.call("paste", as.list(round(as.double(sky), 0), sep="\t")), "\t# (site:", i_labels, "), percentage of sky cover (sunrise-sunset).", i_sw_input_cloud$SkyC_Source, sep="\t")
 				}
 				#wind speed
 				if(sum(sw_input_cloud_use[grepl(pattern="wind", x=names(sw_input_cloud_use))]) > 0 | do.wind) {
-					infiletext[2] <- paste(do.call("paste", as.list(format(as.double(wind), nsmall=1), sep="\t")), "\t# Wind speed (m/s) at 2-m above ground, Climate Atlas of the US,http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl", sep="\t")
+					infiletext[2] <- paste(do.call("paste", as.list(round(as.double(wind), 2), sep="\t")), "\t# Wind speed (m/s) at 2-m above ground.", ifelse(do.wind, paste("converted from", datafile.windspeedAtHeightAboveGround, "m."), ""), i_sw_input_cloud$Wind_Source, sep="\t")
 				}
 				#relative humidity
 				if(sum(sw_input_cloud_use[grepl(pattern="RH", x=names(sw_input_cloud_use))]) > 0) {
 					rh <- with(i_sw_input_cloud, data.frame(RH_1, RH_2, RH_3, RH_4, RH_5, RH_6, RH_7, RH_8, RH_9, RH_10, RH_11, RH_12))
-					infiletext[3] <- paste(do.call("paste", as.list(format(as.double(rh), nsmall=1), sep="\t")), "\t# rel. Humidity (%),Climate Atlas of the US,http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl", sep="\t")
+					infiletext[3] <- paste(do.call("paste", as.list(round(as.double(rh), 0), sep="\t")), "\t# rel. Humidity (%).", i_sw_input_cloud$RH_Source, sep="\t")
 				}
 				#snow density
 				if(sum(sw_input_cloud_use[grepl(pattern="snowd", x=names(sw_input_cloud_use))]) > 0) {
 					snowd <- with(i_sw_input_cloud, data.frame(snowd_1, snowd_2, snowd_3, snowd_4, snowd_5, snowd_6, snowd_7, snowd_8, snowd_9, snowd_10, snowd_11, snowd_12))
-					infiletext[5] <- paste(do.call("paste", as.list(format(as.double(snowd), nsmall=1), sep="\t")), "\t# snow density (kg/m3): Brown, R. D. and P. W. Mote. 2009. The response of Northern Hemisphere snow cover to a changing climate. Journal of Climate 22:2124-2145.", sep="\t")
+					if(i_SWRunInformation$Y_WGS84 < 0 && i_sw_input_cloud$SnowD_Hemisphere == "N" || i_SWRunInformation$Y_WGS84 > 0 && i_sw_input_cloud$SnowD_Hemisphere == "S"){	#adjust for hemisphere only if location and data are opposite
+						snowd <- c(snowd[7:12], snowd[1:6])
+					}
+					infiletext[5] <- paste(do.call("paste", as.list(round(as.double(snowd), 1), sep="\t")), "\t# snow density (kg/m3). ", i_sw_input_cloud$SnowD_Source, sep="\t")
 				}
 				
 				infile <- file(infilename, "w+b")
