@@ -195,6 +195,8 @@
 #		- (drs) fixed 'makeInputForExperimentalDesign' & !makeOutputDB: parsing of the files was incorrect if separator was already used by text; added a (hopefully) unique 'ExpInput_Seperator'
 #		- (drs) generalized experimental design: structure of 'datafile.Experimentals' does no longer need to be a copy of the structure of 'datafile.treatments'; currently, experimental design could now cover any changes to sw_input_treatments, sw_input_site, and sw_input_soils
 #		- (drs) fixed concatenation: 'tempFiles_N' wasn't exported to nodes
+#		- (drs) fixed aggretion 'input_VegetationPeak': 2nd column wasn't labelled correctly
+#		- (drs) output of functions circ.xxx (e.g., xxx = {mean, range, sd}) give now numeric result, instead of class circular; i.e., this caused some inadverted problems converting results to vectors
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -680,7 +682,7 @@ circ.mean = function(x, int, na.rm=FALSE){
 	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 	x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
 	rm(circ, x.circ)
-	return(x.int)
+	return(as.numeric(x.int))
 }
 circ.range = function(x, int, na.rm=FALSE) {
 	require(circular)
@@ -689,7 +691,7 @@ circ.range = function(x, int, na.rm=FALSE) {
 	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 	x.int <- range(x.circ, na.rm=na.rm) / circ
 	rm(circ, x.circ)
-	return(x.int)
+	return(as.numeric(x.int))
 }
 circ.sd = function(x, int, na.rm=FALSE){
 	require(circular)
@@ -698,7 +700,7 @@ circ.sd = function(x, int, na.rm=FALSE){
 	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 	x.int <- sd.circular(x.circ, na.rm=na.rm) / circ
 	rm(circ, x.circ)
-	return(x.int)
+	return(as.numeric(x.int))
 }
 
 
@@ -3052,6 +3054,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				close(infile)
 			}	
 		}
+		
 #------------------------EXECUTE SOILWAT
 		if( todo$execute ){
 			if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient) {
@@ -3430,12 +3433,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								tempdat[m, j]  <- vec[1] * vec[2]
 							}
 						}
-						sumWeightedLiveBiomassByMonth<-apply(sweep(tempdat, MARGIN=2, fracs, FUN="*"), MARGIN=1, function(x) sum(x)) #sweep out fractionals, and sum over rows
-						maxMonth<-which(sumWeightedLiveBiomassByMonth==max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
+						sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN=2, fracs, FUN="*"), MARGIN=1, function(x) sum(x)) #sweep out fractionals, and sum over rows
+						maxMonth <- which(sumWeightedLiveBiomassByMonth==max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
 						meanPeakMonth <- circ.mean(maxMonth, 12)
 						duration <- circ.range(maxMonth, 12)+1
 						res[nv:(nv+1)] <- c(meanPeakMonth, duration) #just in case we get more then one month
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv] <- c("SWinput_PeakLiveBiomass_Month_mean","PeakLiveBiomass_duration")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("SWinput_PeakLiveBiomass_Month_mean","SWinput_PeakLiveBiomass_Month_duration")
 						nv <- nv+2
 					}
 					
