@@ -195,8 +195,9 @@
 #		- (drs) fixed 'makeInputForExperimentalDesign' & !makeOutputDB: parsing of the files was incorrect if separator was already used by text; added a (hopefully) unique 'ExpInput_Seperator'
 #		- (drs) generalized experimental design: structure of 'datafile.Experimentals' does no longer need to be a copy of the structure of 'datafile.treatments'; currently, experimental design could now cover any changes to sw_input_treatments, sw_input_site, and sw_input_soils
 #		- (drs) fixed concatenation: 'tempFiles_N' wasn't exported to nodes
-#		- (drs) fixed aggretion 'input_VegetationPeak': 2nd column wasn't labelled correctly
+#		- (drs) fixed aggregation of 'input_VegetationPeak': 2nd column wasn't labelled correctly
 #		- (drs) output of functions circ.xxx (e.g., xxx = {mean, range, sd}) give now numeric result, instead of class circular; i.e., this caused some inadverted problems converting results to vectors
+#		- (drs) added to aggregation of 'yearlymonthlyTemperateDrylandIndices': indices based on climate normals in addition to mean±SD of time series
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -291,7 +292,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 612 + (135*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 615 + (135*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -3524,16 +3525,23 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(!exists("PET.yr")) PET.yr <- get_PET_yr(dir.sw.runs.sc.out[sc])
 						if(!exists("temp.mo")) temp.mo <- get_Temp_mo(dir.sw.runs.sc.out[sc])
 						
-						ai <- prcp.yr$ppt/PET.yr$val	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
-						TD <- ifelse((temp <- apply(matrix(data=temp.mo$mean, ncol=12, byrow=TRUE), MARGIN=1, FUN=function(x) sum(x >= 10))) >= 4 & temp < 8, 1, 0) #Trewartha & Horn 1980, page 284: temperate areas
-						criteria12 <- ifelse(TD == 1 & ai < 0.5, 1, 0)
+						get.drylandindices <- function(annualPPT, annualPET, monthlyTemp){
+							ai <- annualPPT/annualPET	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+							TD <- ifelse((temp <- apply(matrix(data=monthlyTemp, ncol=12, byrow=TRUE), MARGIN=1, FUN=function(x) sum(x >= 10))) >= 4 & temp < 8, 1, 0) #Trewartha & Horn 1980, page 284: temperate areas
+							criteria12 <- ifelse(TD == 1 & ai < 0.5, 1, 0)
+							
+							return(list(ai=ai, TD=TD, criteria12=criteria12))
+						}
 						
-						res[nv:(nv+5)] <- c(apply(temp <- cbind(ai, TD, criteria12), MARGIN=2, FUN=mean, na.rm=TRUE), apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE))
+						di.ts <- get.drylandindices(annualPPT=prcp.yr$ppt, annualPET=PET.yr$val, monthlyTemp=temp.mo$mean)
+						di.normals <- get.drylandindices(annualPPT=mean(prcp.yr$ppt), annualPET=mean(PET.yr$val), monthlyTemp=aggregate(temp.mo$mean, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)$x)
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+5)] <- c(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), paste(temp, ".sd", sep=""))
-						nv <- nv+6
+						res[nv:(nv+8)] <- c(unlist(di.normals), apply(temp <- cbind(di.ts$ai, di.ts$TD, di.ts$criteria12), MARGIN=2, FUN=mean, na.rm=TRUE), apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE))
 						
-						rm(ai, TD, criteria12)
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+8)] <- c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".normals", sep=""), paste(temp, "_Annual.mean", sep=""), paste(temp, "_Annual.sd", sep=""))
+						nv <- nv+9
+						
+						rm(di.ts, di.normals)
 					}
 					
 					if(any(simulation_timescales=="monthly") & aon$monthlyPlantGrowthControls){	#Nemani RR, Keeling CD, Hashimoto H et al. (2003) Climate-Driven Increases in Global Terrestrial Net Primary Production from 1982 to 1999. Science, 300, 1560-1563.
