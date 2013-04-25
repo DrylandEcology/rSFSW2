@@ -201,6 +201,7 @@
 #		- (drs) added columns for source information to datafile.cloud, which will be promoted to the cloudin file
 #		- (drs) function 'get.LookupSnowDensityFromTable' replaces months with NA or 0 with an estimate of density for freshly fallen snow
 #		- (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
+#		- (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -5086,10 +5087,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 									agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
 								}
 								if(agg.resp == "EvaporationTotal"){
-									agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum) + temp2[simTime$index.usedy, 3]
+									if((colN <- ncol(temp1)) > 3){
+										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:colN], 1, sum) + temp2[simTime$index.usedy, 3]
+									} else {
+										agg.dat[[1]] <- temp1[simTime$index.usedy, 3] + temp2[simTime$index.usedy, 3]
+									}
 								}
 								if(agg.resp == "EvaporationSoil"){
-									agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum)
+									if((colN <- ncol(temp1)) > 3){
+										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:colN], 1, sum)
+									} else {
+										agg.dat[[1]] <- temp1[simTime$index.usedy, 3]
+									}
 								}
 							} else {#deal with soil layers: either each or 1-4 aggregated soil layers
 								if( any(!is.na(match(agg.resp, c("VWC", "SWP", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
