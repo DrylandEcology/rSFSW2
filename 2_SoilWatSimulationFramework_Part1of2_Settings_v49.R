@@ -173,7 +173,7 @@ if(exists("use_janus")) {
 } else if(!exists("use_janus")) {
 	num_cores <- 10
 	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
-	parallel_runs <- FALSE
+	parallel_runs <- TRUE
 }
 
 #--------------------------------------------------------------------------------------------------#
@@ -267,24 +267,22 @@ ensemble.quantiles <- c(1.5/16, 0.5, 15/16)  #if(!is.null(ensemble.families)) th
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v10.csv"
 if (source_input == "datafiles&treatments" ) {
-	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
-	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
-	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_v9.csv"
-	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v13.csv"
+	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
+	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
+	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_Prj00_v01.csv"
 }
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v10.csv"
-	#datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
-	datafile.cloud <- "SWRuns_InputData_cloud_v9_withFAO24sunshine.csv"
+	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
+	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
 	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	#datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
-	#datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
-	#datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input files in sub-folders ./treatments
@@ -294,8 +292,8 @@ if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input
 	trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
 	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients.csv"
 	trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
-	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities.csv"
-	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly.csv"
+	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
+	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
 
 #------Northern/Southern Hemisphere adjustments

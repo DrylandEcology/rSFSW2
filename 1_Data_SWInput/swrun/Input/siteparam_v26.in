@@ -26,19 +26,19 @@
 # ---- Evaporation coefficients ----
 # These control the tangent function (tanfunc) which affects the amount of soil 
 # water extractable by evaporation and transpiration.
-# These constants aren't documented by the ELM doc.
-15.          # rate shift (x value of inflection point).  lower value shifts curve 
+# These constants aren't documented by the ELM doc. 20130404 (drs): new values fitted
+45.          # rate shift (x value of inflection point).  lower value shifts curve 
              # leftward, meaning less water lost to evap at a given swp.  effectively
              # shortens/extends high rate.
-.06          # rate slope: lower value (eg .01) straightens S shape meaning more gradual 
+.1          # rate slope: lower value (eg .01) straightens S shape meaning more gradual 
              # reduction effect; higher value (.5) makes abrupt transition
-.5           # inflection point (y-value of inflection point)
-1.1          # range: diff btw upper and lower rates at the limits
+.25           # inflection point (y-value of inflection point)
+0.5          # range: diff btw upper and lower rates at the limits
 
 # ---- Transpiration Coefficients ----
-# comments from Evap constants apply.
-28.          # rate shift
-.07          # rate shape
+# comments from Evap constants apply. 20130404 (drs): new values fitted
+45.          # rate shift
+.1          # rate shape
 .5          # inflection point
 1.1          # range
 
@@ -68,7 +68,7 @@
 # layer: deepest layer number of the region. 
 #        Layers are defined in soils.in.
 # ndx    layer
-	1		6
-	2		9
-	3		11
+	1		2
+	2		4
+	3		6
 # 4		8
