@@ -202,6 +202,7 @@
 #		- (drs) function 'get.LookupSnowDensityFromTable' replaces months with NA or 0 with an estimate of density for freshly fallen snow
 #		- (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
 #		- (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
+#		- (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1619,7 +1620,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #-----------------------Check for experimentals
 	if(trowExperimentals > 0 && length(create_experimentals) > 0) {
 		i_exp <- (i - 1) %/% runs + 1	#first cycle through all sites (seq.tr), then repeat sites and cycle through trowExperimentals
-		i_labels <- paste(formatC(i, width=ceiling(log10(length(seq.todo) + 1)), format = "d", flag="0"), sw_input_experimentals[i_exp,1], i_labels, sep="_")
+		i_labels <- paste(formatC(i, width=ceiling(log10(runsN.todo + 1)), format = "d", flag="0"), sw_input_experimentals[i_exp,1], i_labels, sep="_")
 				
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 		#these columns of the experimental design replace information in the treatment design
@@ -5199,7 +5200,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#ETA estimation
 		dt <- difftime(Sys.time(), time.sys, units="secs")
 		times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
-		if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/length(seq.todo)*100, 2), "% complete, ETA =", Sys.time()+ceiling((length(seq.todo)-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
+		if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
 		write.table(dt, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE)
 		
 #	} #end if Include_YN
@@ -5383,10 +5384,11 @@ work <- function(parallel_backend, Data) {
 
 #identify which SoilWat-runs = rows are to be carried out
 seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
-seq.todo <- 1:(runs * ifelse(trowExperimentals==0, 1, trowExperimentals)) # consecutive number of all (tr x exp) simulations to be executed
+seq.todo <- 1:(runs * ifelse(trowExperimentals > 0, trowExperimentals, 1)) # consecutive number of all (tr x exp) simulations to be executed
+runsN.todo <- length(seq.todo)
 
 #parallelization
-if(length(seq.todo) > 0){
+if(runsN.todo > 0){
 	if(parallel_runs){
 		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
 		if(identical(parallel_backend, "mpi")) {
@@ -5437,7 +5439,7 @@ if(length(seq.todo) > 0){
 	}
 }
 
-if(!identical(actions, "concatenate") & length(seq.todo) > 0){
+if(!identical(actions, "concatenate") & runsN.todo > 0){
 	ifirst <- seq.todo[1]
 	
 	#objects to export
@@ -5445,7 +5447,7 @@ if(!identical(actions, "concatenate") & length(seq.todo) > 0){
 	list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
 	
 	#ETA calculation
-	if(!be.quiet) print(paste(length(seq.todo), "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), "simulation runs will be carried out on", workersN, "cores, started at", Sys.time()))
+	if(!be.quiet) print(paste(runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), "simulation runs will be carried out on", workersN, "cores, started at", Sys.time()))
 	
 	if(parallel_runs){
 		#call the simulations depending on parallel backend
@@ -5468,7 +5470,7 @@ if(!identical(actions, "concatenate") & length(seq.todo) > 0){
 				if (tag == 1) {
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
-					if (runs.completed < length(seq.todo)) {
+					if (runs.completed < runsN.todo) {
 						# Send a task, and then remove it from the task list
 						i_tr <- seq.tr[(1+runs.completed - 1) %% runs + 1]
 						i_labels <- labels[i_tr]
@@ -5585,7 +5587,7 @@ if(!be.quiet & checkCompleteness) print(paste("timing check =", round(delta.chec
 #--------------------------------------------------------------------------------------------------#
 #------------------------COLLECT AND CONCATENATE SINGLE RESULT FILES INTO FINAL OUTPUT FILES
 t.concatenation <- Sys.time()	#timing of file concatenation
-if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.todo) & !makeOutputDB){
+if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !makeOutputDB){
 	
 	#collect and concatenate results into files: read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
 	collect_ResultsWithTemporaryDataFrame <- function(resultfile, filelist, col.names=TRUE, cleanup=FALSE){
@@ -5637,15 +5639,14 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 	resultfiles.toConcatenate <- c(unlist(resultfiles.Aggregates))
 	if(any(simulation_timescales=="daily") & daily_no > 0) resultfiles.toConcatenate <- c(resultfiles.toConcatenate, unlist(resultfiles.dailyMean), unlist(resultfiles.dailySD))
 	seq.concats <- 1:length(resultfiles.toConcatenate)
-	count.AllConcats <- length(resultfiles.toConcatenate) + exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature + exinfo$EstimateInitialSoilTemperatureForEachSoilLayer + makeInputForExperimentalDesign
+	count.AllConcats <- length(resultfiles.toConcatenate) + exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature + exinfo$EstimateInitialSoilTemperatureForEachSoilLayer + ifelse(trowExperimentals > 0, makeInputForExperimentalDesign, 0)
 	
 	#Compile list of temporary output files to concatenate
 	checkList.theFileList <- list.files(path=dir.out, recursive=FALSE)
 	do.theFileList.create <- TRUE
-	tempFiles_N <- runs * ifelse(trowExperimentals > 0, trowExperimentals, 1)
 	if(filename.theFileList %in% checkList.theFileList){
 		theFileList <- read.csv(file=file.path(dir.out, filename.theFileList), colClasses="character")[, 1]
-		if(length(theFileList) != tempFiles_N * count.AllConcats){#file on disk is incorrect
+		if(length(theFileList) != runsN.todo * count.AllConcats){#file on disk is incorrect
 			if(!be.quiet) print("TheFileList on disk contains an unexpected number of files. TheFileList will be recreated.")
 			file.rename(from=file.path(dir.out, filename.theFileList), to=file.path(dir.out, sub(".csv", "_old.csv", filename.theFileList)))
 		} else {
@@ -5656,24 +5657,24 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 		theFileList <- list.files(path=dir.out.temp, full.names=TRUE, recursive=TRUE, include.dirs=FALSE)
 		write.csv(theFileList, file=file.path(dir.out, filename.theFileList), row.names=FALSE)
 	}
-	if(length(theFileList) != tempFiles_N * count.AllConcats)#theFileList is incorrect
+	if(length(theFileList) != runsN.todo * count.AllConcats)#theFileList is incorrect
 		if(!be.quiet) print("TheFileList contains an unexpected number of files. Not all concatenations will be successful.")
 	
 	#Concatenate
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
-		ExpInputFiles <- getMatches(filelist=theFileList, pattern="Experimental_InputData_All.csv", targetN=length(seq.todo))
+		ExpInputFiles <- getMatches(filelist=theFileList, pattern="Experimental_InputData_All.csv", targetN=runsN.todo)
 		print(paste("Experimental Input Data: concatenation started at", Sys.time()))
 		
-		SWRunInformation <- matrix(data="", nrow=length(seq.todo), ncol=ncol(SWRunInformation), dimnames = list(NULL, colnames(SWRunInformation)))
-		sw_input_soillayers <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_soillayers), dimnames = list(NULL, colnames(sw_input_soillayers)))
-		sw_input_treatments <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_treatments), dimnames = list(NULL, colnames(sw_input_treatments)))
-		sw_input_cloud <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_cloud), dimnames = list(NULL, colnames(sw_input_cloud)))
-		sw_input_prod <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_prod), dimnames = list(NULL, colnames(sw_input_prod)))
-		sw_input_site <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_site), dimnames = list(NULL, colnames(sw_input_site)))
-		sw_input_soils <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_soils), dimnames = list(NULL, colnames(sw_input_soils)))
-		sw_input_weather <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_weather), dimnames = list(NULL, colnames(sw_input_weather)))
-		sw_input_climscen <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_climscen), dimnames = list(NULL, colnames(sw_input_climscen)))
-		sw_input_climscen_values <-  matrix(data="", nrow=length(seq.todo), ncol=ncol(sw_input_climscen_values), dimnames = list(NULL, colnames(sw_input_climscen_values)))
+		SWRunInformation <- matrix(data="", nrow=runsN.todo, ncol=ncol(SWRunInformation), dimnames = list(NULL, colnames(SWRunInformation)))
+		sw_input_soillayers <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_soillayers), dimnames = list(NULL, colnames(sw_input_soillayers)))
+		sw_input_treatments <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_treatments), dimnames = list(NULL, colnames(sw_input_treatments)))
+		sw_input_cloud <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_cloud), dimnames = list(NULL, colnames(sw_input_cloud)))
+		sw_input_prod <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_prod), dimnames = list(NULL, colnames(sw_input_prod)))
+		sw_input_site <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_site), dimnames = list(NULL, colnames(sw_input_site)))
+		sw_input_soils <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_soils), dimnames = list(NULL, colnames(sw_input_soils)))
+		sw_input_weather <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_weather), dimnames = list(NULL, colnames(sw_input_weather)))
+		sw_input_climscen <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_climscen), dimnames = list(NULL, colnames(sw_input_climscen)))
+		sw_input_climscen_values <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_climscen_values), dimnames = list(NULL, colnames(sw_input_climscen_values)))
 		
 		for(i in 1:length(ExpInputFiles)) {
 			infilename <- file.path(ExpInputFiles[i])
@@ -5704,7 +5705,7 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 	}
 #	if(!makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
 #		if(any(create_experimentals == "LookupEvapCoeffFromTable") | any(create_experimentals == "LookupTranspRegionsFromTable")) {
-#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.soils, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.soils, sep=""), targetN=length(seq.todo)), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.soils, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.soils, sep=""), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 #			if(try.cat > 0){
 #				sw_input_soils <- read.csv(temp)
 #				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
@@ -5713,7 +5714,7 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 #			}
 #		}
 #		if(any(create_experimentals == "LookupSnowDensityFromTable")) {
-#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.cloud, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.cloud, sep=""), targetN=length(seq.todo)), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.cloud, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.cloud, sep=""), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 #			if(try.cat > 0){
 #				sw_input_cloud <- read.csv(temp)
 #				tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
@@ -5722,8 +5723,8 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 #			}
 #		}
 #	}
-	if(trowExperimentals == 0 && runs.completed == length(seq.todo) && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
-		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
+		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){
 			temp.soilT <- read.csv(temp.file)
 			try(file.remove(temp.file), silent=TRUE)
@@ -5739,8 +5740,8 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 		}
 	}
 	
-	if(trowExperimentals == 0 && runs.completed == length(seq.todo) && exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){#store initial soil temperature into datafile
-		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_InitProfile.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_InitProfile", targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){#store initial soil temperature into datafile
+		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_InitProfile.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_InitProfile", targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){
 			temp.soilT <- read.csv(temp.file)
 			try(file.remove(temp.file), silent=TRUE)
@@ -5758,26 +5759,26 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 		}
 	}
 	
-	if(runs.completed == length(seq.todo) & any(actions=="aggregate") | identical(actions, "concatenate")){
+	if(runs.completed == runsN.todo & any(actions=="aggregate") | identical(actions, "concatenate")){
 		if(parallel_runs){
 			#objects to export
-			list.export <- c("collect_ResultsWithTemporaryDataFrame", "resultfiles.toConcatenate", "getMatches", "theFileList", "seq.todo", "deleteTemporaryAggregationFiles", "seq.concats", "tempFiles_N")
+			list.export <- c("collect_ResultsWithTemporaryDataFrame", "resultfiles.toConcatenate", "getMatches", "theFileList", "deleteTemporaryAggregationFiles", "seq.concats", "runsN.todo")
 			list.noexport <- (temp <- ls())[-match(list.export, temp, nomatch=0)]			
 			
 			if(identical(parallel_backend, "mpi")) {
 				exportObjects(list.export)
-				concats.completed <- mpi.parLapply(seq.concats, function(i) collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
+				concats.completed <- mpi.parLapply(seq.concats, function(i) collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
 				concats.completed <- sum(as.numeric(unlist(concats.completed)), na.rm=TRUE)
 			}
 			if(identical(parallel_backend, "snow")){
 				snow::clusterExport(cl, list.export)
-				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 			}
 			if(identical(parallel_backend, "multicore")){
-				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 			}
 		} else {
-			concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=tempFiles_N), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+			concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		}
 		
 		if(concats.completed != length(resultfiles.toConcatenate)) print(paste("Not all concatenations were successful:", concats.completed, "instead of", length(resultfiles.toConcatenate)))
@@ -5876,8 +5877,8 @@ if(any(actions=="concatenate") & all.complete & runs.completed == length(seq.tod
 		}
 		
 		
-	} else if(runs.completed != length(seq.todo)){
-		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", length(seq.todo)))
+	} else if(runs.completed != runsN.todo){
+		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", runsN.todo))
 	}
 	if(!be.quiet) print(paste("Aggregated output files completed"))
 }
