@@ -22,3 +22,7 @@ i_sw_input_weather <- sw_input_weather[i_tr, ]
 i_sw_input_climscen <- sw_input_climscen[i_tr, ]
 i_sw_input_climscen_values <- sw_input_climscen_values[i_tr, ]
 
+runs.completed <- length(seq.todo)
+complete.aggregations <- TRUE
+
+concats.completed <- length(seq.concats)

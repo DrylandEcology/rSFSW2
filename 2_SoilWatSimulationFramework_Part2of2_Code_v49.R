@@ -205,6 +205,8 @@
 #		- (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
 #		- (drs) fixed bug in ensembles.maker$outputs (wrong dimensions) and created a own section for do.ensembles with timing, pulling together the version for temporary files and the one with the MPI-based sql-database
 #		- (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
+#		- (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
+#		- (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2879,14 +2881,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					infiletext <- readLines(con = infilename)
 					if(is.na(Grass.trco)) Grass.trco <- rep(0, soilsin.firstDataLine:length(infiletext))
 					#get the values and sub new grass trco values in
-					vec <- matrix(data=0, nrow=SoilLayer_MaxNo, ncol=12)
-					colnames(vec) <- c("depth", "bulkd",   "fieldc",   "wiltpt",  "evco",  "trco_grass",	"trco_shrub",  "trco_tree", "Perc.sand",  "Perc.clay", "imperm", "soiltemp")
+					tempdat <- matrix(data=0, nrow=SoilLayer_MaxNo, ncol=12)
+					colnames(tempdat) <- c("depth", "bulkd",   "fieldc",   "wiltpt",  "evco",  "trco_grass",	"trco_shrub",  "trco_tree", "Perc.sand",  "Perc.clay", "imperm", "soiltemp")
 					for (l in soilsin.firstDataLine:(length(infiletext))){
-						vec[(l+1)-soilsin.firstDataLine,] <- na.exclude(as.numeric((unlist(strsplit(infiletext[l], split="[[:space:]]")))))
-						vec[(l+1)-soilsin.firstDataLine,6] <- format(Grass.trco[(l+1)-soilsin.firstDataLine], digits=1, nsmall=4)
-						vec[(l+1)-soilsin.firstDataLine,7] <- format(Shrub.trco[(l+1)-soilsin.firstDataLine], digits=1, nsmall=4)
-						vec[(l+1)-soilsin.firstDataLine,8] <- format(Tree.trco[(l+1)-soilsin.firstDataLine], digits=1, nsmall=4)
-						infiletext[l] <- paste(vec[(l+1)-soilsin.firstDataLine, ], collapse="\t")
+						tempdat[(l+1)-soilsin.firstDataLine,] <- na.exclude(as.numeric((unlist(strsplit(infiletext[l], split="[[:space:]]")))))
+						tempdat[(l+1)-soilsin.firstDataLine,6] <- Grass.trco[(l+1)-soilsin.firstDataLine]
+						tempdat[(l+1)-soilsin.firstDataLine,7] <- Shrub.trco[(l+1)-soilsin.firstDataLine]
+						tempdat[(l+1)-soilsin.firstDataLine,8] <- Tree.trco[(l+1)-soilsin.firstDataLine]
+						infiletext[l] <- paste(formatC(tempdat[l-soilsin.firstDataLine+1,1], digits=0, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,2], digits=2, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,3], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,4], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,5], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,6], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,7], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,8], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,9], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,10], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,11], digits=4, format="f"), formatC(tempdat[l-soilsin.firstDataLine+1,12], digits=4, format="f"), sep="\t")
 					}
 					#write results back out
 					infile <- file(infilename, "w+b")
@@ -5113,14 +5115,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							} else {#deal with soil layers: either each or 1-4 aggregated soil layers
 								if( any(!is.na(match(agg.resp, c("VWC", "SWP", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
 									agg.agg <- weighted.mean
-									agg.w <- layers_width[aggLs[[al]]]
+									agg.w <- layers_width
 								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWC", "SWA")))) ){#aggregate by simple functions
 									agg.agg <- sum
-									agg.w <- 0
+									agg.w <- rep(0, times=length(layers_width))
 								}
 								for(al in 1:aggLs_no){
 									if(length(aggLs[[al]]) > 1) {
-										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w)
+										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w[aggLs[[al]]])
 									} else {
 										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
 											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
