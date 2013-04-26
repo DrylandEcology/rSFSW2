@@ -173,7 +173,7 @@ if(exists("use_janus")) {
 } else if(!exists("use_janus")) {
 	num_cores <- 10
 	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
-	parallel_runs <- TRUE
+	parallel_runs <- FALSE
 }
 
 #--------------------------------------------------------------------------------------------------#
@@ -185,15 +185,15 @@ if(exists("use_janus")) {
 	print(paste("dir.prj:", dir.prj))
 } else {
 	#parent folder of simulation project
-	dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
-	dir.prj <- "/Volumes/Macintosh_HD_2/ryan_workspace/Projects/7_PC_TemperateArid_SWSF_SimulationTemplate03152013"
+	#dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
+	#dir.prj <- "/Volumes/Macintosh_HD_2/ryan_workspace/Projects/7_PC_TemperateArid_SWSF_SimulationTemplate03152013"
 	#dir.prj <- "~/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
-	#dir.prj <- "/Users/lauenrothslabimac01/Desktop/Ryan/7_PC_TemperateArid_SWSF_SimulationTemplate"
+	dir.prj <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
 	#dir.prj <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
 	#parent folder containing all SoilWat runs (=each run is each in one sub-folder)
-	dir.runs <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
+	#dir.runs <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
 	#dir.runs <- "/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
-	#dir.runs <- "/Users/lauenrothslabimac01/Desktop/Ryan/7_PC_TemperateArid_SWSF_SimulationTemplate"
+	dir.runs <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
 	#dir.runs <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
 }
 #parent folder containing external data
@@ -267,22 +267,24 @@ ensemble.quantiles <- c(1.5/16, 0.5, 15/16)  #if(!is.null(ensemble.families)) th
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v10.csv"
 if (source_input == "datafiles&treatments" ) {
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_v9.csv"
 	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v13.csv"
 	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_Prj00_v01.csv"
 }
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v10.csv"
-	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
+	#datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v9_withFAO24sunshine.csv"
 	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input files in sub-folders ./treatments

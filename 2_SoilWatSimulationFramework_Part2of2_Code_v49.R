@@ -3011,6 +3011,7 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 			for (sc in Exclude_ClimateAmbient:scenario_No){
 				
 				setwd(dir.sw.runs.sc[sc])
+				try(system("chmod +x sw_v27"))
 				try(system(paste("./", shQuote(sw), " ", cmd, sep="")))
 				if(sw.outputs == ""){
 					outputfiles <- try((ll <- list.files(dir.sw.runs.sc[sc]))[grepl(pattern=c(".dy", ".wk", ".mo", ".yr")[r], x=ll, fixed=TRUE)])
@@ -3043,13 +3044,6 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 		
 #------------------------AGGREGATE SOILWAT OUTPUT
 		if( todo$aggregate ){
-			
-			if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient) {
-				Exclude_ClimateAmbient <- TRUE
-			} else {
-				Exclude_ClimateAmbient <- FALSE
-			}
-			
 			#get soil aggregation layer for daily aggregations
 			if(AggLayer.daily){
 				aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth)
@@ -3312,10 +3306,25 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 					}
 				}
 				
-				
-				
-				#overall aggregation
-				if(!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) ){
+				#only exclude if 1.) Exclude_ClimateAmbient is true in header 2.) That Run is set to Exclude_ClimateAmbient 3.) Our current Scenario is Current
+				if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient && sc==1) {
+					Exclude_ClimateAmbient <- TRUE
+					#Send to the database or write to file
+					#temporaly save aggregate data
+					out.temp <- cbind(header, data.frame(matrix(NA, nrow = 1, ncol = n_variables)))
+	
+					if(i==ifirst || makeOutputDB){
+						colnames(out.temp)[1:length(header)] <- header.names
+					}
+	
+					if(!makeOutputDB) write.csv(out.temp, file=filename.out.temp[sc], quote=FALSE, row.names=FALSE )
+					if(makeOutputDB) mpi.send.Robj(out.temp[,1:length(header)], 1, 2, 1) #only send header info when 
+					
+				} else {
+					Exclude_ClimateAmbient <- FALSE
+				}
+				#overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
+				if(!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient){
 					
 					#delete data so that they are read if anew for each scenario; each variable is checked that datafile is read in only once per scenario			
 					try(rm(	temp.yr, temp.mo, temp.dy, 
@@ -3378,7 +3387,7 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 						meanPeakMonth <- circ.mean(maxMonth, 12)
 						duration <- circ.range(maxMonth, 12)+1
 						res[nv:(nv+1)] <- c(meanPeakMonth, duration) #just in case we get more then one month
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv] <- c("SWinput_PeakLiveBiomass_Month_mean","PeakLiveBiomass_duration")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("SWinput_PeakLiveBiomass_Month_mean","PeakLiveBiomass_duration")
 						nv <- nv+2
 					}
 					
@@ -4971,95 +4980,96 @@ do_OneSite <- function(i, i_include_YN, i_labels, i_SWRunInformation, i_sw_input
 							
 							scaler <- switch(EXPR=output_aggregate_daily[doi], SWP=1, VWC=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=1, 10) 	# SWP: -bar => MPa (but, since calculated via VWC, needs be same as VWC); VWC: # cm/cm -> m3/m3; default: cm => mm
 							
-							#read in data
-							if(agg.resp == "EvaporationTotal"){
-								temp1 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], evsoildy), header = FALSE, sep = "", fill = TRUE, comment.char="")
-								temp2 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], evapsurfacedy), header = FALSE, sep = "", fill = TRUE, comment.char="")
-							} else {
-								agg.file <- switch(EXPR=agg.resp,
-										AET=aetdy,
-										Transpiration=transpdy,
-										EvaporationSoil=evsoildy,
-										EvaporationSurface=evapsurfacedy,
-										VWC=vwcdy,
-										SWC=swcdy,
-										SWP=vwcdy,
-										SWA=swcdy,
-										Snowpack=snowdy,
-										Rain=precipdy,
-										Snowfall=precipdy,
-										Snowmelt=precipdy,
-										Infiltration=inf_soildy,
-										DeepDrainage=deepdraindy,
-										PET=petdy,
-										TotalPrecipitation=precipdy,
-										TemperatureMin=tempdy,
-										TemperatureMax=tempdy,
-										SoilTemperature=soiltempdy,
-										Runoff=runoffdy)
-								temp1 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], agg.file), header = FALSE, sep = "", fill = TRUE, comment.char="")
-							}
-							
-							#extract data and aggregate into layers if requested
-							agg.dat <- NULL
-							if(agg.analysis == 1){ #no layers
-								if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
-									agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
-									agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
-								}
+							#read in data unless Exclude_ClimateAmbient
+							if(!Exclude_ClimateAmbient) {
 								if(agg.resp == "EvaporationTotal"){
-									agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum) + temp2[simTime$index.usedy, 3]
-								}
-								if(agg.resp == "EvaporationSoil"){
-									agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum)
-								}
-							} else {#deal with soil layers: either each or 1-4 aggregated soil layers
-								if( any(!is.na(match(agg.resp, c("VWC", "SWP", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
-									agg.agg <- weighted.mean
-									agg.w <- layers_width[aggLs[[al]]]
-								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWC", "SWA")))) ){#aggregate by simple functions
-									agg.agg <- sum
-									agg.w <- 0
-								}
-								for(al in 1:aggLs_no){
-									if(length(aggLs[[al]]) > 1) {
-										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w)
-									} else {
-										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
-											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
-										}
-									}					
-								}
-							}
-							
-							#calculate mean/SD daily values
-							for(al in 1:agg.no){
-								ir <- (al - 1) * 366 + 1:366
-								res.dailyMean[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=mean)[, 2]
-								if(agg.resp == "SWP"){ ##post-aggregate calculation of SWP: convert VWC to SWP
-									res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
-									res.dailySD[ir] <- 0 #was NA now 0
+									temp1 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], evsoildy), header = FALSE, sep = "", fill = TRUE, comment.char="")
+									temp2 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], evapsurfacedy), header = FALSE, sep = "", fill = TRUE, comment.char="")
 								} else {
-									res.dailySD[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=sd)[, 2]
+									agg.file <- switch(EXPR=agg.resp,
+											AET=aetdy,
+											Transpiration=transpdy,
+											EvaporationSoil=evsoildy,
+											EvaporationSurface=evapsurfacedy,
+											VWC=vwcdy,
+											SWC=swcdy,
+											SWP=vwcdy,
+											SWA=swcdy,
+											Snowpack=snowdy,
+											Rain=precipdy,
+											Snowfall=precipdy,
+											Snowmelt=precipdy,
+											Infiltration=inf_soildy,
+											DeepDrainage=deepdraindy,
+											PET=petdy,
+											TotalPrecipitation=precipdy,
+											TemperatureMin=tempdy,
+											TemperatureMax=tempdy,
+											SoilTemperature=soiltempdy,
+											Runoff=runoffdy)
+									temp1 <- read.table(file = file.path(dir.sw.runs.sc.out[sc], agg.file), header = FALSE, sep = "", fill = TRUE, comment.char="")
 								}
-							}
 							
-							#post-aggregate calculation of SWA based on SWC for each SWPcrit
-							if(agg.resp == "SWA"){								
-								swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
+								#extract data and aggregate into layers if requested
+								agg.dat <- NULL
+								if(agg.analysis == 1){ #no layers
+									if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
+										agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
+										agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
+									}
+									if(agg.resp == "EvaporationTotal"){
+										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum) + temp2[simTime$index.usedy, 3]
+									}
+									if(agg.resp == "EvaporationSoil"){
+										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:dim(temp1)[2]], 1, sum)
+									}
+								} else {#deal with soil layers: either each or 1-4 aggregated soil layers
+									if( any(!is.na(match(agg.resp, c("VWC", "SWP", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
+										agg.agg <- weighted.mean
+										agg.w <- layers_width[aggLs[[al]]]
+									} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWC", "SWA")))) ){#aggregate by simple functions
+										agg.agg <- sum
+										agg.w <- 0
+									}
+									for(al in 1:aggLs_no){
+										if(length(aggLs[[al]]) > 1) {
+											agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w)
+										} else {
+											if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
+												agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
+											}
+										}					
+									}
+								}
 								
+								#calculate mean/SD daily values
 								for(al in 1:agg.no){
 									ir <- (al - 1) * 366 + 1:366
-									
-									if(length(aggLs[[al]]) > 1){
-										swc.swpcrit <- sum(swc.swpcrit.layers[aggLs[[al]]])
+									res.dailyMean[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=mean)[, 2]
+									if(agg.resp == "SWP"){ ##post-aggregate calculation of SWP: convert VWC to SWP
+										res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
+										res.dailySD[ir] <- 0 #was NA now 0
 									} else {
-										swc.swpcrit <- swc.swpcrit.layers[aggLs[[al]]]
+										res.dailySD[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=sd)[, 2]
 									}
-									res.dailyMean[ir] <- ifelse((temp.res <- res.dailyMean[ir] - swc.swpcrit) > 0, temp.res, 0)	#SD is same as for SWC
+								}
+								
+								#post-aggregate calculation of SWA based on SWC for each SWPcrit
+								if(agg.resp == "SWA"){								
+									swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
+									
+									for(al in 1:agg.no){
+										ir <- (al - 1) * 366 + 1:366
+										
+										if(length(aggLs[[al]]) > 1){
+											swc.swpcrit <- sum(swc.swpcrit.layers[aggLs[[al]]])
+										} else {
+											swc.swpcrit <- swc.swpcrit.layers[aggLs[[al]]]
+										}
+										res.dailyMean[ir] <- ifelse((temp.res <- res.dailyMean[ir] - swc.swpcrit) > 0, temp.res, 0)	#SD is same as for SWC
+									}
 								}
 							}
-							
 							#temporary save daily data
 							out.tempM <- t(c(header, res.dailyMean))
 							out.tempSD <- t(c(header, res.dailySD))
@@ -5138,6 +5148,7 @@ FileHandler <- function(workers) {
 		conExpiremtalInput <- dbConnect(drv, dbname = file.path(dir.out, "dbExperimentalInputDataFiles.sql"))
 	}
 	#data <- merge(data.frame(fileName=file), data, all.y=TRUE)
+	AggOverallDataCols <- -1
 	
 	while(!(WorkersDone == workers)) {
 		dataToWrite <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
@@ -5149,6 +5160,7 @@ FileHandler <- function(workers) {
 			if(First) {
 				dataToWrite <- data.frame(dataToWrite[1,])
 				print(dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE))
+				AggOverallDataCols <- dim(dataToWrite)[2]
 				First<-FALSE
 			} else {
 				dataToWrite<-data.frame(dataToWrite[1,])
@@ -5157,9 +5169,20 @@ FileHandler <- function(workers) {
 			}
 		} else if (tag==2) { #tag 2 is for excluded current scenario with NA values
 			if(First) { #crap this is not good
-				
-			} else {
-				
+				#put in tempary variable until a real first is done
+				if(!exists("AggOverTemp")) {
+					AggOverTemp <- dataToWrite #should just include info columns 1:(scenarios)
+				} else {
+					AggOverTemp <- rbind(AggOverTemp,dataToWrite)
+				}
+			} else { #perfect just put in table with NA for data past scenario col
+				if(exists("AggOverTemp")) {#We need to write out what we have to file already
+					temp<-data.frame(matrix(NA, nrow=dim(AggOverTemp)[1], ncol=AggOverallDataCols-dim(AggOverTemp)[2]))
+					print(dbWriteTable(con, "Aggregation_Overall", cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE))
+					rm(AggOverTemp, temp) #make sure we remove these
+				}
+				#now write out the data
+				print(dbWriteTable(con, "Aggregation_Overall", cbind(dataToWrite, data.frame(matrix(NA, nrow=1, ncol=AggOverallDataCols-dim(dataToWrite)[2])) ), row.names=FALSE, append=TRUE))
 			}
 		} else if (tag == 3) {
 			if(any(dataToWrite$name == dailyTableNames)) {
