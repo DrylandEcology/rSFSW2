@@ -204,6 +204,7 @@
 #		- (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
 #		- (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
 #		- (drs) fixed bug in ensembles.maker$outputs (wrong dimensions) and created a own section for do.ensembles with timing, pulling together the version for temporary files and the one with the MPI-based sql-database
+#		- (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1121,7 +1122,7 @@ if(any(actions == "create")){
 			#add data to sw_input_cloud and set the use flags
 			sw_input_cloud_use[i.temp <- grepl(pattern="snowd", x=names(sw_input_cloud_use))] <- 1
 			sw_input_cloud[, i.temp][st_mo] <- snowd
-			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- c(notes[1], paste("Type", sdcategories, "from", notes[2]))
+			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
 			
 			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
 		}
@@ -1490,9 +1491,9 @@ if(any(actions == "create")){
 	}
 	
 	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA & !exists("use_janus")){
-		#National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010.
-		
 		if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+		
+		reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
 		
 		#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
 		dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNOAAClimateAtlasUS")
@@ -1530,17 +1531,22 @@ if(any(actions == "create")){
 		
 		#add data to sw_input_cloud and set the use flags
 		sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp] <- rh
+		sw_input_cloud[, i.temp][st_mo] <- rh
 		sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp] <- cover
+		sw_input_cloud[, i.temp][st_mo] <- cover
 		sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp] <- wind
+		sw_input_cloud[, i.temp][st_mo] <- wind
+
+		sw_input_cloud[, grepl(pattern="RH_Source", x=names(sw_input_cloud))] <- paste("Variable RH23 from", reference)
+		sw_input_cloud[, grepl(pattern="SkyC_Source", x=names(sw_input_cloud))] <- paste("'100% - Variable SUN52' from", reference)
+		sw_input_cloud[, grepl(pattern="Wind_Source", x=names(sw_input_cloud))] <- paste("Variable WND60B from", reference)
 		
+
 		#write data to datafile.cloud
 		tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
 		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
 		
-		rm(tempdat, i.temp, rh, cover, wind, locations)
+		rm(tempdat, i.temp, rh, cover, wind, locations, reference)
 		
 		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 	}
