@@ -1,5 +1,6 @@
 seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
 seq.todo <- 1:(runs * ifelse(trowExperimentals==0, 1, trowExperimentals)) # consecutive number of all (tr x exp) simulations to be executed
+runsN.todo <- length(seq.todo)
 
 workersN <- num_cores
 

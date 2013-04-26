@@ -203,6 +203,7 @@
 #		- (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
 #		- (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
 #		- (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
+#		- (drs) fixed bug in ensembles.maker$outputs (wrong dimensions) and created a own section for do.ensembles with timing, pulling together the version for temporary files and the one with the MPI-based sql-database
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -515,8 +516,10 @@ if(any(simulation_timescales=="daily")){
 #prepare for ensembles
 if(do.ensembles){
 	ensembles.maker <- list(outputs=array(data="", dim=c(1 + 2 * daily_no, families_N, length(ensemble.quantiles))), scenarioFiles=array(data="", dim=c(1 + 2 * daily_no, families_N, scenariosPERensemble_N)))
+	dimnames(ensembles.maker$outputs) <- list(NULL, ensemble.families, paste(round(100*ensemble.quantiles), "Percentile", sep=""))
+	dimnames(ensembles.maker$scenarioFiles) <- list(NULL, ensemble.families, NULL)
 	#overall
-	ensembles.maker$outputs[1,,] <- sapply(ensemble.families, FUN=function(x) paste(dir.out.ensembles, .Platform$file.sep, "Ensemble_", x, "_", round(100*ensemble.quantiles), "Percentile_", filename.aggregatedResults, sep=""))
+	ensembles.maker$outputs[1,,] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.ensembles, .Platform$file.sep, "Ensemble_", x, "_", formatC(round(100*ensemble.quantiles), width=3, flag="0"), "Percentile_", filename.aggregatedResults, sep="")))
 	if(families_N > 1){
 		ensembles.maker$scenarioFiles[1,,] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.Aggregates[x]))
 	} else {
@@ -525,7 +528,7 @@ if(do.ensembles){
 	#mean daily output
 	if(daily_no > 0){
 		for(doi in 1:daily_no){
-			ensembles.maker$outputs[irow <- 2 * doi,,] <- sapply(ensemble.families, FUN=function(x) paste(dir.out.daily.ens, .Platform$file.sep, "Ensemble_", x, "_", round(100*ensemble.quantiles), "Percentile_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_", filename.aggregatedResults.dailyMean, sep=""))
+			ensembles.maker$outputs[irow <- 2 * doi,,] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.daily.ens, .Platform$file.sep, "Ensemble_", x, "_", formatC(round(100*ensemble.quantiles), width=3, flag="0"), "Percentile_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_", filename.aggregatedResults.dailyMean, sep="")))
 			if(families_N > 1){
 				ensembles.maker$scenarioFiles[irow,,] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.dailyMean[doi, x]))
 			} else {
@@ -2684,7 +2687,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					tr_VegComp_Adj <- tr_VegetationComposition	#Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
 					#Describe conditions for which the default vegetation biomass values are valid
 					std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing.season.threshold.tempC == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
-					std.growing <- (1:12)[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+					std.growing <- st_mo[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
 					#Default site for the grass description is SGS LTER
 					StandardGrasses_MAP_mm <- 340
 					StandardGrasses_VegComposition <- c(0.12, 0.22, 0.66) #Fraction of shrubs, C3, and C4
@@ -3466,7 +3469,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							tempdat[m,] <- vec
 						}
 						res[nv:(nv+35)] <- as.vector(as.numeric(tempdat))
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+35)] <- c(paste("SWinput_ClimatePerturbations_PrcpMultiplier_m",1:12,sep=""), paste("SWinput_ClimatePerturbations_TmaxAddand_m",1:12,sep=""), paste("SWinput_ClimatePerturbations_TminAddand_m",1:12,sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+35)] <- c(paste("SWinput_ClimatePerturbations_PrcpMultiplier_m",st_mo,sep=""), paste("SWinput_ClimatePerturbations_TmaxAddand_m",st_mo,sep=""), paste("SWinput_ClimatePerturbations_TminAddand_m",st_mo,sep=""))
 						nv <- nv+36
 					}
 					#input Phenology # all growing?
@@ -3578,7 +3581,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						infilename <- file.path(dir.sw.runs.sc[sc], dirname.cloud)
 						infiletext <- readLines(con = infilename)
-						cloudiness <- as.numeric(unlist(strsplit(infiletext[1], split="[[:space:]]"))[1:12])
+						cloudiness <- as.numeric(unlist(strsplit(infiletext[1], split="[[:space:]]"))[st_mo])
 						cloudiness <- rep(cloudiness, times=simTime$no.useyr)
 						
 						control_radiation <- aggregate((1 - ifelse(cloudiness < 10, 0, (cloudiness - 10) / 100 * 0.5 )) * DayNumber_ForEachUsedMonth, by=list(simTime2$yearno_ForEachUsedMonth), FUN=sum)[, 2] / DayNumber_ForEachUsedYear
@@ -5447,7 +5450,7 @@ if(!identical(actions, "concatenate") & runsN.todo > 0){
 	list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
 	
 	#ETA calculation
-	if(!be.quiet) print(paste(runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), "simulation runs will be carried out on", workersN, "cores, started at", Sys.time()))
+	if(!be.quiet) print(paste("SWSF simulation runs:", runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
 	
 	if(parallel_runs){
 		#call the simulations depending on parallel backend
@@ -5525,7 +5528,7 @@ if(!identical(actions, "concatenate") & runsN.todo > 0){
 			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
 	}
-	if(!be.quiet) print(paste(runs.completed, "SoilWat simulation runs completed at", Sys.time()))
+	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 } else {
 	runs.completed <- 0
 }
@@ -5534,8 +5537,10 @@ if(!identical(actions, "concatenate") & runsN.todo > 0){
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CHECK COMPLETENESS OF OUTPUT FILES AND SIMULATIONS
-t.check <- Sys.time()	#timing of check
+t.check <- Sys.time()
+
 if(checkCompleteness){
+	if(!be.quiet) print(paste("SWSF checks simulations and output: started at", t.check))
 	
 	if(exists("theredone")){
 		
@@ -5580,7 +5585,7 @@ if(checkCompleteness){
 
 #timing of check
 delta.check <- difftime(Sys.time(), t.check, units="secs")
-if(!be.quiet & checkCompleteness) print(paste("timing check =", round(delta.check, 2), "s"))
+if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
 
 
 
@@ -5588,6 +5593,7 @@ if(!be.quiet & checkCompleteness) print(paste("timing check =", round(delta.chec
 #------------------------COLLECT AND CONCATENATE SINGLE RESULT FILES INTO FINAL OUTPUT FILES
 t.concatenation <- Sys.time()	#timing of file concatenation
 if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !makeOutputDB){
+	if(!be.quiet) print(paste("SWSF concatenates temporary results: started at", t.concatenation))
 	
 	#collect and concatenate results into files: read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
 	collect_ResultsWithTemporaryDataFrame <- function(resultfile, filelist, col.names=TRUE, cleanup=FALSE){
@@ -5632,9 +5638,7 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 		if(length(temp) != targetN) temp <- NULL
 		return(temp)
 	}
-	
-	if(!be.quiet) print(paste("Concatenation of aggregated output started at", Sys.time()))
-	
+		
 	#Determine how many concatenations needs to be done
 	resultfiles.toConcatenate <- c(unlist(resultfiles.Aggregates))
 	if(any(simulation_timescales=="daily") & daily_no > 0) resultfiles.toConcatenate <- c(resultfiles.toConcatenate, unlist(resultfiles.dailyMean), unlist(resultfiles.dailySD))
@@ -5783,43 +5787,64 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 		
 		if(concats.completed != length(resultfiles.toConcatenate)) print(paste("Not all concatenations were successful:", concats.completed, "instead of", length(resultfiles.toConcatenate)))
 		
+				
+	} else if(runs.completed != runsN.todo){
+		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", runsN.todo))
+	}
+}
+
+#timing of file concatenation
+delta.concatenation <- difftime(Sys.time(), t.concatenation, units="secs")
+if(!be.quiet & any(actions=="concatenate")) print(paste("SWSF concatenates temporary results: ended after", round(delta.concatenation, 2), "s"))
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------ENSEMBLE GENERATION
+t.ensembles <- Sys.time()	#timing of ensemble calculation
+
+if(do.ensembles && any(actions=="concatenate") && all.complete && runs.completed == runsN.todo &&
+	((concats.completed == length(resultfiles.toConcatenate) && !makeOutputDB) || makeOutputDB)){
+	
+	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
+
+	#Function to calculate the quantiles for an array of the data for each scenario (stacked in 3rd dim)
+	doEnsembleQuantilesOverData <- function(data.temp, probs){
+		doQuantile <- function(x, probs){
+			quantile(x, prob=probs, type=3, na.rm=TRUE)
+		}
 		
-		#Aggregate Scenarios into Ensemble quantiles
-		if(do.ensembles && concats.completed == length(resultfiles.toConcatenate)){
+		if(parallel_runs){
+			if(identical(parallel_backend, "mpi")) {
+				mpi.bcast.Robj2slave(obj=data.temp)
+				mpi.bcast.Robj2slave(obj=doQuantile)
+				mpi.bcast.Robj2slave(obj=probs)
+				return(list <- mpi.parApply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs))
+			}
+			if(identical(parallel_backend, "snow")){
+				return(parApply(cl, data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs)) #snow library
+			}
+			if(identical(parallel_backend, "multicore")){
+				ifelse(dim(data.temp)[3] == 1, list <- foreach(i = 1:nrow(data.temp)) %dopar% lapply(data.temp[i,,], doQuantile, probs=probs) ,list <- foreach(i = 1:nrow(data.temp)) %dopar% apply(data.temp[i,,], MARGIN=1, doQuantile, probs=probs))
+				return(array(data=unlist(list), dim=c(length(x), dim(data.temp)[2], length(list))))
+			}
+		} else {
+			return(apply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs))
+		}
+	}
+
+
+	if(!makeOutputDB) {
 			#Define ensemble function
 			collect_EnsembleFromScenarios <- function(outputs, probs, filelist){
 				countWrite <- 1
 				
-				doApplyOverData <- function(data.temp, x){
-					doQuantile <- function(x, probs){
-						quantile(x, prob=probs, type=3, na.rm=TRUE)
-					}
-					#want to pass prob in as vector and do all at once instead of everytime
-					
-					if(identical(parallel_backend, "mpi")) {
-						mpi.bcast.Robj2slave(obj=data.temp)
-						mpi.bcast.Robj2slave(obj=doQuantile)
-						mpi.bcast.Robj2slave(obj=x)
-						return(list <- mpi.parApply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs))
-					}
-					if(identical(parallel_backend, "snow")){
-						return(parApply(cl, data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs)) #snow library
-					}
-					if(identical(parallel_backend, "multicore")){
-						ifelse(dim(data.temp)[3] == 1, list <- foreach(i = 1:nrow(data.temp)) %dopar% lapply(data.temp[i,,], doQuantile, probs=probs) ,list <- foreach(i = 1:nrow(data.temp)) %dopar% apply(data.temp[i,,], MARGIN=1, doQuantile, probs=probs))
-						return(array(data=unlist(list), dim=c(length(x), dim(data.temp)[2], length(list))))
-					}
-					if(!parallel_runs) {
-						return(apply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs)) #snow library
-					}
-				}
 				doWrite <- function(x){
 					#add info to 
 					name<-ensemble.families[sapply(ensemble.families, function(d) grepl(pattern=d, x=outputs[countWrite]))]
 					cAdd<-data.frame(matrix(data=c(rep(name,nrow(f.temp)), rep(ensemble.quantiles[countWrite],nrow(f.temp))), nrow=nrow(f.temp), ncol = 2 ))
 					names(cAdd)<- c("EnsembleName", "Quantile")
 					headerInfo <- cbind(headerInfo, cAdd)
-					if(identical(parallel_backend, "multicore")){
+					if(parallel_runs && identical(parallel_backend, "multicore")){
 						qData <- t(x) #this is needed for MC
 						colnames(qData) <- col.names
 						data <- cbind(headerInfo, qData)
@@ -5859,128 +5884,100 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 				colnames(data.temp) <- col.names
 				class(data.temp) <- "numeric"
 				#check quantiles
-				nfiles <- sum(unlist(apply(doApplyOverData(data.temp, ensemble.quantiles), MARGIN=1, doWrite)))
+				nfiles <- sum(unlist(apply(doEnsembleQuantilesOverData(data.temp, probs=probs), MARGIN=1, doWrite)))
 				
 				return(nfiles)
 			}
 			
 			#Get ready for doing the ensembles
+			nfiles <- total.files <- 0
 			for(ios in 1:nrow(ensembles.maker$outputs)){
 				for(ifs in 1:ncol(ensembles.maker$outputs)){
-					total.files <- collect_EnsembleFromScenarios(outputs=ensembles.maker$outputs[ios, ifs, ], probs=ensemble.quantiles, filelist=ensembles.maker$scenarioFiles[ios, ifs, ])
-					if(total.files != families_N * length(ensemble.quantiles)) print(paste("Something went wrong with ensemble output:", basename(ensembles.maker$outputs[ios, ifs, 1])))
+					nfiles <- collect_EnsembleFromScenarios(outputs=ensembles.maker$outputs[ios, ifs, ], probs=ensemble.quantiles, filelist=ensembles.maker$scenarioFiles[ios, ifs, ])
+					total.files <- total.files + nfiles
+					if(nfiles != length(ensemble.quantiles)) print(paste("Something went wrong with ensemble output:", basename(ensembles.maker$outputs[ios, ifs, 1])))
 				}
 			}
-			
-		} else {
-			print("ensemble.families or ensemble.quantiles not properly set")
-		}
-		
-		
-	} else if(runs.completed != runsN.todo){
-		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", runsN.todo))
-	}
-	if(!be.quiet) print(paste("Aggregated output files completed"))
-}
+			if(total.files != length(unlist(ensembles.maker$outputs))) print("Something went wrong with ensemble output.")
 
-if(makeOutputDB && do.ensembles && any(actions=="concatenate") ) {
-	collect_EnsembleFromScenarios <- function(Table, ensemble.family, probs, conEnsembleDB){
-		countWrite <- 1
+	} else {# if makeOutputDB == TRUE
+	
+		collect_EnsembleFromScenarios <- function(Table, ensemble.family, probs, conEnsembleDB){
+			countWrite <- 1
 		
-		doApplyOverData <- function(data.temp, x){
-			doQuantile <- function(x, probs){
-				quantile(x, prob=probs, type=3, na.rm=TRUE)
-			}
-			#want to pass prob in as vector and do all at once instead of everytime
+			doWrite <- function(x){
+				#add info to 
+				name<-ensemble.family
+				cAdd<-data.frame(matrix(data=c(rep(name,nrow(data.temp)), rep(ensemble.quantiles[countWrite],nrow(data.temp))), nrow=nrow(data.temp), ncol = 2 ))
+				names(cAdd)<- c("EnsembleName", "Quantile")
+				headerInfo <- cbind(header, cAdd)
+				if(parallel_runs && identical(parallel_backend, "multicore")){
+					qData <- t(x) #this is needed for MC
+					colnames(qData) <- col.names
+					data <- cbind(headerInfo, qData)
+				}else
+					data <- cbind(headerInfo, x)
 			
-			if(parallel_runs && identical(parallel_backend, "mpi")) {
-				mpi.bcast.Robj2slave(obj=data.temp)
-				mpi.bcast.Robj2slave(obj=doQuantile)
-				mpi.bcast.Robj2slave(obj=x)
-				return(list <- mpi.parApply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs))
+				written <- dbWriteTable(conEnsembleDB, name=paste(name, "_", formatC(ensemble.quantiles[countWrite]*100, digits = 0, format = "f"), "_", Table, sep=""), data, row.names=FALSE)
+				countWrite <<- countWrite + 1
+				if(written)
+					return(1)
+				else
+					return(0)
 			}
-			if(parallel_runs && identical(parallel_backend, "snow")){
-				return(parApply(cl, data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs)) #snow library
-			}
-			if(parallel_runs && identical(parallel_backend, "multicore")){
-				ifelse(dim(data.temp)[3] == 1, list <- foreach(i = 1:nrow(data.temp)) %dopar% lapply(data.temp[i,,], doQuantile, probs=probs) ,list <- foreach(i = 1:nrow(data.temp)) %dopar% apply(data.temp[i,,], MARGIN=1, doQuantile, probs=probs))
-				return(array(data=unlist(list), dim=c(length(x), dim(data.temp)[2], length(list))))
-			}
-			if(!parallel_runs) {
-				return(apply(data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs))
-			}
-		}
-		doWrite <- function(x){
-			#add info to 
-			name<-ensemble.family
-			cAdd<-data.frame(matrix(data=c(rep(name,nrow(data.temp)), rep(ensemble.quantiles[countWrite],nrow(data.temp))), nrow=nrow(data.temp), ncol = 2 ))
-			names(cAdd)<- c("EnsembleName", "Quantile")
-			headerInfo <- cbind(header, cAdd)
-			if(parallel_runs && identical(parallel_backend, "multicore")){
-				qData <- t(x) #this is needed for MC
-				colnames(qData) <- col.names
-				data <- cbind(headerInfo, qData)
-			}else
-				data <- cbind(headerInfo, x)
-			
-			written <- dbWriteTable(conEnsembleDB, name=paste(name, "_", formatC(ensemble.quantiles[countWrite]*100, digits = 0, format = "f"), "_", Table, sep=""), data, row.names=FALSE)
-			countWrite <<- countWrite + 1
-			if(written)
-				return(1)
-			else
-				return(0)
-		}
 		
-		sqlString <- paste("SELECT * FROM ", Table, " WHERE Scenario LIKE '", ensemble.family, "%'", sep="")
-		res <- dbSendQuery(con, sqlString)
-		dataToQuantilize <- fetch(res, n=-1) #get the data from the query n=-1 to get all rows
-		dbClearResult(res)
-		columnCutoff <- match("Scenario", colnames(dataToQuantilize))
-		header <- lapply(unique(dataToQuantilize$Scenario), function (x) dataToQuantilize[dataToQuantilize$Scenario == x,(1:columnCutoff)])
-		header <- header[[1]]
-		#We have all the scenarios in the family. We need to get unique scenario names and group them by that
-		data.temp <- lapply(unique(dataToQuantilize$Scenario), function (x) dataToQuantilize[dataToQuantilize$Scenario == x,-(1:columnCutoff)])
-		data.temp <- array(data=unlist(data.temp), dim=c(nrow(data.temp[[1]]), ncol(data.temp[[1]]), length(data.temp)) )
-		colnames(data.temp) <- colnames(dataToQuantilize[,-(1:columnCutoff)])
-		class(data.temp) <- "numeric"
-		#check quantiles
-		nfiles <- sum(unlist(apply(doApplyOverData(data.temp, probs), MARGIN=1, doWrite)))
+			sqlString <- paste("SELECT * FROM ", Table, " WHERE Scenario LIKE '", ensemble.family, "%'", sep="")
+			res <- dbSendQuery(con, sqlString)
+			dataToQuantilize <- fetch(res, n=-1) #get the data from the query n=-1 to get all rows
+			dbClearResult(res)
+			columnCutoff <- match("Scenario", colnames(dataToQuantilize))
+			header <- lapply(unique(dataToQuantilize$Scenario), function (x) dataToQuantilize[dataToQuantilize$Scenario == x,(1:columnCutoff)])
+			header <- header[[1]]
+			#We have all the scenarios in the family. We need to get unique scenario names and group them by that
+			data.temp <- lapply(unique(dataToQuantilize$Scenario), function (x) dataToQuantilize[dataToQuantilize$Scenario == x,-(1:columnCutoff)])
+			data.temp <- array(data=unlist(data.temp), dim=c(nrow(data.temp[[1]]), ncol(data.temp[[1]]), length(data.temp)) )
+			colnames(data.temp) <- colnames(dataToQuantilize[,-(1:columnCutoff)])
+			class(data.temp) <- "numeric"
+			#check quantiles
+			nfiles <- sum(unlist(apply(doEnsembleQuantilesOverData(data.temp, probs), MARGIN=1, doWrite)))
 		
-		return(nfiles)
-	}
-	library(RSQLite)
-	drv <- dbDriver("SQLite")
-	tfile <- file.path(dir.out, "dbTables.sql")
-	con <- dbConnect(drv, dbname = tfile)
+			return(nfiles)
+		}
+		library(RSQLite)
+		drv <- dbDriver("SQLite")
+		tfile <- file.path(dir.out, "dbTables.sql")
+		con <- dbConnect(drv, dbname = tfile)
 	
-	Tables <- dbListTables(con) #get a list of tables
+		Tables <- dbListTables(con) #get a list of tables
 	
-	dir.out.ensemble.sql <- dir.out
-	tfile <- file.path(dir.out.ensemble.sql, "dbTablesEnsembles.sql")
-	conEnsembleDB <- dbConnect(drv, dbname=tfile)
+		dir.out.ensemble.sql <- dir.out
+		tfile <- file.path(dir.out.ensemble.sql, "dbTablesEnsembles.sql")
+		conEnsembleDB <- dbConnect(drv, dbname=tfile)
 	
-	for(i in 1:length(Tables)) {
-		for(j in 1:length(ensemble.families)) {
-			collect_EnsembleFromScenarios(Tables[i], ensemble.families[j], ensemble.quantiles, conEnsembleDB)
+		for(i in 1:length(Tables)) {
+			for(j in 1:length(ensemble.families)) {
+				collect_EnsembleFromScenarios(Tables[i], ensemble.families[j], ensemble.quantiles, conEnsembleDB)
+			}
 		}
 	}
 }
-#timing of file concatenation
-delta.concatenation <- difftime(Sys.time(), t.concatenation, units="secs")
-if(!be.quiet & any(actions=="concatenate")) print(paste("timing concatenation =", round(delta.concatenation, 2), "s"))
 
+#timing of ensemble calculation
+delta.ensembles <- difftime(Sys.time(), t.ensembles, units="secs")
+if(!be.quiet && any(actions=="concatenate") && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------OVERALL TIMING
 delta.overall <- difftime(Sys.time(), t.overall, units="secs")
-if(!be.quiet) print(paste("timing overall =", round(delta.overall, 2), "s"))
+if(!be.quiet) print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
 write.timer <- function(label, time_sec){ write.table(t(c(label, time_sec)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
 
 write.timer("Time_Total", delta.overall)
-write.timer("Time_FileConcatenation", delta.concatenation)
 write.timer("Time_Check", delta.check)
+write.timer("Time_FileConcatenation", delta.concatenation)
+write.timer("Time_Ensembles", delta.ensembles)
 
 if(!identical(actions, "concatenate")){
 	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
@@ -5991,7 +5988,7 @@ if(!identical(actions, "concatenate")){
 	write.timer("Time_OneRun_Max", max(times))
 }
 
-if(!be.quiet) print(paste("SWSF finished with actions =", paste(actions, collapse=", "), "at", Sys.time()))
+if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
 
 
 #--------------------------------------------------------------------------------------------------#
