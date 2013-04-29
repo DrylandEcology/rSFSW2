@@ -207,6 +207,7 @@
 #		- (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
 #		- (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
 #		- (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
+#		- (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2021,7 +2022,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				for (m in st_mo)
-					infiletext[16+m] <- paste(m, formatC(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), digits=3, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), digits=2, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]), digits=2, format="f"), sep="\t")
+					infiletext[16+m] <- paste(m, formatC(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), digits=4, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), digits=4, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]), digits=4, format="f"), sep="\t")
 				
 				infile <- file(infilename, "w+b")
 				writeLines(text = infiletext, con = infile, sep = "\n")
@@ -2459,7 +2460,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_f <- ppt_f * as.numeric(ppt_scShift)
 				
 				for (m in st_mo)
-					infiletext[16+m] <- paste(m, formatC(ppt_f[m], digits=3, format="f"), formatC(t1_f[m], digits=2, format="f"), formatC(t2_f[m], digits=2, format="f"), sep="\t")
+					infiletext[16+m] <- paste(m, formatC(ppt_f[m], digits=4, format="f"), formatC(t1_f[m], digits=4, format="f"), formatC(t2_f[m], digits=4, format="f"), sep="\t")
 				
 				infile <- file(infilename, "w+b")
 				writeLines(text = infiletext, con = infile, sep = "\n")
