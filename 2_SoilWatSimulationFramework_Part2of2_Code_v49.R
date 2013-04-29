@@ -3141,7 +3141,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				clay <- soildat[ld, "clay"]
 			} else {
 				sand <- clay <- vector(length=d)
-				infilename <- file.path(dir.sw.runs.sc.in[sc], soilsin)
+				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
 				infiletext <- readLines(con = infilename)
 				for (l in soilsin.firstDataLine:(soilsin.firstDataLine+d-1)){
 					vec <- na.omit(as.double(unlist(strsplit(infiletext[l], split="[[:space:]]"))))
