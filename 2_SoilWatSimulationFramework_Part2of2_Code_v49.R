@@ -208,6 +208,7 @@
 #		- (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
 #		- (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
 #		- (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)
+#		- (drs) fixed bug in how 'experimental design' is assigned to the underlaying inputs: subsetting threw error if multiple columns didn't match beside at least a matching one. (Bug in R? that data.frame[i, c(0,0,3,0)]  <- 3 shows error of 'duplicate subscripts for columns')
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1636,20 +1637,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 		#these columns of the experimental design replace information in the treatment design
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_treatments), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_treatments), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_treatments)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_treatments[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
 		#these columns of the experimental design replace information from the soilsin datafile
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_soils), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_soils), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_soils)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_soils[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
 		#these columns of the experimental design replace information from the siteparam datafile
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_site), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_site), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_site)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_site[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
