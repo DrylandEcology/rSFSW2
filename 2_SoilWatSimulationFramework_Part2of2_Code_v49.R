@@ -265,8 +265,11 @@ if(identical(parallel_backend, "snow")) {
 	library(doSNOW)		#requires: foreach, iterators, snow
 	#library(snow)
 }
-if(identical(parallel_backend, "multicore")){
+if(identical(parallel_backend, "multicore")) {
 	library(doMC)	#requires: foreach, iterators, codetools, and attaches: multicore
+}
+if(!parallel_runs) {
+	library(foreach)
 }
 if(!exists("use_janus") & sum(exinfo) > 0) library(rgdal)	#requires: sp; used for extracting external GIS information
 
@@ -3050,16 +3053,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
 			#This file will be used to remake the input files for experimentals
 			if(makeOutputDB) {
-				mpi.send.Robj(list(	SWRunInformation=c(paste(i_labels, paste(i_SWRunInformation[-1], collapse = "\t"), sep="\t")),
-								sw_input_soillayers=c(paste(i_labels, paste(i_sw_input_soillayers[-1], collapse = "\t"), sep="\t")),
-								sw_input_treatments=c(paste(i_labels, paste(i_sw_input_treatments[-1], collapse = "\t"), sep="\t")),
-								sw_input_cloud=c(paste(i_labels, paste(i_sw_input_cloud[-1], collapse = "\t"), sep="\t")),
-								sw_input_prod=c(paste(i_labels, paste(i_sw_input_prod[-1], collapse = "\t"), sep="\t")),
-								sw_input_site=c(paste(i_labels, paste(i_sw_input_site[-1], collapse = "\t"), sep="\t")),
-								sw_input_soils=c(paste(i_labels, paste(i_sw_input_soils[-1], collapse = "\t"), sep="\t")),
-								sw_input_weather=c(paste(i_labels, paste(i_sw_input_weather[-1], collapse = "\t"), sep="\t")),
-								sw_input_climscen=c(paste(i_labels, paste(i_sw_input_climscen[-1], collapse = "\t"), sep="\t")),
-								sw_input_climscen_values=c(paste(i_labels, paste(i_sw_input_climscen_values[-1], collapse = "\t"), sep="\t")) ), 1, 4, 1)
+				
+				mpi.send.Robj(list(	SWRunInformation=cbind(data.frame(label=i_labels), data.frame(i_SWRunInformation[-1])),
+								sw_input_soillayers=cbind(data.frame(label=i_labels), data.frame(i_sw_input_soillayers[-1])),
+								sw_input_treatments=cbind(data.frame(label=i_labels), data.frame(i_sw_input_treatments[-1])),
+								sw_input_cloud=cbind(data.frame(label=i_labels), data.frame(i_sw_input_cloud[-1])),
+								sw_input_prod=cbind(data.frame(label=i_labels), data.frame(i_sw_input_prod[-1])),
+								sw_input_site=cbind(data.frame(label=i_labels), data.frame(i_sw_input_site[-1])),
+								sw_input_soils=cbind(data.frame(label=i_labels), data.frame(i_sw_input_soils[-1])),
+								sw_input_weather=cbind(data.frame(label=i_labels), data.frame(i_sw_input_weather[-1])),
+								sw_input_climscen=cbind(data.frame(label=i_labels), data.frame(i_sw_input_climscen[-1])),
+								sw_input_climscen_values=cbind(data.frame(label=i_labels), data.frame(i_sw_input_climscen_values[-1])) ), 1, 4, 1)
 			} else {
 				infiletext <- c(paste(i_labels, paste(i_SWRunInformation[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
 				infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soillayers[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
@@ -3081,6 +3085,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 #------------------------EXECUTE SOILWAT
 		if( todo$execute ){
+			if(is.na(i_sw_input_treatments$Exclude_ClimateAmbient)) i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
 			if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient) {
 				Exclude_ClimateAmbient <- 2
 			} else {
@@ -5139,36 +5144,36 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 										}					
 									}
 								}
-							}
-						
-							#calculate mean/SD daily values
-							for(al in 1:agg.no){
-								ir <- (al - 1) * 366 + 1:366
-								res.dailyMean[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=mean)[, 2]
-								if(agg.resp == "SWP"){ ##post-aggregate calculation of SWP: convert VWC to SWP
-									res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
-									res.dailySD[ir] <- 0 #was NA now 0
-								} else {
-									res.dailySD[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=sd)[, 2]
-								}
-							}
-							
-							#post-aggregate calculation of SWA based on SWC for each SWPcrit
-							if(agg.resp == "SWA"){								
-								swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
 								
+								
+								#calculate mean/SD daily values
 								for(al in 1:agg.no){
 									ir <- (al - 1) * 366 + 1:366
-									
-									if(length(aggLs[[al]]) > 1){
-										swc.swpcrit <- sum(swc.swpcrit.layers[aggLs[[al]]])
+									res.dailyMean[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=mean)[, 2]
+									if(agg.resp == "SWP"){ ##post-aggregate calculation of SWP: convert VWC to SWP
+										res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
+										res.dailySD[ir] <- 0 #was NA now 0
 									} else {
-										swc.swpcrit <- swc.swpcrit.layers[aggLs[[al]]]
+										res.dailySD[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=sd)[, 2]
 									}
-									res.dailyMean[ir] <- ifelse((temp.res <- res.dailyMean[ir] - swc.swpcrit) > 0, temp.res, 0)	#SD is same as for SWC
+								}
+								
+								#post-aggregate calculation of SWA based on SWC for each SWPcrit
+								if(agg.resp == "SWA"){								
+									swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
+									
+									for(al in 1:agg.no){
+										ir <- (al - 1) * 366 + 1:366
+										
+										if(length(aggLs[[al]]) > 1){
+											swc.swpcrit <- sum(swc.swpcrit.layers[aggLs[[al]]])
+										} else {
+											swc.swpcrit <- swc.swpcrit.layers[aggLs[[al]]]
+										}
+										res.dailyMean[ir] <- ifelse((temp.res <- res.dailyMean[ir] - swc.swpcrit) > 0, temp.res, 0)	#SD is same as for SWC
+									}
 								}
 							}
-							
 							#temporary save daily data
 							out.tempM <- t(c(header, res.dailyMean))
 							out.tempSD <- t(c(header, res.dailySD))
@@ -5252,18 +5257,20 @@ FileHandler <- function(workers) {
 	while(!(WorkersDone == workers)) {
 		dataToWrite <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
 		task_info <- mpi.get.sourcetag()
-		print(task_info[1])
+		from <- task_info[1]
 		tag <- task_info[2]
 		
 		if(tag==1) { #Data to write to file
 			if(First) {
 				dataToWrite <- data.frame(dataToWrite[1,])
-				print(dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE))
+				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE)
+				print(paste(from,"Aggregation Overal First: Written",WrittenSuccessfully))
 				AggOverallDataCols <- dim(dataToWrite)[2]
 				First<-FALSE
 			} else {
 				dataToWrite<-data.frame(dataToWrite[1,])
-				print(dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE, append=TRUE))
+				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE, append=TRUE)
+				print(paste(from,"Aggregation Overal: Written",WrittenSuccessfully))
 				#dbSendPreparedQuery(con, paste("INSERT INTO Aggregation_Overall (", paste(columnNames, sep="", collapse = ", "), ") VALUES (", paste(dataToWrite, collapse=",", sep=""), ")", sep=""))
 			}
 		} else if (tag==2) { #tag 2 is for excluded current scenario with NA values
@@ -5271,57 +5278,69 @@ FileHandler <- function(workers) {
 				#put in tempary variable until a real first is done
 				if(!exists("AggOverTemp")) {
 					AggOverTemp <- dataToWrite #should just include info columns 1:(scenarios)
+					print(paste(from,"Temp Storage Created for Aggregation Overall Table Created"))
 				} else {
 					AggOverTemp <- rbind(AggOverTemp,dataToWrite)
+					print(paste(from,"Added to temp storage"))
 				}
 			} else { #perfect just put in table with NA for data past scenario col
 				if(exists("AggOverTemp")) {#We need to write out what we have to file already
 					temp<-data.frame(matrix(NA, nrow=dim(AggOverTemp)[1], ncol=AggOverallDataCols-dim(AggOverTemp)[2]))
-					print(dbWriteTable(con, "Aggregation_Overall", cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE))
+					WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE)
+					print(paste(from,"Temp Storage for Agg Overall Written", WrittenSuccessfully, "and deleted"))
 					rm(AggOverTemp, temp) #make sure we remove these
 				}
 				#now write out the data
-				print(dbWriteTable(con, "Aggregation_Overall", cbind(dataToWrite, data.frame(matrix(NA, nrow=1, ncol=AggOverallDataCols-dim(dataToWrite)[2])) ), row.names=FALSE, append=TRUE))
+				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", cbind(dataToWrite, data.frame(matrix(NA, nrow=1, ncol=AggOverallDataCols-dim(dataToWrite)[2])) ), row.names=FALSE, append=TRUE)
+				print(paste(from,"Agg Overall Current Exclude Written", WrittenSuccessfully))
 			}
 		} else if (tag == 3) {
+			WrittenSuccessfully <- rep(FALSE,2)
 			if(any(dataToWrite$name == dailyTableNames)) {
 				MdataToWrite <- data.frame(dataToWrite$M[1,])
 				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
 				
-				print(dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE, append=TRUE))
+				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE, append=TRUE)
+				print(paste(from,"Daily Tables Append Written", paste(WrittenSuccessfully, collapse=" ")))
 			} else {
 				dailyTableNames <- c(dailyTableNames, dataToWrite$name)
 				MdataToWrite <- data.frame(dataToWrite$M[1,])
 				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
-				print(dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE))
-				print(dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE))
+				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE)
+				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE)
+				print(paste(from,"Daily Tables First Written", paste(WrittenSuccessfully, collapse=" ")))
 			}
+			rm(WrittenSuccessfully)
 		} else if (tag == 4) {
+			WrittenSuccessfully <- rep(FALSE,10)
 			if( length(dbListTables(conExpiremtalInput)) > 0 ) {
-				print(dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE, append=TRUE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE, append=TRUE))
+				WrittenSuccessfully[1] <- dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[2] <- dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[3] <- dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[4] <- dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[5] <- dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[6] <- dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[7] <- dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[8] <- dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[9] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[10] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE, append=TRUE)
+				print(paste(from,": Input Tables Append Written ", paste(WrittenSuccessfully, collapse=" "), sep=""))
 			} else { #need to create the tables
 				#tables <- names(dataToWrite)
-				print(dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE))
-				print(dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE))
+				WrittenSuccessfully[1] <- dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE)
+				WrittenSuccessfully[2] <- dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE)
+				WrittenSuccessfully[3] <- dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE)
+				WrittenSuccessfully[4] <- dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE)
+				WrittenSuccessfully[5] <- dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE)
+				WrittenSuccessfully[6] <- dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE)
+				WrittenSuccessfully[7] <- dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE)
+				WrittenSuccessfully[8] <- dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE)
+				WrittenSuccessfully[9] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE)
+				WrittenSuccessfully[10] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE)
+				print(paste(from,": Input Tables Append Written ", paste(WrittenSuccessfully, collapse=" "), sep=""))
 			}
+			rm(WrittenSuccessfully)
 		} else if (tag == 5) {
 			print("Worker Done")
 			WorkersDone <- WorkersDone + 1
