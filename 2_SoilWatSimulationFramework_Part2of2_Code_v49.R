@@ -207,6 +207,12 @@
 #		- (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
 #		- (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
 #		- (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
+#		- (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)
+#		- (drs) fixed bug in how 'experimental design' is assigned to the underlaying inputs: subsetting threw error if multiple columns didn't match beside at least a matching one. (Bug in R? that data.frame[i, c(0,0,3,0)]  <- 3 shows error of 'duplicate subscripts for columns')
+#		- (drs) fixed bug in climate scenario creation: error due to wrong dimensions in scalors if treatments of ClimateScenario_{Temp, PPT}_PerturbationInMeanSeasonalityBothOrNone were 'None'
+#		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
+#		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
+#		- (drs) fixed bug in creation of soilsin from input datafile: writing to file of impermeability was done after rounding to 0 digits, thereby missing all content except 0 and 1
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -697,7 +703,7 @@ circ.mean = function(x, int, na.rm=FALSE){
 	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 	x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
 	rm(circ, x.circ)
-	return(as.numeric(x.int))
+	return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
 }
 circ.range = function(x, int, na.rm=FALSE) {
 	require(circular)
@@ -1638,20 +1644,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 		#these columns of the experimental design replace information in the treatment design
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_treatments), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_treatments), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_treatments)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_treatments[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
 		#these columns of the experimental design replace information from the soilsin datafile
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_soils), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_soils), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_soils)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_soils[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
 		#these columns of the experimental design replace information from the siteparam datafile
-		ctemp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_site), nomatch=0)
-		if(sum(ctemp) > 0){
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_site), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_site)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_site[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
@@ -2024,7 +2030,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				for (m in st_mo)
-					infiletext[16+m] <- paste(m, formatC(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), digits=3, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), digits=2, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]), digits=2, format="f"), sep="\t")
+					infiletext[16+m] <- paste(m, formatC(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), digits=4, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), digits=4, format="f"), formatC(ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]), digits=4, format="f"), sep="\t")
 				
 				infile <- file(infilename, "w+b")
 				writeLines(text = infiletext, con = infile, sep = "\n")
@@ -2295,7 +2301,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					} else {
 						this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 					}
-					soilline <- paste(formatC(this_soil[1], digits=0, format="f"), formatC(this_soil[2], digits=2, format="f"), formatC(this_soil[3], digits=4, format="f"), formatC(this_soil[4], digits=4, format="f"), formatC(this_soil[5], digits=4, format="f"), formatC(this_soil[6], digits=4, format="f"), formatC(this_soil[7], digits=4, format="f"), formatC(this_soil[8], digits=4, format="f"), formatC(this_soil[9], digits=4, format="f"), formatC(this_soil[10], digits=4, format="f"), formatC(this_soil[11], digits=0, format="f"), formatC(this_soil[12], digits=4, format="f"), missingtext, sep="\t")
+					soilline <- paste(formatC(this_soil[1], digits=0, format="f"), formatC(this_soil[2], digits=2, format="f"), formatC(this_soil[3], digits=4, format="f"), formatC(this_soil[4], digits=4, format="f"), formatC(this_soil[5], digits=4, format="f"), formatC(this_soil[6], digits=4, format="f"), formatC(this_soil[7], digits=4, format="f"), formatC(this_soil[8], digits=4, format="f"), formatC(this_soil[9], digits=4, format="f"), formatC(this_soil[10], digits=4, format="f"), formatC(this_soil[11], digits=4, format="f"), formatC(this_soil[12], digits=4, format="f"), missingtext, sep="\t")
 					if(soilsin.firstDataLine-1 + l > infiletext.nrow){
 						infiletext <- c(infiletext, soilline)
 					} else {
@@ -2426,16 +2432,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				if(sc > 1){
-					if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone")){
+					if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
 						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- rep(mean(t_sc), times=12)
 						if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- t_sc - mean(t_sc)
-						if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- 0
+						if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- rep(0, times=12)
 					}
-					if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone")){
+					if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
 						temp_map_sc <- sum(SiteClimate_Ambient$meanMonthlyPPTcm * temp_ppt_sc)
 						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) ppt_sc = rep(temp_map_sc / SiteClimate_Ambient$MAP_cm, times=12)
 						if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) ppt_sc = ppt_sc * SiteClimate_Ambient$MAP_cm / temp_map_sc
-						if(grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) ppt_sc = 1;
+						if(grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) ppt_sc = rep(1, times=12)
 					}
 				}				
 				
@@ -2462,7 +2468,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_f <- ppt_f * as.numeric(ppt_scShift)
 				
 				for (m in st_mo)
-					infiletext[16+m] <- paste(m, formatC(ppt_f[m], digits=3, format="f"), formatC(t1_f[m], digits=2, format="f"), formatC(t2_f[m], digits=2, format="f"), sep="\t")
+					infiletext[16+m] <- paste(m, formatC(ppt_f[m], digits=4, format="f"), formatC(t1_f[m], digits=4, format="f"), formatC(t2_f[m], digits=4, format="f"), sep="\t")
 				
 				infile <- file(infilename, "w+b")
 				writeLines(text = infiletext, con = infile, sep = "\n")
@@ -2923,7 +2929,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							vec <- (unlist(strsplit(infiletext[startline + m], split="[[:space:]]")))
 							tempdat[m, ]  <- as.numeric(vec[grep("[[:digit:]]", vec)])
 						}
-						if(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")) {
+						if(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && !is.na(ScalingSeason) && !(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && ScalingSeason == "All")) {
 							if(ScalingSeason == "Growing") { #Growing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT > growing.season.threshold.tempC
 								ifelse((templength<-length((temp<-SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC)[temp==TRUE]))>1, tempdat[temp, 1:3] <- sweep(tempdat[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors), ifelse(templength==1, tempdat[temp,1:3]<-tempdat[temp,1:3]*LitterTotalLiveScalingFactors, print("To Cold to do Vegetation Scaling Season for Growing")))
 								#tempdat[SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC, 1:3] <- sweep(tempdat[SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
@@ -3146,7 +3152,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				clay <- soildat[ld, "clay"]
 			} else {
 				sand <- clay <- vector(length=d)
-				infilename <- file.path(dir.sw.runs.sc.in[sc], soilsin)
+				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
 				infiletext <- readLines(con = infilename)
 				for (l in soilsin.firstDataLine:(soilsin.firstDataLine+d-1)){
 					vec <- na.omit(as.double(unlist(strsplit(infiletext[l], split="[[:space:]]"))))
