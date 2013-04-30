@@ -211,6 +211,7 @@
 #		- (drs) fixed bug in how 'experimental design' is assigned to the underlaying inputs: subsetting threw error if multiple columns didn't match beside at least a matching one. (Bug in R? that data.frame[i, c(0,0,3,0)]  <- 3 shows error of 'duplicate subscripts for columns')
 #		- (drs) fixed bug in climate scenario creation: error due to wrong dimensions in scalors if treatments of ClimateScenario_{Temp, PPT}_PerturbationInMeanSeasonalityBothOrNone were 'None'
 #		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
+#		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2924,7 +2925,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							vec <- (unlist(strsplit(infiletext[startline + m], split="[[:space:]]")))
 							tempdat[m, ]  <- as.numeric(vec[grep("[[:digit:]]", vec)])
 						}
-						if(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")) {
+						if(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && !is.na(ScalingSeason) && !(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && ScalingSeason == "All")) {
 							if(ScalingSeason == "Growing") { #Growing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT > growing.season.threshold.tempC
 								ifelse((templength<-length((temp<-SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC)[temp==TRUE]))>1, tempdat[temp, 1:3] <- sweep(tempdat[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors), ifelse(templength==1, tempdat[temp,1:3]<-tempdat[temp,1:3]*LitterTotalLiveScalingFactors, print("To Cold to do Vegetation Scaling Season for Growing")))
 								#tempdat[SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC, 1:3] <- sweep(tempdat[SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
