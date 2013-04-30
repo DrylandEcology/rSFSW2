@@ -213,6 +213,12 @@
 #		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
 #		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
 #		- (drs) fixed bug in creation of soilsin from input datafile: writing to file of impermeability was done after rounding to 0 digits, thereby missing all content except 0 and 1
+#		- (drs) aggregation options 'dailySWPextremes', 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', and 'dailyDrainageExtremes', 'dailyAETExtremes': adapted that the mean instead of the first of multiple extreme days is used
+#		- (drs) aggregation options 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', 'dailyDrainageExtremes', and 'dailyAETExtremes': fixed a index bug in the header
+#		- (drs) aggregation option 'RainOnSnowOfMAP': added SD
+#		- (drs) aggregation option 'dailySWPdrynessIntensity': added mean of the amount of dry-period missing water, as well as the duration and the number
+#		- (drs) fixed bug in aggregation options 'dailySWPdrynessEventSizeDistribution' and 'dailySWPdrynessIntensity': used xx.dy.all instead of xx.dy (yearly aggregations are based on xx.dy-formatted data)
+#		- (drs) generalized functions 'start10days' and 'end10days' (only used in aggregation option 'dailySWPdrynessANDwetness'), i.e., removed exlcusion of dry periods in first 90 days, generalized from fix 10 days to n days periods; replaced with 'startDoyOfDuration', 'endDoyAfterDuration'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -310,7 +316,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 615 + (135*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 616 + (147*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -731,82 +737,45 @@ max.duration <- function(x) {
 	rmax <- max(r$lengths[which(r$values==1)])
 	return(ifelse(is.finite(rmax), rmax, 0)[1])
 }
-start10days <- function(x) {
+startDoyOfDuration <- function(x, duration=10) {
 	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
+	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
+		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=10)==0, NA, 1)[1])
 	} else {
-		s <- cumsum(r$lengths)
-		first10dry <- r$lengths[which(r$values==1 & r$lengths>=10 & s>90)][1]
+		first10dry <- r$lengths[which(r$values==1 & r$lengths>=duration)][1] #pick first period
 		if( !is.na(first10dry) ){
-			ind <- which(r$lengths==first10dry)
+			ind <- which(r$lengths==first10dry)[1] #always pick start of first suitable period
 		} else {
 			ind <- -1
 		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(s[1]>90 & ind[1]==1, 1, 365))
+		if(ind==1) {#start of period at beginning of year
+			return(1)
+		} else if(ind==-1) {#no period this year
+			return(NA)
 		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)-1]+1)
+			return(cumsum(r$lengths)[ind-1]+1)
 		}
 	}
 }
-end10days <- function(x) {
+endDoyAfterDuration <- function(x, duration=10) {
 	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
+	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
+		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=duration)==0, 365, NA)[1])
 	} else {
-		s <- cumsum(r$lengths)
-		last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=10 & s>90)])[length(rl)]
+		last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=duration)])[length(rl)] #pick last period
 		if( length(last10dry) > 0 ){
-			ind <- which(r$lengths==last10dry)
+			ind <- (temp <- which(r$lengths==last10dry))[length(temp)]	#always pick end of last period
 		} else {
 			ind <- -1
 		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(s[1]>90 & ind[1]==1, 1, 365))
+		if(ind==-1) {#no period this year
+			return(NA)
 		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)])
+			return(cumsum(r$lengths)[ind])
 		}
 	}
 }
-start10days2 <- function(x) {
-	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
-	} else {
-		s <- cumsum(r$lengths)
-		firstMax10dry <- max(r$lengths[which(r$values==1 & r$lengths>=10)])
-		if( !is.na(firstMax10dry) ){
-			ind <- which(r$lengths==firstMax10dry)
-		} else {
-			ind <- -1
-		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(ind[1]==1,1,365))
-		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)-1]+1)
-		}
-	}
-}
-end10days2 <- function(x) {
-	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
-	} else {
-		s <- cumsum(r$lengths)
-		last10dry <- max(r$lengths[which(r$values==1 & r$lengths>=10)])
-		if( length(last10dry) > 0 ){
-			ind <- which(r$lengths==last10dry)
-		} else {
-			ind <- -1
-		}
-		if(ind[1]==-1) {#start at beginning of year
-			return(365)
-		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)])
-		}
-	}
-}
+
 #convert SWP to VWC, e.g., to calculate field capacity and wilting point
 SWPtoVWC <- function(swp, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
@@ -3731,72 +3700,75 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+6
 						
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of transpiration as in'dailySWPextremes' (don't distinguish between top/bottom soil layers)
 					if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
 						if(!exists("transp.dy")) transp.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], transpdy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("transp.dy.max_mm", "transp.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("transp.dy.max_mm", "transp.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("transp.max_doy", "transp.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("transp.max_doy", "transp.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of total evaporation (surface + soil) as in'dailySWPextremes' (don't distinguish between top/bottom soil layers)
 					if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
 						if(!exists("evsoil.dy")) evsoil.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], evsoildy, "dy", 10, FUN=sum)
 						if(!exists("evapsurface.dy")) evapsurface.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], evapsurfacedy, "dy", 10, FUN=sum)
 						
-						
-						extremes <- as.matrix(aggregate(cbind(evsoil.dy$top + evsoil.dy$bottom + evapsurface.dy$top + evapsurface.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(evsoil.dy$top + evsoil.dy$bottom + evapsurface.dy$top + evapsurface.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("evap.dy.max_mm", "evap.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("evap.dy.max_mm", "evap.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("evap.max_doy", "evap.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("evap.max_doy", "evap.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of deep drainage as in'dailySWPextremes' (don't distinguish between top/bottom soil layers
 					if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
 						if(!exists("deepdrain.dy")) deepdrain.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], deepdraindy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(deepdrain.dy$top + deepdrain.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(deepdrain.dy$top + deepdrain.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("deepDrainage.dy.max_mm", "deepDrainage.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("deepDrainage.dy.max_mm", "deepDrainage.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("deepDrainage.max_doy", "deepDrainage.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("deepDrainage.max_doy", "deepDrainage.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of AET as in'dailySWPextremes' (don't distinguish between top/bottom soil layers
 					if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {						
 						if(!exists("AET.dy")) AET.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], aetdy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(AET.dy$top + AET.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(AET.dy$top + AET.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("AET.dy.max_mm", "AET.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("AET.dy.max_mm", "AET.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("AET.max_doy", "AET.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("AET.max_doy", "AET.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
@@ -3858,17 +3830,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+10
 					}		
 					
-					
 					if(any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack){			
 						if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(dir.sw.runs.sc.out[sc])
 						if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(dir.sw.runs.sc.out[sc])
 						if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(dir.sw.runs.sc.out[sc])
 						
 						#Portion of rain that falls on snow
-						res[nv] <- mean(aggregate(ifelse(SWE.dy$val > 0, prcp.dy$rain, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2], na.rm=TRUE) / mean(prcp.yr$ppt, na.rm=TRUE)
+						rainOnSnow <- aggregate(ifelse(SWE.dy$val > 0, prcp.dy$rain, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+						res[nv:(nv+1)] <- c(mean(temp <- rainOnSnow / prcp.yr$ppt, na.rm=TRUE), sd(temp, na.rm=TRUE)) 
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv] <- c("RainOnSnowOfMAP")
-						nv <- nv+1
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("RainOnSnowOfMAP")
+						nv <- nv+2
+						rm(rainOnsnow)
 					}
 					
 					#soil temp
@@ -3960,7 +3933,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
 						if(!exists("swp.dy")) swp.dy <- get_SWP_aggL(vwc.dy)
 						
-						extremes <- as.matrix(aggregate(cbind(swp.dy$top, swp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(swp.dy$top, swp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+7)] <- c(apply(temp <- extremes[, c(2:3, 6:7)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
 						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("swp.top.dy.max_MPa", "swp.top.dy.min_MPa", "swp.bottom.dy.max_MPa", "swp.bottom.dy.min_MPa"), paste(temp, "sd", sep="."))
@@ -4030,94 +4003,85 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					if(any(simulation_timescales=="daily") && aon$dailySWPdrynessEventSizeDistribution)
 					{
-						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
-						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all)
-						binSize <- c(1,8,15,29,367)#use for interval
+						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
+						if(!exists("swp.dy")) swp.dy <- get_SWP_aggL(vwc.dy)
+						binSize <- c(1,8,15,29,367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
+						binsN <- length(binSize) - 1
 						
-						EventDistribution <- function(data) {#data is the values for one year adj for SWPcrit_MPa
-							if(length(temp <- (temp <- rle(data == 0))$lengths[temp$values]) > 0) { 
-								bins <- c(0,0,0,0)
+						EventDistribution <- function(data) {#data is the values for one year adj for SWPcrit_MPa; TRUE==dry
+							bins <- rep(0, times=binsN)
+							if(length(temp <- (temp <- rle(data))$lengths[temp$values]) > 0) { 	
 								for(z in 1:length(temp)) {
-									bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) 
+									bins[findInterval(temp[z],binSize)] <- bins[findInterval(temp[z],binSize)] + 1 
 								}
-								return(bins)
-							}  else {
-								return(c(0,0,0,0))
 							}
+							return(bins)
 						}
-						#if(i_SWRunInformation$Y_WGS84 < 0) {
-						#for(k in simTime$useyrs) {#go through the years and adjust each day of year for South
-						#	swp.dy$top[simTime2$year_ForEachUsedDay == k] <- swp.dy$top[simTime2$year_ForEachUsedDay == k][simTime2$doy_ForEachUsedDay_NSadj[simTime2$year_ForEachUsedDay == k]]
-						#	swp.dy$bottom[simTime2$year_ForEachUsedDay == k] <- swp.dy$bottom[simTime2$year_ForEachUsedDay == k][simTime2$doy_ForEachUsedDay_NSadj[simTime2$year_ForEachUsedDay == k]]
-						#}
-						#}
+
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
-							wet.top <- swp.dy.all$top[simTime$index.usedy] >= SWPcrit_MPa[icrit]
+							dry.top <- swp.dy$top[simTime$index.usedy] < SWPcrit_MPa[icrit]
 							
 							if(length(bottomL) >= 1) {
-								wet.bottom <- swp.dy.all$bottom[simTime$index.usedy] >= SWPcrit_MPa[icrit]
-							} else {
-								wet.bottom <- matrix(data=NA, nrow=length(swp.dy$bottom), ncol=1)
+								dry.bottom <- swp.dy$bottom[simTime$index.usedy] < SWPcrit_MPa[icrit]
 							}
 							
 							#apply over each year, rle just on selected year store runs in vec, if that is greater than 0 then add to that years bins else return 0s for that year. Will result in a matrix of 4 by Years
-							#binsYears.top <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle(wet.top[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]) > 0) { bins <- c(0,0,0,0); for(z in 1:length(temp)) { bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) }; return(bins) } else {return(c(0,0,0,0))}} )
-							binsYears.top <- aggregate(wet.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
-							bin_top_mean <- apply(binsYears.top, MARGIN = 2, mean) #mean of each bin size across a year - vector of 4
-							bin_top_sd <- apply(binsYears.top, MARGIN = 2, sd) # sd of each bin size across a year - vector of 4
+							binsYears.top <- aggregate(dry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
+							bin_top_mean <- apply(binsYears.top, MARGIN = 2, mean) #mean of each bin size across a year - vector of binsN
+							bin_top_sd <- apply(binsYears.top, MARGIN = 2, sd) # sd of each bin size across a year - vector of binsN
 							
 							if(length(bottomL) > 0) {
-								#binsYears.bottom <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle(wet.bottom[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]) > 0) { bins <- c(0,0,0,0); for(z in 1:length(temp)) { bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) }; return(bins) } else {return(c(0,0,0,0))}} )
-								binsYears.bottom <- aggregate(wet.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
+								binsYears.bottom <- aggregate(dry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
 								bin_bottom_mean <- apply(binsYears.bottom, MARGIN = 2, mean)
 								bin_bottom_sd <- apply(binsYears.bottom, MARGIN = 2, sd)
 							}
-							bottom <- if(length(bottomL) > 0) c(bin_bottom_mean, bin_bottom_sd) else rep(0,8)
-							res[nv:(nv+15)] <- c(bin_top_mean, bin_top_sd, bottom)
+							res[nv:(nv+4*binsN-1)] <- c(bin_top_mean, bin_top_sd, if(length(bottomL) > 0) c(bin_bottom_mean, bin_bottom_sd) else rep(0,2*binsN))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste(paste("SWPdryness_Length",c("1-7days","8-14days","15-28days", "29+days") ,"_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+15)] <- c(paste(baseTitle, c(rep("_top_mean", 4), rep("_top_sd",4)), sep=""),	 paste(baseTitle, c(rep("_bottom_mean", 4), rep("_bottom_sd",4)), sep=""))
+								baseTitle <- paste(paste("SWPdryness_Length", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
+								resultfiles.Aggregates.header[nv:(nv+4*binsN-1)] <- c(rep(paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), 2))
 							}
-							nv <- nv+16
+							nv <- nv+4*binsN
 						}
-						rm(wet.top, wet.bottom)
+						rm(dry.top, dry.bottom, binsN, binSize)
 					}
 					
 					if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity)
 					{
-						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
+						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
 						
 						cut0 <- function(x) {x[x < 0] <- 0; return(x)}
-						SWCtop <- vwc.dy.all$top * sum(layers_width[topL])*10
-						if(length(bottomL) > 0) SWCbottom <- vwc.dy.all$bottom * sum(layers_width[bottomL])*10
+						SWCtop <- vwc.dy$top * sum(layers_width[topL])*10
+						if(length(bottomL) > 0) SWCbottom <- vwc.dy$bottom * sum(layers_width[bottomL])*10
 						
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
-							SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10
-							if(length(bottomL) > 0) SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
-							
-							SWCtopAdjCrit <- cut0(SWCcritT - SWCtop)
-							SWCbottomAdjCrit <- cut0(SWCcritB - SWCbottom)
-							
-							Intensity_top_mean <- mean( sumSWCtopAdjCritYears <- sapply(simTime$useyrs, FUN=function(y) sum(SWCtopAdjCrit[simTime2$year_ForEachUsedDay == y])) )
-							Intensity_top_sd <- sd( sumSWCtopAdjCritYears )
+							#amount of SWC required so that layer wouldn't be dry
+							SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10							
+							missingSWCtop <- cut0(SWCcritT - SWCtop) 
+							IntensitySum_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCtop[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
+							IntensityMean_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCtop[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp), na.rm=TRUE)
+							IntensityDurationAndNumber_top <- c(apply(temp <- sapply(simTime$useyrs, FUN=function(y) c(mean(temp <- (temp <- rle(missingSWCtop[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, sd))[c(1, 3, 2, 4)]
 							
 							if(length(bottomL) > 0) {
-								Intensity_bottom_mean <- mean( sumSWCbottomAdjCritYears <- sapply(simTime$useyrs, FUN=function(y) sum(SWCbottomAdjCrit[simTime2$year_ForEachUsedDay == y])) )
-								Intensity_bottom_sd <- sd( sumSWCbottomAdjCritYears )
+								SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
+								missingSWCbottom <- cut0(SWCcritB - SWCbottom)
+								IntensitySum_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCbottom[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
+								IntensityMean_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCbottom[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp, na.rm=TRUE))
+								IntensityDurationAndNumber_bottom <- c(apply(temp <- sapply(simTime$useyrs, FUN=function(y) c(mean(temp <- (temp <- rle(missingSWCbottom[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, sd))[c(1, 3, 2, 4)]
 							}
 							
-							bottom <- if(length(bottomL) > 0) c(Intensity_bottom_mean, Intensity_bottom_sd) else rep(0,2)
-							res[nv:(nv+3)] <- c(Intensity_top_mean, Intensity_top_sd, bottom)
+							res[nv:(nv+15)] <- c(IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top, if(length(bottomL) > 0) c(IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom) else rep(0, 8))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste("IntensityDryPeriod_", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+3)] <- c(paste(baseTitle, c(rep("_top_mean_mm", 1), rep("_top_sd",1)), sep=""), paste(baseTitle, c(rep("_bottom_mean_mm", 1), rep("_bottom_sd_mm",1)), sep=""))
+								baseTitle <- paste("DryPeriods_MissingWater_", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa_", sep=""), rep(c("top_", "bottom_"), each=4), rep(c("AnnualSum_mmH2O", "MeanEventAmount_mmH2OperEventDay", "MeanEventDuration_Days", "MeanEventNumber_CountPerYear"), times=2), sep="")
+								resultfiles.Aggregates.header[nv:(nv+15)] <- paste(rep(baseTitle, each=2), c("mean", "sd"), sep=".")
 							}
-							nv <- nv+4
+							nv <- nv+16
 						}
+						rm(	SWCcritT, missingSWCtop, IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top,
+							SWCcritB, missingSWCbottom, IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom)
 					}
 					
 					#Degree days based on daily temp, and wet degree days on daily temp and swp
@@ -4158,9 +4122,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){
 						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
-						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all)
+						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all) #swp.dy.all is required to get all layers
 						
 						adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+						durationDryPeriods.min <- 10 # days
 						
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
@@ -4218,12 +4183,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							res.dry[,8] <- aggregate(AllDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=max.duration )[,2]
 							
 							# 1/5. start days/year when at least one of top/bottom layers are dry for at least ten days
-							res.dry[,1] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=start10days )[,2] - adjDays
-							res.dry[,5] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=start10days )[,2] - adjDays
+							res.dry[,1] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=startDoyOfDuration, duration=durationDryPeriods.min)[,2] - adjDays
+							res.dry[,5] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=startDoyOfDuration, duration=durationDryPeriods.min)[,2] - adjDays
 							
 							# 2/6. end days/year when at least one of top/bottom layers have been dry for at least ten days
-							res.dry[,2] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=end10days )[,2] - adjDays
-							res.dry[,6] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=end10days )[,2] - adjDays
+							res.dry[,2] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=endDoyAfterDuration, duration=durationDryPeriods.min)[,2] - adjDays
+							res.dry[,6] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=endDoyAfterDuration, duration=durationDryPeriods.min)[,2] - adjDays
 							
 							#correct [,c(3,7)] for years when start<end otherwise set 0
 							res.dry[,3] <- ifelse(res.dry[,2]-res.dry[,1]>0, res.dry[,3], 0) 
