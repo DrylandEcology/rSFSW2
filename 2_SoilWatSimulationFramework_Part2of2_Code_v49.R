@@ -210,6 +210,7 @@
 #		- (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)
 #		- (drs) fixed bug in how 'experimental design' is assigned to the underlaying inputs: subsetting threw error if multiple columns didn't match beside at least a matching one. (Bug in R? that data.frame[i, c(0,0,3,0)]  <- 3 shows error of 'duplicate subscripts for columns')
 #		- (drs) fixed bug in climate scenario creation: error due to wrong dimensions in scalors if treatments of ClimateScenario_{Temp, PPT}_PerturbationInMeanSeasonalityBothOrNone were 'None'
+#		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -697,7 +698,7 @@ circ.mean = function(x, int, na.rm=FALSE){
 	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 	x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
 	rm(circ, x.circ)
-	return(as.numeric(x.int))
+	return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
 }
 circ.range = function(x, int, na.rm=FALSE) {
 	require(circular)
