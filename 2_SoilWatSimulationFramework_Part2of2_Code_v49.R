@@ -219,6 +219,7 @@
 #		- (drs) aggregation option 'dailySWPdrynessIntensity': added mean of the amount of dry-period missing water, as well as the duration and the number
 #		- (drs) fixed bug in aggregation options 'dailySWPdrynessEventSizeDistribution' and 'dailySWPdrynessIntensity': used xx.dy.all instead of xx.dy (yearly aggregations are based on xx.dy-formatted data)
 #		- (drs) generalized functions 'start10days' and 'end10days' (only used in aggregation option 'dailySWPdrynessANDwetness'), i.e., removed exlcusion of dry periods in first 90 days, generalized from fix 10 days to n days periods; replaced with 'startDoyOfDuration', 'endDoyAfterDuration'
+#		- (drs) added aggregation option 'monthlySPEIEvents': duration and intensity of the standardized precipitation-evapotranspiration index at different scales
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -316,7 +317,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 616 + (147*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 664 + (147*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -3589,6 +3590,44 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						rm(DayNumber_ForEachUsedMonth, DayNumber_ForEachUsedYear, control_temp, control_water, control_radiation, aridity, temp, cloudiness)
 					}
+					
+					
+					if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
+						require(SPEI)
+						#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer√≠a, S., Lorenzo-Lacruz, J., Camarero, J.s.J., L√≥pez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Mor√°n-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
+						if(!exists("PET.mo")) PET.mo <- get_PET_mo(dir.sw.runs.sc.out[sc])
+						if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(dir.sw.runs.sc.out[sc])
+						
+						#n_variables is set for 4*4*3 with length(binSPEI_m) == 4 && length(probs) == 3
+						binSPEI_m <- c(1, 12, 24, 48) #months
+						probs <- c(0.025, 0.5, 0.975)	
+						
+						for(iscale in seq_along(binSPEI_m)){
+							rvec <- rep(NA, times=4 * length(probs))
+							if(binSPEI_m[iscale] < length(prcp.mo$ppt)){
+								spei_m <- as.numeric(spei(prcp.mo$ppt - PET.mo$val, scale=binSPEI_m[iscale])$fitted)
+								spei_m <- spei_m[!is.na(spei_m)]
+								runs <- rle(spei_m >= 0)
+								
+								iresp <- rep(1:4, each=length(probs))
+								if(sum(runs$values) > 0){
+									rvec[iresp==1] <- quantile(runs$lengths[runs$values], probs=probs) #duration of positive spells
+									rvec[iresp==2] <- quantile(spei_m[spei_m >= 0], probs=probs) #intensity of positive spells
+								}
+								if(sum(!runs$values) > 0){
+									rvec[iresp==3] <- quantile(runs$lengths[!runs$values], probs=probs) #duration of negative spells
+									rvec[iresp==4] <- quantile(spei_m[spei_m < 0], probs=probs) #intensity of positive spells
+								}
+							}
+							
+							res[nv:(nv+length(rvec)-1)] <- rvec
+							if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+length(rvec)-1)] <- paste(rep(paste("SPEI_at", binSPEI_m[iscale], "months_", sep=""), length(rvec)), "Spell", rep(c("Pos_", "Neg_"), each=2*length(probs)), rep(rep(c("DurationMonths_", "SPEIvalue_"), each=length(probs)), times=2), "Quantile", rep(probs, times=4), sep="")
+							nv <- nv+length(rvec)
+						
+						}
+					
+					}
+					
 					
 					if(any(simulation_timescales=="yearly") & aon$yearlyAET){
 						if(!exists("AET.yr")) AET.yr <- get_AET_yr(dir.sw.runs.sc.out[sc])

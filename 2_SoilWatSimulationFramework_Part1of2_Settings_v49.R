@@ -342,6 +342,7 @@ output_aggregates <- c(
 		"monthlyRunoff", 1,
 		"monthlySnowpack", 1,
 		"dailySnowpack", 1,
+		"monthlySPEIEvents", 1,
 		"monthlySWP", 1,
 		"monthlySWPdryness", 1,
 		"dailySWPdrynessANDwetness", 1,
