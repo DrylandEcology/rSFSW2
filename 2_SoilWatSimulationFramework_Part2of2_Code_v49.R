@@ -212,6 +212,7 @@
 #		- (drs) fixed bug in climate scenario creation: error due to wrong dimensions in scalors if treatments of ClimateScenario_{Temp, PPT}_PerturbationInMeanSeasonalityBothOrNone were 'None'
 #		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
 #		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
+#		- (drs) fixed bug in creation of soilsin from input datafile: writing to file of impermeability was done after rounding to 0 digits, thereby missing all content except 0 and 1
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2297,7 +2298,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					} else {
 						this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 					}
-					soilline <- paste(formatC(this_soil[1], digits=0, format="f"), formatC(this_soil[2], digits=2, format="f"), formatC(this_soil[3], digits=4, format="f"), formatC(this_soil[4], digits=4, format="f"), formatC(this_soil[5], digits=4, format="f"), formatC(this_soil[6], digits=4, format="f"), formatC(this_soil[7], digits=4, format="f"), formatC(this_soil[8], digits=4, format="f"), formatC(this_soil[9], digits=4, format="f"), formatC(this_soil[10], digits=4, format="f"), formatC(this_soil[11], digits=0, format="f"), formatC(this_soil[12], digits=4, format="f"), missingtext, sep="\t")
+					soilline <- paste(formatC(this_soil[1], digits=0, format="f"), formatC(this_soil[2], digits=2, format="f"), formatC(this_soil[3], digits=4, format="f"), formatC(this_soil[4], digits=4, format="f"), formatC(this_soil[5], digits=4, format="f"), formatC(this_soil[6], digits=4, format="f"), formatC(this_soil[7], digits=4, format="f"), formatC(this_soil[8], digits=4, format="f"), formatC(this_soil[9], digits=4, format="f"), formatC(this_soil[10], digits=4, format="f"), formatC(this_soil[11], digits=4, format="f"), formatC(this_soil[12], digits=4, format="f"), missingtext, sep="\t")
 					if(soilsin.firstDataLine-1 + l > infiletext.nrow){
 						infiletext <- c(infiletext, soilline)
 					} else {
