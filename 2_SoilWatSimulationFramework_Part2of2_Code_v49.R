@@ -222,6 +222,7 @@
 #		- (drs) added aggregation option 'monthlySPEIEvents': duration and intensity of the standardized precipitation-evapotranspiration index at different scales
 #		- (drs) renamed 'SWCtot' -> 'SWC' and 'SWCvol' -> 'VWC'
 #		- (drs) updated n_variables to represent actual numbers of aggregations: apparently, in the past, when aggregation options were added, the update of n_variables was forgotten
+#		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2536,140 +2537,120 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						dailyC4vars <- SiteClimate_Scenario$dailyC4vars
 					}
 					#Functions
+					f.digits <- 3
+					tolerance <- 1.1*10^-f.digits
 					cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
 					finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 					#to file
 					FractionsToFile <- function(shrubs, grass, trees) {
 						infilename <- file.path(dir.sw.runs.sc.in[sc], prodin)
 						infiletext <- readLines(con = infilename)
-						infiletext[6] <- paste(formatC(grass, format="f", digits=3), formatC(shrubs, format="f", digits=3), formatC(trees, format="f", digits=3), sep="\t")	#Trees are set to 0
+						infiletext[6] <- paste(formatC(grass, format="f", digits=f.digits), formatC(shrubs, format="f", digits=f.digits), formatC(trees, format="f", digits=f.digits), sep="\t")
 						infile <- file(infilename, "w+b")
 						writeLines(text = infiletext, con = infile, sep = "\n")
 						close(infile)
 					}
 					#Get the user specified fractions, if column is false set to NA
-					AnnC4C3ShrubFraction <- c(NA, NA, NA, NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"), AnnC4C3ShrubFraction[1] <- finite01(i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction), AnnC4C3ShrubFraction[1] <- 0) #Annual can not be NA
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"), AnnC4C3ShrubFraction[2] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction, AnnC4C3ShrubFraction[2] <- NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction"), AnnC4C3ShrubFraction[3] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction, AnnC4C3ShrubFraction[3] <-NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"), AnnC4C3ShrubFraction[4] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction, AnnC4C3ShrubFraction[4] <-NA)
-					AnnC4C3ShrubFraction <- cut0Inf(AnnC4C3ShrubFraction) #some reason we have negatives
+					tree.fraction <- 0 #option 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' doesn't estimate tree cover, i.e., assumed to be == 0
+					AnnC4C3ShrubFraction <- rep(NA, 4)
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction")){
+						AnnC4C3ShrubFraction[1] <- finite01(i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction)
+					} else {
+						AnnC4C3ShrubFraction[1] <- 0 #Annuals can not be NA
+					}
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"))
+						AnnC4C3ShrubFraction[2] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction"))
+						AnnC4C3ShrubFraction[3] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"))
+						AnnC4C3ShrubFraction[4] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
+					AnnC4C3ShrubFraction <- cut0Inf(AnnC4C3ShrubFraction) #treat negatives as if NA
 					TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
 					
-					if(TotalFraction <= 1+sqrt(.Machine$double.eps) && TotalFraction >= 1-sqrt(.Machine$double.neg.eps)) { #no more work just use what we set
-						#the total is one so set NA to 0
-						AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction)
-						
-						grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-						
-						grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-						tree.fraction <- 0
-						#write to file
-						FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)					
-						
-					} else if(TotalFraction > 1) { #error scale down to one
-						#set NA to 0
-						AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction) # this might fix our problem
-						#Total is high scale down to 1
-						if(sum(AnnC4C3ShrubFraction) > 1)
-							AnnC4C3ShrubFraction <- AnnC4C3ShrubFraction/TotalFraction
-						
-						grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-						
-						grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-						tree.fraction <- 0
-						#write to file
-						FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)	
-						
-					} else if(TotalFraction < 1) {  #need to calc some fractions
-						if(sum(is.na(AnnC4C3ShrubFraction)) == 0) {
-							#throw an error
-							print(paste("User Defined Shrub, C3, C4, Annuals do not Add to 1. Run ", i, sep=""))
-							stop()							
-						}
-						#do a quick check to make sure we have at least 2 NA
-						if(sum(is.na(AnnC4C3ShrubFraction)) == 1) {
-							#missing only one value, just find its fraction and plug in.
-							AnnC4C3ShrubFraction[is.na(AnnC4C3ShrubFraction)] <- 1-sum(AnnC4C3ShrubFraction, na.rm=TRUE)
-							
-							grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-							
-							grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-							tree.fraction <- 0
-							#write to file
-							FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)
-						} else if (sum(is.na(AnnC4C3ShrubFraction)) > 1) {
-							if(i_SWRunInformation$Y_WGS84 >= 0){ #Northern hemisphere
-								Months_WinterTF <- c(12, 1:2)
-								Months_SummerTF <- c(6:8)
-							} else {
-								Months_WinterTF <- c(6:8)
-								Months_SummerTF <- c(12, 1:2)
-							}
-							ppt.SummerToMAP <- sum(monthly.ppt[Months_SummerTF]) / MAP_mm
-							ppt.WinterToMAP <- sum(monthly.ppt[Months_WinterTF]) / MAP_mm
-							
-							#---Potential natural vegetation
-							#1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
-							shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP) 								#if NA, then not enough winter precipitation above a given MAP
-							grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))			#if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
-							grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
-							grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
-							grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
-							
-							grass.Annual.fraction <- AnnC4C3ShrubFraction[1] #Ann will be 0 or something <= 1
-							
-							
-							#2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
-							#This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
-							x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9/5 + 32
-							x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9/5
-							x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
-							grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
-							grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
-							
-							#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
-							if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
-								if(MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
-								if(MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
-								if(MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
-							}
-							
-							#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
-							#if na then use calc fraction else use the user defined fraction
-							shrubs.fraction <- finite01(shrubs.fractionNA)
-							grass.c4.fraction <- finite01(grass.c4.fractionNA)
-							grass.c3.fraction <- finite01(grass.c3.fractionNA)
-							
-							sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
-							shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
-							grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
-							grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
-							
-							calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
-							naIndex <- which(is.na(AnnC4C3ShrubFraction))
-							#replace missing values
-							AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
-							#now we need to get the sum and scale the naIndex values accordingly
-							AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
-							
-							#Scale Grass components to one
-							grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-							
-							grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-							tree.fraction <- 0
-							#write to file
-							FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)
-						}
+					#Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
+					if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) == 0) {
+						print(paste(i, " run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))
+						stop() #throw an error
 					}
+
+					if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubFraction)) == 1){
+						
+						if(sum(is.na(AnnC4C3ShrubFraction)) == 1){ #if only one is NA, then this can be calculated
+							AnnC4C3ShrubFraction[which(is.na(AnnC4C3ShrubFraction))] <- cut0Inf(1 - TotalFraction)
+						} else {					
+							AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction) #the composition is >= 1, so set eventually remaining NA to 0
+						}
+						
+						TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
+						AnnC4C3ShrubFraction <- AnnC4C3ShrubFraction / TotalFraction #Rescale, in case it is needed	
+						
+					} else { #i.e., (TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) > 1) is TRUE; thus, calculate some fractions based on climate variables
+						if(i_SWRunInformation$Y_WGS84 >= 0){ #Northern hemisphere
+							Months_WinterTF <- c(12, 1:2)
+							Months_SummerTF <- c(6:8)
+						} else {
+							Months_WinterTF <- c(6:8)
+							Months_SummerTF <- c(12, 1:2)
+						}
+						ppt.SummerToMAP <- sum(monthly.ppt[Months_SummerTF]) / MAP_mm
+						ppt.WinterToMAP <- sum(monthly.ppt[Months_WinterTF]) / MAP_mm
+						
+						#---Potential natural vegetation
+						#1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
+						shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP) 								#if NA, then not enough winter precipitation above a given MAP
+						grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))			#if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
+						grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
+						grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
+						grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
+						
+						grass.Annual.fraction <- AnnC4C3ShrubFraction[1] #Ann will be 0 or something <= 1
+						
+						#2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
+						#This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
+						x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9/5 + 32
+						x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9/5
+						x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
+						grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
+						grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
+						
+						#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
+						if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
+							if(MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
+							if(MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
+							if(MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
+						}
+						
+						#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
+						#if na then use calc fraction else use the user defined fraction
+						shrubs.fraction <- finite01(shrubs.fractionNA)
+						grass.c4.fraction <- finite01(grass.c4.fractionNA)
+						grass.c3.fraction <- finite01(grass.c3.fractionNA)
+						
+						sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
+						shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
+						grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
+						grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
+						
+						calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
+						naIndex <- which(is.na(AnnC4C3ShrubFraction))
+						#replace missing values
+						AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
+						#now we need to get the sum and scale the naIndex values accordingly
+						AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
+					}
+					
+					#Scale Grass components to one (or set to 0)
+					if(!isTRUE(all.equal(AnnC4C3ShrubFraction[4], 1))){
+						grass.c4.fractionG <- AnnC4C3ShrubFraction[2] / (1-AnnC4C3ShrubFraction[4])
+						grass.c3.fractionG <- AnnC4C3ShrubFraction[3] / (1-AnnC4C3ShrubFraction[4])
+						grass.Annual.fractionG <- AnnC4C3ShrubFraction[1] / (1-AnnC4C3ShrubFraction[4])
+					} else {
+						grass.c4.fractionG <- grass.c3.fractionG <- grass.Annual.fractionG <- 0
+					}
+					grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
+					
+					#Write to file
+					FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)			
 				}
 				
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
