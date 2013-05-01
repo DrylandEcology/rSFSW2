@@ -220,6 +220,7 @@
 #		- (drs) fixed bug in aggregation options 'dailySWPdrynessEventSizeDistribution' and 'dailySWPdrynessIntensity': used xx.dy.all instead of xx.dy (yearly aggregations are based on xx.dy-formatted data)
 #		- (drs) generalized functions 'start10days' and 'end10days' (only used in aggregation option 'dailySWPdrynessANDwetness'), i.e., removed exlcusion of dry periods in first 90 days, generalized from fix 10 days to n days periods; replaced with 'startDoyOfDuration', 'endDoyAfterDuration'
 #		- (drs) added aggregation option 'monthlySPEIEvents': duration and intensity of the standardized precipitation-evapotranspiration index at different scales
+#		- (drs) renamed 'SWCtot' -> 'SWC' and 'SWCvol' -> 'VWC'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -3878,7 +3879,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						rainOnSnow <- aggregate(ifelse(SWE.dy$val > 0, prcp.dy$rain, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
 						res[nv:(nv+1)] <- c(mean(temp <- rainOnSnow / prcp.yr$ppt, na.rm=TRUE), sd(temp, na.rm=TRUE)) 
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("RainOnSnowOfMAP")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("RainOnSnowOfMAP", c("mean", "sd"), sep=".")
 						nv <- nv+2
 						rm(rainOnsnow)
 					}
@@ -4250,26 +4251,26 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					#volumetric soil water content top and bottom for each month
 					#monthly data
-					if(any(simulation_timescales=="monthly") & aon$monthlySWCvol){
+					if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
 						if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcmo, "mo", 1, FUN=weighted.mean, weights=layers_width)
 						
 						res[nv+st_mo-1] <- vwc.mo$aggMean.top
 						res[nv+st_mo-1+12] <- vwc.mo$aggMean.bottom
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swcvol.top_mm_m", st_mo, sep=""), paste("swcvol.bottom_mm_m", st_mo, sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("vwc.top_mm_m", st_mo, sep=""), paste("vwc.bottom_mm_m", st_mo, sep=""))
 						nv <- nv+24
 					}				
 					
 					
 					#total soil water content top and bottom for each month
 					#monthly data
-					if(any(simulation_timescales=="monthly") & aon$monthlySWCtot){
+					if(any(simulation_timescales=="monthly") & aon$monthlySWC){
 						if(!exists("swc.mo")) swc.mo <- get_Response_aggL(dir.sw.runs.sc.out[sc], swcmo, "mo", 10, FUN=sum)
 						
 						res[nv+st_mo-1] <- swc.mo$aggMean.top
 						res[nv+st_mo-1+12] <- swc.mo$aggMean.bottom
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swctot.top_mm_m", st_mo, sep=""), paste("swctot.bottom_mm_m", st_mo, sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swc.top_mm_m", st_mo, sep=""), paste("swc.bottom_mm_m", st_mo, sep=""))
 						nv <- nv+24
 					}				
 					
