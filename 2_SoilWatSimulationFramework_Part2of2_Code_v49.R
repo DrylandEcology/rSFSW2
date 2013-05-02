@@ -223,6 +223,7 @@
 #		- (drs) renamed 'SWCtot' -> 'SWC' and 'SWCvol' -> 'VWC'
 #		- (drs) updated n_variables to represent actual numbers of aggregations: apparently, in the past, when aggregation options were added, the update of n_variables was forgotten
 #		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
+#		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -262,7 +263,7 @@ write.table(NA, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
 try(file.remove(file.path(dir.out, timerfile2)), silent=TRUE)
-write.table(t(c("", "Time_s")), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
+write.table(t(c("", "Time_s", "Number")), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 
 #file: file list of all temporary output files
 filename.theFileList <- "List_TemporaryOutput.csv"
@@ -6015,21 +6016,28 @@ if(!be.quiet && any(actions=="concatenate") && do.ensembles) print(paste("SWSF c
 delta.overall <- difftime(Sys.time(), t.overall, units="secs")
 if(!be.quiet) print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
-write.timer <- function(label, time_sec){ write.table(t(c(label, time_sec)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
+write.timer <- function(label, time_sec="", number=""){ write.table(t(c(label, time_sec, number)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
 
-write.timer("Time_Total", delta.overall)
-write.timer("Time_Check", delta.check)
-write.timer("Time_FileConcatenation", delta.concatenation)
-write.timer("Time_Ensembles", delta.ensembles)
+write.timer("Time_Total", time_sec=delta.overall)
+write.timer("Time_Check", time_sec=delta.check)
+write.timer("Time_FileConcatenation", time_sec=delta.concatenation)
+write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(!identical(actions, "concatenate")){
 	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
-	write.timer("Time_OneRun_Mean", mean(times))
-	write.timer("Time_OneRun_SD", sd(times))
-	write.timer("Time_OneRun_Median", median(times))
-	write.timer("Time_OneRun_Min", min(times))
-	write.timer("Time_OneRun_Max", max(times))
+	write.timer("Time_OneRun_Mean", time_sec=mean(times))
+	write.timer("Time_OneRun_SD", time_sec=sd(times))
+	write.timer("Time_OneRun_Median", time_sec=median(times))
+	write.timer("Time_OneRun_Min", time_sec=min(times))
+	write.timer("Time_OneRun_Max", time_sec=max(times))
 }
+
+write.timer("N_cores", number=workersN)
+write.timer("N_Runs", number=runs.completed)
+write.timer("N_SWruns", number=runs.completed * scenario_No)
+write.timer("N_AggregationFiles", number=ifelse(exists("concats.completed"), concats.completed, 0))
+write.timer("N_EnsembleFiles", number=ifelse(exists("total.files"), total.files, 0))
+
 
 if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
 
