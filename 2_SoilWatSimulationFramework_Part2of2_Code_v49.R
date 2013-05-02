@@ -224,6 +224,7 @@
 #		- (drs) updated n_variables to represent actual numbers of aggregations: apparently, in the past, when aggregation options were added, the update of n_variables was forgotten
 #		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
 #		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
+#		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1766,7 +1767,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			#functions to obtain soil layer structures
 			#layer sequence
-			adjustLayersDepth <- function(layers_depth, d) return(layers_depth[1:d])
+			adjustLayersDepth <- function(layers_depth, d) return(round(layers_depth[1:d])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 			getLayersWidth <- function(layers_depth) return(diff(c(0, layers_depth)))
 			setLayerSequence <- function(d) return(1:d)
 			ld <- setLayerSequence(d)
