@@ -213,6 +213,18 @@
 #		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
 #		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
 #		- (drs) fixed bug in creation of soilsin from input datafile: writing to file of impermeability was done after rounding to 0 digits, thereby missing all content except 0 and 1
+#		- (drs) aggregation options 'dailySWPextremes', 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', and 'dailyDrainageExtremes', 'dailyAETExtremes': adapted that the mean instead of the first of multiple extreme days is used
+#		- (drs) aggregation options 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', 'dailyDrainageExtremes', and 'dailyAETExtremes': fixed a index bug in the header
+#		- (drs) aggregation option 'RainOnSnowOfMAP': added SD
+#		- (drs) aggregation option 'dailySWPdrynessIntensity': added mean of the amount of dry-period missing water, as well as the duration and the number
+#		- (drs) fixed bug in aggregation options 'dailySWPdrynessEventSizeDistribution' and 'dailySWPdrynessIntensity': used xx.dy.all instead of xx.dy (yearly aggregations are based on xx.dy-formatted data)
+#		- (drs) generalized functions 'start10days' and 'end10days' (only used in aggregation option 'dailySWPdrynessANDwetness'), i.e., removed exlcusion of dry periods in first 90 days, generalized from fix 10 days to n days periods; replaced with 'startDoyOfDuration', 'endDoyAfterDuration'
+#		- (drs) added aggregation option 'monthlySPEIEvents': duration and intensity of the standardized precipitation-evapotranspiration index at different scales
+#		- (drs) renamed 'SWCtot' -> 'SWC' and 'SWCvol' -> 'VWC'
+#		- (drs) updated n_variables to represent actual numbers of aggregations: apparently, in the past, when aggregation options were added, the update of n_variables was forgotten
+#		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
+#		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
+#		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -252,7 +264,7 @@ write.table(NA, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
 try(file.remove(file.path(dir.out, timerfile2)), silent=TRUE)
-write.table(t(c("", "Time_s")), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
+write.table(t(c("", "Time_s", "Number")), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 
 #file: file list of all temporary output files
 filename.theFileList <- "List_TemporaryOutput.csv"
@@ -310,7 +322,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 615 + (135*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 702 + (166*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -731,82 +743,45 @@ max.duration <- function(x) {
 	rmax <- max(r$lengths[which(r$values==1)])
 	return(ifelse(is.finite(rmax), rmax, 0)[1])
 }
-start10days <- function(x) {
+startDoyOfDuration <- function(x, duration=10) {
 	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
+	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
+		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=10)==0, NA, 1)[1])
 	} else {
-		s <- cumsum(r$lengths)
-		first10dry <- r$lengths[which(r$values==1 & r$lengths>=10 & s>90)][1]
+		first10dry <- r$lengths[which(r$values==1 & r$lengths>=duration)][1] #pick first period
 		if( !is.na(first10dry) ){
-			ind <- which(r$lengths==first10dry)
+			ind <- which(r$lengths==first10dry)[1] #always pick start of first suitable period
 		} else {
 			ind <- -1
 		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(s[1]>90 & ind[1]==1, 1, 365))
+		if(ind==1) {#start of period at beginning of year
+			return(1)
+		} else if(ind==-1) {#no period this year
+			return(NA)
 		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)-1]+1)
+			return(cumsum(r$lengths)[ind-1]+1)
 		}
 	}
 }
-end10days <- function(x) {
+endDoyAfterDuration <- function(x, duration=10) {
 	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
+	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
+		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=duration)==0, 365, NA)[1])
 	} else {
-		s <- cumsum(r$lengths)
-		last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=10 & s>90)])[length(rl)]
+		last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=duration)])[length(rl)] #pick last period
 		if( length(last10dry) > 0 ){
-			ind <- which(r$lengths==last10dry)
+			ind <- (temp <- which(r$lengths==last10dry))[length(temp)]	#always pick end of last period
 		} else {
 			ind <- -1
 		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(s[1]>90 & ind[1]==1, 1, 365))
+		if(ind==-1) {#no period this year
+			return(NA)
 		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)])
+			return(cumsum(r$lengths)[ind])
 		}
 	}
 }
-start10days2 <- function(x) {
-	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
-	} else {
-		s <- cumsum(r$lengths)
-		firstMax10dry <- max(r$lengths[which(r$values==1 & r$lengths>=10)])
-		if( !is.na(firstMax10dry) ){
-			ind <- which(r$lengths==firstMax10dry)
-		} else {
-			ind <- -1
-		}
-		if(ind[1]==1 | ind[1]==-1) {#start at beginning of year
-			return(ifelse(ind[1]==1,1,365))
-		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)-1]+1)
-		}
-	}
-}
-end10days2 <- function(x) {
-	r <- rle(x)
-	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=10)==0 ){
-		return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<=90)) | sum(r$values==1 & r$lengths>=10)==0, 365, 1)[1])
-	} else {
-		s <- cumsum(r$lengths)
-		last10dry <- max(r$lengths[which(r$values==1 & r$lengths>=10)])
-		if( length(last10dry) > 0 ){
-			ind <- which(r$lengths==last10dry)
-		} else {
-			ind <- -1
-		}
-		if(ind[1]==-1) {#start at beginning of year
-			return(365)
-		} else {
-			return(s[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)])
-		}
-	}
-}
+
 #convert SWP to VWC, e.g., to calculate field capacity and wilting point
 SWPtoVWC <- function(swp, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
@@ -1792,7 +1767,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			#functions to obtain soil layer structures
 			#layer sequence
-			adjustLayersDepth <- function(layers_depth, d) return(layers_depth[1:d])
+			adjustLayersDepth <- function(layers_depth, d) return(round(layers_depth[1:d])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 			getLayersWidth <- function(layers_depth) return(diff(c(0, layers_depth)))
 			setLayerSequence <- function(d) return(1:d)
 			ld <- setLayerSequence(d)
@@ -2564,140 +2539,120 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						dailyC4vars <- SiteClimate_Scenario$dailyC4vars
 					}
 					#Functions
+					f.digits <- 3
+					tolerance <- 1.1*10^-f.digits
 					cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
 					finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 					#to file
 					FractionsToFile <- function(shrubs, grass, trees) {
 						infilename <- file.path(dir.sw.runs.sc.in[sc], prodin)
 						infiletext <- readLines(con = infilename)
-						infiletext[6] <- paste(formatC(grass, format="f", digits=3), formatC(shrubs, format="f", digits=3), formatC(trees, format="f", digits=3), sep="\t")	#Trees are set to 0
+						infiletext[6] <- paste(formatC(grass, format="f", digits=f.digits), formatC(shrubs, format="f", digits=f.digits), formatC(trees, format="f", digits=f.digits), sep="\t")
 						infile <- file(infilename, "w+b")
 						writeLines(text = infiletext, con = infile, sep = "\n")
 						close(infile)
 					}
 					#Get the user specified fractions, if column is false set to NA
-					AnnC4C3ShrubFraction <- c(NA, NA, NA, NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"), AnnC4C3ShrubFraction[1] <- finite01(i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction), AnnC4C3ShrubFraction[1] <- 0) #Annual can not be NA
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"), AnnC4C3ShrubFraction[2] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction, AnnC4C3ShrubFraction[2] <- NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction"), AnnC4C3ShrubFraction[3] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction, AnnC4C3ShrubFraction[3] <-NA)
-					ifelse(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"), AnnC4C3ShrubFraction[4] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction, AnnC4C3ShrubFraction[4] <-NA)
-					AnnC4C3ShrubFraction <- cut0Inf(AnnC4C3ShrubFraction) #some reason we have negatives
+					tree.fraction <- 0 #option 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' doesn't estimate tree cover, i.e., assumed to be == 0
+					AnnC4C3ShrubFraction <- rep(NA, 4)
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction")){
+						AnnC4C3ShrubFraction[1] <- finite01(i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction)
+					} else {
+						AnnC4C3ShrubFraction[1] <- 0 #Annuals can not be NA
+					}
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"))
+						AnnC4C3ShrubFraction[2] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction"))
+						AnnC4C3ShrubFraction[3] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction
+					if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"))
+						AnnC4C3ShrubFraction[4] <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
+					AnnC4C3ShrubFraction <- cut0Inf(AnnC4C3ShrubFraction) #treat negatives as if NA
 					TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
 					
-					if(TotalFraction <= 1+sqrt(.Machine$double.eps) && TotalFraction >= 1-sqrt(.Machine$double.neg.eps)) { #no more work just use what we set
-						#the total is one so set NA to 0
-						AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction)
-						
-						grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-						
-						grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-						tree.fraction <- 0
-						#write to file
-						FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)					
-						
-					} else if(TotalFraction > 1) { #error scale down to one
-						#set NA to 0
-						AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction) # this might fix our problem
-						#Total is high scale down to 1
-						if(sum(AnnC4C3ShrubFraction) > 1)
-							AnnC4C3ShrubFraction <- AnnC4C3ShrubFraction/TotalFraction
-						
-						grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-						grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-						
-						grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-						tree.fraction <- 0
-						#write to file
-						FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)	
-						
-					} else if(TotalFraction < 1) {  #need to calc some fractions
-						if(sum(is.na(AnnC4C3ShrubFraction)) == 0) {
-							#throw an error
-							print(paste("User Defined Shrub, C3, C4, Annuals do not Add to 1. Run ", i, sep=""))
-							stop()							
-						}
-						#do a quick check to make sure we have at least 2 NA
-						if(sum(is.na(AnnC4C3ShrubFraction)) == 1) {
-							#missing only one value, just find its fraction and plug in.
-							AnnC4C3ShrubFraction[is.na(AnnC4C3ShrubFraction)] <- 1-sum(AnnC4C3ShrubFraction, na.rm=TRUE)
-							
-							grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-							
-							grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-							tree.fraction <- 0
-							#write to file
-							FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)
-						} else if (sum(is.na(AnnC4C3ShrubFraction)) > 1) {
-							if(i_SWRunInformation$Y_WGS84 >= 0){ #Northern hemisphere
-								Months_WinterTF <- c(12, 1:2)
-								Months_SummerTF <- c(6:8)
-							} else {
-								Months_WinterTF <- c(6:8)
-								Months_SummerTF <- c(12, 1:2)
-							}
-							ppt.SummerToMAP <- sum(monthly.ppt[Months_SummerTF]) / MAP_mm
-							ppt.WinterToMAP <- sum(monthly.ppt[Months_WinterTF]) / MAP_mm
-							
-							#---Potential natural vegetation
-							#1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
-							shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP) 								#if NA, then not enough winter precipitation above a given MAP
-							grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))			#if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
-							grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
-							grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
-							grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
-							
-							grass.Annual.fraction <- AnnC4C3ShrubFraction[1] #Ann will be 0 or something <= 1
-							
-							
-							#2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
-							#This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
-							x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9/5 + 32
-							x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9/5
-							x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
-							grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
-							grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
-							
-							#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
-							if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
-								if(MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
-								if(MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
-								if(MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
-							}
-							
-							#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
-							#if na then use calc fraction else use the user defined fraction
-							shrubs.fraction <- finite01(shrubs.fractionNA)
-							grass.c4.fraction <- finite01(grass.c4.fractionNA)
-							grass.c3.fraction <- finite01(grass.c3.fractionNA)
-							
-							sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
-							shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
-							grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
-							grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
-							
-							calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
-							naIndex <- which(is.na(AnnC4C3ShrubFraction))
-							#replace missing values
-							AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
-							#now we need to get the sum and scale the naIndex values accordingly
-							AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
-							
-							#Scale Grass components to one
-							grass.c4.fractionG <- finite01(AnnC4C3ShrubFraction[2] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.c3.fractionG <- finite01(AnnC4C3ShrubFraction[3] * 1/(1-AnnC4C3ShrubFraction[4]))
-							grass.Annual.fractionG <- finite01(AnnC4C3ShrubFraction[1] * 1/(1-AnnC4C3ShrubFraction[4]))
-							
-							grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
-							tree.fraction <- 0
-							#write to file
-							FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)
-						}
+					#Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
+					if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) == 0) {
+						print(paste(i, " run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))
+						stop() #throw an error
 					}
+
+					if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubFraction)) == 1){
+						
+						if(sum(is.na(AnnC4C3ShrubFraction)) == 1){ #if only one is NA, then this can be calculated
+							AnnC4C3ShrubFraction[which(is.na(AnnC4C3ShrubFraction))] <- cut0Inf(1 - TotalFraction)
+						} else {					
+							AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction) #the composition is >= 1, so set eventually remaining NA to 0
+						}
+						
+						TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
+						AnnC4C3ShrubFraction <- AnnC4C3ShrubFraction / TotalFraction #Rescale, in case it is needed	
+						
+					} else { #i.e., (TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) > 1) is TRUE; thus, calculate some fractions based on climate variables
+						if(i_SWRunInformation$Y_WGS84 >= 0){ #Northern hemisphere
+							Months_WinterTF <- c(12, 1:2)
+							Months_SummerTF <- c(6:8)
+						} else {
+							Months_WinterTF <- c(6:8)
+							Months_SummerTF <- c(12, 1:2)
+						}
+						ppt.SummerToMAP <- sum(monthly.ppt[Months_SummerTF]) / MAP_mm
+						ppt.WinterToMAP <- sum(monthly.ppt[Months_WinterTF]) / MAP_mm
+						
+						#---Potential natural vegetation
+						#1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
+						shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP) 								#if NA, then not enough winter precipitation above a given MAP
+						grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))			#if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
+						grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
+						grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
+						grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
+						
+						grass.Annual.fraction <- AnnC4C3ShrubFraction[1] #Ann will be 0 or something <= 1
+						
+						#2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
+						#This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
+						x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9/5 + 32
+						x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9/5
+						x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
+						grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
+						grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
+						
+						#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
+						if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
+							if(MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
+							if(MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
+							if(MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
+						}
+						
+						#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
+						#if na then use calc fraction else use the user defined fraction
+						shrubs.fraction <- finite01(shrubs.fractionNA)
+						grass.c4.fraction <- finite01(grass.c4.fractionNA)
+						grass.c3.fraction <- finite01(grass.c3.fractionNA)
+						
+						sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
+						shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
+						grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
+						grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
+						
+						calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
+						naIndex <- which(is.na(AnnC4C3ShrubFraction))
+						#replace missing values
+						AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
+						#now we need to get the sum and scale the naIndex values accordingly
+						AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
+					}
+					
+					#Scale Grass components to one (or set to 0)
+					if(!isTRUE(all.equal(AnnC4C3ShrubFraction[4], 1))){
+						grass.c4.fractionG <- AnnC4C3ShrubFraction[2] / (1-AnnC4C3ShrubFraction[4])
+						grass.c3.fractionG <- AnnC4C3ShrubFraction[3] / (1-AnnC4C3ShrubFraction[4])
+						grass.Annual.fractionG <- AnnC4C3ShrubFraction[1] / (1-AnnC4C3ShrubFraction[4])
+					} else {
+						grass.c4.fractionG <- grass.c3.fractionG <- grass.Annual.fractionG <- 0
+					}
+					grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
+					
+					#Write to file
+					FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)			
 				}
 				
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
@@ -3621,6 +3576,44 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						rm(DayNumber_ForEachUsedMonth, DayNumber_ForEachUsedYear, control_temp, control_water, control_radiation, aridity, temp, cloudiness)
 					}
 					
+					
+					if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
+						require(SPEI)
+						#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer√≠a, S., Lorenzo-Lacruz, J., Camarero, J.s.J., L√≥pez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Mor√°n-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
+						if(!exists("PET.mo")) PET.mo <- get_PET_mo(dir.sw.runs.sc.out[sc])
+						if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(dir.sw.runs.sc.out[sc])
+						
+						#n_variables is set for 4*4*3 with length(binSPEI_m) == 4 && length(probs) == 3
+						binSPEI_m <- c(1, 12, 24, 48) #months
+						probs <- c(0.025, 0.5, 0.975)	
+						
+						for(iscale in seq_along(binSPEI_m)){
+							rvec <- rep(NA, times=4 * length(probs))
+							if(binSPEI_m[iscale] < length(prcp.mo$ppt)){
+								spei_m <- as.numeric(spei(prcp.mo$ppt - PET.mo$val, scale=binSPEI_m[iscale])$fitted)
+								spei_m <- spei_m[!is.na(spei_m)]
+								runs <- rle(spei_m >= 0)
+								
+								iresp <- rep(1:4, each=length(probs))
+								if(sum(runs$values) > 0){
+									rvec[iresp==1] <- quantile(runs$lengths[runs$values], probs=probs) #duration of positive spells
+									rvec[iresp==2] <- quantile(spei_m[spei_m >= 0], probs=probs) #intensity of positive spells
+								}
+								if(sum(!runs$values) > 0){
+									rvec[iresp==3] <- quantile(runs$lengths[!runs$values], probs=probs) #duration of negative spells
+									rvec[iresp==4] <- quantile(spei_m[spei_m < 0], probs=probs) #intensity of positive spells
+								}
+							}
+							
+							res[nv:(nv+length(rvec)-1)] <- rvec
+							if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+length(rvec)-1)] <- paste(rep(paste("SPEI_at", binSPEI_m[iscale], "months_", sep=""), length(rvec)), "Spell", rep(c("Pos_", "Neg_"), each=2*length(probs)), rep(rep(c("DurationMonths_", "SPEIvalue_"), each=length(probs)), times=2), "Quantile", rep(probs, times=4), sep="")
+							nv <- nv+length(rvec)
+						
+						}
+					
+					}
+					
+					
 					if(any(simulation_timescales=="yearly") & aon$yearlyAET){
 						if(!exists("AET.yr")) AET.yr <- get_AET_yr(dir.sw.runs.sc.out[sc])
 						res[nv:(nv+1)] <- c(mean(AET.yr$val), sd(AET.yr$val))
@@ -3731,72 +3724,75 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+6
 						
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of transpiration as in'dailySWPextremes' (don't distinguish between top/bottom soil layers)
 					if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
 						if(!exists("transp.dy")) transp.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], transpdy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("transp.dy.max_mm", "transp.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("transp.dy.max_mm", "transp.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("transp.max_doy", "transp.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("transp.max_doy", "transp.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of total evaporation (surface + soil) as in'dailySWPextremes' (don't distinguish between top/bottom soil layers)
 					if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
 						if(!exists("evsoil.dy")) evsoil.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], evsoildy, "dy", 10, FUN=sum)
 						if(!exists("evapsurface.dy")) evapsurface.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], evapsurfacedy, "dy", 10, FUN=sum)
 						
-						
-						extremes <- as.matrix(aggregate(cbind(evsoil.dy$top + evsoil.dy$bottom + evapsurface.dy$top + evapsurface.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(evsoil.dy$top + evsoil.dy$bottom + evapsurface.dy$top + evapsurface.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("evap.dy.max_mm", "evap.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("evap.dy.max_mm", "evap.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("evap.max_doy", "evap.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("evap.max_doy", "evap.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of deep drainage as in'dailySWPextremes' (don't distinguish between top/bottom soil layers
 					if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
 						if(!exists("deepdrain.dy")) deepdrain.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], deepdraindy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(deepdrain.dy$top + deepdrain.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(deepdrain.dy$top + deepdrain.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("deepDrainage.dy.max_mm", "deepDrainage.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("deepDrainage.dy.max_mm", "deepDrainage.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("deepDrainage.max_doy", "deepDrainage.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("deepDrainage.max_doy", "deepDrainage.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
 					}
+					
 					#mean and SD of DOY and value of minimum/maximum of AET as in'dailySWPextremes' (don't distinguish between top/bottom soil layers
 					if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {						
 						if(!exists("AET.dy")) AET.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], aetdy, "dy", 10, FUN=sum)
 						
-						extremes <- as.matrix(aggregate(cbind(AET.dy$top + AET.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(AET.dy$top + AET.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+3)] <- c(apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("AET.dy.max_mm", "AET.dy.min_mm"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("AET.dy.max_mm", "AET.dy.min_mm"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						res[nv:(nv+3)] <- c(apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365)), apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365)))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("AET.max_doy", "AET.min_doy"), paste(temp, "sd", sep="."))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- c(temp <- c("AET.max_doy", "AET.min_doy"), paste(temp, "sd", sep="."))
 						nv <- nv+4
 						
 						rm(extremes)
@@ -3858,17 +3854,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+10
 					}		
 					
-					
 					if(any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack){			
 						if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(dir.sw.runs.sc.out[sc])
 						if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(dir.sw.runs.sc.out[sc])
 						if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(dir.sw.runs.sc.out[sc])
 						
 						#Portion of rain that falls on snow
-						res[nv] <- mean(aggregate(ifelse(SWE.dy$val > 0, prcp.dy$rain, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2], na.rm=TRUE) / mean(prcp.yr$ppt, na.rm=TRUE)
+						rainOnSnow <- aggregate(ifelse(SWE.dy$val > 0, prcp.dy$rain, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+						res[nv:(nv+1)] <- c(mean(temp <- rainOnSnow / prcp.yr$ppt, na.rm=TRUE), sd(temp, na.rm=TRUE)) 
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv] <- c("RainOnSnowOfMAP")
-						nv <- nv+1
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("RainOnSnowOfMAP", c("mean", "sd"), sep=".")
+						nv <- nv+2
+						rm(rainOnsnow)
 					}
 					
 					#soil temp
@@ -3960,7 +3957,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
 						if(!exists("swp.dy")) swp.dy <- get_SWP_aggL(vwc.dy)
 						
-						extremes <- as.matrix(aggregate(cbind(swp.dy$top, swp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), which.max(x), which.min(x))))
+						extremes <- as.matrix(aggregate(cbind(swp.dy$top, swp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 						res[nv:(nv+7)] <- c(apply(temp <- extremes[, c(2:3, 6:7)], MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
 						
 						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+7)] <- c(temp <- c("swp.top.dy.max_MPa", "swp.top.dy.min_MPa", "swp.bottom.dy.max_MPa", "swp.bottom.dy.min_MPa"), paste(temp, "sd", sep="."))
@@ -4030,94 +4027,85 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					if(any(simulation_timescales=="daily") && aon$dailySWPdrynessEventSizeDistribution)
 					{
-						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
-						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all)
-						binSize <- c(1,8,15,29,367)#use for interval
+						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
+						if(!exists("swp.dy")) swp.dy <- get_SWP_aggL(vwc.dy)
+						binSize <- c(1,8,15,29,367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
+						binsN <- length(binSize) - 1
 						
-						EventDistribution <- function(data) {#data is the values for one year adj for SWPcrit_MPa
-							if(length(temp <- (temp <- rle(data == 0))$lengths[temp$values]) > 0) { 
-								bins <- c(0,0,0,0)
+						EventDistribution <- function(data) {#data is the values for one year adj for SWPcrit_MPa; TRUE==dry
+							bins <- rep(0, times=binsN)
+							if(length(temp <- (temp <- rle(data))$lengths[temp$values]) > 0) { 	
 								for(z in 1:length(temp)) {
-									bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) 
+									bins[findInterval(temp[z],binSize)] <- bins[findInterval(temp[z],binSize)] + 1 
 								}
-								return(bins)
-							}  else {
-								return(c(0,0,0,0))
 							}
+							return(bins)
 						}
-						#if(i_SWRunInformation$Y_WGS84 < 0) {
-						#for(k in simTime$useyrs) {#go through the years and adjust each day of year for South
-						#	swp.dy$top[simTime2$year_ForEachUsedDay == k] <- swp.dy$top[simTime2$year_ForEachUsedDay == k][simTime2$doy_ForEachUsedDay_NSadj[simTime2$year_ForEachUsedDay == k]]
-						#	swp.dy$bottom[simTime2$year_ForEachUsedDay == k] <- swp.dy$bottom[simTime2$year_ForEachUsedDay == k][simTime2$doy_ForEachUsedDay_NSadj[simTime2$year_ForEachUsedDay == k]]
-						#}
-						#}
+
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
-							wet.top <- swp.dy.all$top[simTime$index.usedy] >= SWPcrit_MPa[icrit]
+							dry.top <- swp.dy$top[simTime$index.usedy] < SWPcrit_MPa[icrit]
 							
 							if(length(bottomL) >= 1) {
-								wet.bottom <- swp.dy.all$bottom[simTime$index.usedy] >= SWPcrit_MPa[icrit]
-							} else {
-								wet.bottom <- matrix(data=NA, nrow=length(swp.dy$bottom), ncol=1)
+								dry.bottom <- swp.dy$bottom[simTime$index.usedy] < SWPcrit_MPa[icrit]
 							}
 							
 							#apply over each year, rle just on selected year store runs in vec, if that is greater than 0 then add to that years bins else return 0s for that year. Will result in a matrix of 4 by Years
-							#binsYears.top <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle(wet.top[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]) > 0) { bins <- c(0,0,0,0); for(z in 1:length(temp)) { bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) }; return(bins) } else {return(c(0,0,0,0))}} )
-							binsYears.top <- aggregate(wet.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
-							bin_top_mean <- apply(binsYears.top, MARGIN = 2, mean) #mean of each bin size across a year - vector of 4
-							bin_top_sd <- apply(binsYears.top, MARGIN = 2, sd) # sd of each bin size across a year - vector of 4
+							binsYears.top <- aggregate(dry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
+							bin_top_mean <- apply(binsYears.top, MARGIN = 2, mean) #mean of each bin size across a year - vector of binsN
+							bin_top_sd <- apply(binsYears.top, MARGIN = 2, sd) # sd of each bin size across a year - vector of binsN
 							
 							if(length(bottomL) > 0) {
-								#binsYears.bottom <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle(wet.bottom[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]) > 0) { bins <- c(0,0,0,0); for(z in 1:length(temp)) { bins[findInterval(temp[z],binSize)] <- (bins[findInterval(temp[z],binSize)]+1) }; return(bins) } else {return(c(0,0,0,0))}} )
-								binsYears.bottom <- aggregate(wet.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
+								binsYears.bottom <- aggregate(dry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
 								bin_bottom_mean <- apply(binsYears.bottom, MARGIN = 2, mean)
 								bin_bottom_sd <- apply(binsYears.bottom, MARGIN = 2, sd)
 							}
-							bottom <- if(length(bottomL) > 0) c(bin_bottom_mean, bin_bottom_sd) else rep(0,8)
-							res[nv:(nv+15)] <- c(bin_top_mean, bin_top_sd, bottom)
+							res[nv:(nv+4*binsN-1)] <- c(bin_top_mean, bin_top_sd, if(length(bottomL) > 0) c(bin_bottom_mean, bin_bottom_sd) else rep(0,2*binsN))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste(paste("SWPdryness_Length",c("1-7days","8-14days","15-28days", "29+days") ,"_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+15)] <- c(paste(baseTitle, c(rep("_top_mean", 4), rep("_top_sd",4)), sep=""),	 paste(baseTitle, c(rep("_bottom_mean", 4), rep("_bottom_sd",4)), sep=""))
+								baseTitle <- paste(paste("SWPdryness_Length", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
+								resultfiles.Aggregates.header[nv:(nv+4*binsN-1)] <- c(rep(paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), 2))
 							}
-							nv <- nv+16
+							nv <- nv+4*binsN
 						}
-						rm(wet.top, wet.bottom)
+						rm(dry.top, dry.bottom, binsN, binSize)
 					}
 					
 					if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity)
 					{
-						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
+						if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dy", 1, FUN=weighted.mean, weights=layers_width)
 						
 						cut0 <- function(x) {x[x < 0] <- 0; return(x)}
-						SWCtop <- vwc.dy.all$top * sum(layers_width[topL])*10
-						if(length(bottomL) > 0) SWCbottom <- vwc.dy.all$bottom * sum(layers_width[bottomL])*10
+						SWCtop <- vwc.dy$top * sum(layers_width[topL])*10
+						if(length(bottomL) > 0) SWCbottom <- vwc.dy$bottom * sum(layers_width[bottomL])*10
 						
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
-							SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10
-							if(length(bottomL) > 0) SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
-							
-							SWCtopAdjCrit <- cut0(SWCcritT - SWCtop)
-							SWCbottomAdjCrit <- cut0(SWCcritB - SWCbottom)
-							
-							Intensity_top_mean <- mean( sumSWCtopAdjCritYears <- sapply(simTime$useyrs, FUN=function(y) sum(SWCtopAdjCrit[simTime2$year_ForEachUsedDay == y])) )
-							Intensity_top_sd <- sd( sumSWCtopAdjCritYears )
+							#amount of SWC required so that layer wouldn't be dry
+							SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10							
+							missingSWCtop <- cut0(SWCcritT - SWCtop) 
+							IntensitySum_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCtop[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
+							IntensityMean_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCtop[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp), na.rm=TRUE)
+							IntensityDurationAndNumber_top <- c(apply(temp <- sapply(simTime$useyrs, FUN=function(y) c(mean(temp <- (temp <- rle(missingSWCtop[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, sd))[c(1, 3, 2, 4)]
 							
 							if(length(bottomL) > 0) {
-								Intensity_bottom_mean <- mean( sumSWCbottomAdjCritYears <- sapply(simTime$useyrs, FUN=function(y) sum(SWCbottomAdjCrit[simTime2$year_ForEachUsedDay == y])) )
-								Intensity_bottom_sd <- sd( sumSWCbottomAdjCritYears )
+								SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
+								missingSWCbottom <- cut0(SWCcritB - SWCbottom)
+								IntensitySum_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCbottom[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
+								IntensityMean_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCbottom[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp, na.rm=TRUE))
+								IntensityDurationAndNumber_bottom <- c(apply(temp <- sapply(simTime$useyrs, FUN=function(y) c(mean(temp <- (temp <- rle(missingSWCbottom[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, sd))[c(1, 3, 2, 4)]
 							}
 							
-							bottom <- if(length(bottomL) > 0) c(Intensity_bottom_mean, Intensity_bottom_sd) else rep(0,2)
-							res[nv:(nv+3)] <- c(Intensity_top_mean, Intensity_top_sd, bottom)
+							res[nv:(nv+15)] <- c(IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top, if(length(bottomL) > 0) c(IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom) else rep(0, 8))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste("IntensityDryPeriod_", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+3)] <- c(paste(baseTitle, c(rep("_top_mean_mm", 1), rep("_top_sd",1)), sep=""), paste(baseTitle, c(rep("_bottom_mean_mm", 1), rep("_bottom_sd_mm",1)), sep=""))
+								baseTitle <- paste("DryPeriods_MissingWater_", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa_", sep=""), rep(c("top_", "bottom_"), each=4), rep(c("AnnualSum_mmH2O", "MeanEventAmount_mmH2OperEventDay", "MeanEventDuration_Days", "MeanEventNumber_CountPerYear"), times=2), sep="")
+								resultfiles.Aggregates.header[nv:(nv+15)] <- paste(rep(baseTitle, each=2), c("mean", "sd"), sep=".")
 							}
-							nv <- nv+4
+							nv <- nv+16
 						}
+						rm(	SWCcritT, missingSWCtop, IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top,
+							SWCcritB, missingSWCbottom, IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom)
 					}
 					
 					#Degree days based on daily temp, and wet degree days on daily temp and swp
@@ -4158,9 +4146,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){
 						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcdy, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
-						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all)
+						if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all) #swp.dy.all is required to get all layers
 						
 						adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+						durationDryPeriods.min <- 10 # days
 						
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
@@ -4218,12 +4207,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							res.dry[,8] <- aggregate(AllDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=max.duration )[,2]
 							
 							# 1/5. start days/year when at least one of top/bottom layers are dry for at least ten days
-							res.dry[,1] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=start10days )[,2] - adjDays
-							res.dry[,5] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=start10days )[,2] - adjDays
+							res.dry[,1] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=startDoyOfDuration, duration=durationDryPeriods.min)[,2] - adjDays
+							res.dry[,5] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=startDoyOfDuration, duration=durationDryPeriods.min)[,2] - adjDays
 							
 							# 2/6. end days/year when at least one of top/bottom layers have been dry for at least ten days
-							res.dry[,2] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=end10days )[,2] - adjDays
-							res.dry[,6] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=end10days )[,2] - adjDays
+							res.dry[,2] <- aggregate(AtLeastOneDry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=endDoyAfterDuration, duration=durationDryPeriods.min)[,2] - adjDays
+							res.dry[,6] <- aggregate(AtLeastOneDry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=endDoyAfterDuration, duration=durationDryPeriods.min)[,2] - adjDays
 							
 							#correct [,c(3,7)] for years when start<end otherwise set 0
 							res.dry[,3] <- ifelse(res.dry[,2]-res.dry[,1]>0, res.dry[,3], 0) 
@@ -4246,26 +4235,26 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					#volumetric soil water content top and bottom for each month
 					#monthly data
-					if(any(simulation_timescales=="monthly") & aon$monthlySWCvol){
+					if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
 						if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(dir.sw.runs.sc.out[sc], vwcmo, "mo", 1, FUN=weighted.mean, weights=layers_width)
 						
 						res[nv+st_mo-1] <- vwc.mo$aggMean.top
 						res[nv+st_mo-1+12] <- vwc.mo$aggMean.bottom
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swcvol.top_mm_m", st_mo, sep=""), paste("swcvol.bottom_mm_m", st_mo, sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("vwc.top_mm_m", st_mo, sep=""), paste("vwc.bottom_mm_m", st_mo, sep=""))
 						nv <- nv+24
 					}				
 					
 					
 					#total soil water content top and bottom for each month
 					#monthly data
-					if(any(simulation_timescales=="monthly") & aon$monthlySWCtot){
+					if(any(simulation_timescales=="monthly") & aon$monthlySWC){
 						if(!exists("swc.mo")) swc.mo <- get_Response_aggL(dir.sw.runs.sc.out[sc], swcmo, "mo", 10, FUN=sum)
 						
 						res[nv+st_mo-1] <- swc.mo$aggMean.top
 						res[nv+st_mo-1+12] <- swc.mo$aggMean.bottom
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swctot.top_mm_m", st_mo, sep=""), paste("swctot.bottom_mm_m", st_mo, sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+23)] <- c(paste("swc.top_mm_m", st_mo, sep=""), paste("swc.bottom_mm_m", st_mo, sep=""))
 						nv <- nv+24
 					}				
 					
@@ -6063,21 +6052,28 @@ if(!be.quiet && any(actions=="concatenate") && do.ensembles) print(paste("SWSF c
 delta.overall <- difftime(Sys.time(), t.overall, units="secs")
 if(!be.quiet) print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
-write.timer <- function(label, time_sec){ write.table(t(c(label, time_sec)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
+write.timer <- function(label, time_sec="", number=""){ write.table(t(c(label, time_sec, number)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
 
-write.timer("Time_Total", delta.overall)
-write.timer("Time_Check", delta.check)
-write.timer("Time_FileConcatenation", delta.concatenation)
-write.timer("Time_Ensembles", delta.ensembles)
+write.timer("Time_Total", time_sec=delta.overall)
+write.timer("Time_Check", time_sec=delta.check)
+write.timer("Time_FileConcatenation", time_sec=delta.concatenation)
+write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(!identical(actions, "concatenate")){
 	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
-	write.timer("Time_OneRun_Mean", mean(times))
-	write.timer("Time_OneRun_SD", sd(times))
-	write.timer("Time_OneRun_Median", median(times))
-	write.timer("Time_OneRun_Min", min(times))
-	write.timer("Time_OneRun_Max", max(times))
+	write.timer("Time_OneRun_Mean", time_sec=mean(times))
+	write.timer("Time_OneRun_SD", time_sec=sd(times))
+	write.timer("Time_OneRun_Median", time_sec=median(times))
+	write.timer("Time_OneRun_Min", time_sec=min(times))
+	write.timer("Time_OneRun_Max", time_sec=max(times))
 }
+
+write.timer("N_cores", number=workersN)
+write.timer("N_Runs", number=runs.completed)
+write.timer("N_SWruns", number=runs.completed * scenario_No)
+write.timer("N_AggregationFiles", number=ifelse(exists("concats.completed"), concats.completed, 0))
+write.timer("N_EnsembleFiles", number=ifelse(exists("total.files"), total.files, 0))
+
 
 if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
 
