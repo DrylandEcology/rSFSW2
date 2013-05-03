@@ -3405,14 +3405,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					Exclude_ClimateAmbient <- TRUE
 					#Send to the database or write to file
 					#temporaly save aggregate data
-					out.temp <- cbind(header, data.frame(matrix(NA, nrow = 1, ncol = n_variables)))
+					out.temp <- header
 	
 					if(i==ifirst || makeOutputDB){
-						colnames(out.temp)[1:length(header)] <- header.names
+						colnames(out.temp) <- header.names
 					}
 	
 					if(!makeOutputDB) write.csv(out.temp, file=filename.out.temp[sc], quote=FALSE, row.names=FALSE )
-					if(makeOutputDB) mpi.send.Robj(out.temp[,1:length(header)], 1, 2, 1) #only send header info when 
+					if(makeOutputDB) mpi.send.Robj(out.temp, 1, 2, 1) #only send header info when 
 					
 				} else {
 					Exclude_ClimateAmbient <- FALSE
@@ -5055,13 +5055,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					if(!makeOutputDB) write.csv(out.temp, file=filename.out.temp[sc], quote=FALSE, row.names=FALSE )
 					
-					if(makeOutputDB) mpi.send.Robj(out.temp, 1, 1, 1)
+					if(makeOutputDB) mpi.send.Robj(out.temp, 1, 1, 1)#request=mpi.comm.rank()
+					#mpi.wait(request=mpi.comm.rank())
 				} #end overall aggregation
 				
 				
 				#Daily Output
 				if(any(simulation_timescales=="daily") && daily_no > 0){
-					
+					if(makeOutputDB) dailyList <- list()
 					#aggregate for each response variable
 					for (doi in 1:daily_no) {
 						
@@ -5198,15 +5199,26 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								colnames(out.tempM) <- colnames(out.tempSD) <- NULL
 							}
 							
-							if(!makeOutputDB) write.csv(out.tempM, file=filename.out.temp.dailyMean[doi, sc], quote=FALSE, row.names=FALSE )
+							if(!makeOutputDB) {
+								if(!Exclude_ClimateAmbient) {
+									write.csv(out.tempM, file=filename.out.temp.dailyMean[doi, sc], quote=FALSE, row.names=FALSE )
+									write.csv(out.tempSD, file=filename.out.temp.dailySD[doi, sc], quote=FALSE, row.names=FALSE )
+								} else {
+									write.csv(out.tempM[,1:length(header)], file=filename.out.temp.dailyMean[doi, sc], quote=FALSE, row.names=FALSE )
+									write.csv(out.tempSD[,1:length(header)], file=filename.out.temp.dailySD[doi, sc], quote=FALSE, row.names=FALSE )
+								}
+							}
 							#out.tempM <- c(agg.resp, "Mean", out.tempM)
 							#colnames(out.tempM)[1:2] <- c("DailyOutput", "SD_or_Mean")
-							if(!makeOutputDB) write.csv(out.tempSD, file=filename.out.temp.dailySD[doi, sc], quote=FALSE, row.names=FALSE )
+							
 							#out.tempSD <- c(agg.resp, "SD", out.tempSD)
 							#colnames(out.tempSD)[1:2] <- c("DailyOutput", "SD_or_Mean")
-							if(makeOutputDB) mpi.send.Robj(list(M=out.tempM, SD=out.tempSD, name=agg.resp, aggLs_no=aggLs_no), 1, 3, 1)
+							if(makeOutputDB) dailyList[[doi]] <- list(M=out.tempM, SD=out.tempSD, name=agg.resp, aggLs_no=aggLs_no)
+							#if(makeOutputDB) mpi.send.Robj(list(M=out.tempM, SD=out.tempSD, name=agg.resp, aggLs_no=aggLs_no), 1, 3, 1)
 						}#end if continueAfterAbort
 					}#doi loop
+					if(makeOutputDB) mpi.send.Robj(dailyList, 1, 3, 1)#, request=mpi.comm.rank()
+					#mpi.wait(request=mpi.comm.rank())
 				}#end if daily output
 			} #end loop through scenarios
 		} #end if do aggregate
@@ -5257,7 +5269,7 @@ FileHandler <- function(workers) {
 	if(makeInputForExperimentalDesign) {
 		conExpiremtalInput <- dbConnect(drv, dbname = file.path(dir.out, "dbExperimentalInputDataFiles.sql"))
 	}
-	#data <- merge(data.frame(fileName=file), data, all.y=TRUE)
+	
 	AggOverallDataCols <- -1
 	
 	while(!(WorkersDone == workers)) {
@@ -5277,7 +5289,6 @@ FileHandler <- function(workers) {
 				dataToWrite<-data.frame(dataToWrite[1,])
 				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", dataToWrite, row.names=FALSE, append=TRUE)
 				print(paste(from,"Aggregation Overal: Written",WrittenSuccessfully))
-				#dbSendPreparedQuery(con, paste("INSERT INTO Aggregation_Overall (", paste(columnNames, sep="", collapse = ", "), ") VALUES (", paste(dataToWrite, collapse=",", sep=""), ")", sep=""))
 			}
 		} else if (tag==2) { #tag 2 is for excluded current scenario with NA values
 			if(First) { #crap this is not good
@@ -5301,22 +5312,32 @@ FileHandler <- function(workers) {
 				print(paste(from,"Agg Overall Current Exclude Written", WrittenSuccessfully))
 			}
 		} else if (tag == 3) {
-			WrittenSuccessfully <- rep(FALSE,2)
-			if(any(dataToWrite$name == dailyTableNames)) {
-				MdataToWrite <- data.frame(dataToWrite$M[1,])
-				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
-				
-				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE, append=TRUE)
-				print(paste(from,"Daily Tables Append Written", paste(WrittenSuccessfully, collapse=" ")))
-			} else {
-				dailyTableNames <- c(dailyTableNames, dataToWrite$name)
-				MdataToWrite <- data.frame(dataToWrite$M[1,])
-				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
-				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE)
-				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE)
-				print(paste(from,"Daily Tables First Written", paste(WrittenSuccessfully, collapse=" ")))
+			WrittenSuccessfully <- rep(FALSE,daily_no)
+#			if(any(dataToWrite$name == dailyTableNames)) {
+#				MdataToWrite <- data.frame(dataToWrite$M[1,])
+#				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
+#				
+#				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE, append=TRUE)
+#				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE, append=TRUE)
+#				print(paste(from,"Daily Tables Append Written", paste(WrittenSuccessfully, collapse=" ")))
+#			#Might not need to seperate first. Append will create table or add to it.
+#			} else {
+#				dailyTableNames <- c(dailyTableNames, dataToWrite$name)
+#				MdataToWrite <- data.frame(dataToWrite$M[1,])
+#				SDdataToWrite <- data.frame(dataToWrite$SD[1,])
+#				WrittenSuccessfully[1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWrite$name, sep=""), MdataToWrite, row.names=FALSE)
+#				WrittenSuccessfully[2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWrite$name, sep=""), SDdataToWrite, row.names=FALSE)
+#				print(paste(from,"Daily Tables First Written", paste(WrittenSuccessfully, collapse=" ")))
+#			}
+#			rm(WrittenSuccessfully)
+			for(i in 1:daily_no) {
+				dataToWriteT <- dataToWrite[[i]]
+				MdataToWrite <- data.frame(dataToWriteT$M[1,])
+				SDdataToWrite <- data.frame(dataToWriteT$SD[1,])
+				WrittenSuccessfully[i*2-1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWriteT$name, sep=""), MdataToWrite, row.names=FALSE, append=TRUE)
+				WrittenSuccessfully[i*2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWriteT$name, sep=""), SDdataToWrite, row.names=FALSE, append=TRUE)
 			}
+			print(paste(from,"Daily Tables First Written", paste(WrittenSuccessfully, collapse=" ")))
 			rm(WrittenSuccessfully)
 		} else if (tag == 4) {
 			WrittenSuccessfully <- rep(FALSE,10)
@@ -5333,7 +5354,7 @@ FileHandler <- function(workers) {
 				WrittenSuccessfully[10] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE, append=TRUE)
 				print(paste(from,": Input Tables Append Written ", paste(WrittenSuccessfully, collapse=" "), sep=""))
 			} else { #need to create the tables
-				#tables <- names(dataToWrite)
+				tables <- names(dataToWrite)
 				WrittenSuccessfully[1] <- dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE)
 				WrittenSuccessfully[2] <- dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE)
 				WrittenSuccessfully[3] <- dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE)
@@ -5352,7 +5373,15 @@ FileHandler <- function(workers) {
 			WorkersDone <- WorkersDone + 1
 		}
 	}
+	#Just in case this did not get written to file
+	if(exists("AggOverTemp")) {#We need to write out what we have to file already
+		temp<-data.frame(matrix(NA, nrow=dim(AggOverTemp)[1], ncol=AggOverallDataCols-dim(AggOverTemp)[2]))
+		WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE)
+		print(paste(from,"Temp Storage for Agg Overall Written", WrittenSuccessfully, "and deleted"))
+		rm(AggOverTemp, temp) #make sure we remove these
+	}
 	#cleanup Remove unused soil layers
+	
 	for(i in seq(dailyTableNames)) {
 		agg.analysis <- switch(EXPR=dailyTableNames[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 		if(agg.analysis == 2) {
@@ -5610,8 +5639,6 @@ if(checkCompleteness){
 			res <- rbind(res, vec)
 		}
 		
-		
-		
 		target<-paste(rep(t$Label, each=7), c("Current", as.character(unlist(t[1, 13:18]))), sep="_")
 		index<-match(target, as.character(s[,1]))
 		target[which(is.na(index))]
@@ -5663,7 +5690,10 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 		}
 		
 		f.temp <- read.csv(filelist[1])	#option: row.names=1
+		#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
 		maxCol <- dim(f.temp)[2]
+		scenarioColumn <- grep("Scenario", colnames(f.temp))
+		
 		data.temp <- matrix(data=NA, nrow=length(filelist), ncol=ncol(f.temp))
 		if(all(col.names == TRUE)){
 			colnames(data.temp) <- colnames(f.temp)
@@ -5674,7 +5704,12 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 		
 		if((no.files <- length(filelist)) > 1) for(f in 2:no.files) {
 			f.temp <- read.csv(filelist[f])
-			data.temp[f, ] <- t(f.temp[,1:maxCol])
+			#if f.temp only contains the header add NA
+			if(dim(f.temp)[2] == scenarioColumn) {
+				data.temp[f, ] <- c(t(f.temp), rep(NA,maxCol-scenarioColumn))
+			} else {
+				data.temp[f, ] <- t(f.temp)
+			}
 		}
 		
 		icol.allEmpty <- apply(data.temp, MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp))
