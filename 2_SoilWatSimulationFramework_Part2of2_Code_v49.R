@@ -4064,7 +4064,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							
 							if(i==ifirst || makeOutputDB) {
 								baseTitle <- paste(paste("SWPdryness_Length", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+4*binsN-1)] <- c(rep(paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), 2))
+								resultfiles.Aggregates.header[nv:(nv+4*binsN-1)] <- c(paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), paste(baseTitle, c(rep("_bottom.mean", binsN), rep("_bottom.sd",binsN)), sep=""))
 							}
 							nv <- nv+4*binsN
 						}
