@@ -226,6 +226,7 @@
 #		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
 #		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 #		- (drs) aggregation option 'dailyWeatherEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4)
+#		- (drs) aggregation option 'dailySWPdrynessEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4 per icrit)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -323,7 +324,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 706 + (166*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 706 + (170*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -4059,23 +4060,29 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							
 							#apply over each year, rle just on selected year store runs in vec, if that is greater than 0 then add to that years bins else return 0s for that year. Will result in a matrix of 4 by Years
 							binsYears.top <- aggregate(dry.top, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
-							bin_top_mean <- apply(binsYears.top, MARGIN = 2, mean) #mean of each bin size across a year - vector of binsN
-							bin_top_sd <- apply(binsYears.top, MARGIN = 2, sd) # sd of each bin size across a year - vector of binsN
+							eventsPerYear <- apply(binsYears.top, MARGIN=1, FUN=sum)
+							freqBins <- sweep(binsYears.top, MARGIN=1, STATS=eventsPerYear, FUN="/")
+							events.top <- c(mean(eventsPerYear, na.rm=TRUE), sd(eventsPerYear, na.rm=TRUE))
+							bin_top_mean <- apply(freqBins, MARGIN = 2, mean, na.rm=TRUE) #mean of each bin size across a year - vector of binsN
+							bin_top_sd <- apply(freqBins, MARGIN = 2, sd, na.rm=TRUE) # sd of each bin size across a year - vector of binsN
 							
 							if(length(bottomL) > 0) {
 								binsYears.bottom <- aggregate(dry.bottom, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=EventDistribution)$x
-								bin_bottom_mean <- apply(binsYears.bottom, MARGIN = 2, mean)
-								bin_bottom_sd <- apply(binsYears.bottom, MARGIN = 2, sd)
+								eventsPerYear <- apply(binsYears.bottom, MARGIN=1, FUN=sum)
+								freqBins <- sweep(binsYears.bottom, MARGIN=1, STATS=eventsPerYear, FUN="/")
+								events.bottom <- c(mean(eventsPerYear, na.rm=TRUE), sd(eventsPerYear, na.rm=TRUE))
+								bin_bottom_mean <- apply(freqBins, MARGIN = 2, mean, na.rm=TRUE)
+								bin_bottom_sd <- apply(freqBins, MARGIN = 2, sd, na.rm=TRUE)
 							}
-							res[nv:(nv+4*binsN-1)] <- c(bin_top_mean, bin_top_sd, if(length(bottomL) > 0) c(bin_bottom_mean, bin_bottom_sd) else rep(0,2*binsN))
+							res[nv:(nv+4+4*binsN-1)] <- c(events.top, bin_top_mean, bin_top_sd, if(length(bottomL) > 0) c(events.bottom, bin_bottom_mean, bin_bottom_sd) else rep(0,2+2*binsN))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste(paste("SWPdryness_Length", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+4*binsN-1)] <- c(paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), paste(baseTitle, c(rep("_bottom.mean", binsN), rep("_bottom.sd",binsN)), sep=""))
+								baseTitle <- paste(paste("SWPdrynessEvents_FractionInLength", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
+								resultfiles.Aggregates.header[nv:(nv+4+4*binsN-1)] <- c(paste("SWPdrynessEvents_NumberPerYear", c("_top.mean", "_top.sd"), sep=""), paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), paste("SWPdrynessEvents_NumberPerYear", c("_bottom.mean", "_bottom.sd"), sep=""), paste(baseTitle, c(rep("_bottom.mean", binsN), rep("_bottom.sd",binsN)), sep=""))
 							}
-							nv <- nv+4*binsN
+							nv <- nv+4+4*binsN
 						}
-						rm(dry.top, dry.bottom, binsN, binSize)
+						rm(dry.top, dry.bottom, binsN, binSize, events.top, events.bottom, eventsPerYear, freqBins)
 					}
 					
 					if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity)
