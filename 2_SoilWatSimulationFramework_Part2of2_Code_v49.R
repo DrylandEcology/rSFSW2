@@ -225,6 +225,7 @@
 #		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
 #		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
 #		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
+#		- (drs) aggregation option 'dailyWeatherEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -322,7 +323,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 702 + (166*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 706 + (166*max(length(SWPcrit_MPa), 1)) + (50*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -3686,9 +3687,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								counts.summary[length(bins.summary), ] <- counts.available[bins.suming, ]
 							}
 						}
-						res[nv:(nv+6)] <- apply(counts.summary, MARGIN=1, FUN=mean)
-						res[(nv+7):(nv+7+6)] <- apply(counts.summary, MARGIN=1, FUN=sd)
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+13)] <- c(temp <- paste("PrcpEventSizes_NoPerYearIn", bins.summary, "+mm", sep=""), paste(temp, ".sd", sep=""))
+						eventsPerYear <- apply(counts.summary, MARGIN=2, FUN=sum)
+						freq.summary <- sweep(counts.summary, MARGIN=2, STATS=eventsPerYear, FUN="/")
+						res[nv:(nv+1)] <- c(mean(eventsPerYear), sd(eventsPerYear))
+						res[(nv+2):(nv+2+6)] <- apply(freq.summary, MARGIN=1, FUN=mean)
+						res[(nv+9):(nv+9+6)] <- apply(freq.summary, MARGIN=1, FUN=sd)
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+15)] <- c(paste("PrcpEvents_NoPerYear", c(".mean", ".sd"), sep=""), temp <- paste("PrcpEventSizes_FractionPerYearIn", bins.summary, "+mm", sep=""), paste(temp, ".sd", sep=""))
 						
 						#duration of prcp-free days in bins
 						durations <- lapply(simTime$useyrs, FUN=function(y) floor(((temp <- rle(prcp.dy$ppt[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]-1)/bin.prcpfreeDurations)*bin.prcpfreeDurations )
@@ -3704,13 +3708,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								counts.summary[length(bins.summary), ] <- counts.available[bins.suming, ]
 							}
 						}
-						res[(nv+14):(nv+14+3)] <- apply(counts.summary, MARGIN=1, FUN=mean)
-						res[(nv+14+4):(nv+14+4+3)] <- apply(counts.summary, MARGIN=1, FUN=sd)
+						eventsPerYear <- apply(counts.summary, MARGIN=2, FUN=sum)
+						freq.summary <- sweep(counts.summary, MARGIN=2, STATS=eventsPerYear, FUN="/")
+						res[(nv+16):(nv+16+1)] <- c(mean(eventsPerYear), sd(eventsPerYear))
+						res[(nv+16+2):(nv+16+2+3)] <- apply(freq.summary, MARGIN=1, FUN=mean)
+						res[(nv+16+2+4):(nv+16+2+4+3)] <- apply(freq.summary, MARGIN=1, FUN=sd)
 						
-						rm(events, durations, counts.available, counts.summary)
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[(nv+16):(nv+25)] <- c(paste("PrcpFreeDurationsEvents_NoPerYear", c(".mean", ".sd"), sep=""), temp <- paste("PrcpFreeDurations_FractionPerYearIn", bins.summary+1, "+days", sep=""), paste(temp, ".sd", sep=""))
+						nv <- nv+26
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[(nv+14):(nv+21)] <- c(temp <- paste("PrcpFreeDurations_NoPerYearIn", bins.summary+1, "+days", sep=""), paste(temp, ".sd", sep=""))
-						nv <- nv+22
+						rm(events, durations, counts.available, counts.summary, freq.summary, eventsPerYear)
 					}
 					
 					
