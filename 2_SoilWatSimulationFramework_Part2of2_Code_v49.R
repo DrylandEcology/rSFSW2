@@ -4049,6 +4049,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							}
 							return(bins)
 						}
+						if(i==ifirst || makeOutputDB) {
+							binTitle <- paste("FractionPerYearIn", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_", sep="")
+							extTitle <- c(temp <- c(".mean", ".sd"), rep(temp, each=binsN))
+						}
 
 						for(icrit in seq(along=SWPcrit_MPa)){
 							
@@ -4077,8 +4081,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							res[nv:(nv+4+4*binsN-1)] <- c(events.top, bin_top_mean, bin_top_sd, if(length(bottomL) > 0) c(events.bottom, bin_bottom_mean, bin_bottom_sd) else rep(0,2+2*binsN))
 							
 							if(i==ifirst || makeOutputDB) {
-								baseTitle <- paste(paste("SWPdrynessEvents_FractionInLength", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days_SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), sep=""), sep="")
-								resultfiles.Aggregates.header[nv:(nv+4+4*binsN-1)] <- c(paste("SWPdrynessEvents_NumberPerYear", c("_top.mean", "_top.sd"), sep=""), paste(baseTitle, c(rep("_top.mean", binsN), rep("_top.sd",binsN)), sep=""), paste("SWPdrynessEvents_NumberPerYear", c("_bottom.mean", "_bottom.sd"), sep=""), paste(baseTitle, c(rep("_bottom.mean", binsN), rep("_bottom.sd",binsN)), sep=""))
+								icritTitle <- paste("SWPcrit", abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep="")
+								resultfiles.Aggregates.header[nv:(nv+4+4*binsN-1)] <- paste("SWPdrynessEvents_", icritTitle, "_", c(paste(temp <- c(rep("NumberPerYear_", 2), rep(binTitle, 2)), "top", extTitle, sep=""), paste(temp, "bottom", extTitle, sep="")), sep="")
 							}
 							nv <- nv+4+4*binsN
 						}
