@@ -210,8 +210,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("create", "execute", "aggregate", "concatenate")
-actions <- c("create", "execute", "aggregate", "concatenate")
+#actions are at least one of c("create", "execute", "aggregate", "concatenate", "ensemble")
+actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #deletes each SoilWat simulation folder after completion of 'actions' if TRUE
@@ -312,8 +312,8 @@ startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
 #------Output filename
-filename.aggregatedResults <- "20130415_PC_TemperateArid_Prj00_v49.csv"
-Index_RunInformation <- c(3:11, 15:19) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v49.csv"
+Index_RunInformation <- c(2, 4:6, 9, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
@@ -368,7 +368,7 @@ output_aggregates <- c(
 		"monthlySoilEvaporation", 1,
 		"monthlyHydraulicRedistribution", 1,
 		"monthlyInfiltration", 1, 
-		"monthlySoilTemp", 1,
+		"monthlySoilTemp", 0,
 		"yearlyWaterBalanceFluxes", 1) 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
 
@@ -418,6 +418,7 @@ sw.inputs <- "Input"	#must be string of length > 0; i.e. not compatible with Soi
 sw.outputs <- "Output"	#sw_v20+: "Output", earlier versions ""
 swFilesIn <- "files_v27.in"
 
+soilsin <- "soils_v23.in"
 if (source_input == "datafiles&treatments" & any(actions == "create") ) {
 	swOutSetupIn <- "outsetup_v27.in"
 	swcsetupin <- "swcsetup.in"
@@ -427,7 +428,6 @@ if (source_input == "datafiles&treatments" & any(actions == "create") ) {
 	cloudin <- "cloud_v20.in"
 	prodin <- "prod_v21.in"
 	siteparamin <- "siteparam_v26.in"
-	soilsin <- "soils_v23.in"
 	filebasename.WeatherDataYear <- "weath"
 }
 

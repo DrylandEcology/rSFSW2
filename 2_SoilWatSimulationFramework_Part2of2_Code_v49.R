@@ -227,9 +227,14 @@
 #		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 #		- (drs) aggregation option 'dailyWeatherEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4)
 #		- (drs) aggregation option 'dailySWPdrynessEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4 per icrit)
+#		- (drs) added action 'ensemble': as separate from concatenation
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
+#------
+actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
+actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")
+
 #------
 ow <- options(c("warn", "error"))
 options(warn=-1, error=traceback)	#turns all warnings off and on error returns a traceback()
@@ -261,7 +266,7 @@ dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
-if(!continueAfterAbort || !identical(actions, "concatenate")) try(file.remove(file.path(dir.out, timerfile)), silent=TRUE)
+if(!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat)) try(file.remove(file.path(dir.out, timerfile)), silent=TRUE)
 write.table(NA, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE)
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
@@ -438,7 +443,7 @@ if (source_input == "datafiles&treatments") {
 }
 
 #------create ensembles
-do.ensembles <- !is.null(ensemble.families) && length(ensemble.quantiles) > 0 && is.numeric(ensemble.quantiles)
+do.ensembles <- any(actions=="ensemble") && !is.null(ensemble.families) && length(ensemble.quantiles) > 0 && is.numeric(ensemble.quantiles)
 if(do.ensembles){
 	scenarios.ineach.ensemble <- sapply(ensemble.families, function(x) grepl(pattern=x, scenario, ignore.case=TRUE), simplify=TRUE)
 	ensemble.families <- ensemble.families[temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=any)]
@@ -960,65 +965,67 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth){
 
 
 #function extracting climate information for one SoilWat-run from SoilWat weather files
-do.GetClimateMeans <- 	(sum(sw_input_climscen_values_use[-1]) > 0) |
-		exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature |
-		sw_input_site_use$SoilTempC_atLowerBoundary |
-		sw_input_site_use$SoilTempC_atUpperBoundary |
-		exinfo$EstimateInitialSoilTemperatureForEachSoilLayer |
-		any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") |
-		any(create_treatments == "AdjMonthlyBioMass_Temperature") |
-		any(create_treatments == "AdjMonthlyBioMass_Precipitation") |
-		any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
+if(source_input == "datafiles&treatments" && any(actions == "create")) {
+	do.GetClimateMeans <- 	(sum(sw_input_climscen_values_use[-1]) > 0) |
+			exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature |
+			sw_input_site_use$SoilTempC_atLowerBoundary |
+			sw_input_site_use$SoilTempC_atUpperBoundary |
+			exinfo$EstimateInitialSoilTemperatureForEachSoilLayer |
+			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") |
+			any(create_treatments == "AdjMonthlyBioMass_Temperature") |
+			any(create_treatments == "AdjMonthlyBioMass_Precipitation") |
+			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
 
 
-dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2){
-	#Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
+	dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2){
+		#Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 	
-	Month7th_MinTemp_C <- aggregate(dailyTempMin[simTime2$month_ForEachUsedDay_NSadj == 7], by=list(simTime2$year_ForEachUsedDay_NSadj[simTime2$month_ForEachUsedDay_NSadj == 7]), FUN=min)[, 2]
-	LengthFreezeFreeGrowingPeriod_Days <- aggregate(dailyTempMin, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) max(rle(x > 0)$lengths, na.rm=TRUE))[, 2]
-	DegreeDaysAbove65F_DaysC <- aggregate(dailyTempMean, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) sum(ifelse((temp <- x - ((65-32) * 5/9)) > 0, temp, 0)))[, 2]
+		Month7th_MinTemp_C <- aggregate(dailyTempMin[simTime2$month_ForEachUsedDay_NSadj == 7], by=list(simTime2$year_ForEachUsedDay_NSadj[simTime2$month_ForEachUsedDay_NSadj == 7]), FUN=min)[, 2]
+		LengthFreezeFreeGrowingPeriod_Days <- aggregate(dailyTempMin, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) max(rle(x > 0)$lengths, na.rm=TRUE))[, 2]
+		DegreeDaysAbove65F_DaysC <- aggregate(dailyTempMean, by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) sum(ifelse((temp <- x - ((65-32) * 5/9)) > 0, temp, 0)))[, 2]
 	
-	res <- c(apply(temp <- cbind(Month7th_MinTemp_C, LengthFreezeFreeGrowingPeriod_Days, DegreeDaysAbove65F_DaysC), MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
-	names(res) <- c(temp <- c("Month7th_NSadj_MinTemp_C", "LengthFreezeFreeGrowingPeriod_NSadj_Days", "DegreeDaysAbove65F_NSadj_DaysC"), paste(temp, ".sd", sep=""))
+		res <- c(apply(temp <- cbind(Month7th_MinTemp_C, LengthFreezeFreeGrowingPeriod_Days, DegreeDaysAbove65F_DaysC), MARGIN=2, FUN=mean), apply(temp, MARGIN=2, FUN=sd))
+		names(res) <- c(temp <- c("Month7th_NSadj_MinTemp_C", "LengthFreezeFreeGrowingPeriod_NSadj_Days", "DegreeDaysAbove65F_NSadj_DaysC"), paste(temp, ".sd", sep=""))
 	
-	return(res)
-}
-
-if(do.GetClimateMeans){
-	SiteClimate <- function(dir.weather, sw.weather.praefix, year.start, year.end, do.C4vars=FALSE, simTime2=NULL){
-		files.weath <- list.files(dir.weather, pattern=sw.weather.praefix)
-		sw.weather.suffices <- as.numeric(sapply(files.weath, FUN=function(x) strsplit(x, "\\.")[[1]][2]))
-		files.weath <- files.weath[itemp <- year.start <= sw.weather.suffices & year.end >= sw.weather.suffices]
-		years <- sw.weather.suffices[itemp]
-		
-		temp <- ppt <- rep(0, times=12)
-		if(do.C4vars){
-			dailyTempMin <- NULL
-			dailyTempMean <- NULL
-		}
-		if((no.yrs <- length(files.weath)) > 0) for(y in 1:no.yrs){
-				ftemp <- read.table(file.path(dir.weather, files.weath[y]))
-				temp.dailyTempMean <- apply(ftemp[, 2:3], 1, mean)
-				if(do.C4vars){
-					dailyTempMin <- c(dailyTempMin, ftemp[, 3])
-					dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
-				}
-				month_forEachDoy <- as.POSIXlt(seq(from=as.POSIXlt(paste(years[y], "-01-01", sep="")), to=as.POSIXlt(paste(years[y], "-12-31", sep="")), by="1 day"))$mon + 1
-				temp <- temp + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
-				ppt <- ppt + aggregate(ftemp[, 4], by=list(month_forEachDoy), FUN=sum)[, 2]
-			}
-		temp <- temp / no.yrs
-		ppt <- ppt / no.yrs
-		
-		res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(temp))
-		
-		if(do.C4vars){
-			res$dailyTempMin <- dailyTempMin
-			res$dailyTempMean <- dailyTempMean
-			res$dailyC4vars <- dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
-		}
-		
 		return(res)
+	}
+
+	if(do.GetClimateMeans){
+		SiteClimate <- function(dir.weather, sw.weather.praefix, year.start, year.end, do.C4vars=FALSE, simTime2=NULL){
+			files.weath <- list.files(dir.weather, pattern=sw.weather.praefix)
+			sw.weather.suffices <- as.numeric(sapply(files.weath, FUN=function(x) strsplit(x, "\\.")[[1]][2]))
+			files.weath <- files.weath[itemp <- year.start <= sw.weather.suffices & year.end >= sw.weather.suffices]
+			years <- sw.weather.suffices[itemp]
+		
+			temp <- ppt <- rep(0, times=12)
+			if(do.C4vars){
+				dailyTempMin <- NULL
+				dailyTempMean <- NULL
+			}
+			if((no.yrs <- length(files.weath)) > 0) for(y in 1:no.yrs){
+					ftemp <- read.table(file.path(dir.weather, files.weath[y]))
+					temp.dailyTempMean <- apply(ftemp[, 2:3], 1, mean)
+					if(do.C4vars){
+						dailyTempMin <- c(dailyTempMin, ftemp[, 3])
+						dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
+					}
+					month_forEachDoy <- as.POSIXlt(seq(from=as.POSIXlt(paste(years[y], "-01-01", sep="")), to=as.POSIXlt(paste(years[y], "-12-31", sep="")), by="1 day"))$mon + 1
+					temp <- temp + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
+					ppt <- ppt + aggregate(ftemp[, 4], by=list(month_forEachDoy), FUN=sum)[, 2]
+				}
+			temp <- temp / no.yrs
+			ppt <- ppt / no.yrs
+		
+			res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(temp))
+		
+			if(do.C4vars){
+				res$dailyTempMin <- dailyTempMin
+				res$dailyTempMean <- dailyTempMean
+				res$dailyC4vars <- dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
+			}
+		
+			return(res)
+		}
 	}
 }
 
@@ -5534,7 +5541,7 @@ if(runsN.todo > 0){
 	}
 }
 
-if(!identical(actions, "concatenate") & runsN.todo > 0){
+if(actionWithSoilWat && runsN.todo > 0){
 	ifirst <- seq.todo[1]
 	
 	#objects to export
@@ -5682,7 +5689,7 @@ if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and outpu
 #--------------------------------------------------------------------------------------------------#
 #------------------------COLLECT AND CONCATENATE SINGLE RESULT FILES INTO FINAL OUTPUT FILES
 t.concatenation <- Sys.time()	#timing of file concatenation
-if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !makeOutputDB){
+if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat)){
 	if(!be.quiet) print(paste("SWSF concatenates temporary results: started at", t.concatenation))
 	
 	#collect and concatenate results into files: read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
@@ -5889,6 +5896,8 @@ if(any(actions=="concatenate") & all.complete & runs.completed == runsN.todo & !
 	} else if(runs.completed != runsN.todo){
 		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", runsN.todo))
 	}
+} else {
+	concats.completed <- 0
 }
 
 #timing of file concatenation
@@ -5900,9 +5909,10 @@ if(!be.quiet & any(actions=="concatenate")) print(paste("SWSF concatenates tempo
 #------------------------ENSEMBLE GENERATION
 t.ensembles <- Sys.time()	#timing of ensemble calculation
 
-if(do.ensembles && any(actions=="concatenate") && all.complete && runs.completed == runsN.todo &&
-	((concats.completed == length(resultfiles.toConcatenate) && !makeOutputDB) || makeOutputDB)){
-	
+if(do.ensembles && all.complete &&
+	(actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat) &&
+	(any(actions=="concatenate") && ((concats.completed == length(resultfiles.toConcatenate) && !makeOutputDB) || makeOutputDB) || !any(actions=="concatenate"))){
+
 	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
 
 	#Function to calculate the quantiles for an array of the data for each scenario (stacked in 3rd dim)
@@ -5922,7 +5932,11 @@ if(do.ensembles && any(actions=="concatenate") && all.complete && runs.completed
 				return(parApply(cl, data.temp[,,], MARGIN = c(1,2), doQuantile, probs=probs)) #snow library
 			}
 			if(identical(parallel_backend, "multicore")){
-				ifelse(dim(data.temp)[3] == 1, list <- foreach(i = 1:nrow(data.temp)) %dopar% lapply(data.temp[i,,], doQuantile, probs=probs) ,list <- foreach(i = 1:nrow(data.temp)) %dopar% apply(data.temp[i,,], MARGIN=1, doQuantile, probs=probs))
+				if(dim(data.temp)[3] == 1) {
+					list <- foreach(i = 1:nrow(data.temp)) %dopar% lapply(data.temp[i,,], doQuantile, probs=probs)
+				} else {
+					list <- foreach(i = 1:nrow(data.temp)) %dopar% apply(data.temp[i,,], MARGIN=1, doQuantile, probs=probs)
+				}
 				return(array(data=unlist(list), dim=c(length(x), dim(data.temp)[2], length(list))))
 			}
 		} else {
@@ -5988,15 +6002,15 @@ if(do.ensembles && any(actions=="concatenate") && all.complete && runs.completed
 			}
 			
 			#Get ready for doing the ensembles
-			nfiles <- total.files <- 0
+			nfiles <- ensembles.completed <- 0
 			for(ios in 1:nrow(ensembles.maker$outputs)){
 				for(ifs in 1:ncol(ensembles.maker$outputs)){
 					nfiles <- collect_EnsembleFromScenarios(outputs=ensembles.maker$outputs[ios, ifs, ], probs=ensemble.quantiles, filelist=ensembles.maker$scenarioFiles[ios, ifs, ])
-					total.files <- total.files + nfiles
+					ensembles.completed <- ensembles.completed + nfiles
 					if(nfiles != length(ensemble.quantiles)) print(paste("Something went wrong with ensemble output:", basename(ensembles.maker$outputs[ios, ifs, 1])))
 				}
 			}
-			if(total.files != length(unlist(ensembles.maker$outputs))) print("Something went wrong with ensemble output.")
+			if(ensembles.completed != length(unlist(ensembles.maker$outputs))) print("Something went wrong with ensemble output.")
 
 	} else {# if makeOutputDB == TRUE
 	
@@ -6057,12 +6071,14 @@ if(do.ensembles && any(actions=="concatenate") && all.complete && runs.completed
 				collect_EnsembleFromScenarios(Tables[i], ensemble.families[j], ensemble.quantiles, conEnsembleDB)
 			}
 		}
+		
+		ensembles.completed <- length(unlist(ensembles.maker$outputs))
 	}
 }
 
 #timing of ensemble calculation
 delta.ensembles <- difftime(Sys.time(), t.ensembles, units="secs")
-if(!be.quiet && any(actions=="concatenate") && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
+if(!be.quiet && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
 
 
 #--------------------------------------------------------------------------------------------------#
@@ -6077,7 +6093,7 @@ write.timer("Time_Check", time_sec=delta.check)
 write.timer("Time_FileConcatenation", time_sec=delta.concatenation)
 write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
-if(!identical(actions, "concatenate")){
+if(actionWithSoilWat){
 	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
 	write.timer("Time_OneRun_Mean", time_sec=mean(times))
 	write.timer("Time_OneRun_SD", time_sec=sd(times))
@@ -6090,7 +6106,7 @@ write.timer("N_cores", number=workersN)
 write.timer("N_Runs", number=runs.completed)
 write.timer("N_SWruns", number=runs.completed * scenario_No)
 write.timer("N_AggregationFiles", number=ifelse(exists("concats.completed"), concats.completed, 0))
-write.timer("N_EnsembleFiles", number=ifelse(exists("total.files"), total.files, 0))
+write.timer("N_EnsembleFiles", number=ifelse(exists("ensembles.completed"), ensembles.completed, 0))
 
 
 if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
@@ -6103,7 +6119,7 @@ options(ow)	#sets the warning option to its previous value
 
 if(parallel_runs & identical(parallel_backend, "mpi")) {	#clean up mpi slaves
 	#mpi.close.Rslaves(dellog=FALSE)
-	mpi.quit()
+	mpi.exit()
 }
 if(parallel_runs & identical(parallel_backend, "snow")) snow::stopCluster(cl)	#clean up snow cluster
 
