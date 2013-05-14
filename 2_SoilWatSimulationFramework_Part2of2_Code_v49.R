@@ -3486,7 +3486,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(!exists("temp.yr"))	temp.yr <- get_Temp_yr(dir.sw.runs.sc.out[sc])
 						res[nv:(nv+1)] <- c(mean(temp.yr$mean), sd(temp.yr$mean))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("MAT_C", "MAT.sd")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("MAT_C", "MAT_sd")
 						nv <- nv+2
 					}
 					
@@ -3500,7 +3500,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						rm(snowofppt)
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+6)] <- c("MAP_mm", "MAP.sd", "MAP.Q25", "MAP.Q50", "MAP.Q75", "SnowofPPT", "SnowofPPT.sd")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+6)] <- c("MAP_mm", "MAP_sd", "MAP_Q25", "MAP_Q50", "MAP_Q75", "SnowofPPT", "SnowofPPT_sd")
 						nv <- nv+7
 					}
 					
@@ -3522,7 +3522,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(!exists("PET.yr")) PET.yr <- get_PET_yr(dir.sw.runs.sc.out[sc])
 						res[nv:(nv+1)] <- c(mean(PET.yr$val), sd(PET.yr$val))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("PET_mm", "PET.sd")
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+1)] <- c("PET_mm", "PET_sd")
 						nv <- nv+2
 					}
 					
@@ -3544,7 +3544,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						res[nv:(nv+8)] <- c(unlist(di.normals), apply(temp <- cbind(di.ts$ai, di.ts$TD, di.ts$criteria12), MARGIN=2, FUN=mean, na.rm=TRUE), apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE))
 						
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+8)] <- c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".normals", sep=""), paste(temp, "_Annual.mean", sep=""), paste(temp, "_Annual.sd", sep=""))
+						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+8)] <- c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), "_normals", sep=""), paste(temp, "_Annual_mean", sep=""), paste(temp, "_Annual_sd", sep=""))
 						nv <- nv+9
 						
 						rm(di.ts, di.normals)
