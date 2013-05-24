@@ -227,6 +227,10 @@ checkCompleteness <- FALSE
 #------Define how aggregated output should be handled: options = {database via mpi, temporary csv files}
 #Output as DB uses 1 mpi node
 makeOutputDB <- TRUE
+#concurrent settings#
+concurrent <- TRUE
+dbName <- "1_PC_TempDry_Simulations_Prj00_r3"
+cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 #deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
 deleteTemporaryAggregationFiles <- FALSE
 
