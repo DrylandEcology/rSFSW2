@@ -4132,19 +4132,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							extremes <- cbind(temp <- as.matrix(aggregate(swp.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
 						}
 						
-						resMeans[nv:(nv+3)] <- apply(temp <- extremes[, c(2:3, 6:7)], MARGIN=2, FUN=mean)
-						resSDs[nv:(nv+3)] <- apply(temp, MARGIN=2, FUN=sd)
-						if((i==ifirst && !makeOutputDB) || (makeOutputDB && !concurrent)) resultfiles.Aggregates.header[nv:(nv+3)] <- paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_MPa_mean", sep="")
-						nv <- nv+4
-						
 						resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-<<<<<<< HEAD
-						resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-						if((i==ifirst && !makeOutputDB) || (makeOutputDB && !concurrent)) resultfiles.Aggregates.header[nv:(nv+3)] <- paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep="")
-=======
 						resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-						if(i==ifirst || makeOutputDB) resultfiles.Aggregates.header[nv:(nv+3)] <- paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep="")
->>>>>>> b780da40eeea7e878dd62fa63c4621f394da6617
+						if((i==ifirst && !makeOutputDB) || (makeOutputDB && !concurrent)) resultfiles.Aggregates.header[nv:(nv+3)] <- paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep="")
+
 						nv <- nv+4
 						
 						rm(extremes)
