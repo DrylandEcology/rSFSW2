@@ -244,6 +244,7 @@
 #		- (drs) fixed bug in some of the aggregations if bottomL == 0
 #		- (drs) fixed bug in create 'control transpiration regions for adjusted soil depth and rooting depth' if number of soil layers == 1
 #		- (drs) fixed bug in some of the aggregations if topL == 1
+#		- (drs) changed functions 'circ.' {mean, range, sd}: if all elements of x are NA and na.rm==TRUE, then output was 'numeric(0)' which caused aggregated output variables from numeric vectors into a list; changed that these functions now put out NA instead of 'numeric(0)'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -742,31 +743,43 @@ dir.remove <- function(dir){
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
 circ.mean = function(x, int, na.rm=FALSE){
-	require(circular)
+	if(length(x) == sum(is.na(x))){
+		return(NA)
+	} else {
+		require(circular)
 	
-	circ <- 2 * pi / int
-	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-	x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
-	rm(circ, x.circ)
-	return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+		circ <- 2 * pi / int
+		x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
+		x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
+		rm(circ, x.circ)
+		return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+	}
 }
 circ.range = function(x, int, na.rm=FALSE) {
-	require(circular)
+	if(length(x) == sum(is.na(x))){
+		return(NA)
+	} else {
+		require(circular)
 	
-	circ <- 2 * pi / int
-	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-	x.int <- range(x.circ, na.rm=na.rm) / circ
-	rm(circ, x.circ)
-	return(as.numeric(x.int))
+		circ <- 2 * pi / int
+		x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
+		x.int <- range(x.circ, na.rm=na.rm) / circ
+		rm(circ, x.circ)
+		return(as.numeric(x.int))
+	}
 }
 circ.sd = function(x, int, na.rm=FALSE){
-	require(circular)
+	if(length(x) == sum(is.na(x))){
+		return(NA)
+	} else {
+		require(circular)
 	
-	circ <- 2 * pi / int
-	x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-	x.int <- sd.circular(x.circ, na.rm=na.rm) / circ
-	rm(circ, x.circ)
-	return(as.numeric(x.int))
+		circ <- 2 * pi / int
+		x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
+		x.int <- sd.circular(x.circ, na.rm=na.rm) / circ
+		rm(circ, x.circ)
+		return(as.numeric(x.int))
+	}
 }
 
 
