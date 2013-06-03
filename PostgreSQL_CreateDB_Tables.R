@@ -6,12 +6,22 @@
 # This will generate all the SQL table definitions.
 #
 ###############################################################################
-
-SQL_Table_Definitions <- list()
-library(RPostgreSQL)
-drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname=dbName, user="worker", password="12345")#, host="xavier.uwyo.edu", port="5432" <- for testing on Mac
 st_mo <- 1:12
+
+if(concurrent)
+{
+	SQL_Table_Definitions <- list()
+	library(RPostgreSQL)
+	drv <- dbDriver("PostgreSQL")
+	con <- dbConnect(drv, dbname=dbName, user="worker", password="12345")#, host="xavier.uwyo.edu", port="5432" <- for testing on Mac
+
+} else {
+	library(RSQLite)
+	drv <- dbDriver("SQLite")
+	tfile <- file.path(dir.out, "dbTables.db")
+	con <- dbConnect(drv, dbname = tfile)
+}
+
 
 Tables <- dbListTables(con)
 
@@ -232,7 +242,7 @@ if((length(Tables) == 0) || cleanDB) {
 	
 #27.
 	if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
-		temp <- c(temp, paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_MPa_mean", sep=""), paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep=""))
+		temp <- c(temp, paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep=""))
 	}
 	
 	##############################################################---Aggregation: Ecological dryness---##############################################################
@@ -423,35 +433,50 @@ if((length(Tables) == 0) || cleanDB) {
 		}
 	}
 	
-	temp <- gsub(pattern="DrySoilPeriods", replacement="DSPs", temp)
-	temp <- gsub(pattern="WetSoilPeriods", replacement="WSPs", temp)
-	temp <- gsub(pattern="topLayers", replacement="tLyrs", temp)
-	temp <- gsub(pattern="bottomLayers", replacement="bLyrs", temp)
-	temp <- gsub(pattern="Annual", replacement="Annu", temp)
-	temp <- gsub(pattern="Duration", replacement="DU", temp)
-	temp <- gsub(pattern="Continuous", replacement="CON", temp)
-	temp <- gsub(pattern="Longest", replacement="Lngst", temp)
-	temp <- gsub(pattern="crit", replacement="c", temp)
-	temp <- gsub(pattern="fraction", replacement="frac", temp)
-	temp <- gsub(pattern="Periods", replacement="Ps", temp)
+	AggOverallDataCols <- length(temp)
 	
+	if(concurrent) {
+		temp <- gsub(pattern="DrySoilPeriods", replacement="DSPs", temp)
+		temp <- gsub(pattern="WetSoilPeriods", replacement="WSPs", temp)
+		temp <- gsub(pattern="topLayers", replacement="tLyrs", temp)
+		temp <- gsub(pattern="bottomLayers", replacement="bLyrs", temp)
+		temp <- gsub(pattern="Annual", replacement="Annu", temp)
+		temp <- gsub(pattern="Duration", replacement="DU", temp)
+		temp <- gsub(pattern="Continuous", replacement="CON", temp)
+		temp <- gsub(pattern="Longest", replacement="Lngst", temp)
+		temp <- gsub(pattern="crit", replacement="c", temp)
+		temp <- gsub(pattern="fraction", replacement="frac", temp)
+		temp <- gsub(pattern="Periods", replacement="Ps", temp)
+	}
 	dbOverallColumns <- length(temp)
 	for(i in 1:dbOverallColumns) {
 		temp[i] <- paste(c("\"", temp[i], "\"", " double precision"), collapse = "")
 	}
 	
 	sd <- gsub("_mean", "_sd", temp)
-	
 	mean <-paste(c(header_vector, temp), collapse = ", ")
 	sd <-paste(c(header_vector, sd), collapse = ", ")
-	SQL_Table_Definitions <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", mean, ");", sep="")
-	SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sd, ");", sep=""))
 	
-	empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
-	if(cleanDB && !empty) rs <- dbSendQuery(con,paste("DROP TABLE ", '"',dbListTables(con), '"', sep="", collapse = ";"))
-	rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
-	
-	dbClearResult(rs)
+	if(concurrent) {
+		SQL_Table_Definitions <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", mean, ");", sep="")
+		SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sd, ");", sep=""))
+		
+		empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
+		if(cleanDB && !empty) rs <- dbSendQuery(con,paste("DROP TABLE ", '"',dbListTables(con), '"', sep="", collapse = ";"))
+		rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
+		
+		dbClearResult(rs)
+	} else {
+		SQL_Table_Definitions1 <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", mean, ");", sep="")
+		SQL_Table_Definitions2 <- paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sd, ");", sep="")
+		
+		empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
+		if(cleanDB && !empty) rs <- for(i in 1:length(Tables)) { dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")) }
+		rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+		rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
+		
+		dbClearResult(rs)
+	}
 	
 	temp <- resultfiles.daily.labelsOne
 	for(i in 1:366) {
@@ -479,15 +504,31 @@ if((length(Tables) == 0) || cleanDB) {
 			
 			
 			if(agg.analysis == 1){
-				SQL_Table_Definitions <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
-				SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep=""))
-				rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
-				dbClearResult(rs)
+				if(concurrent) {
+					SQL_Table_Definitions <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
+					SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep=""))
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
+					dbClearResult(rs)
+				} else {
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep="")
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
+					dbClearResult(rs)
+				}
 			} else {
-				SQL_Table_Definitions <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
-				SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep=""))
-				rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
-				dbClearResult(rs)
+				if(concurrent) {
+					SQL_Table_Definitions <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
+					SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep=""))
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions, collapse = "\n"))
+					dbClearResult(rs)
+				} else {
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep="")
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
+					dbClearResult(rs)
+				}
 			}
 			
 		}
