@@ -163,6 +163,7 @@ if(!exists("use_janus") || !use_janus) rm(list=ls(all=TRUE))	# at least rm(use_j
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
+print.debug <- FALSE
 
 #------Mode of framework: serial or parallel
 if(exists("use_janus")) {

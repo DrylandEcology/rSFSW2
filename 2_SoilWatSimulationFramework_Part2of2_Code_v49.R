@@ -247,6 +247,7 @@
 #		- (drs) changed functions 'circ.' {mean, range, sd}: if all elements of x are NA and na.rm==TRUE, then output was 'numeric(0)' which caused aggregated output variables from numeric vectors into a list; changed that these functions now put out NA instead of 'numeric(0)'
 #		- (drs) faster version of 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica'
 #		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
+#		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1939,6 +1940,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 #------------------------CREATE RUNS
 		if( todo$create ){	
+			if(print.debug) print("Start of section 'create'")
+			
 			#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
 			dir.copy(dir.from=dir.sw.in, dir.to=dir.sw.runs.sc[1], overwrite=TRUE)
 			
@@ -1968,6 +1971,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			}
 			dir.sw.runs.weather <- file.path(dir.sw.runs.sc.in[1], dirname.sw.runs.weather)
+			
+			if(print.debug) print("Start of LookupWeatherFolder")
 			if(!any(create_treatments == "LookupWeatherFolder")){	#create weather folder and move cloud into it
 				dir.create2(dir.sw.runs.weather, recursive=TRUE)
 				file.copy2(from=file.path(dir.sw.runs.sc.in[1], cloudin), to=file.path(dir.sw.runs.weather, cloudin), overwrite=TRUE, copy.mode = TRUE)
@@ -2060,6 +2065,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} 
 				
 			#Treatment chunks
+			if(print.debug) print("Start of LookupTranspCoeff")
 			if(any(create_treatments == "LookupTranspCoeffFromTable_Grass")){
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth)
 				if(!is.na(trco)){
@@ -2131,6 +2137,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
+			if(print.debug) print("Start of ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica")
 			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){
 				ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(site=i_labels, cellname=dirname.sw.runs.weather, dir.weath=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear)
 			}
@@ -2139,6 +2146,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			#------4. Step: Information from datafiles are added if flagged 'use' to SoilWat input files
 			#add information from datafile to cloudin
+			if(print.debug) print("Start of cloudin")
 			wind <- with(i_sw_input_cloud, data.frame(wind_ms_1, wind_ms_2, wind_ms_3, wind_ms_4, wind_ms_5, wind_ms_6, wind_ms_7, wind_ms_8, wind_ms_9, wind_ms_10, wind_ms_11, wind_ms_12))
 			if(do.wind <- datafile.windspeedAtHeightAboveGround != SoilWat.windspeedAtHeightAboveGround)
 				wind <- adjust.WindspeedHeight(uz=wind, height=datafile.windspeedAtHeightAboveGround)
@@ -2176,6 +2184,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			#add vegetation information	from datafile to prodin
+			if(print.debug) print("Start of proding")
 			if(sum(sw_input_prod_use[-1]) > 0){
 				infilename <- file.path(dir.sw.runs.sc.in[1], prodin)
 				infiletext <- readLines(con = infilename)
@@ -2241,6 +2250,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#Moved adjust to southern Hemi
 			
 			#add site information to siteparamin
+			if(print.debug) print("Start of siteparamin")
 			infilename <- file.path(dir.sw.runs.sc.in[1], siteparamin)
 			infiletext <- readLines(con = infilename)
 			if(sum(sw_input_site_use[-1]) > 0){
@@ -2286,6 +2296,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			close(infile)
 			
 			#add soil information to soilsin
+			if(print.debug) print("Start of soilsin")
 			if(sum(sw_input_soils_use[-1]) - sum(use_transpregion <- unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))) > 0){
 				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
 				infiletext <- readLines(con = infilename)
@@ -2412,6 +2423,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			
 			#add transpiration regions information to siteparamin
+			if(print.debug) print("Start of transpregion")
 			if(sum(use_transpregion) > 0){
 				tr <- max(tr.layers <- na.omit(unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=i_sw_input_soils)))) # max transpiration region
 				
@@ -2487,6 +2499,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					dir.copy(dir.from=dir.sw.runs.sc[1], dir.to=dir.sw.runs.sc[sc], overwrite=TRUE)	#system(paste("cp -R", shQuote(dir.sw.runs.sc[1]), shQuote(dir.sw.runs.sc[sc])))
 				} else {
 					if(do.GetClimateMeans){
+						if(print.debug) print("Start of get SiteClimate")
 						do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || aon$dailyC4_TempVar
 						SiteClimate_Ambient <- SiteClimate(dir.weather=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear, year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 					}
@@ -2582,6 +2595,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				#anything that depends on weather
 				#------3. Step: Lookup or extract external information that needs to be executed for each run
+				if(print.debug) print("Start of set soil temperature")
 				if(exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 					soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 					soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
@@ -2639,6 +2653,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#- Calculate relative composition based on equations
+				if(print.debug) print("Start of PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996")
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996){
 					#Climate variables
 					if(any(create_treatments == "PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate") && i_sw_input_treatments$PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate=="Reference"){
@@ -2771,6 +2786,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)			
 				}
 				
+				if(print.debug) print("Start of biomass adjustments")
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
 					tr_VegComp_Adj <- tr_VegetationComposition	#Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
 					#Describe conditions for which the default vegetation biomass values are valid
@@ -2936,6 +2952,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				#adjust Root Profile - need composition fractions set above
+				if(print.debug) print("Start of AdjRootProfile")
 				if(any(create_treatments == "AdjRootProfile") && i_sw_input_treatments$AdjRootProfile && any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
 					
 					trco_type_C3 <- ifelse(any(create_treatments == "RootProfile_C3") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3), i_sw_input_treatments$RootProfile_C3, "SchenkJackson2003_PCdry_grasses")
@@ -2976,6 +2993,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					close(infile)				
 				}
 				
+				if(print.debug) print("Start of vegetation scaling")
 				if(any(create_treatments %in% c("Vegetation_TotalBiomass_ScalingFactor", "Vegetation_LiveBiomass_ScalingFactor", "Vegetation_Litter_ScalingFactor"))){
 					finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 					
@@ -3060,6 +3078,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				#if southern hemisphere adjust if set, but not when already adjusted by, e.g., growing season
+				if(print.debug) print("Start of hemisphere adjustment")
 				if(accountNSHemispheres_veg && i_SWRunInformation$Y_WGS84 < 0 && !any(create_treatments == "AdjMonthlyBioMass_Temperature")){
 					infilename <- file.path(dir.sw.runs.sc.in[sc], prodin)
 					infiletext <- readLines(con = infilename)
@@ -3089,6 +3108,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#--control transpiration regions for adjusted soil depth and rooting depth
+				if(print.debug) print("Start of control transpiration regions")
 				#get transpiration regions from sw-input file
 				infilename <- file.path(dir.sw.runs.sc.in[sc], siteparamin)
 				infiletext <- readLines(con = infilename)
@@ -4671,7 +4691,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						temp.temp <- read.table(file = file.path(dir.sw.runs.sc.out[sc], tempdy), header = FALSE, sep = "", fill = TRUE, comment.char="")
 						TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
 						temp.soiltemp <- try(read.table(file = file.path(dir.sw.runs.sc.out[sc], soiltempdy), header = FALSE, sep = "", fill = TRUE, comment.char=""), silent=TRUE)
-						if(identical(class(temp.soiltemp), "try-error") || all(temp.soiltemp[, -(1:2)] == 0)){
+						if(identical(class(temp.soiltemp), "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
 							use.soiltemp <- FALSE	#flag whether soil temperature output is available or not (and then air temperature is used instead of top soil temperature)
 						} else {
 							use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
