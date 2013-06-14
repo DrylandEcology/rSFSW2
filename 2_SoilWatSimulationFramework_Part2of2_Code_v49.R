@@ -245,6 +245,8 @@
 #		- (drs) fixed bug in create 'control transpiration regions for adjusted soil depth and rooting depth' if number of soil layers == 1
 #		- (drs) fixed bug in some of the aggregations if topL == 1
 #		- (drs) changed functions 'circ.' {mean, range, sd}: if all elements of x are NA and na.rm==TRUE, then output was 'numeric(0)' which caused aggregated output variables from numeric vectors into a list; changed that these functions now put out NA instead of 'numeric(0)'
+#		- (drs) faster version of 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica'
+#		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1600,7 +1602,9 @@ if(any(actions == "create")){
 				colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 				
 				#times
-				date <- strptime(with(weath.data, paste(year, month, day, sep="-")), format="%Y-%m-%d")
+				date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+							to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+							by="1 day")
 				doy <- 1 + as.POSIXlt(date)$yday
 				
 				#weather maker
@@ -2396,9 +2400,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 				}
 				if(soilsin.firstDataLine-1 + max(ld) + 1 > infiletext.nrow){
-					infiletext <- c(infiletext, "")
+#					infiletext <- c(infiletext, "")
 				} else {
-					infiletext[soilsin.firstDataLine + max(ld)] <- ""	#SoilWat is happy with a empty last line
+#					infiletext[soilsin.firstDataLine + max(ld)] <- ""	#SoilWat is happy with a empty last line
 					infiletext <- infiletext[1:(soilsin.firstDataLine-1 + max(ld))]	#delete unused additional lines
 				}
 				infile <- file(infilename, "w+b")
