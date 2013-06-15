@@ -248,6 +248,7 @@
 #		- (drs) faster version of 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica'
 #		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
 #		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
+#		- (drs) fixed bug in 'dailyRegeneration_byTempSWPSnow': if only one soil layer, then variable 'swp' needs to be forced to be a matrix
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -4887,6 +4888,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
 							if(sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart){
 								swp <- swp.dy.all$val[RY.index.usedy, 2 + ld]
+								if(length(ld) == 1) swp <- matrix(swp, ncol=1)
 								snow <- temp.snow[RY.index.usedy, 3]*10 #mm swe in snowpack
 								airTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 4])
 								airTmax <- temp.temp[RY.index.usedy, 3]
