@@ -249,6 +249,7 @@
 #		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
 #		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
 #		- (drs) fixed bug in 'dailyRegeneration_byTempSWPSnow': if only one soil layer, then variable 'swp' needs to be forced to be a matrix
+#		- (drs) fixed bug in 'SiteClimate': MAT was taken as mean of monthly values which biased the result; instead the function is now correctly taking the mean of the mean annual temperature values
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1041,6 +1042,7 @@ if(actionWithSoilWat) {
 			years <- sw.weather.suffices[itemp]
 		
 			temp <- ppt <- rep(0, times=12)
+			mat <- NULL
 			if(do.C4vars){
 				dailyTempMin <- NULL
 				dailyTempMean <- NULL
@@ -1048,6 +1050,7 @@ if(actionWithSoilWat) {
 			if((no.yrs <- length(files.weath)) > 0) for(y in 1:no.yrs){
 					ftemp <- read.table(file.path(dir.weather, files.weath[y]))
 					temp.dailyTempMean <- apply(ftemp[, 2:3], 1, mean)
+					mat <- c(mat, mean(temp.dailyTempMean))
 					if(do.C4vars){
 						dailyTempMin <- c(dailyTempMin, ftemp[, 3])
 						dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
@@ -1059,7 +1062,7 @@ if(actionWithSoilWat) {
 			temp <- temp / no.yrs
 			ppt <- ppt / no.yrs
 		
-			res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(temp))
+			res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(mat))
 		
 			if(do.C4vars){
 				res$dailyTempMin <- dailyTempMin
