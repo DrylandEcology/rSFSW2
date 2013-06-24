@@ -250,6 +250,7 @@
 #		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
 #		- (drs) fixed bug in 'dailyRegeneration_byTempSWPSnow': if only one soil layer, then variable 'swp' needs to be forced to be a matrix
 #		- (drs) fixed bug in 'SiteClimate': MAT was taken as mean of monthly values which biased the result; instead the function is now correctly taking the mean of the mean annual temperature values
+#		- (drs) added code that reports if SoilWat execution or 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica' failed
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2143,7 +2144,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
 			if(print.debug) print("Start of ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica")
 			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){
-				ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(site=i_labels, cellname=dirname.sw.runs.weather, dir.weath=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear)
+				err <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(site=i_labels, cellname=dirname.sw.runs.weather, dir.weath=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear)
+				if(err == 0) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 			}
 			#EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature Taken from here
 			
@@ -3201,10 +3203,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				setwd(dir.sw.runs.sc[sc])
 				if(!exists("use_janus")){
-					try(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
+					err <- system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
 				} else {
-					try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
+					err <- system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
 				}
+				if(err != 0) stop("SoilWat execution failed")
 				
 				if(sw.outputs == ""){
 					outputfiles <- try((ll <- list.files(dir.sw.runs.sc[sc]))[grepl(pattern=c(".dy", ".wk", ".mo", ".yr")[r], x=ll, fixed=TRUE)])
