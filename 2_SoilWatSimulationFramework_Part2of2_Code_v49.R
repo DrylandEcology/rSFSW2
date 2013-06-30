@@ -5958,14 +5958,14 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
 			if(length(filelist) == 0 || !file.exists(filelist[1])) {
 				if(file.exists(resultfile)){
-					cat(basename(resultfile), ": already concatenated")
+					cat(basename(resultfile), ": already concatenated\n")
 					return(1)
 				} else {
-					cat(basename(resultfile), ": no or not enough temporary files to collect results from")
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
 					return(0)
 				}
 			} else {
-				cat(basename(resultfile), ": concatenation started at", Sys.time())
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
 			}
 		
 			f.temp <- read.csv(filelist[1])	#option: row.names=1
@@ -6013,14 +6013,14 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
 			if(length(filelist) == 0 || !file.exists(filelist[1])) {
 				if(file.exists(resultfile)){
-					cat(basename(resultfile), ": already concatenated")
+					cat(basename(resultfile), ": already concatenated\n")
 					return(1)
 				} else {
-					cat(basename(resultfile), ": no or not enough temporary files to collect results from")
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
 					return(0)
 				}
 			} else {
-				cat(basename(resultfile), ": concatenation started at", Sys.time())
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
 			}
 
 			f.temp <- read.csv(filelist[1])	#option: row.names=1
