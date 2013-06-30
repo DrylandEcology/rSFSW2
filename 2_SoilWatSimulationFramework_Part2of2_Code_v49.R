@@ -256,6 +256,7 @@
 #		- (drs) added option 'concatenation.inMemory': #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
 #		- (drs) renamed function 'collect_ResultsWithTemporaryDataFrame' to 'concatenate_TemporaryResultFiles'
 #		- (drs) added two functions 'concatenate_TemporaryResultFiles': one to concatenate in memory (as before), one to concatenate via append (new); these are selected via option 'concatenation.inMemory'
+#		- (drs) fixed bug in 'concatenate_TemporaryResultFiles': if cleanup and concatenation resumed, then already final files deleted
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -5955,13 +5956,16 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 	#collect and concatenate results into files
 	if(concatenation.inMemory){ #read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
 		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
-			if(cleanup) try(file.remove(resultfile), silent=TRUE)
-		
 			if(length(filelist) == 0 || !file.exists(filelist[1])) {
-				print(paste(basename(resultfile), ": no or not enough temporary files to collect results from"))
-				return(0)
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from")
+					return(0)
+				}
 			} else {
-				print(paste(basename(resultfile), ": concatenation started at", Sys.time()))
+				cat(basename(resultfile), ": concatenation started at", Sys.time())
 			}
 		
 			f.temp <- read.csv(filelist[1])	#option: row.names=1
@@ -6007,13 +6011,16 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		}
 	} else {#concatenate by appending each temporary file to final file immediately
 		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
-			if(cleanup) try(file.remove(resultfile), silent=TRUE)
-		
 			if(length(filelist) == 0 || !file.exists(filelist[1])) {
-				print(paste(basename(resultfile), ": no or not enough temporary files to collect results from"))
-				return(0)
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from")
+					return(0)
+				}
 			} else {
-				print(paste(basename(resultfile), ": concatenation started at", Sys.time()))
+				cat(basename(resultfile), ": concatenation started at", Sys.time())
 			}
 
 			f.temp <- read.csv(filelist[1])	#option: row.names=1
@@ -6025,14 +6032,18 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 			#init final file
 			written <- try(write.table(f.temp, file=resultfile, append=FALSE, quote=FALSE, sep=",", dec=".", row.names=FALSE, col.names=TRUE))
 			
-			if(!identical(class(written), "try-error")) for(f in filelist[-1]){
-				f.temp <- read.csv(f)
-				#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
-				if(dim(f.temp)[2] == scenarioColumn) {
-					f.temp <- cbind(f.temp, tempNA)
+			if(!identical(class(written), "try-error")){
+				rfile <- file(resultfile, "at")	#only R can handle only 128 open connections
+				for(f in filelist[-1]){
+					f.temp <- read.csv(f)
+					#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
+					if(dim(f.temp)[2] == scenarioColumn) {
+						f.temp <- cbind(f.temp, tempNA)
+					}
+					written <- try(cat(c(unlist(format(f.temp)), "\n"), file=rfile, sep=",", append=TRUE))
+					if(identical(class(written), "try-error")) break
 				}
-				written <- try(write.table(f.temp, file=resultfile, append=TRUE, quote=FALSE, sep=",", dec=".", row.names=FALSE, col.names=FALSE))
-				if(identical(class(written), "try-error")) break
+				close(rfile)
 			}
 
 			#Exclude all columns with all NAs after 'colN.musthave' columns,
