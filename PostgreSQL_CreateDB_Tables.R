@@ -411,7 +411,7 @@ if((length(Tables) == 0) || cleanDB) {
 			colnames(SeedlingMortality_CausesByYear) <- c(	"SeedlingMortality_UnderneathSnowCover", "SeedlingMortality_ByTmin", "SeedlingMortality_ByTmax", "SeedlingMortality_ByChronicSWPMax", "SeedlingMortality_ByChronicSWPMin", "SeedlingMortality_ByAcuteSWPMin",
 					"SeedlingMortality_DuringStoppedGrowth_DueSnowCover", "SeedlingMortality_DuringStoppedGrowth_DueTmin", "SeedlingMortality_DuringStoppedGrowth_DueTmax")
 			
-			temp.header1 <- c(paste(rep(c("FractionYearsWith_GerminationSuccess", "FractionYearsWith_SeedlingSurvival1stSeason"), times=2), rep(c("", ".sd"), each=2), sep=""),
+			temp.header1 <- c(paste(rep(c("FractionYearsWith_GerminationSuccess", "FractionYearsWith_SeedlingSurvival1stSeason"), times=2), rep(c("", ".meanString"), each=2), sep=""),
 					paste(rep(c("SuccessiveYearsWith_NoGerminationSuccess", "SuccessiveYearsWith_NoSeedlingSurvival"), each=3), rep(c("5%", "50%", "95%"), times=2), "Quantile", sep="_"),
 					paste(rep(c("MeanDaysWith_GerminationSuccess", "MeanDaysWith_SeedlingSurvival1stSeason"), times=2), rep(c("", ".sd"), each=2), sep=""),
 					paste(rep(c("Start90%", "Median", "End90%"), times=2), rep(c("DoyMostFrequent_GerminationSuccess", "DoyMostFrequent_SeedlingSurvival1stSeason"), each=3), sep="_"),
@@ -453,13 +453,13 @@ if((length(Tables) == 0) || cleanDB) {
 		temp[i] <- paste(c("\"", temp[i], "\"", " double precision"), collapse = "")
 	}
 	
-	sd <- gsub("_mean", "_sd", temp)
-	mean <-paste(c(header_vector, temp), collapse = ", ")
-	sd <-paste(c(header_vector, sd), collapse = ", ")
+	sdString <- gsub("_mean", "_sd", temp)
+	meanString <- paste(c(header_vector, temp), collapse = ", ")
+	sdString <-paste(c(header_vector, sdString), collapse = ", ")
 	
 	if(concurrent) {
-		SQL_Table_Definitions <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", mean, ");", sep="")
-		SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sd, ");", sep=""))
+		SQL_Table_Definitions <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", meanString, ");", sep="")
+		SQL_Table_Definitions <- c(SQL_Table_Definitions, paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sdString, ");", sep=""))
 		
 		empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
 		if(cleanDB && !empty) rs <- dbSendQuery(con,paste("DROP TABLE ", '"',dbListTables(con), '"', sep="", collapse = ";"))
@@ -467,8 +467,8 @@ if((length(Tables) == 0) || cleanDB) {
 		
 		dbClearResult(rs)
 	} else {
-		SQL_Table_Definitions1 <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", mean, ");", sep="")
-		SQL_Table_Definitions2 <- paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sd, ");", sep="")
+		SQL_Table_Definitions1 <- paste("CREATE TABLE \"Aggregation_Overall_Mean\" (", meanString, ");", sep="")
+		SQL_Table_Definitions2 <- paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sdString, ");", sep="")
 		
 		empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
 		if(cleanDB && !empty) rs <- for(i in 1:length(Tables)) { dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")) }
@@ -533,6 +533,5 @@ if((length(Tables) == 0) || cleanDB) {
 			
 		}
 	}
-	
-	rm(rs, sd, mean, temp, temp1, tableName, agg.analysis, agg.resp,  SQL_Table_Definitions,header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)
 }
+rm(rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp,  SQL_Table_Definitions,header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)

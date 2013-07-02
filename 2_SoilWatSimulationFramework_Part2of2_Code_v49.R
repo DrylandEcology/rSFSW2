@@ -567,7 +567,7 @@ if(any(simulation_timescales=="daily")){
 
 #prepare for ensembles
 if(do.ensembles){
-	ensembles.maker <- list(	outputs=array(data=NA, dim=c(1 + daily_no, families_N, length(ensemble.levels), ifelse(save.scenario.ranks, 3, 2))),
+	ensembles.maker <- list(outputs=array(data=NA, dim=c(1 + daily_no, families_N, length(ensemble.levels), ifelse(save.scenario.ranks, 3, 2))),
 								scenarioFiles=array(data=NA, dim=c(1 + daily_no, families_N, scenariosPERensemble_N, 2)))
 	dimnames(ensembles.maker$outputs) <- list(NULL, ensemble.families, paste("Rank", ensemble.levels, sep=""), c("Means", "SDs", if(save.scenario.ranks) "Ranks"))
 	dimnames(ensembles.maker$scenarioFiles) <- list(NULL, ensemble.families, NULL, c("Means", "SDs"))
@@ -1706,7 +1706,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
 		dir.out.temp <- file.path(dir.out.temp, i_labels) #local temp folder
-		dir.create2(dir.out.temp, showWarnings=FALSE)
+		if(!makeOutputDB) dir.create2(dir.out.temp, showWarnings=FALSE)
 		filenames.out.temp <- list.files(dir.out.temp, pattern=flag.icounter)
 		
 		for (sc in 1:scenario_No){
@@ -1726,66 +1726,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			}
 		}
-		
-		if(makeOutputDB && concurrent && !exists("con")) con <- dbConnect(drv, dbname=dbName, user="worker", password="12345")
-
-#		Going to hold off on this and move it out side of the do_oneSite
-#		if(makeOutputDB) {
-#			P_id_range <- ((i-1)*scenario_No+(1:scenario_No))
-#			
-#			if(!concurrent) {
-#				library(RSQLite)
-#				#Create the Database
-#				drv <- dbDriver("SQLite")
-#				tfile <- file.path(dir.out, "dbTables.db")
-#				con <- dbConnect(drv, dbname = tfile)
-#			}
-#			
-#			Tables <- dbListTables(con) #get a list of tables
-#			
-#			if(any(Tables == "Aggregation_Overall_Mean")) { #make sure the table exists
-#				res <- dbSendQuery(con, paste("SELECT \"P_id\" FROM \"Aggregation_Overall_Mean\" WHERE \"RunID\" = ", i," ORDER BY \"P_id\";", sep=""))
-#				temp <- as.vector(t(fetch(res, n=-1))) #get the data from the query n=-1 to get all rows
-#				dbClearResult(res)
-#			} else {
-#				temp <- 0
-#			}
-#			
-#			Tables[grep(pattern="SD", Tables)] <- "" # get rid of SD
-#			Tables[grep(pattern="Aggregation_Overall", Tables)] <- ""
-#	
-#			for (sc in 1:scenario_No) {
-#				isdone.overallAggs[sc] <- P_id_range[sc] %in% temp
-#				
-#				if(any(simulation_timescales=="daily") && daily_no > 0) {
-#					for(doi in 1:daily_no) {
-#						if(regexpr("SWA", output_aggregate_daily[doi]) > 0){
-#							agg.resp <- "SWA"
-#						} else {
-#							agg.resp <- output_aggregate_daily[doi]
-#						}
-#						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-#						if(length(Tables) != 0) {
-#							if(length(grep(pattern=agg.resp,Tables))) {
-#								res <- dbSendQuery(con, paste("SELECT \"P_id\" FROM \"", Tables[grep(pattern=agg.resp,Tables)] ,"\" WHERE \"RunID\" = ", i," ORDER BY \"P_id\";", sep=""))
-#								temp <- as.vector(t(fetch(res, n=-1))) #dataToQuantilize get the data from the query n=-1 to get all rows
-#								dbClearResult(res)
-#								
-#							} else {
-#								res <- dbSendQuery(con, paste("SELECT \"P_id\" FROM \"", Tables[grep(pattern=agg.resp,Tables)] ,"\" WHERE \"RunID\" = ", i," AND \"Layer\" = 1 ORDER BY \"P_id\";", sep=""))
-#								temp <- as.vector(t(fetch(res, n=-1))) #dataToQuantilize get the data from the query n=-1 to get all rows
-#								dbClearResult(res)
-#							}
-#						} else {
-#							temp <- 0
-#						}
-#						temp <- as.vector(t(temp))
-#						isdone.dailyAggs[doi, sc] <- all(P_id_range %in% temp) #Each daily output has P_id for this output
-#					}
-#				}
-#			}
-#			if(!concurrent) dbDisconnect(con)
-#		}
 		
 		#establish what needs to be done for this SoilWat run (accounting for 'deleteSoilWatFolderAfterAggregation' and 'deleteSoilWatOutputAfterAggregation')
 		#Final outputs:
@@ -2955,6 +2895,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#write to table
 					infilename <- file.path(dir.sw.runs.sc.in[sc], soilsin)
 					infiletext <- readLines(con = infilename)
+					infiletext <- infiletext[!infiletext==""]
 					if(is.na(Grass.trco)) Grass.trco <- rep(0, soilsin.firstDataLine:length(infiletext))
 					#get the values and sub new grass trco values in
 					tempdat <- matrix(data=0, nrow=SoilLayer_MaxNo, ncol=12)
@@ -3168,12 +3109,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} else {
 				Exclude_ClimateAmbient <- 1
 			}
-			
+			result <- numeric(scenario_No)
+			ExecuteSoilWat <- function(TryTimes=0) {
+				tryCatch(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep="")), error=function(err){
+							print(paste("MY_ERROR:",err))
+							if(TryTimes < 5){
+								Sys.sleep(5)
+								ExecuteSoilWat(TryTimes+1)
+							}
+						})
+			}
 			for (sc in Exclude_ClimateAmbient:scenario_No){
 				
 				setwd(dir.sw.runs.sc[sc])
 				if(!exists("use_janus")){
-					try(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
+					#result <-c(result, ExecuteSoilWat())
+					print(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""),intern=T))
 				} else {
 					try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
 				}
@@ -3204,6 +3155,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				}
 				
 			}
+			print(paste(result,collapse = ","))
 		}#end if do execute
 		
 		
@@ -3432,7 +3384,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				temp1 <- 10 * read.table(file = file.path(dir.current, runoffyr), header = FALSE, sep = "", fill=TRUE, comment.char="")
 				return(list(val=temp1[simTime$index.useyr, 2], ponded=temp1[simTime$index.useyr, 3], snowmelt=temp1[simTime$index.useyr, 4]))
 			}
-			if(makeOutputDB && concurrent) SQL <- ""
+			if(makeOutputDB) {
+				SQL <- character(0)
+				if(parallel_runs && parallel_backend == "mpi") {
+					dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".txt",sep="")
+				} else {
+					dbTempFileName <- "SQL.txt"
+				}
+				dbTempFile <- file.path(dir.out, "temp", dbTempFileName)
+			} 
 			#aggregate for each scenario
 			for (sc in 1:scenario_No){
 				#create header information for output files
@@ -3503,7 +3463,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						write.csv(out.temp, file=filename.out.temp.SDs[sc], quote=FALSE, row.names=FALSE )
 					}
 					if(makeOutputDB){
-						if(!concurrent) mpi.send.Robj(out.temp, 1, 2, 1) #only send header info when
+						if(!concurrent) {
+							SQL <- paste0(SQL, paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(paste0("'",temp<-cbind(P_id, header, data.frame(matrix(NaN, nrow=1, ncol=dbOverallColumns), row.names=FALSE)),"'",sep=""),collapse=","),");", sep=""), sep="\n");
+							SQL <- paste0(SQL, paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",temp,"'",sep=""),collapse=","),");", sep=""), sep="\n");
+							#mpi.send.Robj(out.temp, 1, 2, 1) #only send header info when
+						}
 						if(concurrent) {
 							WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_Mean", temp<-cbind(P_id, header, data.frame(matrix(NA, nrow=1, ncol=dbOverallColumns), row.names=FALSE, append=TRUE)))
 							WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_SD", temp, row.names=FALSE, append=TRUE)
@@ -5199,21 +5163,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						#out.tempSDs	<- data.frame(out.tempSDs)
 						
 						if(!concurrent) {
-							#out.tempMeans <- cbind(P_id, temp<-data.frame(header, stringsAsFactors=FALSE), data.frame(t(resMeans[1:(nv-1)])))
-							#out.tempSDs <- cbind(P_id, temp, data.frame(t(resSDs[1:(nv-1)])))
-							#colnames(out.tempMeans) <- c("P_id",header.names, resultfiles.Aggregates.header[1:(nv-1)])
-							#colnames(out.tempSDs) <- c("P_id",header.names, gsub("_mean", "_sd", resultfiles.Aggregates.header[1:(nv-1)]))
-							SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(paste0("'",t(c(P_id, header, resMeans[1:(nv-1)])),"'",sep=""),collapse=","),");", sep="")
-							SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",t(c(P_id, header, resSDs[1:(nv-1)])),"'",sep=""),collapse=","),");", sep="")
-							SQL1 <- gsub(pattern="NA", "NaN", SQL1)
-							SQL2 <- gsub(pattern="NA", "NaN", SQL2)
-							mpi.send.Robj(list(M=SQL1, SD=SQL2), 1, 1, 1)
+							resMeans[is.na(resMeans)] <- "NULL"
+							resSDs[is.na(resSDs)] <- "NULL"
+							SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
+							SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+							#mpi.send.Robj(list(M=SQL1, SD=SQL2), 1, 1, 1)
 						} else {
 							#dbWriteTable(con, "Aggregation_Overall_Mean", out.tempMeans, row.names=FALSE, append=TRUE)
 							#dbWriteTable(con, "Aggregation_Overall_SD", out.tempSDs, row.names=FALSE, append=TRUE)
 
 							SQL <- paste0(paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(paste0("'",t(c(P_id, header, resMeans[1:(nv-1)])),"'",sep=""),collapse=","),");", sep=""),
-									paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",t(c(P_id, header, resSDs[1:(nv-1)])),"'",sep=""),collapse=","),");", sep=""), collapse = "\n")
+									paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",t(c(P_id, header, resSDs[1:(nv-1)])),"'",sep=""),collapse=","),");", sep=""), sep = "\n")
 							SQL <- gsub(pattern="NA", "NaN", SQL)
 							
 							rs<-dbSendQuery(con, SQL)
@@ -5229,7 +5190,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#Daily Output
 				if(any(simulation_timescales=="daily") && daily_no > 0){
 					if(makeOutputDB) dailyList <- list()
-					SQL <- ""
+					SQLc <- ""
 					#aggregate for each response variable
 					for (doi in 1:daily_no) {
 						
@@ -5394,51 +5355,48 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
 								if(agg.analysis == 1){
 									if(!concurrent) {
-										SQL1 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""),"\" VALUES (",paste0(paste0("'",t(c(P_id, header, res.dailyMean)),"'",sep=""),collapse=","),");", sep="")
-										SQL2 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""),"\" VALUES (",paste0(paste0("'",t(c(P_id, header, res.dailySD)),"'",sep=""),collapse=","),");", sep="")
-										SQL1 <- gsub(pattern="NA", "NaN", SQL1)
-										SQL2 <- gsub(pattern="NA", "NaN", SQL2)
-										dailyList[[doi]] <- list(M=SQL1, SD=SQL2, name=agg.resp, type=agg.analysis, aggLs_no=aggLs_no)	
+										res.dailyMean[is.na(res.dailyMean)] <- "NULL"
+										res.dailySD[is.na(res.dailySD)] <- "NULL"
+										SQL1 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailyMean,collapse=",")),");", sep="")
+										SQL2 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailySD,collapse=",")),");", sep="")
+										SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+										#dailyList[[doi]] <- list(M=SQL1, SD=SQL2, name=agg.resp, type=agg.analysis, aggLs_no=aggLs_no)	
 									}
 									if(concurrent) {
-										#out.tempM <- t(c(P_id, header, res.dailyMean))
-										#out.tempSD <- t(c(P_id, header, res.dailySD))
-										#out.tempM <- data.frame(out.tempM[1,],row.names=FALSE,stringsAsFactors = FALSE)
-										#out.tempSD <- data.frame(out.tempSD[1,],row.names=FALSE,stringsAsFactors = FALSE)
-										##dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""), cbind(P_id, temp<-data.frame(header,stringsAsFactors=FALSE), t(res.dailyMean)), row.names=FALSE, append=TRUE)
-										##dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""), cbind(P_id, temp, t(res.dailySD)), row.names=FALSE, append=TRUE)
 										SQL <- paste0(SQL, paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""),"\" VALUES (",paste0(paste0("'",t(c(P_id, header, res.dailyMean)),"'",sep=""),collapse=","),");", sep=""),
 											paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""),"\" VALUES (",paste0(paste0("'",t(c(P_id, header, res.dailySD)),"'",sep=""),collapse=","),");", sep=""), collapse = "\n")
 									}
 								} else {
 									#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
-									SQL1 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(paste0("'",t(c(P_id, x, header, res.dailyMean[((x*366)-365):(x*366)])),"'",sep=""),collapse=",")}), ")", sep="", collapse = ","), ";", sep="") 
-									SQL2 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(paste0("'",t(c(P_id, x, header, res.dailySD[((x*366)-365):(x*366)])),"'",sep=""),collapse=",")}), ")", sep="", collapse = ","), ";", sep="")
-									SQL1 <- gsub(pattern="NA", "NaN", SQL1)
-									SQL2 <- gsub(pattern="NA", "NaN", SQL2)
-									dailyList[[doi]] <- list(M=SQL1, SD=SQL2, name=agg.resp, type=agg.analysis, aggLs_no=aggLs_no)	
-									#out.tempL <- data.frame(matrix(res.dailyMean, nrow=agg.no, ncol=366,byrow=TRUE))
-									#dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""), cbind(t(P_id),1:agg.no, header, out.tempL), row.names=FALSE, append=TRUE)
-									#out.tempL <- data.frame(matrix(res.dailySD, nrow=agg.no, ncol=366,byrow=TRUE))
-									#dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""), cbind(t(P_id),1:agg.no, header, out.tempL), row.names=FALSE, append=TRUE)
+									res.dailyMean[is.na(res.dailyMean)] <- "NULL"
+									res.dailySD[is.na(res.dailySD)] <- "NULL"
+									SQL1 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", agg.resp, "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="") 
+									SQL2 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", agg.resp, "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+									if(!concurrent) SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+									if(concurrent) SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 								}
 							}
 							#if(makeOutputDB) mpi.send.Robj(list(M=out.tempM, SD=out.tempSD, name=agg.resp, aggLs_no=aggLs_no), 1, 3, 1)
 						}#end if continueAfterAbort
 					}#doi loop
 					if(makeOutputDB) {
-						if(!concurrent) {
-							#save(dailyList, file=file.path(dir.out,"readThisdaily.r"))
-							mpi.send.Robj(dailyList, 1, 3, 1)#, request=mpi.comm.rank()
-						} else {
+						if(concurrent) {
 							SQL <- gsub(pattern="NA", "NaN", SQL)
 							rs<-dbSendQuery(con, SQL)
 							dbClearResult(rs)
 						}
 					}
-					#mpi.wait(request=mpi.comm.rank())
 				}#end if daily output
 			} #end loop through scenarios
+			if(makeOutputDB) {
+				if(!concurrent) {
+					#SQL <- SQL[SQL != ""]
+					write(SQL, dbTempFile, append=TRUE)
+					#save(dailyList, file=file.path(dir.out,"readThisdaily.r"))
+					#mpi.send.Robj(dailyList, 1, 3, 1)#, request=mpi.comm.rank()
+				}
+			}
+			#mpi.wait(request=mpi.comm.rank())
 		} #end if do aggregate
 		
 		
@@ -5473,222 +5431,36 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 } #end do_OneSite()
 #------------------------
 
-FileHandler <- function(workers) {
-	
-	library(RSQLite)
-	#Keep track of stuff
-	WorkersDone <- 0
-	dailyTableNames <- character()
-	First <- TRUE
-	
-	#Create the Database
-	drv <- dbDriver("SQLite")
-	tfile <- file.path(dir.out, "dbTables.db")
-	con <- dbConnect(drv, dbname = tfile)
-	if(makeInputForExperimentalDesign) {
-		conExpiremtalInput <- dbConnect(drv, dbname = file.path(dir.out, "dbExperimentalInputDataFiles.sql"))
-	}
-	
-	AggOverallDataCols <- -1
-	
-	times_layers <- as.double()
-	times_nlayers <- as.double()
-	times_aggOverall <- as.double()
-	times <- as.double()
-	tags <- 0
-	print("about to wait...")
-	
-	while(!(WorkersDone == workers)) { 
-		dataToWrite <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
-		task_info <- mpi.get.sourcetag()
-		from <- task_info[1]
-		tag <- task_info[2]
-		
-		tags <- c(tags, tag)
-		tempStartTime <- Sys.time()
-		
-		if(tag==1) { #Tag for Aggregation_Overall tables
-			#WrittenSuccessfully <- rep(FALSE,2)
-			#print("saved and about to write")
-			
-			#tempStartTime_aggOverall <- Sys.time()
-			#save(dataToWrite, tag, tempStartTime, from, tempStartTime_aggOverall, file=file.path(dir.out,"test.r"))
-			#WrittenSuccessfully[1] <- dbWriteTable(con, "Aggregation_Overall_Mean", dataToWrite$M, row.names=FALSE, append=TRUE)
-			#WrittenSuccessfully[2] <- dbWriteTable(con, "Aggregation_Overall_SD", dataToWrite$SD, row.names=FALSE, append=TRUE)
-			#times_aggOverall <- c(times_aggOverall, as.double(difftime(Sys.time(), tempStartTime_aggOverall, units="secs")))
-			
-			dbSendQuery(con, dataToWrite$M)
-			dbSendQuery(con, dataToWrite$SD)
-			#print(paste(from,"Aggregation Overal: Written",paste(WrittenSuccessfully,collapse=" ")))
-			if(First) {
-				#AggOverallDataCols <- length(dataToWrite$M)
-				First<-FALSE
-			}
-			#rm(WrittenSuccessfully)
-		} else if (tag==2) { #tag 2 is for excluded current scenario with NA values
-			#if(First) { #crap this is not good
-				#put in tempary variable until a real first is done
-			#	if(!exists("AggOverTemp")) {
-			#		AggOverTemp <- dataToWrite #should just include info columns 1:(scenarios)
-					#print(paste(from,"Temp Storage Created for Aggregation Overall Table Created"))
-			#	} else {
-			#		AggOverTemp <- rbind(AggOverTemp,dataToWrite)
-					#print(paste(from,"Added to temp storage"))
-			#	}
-			#} else { #perfect just put in table with NA for data past scenario col
-			#	if(exists("AggOverTemp")) {#We need to write out what we have to file already
-			#		temp<-data.frame(matrix(NA, nrow=dim(AggOverTemp)[1], ncol=AggOverallDataCols-dim(AggOverTemp)[2]))
-			#		WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_Mean", temp<-cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE)
-			#		WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_SD", temp, row.names=FALSE, append=TRUE)
-					#print(paste(from,"Temp Storage for Agg Overall Written", WrittenSuccessfully, "and deleted"))
-			#		rm(AggOverTemp, temp) #make sure we remove these
-			#	}
-				#now write out the data
-				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_Mean", temp<-cbind(dataToWrite, data.frame(matrix(NA, nrow=1, ncol=AggOverallDataCols)) ), row.names=FALSE, append=TRUE)
-				WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall_SD", temp, row.names=FALSE, append=TRUE)
-				#print(paste(from,"Agg Overall Current Exclude Written", WrittenSuccessfully))
-			#}
-		} else if (tag == 3) { # Tag for daily tables
-			#WrittenSuccessfully <- rep(FALSE,daily_no*2)
-
-			dbBeginTransaction(con)
-			for(i in 1:daily_no) {
-				dataToWriteT <- dataToWrite[[i]]
-				dbSendQuery(con, dataToWriteT$M)
-				dbSendQuery(con, dataToWriteT$SD)
-				#if(dataToWriteT$type == 1) {
-					#tempStartTime_nLayers <- Sys.time()
-					#WrittenSuccessfully[i*2-1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWriteT$name, sep=""), dataToWriteT$M, row.names=FALSE, append=TRUE)
-					#WrittenSuccessfully[i*2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWriteT$name, sep=""), dataToWriteT$SD, row.names=FALSE, append=TRUE)
-					#times_nlayers <- c(times_nlayers, as.double(difftime(Sys.time(), tempStartTime_nLayers, units="secs")))
-				#	dbSendQuery(con, dataToWriteT$M)
-				#} else {
-					#tempStartTime_Layers <- Sys.time()
-					#WrittenSuccessfully[i*2-1] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_Mean_", dataToWriteT$name, sep=""), dataToWriteT$M, row.names=FALSE, append=TRUE)
-					#WrittenSuccessfully[i*2] <- dbWriteTable(con, paste("Aggregation_Seasons_DailyValues_SD_", dataToWriteT$name, sep=""), dataToWriteT$SD, row.names=FALSE, append=TRUE)
-					#times_layers <- c(times_layers, as.double(difftime(Sys.time(), tempStartTime_Layers, units="secs")))
-					
-				#}
-			}
-			dbCommit(con)
-			#print(paste(from,"Daily Tables First Written", paste(WrittenSuccessfully, collapse=" ")))
-			#rm(WrittenSuccessfully)
-		} else if (tag == 4) { #Tag to reconstruct input from expirementals
-			WrittenSuccessfully <- rep(FALSE,10)
-			if( length(dbListTables(conExpiremtalInput)) > 0 ) {
-				WrittenSuccessfully[1] <- dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[2] <- dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[3] <- dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[4] <- dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[5] <- dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[6] <- dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[7] <- dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[8] <- dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[9] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE, append=TRUE)
-				WrittenSuccessfully[10] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE, append=TRUE)
-				#print(paste(from,": Input Tables Append Written ", paste(WrittenSuccessfully, collapse=" "), sep=""))
-			} else { #need to create the tables
-				tables <- names(dataToWrite)
-				WrittenSuccessfully[1] <- dbWriteTable(conExpiremtalInput, "SWRunInformation", dataToWrite$SWRunInformation, row.names=FALSE)
-				WrittenSuccessfully[2] <- dbWriteTable(conExpiremtalInput, "sw_input_soillayers", dataToWrite$sw_input_soillayers, row.names=FALSE)
-				WrittenSuccessfully[3] <- dbWriteTable(conExpiremtalInput, "sw_input_treatments", dataToWrite$sw_input_treatments, row.names=FALSE)
-				WrittenSuccessfully[4] <- dbWriteTable(conExpiremtalInput, "sw_input_cloud", dataToWrite$sw_input_cloud, row.names=FALSE)
-				WrittenSuccessfully[5] <- dbWriteTable(conExpiremtalInput, "sw_input_prod", dataToWrite$sw_input_prod, row.names=FALSE)
-				WrittenSuccessfully[6] <- dbWriteTable(conExpiremtalInput, "sw_input_site", dataToWrite$sw_input_site, row.names=FALSE)
-				WrittenSuccessfully[7] <- dbWriteTable(conExpiremtalInput, "sw_input_soils", dataToWrite$sw_input_soils, row.names=FALSE)
-				WrittenSuccessfully[8] <- dbWriteTable(conExpiremtalInput, "sw_input_weather", dataToWrite$sw_input_weather, row.names=FALSE)
-				WrittenSuccessfully[9] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen", dataToWrite$sw_input_climscen, row.names=FALSE)
-				WrittenSuccessfully[10] <- dbWriteTable(conExpiremtalInput, "sw_input_climscen_values", dataToWrite$sw_input_climscen_values, row.names=FALSE)
-				#print(paste(from,": Input Tables Append Written ", paste(WrittenSuccessfully, collapse=" "), sep=""))
-			}
-			rm(WrittenSuccessfully)
-		} else if (tag == 5) {
-			print("Worker Done")
-			WorkersDone <- WorkersDone + 1
-		}
-		#print("about to get times")
-		#times <- c(times, as.double(difftime(Sys.time(), tempStartTime, units="secs")))
-		#print("after times")
-	}
-	#save(times, tags,times_layers,times_nlayers,times_aggOverall, file=file.path(dir.out, "DB_info.r"))
-	#Just in case this did not get written to file
-	if(exists("AggOverTemp")) {#We need to write out what we have to file already
-		temp<-data.frame(matrix(NA, nrow=dim(AggOverTemp)[1], ncol=AggOverallDataCols))
-		WrittenSuccessfully <- dbWriteTable(con, "Aggregation_Overall", cbind(AggOverTemp, temp), row.names=FALSE, append=TRUE)
-		#print(paste(from,"Temp Storage for Agg Overall Written", WrittenSuccessfully, "and deleted"))
-		rm(AggOverTemp, temp) #make sure we remove these
-	}
-	#cleanup Remove unused soil layers
-	
-	if(concurrent) dbDisconnect(con)
-	mpi.send.Robj(0,0,3)
-}
-
 work <- function(parallel_backend, Data) {
 	# Note the use of the tag for sent messages:
 	#     1=ready_for_task, 2=done_task, 3=exiting
 	# Note the use of the tag for received messages:
 	#     1=task, 2=done_tasks
 	
-	#The First slave needs to get the data and write to file
-	if(!makeOutputDB || (makeOutputDB && concurrent)) { #each slave will test this condition and only the first slave will do something else
-		junk <- 0
-		done <- 0
-		while (done != 1) {
-			# Signal being ready to receive a new task
-			mpi.send.Robj(junk,0,1)
-			
-			# Receive a task
-			dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
-			task_info <- mpi.get.sourcetag()
-			tag <- task_info[2]
-			
-			if (tag == 1) {
-				print(dataForRun$i)
-				if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
-				if(dataForRun$collect_ResultsWithTemporaryDataFrame) collect_ResultsWithTemporaryDataFrame(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
-				# Send a results message back to the master
-				#print(results)
-				mpi.send.Robj(dataForRun$i,0,2)
-			} else if (tag == 2) {
-				done <- 1
-			}
-			# We'll just ignore any unknown messages
-		}
-		mpi.send.Robj(junk,0,3)
-		#mpi.send.Robj(junk,1,3)
-	} else {
-		if(mpi.comm.rank() != 1) {
-			junk <- 0
-			done <- 0
-			while (done != 1) {
-				# Signal being ready to receive a new task
-				mpi.send.Robj(junk,0,1)
-				
-				# Receive a task
-				dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
-				task_info <- mpi.get.sourcetag()
-				tag <- task_info[2]
-				
-				if (tag == 1) {
-					print(dataForRun$i)
-					if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
-					if(dataForRun$collect_ResultsWithTemporaryDataFrame) collect_ResultsWithTemporaryDataFrame(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
-					# Send a results message back to the master
-					#print(results)
-					mpi.send.Robj(dataForRun$i,0,2)
-				} else if (tag == 2) {
-					done <- 1
-				}
-				# We'll just ignore any unknown messages
-			}
-			mpi.send.Robj(junk,0,3)
-			mpi.send.Robj(junk,1,5)
-		} else {
-			FileHandler(workers = (mpi.comm.size() - 2))
-		}
+	junk <- 0
+	done <- 0
+	while (done != 1) {
+		# Signal being ready to receive a new task
+		mpi.send.Robj(junk,0,1)
 		
+		# Receive a task
+		dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+		task_info <- mpi.get.sourcetag()
+		tag <- task_info[2]
+		
+		if (tag == 1) {
+			print(dataForRun$i)
+			if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
+			if(dataForRun$collect_ResultsWithTemporaryDataFrame) collect_ResultsWithTemporaryDataFrame(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
+			# Send a results message back to the master
+			#print(results)
+			mpi.send.Robj(dataForRun$i,0,2)
+		} else if (tag == 2) {
+			done <- 1
+		}
+		# We'll just ignore any unknown messages
 	}
+	mpi.send.Robj(junk,0,3)
 }
 
 #--------------------------------------------------------------------------------------------------#
@@ -5752,10 +5524,11 @@ if(runsN.todo > 0){
 }
 
 if(actionWithSoilWat && runsN.todo > 0){
+	
 	ifirst <- seq.todo[1]
 	
 	#objects to export
-	list.noexport <- c("con","include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values")
+	list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values")
 	list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
 	
 	#ETA calculation
@@ -5767,13 +5540,12 @@ if(actionWithSoilWat && runsN.todo > 0){
 			workersN <- (mpi.comm.size() - 1)
 			exportObjects(list.export)
 			
-			if(concurrent) {
-				mpi.bcast.cmd(library(RPostgreSQL))
-				mpi.bcast.cmd(drv <- dbDriver("PostgreSQL"))
-				mpi.bcast.cmd(rm(con))#just in case
+			#if(concurrent) {
+				#mpi.bcast.cmd(library(RPostgreSQL))
+				#mpi.bcast.cmd(drv <- dbDriver("PostgreSQL"))
+				#mpi.bcast.cmd(rm(con))#just in case
 				#mpi.bcast.cmd(con <- dbConnect(drv, dbname="1_PC_TempDry_Simulations_Prj00_r3", user="worker", password="12345", host="xavier.uwyo.edu", port="5432"))
-			}
-			
+			#}
 			
 			mpi.bcast.cmd(work(parallel_backend = "mpi", Data = 0))
 			junk <- 0
@@ -5840,21 +5612,45 @@ if(actionWithSoilWat && runsN.todo > 0){
 		}
 		
 	} else { #call the simulations in seriel
-		#runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
-		#	i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-		#	do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
-		#}
-		for(i_sim in seq.todo) {
+		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
+#		for(i_sim in 1) {
+#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
+#			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
+#		}
 	}
 	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 } else {
 	runs.completed <- 0
 }
 #------------------------
-#print(runs.completed)
+
+if(makeOutputDB) {
+	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1 <- Sys.time()))
+	
+	library(RSQLite)
+		
+	#Create the Database
+	drv <- dbDriver("SQLite")
+	tfile <- file.path(dir.out, "dbTables.db")
+	con <- dbConnect(drv, dbname = tfile)
+	
+	theFileList <- list.files(path=dir.out.temp, full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
+	
+	for(j in 1:length(theFileList)) {
+		SQLlines <- readLines(file.path(dir.out.temp, theFileList[j]))
+		SQLlines <- SQLlines[SQLlines != ""]
+		if(deleteTemporaryAggregationFiles) try(file.remove(theFileList[j]), silent=TRUE)
+		for(k in 1:length(SQLlines)) {
+			dbSendQuery(con,SQLlines[k])
+		}
+		
+	}
+	
+	if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+}
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CHECK COMPLETENESS OF OUTPUT FILES AND SIMULATIONS
@@ -6041,26 +5837,7 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		write.csv(rbind(sw_input_climscen_use, sw_input_climscen), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios, sep="")), row.names=FALSE)
 		write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios_values, sep="")), row.names=FALSE)
 	}
-#	if(!makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
-#		if(any(create_experimentals == "LookupEvapCoeffFromTable") | any(create_experimentals == "LookupTranspRegionsFromTable")) {
-#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.soils, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.soils, sep=""), targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
-#			if(try.cat > 0){
-#				sw_input_soils <- read.csv(temp)
-#				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-#				write.csv(tempdat, file=file.path(dir.out, "Experimental Input Data", paste("EXP_", datafile.soils, sep="")), row.names=FALSE)
-#				rm(tempdat)
-#			}
-#		}
-#		if(any(create_experimentals == "LookupSnowDensityFromTable")) {
-#			try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.cloud, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.cloud, sep=""), targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
-#			if(try.cat > 0){
-#				sw_input_cloud <- read.csv(temp)
-#				tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
-#				write.csv(tempdat, file=file.path(dir.out, "Experimental Input Data", paste("EXP_", datafile.cloud, sep="")), row.names=FALSE)
-#				rm(tempdat)
-#			}
-#		}
-#	}
+
 	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
 		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){
