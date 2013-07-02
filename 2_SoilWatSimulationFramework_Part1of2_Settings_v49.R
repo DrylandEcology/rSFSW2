@@ -163,6 +163,7 @@ if(!exists("use_janus") || !use_janus) rm(list=ls(all=TRUE))	# at least rm(use_j
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
+print.debug <- FALSE
 
 #------Mode of framework: serial or parallel
 if(exists("use_janus")) {
@@ -231,6 +232,8 @@ makeOutputDB <- TRUE
 concurrent <- TRUE
 dbName <- "1_PC_TempDry_Simulations_Prj00_r3"
 cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+#Type of concatenation (if not DB used)
+concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
 #deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
 deleteTemporaryAggregationFiles <- FALSE
 

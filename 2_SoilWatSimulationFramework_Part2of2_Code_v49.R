@@ -245,6 +245,18 @@
 #		- (drs) fixed bug in create 'control transpiration regions for adjusted soil depth and rooting depth' if number of soil layers == 1
 #		- (drs) fixed bug in some of the aggregations if topL == 1
 #		- (drs) changed functions 'circ.' {mean, range, sd}: if all elements of x are NA and na.rm==TRUE, then output was 'numeric(0)' which caused aggregated output variables from numeric vectors into a list; changed that these functions now put out NA instead of 'numeric(0)'
+#		- (drs) faster version of 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica'
+#		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
+#		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
+#		- (drs) fixed bug in 'dailyRegeneration_byTempSWPSnow': if only one soil layer, then variable 'swp' needs to be forced to be a matrix
+#		- (drs) fixed bug in 'SiteClimate': MAT was taken as mean of monthly values which biased the result; instead the function is now correctly taking the mean of the mean annual temperature values
+#		- (drs) added code that reports if SoilWat execution or 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica' failed
+#		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if no vegetation was estimated for the components to be estimated and the fixed ones summed up to 0, then the result contained NA: now, vegetation is forced > 0
+#		- (drs) fixed bug in section of concatenation: if actions included concatenation and ensemble, but not aggregation, then no concatenation occurred mistakenly
+#		- (drs) added option 'concatenation.inMemory': #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
+#		- (drs) renamed function 'collect_ResultsWithTemporaryDataFrame' to 'concatenate_TemporaryResultFiles'
+#		- (drs) added two functions 'concatenate_TemporaryResultFiles': one to concatenate in memory (as before), one to concatenate via append (new); these are selected via option 'concatenation.inMemory'
+#		- (drs) fixed bug in 'concatenate_TemporaryResultFiles': if cleanup and concatenation resumed, then already final files deleted
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1037,6 +1049,7 @@ if(actionWithSoilWat) {
 			years <- sw.weather.suffices[itemp]
 		
 			temp <- ppt <- rep(0, times=12)
+			mat <- NULL
 			if(do.C4vars){
 				dailyTempMin <- NULL
 				dailyTempMean <- NULL
@@ -1044,6 +1057,7 @@ if(actionWithSoilWat) {
 			if((no.yrs <- length(files.weath)) > 0) for(y in 1:no.yrs){
 					ftemp <- read.table(file.path(dir.weather, files.weath[y]))
 					temp.dailyTempMean <- apply(ftemp[, 2:3], 1, mean)
+					mat <- c(mat, mean(temp.dailyTempMean))
 					if(do.C4vars){
 						dailyTempMin <- c(dailyTempMin, ftemp[, 3])
 						dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
@@ -1055,7 +1069,7 @@ if(actionWithSoilWat) {
 			temp <- temp / no.yrs
 			ppt <- ppt / no.yrs
 		
-			res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(temp))
+			res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(mat))
 		
 			if(do.C4vars){
 				res$dailyTempMin <- dailyTempMin
@@ -1600,7 +1614,9 @@ if(any(actions == "create")){
 				colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 				
 				#times
-				date <- strptime(with(weath.data, paste(year, month, day, sep="-")), format="%Y-%m-%d")
+				date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+							to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+							by="1 day")
 				doy <- 1 + as.POSIXlt(date)$yday
 				
 				#weather maker
@@ -1706,7 +1722,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
 		dir.out.temp <- file.path(dir.out.temp, i_labels) #local temp folder
-		if(!makeOutputDB) dir.create2(dir.out.temp, showWarnings=FALSE)
+		dir.create2(dir.out.temp, showWarnings=FALSE)
 		filenames.out.temp <- list.files(dir.out.temp, pattern=flag.icounter)
 		
 		for (sc in 1:scenario_No){
@@ -1875,6 +1891,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 #------------------------CREATE RUNS
 		if( todo$create ){	
+			if(print.debug) print("Start of section 'create'")
+			
 			#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
 			dir.copy(dir.from=dir.sw.in, dir.to=dir.sw.runs.sc[1], overwrite=TRUE)
 			
@@ -1904,6 +1922,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			}
 			dir.sw.runs.weather <- file.path(dir.sw.runs.sc.in[1], dirname.sw.runs.weather)
+			
+			if(print.debug) print("Start of LookupWeatherFolder")
 			if(!any(create_treatments == "LookupWeatherFolder")){	#create weather folder and move cloud into it
 				dir.create2(dir.sw.runs.weather, recursive=TRUE)
 				file.copy2(from=file.path(dir.sw.runs.sc.in[1], cloudin), to=file.path(dir.sw.runs.weather, cloudin), overwrite=TRUE, copy.mode = TRUE)
@@ -1996,6 +2016,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} 
 				
 			#Treatment chunks
+			if(print.debug) print("Start of LookupTranspCoeff")
 			if(any(create_treatments == "LookupTranspCoeffFromTable_Grass")){
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth)
 				if(!is.na(trco)){
@@ -2067,14 +2088,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
+			if(print.debug) print("Start of ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica")
 			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){
-				ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(site=i_labels, cellname=dirname.sw.runs.weather, dir.weath=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear)
+				err <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(site=i_labels, cellname=dirname.sw.runs.weather, dir.weath=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear)
+				if(err == 0) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 			}
 			#EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature Taken from here
 			
 			
 			#------4. Step: Information from datafiles are added if flagged 'use' to SoilWat input files
 			#add information from datafile to cloudin
+			if(print.debug) print("Start of cloudin")
 			wind <- with(i_sw_input_cloud, data.frame(wind_ms_1, wind_ms_2, wind_ms_3, wind_ms_4, wind_ms_5, wind_ms_6, wind_ms_7, wind_ms_8, wind_ms_9, wind_ms_10, wind_ms_11, wind_ms_12))
 			if(do.wind <- datafile.windspeedAtHeightAboveGround != SoilWat.windspeedAtHeightAboveGround)
 				wind <- adjust.WindspeedHeight(uz=wind, height=datafile.windspeedAtHeightAboveGround)
@@ -2112,6 +2136,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			#add vegetation information	from datafile to prodin
+			if(print.debug) print("Start of proding")
 			if(sum(sw_input_prod_use[-1]) > 0){
 				infilename <- file.path(dir.sw.runs.sc.in[1], prodin)
 				infiletext <- readLines(con = infilename)
@@ -2177,6 +2202,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#Moved adjust to southern Hemi
 			
 			#add site information to siteparamin
+			if(print.debug) print("Start of siteparamin")
 			infilename <- file.path(dir.sw.runs.sc.in[1], siteparamin)
 			infiletext <- readLines(con = infilename)
 			if(sum(sw_input_site_use[-1]) > 0){
@@ -2222,6 +2248,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			close(infile)
 			
 			#add soil information to soilsin
+			if(print.debug) print("Start of soilsin")
 			if(sum(sw_input_soils_use[-1]) - sum(use_transpregion <- unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))) > 0){
 				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
 				infiletext <- readLines(con = infilename)
@@ -2336,9 +2363,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 				}
 				if(soilsin.firstDataLine-1 + max(ld) + 1 > infiletext.nrow){
-					infiletext <- c(infiletext, "")
+#					infiletext <- c(infiletext, "")
 				} else {
-					infiletext[soilsin.firstDataLine + max(ld)] <- ""	#SoilWat is happy with a empty last line
+#					infiletext[soilsin.firstDataLine + max(ld)] <- ""	#SoilWat is happy with a empty last line
 					infiletext <- infiletext[1:(soilsin.firstDataLine-1 + max(ld))]	#delete unused additional lines
 				}
 				infile <- file(infilename, "w+b")
@@ -2348,6 +2375,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			
 			#add transpiration regions information to siteparamin
+			if(print.debug) print("Start of transpregion")
 			if(sum(use_transpregion) > 0){
 				tr <- max(tr.layers <- na.omit(unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=i_sw_input_soils)))) # max transpiration region
 				
@@ -2423,6 +2451,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					dir.copy(dir.from=dir.sw.runs.sc[1], dir.to=dir.sw.runs.sc[sc], overwrite=TRUE)	#system(paste("cp -R", shQuote(dir.sw.runs.sc[1]), shQuote(dir.sw.runs.sc[sc])))
 				} else {
 					if(do.GetClimateMeans){
+						if(print.debug) print("Start of get SiteClimate")
 						do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || aon$dailyC4_TempVar
 						SiteClimate_Ambient <- SiteClimate(dir.weather=dir.sw.runs.weather, sw.weather.praefix=filebasename.WeatherDataYear, year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 					}
@@ -2518,6 +2547,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				#anything that depends on weather
 				#------3. Step: Lookup or extract external information that needs to be executed for each run
+				if(print.debug) print("Start of set soil temperature")
 				if(exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 					soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 					soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
@@ -2575,6 +2605,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#- Calculate relative composition based on equations
+				if(print.debug) print("Start of PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996")
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996){
 					#Climate variables
 					if(any(create_treatments == "PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate") && i_sw_input_treatments$PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate=="Reference"){
@@ -2688,7 +2719,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
 						naIndex <- which(is.na(AnnC4C3ShrubFraction))
 						#replace missing values
-						AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
+						if(isTRUE(all.equal(sum(calcAnnC4C3ShrubFraction[naIndex]), 0)) && isTRUE(all.equal(temp <- sum(AnnC4C3ShrubFraction[!naIndex]), 0))){ #there would be no vegetation, so force vegetation > 0
+							AnnC4C3ShrubFraction[naIndex] <- (1 - temp) / length(naIndex)
+						} else {
+							AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
+						}
 						#now we need to get the sum and scale the naIndex values accordingly
 						AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
 					}
@@ -2707,6 +2742,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					FractionsToFile(shrubs=AnnC4C3ShrubFraction[4], grass=grass.fraction, trees=tree.fraction)			
 				}
 				
+				if(print.debug) print("Start of biomass adjustments")
 				if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
 					tr_VegComp_Adj <- tr_VegetationComposition	#Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
 					#Describe conditions for which the default vegetation biomass values are valid
@@ -2872,6 +2908,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				#adjust Root Profile - need composition fractions set above
+				if(print.debug) print("Start of AdjRootProfile")
 				if(any(create_treatments == "AdjRootProfile") && i_sw_input_treatments$AdjRootProfile && any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
 					
 					trco_type_C3 <- ifelse(any(create_treatments == "RootProfile_C3") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3), i_sw_input_treatments$RootProfile_C3, "SchenkJackson2003_PCdry_grasses")
@@ -2895,7 +2932,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#write to table
 					infilename <- file.path(dir.sw.runs.sc.in[sc], soilsin)
 					infiletext <- readLines(con = infilename)
-					infiletext <- infiletext[!infiletext==""]
 					if(is.na(Grass.trco)) Grass.trco <- rep(0, soilsin.firstDataLine:length(infiletext))
 					#get the values and sub new grass trco values in
 					tempdat <- matrix(data=0, nrow=SoilLayer_MaxNo, ncol=12)
@@ -2913,6 +2949,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					close(infile)				
 				}
 				
+				if(print.debug) print("Start of vegetation scaling")
 				if(any(create_treatments %in% c("Vegetation_TotalBiomass_ScalingFactor", "Vegetation_LiveBiomass_ScalingFactor", "Vegetation_Litter_ScalingFactor"))){
 					finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 					
@@ -2997,6 +3034,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				#if southern hemisphere adjust if set, but not when already adjusted by, e.g., growing season
+				if(print.debug) print("Start of hemisphere adjustment")
 				if(accountNSHemispheres_veg && i_SWRunInformation$Y_WGS84 < 0 && !any(create_treatments == "AdjMonthlyBioMass_Temperature")){
 					infilename <- file.path(dir.sw.runs.sc.in[sc], prodin)
 					infiletext <- readLines(con = infilename)
@@ -3026,6 +3064,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#--control transpiration regions for adjusted soil depth and rooting depth
+				if(print.debug) print("Start of control transpiration regions")
 				#get transpiration regions from sw-input file
 				infilename <- file.path(dir.sw.runs.sc.in[sc], siteparamin)
 				infiletext <- readLines(con = infilename)
@@ -3109,25 +3148,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} else {
 				Exclude_ClimateAmbient <- 1
 			}
-			result <- numeric(scenario_No)
-			ExecuteSoilWat <- function(TryTimes=0) {
-				tryCatch(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep="")), error=function(err){
-							print(paste("MY_ERROR:",err))
-							if(TryTimes < 5){
-								Sys.sleep(5)
-								ExecuteSoilWat(TryTimes+1)
-							}
-						})
-			}
+			
 			for (sc in Exclude_ClimateAmbient:scenario_No){
 				
 				setwd(dir.sw.runs.sc[sc])
 				if(!exists("use_janus")){
-					#result <-c(result, ExecuteSoilWat())
-					print(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""),intern=T))
+					err <- system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
 				} else {
-					try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
+					err <- system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
 				}
+				if(err != 0) stop("SoilWat execution failed")
 				
 				if(sw.outputs == ""){
 					outputfiles <- try((ll <- list.files(dir.sw.runs.sc[sc]))[grepl(pattern=c(".dy", ".wk", ".mo", ".yr")[r], x=ll, fixed=TRUE)])
@@ -3155,7 +3185,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				}
 				
 			}
-			print(paste(result,collapse = ","))
 		}#end if do execute
 		
 		
@@ -4631,7 +4660,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						temp.temp <- read.table(file = file.path(dir.sw.runs.sc.out[sc], tempdy), header = FALSE, sep = "", fill = TRUE, comment.char="")
 						TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
 						temp.soiltemp <- try(read.table(file = file.path(dir.sw.runs.sc.out[sc], soiltempdy), header = FALSE, sep = "", fill = TRUE, comment.char=""), silent=TRUE)
-						if(identical(class(temp.soiltemp), "try-error") || all(temp.soiltemp[, -(1:2)] == 0)){
+						if(identical(class(temp.soiltemp), "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
 							use.soiltemp <- FALSE	#flag whether soil temperature output is available or not (and then air temperature is used instead of top soil temperature)
 						} else {
 							use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
@@ -4705,8 +4734,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 									temp.c.lim <- -(Tgerm-b)*(d^2-1)/d
 									if(temp.c > 0){
 										c <- ifelse(temp.c > temp.c.lim, temp.c, temp.c.lim + sqrt(.Machine$double.eps))
-									}
-									if(temp.c < 0){
+									} else if(temp.c < 0){
 										c <- ifelse(temp.c < temp.c.lim, temp.c, temp.c.lim - sqrt(.Machine$double.eps))
 									}
 									
@@ -4828,6 +4856,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
 							if(sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart){
 								swp <- swp.dy.all$val[RY.index.usedy, 2 + ld]
+								if(length(ld) == 1) swp <- matrix(swp, ncol=1)
 								snow <- temp.snow[RY.index.usedy, 3]*10 #mm swe in snowpack
 								airTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 4])
 								airTmax <- temp.temp[RY.index.usedy, 3]
@@ -4920,7 +4949,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							SeedlingMortality_CausesByYear <- matrix(data=0, nrow=length(RY.useyrs), ncol=9)
 							colnames(SeedlingMortality_CausesByYear) <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 									"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
-							for(y in seq(along=RY.useyrs)){#for each year
+							for(y in seq_along(RY.useyrs)){#for each year
 								RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]])
 								if(length(RYDoys_SeedlingStarts_ThisYear) > 0){#if there are any germinations
 									#init values for this year
@@ -4950,22 +4979,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 										#Check growth under above-ground conditions
 										#Snow cover
 										thisSeedlingGrowth_AbsenceOfSnowCover <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-										if(sum(temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["SeedlingMortality_DuringStoppedGrowth_DueSnowCover"] <- sg_RYdoy + which(temp)[1]
+										if(sum(temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
 										#Minimum temperature
 										thisSeedlingGrowth_AtAboveTmin <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-										if(sum(temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["SeedlingMortality_DuringStoppedGrowth_DueTmin"] <- sg_RYdoy + which(temp)[1]
+										if(sum(temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
 										#Maximum temperature
 										thisSeedlingGrowth_AtBelowTmax <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-										if(sum(temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["SeedlingMortality_DuringStoppedGrowth_DueTmax"] <- sg_RYdoy + which(temp)[1]
+										if(sum(temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
 										#Updated days of growth or surviving
 										thisSeedlingGrowing <- thisSeedlingGrowing & thisSeedlingGrowth_AbsenceOfSnowCover & thisSeedlingGrowth_AtAboveTmin & thisSeedlingGrowth_AtBelowTmax
 										thisSeedlingLivingButNotGrowing <- !thisSeedlingGrowing
 										if(sg_RYdoy > 1) thisSeedlingLivingButNotGrowing[1:(sg_RYdoy-1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot live before germination day
 										
 										#Book-keeping survival under above-ground conditions
-										if(sum(temp <- thisYear_SeedlingMortality_UnderneathSnowCover[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_UnderneathSnowCover"] <- sg_RYdoy + which(temp)[1] - 1
-										if(sum(temp <- thisYear_SeedlingMortality_ByTmin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_ByTmin"] <- sg_RYdoy + which(temp)[1] - 1
-										if(sum(temp <- thisYear_SeedlingMortality_ByTmax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_ByTmax"] <- sg_RYdoy + which(temp)[1] - 1
+										if(sum(temp <- thisYear_SeedlingMortality_UnderneathSnowCover[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.UnderneathSnowCover"] <- sg_RYdoy + which(temp)[1] - 1
+										if(sum(temp <- thisYear_SeedlingMortality_ByTmin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmin"] <- sg_RYdoy + which(temp)[1] - 1
+										if(sum(temp <- thisYear_SeedlingMortality_ByTmax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmax"] <- sg_RYdoy + which(temp)[1] - 1
 										
 										#If not killed (yet) then grow and check survival below-ground
 										if(all(is.na(killed_byCauses_onRYdoy))){
@@ -5000,13 +5029,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 											
 											#Check survival under chronic SWPMax
 											thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMax)
-											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
+											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
 											#Check survival under chronic SWPMin
 											thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMin)
-											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
+											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 											#Check survival under acute SWPMin
 											thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByAcuteSWPMin)
-											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["SeedlingMortality_ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
+											if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 										}
 										
 										#If killed then establish which factor killed first and if and how growth was stopped before kill
@@ -5088,33 +5117,31 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 										paste("Days", colnames(SeedlingMortality_CausesByYear), sep="_"),
 										paste(rep(c("Start90%", "Median", "End90%"), times=2), rep(c("DoyMostFrequent_GerminationSuccess", "DoyMostFrequent_SeedlingSurvival1stSeason"), each=3), sep="_"))
 								colnames(res.yr) <- c("Year", temp.header2)
-								write.csv(res.yr, file=paste(dir.at, .Platform$file.sep, "Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.csv", sep=""))
+								write.csv(res.yr, file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.csv", sep="")))
 								
 								#Plot with data for every day
-								if(!exists("use_janus")){ #quartz() would need to plot differently on JANUS, i.e., without using a screen device, but I'm too lazy now to change this: changed to pdf(), now need to test on JANUS
-									pdf(file=paste(dir.at, .Platform$file.sep, "Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.pdf", sep=""),
-											width=max(4, 2*length(simTime$index.useyr)), height=4)
-									op <- par(mar=c(1, 3, 0.1, 0.1), mgp=c(2, 0.5, 0), las=1)
-									ylim <- c(-20, max(max(snow, na.rm=TRUE), max(Germination_TimeToGerminate, na.rm=TRUE)))
-									p.cex <- max(0.5, min(1, exp(-0.01 * ylim[2]) + 0.5))
-									xp <- 1:length(snow) + Doy_SeedDispersalStart-1
-									plot(xp, snow, type="l", ylim=ylim, xlab="Year", ylab="SWE (mm), Time to germinate (days)", axes=FALSE)
-									axis(1, pos=0, at=365*(1:(length(simTime$index.useyr))), labels=simTime$useyr)
-									axis(2, pos=0, at=(temp <- axTicks(2))[temp>=0])
-									lines(xp, Germination_TimeToGerminate, col="red", type="b", pch=19, cex=p.cex/10)
-									points(xp, ifelse(SeedlingSurvival_1stSeason, 0, NA), col="green", pch=19)		
-									x0.temp <- (temp <- data.frame(xp, ifelse(GerminationSuccess_Initiated, -10, NA)))[complete.cases(temp), ]
-									x1.temp <- (temp <- data.frame(Germination_Emergence.doys + Doy_SeedDispersalStart-1, ifelse(GerminationSuccess_Initiated, -5, NA)))[complete.cases(temp), ]
-									segments(x0=x0.temp[, 1], y0=x0.temp[, 2], x1=x1.temp[, 1], y1=x1.temp[, 2], col="blue")
-									points(xp, ifelse(Germination_RestrictedByTimeToGerminate, -15, NA), col="black", pch=4, cex=p.cex)		
-									points(xp, ifelse(!Germination_AtAboveTmin, -17.5, NA), col=gray(0.3), pch=4, cex=p.cex)		
-									points(xp, ifelse(!Germination_AtMoreThanTopSWPmin, -20, NA), col=gray(0.7), pch=4, cex=p.cex)		
-									mtext(i_labels)
-									legend("topright", legend=c("SWE", "Time to germinate", "Seedling survival", "Emergence", "Too short favorable conditions", "Too cold", "Too dry"),
-											bty="n", lty=c(1, 1, -1, 1, -1, -1, -1), pch=c(-1, -1, 19, -1, 4, 4, 4), col=c("black", "red", "green", "blue", "black", gray(0.3), gray(0.7)), merge=TRUE)
-									par(op)
-									dev.off()
-								}
+								pdf(file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.pdf", sep="")),
+										width=max(4, 2*length(simTime$index.useyr)), height=4.5)
+								op <- par(mar=c(1, 3, 0.1, 0.1), mgp=c(2, 0.5, 0), las=1)
+								ylim <- c(-17.5, max(max(snow, na.rm=TRUE), max(Germination_TimeToGerminate, na.rm=TRUE)))
+								p.cex <- max(0.5, min(1, exp(-0.01 * ylim[2]) + 0.5))
+								xp <- 1:length(snow) + Doy_SeedDispersalStart-1
+								plot(xp, snow, type="l", ylim=ylim, xlab="Year", ylab="SWE (mm), Time to germinate (days)", axes=FALSE)
+								axis(1, pos=ylim[1], at=365*(1:(length(simTime$index.useyr))), labels=simTime$useyr)
+								axis(2, pos=par("usr")[1], at=(temp <- axTicks(2))[temp>=0])
+								lines(xp, Germination_TimeToGerminate, col="red", type="b", pch=19, cex=p.cex/5)
+								points(xp, ifelse(SeedlingSurvival_1stSeason, 0, NA), col="green", pch=19)		
+								x0.temp <- (temp <- data.frame(xp, ifelse(GerminationSuccess_Initiated, -7.5, NA)))[complete.cases(temp), ]
+								x1.temp <- (temp <- data.frame(Germination_Emergence.doys + Doy_SeedDispersalStart-1, ifelse(GerminationSuccess_Initiated, -2.5, NA)))[complete.cases(temp), ]
+								segments(x0=x0.temp[, 1], y0=x0.temp[, 2], x1=x1.temp[, 1], y1=x1.temp[, 2], col="blue")
+								points(xp, ifelse(Germination_RestrictedByTimeToGerminate, -10, NA), col="black", pch=4, cex=p.cex)		
+								points(xp, ifelse(!Germination_AtAboveTmin, -12.5, NA), col=gray(0.3), pch=4, cex=p.cex)		
+								points(xp, ifelse(!Germination_AtMoreThanTopSWPmin, -15, NA), col=gray(0.7), pch=4, cex=p.cex)		
+								mtext(i_labels)
+								legend("topright", legend=c("SWE", "Time to germinate", "Seedling survival", "Emergence", "Too short favorable conditions", "Too cold", "Too dry"),
+										bty="n", lty=c(1, 1, -1, 1, -1, -1, -1), pch=c(-1, -1, 19, -1, 4, 4, 4), col=c("black", "red", "green", "blue", "black", gray(0.3), gray(0.7)), merge=TRUE)
+								par(op)
+								dev.off()
 							}
 							
 							#Prepare next species
@@ -5524,7 +5551,6 @@ if(runsN.todo > 0){
 }
 
 if(actionWithSoilWat && runsN.todo > 0){
-	
 	ifirst <- seq.todo[1]
 	
 	#objects to export
@@ -5576,7 +5602,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 						i_sw_input_weather <- sw_input_weather[i_tr, ]
 						i_sw_input_climscen <- sw_input_climscen[i_tr, ]
 						i_sw_input_climscen_values <- sw_input_climscen_values[i_tr, ]
-						dataForRun <- list(do_OneSite=TRUE, collect_ResultsWithTemporaryDataFrame=FALSE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
+						dataForRun <- list(do_OneSite=TRUE, concatenate_TemporaryResultFiles=FALSE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
 						mpi.send.Robj(dataForRun, slave_id, 1);
 						print(paste("Slave:", slave_id, "Run:", (runs.completed+1), "started at", Sys.time()))
 						runs.completed <- runs.completed + 1
@@ -5612,14 +5638,14 @@ if(actionWithSoilWat && runsN.todo > 0){
 		}
 		
 	} else { #call the simulations in seriel
-		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
+		#runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
+		#	i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
+		#	do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
+		#}
+		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
-#		for(i_sim in 1) {
-#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-#			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
-#		}
 	}
 	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 } else {
@@ -5710,58 +5736,121 @@ t.concatenation <- Sys.time()	#timing of file concatenation
 if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat)){
 	if(!be.quiet) print(paste("SWSF concatenates temporary results: started at", t.concatenation))
 	
-	#collect and concatenate results into files: read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
-	collect_ResultsWithTemporaryDataFrame <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
-		if(cleanup) try(file.remove(resultfile), silent=TRUE)
-		
-		if(length(filelist) == 0 || !file.exists(filelist[1])) {
-			print(paste(basename(resultfile), ": no or not enough temporary files to collect results from"))
-			return(0)
-		} else {
-			print(paste(basename(resultfile), ": concatenation started at", Sys.time()))
-		}
-		
-		f.temp <- read.csv(filelist[1])	#option: row.names=1
-		#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
-		maxCol <- dim(f.temp)[2]
-		scenarioColumn <- grep("Scenario", colnames(f.temp))
-		
-		data.temp <- matrix(data=NA, nrow=length(filelist), ncol=ncol(f.temp))
-		if(all(col.names == TRUE)){
-			colnames(data.temp) <- colnames(f.temp)
-		} else {
-			colnames(data.temp) <- col.names
-		}
-		data.temp[1, ] <- t(f.temp)
-		
-		if((no.files <- length(filelist)) > 1) for(f in 2:no.files) {
-			f.temp <- read.csv(filelist[f])
-			#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
-			if(dim(f.temp)[2] == scenarioColumn) {
-				data.temp[f, ] <- c(t(f.temp), rep(NA,maxCol-scenarioColumn))
+	#collect and concatenate results into files
+	if(concatenation.inMemory){ #read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
+		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
+			if(length(filelist) == 0 || !file.exists(filelist[1])) {
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated\n")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
+					return(0)
+				}
 			} else {
-				data.temp[f, ] <- t(f.temp)
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
+			}
+		
+			f.temp <- read.csv(filelist[1])	#option: row.names=1
+			#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
+			maxCol <- dim(f.temp)[2]
+			scenarioColumn <- grep("Scenario", colnames(f.temp))
+			tempNA <- rep(NA, maxCol-scenarioColumn)
+		
+			data.temp <- matrix(data=NA, nrow=length(filelist), ncol=ncol(f.temp))
+			if(all(col.names == TRUE)){
+				colnames(data.temp) <- colnames(f.temp)
+			} else {
+				colnames(data.temp) <- col.names
+			}
+			data.temp[1, ] <- t(f.temp)
+		
+			if((no.files <- length(filelist)) > 1) for(f in 2:no.files) {
+				f.temp <- read.csv(filelist[f])
+				#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
+				if(dim(f.temp)[2] == scenarioColumn) {
+					data.temp[f, ] <- c(t(f.temp), tempNA)
+				} else {
+					data.temp[f, ] <- t(f.temp)
+				}
+			}
+		
+			#Exclude all columns with all NAs after 'colN.musthave' columns,
+			#i.e., only exclude those that are 'superfluous' on the right side, particularly, output for overall aggregated means and SD need to have the same n_variables number of columns
+			#but delete all empty columns, e.g. for the daily aggregates if all soil layers are selected --> code cannot know how many soil layers there will be, so use all, and then (here) delete superfluous columns
+			if(!is.null(colN.musthave) && colN.musthave < maxCol){
+				colN.musthave <- max(scenarioColumn, colN.musthave)
+				icol.allEmpty <- c(rep(FALSE, colN.musthave), apply(data.temp[, (colN.musthave+1):maxCol], MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp)))
+				if(sum(icol.allEmpty) > 0) data.temp <- data.temp[, !icol.allEmpty]	
+			}
+		
+			written <- try( write.csv(data.temp, file=resultfile, row.names=FALSE) )
+			if(!identical(class(written), "try-error")){
+				if(cleanup) try(file.remove(filelist), silent=TRUE)
+				return(1)
+			} else {
+				return(0)
 			}
 		}
-		
-		#Exclude all columns with all NAs after 'colN.musthave' columns,
-		#i.e., only exclude those that are 'superfluous' on the right side, particularly, output for overall aggregated means and SD need to have the same n_variables number of columns
-		#but delete all empty columns, e.g. for the daily aggregates if all soil layers are selected --> code cannot know how many soil layers there will be, so use all, and then (here) delete superfluous columns
-		if(!is.null(colN.musthave) && colN.musthave < maxCol){
-			colN.musthave <- max(scenarioColumn, colN.musthave)
-			icol.allEmpty <- c(rep(FALSE, colN.musthave), apply(data.temp[, (colN.musthave+1):maxCol], MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp)))
-			if(sum(icol.allEmpty) > 0) data.temp <- data.temp[, !icol.allEmpty]	
-		}
-		
-		written <- try( write.csv(data.temp, file=resultfile, row.names=FALSE) )
-		
-		if(!identical(class(written), "try-error")){
-			if(cleanup) try(file.remove(filelist), silent=TRUE)
-			return(1)
-		} else {
-			return(0)
+	} else {#concatenate by appending each temporary file to final file immediately
+		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
+			if(length(filelist) == 0 || !file.exists(filelist[1])) {
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated\n")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
+					return(0)
+				}
+			} else {
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
+			}
+
+			f.temp <- read.csv(filelist[1])	#option: row.names=1
+			#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
+			maxCol <- dim(f.temp)[2]
+			scenarioColumn <- grep("Scenario", colnames(f.temp))
+			tempNA <- matrix(NA, nrow=1, ncol=maxCol-scenarioColumn)
+
+			#init final file
+			written <- try(write.table(f.temp, file=resultfile, append=FALSE, quote=FALSE, sep=",", dec=".", row.names=FALSE, col.names=TRUE))
+			
+			if(!identical(class(written), "try-error")){
+				rfile <- file(resultfile, "at")	#only R can handle only 128 open connections
+				for(f in filelist[-1]){
+					f.temp <- read.csv(f)
+					#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
+					if(dim(f.temp)[2] == scenarioColumn) {
+						f.temp <- cbind(f.temp, tempNA)
+					}
+					written <- try(cat(c(unlist(format(f.temp)), "\n"), file=rfile, sep=",", append=TRUE))
+					if(identical(class(written), "try-error")) break
+				}
+				close(rfile)
+			}
+
+			#Exclude all columns with all NAs after 'colN.musthave' columns,
+			#i.e., only exclude those that are 'superfluous' on the right side, particularly, output for overall aggregated means and SD need to have the same n_variables number of columns
+			#but delete all empty columns, e.g. for the daily aggregates if all soil layers are selected --> code cannot know how many soil layers there will be, so use all, and then (here) delete superfluous columns
+			if(!AggLayer.daily && !identical(class(written), "try-error") && !is.null(colN.musthave) && colN.musthave < maxCol){
+				colN.musthave <- max(scenarioColumn, colN.musthave)
+				data.temp <- read.csv(file=resultfile)
+				icol.allEmpty <- c(rep(FALSE, colN.musthave), apply(data.temp[, (colN.musthave+1):maxCol], MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp)))
+				if(sum(icol.allEmpty) > 0){
+					data.temp <- data.temp[, !icol.allEmpty]	
+					written <- try( write.csv(data.temp, file=resultfile, row.names=FALSE) )
+				}
+			}
+
+			if(!identical(class(written), "try-error")){
+				if(cleanup) try(file.remove(filelist), silent=TRUE)
+				return(1)
+			} else {
+				return(0)
+			}
 		}
 	}
+	
 	getMatches <- function(filelist, pattern, targetN) {
 		temp <- filelist[grepl(pattern, filelist, fixed=TRUE)]
 		if(length(temp) != targetN) temp <- NULL
@@ -5839,7 +5928,7 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 	}
 
 	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
-		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+		try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){
 			temp.soilT <- read.csv(temp.file)
 			try(file.remove(temp.file), silent=TRUE)
@@ -5856,7 +5945,7 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 	}
 	
 	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){#store initial soil temperature into datafile
-		try.cat <- collect_ResultsWithTemporaryDataFrame(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_InitProfile.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_InitProfile", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+		try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_InitProfile.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_InitProfile", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){
 			temp.soilT <- read.csv(temp.file)
 			try(file.remove(temp.file), silent=TRUE)
@@ -5874,26 +5963,26 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		}
 	}
 	
-	if(runs.completed == runsN.todo & any(actions=="aggregate") | identical(actions, "concatenate")){
+	if(runs.completed == runsN.todo && any(actions=="aggregate") || any(actions == "concatenate") && !any(actions=="aggregate")){
 		if(parallel_runs){
 			#objects to export
-			list.export <- c("collect_ResultsWithTemporaryDataFrame", "resultfiles.toConcatenate", "getMatches", "colNmusthaves.toConcatenate", "theFileList", "deleteTemporaryAggregationFiles", "seq.concats", "runsN.todo")
+			list.export <- c("concatenate_TemporaryResultFiles", "resultfiles.toConcatenate", "getMatches", "colNmusthaves.toConcatenate", "theFileList", "deleteTemporaryAggregationFiles", "seq.concats", "runsN.todo")
 			list.noexport <- (temp <- ls())[-match(list.export, temp, nomatch=0)]			
 			
 			if(identical(parallel_backend, "mpi")) {
 				exportObjects(list.export)
-				concats.completed <- mpi.parLapply(seq.concats, function(i) collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
+				concats.completed <- mpi.parLapply(seq.concats, function(i) concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
 				concats.completed <- sum(as.numeric(unlist(concats.completed)), na.rm=TRUE)
 			}
 			if(identical(parallel_backend, "snow")){
 				snow::clusterExport(cl, list.export)
-				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE) %dopar% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 			}
 			if(identical(parallel_backend, "multicore")){
-				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 			}
 		} else {
-			concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% collect_ResultsWithTemporaryDataFrame(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+			concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		}
 		
 		if(concats.completed != length(resultfiles.toConcatenate)) print(paste("Not all concatenations were successful:", concats.completed, "instead of", length(resultfiles.toConcatenate)))
