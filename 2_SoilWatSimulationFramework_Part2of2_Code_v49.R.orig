@@ -312,14 +312,14 @@ exinfo <- data.frame(t(as.numeric(exinfo.help[,-1])))
 names(exinfo) <- exinfo.help[,1]
 
 #------load libraries
-if(parallel_runs && identical(parallel_backend, "mpi")) { 
+if(identical(parallel_backend, "mpi")) { 
 	library(Rmpi)
 }
-if(parallel_runs && identical(parallel_backend, "snow")) {	
+if(identical(parallel_backend, "snow")) {	
 	library(doSNOW)		#requires: foreach, iterators, snow
 	#library(snow)
 }
-if(parallel_runs && identical(parallel_backend, "multicore")) {
+if(identical(parallel_backend, "multicore")) {
 	library(doMC)	#requires: foreach, iterators, codetools, and attaches: multicore
 }
 if(!parallel_runs) {
@@ -2932,6 +2932,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#write to table
 					infilename <- file.path(dir.sw.runs.sc.in[sc], soilsin)
 					infiletext <- readLines(con = infilename)
+					infiletext <- infiletext[!infiletext==""]
 					if(is.na(Grass.trco)) Grass.trco <- rep(0, soilsin.firstDataLine:length(infiletext))
 					#get the values and sub new grass trco values in
 					tempdat <- matrix(data=0, nrow=SoilLayer_MaxNo, ncol=12)
@@ -3148,12 +3149,26 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} else {
 				Exclude_ClimateAmbient <- 1
 			}
-			
+			result <- numeric(scenario_No)
+			ExecuteSoilWat <- function(TryTimes=0) {
+				tryCatch(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep="")), error=function(err){
+							print(paste("MY_ERROR:",err))
+							if(TryTimes < 5){
+								Sys.sleep(5)
+								ExecuteSoilWat(TryTimes+1)
+							}
+						})
+			}
 			for (sc in Exclude_ClimateAmbient:scenario_No){
 				
 				setwd(dir.sw.runs.sc[sc])
 				if(!exists("use_janus")){
+<<<<<<< HEAD
+					#result <-c(result, ExecuteSoilWat())
+					print(system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""),intern=T))
+=======
 					err <- system(paste("./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
+>>>>>>> 0c26d960f1663234f0fc6c003026ed4f2f60d5d5
 				} else {
 					err <- system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep=""))
 				}
@@ -3185,6 +3200,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				}
 				
 			}
+			print(paste(result,collapse = ","))
 		}#end if do execute
 		
 		
@@ -3221,7 +3237,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				textureDAgg <- list(sand=sapply(1:aggLs_no, FUN=function(x) weighted.mean(sand[aggLs[[x]]], layers_width[aggLs[[x]]])),
 						clay=sapply(1:aggLs_no, FUN=function(x) weighted.mean(clay[aggLs[[x]]], layers_width[aggLs[[x]]])))
 			}
-
+			
 			#data access functions
 			get_Response_aggL <- function(dir.current, response, tscale=c("dy", "dyAll", "mo", "yr"), scaler=10, FUN, weights=NULL){
 				FUN <- match.fun(FUN)
@@ -5202,7 +5218,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 							SQL <- paste0(paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(paste0("'",t(c(P_id, header, resMeans[1:(nv-1)])),"'",sep=""),collapse=","),");", sep=""),
 									paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",t(c(P_id, header, resSDs[1:(nv-1)])),"'",sep=""),collapse=","),");", sep=""), sep = "\n")
-							SQL <- gsub(pattern="'NA'", "NULL", SQL)
+							SQL <- gsub(pattern="NA", "NaN", SQL)
 							
 							rs<-dbSendQuery(con, SQL)
 							dbClearResult(rs)
@@ -5408,7 +5424,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}#doi loop
 					if(makeOutputDB) {
 						if(concurrent) {
-							SQL <- gsub(pattern="'NA'", "NULL", SQL)
+							SQL <- gsub(pattern="NA", "NaN", SQL)
 							rs<-dbSendQuery(con, SQL)
 							dbClearResult(rs)
 						}
@@ -5464,11 +5480,71 @@ work <- function(parallel_backend, Data) {
 	# Note the use of the tag for received messages:
 	#     1=task, 2=done_tasks
 	
+<<<<<<< HEAD
 	junk <- 0
 	done <- 0
 	while (done != 1) {
 		# Signal being ready to receive a new task
 		mpi.send.Robj(junk,0,1)
+=======
+	#The First slave needs to get the data and write to file
+	if(!makeOutputDB || (makeOutputDB && concurrent)) { #each slave will test this condition and only the first slave will do something else
+		junk <- 0
+		done <- 0
+		while (done != 1) {
+			# Signal being ready to receive a new task
+			mpi.send.Robj(junk,0,1)
+			
+			# Receive a task
+			dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+			task_info <- mpi.get.sourcetag()
+			tag <- task_info[2]
+			
+			if (tag == 1) {
+				print(dataForRun$i)
+				if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
+				if(dataForRun$concatenate_TemporaryResultFiles) concatenate_TemporaryResultFiles(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
+				# Send a results message back to the master
+				#print(results)
+				mpi.send.Robj(dataForRun$i,0,2)
+			} else if (tag == 2) {
+				done <- 1
+			}
+			# We'll just ignore any unknown messages
+		}
+		mpi.send.Robj(junk,0,3)
+		#mpi.send.Robj(junk,1,3)
+	} else {
+		if(mpi.comm.rank() != 1) {
+			junk <- 0
+			done <- 0
+			while (done != 1) {
+				# Signal being ready to receive a new task
+				mpi.send.Robj(junk,0,1)
+				
+				# Receive a task
+				dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+				task_info <- mpi.get.sourcetag()
+				tag <- task_info[2]
+				
+				if (tag == 1) {
+					print(dataForRun$i)
+					if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
+					if(dataForRun$concatenate_TemporaryResultFiles) concatenate_TemporaryResultFiles(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
+					# Send a results message back to the master
+					#print(results)
+					mpi.send.Robj(dataForRun$i,0,2)
+				} else if (tag == 2) {
+					done <- 1
+				}
+				# We'll just ignore any unknown messages
+			}
+			mpi.send.Robj(junk,0,3)
+			mpi.send.Robj(junk,1,5)
+		} else {
+			FileHandler(workers = (mpi.comm.size() - 2))
+		}
+>>>>>>> 0c26d960f1663234f0fc6c003026ed4f2f60d5d5
 		
 		# Receive a task
 		dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
@@ -5476,9 +5552,9 @@ work <- function(parallel_backend, Data) {
 		tag <- task_info[2]
 		
 		if (tag == 1) {
-			#print(dataForRun$i)
+			print(dataForRun$i)
 			if(dataForRun$do_OneSite) results <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
-			if(dataForRun$concatenate_TemporaryResultFiles) concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate, filelist=theFileList, col.names=col.names, cleanup=deleteTemporaryAggregationFiles)
+			if(dataForRun$collect_ResultsWithTemporaryDataFrame) collect_ResultsWithTemporaryDataFrame(resultfile=dataForRun$resultfiles.toConcatenate, filelist=dataForRun$theFileList, col.names=dataForRun$col.names, cleanup=dataForRun$deleteTemporaryAggregationFiles)
 			# Send a results message back to the master
 			#print(results)
 			mpi.send.Robj(dataForRun$i,0,2)
@@ -5551,6 +5627,7 @@ if(runsN.todo > 0){
 }
 
 if(actionWithSoilWat && runsN.todo > 0){
+	
 	ifirst <- seq.todo[1]
 	
 	#objects to export
@@ -5638,14 +5715,14 @@ if(actionWithSoilWat && runsN.todo > 0){
 		}
 		
 	} else { #call the simulations in seriel
-		#runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
-		#	i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-		#	do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
-		#}
-		for(i_sim in seq.todo) {
+		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
+#		for(i_sim in 1) {
+#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
+#			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
+#		}
 	}
 	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 } else {
@@ -5849,6 +5926,7 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 				return(0)
 			}
 		}
+
 	}
 	
 	getMatches <- function(filelist, pattern, targetN) {
@@ -5926,7 +6004,30 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		write.csv(rbind(sw_input_climscen_use, sw_input_climscen), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios, sep="")), row.names=FALSE)
 		write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios_values, sep="")), row.names=FALSE)
 	}
+<<<<<<< HEAD
 
+=======
+#	if(!makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
+#		if(any(create_experimentals == "LookupEvapCoeffFromTable") | any(create_experimentals == "LookupTranspRegionsFromTable")) {
+#			try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.soils, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.soils, sep=""), targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+#			if(try.cat > 0){
+#				sw_input_soils <- read.csv(temp)
+#				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+#				write.csv(tempdat, file=file.path(dir.out, "Experimental Input Data", paste("EXP_", datafile.soils, sep="")), row.names=FALSE)
+#				rm(tempdat)
+#			}
+#		}
+#		if(any(create_experimentals == "LookupSnowDensityFromTable")) {
+#			try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out, "Experimental Input Data",  paste("EXP_", datafile.cloud, sep=""))), filelist=getMatches(filelist=theFileList, pattern=paste("EXP_", datafile.cloud, sep=""), targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+#			if(try.cat > 0){
+#				sw_input_cloud <- read.csv(temp)
+#				tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
+#				write.csv(tempdat, file=file.path(dir.out, "Experimental Input Data", paste("EXP_", datafile.cloud, sep="")), row.names=FALSE)
+#				rm(tempdat)
+#			}
+#		}
+#	}
+>>>>>>> 0c26d960f1663234f0fc6c003026ed4f2f60d5d5
 	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
 		try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
 		if(try.cat > 0){

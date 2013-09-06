@@ -147,9 +147,7 @@
 #Adding a daily response variable
 #	1. Add variable name to option list for output_aggregate_daily
 #	2. Add code to calculate response variable in the 'daily output' part of the aggregate section of do_OneSite function
-#	3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly				
-
-#soilWat shared object data indexs are listed in output.
+#	3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly					
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#
@@ -165,7 +163,6 @@ if(!exists("use_janus") || !use_janus) rm(list=ls(all=TRUE))	# at least rm(use_j
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
-print.debug <- FALSE
 
 #------Mode of framework: serial or parallel
 if(exists("use_janus")) {
@@ -176,11 +173,8 @@ if(exists("use_janus")) {
 } else if(!exists("use_janus")) {
 	num_cores <- 10
 	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
-	parallel_runs <- TRUE
+	parallel_runs <- FALSE
 }
-#------Rmpi Jobs finish within Wall Time------#
-MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job, i.e. Wall time. As time runs out Rmpi will not send more work.
-MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------USER INPUT
@@ -206,7 +200,7 @@ if(exists("use_janus")) {
 dir.external <- ""
 
 #paths to sub-folder hierarchy
-dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
+dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs
 dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add information to SoilWat input files
 dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
@@ -216,8 +210,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
+#actions are at least one of c("create", "execute", "aggregate", "concatenate")
+actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #deletes each SoilWat simulation folder after completion of 'actions' if TRUE
@@ -230,13 +224,9 @@ makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 
-#------Define how aggregated output should be handled: options = {database via mpi or snow or non parallel, temporary csv files}
-#Output into database instead of  temp csv files
+#------Define how aggregated output should be handled: options = {database via mpi, temporary csv files}
+#Output as DB uses 1 mpi node
 makeOutputDB <- TRUE
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
-
-#Type of concatenation (if not DB used)
-concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
 #deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
 deleteTemporaryAggregationFiles <- FALSE
 
@@ -266,34 +256,50 @@ datafile.windspeedAtHeightAboveGround <- 10 #SoilWat requires 2 m, but some data
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off
 #names of climate conditions/scenarios in the order of data in the climate scenarios datafile; this must have at least one entry (e.g., climate.ambient) and climate.ambient is forced to be the first entry
 climate.conditions <- c(climate.ambient, 	"sresa2.bccr_bcm2_0", "sresa2.cccma_cgcm3_1", "sresa2.cnrm_cm3", "sresa2.csiro_mk3_0", "sresa2.gfdl_cm2_0", "sresa2.gfdl_cm2_1", "sresa2.giss_model_e_r", "sresa2.inmcm3_0", "sresa2.ipsl_cm4", "sresa2.miroc3_2_medres", "sresa2.miub_echo_g", "sresa2.mpi_echam5", "sresa2.mri_cgcm2_3_2a", "sresa2.ncar_ccsm3_0", "sresa2.ncar_pcm1", "sresa2.ukmo_hadcm3",
-											"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
+		"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
+climate.conditions <- c(climate.ambient, "SRESA2_Quant0.09375", "SRESA2_Quant0.5", "SRESA2_Quant0.9375", "SRESB1_Quant0.09375", "SRESB1_Quant0.5", "SRESB1_Quant0.9375")
 
 #Climate ensembles created across scenarios
 ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated
-ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
-save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
+ensemble.families <- NULL
+ensemble.quantiles <- c(1.5/16, 0.5, 15/16)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which quantile ensembles are calculated for each ensemble.families
 
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v10.csv"
 if (source_input == "datafiles&treatments" ) {
+<<<<<<< HEAD
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
+	#datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_v9.csv"
+	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v13.csv"
+=======
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
 	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
+>>>>>>> d130a969a8340a82d3c0ee9840ccd6c45c3b7ff8
 	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_Prj00_v01.csv"
 }
-if (source_input == "datafiles&treatments" && (any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
+if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v10.csv"
+<<<<<<< HEAD
+	#datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
+	datafile.cloud <- "SWRuns_InputData_cloud_v9_withFAO24sunshine.csv"
+=======
+	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_EnsemblesSRESA2andSRESB1_v10.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
+>>>>>>> d130a969a8340a82d3c0ee9840ccd6c45c3b7ff8
 	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
+	#datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
-if (source_input == "datafiles&treatments" && (any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
+if (source_input == "datafiles&treatments" & any(actions == "create") ) {	#input files in sub-folders ./treatments
 	trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
 	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
 	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
@@ -303,10 +309,6 @@ if (source_input == "datafiles&treatments" && (any(actions == "create") || any(a
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
-
-#WeatherData Database#
-WeatherDataFromDatabase <- FALSE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
 
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)
@@ -324,76 +326,63 @@ startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
 #------Output filename
-filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v49.csv"
-Index_RunInformation <- c(2, 4:6, 9, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+filename.aggregatedResults <- "20130415_PC_TemperateArid_Prj00_v49.csv"
+Index_RunInformation <- c(3:11, 15:19) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
 simulation_timescales <- c("daily", "monthly", "yearly")
 #turn aggregation for variable groups on (1) or off (0), don't delete any variable group labels
 output_aggregates <- c(
-					#---Aggregation: SoilWat inputs
-						"input_FractionVegetationComposition", 1,
-						"input_VegetationPeak", 1,
-						"input_Phenology", 1,
-						"input_ClimatePerturbations", 1,
-					#---Aggregation: Climate and weather
-						"yearlyTemp", 1,
-						"yearlyPPT", 1,
-						"dailySnowpack", 1,
-						"dailyPrecipitationEventSizeDistribution", 1,
-						"yearlyAET", 1,
-						"yearlyPET", 1,
-						"monthlySeasonalityIndices", 1,
-					#---Aggregation: Climatic dryness
-						"yearlymonthlyTemperateDrylandIndices", 1,
-						"yearlyDryWetPeriods", 1,
-						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about 
-						"dailyPrecipitationFreeEventDistribution", 1,
-						"monthlySPEIEvents", 1,
-					#---Aggregation: Climatic control
-						"monthlyPlantGrowthControls", 1,
-						"dailyC4_TempVar", 1,
-						"dailyDegreeDays", 1,
-					#---Aggregation: Yearly water balance
-						"yearlyWaterBalanceFluxes", 1,
-					#---Aggregation: Daily extreme values
-						"dailyTranspirationExtremes", 1,
-						"dailyTotalEvaporationExtremes", 1,
-						"dailyDrainageExtremes", 1,
-						"dailyInfiltrationExtremes", 1,
-						"dailyAETExtremes", 1,
-						"dailySWPextremes", 1,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
-					#---Aggregation: Ecological dryness
-						"dailyWetDegreeDays", 1,
-						"monthlySWPdryness", 1,
-						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
-						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
-						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
-						"dailySWPdrynessIntensity", 1,
-					#---Aggregation: Mean monthly values
-						"monthlyTemp", 1,
-						"monthlyPPT", 1,
-						"monthlySnowpack", 1,
-						"monthlySoilTemp", 0,
-						"monthlyRunoff", 1,
-						"monthlyHydraulicRedistribution", 1,
-						"monthlyInfiltration", 1,
-						"monthlySWP", 1,
-						"monthlyVWC", 1,
-						"monthlySWC", 1,
-						"monthlySWA", 0,
-						"monthlyTranspiration", 1,
-						"monthlySoilEvaporation", 1,
-						"monthlyAET", 1,
-						"monthlyPET", 1,
-						"monthlyAETratios", 1,
-						"monthlyPETratios", 1,
-					#---Aggregation: Potential regeneration
-						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_byTempSWPSnow", 0
-)
-
+		"input_FractionVegetationComposition", 1,
+		"input_VegetationPeak", 1,
+		"input_ClimatePerturbations", 1,
+		"input_Phenology", 1,
+		"yearlyPPT", 1,
+		"yearlyDryWetPeriods", 1,
+		"monthlyPPT", 1,
+		"yearlyTemp", 1,
+		"monthlyTemp", 1,
+		"dailyWeatherGeneratorCharacteristics", 1,
+		"dailyWeatherEventSizeDistribution", 1,
+		"yearlyPET", 1,
+		"yearlymonthlyTemperateDrylandIndices", 1,
+		"monthlyPlantGrowthControls", 1, 
+		"monthlyPET", 1,
+		"monthlyPETratios", 1,
+		"yearlyAET", 1,
+		"monthlyAET", 1,
+		"monthlyAETratios", 1,
+		"monthlyRunoff", 1,
+		"monthlySnowpack", 1,
+		"dailySnowpack", 1,
+		"monthlySWP", 1,
+		"monthlySWPdryness", 1,
+		"dailySWPdrynessANDwetness", 1,
+		"dailySWPdrynessDurationDistribution", 1,
+		"dailySWPdrynessEventSizeDistribution", 1,
+		"dailySWPdrynessIntensity", 1,
+		"dailyDegreeDays", 1,
+		"monthlySWPextremes", 1,
+		"dailySWPextremes", 1,
+		"dailySWPbasedRegeneration", 0,
+		"dailyRegeneration_byTempSWPSnow", 0,
+		"dailyC4_TempVar", 1,
+		"dailyTranspirationExtremes", 1,
+		"dailyTotalEvaporationExtremes", 1,
+		"dailyDrainageExtremes", 1,
+		"dailyAETExtremes", 1,
+		"monthlyCorrelations", 1,
+		"monthlySWCvol", 1,
+		"monthlySWCtot", 1,
+		"monthlySWA", 1,
+		"monthlySWAextremes", 1,
+		"monthlyTranspiration", 1,
+		"monthlySoilEvaporation", 1,
+		"monthlyHydraulicRedistribution", 1,
+		"monthlyInfiltration", 1, 
+		"monthlySoilTemp", 1,
+		"yearlyWaterBalanceFluxes", 1) 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
 
 #options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
@@ -442,137 +431,105 @@ sw.inputs <- "Input"	#must be string of length > 0; i.e. not compatible with Soi
 sw.outputs <- "Output"	#sw_v20+: "Output", earlier versions ""
 swFilesIn <- "files_v27.in"
 
-if(any(actions == "create") || any(actions == "execute") || any(actions == "aggregate") ) {
-	#sw input file names
+if (source_input == "datafiles&treatments" & any(actions == "create") ) {
 	swOutSetupIn <- "outsetup_v27.in"
 	swcsetupin <- "swcsetup.in"
-	soilsin <- "soils_v23.in"
 	yearsin <- "years.in"
 	estabin <- "estab.in"
 	weatherin <- "weathsetup_v20.in"
 	cloudin <- "cloud_v20.in"
 	prodin <- "prod_v21.in"
 	siteparamin <- "siteparam_v26.in"
+	soilsin <- "soils_v23.in"
 	filebasename.WeatherDataYear <- "weath"
-
-	#characteristics of sw input files
-	soilsin.firstDataLine <- 18	# 18, if soilsin >= v23; 17, if soilsin < v23
 }
 
-if(any(actions == "aggregate")){
-	#index Numbers
-	sw_aet			<-1
-	sw_deepdrain	<-2
-	sw_estabs		<-3
-	sw_evsoil		<-4
-	sw_evapsurface	<-5
-	sw_hd			<-6
-	sw_inf_soil		<-7
-	sw_interception	<-8
-	sw_percolation	<-9
-	sw_pet			<-10
-	sw_precip		<-11
-	sw_runoff		<-12
-	sw_snow			<-13
-	sw_soiltemp		<-14
-	sw_surfaceWater	<-15
-	sw_swp			<-16
-	sw_swa			<-17
-	sw_swc			<-18
-	sw_temp			<-19
-	sw_transp		<-20
-	sw_vwc			<-21
-	sw_wetdays		<-22
-	sw_logfile		<-23
-	sw_yr			<-1
-	sw_mo			<-2
-	sw_wk			<-3
-	sw_dy			<-4
-	#sw output file names
-	aetdy <- "aet.dy"
-	aetwk <- "aet.wk"
-	aetmo <- "aet.mo"
-	aetyr <- "aet.yr"
-	deepdraindy <- "deep_drain.dy"
-	deepdrainwk <- "deep_drain.wk"
-	deepdrainmo <- "deep_drain.mo"
-	deepdrainyr <- "deep_drain.yr"
-	evapsurfacedy <- "evap_surface.dy"
-	evapsurfacewk <- "evap_surface.wk"
-	evapsurfacemo <- "evap_surface.mo"
-	evapsurfaceyr <- "evap_surface.yr"
-	evsoildy <- "evap_soil.dy"
-	evsoilwk <- "evap_soil.wk"
-	evsoilmo <- "evap_soil.mo"
-	evsoilyr <- "evap_soil.yr"
-	hddy <- "hydred.dy"
-	hdwk <- "hydred.wk"
-	hdmo <- "hydred.mo"
-	hdyr <- "hydred.yr"
-	inf_soildy <- "infiltration.dy"
-	inf_soilwk <- "infiltration.wk"
-	inf_soilmo <- "infiltration.mo"
-	inf_soilyr <- "infiltration.yr"
-	interceptiondy <- "interception.dy"
-	interceptionwk <- "interception.wk"
-	interceptionmo <- "interception.mo"
-	interceptionyr <- "interception.yr"
-	percolationdy <- "percolation.dy"
-	percolationwk <- "percolation.wk"
-	percolationmo <- "percolation.mo"
-	percolationyr <- "percolation.yr"
-	petdy <- "pet.dy"
-	petwk <- "pet.wk"
-	petmo <- "pet.mo"
-	petyr <- "pet.yr"
-	precipdy <- "precip.dy"
-	precipwk <- "precip.wk"
-	precipmo <- "precip.mo"
-	precipyr <- "precip.yr"
-	runoffdy <- "runoff.dy"
-	runoffwk <-	"runoff.wk"
-	runoffmo <- "runoff.mo"
-	runoffyr <- "runoff.yr"
-	snowdy <- "snowpack.dy"
-	snowwk <- "snowpack.wk"
-	snowmo <- "snowpack.mo"
-	snowyr <- "snowpack.yr"
-	swady <- "swa.dy"
-	swawk <- "swa.wk"
-	swamo <- "swa.mo"
-	swayr <- "swa.yr"
-	swcdy <- "swc.dy"
-	swcwk <- "swc.wk"
-	swcmo <- "swc.mo"
-	swcyr <- "swc.yr"
-	vwcdy <- "vwc.dy"
-	vwcwk <- "vwc.wk"
-	vwcmo <- "vwc.mo"
-	vwcyr <- "vwc.yr"
-	swpdy <- "sw_pot.dy"
-	swpwk <- "sw_pot.wk"
-	swpmo <- "sw_pot.mo"
-	swpyr <- "sw_pot.yr"
-	tempdy <- "temp.dy"
-	tempwk <- "temp.wk"
-	tempmo <- "temp.mo"
-	tempyr <- "temp.yr"
-	transpdy <- "transp.dy"
-	transpwk <- "transp.wk"
-	transpmo <- "transp.mo"
-	transpyr <- "transp.yr"
-	wetdaysdy <- "wetdays.dy"
-	wetdayswk <- "wetdays.wk"
-	wetdaysmo <- "wetdays.mo"
-	wetdaysyr <- "wetdays.yr"
-	soiltempdy <- "soil_temp.dy"
-	soiltempwk <- "soil_temp.wk"
-	soiltempmo <- "soil_temp.mo"
-	soiltempyr <- "soil_temp.yr"
-}
+#characteristics of sw input files
+soilsin.firstDataLine <- 18	# 18, if soilsin >= v23; 17, if soilsin < v23
+
+#sw output file names
+aetdy <- "aet.dy"
+aetwk <- "aet.wk"
+aetmo <- "aet.mo"
+aetyr <- "aet.yr"
+deepdraindy <- "deep_drain.dy"
+deepdrainwk <- "deep_drain.wk"
+deepdrainmo <- "deep_drain.mo"
+deepdrainyr <- "deep_drain.yr"
+evapsurfacedy <- "evap_surface.dy"
+evapsurfacewk <- "evap_surface.wk"
+evapsurfacemo <- "evap_surface.mo"
+evapsurfaceyr <- "evap_surface.yr"
+evsoildy <- "evap_soil.dy"
+evsoilwk <- "evap_soil.wk"
+evsoilmo <- "evap_soil.mo"
+evsoilyr <- "evap_soil.yr"
+hddy <- "hydred.dy"
+hdwk <- "hydred.wk"
+hdmo <- "hydred.mo"
+hdyr <- "hydred.yr"
+inf_soildy <- "infiltration.dy"
+inf_soilwk <- "infiltration.wk"
+inf_soilmo <- "infiltration.mo"
+inf_soilyr <- "infiltration.yr"
+interceptiondy <- "interception.dy"
+interceptionwk <- "interception.wk"
+interceptionmo <- "interception.mo"
+interceptionyr <- "interception.yr"
+percolationdy <- "percolation.dy"
+percolationwk <- "percolation.wk"
+percolationmo <- "percolation.mo"
+percolationyr <- "percolation.yr"
+petdy <- "pet.dy"
+petwk <- "pet.wk"
+petmo <- "pet.mo"
+petyr <- "pet.yr"
+precipdy <- "precip.dy"
+precipwk <- "precip.wk"
+precipmo <- "precip.mo"
+precipyr <- "precip.yr"
+runoffdy <- "runoff.dy"
+runoffwk <-	"runoff.wk"
+runoffmo <- "runoff.mo"
+runoffyr <- "runoff.yr"
+snowdy <- "snowpack.dy"
+snowwk <- "snowpack.wk"
+snowmo <- "snowpack.mo"
+snowyr <- "snowpack.yr"
+swady <- "swa.dy"
+swawk <- "swa.wk"
+swamo <- "swa.mo"
+swayr <- "swa.yr"
+swcdy <- "swc.dy"
+swcwk <- "swc.wk"
+swcmo <- "swc.mo"
+swcyr <- "swc.yr"
+vwcdy <- "vwc.dy"
+vwcwk <- "vwc.wk"
+vwcmo <- "vwc.mo"
+vwcyr <- "vwc.yr"
+swpdy <- "sw_pot.dy"
+swpwk <- "sw_pot.wk"
+swpmo <- "sw_pot.mo"
+swpyr <- "sw_pot.yr"
+tempdy <- "temp.dy"
+tempwk <- "temp.wk"
+tempmo <- "temp.mo"
+tempyr <- "temp.yr"
+transpdy <- "transp.dy"
+transpwk <- "transp.wk"
+transpmo <- "transp.mo"
+transpyr <- "transp.yr"
+wetdaysdy <- "wetdays.dy"
+wetdayswk <- "wetdays.wk"
+wetdaysmo <- "wetdays.mo"
+wetdaysyr <- "wetdays.yr"
+soiltempdy <- "soil_temp.dy"
+soiltempwk <- "soil_temp.wk"
+soiltempmo <- "soil_temp.mo"
+soiltempyr <- "soil_temp.yr"
 
 ##############################################################################
 ########################Source of the code base###############################
 
 source("2_SoilWatSimulationFramework_Part2of2_Code_v49.R", echo=FALSE, keep.source=FALSE)
-

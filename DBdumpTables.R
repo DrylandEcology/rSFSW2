@@ -49,7 +49,7 @@ readNumberRePrompt("TableNumber", "Please select table to dump, 0=all : ")
 if(TableNumber == 0) {
 	for(i in 1:length(Tables)) {
 		temp <- dbReadTable(con, Tables[i])
-		write.csv(x=temp, file=file.path(dir.out, Tables[i]), row.names=FALSE, )
+		write.csv(x=temp, file=file.path(dir.out, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
 	}
 } else {
 	temp <- dbReadTable(con, Tables[TableNumber])
