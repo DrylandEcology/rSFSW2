@@ -5347,12 +5347,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								out.tempM <- t(c(header, res.dailyMean))
 								out.tempSD <- t(c(header, res.dailySD))
 							}
+							
+							agg.labels <- NULL
 							if((i==ifirst && !makeOutputDB)){# || (makeOutputDB && !concurrent)) && !concurrent
 								if(agg.analysis == 1){
 									if(makeOutputDB) {
-										colnames(out.tempM) <- colnames(out.tempSD) <- c("P_id",header.names, resultfiles.daily.labelsOne)
+										agg.labels <- c("P_id",header.names, resultfiles.daily.labelsOne)
 									} else {
-										colnames(out.tempM) <- colnames(out.tempSD) <- c(header.names, resultfiles.daily.labelsOne)
+										agg.labels <- c(header.names, resultfiles.daily.labelsOne)
 									}
 								} else {
 									if(agg.resp == "SWA"){
@@ -5361,14 +5363,19 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 										agg.labels <- resultfiles.daily.labelsLayers
 									}
 									if(makeOutputDB) {
-										colnames(out.tempM) <- colnames(out.tempSD) <- c("P_id", header.names, agg.labels)
+										agg.labels <- c("P_id", header.names, agg.labels)
 									} else {
-										colnames(out.tempM) <- colnames(out.tempSD) <- c(header.names, agg.labels)
+										agg.labels <- c(header.names, agg.labels)
 									}
 								}
-							} else {
-								if(!makeOutputDB) { colnames(out.tempM) <- colnames(out.tempSD) <- NULL }
 							}
+							
+							if((temp <- length(agg.labels) - ncol(out.tempM)) > 0){ #if i==ifirst doesn't have enough soil layers for all requested aggregation layers
+								out.tempM <- cbind(out.tempM, temp <- matrix(NA, nrow=1, ncol=temp))
+								out.tempSD <- cbind(out.tempSD, temp)
+							}
+							
+							colnames(out.tempM) <- colnames(out.tempSD) <- agg.labels
 							
 							if(!makeOutputDB) {
 								if(!Exclude_ClimateAmbient) {
