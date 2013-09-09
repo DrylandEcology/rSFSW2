@@ -704,7 +704,7 @@ if(do.ensembles){
 	}
 }
 #------
-if(makeOutputDB) source("2_SoilWatSimulationFramework_CreateDB_Tables.R", echo=F, keep.source=F)
+if(makeOutputDB) source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 con<-dbConnect(drv,dbWeatherDataFile)
 
 #------simulation timing
