@@ -144,7 +144,7 @@
 #		- introduced sw_v24: main change: unit of wind speed at 2-m height (miles/h before v24, m/s starting with v24)
 #		- added code to check if input datafile measurement height above ground of windspeed is SoilWat required 2-m, if not convert with function 'adjust.WindspeedHeight'
 #		- new vegetation interception coefficients for shrubs
-#	v49 (20121102-)
+#	v49 (20121102-20130801)
 #		- (rjm) adjusted line numbers for prod.in file
 #		- (rjm) Fixed sim timing to have Start and End not Start and Start
 #		- (rjm) Aggregate for each senario, has a header that includes YearStart and YearEnd
@@ -257,7 +257,7 @@
 #		- (drs) renamed function 'collect_ResultsWithTemporaryDataFrame' to 'concatenate_TemporaryResultFiles'
 #		- (drs) added two functions 'concatenate_TemporaryResultFiles': one to concatenate in memory (as before), one to concatenate via append (new); these are selected via option 'concatenation.inMemory'
 #		- (drs) fixed bug in 'concatenate_TemporaryResultFiles': if cleanup and concatenation resumed, then already final files deleted
-#   V50
+#	v50 (20130801-20130909)
 #		- (rjm) fixed database creation so page size is max and using REAL instead of double.
 #		- (rjm) Each node writes out a sql file with all the data from run. This is loaded into the dbTables.db database after runs are finished
 #		- (rjm) Ensembles via database now works in with Rmpi. A database for each scenario table is generated with its ensembles.
