@@ -351,6 +351,12 @@ if(!require(SPEI, quietly=TRUE)) {
 	tryCatch(install.packages("SPEI",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	require(SPEI, quietly=TRUE)
 }
+if(!require(RSQLite,quietly = TRUE)) {
+	tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
+	require(RSQLite,quietly = TRUE)	
+}
+drv<-dbDriver("SQLite")
+con<-dbConnect(drv,dbWeatherDataFile)
 if(parallel_runs && identical(parallel_backend, "mpi")) { 
 	if(!require(Rmpi,quietly = TRUE)) {
 		tryCatch(install.packages("Rmpi",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
@@ -375,12 +381,7 @@ if(!parallel_runs) {
 		tryCatch(install.packages("foreach",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("foreach failed to install"); stop("Stopping") })
 		require(foreach,quietly = TRUE)
 	}
-	if(!require(RSQLite,quietly = TRUE)) {
-		tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
-		require(RSQLite,quietly = TRUE)	
-	}
-	drv<-dbDriver("SQLite")
-	con<-dbConnect(drv,dbWeatherDataFile)
+	
 }
 if(!exists("use_janus") & (exinfo$ExtractClimateChangeScenarios_NorthAmerica |
 			exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
