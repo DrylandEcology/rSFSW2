@@ -1464,7 +1464,7 @@ if(any(actions == "create")){
 		cl <- 1:11
 		ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
 		
-		dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO")
+		dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil")
 		datafile.bedrock <- "cs_bedrock"
 		datafile.bulkd <- "cs_bulkd"
 		datafile.sandsilt <- "cs_sandsilt"
