@@ -440,8 +440,9 @@ if((length(Tables) == 0) || cleanDB) {
 	SQL_Table_Definitions2 <- paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sdString, ");", sep="")
 		
 	empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
-	if(cleanDB && !empty) rs <- for(i in 1:length(Tables)) { dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")) }
+	if(cleanDB && !empty) rs <- for(i in 1:length(Tables)) { res <- dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")); dbClearResult(rs) }
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+	dbClearResult(rs)
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	dbClearResult(rs)
 	
@@ -475,12 +476,14 @@ if((length(Tables) == 0) || cleanDB) {
 					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
 					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
 			} else {
 					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
 					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
 			}
@@ -493,7 +496,8 @@ if((length(Tables) == 0) || cleanDB) {
 	sqlLines<-c(sqlLines,paste("CREATE INDEX idx_",as.character((2*length(Tables)+1):(3*length(Tables))), " ON \"",Tables,"\"(Labels);",sep=""))
 	
 	for(j in 1:length(sqlLines)) {
-		dbSendQuery(con,sqlLines[j])
+		rs<-dbSendQuery(con,sqlLines[j])
+		dbClearResult(rs)
 	}
 }
 rm(Tables, sqlLines, rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp,  SQL_Table_Definitions,header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)

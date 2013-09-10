@@ -238,7 +238,7 @@ cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becaref
 #Type of concatenation (if not DB used)
 concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
 #deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
-deleteTemporaryAggregationFiles <- FALSE
+deleteTemporaryAggregationFiles <- TRUE
 
 #------Define type of simulations and source of input data
 #source_input is either "datafiles&treatments" or "folders"
