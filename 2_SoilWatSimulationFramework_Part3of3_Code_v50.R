@@ -2985,15 +2985,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#check to see if the header.names includes YearStart, SimStartYear ,YearEnd
 				if(any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")) {#find index of YearStart and Add Sim
 					index.startYear <- match("YearStart",names(treatment_header))
-					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, treatment_header[(index.startYear+1):length(treatment_header)]);
+					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, treatment_header[(index.startYear+1):length(treatment_header)])
 				} else if(any(names(treatment_header) == "YearStart") && !any(names(treatment_header) == "YearEnd")){
 					index.startYear <- match("YearStart",names(treatment_header))
-					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[(index.startYear+1):length(treatment_header)]);
+					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[(index.startYear+1):length(treatment_header)])
 				} else if(!any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")){
 					index.YearEnd <- match("YearEnd",names(treatment_header))
-					treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)]);
+					treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)])
 				} else {
-					treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr);
+					treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr)
 				}
 				if((i==ifirst && !makeOutputDB)) treatment_header.names <- names(treatment_header)
 				header <- c(i, as.character(i_labels), treatment_header, scenario[sc])
@@ -5204,10 +5204,10 @@ if(makeOutputDB && any(actions=="concatenate")) {
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
 	temp <- as.double(temp)
-	if(temp <= (MaxRunDurationTime-900)) {#need at least 15 minutes for anything useful
+	if(temp <= (MaxRunDurationTime-900) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 15 minutes for anything useful
 		library(RSQLite)
 		
-		#Create the Database
+		#Connect to the Database
 		drv <- dbDriver("SQLite")
 		tfile <- file.path(dir.out, "dbTables.db")
 		con <- dbConnect(drv, dbname = tfile)
@@ -5215,18 +5215,41 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
 		
 		for(j in 1:length(theFileList)) {
+			FAIL <- FALSE
+			
 			temp <- Sys.time() - t.overall
 			units(temp) <- "secs"
 			temp <- as.double(temp)
 			if((temp > (MaxRunDurationTime-480))) {#figure need at least 8 minutes for big ones
 				break
 			}
+			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
 			SQLlines <- readLines(file.path(dir.out.temp, theFileList[j]))
-			SQLlines <- SQLlines[SQLlines != ""]
+			dbBeginTransaction(con)
 			for(k in 1:length(SQLlines)) {
-				dbSendQuery(con,SQLlines[k])
+				res<-tryCatch(dbSendQuery(con,SQLlines[k]), warning = function(w) { 
+							print(paste("Warning: ",theFileList[j]," Line: ",k,sep=""))
+							print(w)
+						}, error=function(e) {
+							print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
+							print(e)
+							return(NA)
+						})
+				if(typeof(res) != "S4") {
+					FAIL <- TRUE
+					Sys.sleep(5)
+				} else {
+					dbClearResult(res)
+				}
 			}
-			if(deleteTemporaryAggregationFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
+			dbCommit(con)
+			if(deleteTemporaryAggregationFiles && !FAIL) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
+			if(print.debug) {
+				temp2<-Sys.time() - temp
+				units(temp2) <- "secs"
+				temp2 <- as.double(temp2)
+				print(paste("    ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+			}
 		}
 		
 		if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))

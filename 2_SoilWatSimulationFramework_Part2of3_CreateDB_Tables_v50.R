@@ -40,16 +40,15 @@ if((length(Tables) == 0) || cleanDB) {
 		#check to see if the header.names includes YearStart, SimStartYear ,YearEnd
 		if(any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")) {#find index of YearStart and Add Sim
 			index.startYear <- match("YearStart",names(treatment_header))
-			treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, treatment_header[(index.startYear+1):length(treatment_header)]);
+			treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, treatment_header[(index.startYear+1):length(treatment_header)])
 		} else if(any(names(treatment_header) == "YearStart") && !any(names(treatment_header) == "YearEnd")){
 			index.startYear <- match("YearStart",names(treatment_header))
-			treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[(index.startYear+1):length(treatment_header)]);
+			treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[(index.startYear+1):length(treatment_header)])
 		} else if(!any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")){
 			index.YearEnd <- match("YearEnd",names(treatment_header))
-			treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)]);
+			treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)])
 		} else {
-			treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr);
-			
+			treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr)
 		}
 		treatment_header.names <- names(treatment_header)
 		header <- c(1, as.character("temp"), treatment_header, scenario[1])
