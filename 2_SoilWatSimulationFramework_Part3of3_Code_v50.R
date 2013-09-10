@@ -5112,8 +5112,10 @@ if(actionWithSoilWat && runsN.todo > 0){
 			snow::clusterExport(cl, list.export)
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %dopar% {
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-				drv<-dbDriver("SQLite")
-				con<-dbConnect(drv,dbWeatherDataFile)
+				if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+					drv<-dbDriver("SQLite")
+					con<-dbConnect(drv,dbWeatherDataFile)
+				}
 				#weather folder name and structure
 				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
@@ -5154,8 +5156,10 @@ if(actionWithSoilWat && runsN.todo > 0){
 		runs.completed <- 0
 #		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
 #			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-#			drv<-dbDriver("SQLite")
-#			con<-dbConnect(drv,dbWeatherDataFile)
+#			if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+#				drv<-dbDriver("SQLite")
+#				con<-dbConnect(drv,dbWeatherDataFile)
+#			}
 #			#weather folder name and structure
 #			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 #				dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
@@ -5186,21 +5190,6 @@ if(actionWithSoilWat && runsN.todo > 0){
 			}
 			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 		}
-#		for(i_sim in 1) {
-#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-#			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
-#				dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
-#				sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
-#				if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
-#			} else {
-#				if(WeatherDataFromDatabase) {
-#					sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
-#				} else {
-#					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
-#				}
-#			}
-#			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
-#		}
 	}
 	save(inputDataToSave,file=file.path(dir.out,paste("swInputData_",head(seq.todo,n=1),"_",head(seq.todo,n=1)+runs.completed,".R",sep="")),compress=TRUE)
 	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
