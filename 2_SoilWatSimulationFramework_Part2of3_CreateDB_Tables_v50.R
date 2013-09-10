@@ -48,7 +48,7 @@ if((length(Tables) == 0) || cleanDB) {
 			index.YearEnd <- match("YearEnd",names(treatment_header))
 			treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)]);
 		} else {
-			treatment_header <- c(treatment_header[1:3], "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[4:length(treatment_header)]);
+			treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr);
 		}
 		treatment_header.names <- names(treatment_header)
 		header <- c(1, as.character("temp"), treatment_header, scenario[1])
