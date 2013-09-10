@@ -705,15 +705,10 @@ if(do.ensembles){
 		ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 2] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 1])
 	}
 }
-<<<<<<< HEAD
+
 #------ Create the Database and Tables within
 if(makeOutputDB) source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
-=======
-#------
-if(makeOutputDB) source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
-con<-dbConnect(drv,dbWeatherDataFile)
->>>>>>> 07ab7d3bba4679fed55e98d2ecaa8dfa0f8c5cfc
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
