@@ -355,8 +355,10 @@ if(!require(RSQLite,quietly = TRUE)) {
 	tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
 	require(RSQLite,quietly = TRUE)	
 }
-drv<-dbDriver("SQLite")
-con<-dbConnect(drv,dbWeatherDataFile)
+if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+	drv<-dbDriver("SQLite")
+	con<-dbConnect(drv,dbWeatherDataFile)
+}
 if(parallel_runs && identical(parallel_backend, "mpi")) { 
 	if(!require(Rmpi,quietly = TRUE)) {
 		tryCatch(install.packages("Rmpi",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
@@ -703,9 +705,9 @@ if(do.ensembles){
 		ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 2] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 1])
 	}
 }
-#------
-if(makeOutputDB) source("2_SoilWatSimulationFramework_CreateDB_Tables.R", echo=F, keep.source=F)
-con<-dbConnect(drv,dbWeatherDataFile)
+#------ Create the Database and Tables within
+if(makeOutputDB) source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
