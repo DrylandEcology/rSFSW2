@@ -443,19 +443,19 @@ if(source_input == "folders"){
 	labels <- try(list.files(dir.sw.runs))
 	include_YN <- rep(1, times=length(labels))
 } else {
-	SWRunInformation <- read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE)
+	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
 	include_YN <- SWRunInformation$Include_YN
 	labels <- SWRunInformation$Label
 }
 
 if (source_input == "datafiles&treatments") {
-	sw_input_soillayers <- read.csv(file.path(dir.in, datafile.soillayers))
+	sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
 	
-	sw_input_treatments_use <- read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1)
+	sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
 	sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
 	colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
 	
-	sw_input_experimentals_use <- read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1)
+	sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
 	sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
 	colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
 	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
@@ -471,33 +471,33 @@ if (source_input == "datafiles&treatments") {
 }
 
 if (source_input == "datafiles&treatments" & actionWithSoilWat) {
-	sw_input_cloud_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1)
+	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
 	sw_input_cloud <- read.csv(temp, skip=1)
 	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
 	
-	sw_input_prod_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1)
+	sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
 	sw_input_prod <- read.csv(temp, skip=1)
 	colnames(sw_input_prod) <- colnames(sw_input_prod_use)
 	
-	sw_input_site_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1)
+	sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
 	sw_input_site <- read.csv(temp, skip=1)
 	colnames(sw_input_site) <- colnames(sw_input_site_use)
 	sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 	
-	sw_input_soils_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1)
+	sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
 	sw_input_soils <- read.csv(temp, skip=1)
 	colnames(sw_input_soils) <- colnames(sw_input_soils_use)
 	sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 	
-	sw_input_weather_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1)
+	sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
 	sw_input_weather <- read.csv(temp, skip=1)
 	colnames(sw_input_weather) <- colnames(sw_input_weather_use)
 	
-	sw_input_climscen_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1)
+	sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
 	sw_input_climscen <- read.csv(temp, skip=1)
 	colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
 	
-	sw_input_climscen_values_use <- read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1)
+	sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
 	sw_input_climscen_values <- read.csv(temp, skip=1)
 	colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
 	
