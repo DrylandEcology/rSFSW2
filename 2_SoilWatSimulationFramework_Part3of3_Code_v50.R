@@ -420,7 +420,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 540 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 648 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -3080,6 +3080,27 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2)] <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees"), "_fraction_const", sep="")
 					nv <- nv+3
 				}#)
+				if(aon$input_VegetationBiomassMonthly) {
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+107)] <- paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m",1:12,"_gPERm2",sep="")
+					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]*swProd_MonProd_grass(swRunScenariosData[[sc]])[,3]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,2]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,2]*swProd_MonProd_shrub(swRunScenariosData[[sc]])[,3]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,1]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]*swProd_MonProd_tree(swRunScenariosData[[sc]])[,3]
+					nv <- nv+12
+				}
 			#scOutTiming[[2]] <- system.time(
 				if(aon$input_VegetationPeak) {
 					fracs <- swProd_Composition(swRunScenariosData[[sc]]) #get the fractional Composition of grasses, shrubs, and trees
@@ -4729,7 +4750,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							agg.resp <- output_aggregate_daily[doi]
 						}
 						
-						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 						agg.no <- ifelse(agg.analysis == 1, 1, aggLs_no)
 						
 						res.dailyMean <- res.dailySD <- rep(NA, times=ifelse(agg.analysis == 1, 1, ifelse(AggLayer.daily, agg.no, SoilLayer_MaxNo)) * 366)
@@ -4755,6 +4776,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 										Rain=sw_precip,
 										Snowfall=sw_precip,
 										Snowmelt=sw_precip,
+										SnowLoss=sw_precip,
 										Infiltration=sw_inf_soil,
 										DeepDrainage=sw_deepdrain,
 										PET=sw_pet,
@@ -4769,8 +4791,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							#extract data and aggregate into layers if requested
 							agg.dat <- NULL
 							if(agg.analysis == 1){ #no layers
-								if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
-									agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
+								if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
+									agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, SnowLoss=7, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
 									agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
 								}
 								if(agg.resp == "EvaporationTotal"){
