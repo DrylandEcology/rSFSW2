@@ -1071,7 +1071,7 @@ VWCtoSWP <- function(vwc, sand, clay) {
 #two, three, or four layer aggregation for average daily aggregation output
 setAggSoilLayerForAggDailyResponses <- function(layers_depth){
 	d <- length(layers_depth)
-	vals <- NULL
+	vals <- list()
 	#first layer
 	DeepestFirstDailyAggLayer <- findInterval(Depth_FirstAggLayer.daily, c(0, layers_depth) + sqrt(.Machine$double.eps), all.inside=TRUE)
 	vals[[1]] <- 1:DeepestFirstDailyAggLayer
@@ -5687,7 +5687,7 @@ if(do.ensembles && all.complete &&
 				rm(f.temp)
 				
 				#read in data
-				data.temp <- NULL
+				data.temp <- list()
 				data.temp[[1]] <- c(dtemp1)
 				index.skipHeader <- c(sapply(1:nrows, FUN=function(x) (x-1)*ncols + 1:columnCutoff))
 				if((no.files <- length(flist)) > 1) for(f in 2:no.files){
