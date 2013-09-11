@@ -1912,26 +1912,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#get folder and file names
 		outsetupin <- swOutSetupIn
-		
-		if(any(create_treatments == "LookupWeatherFolder")){ #establish names from weather-treatment
-			dirname.sw.runs.weather <- i_sw_input_treatments$LookupWeatherFolder
-			filebasename.WeatherDataYear <- "weath"#strsplit(temp[1], split=".", fixed=TRUE)[[1]][1]
-			#obtain name of cloudin from weather folder, except if create_treatments contains cloudin
-			if(!any(create_treatments == "cloudin")){
-				temp <- c(	try(list.files(temp <- file.path(dir.sw.in.tr, "LookupWeatherFolder", dirname.sw.runs.weather), pattern="cloud")),
-						try(list.files(temp, pattern="Cloud")),
-						try(list.files(temp, pattern="sky")),
-						try(list.files(temp, pattern="Sky")) )
-				if(length(temp) > 0){
-					cloudin <- temp[1]
-				}
-			}
-		}
-		dir.sw.runs.weather <- dirname.sw.runs.weather
+		dir.sw.runs.weather <- i_sw_input_treatments$LookupWeatherFolder
 		
 		if(print.debug) print("Start of LookupWeatherFolder")
-		
-		set_WeatherHistory(swRunScenariosData[[1]]) <- list()
 		
 		#write input file names and paths to first file, unless filesin is a treatment
 		if(!any(create_treatments=="filesin")){
@@ -5090,6 +5073,8 @@ if(runsN.todo > 0){
 if(actionWithSoilWat && runsN.todo > 0){
 	
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
+	#Used for weather from files
+	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	ifirst <- seq.todo[1]
 	#objects to export
 	list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values","con")
@@ -5156,7 +5141,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 							if(WeatherDataFromDatabase) {
 								i_sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=i_sw_input_treatments$LookupWeatherFolder,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 							} else {
-								i_sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=i_sw_input_treatments$LookupWeatherFolder,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
+								i_sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=i_sw_input_treatments$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 							}
 						}
 						dataForRun <- list(do_OneSite=TRUE, concatenate_TemporaryResultFiles=FALSE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
@@ -5200,7 +5185,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 					if(WeatherDataFromDatabase) {
 						sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					} else {
-						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					}
 				}
 				do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
@@ -5220,7 +5205,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 					if(WeatherDataFromDatabase) {
 						sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					} else {
-						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					}
 				}
 				do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
@@ -5244,7 +5229,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 #				if(WeatherDataFromDatabase) {
 #					sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 #				} else {
-#					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+#					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 #				}
 #			}
 #			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
@@ -5260,7 +5245,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 				if(WeatherDataFromDatabase) {
 					sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 				} else {
-					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 				}
 			}
 			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
