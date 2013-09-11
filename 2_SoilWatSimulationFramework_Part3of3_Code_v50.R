@@ -1915,9 +1915,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		if(any(create_treatments == "LookupWeatherFolder")){ #establish names from weather-treatment
 			dirname.sw.runs.weather <- i_sw_input_treatments$LookupWeatherFolder
-			if(length(temp) > 0){
-				filebasename.WeatherDataYear <- "weath"#strsplit(temp[1], split=".", fixed=TRUE)[[1]][1]
-			}
+			filebasename.WeatherDataYear <- "weath"#strsplit(temp[1], split=".", fixed=TRUE)[[1]][1]
 			#obtain name of cloudin from weather folder, except if create_treatments contains cloudin
 			if(!any(create_treatments == "cloudin")){
 				temp <- c(	try(list.files(temp <- file.path(dir.sw.in.tr, "LookupWeatherFolder", dirname.sw.runs.weather), pattern="cloud")),
