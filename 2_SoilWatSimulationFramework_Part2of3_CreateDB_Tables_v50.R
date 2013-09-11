@@ -440,7 +440,7 @@ if((length(Tables) == 0) || cleanDB) {
 	SQL_Table_Definitions2 <- paste("CREATE TABLE \"Aggregation_Overall_SD\" (", sdString, ");", sep="")
 		
 	empty <- ifelse(length(dbListTables(con))==0, TRUE, FALSE)
-	if(cleanDB && !empty) rs <- for(i in 1:length(Tables)) { res <- dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")); dbClearResult(rs) }
+	if(cleanDB && !empty) for(i in 1:length(Tables)) { res <- dbSendQuery(con,paste("DROP TABLE ", '"',Tables[i], '"', sep="")); dbClearResult(res) }
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 	dbClearResult(rs)
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
