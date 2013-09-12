@@ -265,6 +265,9 @@
 #		- (rjm) The soilwat setup files are loaded in memory via Rsoilwat structures objects and passed to the slaves who then work with that instead of files.
 #		- (rjm) daily values are sorted to match database.
 #		- (rjm) fixed SWA output only outputing for one crit
+#		- (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SoilWat input/output to be stored on disk
+
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 #------
@@ -297,7 +300,7 @@ dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.runs, showWarnings=FALSE, recursive=TRUE)
-dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
+if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
@@ -1897,6 +1900,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				simTime2 <- simTime_ForEachUsedTimeUnit_South
 			}
 		}
+		#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
+		if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels))
 	}
 	
 	
@@ -2640,6 +2645,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- swSite_TranspirationRegions(swRunScenariosData[[sc]])*1 #Make sure its Numeric matrix
 		}#end do scenario creations
+		
+		if(!deleteSoilWatFolderAfterAggregation) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
 	
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
@@ -2672,9 +2679,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			infile <- file(infilename, "w+b")
 			writeLines(text = infiletext, con = infile, sep = "\n")
 			close(infile)
-		}	
+		}
 	}
-	#save(swRunScenariosData,file=file.path(dir.sw.runs,paste("runData_",i,sep="")))
+	
+	
 #------------------------EXECUTE SOILWAT
 	if( todo$execute ){
 		runData <- list()
@@ -2689,7 +2697,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		for (sc in Exclude_ClimateAmbient:scenario_No){
 			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
 			if(!exists("use_janus")){
-				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=F)
+				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=ifelse(!deleteSoilWatFolderAfterAggregation, TRUE, FALSE))
 						}, warning = function(w) {
 							print("------------Warning----------")
 							print(w)
@@ -2720,6 +2728,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 		}
 		#print(paste(result,collapse = ","))
+		if(!deleteSoilWatFolderAfterAggregation) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 	}#end if do execute
 	
 	
