@@ -4,12 +4,33 @@ runsN.todo <- length(seq.todo)
 
 workersN <- num_cores
 
+swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
+filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 ifirst <- seq.todo[1]
 
-i <- 1
+i <- 28
 runs.completed <- i-1
 
 i_tr <- seq.tr[(1+runs.completed - 1) %% runs + 1]
+
+if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+	drv<-dbDriver("SQLite")
+	con<-dbConnect(drv,dbWeatherDataFile)
+}
+#weather folder name and structure
+if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+	dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
+	sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+	if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
+} else {
+	if(WeatherDataFromDatabase) {
+		sw_weatherList <- onGetWeatherData_database(con=con,weatherDirName=sw_input_treatments[i_tr, ]$LookupWeatherFolder,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+	} else {
+		sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=sw_input_treatments[i_tr,]$LookupWeatherFolder,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+	}
+}
+
+
 i_labels <- labels[i_tr]
 i_SWRunInformation <- SWRunInformation[i_tr, ]
 i_sw_input_soillayers <- sw_input_soillayers[i_tr, ]

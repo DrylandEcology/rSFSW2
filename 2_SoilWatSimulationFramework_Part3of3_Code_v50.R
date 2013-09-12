@@ -2072,7 +2072,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 		
 		#add vegetation information	from datafile to prodin
-		if(print.debug) print("Start of proding")
+		if(print.debug) print("Start of prodin")
 		if(sum(sw_input_prod_use[-1]) > 0){
 			#composition
 			if(sum(use_comp <- unlist(sw_input_prod_use[grepl(pattern="Composition", x=names(sw_input_prod_use))])) > 0) {
@@ -2268,7 +2268,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(nchar(missingtext)==0){
 					this_soil <- soildat[l, ]
 				} else {
-					swLog_setLine(swRunScenariosData[[1]]) <- missingtext
+#					swLog_setLine(swRunScenariosData[[1]]) <- missingtext
 					this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
