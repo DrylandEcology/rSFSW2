@@ -388,11 +388,18 @@ if(!parallel_runs) {
 	}
 	
 }
-if(!exists("use_janus") & (exinfo$ExtractClimateChangeScenarios_NorthAmerica |
-			exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
-			exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA |
-			exinfo$ExtractTopographyANDElevation_USA |
-			exinfo$ExtractClimateChangeScenariosMaurer2009_Global)) library(rgdal)	#requires: sp; used for extracting external GIS information
+gis_available <- FALSE
+if(exinfo$ExtractClimateChangeScenarios_NorthAmerica |
+		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
+		exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA |
+		exinfo$ExtractTopographyANDElevation_USA |
+		exinfo$ExtractClimateChangeScenariosMaurer2009_Global |
+		exinfo$ExtractSkyDataFromNCEPCFSR_Global |
+		exinfo$ExtractClimateChangeScenariosMaurer2009_Global |
+		exinfo$ExtractGriddedDailyWeatherFromNCEPCFSR_Global){
+	stopifnot(require(rgdal, quietly=TRUE))	#requires: sp; used for extracting external GIS information
+	gis_available <- TRUE
+}
 
 #------prepare output
 aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
@@ -1286,25 +1293,17 @@ if(any(actions == "create")){
 
 
 #------obtain external information prior to simulation runs
-if(exists("use_janus") & (	exinfo$ExtractClimateChangeScenarios_NorthAmerica |
-			exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
-			exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA |
-			exinfo$ExtractTopographyANDElevation_USA |
-			exinfo$ExtractClimateChangeScenariosMaurer2009_Global)){
-	print("GIS extractions not supported on JANUS") #reason: RGDAL and sp libraries not installed
-}
-
 if(any(actions == "create")){
 	if(!be.quiet) print(paste("SWSF obtains external information prior to simulation runs: started at", t1 <- Sys.time()))
 	
-	if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global & !exists("use_janus")){
+	if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global && gis_available){
 		#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
 		#accessed via climatewizard.org on July 10, 2012
 		if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
 		
 		list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 		if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3")
+			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
 			
 			list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
 			
@@ -1353,14 +1352,14 @@ if(any(actions == "create")){
 		if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
 	}
 	
-	if(exinfo$ExtractClimateChangeScenarios_NorthAmerica & !exists("use_janus")){
+	if(exinfo$ExtractClimateChangeScenarios_NorthAmerica && gis_available){
 		#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
 		#accessed via climatewizard.org
 		if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
 		
 		list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 		if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios")
+			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
 			
 			list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
 			
@@ -1460,7 +1459,7 @@ if(any(actions == "create")){
 	}
 	
 	
-	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica & !exists("use_janus")){
+	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica && gis_available){
 		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
 		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
 		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
@@ -1543,7 +1542,7 @@ if(any(actions == "create")){
 		rm(use.layers, sand, clay, fieldc, wiltp, tempdat, i.fieldc, i.wiltp)
 	}
 	
-	if(exinfo$ExtractTopographyANDElevation_USA & !exists("use_janus")){
+	if(exinfo$ExtractTopographyANDElevation_USA && gis_available){
 		#LANDFIRE data
 		if(!be.quiet) print(paste("Started 'ExtractTopographyANDElevation_USA' at", Sys.time()))
 		
@@ -1587,7 +1586,7 @@ if(any(actions == "create")){
 		if(!be.quiet) print(paste("Finished 'ExtractTopographyANDElevation_USA' at", Sys.time()))
 	}
 	
-	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA & !exists("use_janus")){
+	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA && gis_available){
 		if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 		
 		reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
