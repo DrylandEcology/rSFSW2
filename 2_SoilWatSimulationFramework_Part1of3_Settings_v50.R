@@ -179,7 +179,7 @@ if(exists("use_janus")) {
 	parallel_runs <- TRUE
 }
 #------Rmpi Jobs finish within Wall Time------#
-MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job, i.e. Wall time. As time runs out Rmpi will not send more work.
+MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work.
 MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
 
 #--------------------------------------------------------------------------------------------------#
