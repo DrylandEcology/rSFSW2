@@ -296,6 +296,7 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 }
 
 #create simulation directory structure
+dir.sw.in <- normalizePath(dir.sw.in)
 dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
