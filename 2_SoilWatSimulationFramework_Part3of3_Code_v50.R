@@ -2638,11 +2638,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#adjust maximum transpiration region for minimum soil depth and rooting depth
 			if(max(tri.file[tri.file[, 1] > 0, 2], na.rm=TRUE) > (max.tri <- min(max.tri.soil, max.tri.root))){ 
 				for(tri in 4:1) if(tri.file[tri, 1] > 0){
-						if(tri.file[tri, 2] > max.tri) tri.file[tri, 2] <- swSite_TranspirationRegions(swRunScenariosData[[sc]])[tri,2] <- max.tri
-						if(tri > 1 && tri.file[tri, 2] <= tri.file[tri-1, 2]) swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- swSite_TranspirationRegions(swRunScenariosData[[sc]])[-tri,]
+						if(tri.file[tri, 2] > max.tri)
+							tri.file[tri, 2] <- swSite_TranspirationRegions(swRunScenariosData[[sc]])[tri,2] <- max.tri
+						if(tri > 1 && tri.file[tri, 2] <= tri.file[tri-1, 2])
+							swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- matrix(swSite_TranspirationRegions(swRunScenariosData[[sc]])[-tri,], ncol=2)
 					}
 			}
-			swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- swSite_TranspirationRegions(swRunScenariosData[[sc]])*1 #Make sure its Numeric matrix
 		}#end do scenario creations
 		
 		if(!deleteSoilWatFolderAfterAggregation) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
