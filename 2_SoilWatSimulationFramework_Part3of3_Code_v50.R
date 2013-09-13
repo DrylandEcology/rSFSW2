@@ -325,11 +325,17 @@ names(exinfo) <- exinfo.help[,1]
 
 
 #------load libraries
+dir.libraries <- .libPaths()[1]
 if (.Platform$OS.type == "windows") {
-	dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
-	if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
-} else {
-	dir.libraries <- .libPaths()[1]
+	#test if user has write permission to standard library path
+	err <- try(write.table(1, file=ftemp <- file.path(dir.libraries, "testPermission.txt")))
+	if(identical(class(err), "try-error")){
+		print(paste("User has no write permission for:", dir.libraries, ". A local path is attempted instead, but this is known to likely fail for the setup of 'snow' under Windows XP"))
+		dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
+		if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
+	} else {
+		file.remove(ftemp)
+	}
 }
 
 if(!require(Rsoilwat,quietly = TRUE)) {
