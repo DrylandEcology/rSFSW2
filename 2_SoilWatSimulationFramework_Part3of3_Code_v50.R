@@ -5290,7 +5290,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			temp <- Sys.time() - t.overall
 			units(temp) <- "secs"
 			temp <- as.double(temp)
-			if((temp > (MaxRunDurationTime-480))) {#figure need at least 8 minutes for big ones
+			if((temp > (MaxRunDurationTime-480) | !parallel_runs | !identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
@@ -5866,7 +5866,7 @@ if(do.ensembles && all.complete &&
 				}
 			}
 			
-			if(!(TableTimeStop > (MaxRunDurationTime-1*60))) {#figure need at least 3 hours for big ones
+			if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
 				dir.out.ensemble.db <- dir.out
 				tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table),".db",sep=""))
 				conEnsembleDB <- dbConnect(drv, dbname=tfile)
@@ -5882,7 +5882,7 @@ if(do.ensembles && all.complete &&
 					EnsembleTimeStop <- Sys.time() - t.overall
 					units(EnsembleTimeStop) <- "secs"
 					EnsembleTimeStop <- as.double(EnsembleTimeStop)
-					if((EnsembleTimeStop > (MaxRunDurationTime-1*60))) {#figure need at least 4 hours for a ensemble
+					if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
 						break
 					}
 					print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
