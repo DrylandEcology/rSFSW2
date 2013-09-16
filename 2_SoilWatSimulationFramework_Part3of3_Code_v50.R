@@ -341,12 +341,19 @@ if (.Platform$OS.type == "windows") {
 if(!require(Rsoilwat,quietly = TRUE)) {
 	print("Going to try to install Rsoilwat library")
 	if(.Platform$OS.type == "unix") {
-		installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "SoilWat_v27_R.tar.gz"),repos=NULL, type="source",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
-		installed<-is.null(installed)
-		if(!installed)
-			stop("Could not install package Rsoilwat please contact admin.")
+		if(Sys.info()[1] == "Linux") {
+			installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "SoilWat_v27_R.tar.gz"),repos=NULL, type="source",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
+			installed<-is.null(installed)
+			if(!installed)
+				stop("Could not install package Rsoilwat please contact admin.")
+		} else if(Sys.info()[1] == "Darwin") {
+			installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "Rsoilwat_osx.zip"),repos=NULL, type="mac.binary",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
+			installed<-is.null(installed)
+			if(!installed)
+				stop("Could not install package Rsoilwat please contact admin.")
+		}
 	} else if (.Platform$OS.type == "windows") {
-		installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "Rsoilwat.zip"),repos=NULL, type="win.binary",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
+		installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "Rsoilwat_windows.zip"),repos=NULL, type="win.binary",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
 		installed<-is.null(installed)
 		if(!installed)
 			stop("Could not install package Rsoilwat please contact admin.")
