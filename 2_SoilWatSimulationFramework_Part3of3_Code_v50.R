@@ -5290,7 +5290,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			temp <- Sys.time() - t.overall
 			units(temp) <- "secs"
 			temp <- as.double(temp)
-			if((temp > (MaxRunDurationTime-480) | !parallel_runs | !identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
+			if((temp > (MaxRunDurationTime-480) & parallel_runs & identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))

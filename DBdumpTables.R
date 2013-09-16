@@ -16,10 +16,15 @@ readNumberRePrompt <- function(variable, string) {
 }
 
 dir.DB <- ""
-dir.DB <- readline("Path to SQLite database: ")
-if(!file.exists(dir.DB)) {
-	print("Path does not exist")
-	dir.DB <- readline("Path to SQLite database: ")
+print("Path to database files. Windows use / instead of \\")
+if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd(),sep="")))) {
+	dir.DB <- getwd()
+} else {
+	dir.DB <- readline("Path to SQLite database (PATH): ")
+	if(!file.exists(dir.DB)) {
+		print("Path does not exist")
+		dir.DB <- readline("Path to SQLite database (PATH): ")
+	}
 }
 
 filesInDBdir <- list.files(dir.DB)
@@ -29,10 +34,15 @@ readNumberRePrompt("dbIndex", "Please select DB: ")
 dbName <- filesInDBdir[dbIndex]
 
 dir.out <- ""
-dir.out <- readline("Path to output Table(s): ")
-if(!file.exists(dir.out)) {
-	print("Path does not exist")
+print("Path to database output. Windows use / instead of \\")
+if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd(),sep="")))) {
+	dir.DB <- getwd()
+} else {
 	dir.out <- readline("Path to output Table(s): ")
+	if(!file.exists(dir.out)) {
+		print("Path does not exist")
+		dir.out <- readline("Path to output Table(s): ")
+	}
 }
 
 dbFile <- file.path(dir.DB, dbName)
