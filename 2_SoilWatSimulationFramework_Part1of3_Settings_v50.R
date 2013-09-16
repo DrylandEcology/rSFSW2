@@ -201,6 +201,7 @@ if(exists("use_janus")) {
 	#dir.runs <- "/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
 	dir.runs <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
 	#dir.runs <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
+	dir.prj <- dir.runs <- getwd()
 }
 #parent folder containing external data
 dir.external <- ""

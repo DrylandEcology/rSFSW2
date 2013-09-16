@@ -325,11 +325,17 @@ names(exinfo) <- exinfo.help[,1]
 
 
 #------load libraries
+dir.libraries <- .libPaths()[1]
 if (.Platform$OS.type == "windows") {
-	dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
-	if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
-} else {
-	dir.libraries <- .libPaths()[1]
+	#test if user has write permission to standard library path
+	err <- try(write.table(1, file=ftemp <- file.path(dir.libraries, "testPermission.txt")))
+	if(identical(class(err), "try-error")){
+		print(paste("User has no write permission for:", dir.libraries, ". A local path is attempted instead, but this is known to likely fail for the setup of 'snow' under Windows XP"))
+		dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
+		if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
+	} else {
+		file.remove(ftemp)
+	}
 }
 
 if(!require(Rsoilwat,quietly = TRUE)) {
@@ -345,19 +351,19 @@ if(!require(Rsoilwat,quietly = TRUE)) {
 		if(!installed)
 			stop("Could not install package Rsoilwat please contact admin.")
 	}
-	require(Rsoilwat,quietly = TRUE)
+	stopifnot(require(Rsoilwat,quietly = TRUE))
 }
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
-	require(circular, quietly=TRUE)
+	stopifnot(require(circular, quietly=TRUE))
 }
 if(!require(SPEI, quietly=TRUE)) {
 	tryCatch(install.packages("SPEI",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
-	require(SPEI, quietly=TRUE)
+	stopifnot(require(SPEI, quietly=TRUE))
 }
 if(!require(RSQLite,quietly = TRUE)) {
 	tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
-	require(RSQLite,quietly = TRUE)	
+	stopifnot(require(RSQLite, quietly = TRUE))
 }
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
 	drv<-dbDriver("SQLite")
@@ -366,29 +372,28 @@ if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_N
 if(parallel_runs && identical(parallel_backend, "mpi")) { 
 	if(!require(Rmpi,quietly = TRUE)) {
 		tryCatch(install.packages("Rmpi",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
-		require(Rmpi,quietly = TRUE)
+		stopifnot(require(Rmpi, quietly = TRUE))
 	}
 }
 if(parallel_runs && identical(parallel_backend, "snow")) {	
 	if(!require(doSNOW,quietly = TRUE)) {#requires: foreach, iterators, snow
 		tryCatch(install.packages("doSNOW",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("doSNOW failed to install"); stop("Stopping") })
-		require(doSNOW,quietly = TRUE)
+		stopifnot(require(doSNOW, quietly = TRUE))
 	}
-	#library(snow)
 }
 if(parallel_runs && identical(parallel_backend, "multicore")) {
 	if(!require(doMC,quietly = TRUE)) {	#requires: foreach, iterators, codetools, and attaches: multicore
 		tryCatch(install.packages("doMC",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("doMC failed to install"); stop("Stopping") })
-		require(doMC,quietly = TRUE)
+		stopifnot(require(doMC, quietly = TRUE))
 	}
 }	
 if(!parallel_runs) {
 	if(!require(foreach,quietly = TRUE)) {
 		tryCatch(install.packages("foreach",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("foreach failed to install"); stop("Stopping") })
-		require(foreach,quietly = TRUE)
+		stopifnot(require(foreach, quietly = TRUE))
 	}
-	
 }
+
 gis_available <- FALSE
 if(exinfo$ExtractClimateChangeScenarios_NorthAmerica |
 		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
@@ -2269,7 +2274,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(nchar(missingtext)==0){
 					this_soil <- soildat[l, ]
 				} else {
-#					swLog_setLine(swRunScenariosData[[1]]) <- missingtext
+					swLog_setLine(swRunScenariosData[[1]]) <- missingtext
 					this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
