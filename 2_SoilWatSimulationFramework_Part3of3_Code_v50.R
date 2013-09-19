@@ -1774,10 +1774,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #------------------------Preparations for simulation run
 	#------Get folder and file names
 	#create folder-names, temporary file-names, and checks existence of temporary files
-	#dir.sw.runs.sc <- dir.sw.runs.sc.in <- dir.sw.runs.sc.out <- filename.out.temp.Means <- filename.out.temp.SDs <- vector(mode="character", length=scenario_No)
+	dir.sw.runs.sc <- dir.sw.runs.sc.in <- dir.sw.runs.sc.out <- filename.out.temp.Means <- filename.out.temp.SDs <- vector(mode="character", length=scenario_No)
 	isdone.overallAggs <- vector(mode="logical", length=scenario_No)
 	isdone.overallAggs[1:scenario_No] <- FALSE
 	if(any(simulation_timescales=="daily") && daily_no > 0){
+		filename.out.temp.dailyMean <- filename.out.temp.dailySD <- isdone.dailyAggs <- matrix(data=NA, nrow=daily_no, ncol=scenario_No)
 		isdone.dailyAggs <- matrix(data=FALSE, nrow=daily_no, ncol=scenario_No)
 	} else {
 		isdone.dailyAggs <- TRUE
@@ -1785,18 +1786,46 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	
 	flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
-	
+	if(!makeOutputDB) {
+		dir.out.temp <- file.path(dir.out.temp, i_labels) #local temp folder
+		dir.create2(dir.out.temp, showWarnings=FALSE)
+		filenames.out.temp <- list.files(dir.out.temp, pattern=flag.icounter)
+		
+		for (sc in 1:scenario_No){
+			dir.sw.runs.sc[sc] <- paste(dir.sw.runs, .Platform$file.sep, i_labels, ifelse(scenario_No > 1, paste("_", scenario[sc], sep=""), ""), sep="")
+			dir.sw.runs.sc.in[sc] <- file.path(dir.sw.runs.sc[sc], ifelse(nchar(sw.inputs) > 0, sw.inputs, "Input"))
+			dir.sw.runs.sc.out[sc] <- file.path(dir.sw.runs.sc[sc], ifelse(nchar(sw.outputs) > 0, sw.outputs, "Output"))
+			
+			filename.out.temp.Means[sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.Aggregates[1, sc]), sep="")
+			filename.out.temp.SDs[sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.Aggregates[2, sc]), sep="")
+			isdone.overallAggs[sc] <- basename(filename.out.temp.Means[sc]) %in% filenames.out.temp #assuming if the file for Means is done then the one for SDs was done as well
+			
+			if(any(simulation_timescales=="daily") && daily_no > 0){
+				for(doi in 1:daily_no){
+					filename.out.temp.dailyMean[doi, sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.dailyMean[doi, sc]), sep="")
+					filename.out.temp.dailySD[doi, sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.dailySD[doi, sc]), sep="")
+					isdone.dailyAggs[doi, sc] <- all(basename(c(filename.out.temp.dailyMean[doi, sc], filename.out.temp.dailySD[doi, sc])) %in% filenames.out.temp)
+				}
+			}
+		}
+		
+		create <- !all(basename(dir.sw.runs.sc) %in% list.files(dir.sw.runs, pattern=as.character(i_labels)))
+		execute <- !all(sapply(1:scenario_No, FUN=function(sc) {f_no <- length(list.files(dir.sw.runs.sc.out[sc])); return(f_no > 0 | (f_no == 0 & deleteSoilWatOutputAfterAggregation & is.null(delete.exceptions)) ) } ))
+	} else {
+		create <- TRUE
+		execute <- TRUE
+	}
 	todo <- list(aggregate=	atemp <- (any(actions=="aggregate") & !continueAfterAbort) |
 					(any(actions=="aggregate") & continueAfterAbort & !(all(isdone.overallAggs) & all(isdone.dailyAggs))), #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
 			
 			create= !deleteSoilWatFolderAfterAggregation & (
 						(any(actions=="create") & !continueAfterAbort) |
-						(any(actions=="create") & continueAfterAbort ))
+						(any(actions=="create") & continueAfterAbort &  create))
 					| deleteSoilWatFolderAfterAggregation & atemp,
 			
 			execute= !deleteSoilWatFolderAfterAggregation & (
 						(any(actions=="execute") & !continueAfterAbort) |
-						(any(actions=="execute") & continueAfterAbort ))
+						(any(actions=="execute") & continueAfterAbort & execute))
 					| deleteSoilWatFolderAfterAggregation & atemp
 	) 
 	
@@ -4928,8 +4957,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								} else {
 									if(agg.resp == "SWA"){
 										agg.labels <- paste(resultfiles.daily.labelsLayers, "_", sub("SWA", "", output_aggregate_daily[doi]), sep="")
+										agg.labels <- c(header.names, agg.labels)
 									} else {
-										agg.labels <- resultfiles.daily.labelsLayers
+										agg.labels <- c(header.names, resultfiles.daily.labelsLayers)
 									}
 								}
 							}
