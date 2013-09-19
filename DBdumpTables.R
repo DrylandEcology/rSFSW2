@@ -17,7 +17,7 @@ readNumberRePrompt <- function(variable, string) {
 
 dir.DB <- ""
 print("Path to database files. Windows use / instead of \\")
-if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd(),sep="")))) {
+if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd()," : ",sep="")))) {
 	dir.DB <- getwd()
 } else {
 	dir.DB <- readline("Path to SQLite database (PATH): ")
@@ -35,7 +35,7 @@ dbName <- filesInDBdir[dbIndex]
 
 dir.out <- ""
 print("Path to database output. Windows use / instead of \\")
-if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd(),sep="")))) {
+if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd()," : ",sep="")))) {
 	dir.DB <- getwd()
 } else {
 	dir.out <- readline("Path to output Table(s): ")

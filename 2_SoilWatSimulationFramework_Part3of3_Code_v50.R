@@ -5894,7 +5894,7 @@ if(do.ensembles && all.complete &&
 					EnsembleTimeStop <- Sys.time() - t.overall
 					units(EnsembleTimeStop) <- "secs"
 					EnsembleTimeStop <- as.double(EnsembleTimeStop)
-					if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
+					if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
 						break
 					}
 					print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
@@ -5991,9 +5991,9 @@ if(do.ensembles && all.complete &&
 		
 		if(parallel_runs){
 			#call the simulations depending on parallel backend
+			list.export <- c("Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend")
 			if(identical(parallel_backend, "mpi")) {
 				workersN <- (mpi.comm.size() - 1)
-				list.export <- c("Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall")
 				exportObjects(list.export)
 				
 				mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
@@ -6002,6 +6002,7 @@ if(do.ensembles && all.complete &&
 				ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
 			} else if(identical(parallel_backend, "snow")) {
 				snow::clusterExport(cl, list.export)
+				snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
 				snow::clusterEvalQ(cl, drv<-dbDriver("SQLite"))
 				
 				ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
