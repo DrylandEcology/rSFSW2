@@ -599,10 +599,10 @@ if(do.ensembles){
 	families_N <- length(ensemble.families)
 	if(families_N > 1){
 		scenariosPERensemble_N <- max(temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=sum))
-		stopifnot(any(ensemble.levels > min(temp)))
+		stopifnot(any(ensemble.levels <= min(temp)))
 	} else{
 		scenariosPERensemble_N <- sum(scenarios.ineach.ensemble)
-		stopifnot(any(ensemble.levels > scenariosPERensemble_N))
+		stopifnot(any(ensemble.levels <= scenariosPERensemble_N))
 	}
 }
 
