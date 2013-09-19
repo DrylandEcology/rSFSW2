@@ -598,9 +598,11 @@ if(do.ensembles){
 	scenarios.ineach.ensemble <- scenarios.ineach.ensemble[, temp]
 	families_N <- length(ensemble.families)
 	if(families_N > 1){
-		scenariosPERensemble_N <- max(apply(scenarios.ineach.ensemble, MARGIN=2, FUN=sum))
+		scenariosPERensemble_N <- max(temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=sum))
+		stopifnot(any(ensemble.levels > min(temp)))
 	} else{
 		scenariosPERensemble_N <- sum(scenarios.ineach.ensemble)
+		stopifnot(any(ensemble.levels > scenariosPERensemble_N))
 	}
 }
 
@@ -5707,9 +5709,9 @@ if(do.ensembles && all.complete &&
 	#save(ensembles.maker,ensemble.levels, ensemble.families, file=file.path(dir.out, "ensembleObjects.r"))
 	
 	calc.ensembles <- function(dat, elevels){ #dat must be three-dimensional object with dims=(runs, outputs, scenarios); runs and/or scenarios can be 1 or larger
-		doRanks <- function(x, ranks){
+		doRanks <- function(x){
 			temp <- sort.int(x, na.last=NA, index.return=TRUE)
-			return(c(temp$x[ranks], temp$ix[ranks]))
+			return(c(temp$x[elevels], temp$ix[elevels]))
 		}
 		
 		res <- NULL
@@ -5719,38 +5721,12 @@ if(do.ensembles && all.complete &&
 			res <- array(data=1, dim=c(2*length(elevels), dim(dat)[1], dim(dat)[2]))
 			res[1:length(elevels),,] <- temp
 		} else {
-			#if(parallel_runs & !makeOutputDB){
-			#	if(identical(parallel_backend, "mpi")) {
-			#		mpi.bcast.Robj2slave(obj=dat)
-			#		mpi.bcast.Robj2slave(obj=doRanks)
-			#		mpi.bcast.Robj2slave(obj=elevels)
-			#		if(dim(dat)[1] > 1){
-			#			res <- mpi.parApply(dat[,,], MARGIN = c(1,2), doRanks, ranks=elevels)
-			#		} else { #only one run=site
-			#			res <- mpi.parApply(dat[,,], MARGIN = 1, doRanks, ranks=elevels)
-			#			res <- array(data=res, dim=c(2*length(elevels), 1, dim(dat)[2]))
-			#		}
-			#	}
-			#	if(identical(parallel_backend, "snow")){
-			#		if(dim(dat)[1] > 1){
-			#			res <- parApply(cl, dat[,,], MARGIN = c(1,2), doRanks, ranks=elevels)
-			#		} else { #only one run=site
-			#			res <- parApply(cl, dat[,,], MARGIN = 1, doRanks, ranks=elevels)
-			#			res <- array(data=res, dim=c(2*length(elevels), 1, dim(dat)[2]))
-			#		}
-			#	}
-			#	if(identical(parallel_backend, "multicore")){
-			#		res <- foreach(i = 1:nrow(dat)) %dopar% apply(dat[i,,], MARGIN=1, doRanks, ranks=elevels)
-			#		res <- aperm(array(data=unlist(res), dim=c(2*length(elevels), dim(dat)[2], length(res))), perm=c(1, 3, 2))
-			#	}
-			#} else {
-				if(dim(dat)[1] > 1){
-					res <- apply(dat[,,], MARGIN = c(1,2), doRanks, ranks=elevels)
-				} else { #only one run=site
-					res <- apply(dat[,,], MARGIN = 1, doRanks, ranks=elevels)
-					res <- array(data=res, dim=c(2*length(elevels), 1, dim(dat)[2]))
-				}
-			#}
+			if(dim(dat)[1] > 1){
+				res <- apply(dat[,,], MARGIN = c(1,2), doRanks)
+			} else { #only one run=site
+				res <- apply(dat[,,], MARGIN = 1, doRanks)
+				res <- array(data=res, dim=c(2*length(elevels), 1, dim(dat)[2]))
+			}
 		}
 		#returned object: array with 3 dims: 1. dim = 1:length(elevels) are the ensembles at the ensemble.levels; the second set of rows are the ranked GCMs; 2. dim = runs/sites; 3. dim = aggregated variables
 		dimnames(res) <- list(NULL, NULL, col.names)
