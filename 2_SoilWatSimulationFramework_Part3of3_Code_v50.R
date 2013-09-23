@@ -5905,7 +5905,12 @@ if(do.ensembles && all.complete &&
 					}
 					print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
 					outputs <- gsub(pattern=".csv", replacement="",basename(ensembles.maker$outputs[which(Tables==Table),j,,]))
-					dim(outputs) <- c(3,3)
+					if(save.scenario.ranks) {
+						dim(outputs) <- c(length(ensemble.levels),2)
+					} else {
+						dim(outputs) <- c(length(ensemble.levels),3)
+					}
+					
 					ensemble.family=ensemble.families[j]
 					#########################
 					for(i in seq(1,maxRun_id,ensembleCollectSize)) {
