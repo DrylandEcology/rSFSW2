@@ -234,7 +234,8 @@ checkCompleteness <- FALSE
 #------Define how aggregated output should be handled: options = {database via mpi or snow or non parallel, temporary csv files}
 #Output into database instead of  temp csv files
 makeOutputDB <- TRUE
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+ensembleCollectSize <- 500 #This value is the chunk size for reads from the database. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #Type of concatenation (if not DB used)
 concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file

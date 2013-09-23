@@ -5891,7 +5891,6 @@ if(do.ensembles && all.complete &&
 				
 				nfiles <- 0
 				#Grab x rows at a time
-				ensembleCollectSize <- 500
 				SQL <- paste("SELECT MAX(P_id) FROM ",Table,";",sep="")
 				maxP_id <- as.integer(dbGetQuery(con,SQL))
 				maxRun_id <- (maxP_id/scenario_No)
@@ -6002,7 +6001,7 @@ if(do.ensembles && all.complete &&
 		
 		if(parallel_runs){
 			#call the simulations depending on parallel backend
-			list.export <- c("Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend")
+			list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend")
 			if(identical(parallel_backend, "mpi")) {
 				workersN <- (mpi.comm.size() - 1)
 				exportObjects(list.export)
