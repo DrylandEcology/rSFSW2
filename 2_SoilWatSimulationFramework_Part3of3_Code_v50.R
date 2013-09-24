@@ -5379,22 +5379,27 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			sqlIndex<-unlist(sqlIndex)
 			Tables <- dbListTables(con)
 			
-			con <- dbConnect(drv,"dbTables_current.db")
-			for(i in 1:length(sqlTables)) {
+			tfile <- file.path(dir.out, "dbTables_current.db")
+			con <- dbConnect(drv, tfile)
+			for(i in 1:length(sqlTables)) {#Create the tables
 				res<-dbSendQuery(con, sqlTables[i])
 				dbClearResult(res)
 			}
-			for(i in 1:length(resIndex)) {
+			for(i in 1:length(resIndex)) { #Create the indexes
 				res <- dbSendQuery(con,sqlIndex[i])
+				dbClearResult(res)
 			}
 			
-			con <- dbConnect(drv)
+			setwd(dir.out)
+			con <- dbConnect(drv) #Empty connection to attach both databases to the empty connection
 			resA1 <- dbSendQuery(con,"ATTACH 'dbTables.db' AS X;")
 			resA2 <- dbSendQuery(con,"ATTACH 'dbTables_current.db' AS Y;")
 			
 			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
+				dbBeginTransaction(con)
 				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario='Current';",sep=""))
 				dbClearResult(res)
+				dbCommit(con)
 			}
 			dbClearResult(resA1)
 			dbClearResult(resA2)
