@@ -5393,8 +5393,10 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			resA2 <- dbSendQuery(con,"ATTACH 'dbTables_current.db' AS Y;")
 			
 			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
+				dbBeginTransaction(con)
 				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario='Current';",sep=""))
 				dbClearResult(res)
+				dbCommit(con)
 			}
 			dbClearResult(resA1)
 			dbClearResult(resA2)
