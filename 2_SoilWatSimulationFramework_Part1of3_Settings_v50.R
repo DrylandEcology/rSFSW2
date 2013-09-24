@@ -235,6 +235,7 @@ checkCompleteness <- FALSE
 #Output into database instead of  temp csv files
 makeOutputDB <- TRUE
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+copyCurrentConditions <- TRUE
 ensembleCollectSize <- 500 #This value is the chunk size for reads from the database. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #Type of concatenation (if not DB used)

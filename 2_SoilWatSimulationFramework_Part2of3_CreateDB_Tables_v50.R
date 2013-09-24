@@ -19,6 +19,7 @@ Tables <- dbListTables(con)
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
 if((length(Tables) == 0) || cleanDB) {
+	stopifnot(length(actions) == 1 && actions == "ensemble")
 #0. Aggregation_Overall
 	if((i1 <- length(Index_RunInformation)) + (i2 <- length(Index_RunInformation_Treatments)) > 0 ) {
 		treatment_header1 <- treatment_header2 <- NULL

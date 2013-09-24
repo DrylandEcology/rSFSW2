@@ -2138,7 +2138,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				HD.datfile <- with(i_sw_input_prod, data.frame(Grass_HydRed_OnOff, Shrub_HydRed_OnOff, Tree_HydRed_OnOff))
 				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_HD] <- as.logical(HD.datfile[use_HD])
 			}
-			#biomass components
+			#biomass components TODO Fix This
 			biomassComponents <- function(FunctGroup){
 				if(	sum(litt <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Litter", sep=""), x=names(sw_input_prod_use))]) + 
 						sum(biom <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Biomass", sep=""), x=names(sw_input_prod_use))]) +
@@ -2556,8 +2556,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				adjPrep <- any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation
 				
 				temp<-AdjMonthlyBioMass(tr_VegetationComposition=tr_VegetationComposition, AdjMonthlyBioMass_Temperature=adjTemp, AdjMonthlyBioMass_Precipitation=adjPrep, grasses.c3c4ann.fractions=grasses.c3c4ann.fractions,growing.season.threshold.tempC=growing.season.threshold.tempC,isNorth=isNorth,MAP_mm=MAP_mm,monthly.temp=monthly.temp)
-				swProd_MonProd_grass(swRunScenariosData[[sc]]) <- temp$grass
-				swProd_MonProd_shrub(swRunScenariosData[[sc]]) <- temp$shrub
+				swProd_MonProd_grass(swRunScenariosData[[sc]])[,1:3] <- temp$grass[,1:3]
+				swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1:3] <- temp$shrub[,1:3]
 				rm(adjTemp,adjPrep)
 			}
 			
@@ -5367,10 +5367,45 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		}
 		
 		if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+		if(copyCurrentConditions) {
+			#Get sql for tables and index
+			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
+			sqlTables <- fetch(resSQL,n=-1)
+			sqlTables<-unlist(sqlTables)
+			dbClearResult(resSQL)
+			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='index' ORDER BY name;")
+			sqlIndex <- fetch(resIndex,n=-1)
+			dbClearResult(resIndex)
+			sqlIndex<-unlist(sqlIndex)
+			Tables <- dbListTables(con)
+			
+			con <- dbConnect(drv,"dbTables_current.db")
+			for(i in 1:length(sqlTables)) {
+				res<-dbSendQuery(con, sqlTables[i])
+				dbClearResult(res)
+			}
+			for(i in 1:length(resIndex)) {
+				res <- dbSendQuery(con,sqlIndex[i])
+			}
+			
+			con <- dbConnect(drv)
+			resA1 <- dbSendQuery(con,"ATTACH 'dbTables.db' AS X;")
+			resA2 <- dbSendQuery(con,"ATTACH 'dbTables_current.db' AS Y;")
+			
+			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
+				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario='Current';",sep=""))
+				dbClearResult(res)
+			}
+			dbClearResult(resA1)
+			dbClearResult(resA2)
+			
+		}
+		
 	} else {
 		print("Need more than 15 minutes to put SQL in Database.")
 	}
 }
+
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CHECK COMPLETENESS OF OUTPUT FILES AND SIMULATIONS
