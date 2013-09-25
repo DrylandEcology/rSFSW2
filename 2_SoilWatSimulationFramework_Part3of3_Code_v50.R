@@ -454,6 +454,8 @@ dirname.Overall <- "Aggregation_Overall"
 dirname.Scenarios <- "Scenarios"
 dirname.Ensembles <- "Ensembles"
 SoilWat.windspeedAtHeightAboveGround <- 2	#m
+st_mo <- 1:12
+
 
 #------ignore action == create if source_input == "folders"
 if(source_input == "folders" & any(actions == "create")){
@@ -732,12 +734,15 @@ if(do.ensembles){
 }
 
 #------ Create the Database and Tables within
-if(makeOutputDB) source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+if(makeOutputDB){
+	name.OutputDB <- file.path(dir.out, "dbTables.db")
+	if(copyCurrentConditions) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.db")
+	source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+}
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
-st_mo <- 1:12
 
 simTiming <- function(startyr, simstartyr, endyr){
 	#simyrs <- simstartyr:endyr
@@ -1812,7 +1817,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 		
 		create <- !all(basename(dir.sw.runs.sc) %in% list.files(dir.sw.runs, pattern=as.character(i_labels)))
-		execute <- !all(sapply(1:scenario_No, FUN=function(sc) {f_no <- length(list.files(dir.sw.runs.sc.out[sc])); return(f_no > 0 | (f_no == 0 & deleteSoilWatOutputAfterAggregation & is.null(delete.exceptions)) ) } ))
+		execute <- !all(sapply(1:scenario_No, FUN=function(sc) {f_no <- length(list.files(dir.sw.runs.sc.out[sc])); return(f_no > 0 | (f_no == 0) ) } ))
 	} else {
 		create <- TRUE
 		execute <- TRUE
@@ -5323,8 +5328,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		
 		#Connect to the Database
 		drv <- dbDriver("SQLite")
-		tfile <- file.path(dir.out, "dbTables.db")
-		con <- dbConnect(drv, dbname = tfile)
+		con <- dbConnect(drv, dbname = name.OutputDB)
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
 		
@@ -5379,8 +5383,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			sqlIndex<-unlist(sqlIndex)
 			Tables <- dbListTables(con)
 			
-			tfile <- file.path(dir.out, "dbTables_current.db")
-			con <- dbConnect(drv, tfile)
+			con <- dbConnect(drv, name.OutputDBCurrent)
 			for(i in 1:length(sqlTables)) {#Create the tables
 				res<-dbSendQuery(con, sqlTables[i])
 				dbClearResult(res)
@@ -5392,12 +5395,12 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			
 			setwd(dir.out)
 			con <- dbConnect(drv) #Empty connection to attach both databases to the empty connection
-			resA1 <- dbSendQuery(con,"ATTACH 'dbTables.db' AS X;")
-			resA2 <- dbSendQuery(con,"ATTACH 'dbTables_current.db' AS Y;")
+			resA1 <- dbSendQuery(con, paste("ATTACH ", shQuote(name.OutputDB), " AS X;", sep=""))
+			resA2 <- dbSendQuery(con, paste("ATTACH ", shQuote(name.OutputDBCurrent), " AS Y;", sep=""))
 			
 			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
 				dbBeginTransaction(con)
-				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario='Current';",sep=""))
+				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario=", shQuote(climate.ambient), ";",sep=""))
 				dbClearResult(res)
 				dbCommit(con)
 			}
@@ -5431,7 +5434,7 @@ if(checkCompleteness){
 			res <- rbind(res, vec)
 		}
 		
-		target<-paste(rep(t$Label, each=7), c("Current", as.character(unlist(t[1, 13:18]))), sep="_")
+		target<-paste(rep(t$Label, each=7), c(climate.ambient, as.character(unlist(t[1, 13:18]))), sep="_")
 		index<-match(target, as.character(s[,1]))
 		target[which(is.na(index))]
 	}
@@ -5872,8 +5875,7 @@ if(do.ensembles && all.complete &&
 	} else { #db
 		collect_EnsembleFromScenarios <- function(Table){
 			drv <- dbDriver("SQLite")
-			tfile <- file.path(dir.out, "dbTables.db")
-			con <- dbConnect(drv, dbname = tfile)
+			con <- dbConnect(drv, dbname = name.OutputDB)
 			#########TIMING#########
 			TableTimeStop <- Sys.time() - t.overall
 			units(TableTimeStop) <- "secs"
@@ -6033,8 +6035,7 @@ if(do.ensembles && all.complete &&
 		
 		library(RSQLite,quietly = TRUE)
 		drv <- dbDriver("SQLite")
-		tfile <- file.path(dir.out, "dbTables.db")
-		con <- dbConnect(drv, dbname = tfile)
+		con <- dbConnect(drv, dbname = name.OutputDB)
 		
 		Tables <- dbListTables(con) #get a list of tables
 		Tables <- Tables[-grep(pattern="SD", Tables)]

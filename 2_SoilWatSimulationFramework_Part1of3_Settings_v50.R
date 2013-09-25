@@ -221,11 +221,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
-#deletes each SoilWat simulation folder after completion of 'actions' if TRUE
+#stores for each SoilWat simulation a folder with inputs and outputs if FALSE
 deleteSoilWatFolderAfterAggregation <- TRUE
-#deletes all SoilWat simulation output after aggregation for run is complete if TRUE and deleteSoilWatFolderAfterAggregation is FALSE
-deleteSoilWatOutputAfterAggregation <- FALSE
-delete.exceptions <- c("pet.yr", "precip.yr", "temp.yr")	#NULL or a vector with output file names
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
@@ -235,7 +232,7 @@ checkCompleteness <- FALSE
 #Output into database instead of  temp csv files
 makeOutputDB <- TRUE
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
-copyCurrentConditions <- TRUE
+copyCurrentConditions <- TRUE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads from the database. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #Type of concatenation (if not DB used)
