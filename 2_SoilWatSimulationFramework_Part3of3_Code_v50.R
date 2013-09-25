@@ -266,7 +266,7 @@
 #		- (rjm) daily values are sorted to match database.
 #		- (rjm) fixed SWA output only outputing for one crit
 #		- (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SoilWat input/output to be stored on disk
-
+#		- (drs) 'yearlyWaterBalanceFluxes': fixed column names (percolation and hydred were switched)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
