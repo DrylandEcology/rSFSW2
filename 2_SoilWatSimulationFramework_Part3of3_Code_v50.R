@@ -267,6 +267,7 @@
 #		- (rjm) fixed SWA output only outputing for one crit
 #		- (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SoilWat input/output to be stored on disk
 #		- (drs) 'yearlyWaterBalanceFluxes': fixed column names (percolation and hydred were switched)
+#		- (drs) experimental design can replace information from the prodin datafile
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -500,6 +501,7 @@ if (source_input == "datafiles&treatments" & actionWithSoilWat) {
 	sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
 	sw_input_prod <- read.csv(temp, skip=1)
 	colnames(sw_input_prod) <- colnames(sw_input_prod_use)
+	sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 	
 	sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
 	sw_input_site <- read.csv(temp, skip=1)
@@ -1766,6 +1768,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(length(ctemp) > 0){
 			cexp <- match(names(i_sw_input_site)[ctemp], names(sw_input_experimentals), nomatch=0)
 			i_sw_input_site[ctemp] <- sw_input_experimentals[i_exp, cexp]
+		}
+		#these columns of the experimental design replace information from the prodin datafile
+		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_prod), nomatch=0))[!temp == 0]
+		if(length(ctemp) > 0){
+			cexp <- match(names(i_sw_input_prod)[ctemp], names(sw_input_experimentals), nomatch=0)
+			i_sw_input_prod[ctemp] <- sw_input_experimentals[i_exp, cexp]
 		}
 	}
 	
