@@ -64,9 +64,9 @@
 # ---- Hydraulic redistribution: Ryel, Ryel R, Caldwell, Caldwell M, Yoder, Yoder C, Or, Or D, Leffler, Leffler A. 2002. Hydraulic redistribution in a stand of Artemisia tridentata: evaluation of benefits to transpiration assessed with a simulation model. Oecologia 130: 173-184.
 # Grasses	Shrubs		Trees
 0			1			1       # flag to turn on/off (1/0) hydraulic redistribution
-0			-0.2328		-0.2328	# maxCondroot - maximum radial soil-root conductance of the entire active root system for water (cm/-bar/day) = 0.097 cm/MPa/h
-0			10.			10.		# swp50 - soil water potential (-bar) where conductance is reduced by 50% = -1. MPa
-0			3.22		3.22	# shapeCond - shaping parameter for the empirical relationship from van Genuchten to model relative soil-root conductance for water
+-0.2328		-0.2328		-0.2328	# maxCondroot - maximum radial soil-root conductance of the entire active root system for water (cm/-bar/day) = 0.097 cm/MPa/h
+10.			10.			10.		# swp50 - soil water potential (-bar) where conductance is reduced by 50% = -1. MPa
+3.22		3.22		3.22	# shapeCond - shaping parameter for the empirical relationship from van Genuchten to model relative soil-root conductance for water
 
 
 # ---- Critical soil water potential (MPa), i.e., when transpiration rates cannot sustained anymore, for instance, for many crop species -1.5 MPa is assumed and called wilting point

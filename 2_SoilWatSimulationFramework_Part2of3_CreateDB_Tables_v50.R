@@ -7,12 +7,9 @@
 # 
 #
 ###############################################################################
-st_mo <- 1:12
-
 library(RSQLite)
 drv <- dbDriver("SQLite")
-tfile <- file.path(dir.out, "dbTables.db")
-con <- dbConnect(drv, dbname = tfile)
+con <- dbConnect(drv, dbname = name.OutputDB)
 
 Tables <- dbListTables(con)
 
