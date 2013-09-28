@@ -147,7 +147,9 @@
 #Adding a daily response variable
 #	1. Add variable name to option list for output_aggregate_daily
 #	2. Add code to calculate response variable in the 'daily output' part of the aggregate section of do_OneSite function
-#	3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly					
+#	3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly				
+
+#soilWat shared object data indexs are listed in output.
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#
@@ -176,6 +178,9 @@ if(exists("use_janus")) {
 	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 	parallel_runs <- TRUE
 }
+#------Rmpi Jobs finish within Wall Time------#
+MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
+MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------USER INPUT
@@ -196,12 +201,13 @@ if(exists("use_janus")) {
 	#dir.runs <- "/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
 	dir.runs <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
 	#dir.runs <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
+	dir.prj <- dir.runs <- getwd()
 }
 #parent folder containing external data
 dir.external <- ""
 
 #paths to sub-folder hierarchy
-dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs
+dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
 dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add information to SoilWat input files
 dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
@@ -215,27 +221,24 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
-#deletes each SoilWat simulation folder after completion of 'actions' if TRUE
+#stores for each SoilWat simulation a folder with inputs and outputs if FALSE
 deleteSoilWatFolderAfterAggregation <- TRUE
-#deletes all SoilWat simulation output after aggregation for run is complete if TRUE and deleteSoilWatFolderAfterAggregation is FALSE
-deleteSoilWatOutputAfterAggregation <- FALSE
-delete.exceptions <- c("pet.yr", "precip.yr", "temp.yr")	#NULL or a vector with output file names
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 
-#------Define how aggregated output should be handled: options = {database via mpi, temporary csv files}
-#Output as DB uses 1 mpi node
+#------Define how aggregated output should be handled: options = {database via mpi or snow or non parallel, temporary csv files}
+#Output into database instead of  temp csv files
 makeOutputDB <- TRUE
-#concurrent settings#
-concurrent <- TRUE
-dbName <- "1_PC_TempDry_Simulations_Prj00_r3"
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+copyCurrentConditions <- TRUE #Creates a copy of the main database containing the scenario==climate.ambient subset
+ensembleCollectSize <- 500 #This value is the chunk size for reads from the database. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
+
 #Type of concatenation (if not DB used)
 concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
 #deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
-deleteTemporaryAggregationFiles <- FALSE
+deleteTemporaryAggregationFiles <- TRUE
 
 #------Define type of simulations and source of input data
 #source_input is either "datafiles&treatments" or "folders"
@@ -277,7 +280,7 @@ if (source_input == "datafiles&treatments" ) {
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
 	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
 	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_Prj00_v01.csv"
+	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
 }
 if (source_input == "datafiles&treatments" && (any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
@@ -300,6 +303,10 @@ if (source_input == "datafiles&treatments" && (any(actions == "create") || any(a
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
+
+#WeatherData Database#
+WeatherDataFromDatabase <- FALSE
+dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
 
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)
@@ -327,6 +334,7 @@ simulation_timescales <- c("daily", "monthly", "yearly")
 output_aggregates <- c(
 					#---Aggregation: SoilWat inputs
 						"input_FractionVegetationComposition", 1,
+						"input_VegetationBiomassMonthly", 1,
 						"input_VegetationPeak", 1,
 						"input_Phenology", 1,
 						"input_ClimatePerturbations", 1,
@@ -341,7 +349,7 @@ output_aggregates <- c(
 					#---Aggregation: Climatic dryness
 						"yearlymonthlyTemperateDrylandIndices", 1,
 						"yearlyDryWetPeriods", 1,
-						"dailyWeatherGeneratorCharacteristics", 1,
+						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about 
 						"dailyPrecipitationFreeEventDistribution", 1,
 						"monthlySPEIEvents", 1,
 					#---Aggregation: Climatic control
@@ -356,13 +364,13 @@ output_aggregates <- c(
 						"dailyDrainageExtremes", 1,
 						"dailyInfiltrationExtremes", 1,
 						"dailyAETExtremes", 1,
-						"dailySWPextremes", 1,
+						"dailySWPextremes", 1,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
 					#---Aggregation: Ecological dryness
 						"dailyWetDegreeDays", 1,
 						"monthlySWPdryness", 1,
-						"dailySWPdrynessANDwetness", 1,
-						"dailySWPdrynessDurationDistribution", 1,
-						"dailySWPdrynessEventSizeDistribution", 1,
+						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
+						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
+						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
 						"dailySWPdrynessIntensity", 1,
 					#---Aggregation: Mean monthly values
 						"monthlyTemp", 1,
@@ -389,8 +397,8 @@ output_aggregates <- c(
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
 
-#options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
-output_aggregate_daily <- c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax")
+#options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
+output_aggregate_daily <- c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax")
 #select variables to output as aggregated yearly time series
 ouput_aggregated_ts <- NULL #c("Regeneration")
 
@@ -404,7 +412,7 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+AggLayer.daily <- TRUE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
 Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
 Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
 Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
@@ -567,5 +575,5 @@ if(any(actions == "aggregate")){
 ##############################################################################
 ########################Source of the code base###############################
 
-source("2_SoilWatSimulationFramework_Part2of2_Code_v49.R", echo=FALSE, keep.source=FALSE)
+source("2_SoilWatSimulationFramework_Part3of3_Code_v50.R", echo=FALSE, keep.source=FALSE)
 

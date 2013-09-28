@@ -14,7 +14,7 @@ Input/weathsetup_v20.in	# weather parameters
 Input/data_39.0625_-119.4375/weath		# data file containing historical weather (can include path)
 Input/data_39.0625_-119.4375/mkv_prob.in		# precip probs; required for markov weather
 Input/data_39.0625_-119.4375/mkv_covar.in		# covariance table required for markov weather
-Input/data_39.0625_-119.4375/cloud_v20.in	# general atmospheric params
+Input/cloud_v20.in	# general atmospheric params
 
 #Vegetation
 Input/prod_v21.in	# productivity values
@@ -25,4 +25,4 @@ Input/swcsetup.in	# params for handling measured swc
 
 #Output
 Output/	# 'relative' path for output files: / for same directory, or e.g., Output/
-Input/outsetup_v26dy.in	# define output quantities
+Input/outsetup_v27.in	# define output quantities
