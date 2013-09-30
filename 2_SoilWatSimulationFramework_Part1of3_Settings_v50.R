@@ -10,7 +10,7 @@
 # - Ryan Murphy (rjm): 2012-2013
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
-#The R code below was tested on R versions 2.13.0 and 2.15.0-2.15.2
+#The R code below was tested on R versions 3.0.2
 
 #------DISCLAIMER: This program is distributed in the hope that it will be useful,
 #but WITHOUT ANY WARRANTY; without even the implied warranty of
