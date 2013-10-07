@@ -8,7 +8,7 @@ swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This 
 filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 ifirst <- seq.todo[1]
 
-i <- 220
+i <- 1
 runs.completed <- i-1
 
 i_tr <- seq.tr[(1+runs.completed - 1) %% runs + 1]
