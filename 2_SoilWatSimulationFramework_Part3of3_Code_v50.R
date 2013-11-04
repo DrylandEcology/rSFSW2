@@ -5412,7 +5412,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		
 		if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 		
-		if(copyCurrentConditionsFromDatabase) {
+		if(copyCurrentConditionsFromDatabase & !copyCurrentConditionsFromTempSQL) {
 			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
 			#Get sql for tables and index
 			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
