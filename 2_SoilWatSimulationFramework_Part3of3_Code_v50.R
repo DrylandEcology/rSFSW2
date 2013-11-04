@@ -420,7 +420,7 @@ names(aon) <- aon.help[,1]
 #------import regeneration data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
-if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$dailyRegeneration_byTempSWPSnow) {
+if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$dailyRegeneration_GISSM) {
 	list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
 	no.species_regeneration <- length(list.species_regeneration)
 	if(no.species_regeneration > 0){
@@ -633,7 +633,7 @@ resultfiles.Aggregates.header <- vector(mode="character", length=n_variables)
 #prepare for aggregated time series output
 dir.out.AggTS <- file.path(dir.out, dirname.AggTS)
 dir.create2(dir.out.AggTS, showWarnings=FALSE, recursive=TRUE)
-if(any(ouput_aggregated_ts=="Regeneration")) dir.create2(dir.at <- file.path(dir.out.AggTS, "dailyRegeneration_byTempSWPSnow"))
+if(any(ouput_aggregated_ts=="Regeneration")) dir.create2(dir.at <- file.path(dir.out.AggTS, "dailyRegeneration_GISSM"))
 
 
 #create seasonal daily output files
@@ -3129,7 +3129,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv+3
 				}#)
 				if(aon$input_VegetationBiomassMonthly) {
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+107)] <- paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m",1:12,"_gPERm2",sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+107)] <- paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep="")
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]
@@ -4091,7 +4091,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- hydred.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- hydred.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
 				}#)
 		#scOutTiming[[40]] <- system.time(
@@ -4111,7 +4111,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- swp.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swp.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_MPa_FromVWCmean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep="")
 					nv <- nv+24
 				}#)
 		#scOutTiming[[42]] <- system.time(
@@ -4121,7 +4121,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- vwc.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- vwc.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mPERm_mean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep="")
 					nv <- nv+24
 				}#)			
 		#scOutTiming[[43]] <- system.time(
@@ -4131,7 +4131,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- swc.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swc.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
 				}#)			
 		#scOutTiming[[44]] <- system.time(
@@ -4141,7 +4141,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- swa.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swa.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
 				}#)
 		#scOutTiming[[45]] <- system.time(
@@ -4151,7 +4151,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- transp.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- transp.mo$aggMean.bottom
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep="")
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
 				}#)
 		#scOutTiming[[46]] <- system.time(
@@ -4281,8 +4281,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#Artemisia tridentata regeneration according to factor model (2012-02-15, drs), call for every regeneration species
 				#accountNSHemispheres_agg: param$Doy_SeedDispersalStart0 must be set correctly\
 		#scOutTiming[[52]] <- system.time(
-				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_byTempSWPSnow & no.species_regeneration > 0){
-					if(print.debug) print("Aggregation of dailyRegeneration_byTempSWPSnow")
+				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
+					if(print.debug) print("Aggregation of dailyRegeneration_GISSM")
 					#---Access daily data, which do not depend on specific species parameters, i.e., start of season
 					if(!exists("swp.dy.all")) swp.dy.all <- list(val=-1/10*runData[[sc]][[sw_swp]][[sw_dy]])	#no vwcdy available!
 					temp.snow <- runData[[sc]][[sw_snow]][[sw_dy]]
@@ -4730,7 +4730,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								paste(paste(rep(temp, each=3), ".", c("Start", "Middle", "End"), sep=""), "_doy_quantile", rep(c(0.9, 0.5, 0.9), times=2), sep=""),
 								paste("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"), "_days_mean", sep=""),
 								"Germination.TimeToGerminate_days_mean",
-								paste(colnames(SeedlingMortality_CausesByYear), "_days_mean", sep="_"))
+								paste(colnames(SeedlingMortality_CausesByYear), "_days_mean", sep=""))
 						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+30)] <- paste(colnames(param.species_regeneration)[sp], temp.header1, sep=".")
 						nv <- nv+31
 						

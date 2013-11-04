@@ -393,7 +393,7 @@ output_aggregates <- c(
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
 						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_byTempSWPSnow", 0
+						"dailyRegeneration_GISSM", 0
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
