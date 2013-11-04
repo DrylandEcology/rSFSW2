@@ -86,7 +86,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	}
 #2.
 	if(aon$input_VegetationBiomassMonthly) {
-		temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m",1:12,"_gPERm2",sep=""))
+		temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
 	}
 #3. 
 	if(aon$input_VegetationPeak) {
@@ -316,7 +316,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 #40.
 	if(any(simulation_timescales=="monthly") & aon$monthlyHydraulicRedistribution){
-		temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep=""))
+		temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 	}
 	
 #41.
@@ -326,27 +326,27 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 #42.
 	if(any(simulation_timescales=="monthly") & aon$monthlySWP){
-		temp <- c(temp, paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
+		temp <- c(temp, paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
 	}
 	
 #43.
 	if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
-		temp <- c(temp, paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mPERm_mean", sep=""))
+		temp <- c(temp, paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
 	}
 	
 #44.
 	if(any(simulation_timescales=="monthly") & aon$monthlySWC){
-		temp <- c(temp, paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep=""))
+		temp <- c(temp, paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 	}
 	
 #45.
 	if(any(simulation_timescales=="monthly") & aon$monthlySWA){
-		temp <- c(temp, paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep=""))
+		temp <- c(temp, paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 	}
 	
 #46.
 	if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
-		temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.", st_mo, sep="")), "_mm_mean", sep=""))
+		temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 	}
 	
 #47.
@@ -382,45 +382,22 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	}
 	
 #53.
-	if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_byTempSWPSnow & no.species_regeneration > 0){
+	if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
 		for(sp in 1:no.species_regeneration){
-			param <- data.frame(t(param.species_regeneration[,sp]))
-			Doy_SeedDispersalStart <- max(round(param$Doy_SeedDispersalStart0 + param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan, 0) %% 365, 1)
-			moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(as.POSIXlt(paste(simTime$useyrs[1] - 1, "-12-31", sep="")) - as.POSIXlt(paste(simTime$useyrs[1] - 1, "-01-01", sep=""))) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
+			SeedlingMortality_CausesByYear_colnames <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
+					"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
+										
+			temp.header1 <- c(paste(temp1 <- c("Germination", "Seedlings1stSeason"), ".SuitableYears_fraction_mean", sep=""),
+					paste(rep(temp1, each=3), ".UnsuitableYears.Successive_years_quantile", rep(c(0.05, 0.5, 0.95), times=2), sep=""),
+					paste(temp1, ".SuitableDaysPerYear_days_mean", sep=""),
+					paste(paste(rep(temp1, each=3), ".", c("Start", "Middle", "End"), sep=""), "_doy_quantile", rep(c(0.9, 0.5, 0.9), times=2), sep=""),
+					paste("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"), "_days_mean", sep=""),
+					"Germination.TimeToGerminate_days_mean",
+					paste(SeedlingMortality_CausesByYear_colnames, "_days_mean", sep=""))
 			
-			if(startyr > simstartyr){#start earlier to complete RY
-				RY.index.usedy <- c(((st <- simTime$index.usedy[1])-moveByDays):(st-1), simTime$index.usedy[-(((et <- length(simTime$index.usedy))-moveByDays+1):et)]) #index indicating which rows of the daily SoilWat output is used
-				RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay	#'regeneration year' for each used day
-				RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay	#'doy of the regeneration year' for each used day
-			} else if(!(startyr > simstartyr)){#start later to get a complete RY
-				RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), (((et <- length(simTime$index.usedy))-moveByDays+1):et))]
-				RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
-				RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
-			}
-			RY.useyrs <- unique(RYyear_ForEachUsedDay)
-			SeedlingMortality_CausesByYear <- matrix(data=0, nrow=length(RY.useyrs), ncol=9)
-			colnames(SeedlingMortality_CausesByYear) <- c(	"SeedlingMortality_UnderneathSnowCover", "SeedlingMortality_ByTmin", "SeedlingMortality_ByTmax", "SeedlingMortality_ByChronicSWPMax", "SeedlingMortality_ByChronicSWPMin", "SeedlingMortality_ByAcuteSWPMin",
-					"SeedlingMortality_DuringStoppedGrowth_DueSnowCover", "SeedlingMortality_DuringStoppedGrowth_DueTmin", "SeedlingMortality_DuringStoppedGrowth_DueTmax")
+			temp <- c(temp, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="."))
 			
-			temp.header1 <- c(paste(rep(c("FractionYearsWith_GerminationSuccess", "FractionYearsWith_SeedlingSurvival1stSeason"), times=2), rep(c("", ".meanString"), each=2), sep=""),
-					paste(rep(c("SuccessiveYearsWith_NoGerminationSuccess", "SuccessiveYearsWith_NoSeedlingSurvival"), each=3), rep(c("5%", "50%", "95%"), times=2), "Quantile", sep="_"),
-					paste(rep(c("MeanDaysWith_GerminationSuccess", "MeanDaysWith_SeedlingSurvival1stSeason"), times=2), rep(c("", ".sd"), each=2), sep=""),
-					paste(rep(c("Start90%", "Median", "End90%"), times=2), rep(c("DoyMostFrequent_GerminationSuccess", "DoyMostFrequent_SeedlingSurvival1stSeason"), each=3), sep="_"),
-					paste(rep(c("MeanDays_GerminationRestrictedByTmax", "MeanDays_GerminationRestrictedByTmin", "MeanDays_GerminationRestrictedBySWPmin", "MeanDays_GerminationRestrictedByAnyCondition", "MeanDays_GerminationRestrictedByTimeToGerminate"), times=2), rep(c("", ".sd"), each=5), sep=""),
-					paste("MeanDays_TimeToGerminate", c("", ".sd"), sep=""),
-					paste(rep(paste("MeanDays", colnames(SeedlingMortality_CausesByYear), sep="_"), times=2), rep(c("", ".sd"), each=9), sep=""))
-			paste(colnames(param.species_regeneration)[sp], temp.header1, sep="_")
-			
-			temp <- c(temp, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="_"))
-			
-			
-			
-			
-			temp.header2 <- c("DaysWith_GerminationSuccess", "DaysWith_SeedlingSurvival1stSeason",
-					"Days_GerminationRestrictedByTmax", "Days_GerminationRestrictedByTmin", "Days_GerminationRestrictedBySWPmin", "Days_GerminationRestrictedByAnyCondition", "Days_GerminationRestrictedByTimeToGerminate",
-					"MeanDays_TimeToGerminate",
-					paste("Days", colnames(SeedlingMortality_CausesByYear), sep="_"),
-					paste(rep(c("Start90%", "Median", "End90%"), times=2), rep(c("DoyMostFrequent_GerminationSuccess", "DoyMostFrequent_SeedlingSurvival1stSeason"), each=3), sep="_"))
+			#Output for time series: not yet implemented for db			
 		}
 	}
 	
