@@ -735,7 +735,7 @@ if(do.ensembles){
 #------ Create the Database and Tables within
 if(makeOutputDB){
 	name.OutputDB <- file.path(dir.out, "dbTables.db")
-	if(copyCurrentConditions) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.db")
+	if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.db")
 	source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 }
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
@@ -5258,8 +5258,10 @@ if(actionWithSoilWat && runsN.todo > 0){
 		if(identical(parallel_backend, "multicore")){
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-				drv<-dbDriver("SQLite")
-				con<-dbConnect(drv,dbWeatherDataFile)
+				if(WeatherDataFromDatabase) {
+					drv<-dbDriver("SQLite")
+					con<-dbConnect(drv,dbWeatherDataFile)
+				}
 				#weather folder name and structure
 				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
@@ -5334,6 +5336,11 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		#Connect to the Database
 		drv <- dbDriver("SQLite")
 		con <- dbConnect(drv, dbname = name.OutputDB)
+		if(copyCurrentConditionsFromTempSQL) {
+			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=TRUE)
+			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
+			NumberTables <- length(dbListTables(con2))
+		}
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
 		
@@ -5348,8 +5355,35 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
 			SQLlines <- readLines(file.path(dir.out.temp, theFileList[j]))
+			if(copyCurrentConditionsFromTempSQL) {
+				CurrentScenarioStartLineNumber <- seq(from=1,to=length(SQLlines),by=(scenario_No)*NumberTables)
+				CurrentScenarioStartLineNumbers <- numeric(0)
+				for(i in 1:length(CurrentScenarioStartLineNumber)) {
+					CurrentScenarioStartLineNumbers<-c(CurrentScenarioStartLineNumbers,CurrentScenarioStartLineNumber[i]:(CurrentScenarioStartLineNumber[i]+NumberTables-1))
+				}
+				index <- 1
+			}
 			dbBeginTransaction(con)
 			for(k in 1:length(SQLlines)) {
+				if(copyCurrentConditionsFromTempSQL) {
+					if(k == CurrentScenarioStartLineNumbers[index]) {
+						res1<-tryCatch(dbSendQuery(con2,SQLlines[k]), warning = function(w) { 
+									print(paste("Warning: ",theFileList[j]," Line: ",k,sep=""))
+									print(w)
+								}, error=function(e) {
+									print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
+									print(e)
+									return(NA)
+						})
+						if(typeof(res1) != "S4") {
+							FAIL <- TRUE
+							Sys.sleep(5)
+						} else {
+							dbClearResult(res1)
+						}
+						if(index < length(CurrentScenarioStartLineNumbers)) index <- index+1
+					}
+				}
 				res<-tryCatch(dbSendQuery(con,SQLlines[k]), warning = function(w) { 
 							print(paste("Warning: ",theFileList[j]," Line: ",k,sep=""))
 							print(w)
@@ -5360,6 +5394,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 						})
 				if(typeof(res) != "S4") {
 					FAIL <- TRUE
+					print("Failed")
 					Sys.sleep(5)
 				} else {
 					dbClearResult(res)
@@ -5377,7 +5412,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 		
 		if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 		
-		if(copyCurrentConditions) {
+		if(copyCurrentConditionsFromDatabase) {
 			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
 			#Get sql for tables and index
 			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
@@ -5413,7 +5448,6 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			}
 			dbClearResult(resA1)
 			dbClearResult(resA2)
-			
 		}
 		
 	} else {
