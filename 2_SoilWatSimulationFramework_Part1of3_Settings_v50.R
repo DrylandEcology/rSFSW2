@@ -343,6 +343,7 @@ output_aggregates <- c(
 						"yearlyTemp", 1,
 						"yearlyPPT", 1,
 						"dailySnowpack", 1,
+						"dailyFrostInSnowfreePeriod", 1,
 						"dailyPrecipitationEventSizeDistribution", 1,
 						"yearlyAET", 1,
 						"yearlyPET", 1,

@@ -124,7 +124,10 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	if(any(simulation_timescales=="daily") & aon$dailySnowpack){
 		temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "Peak_mmSWE", "LongestContinuous.Duration_days", "Total_days"), "_mean", sep=""))
 	}
-	
+#
+	if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
+		temp <- c(temp, "FreezingWithoutSnowpack_days_mean")
+	}
 #10.
 	if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){
 		bins.summary <- (0:6) * bin.prcpSizes

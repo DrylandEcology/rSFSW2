@@ -268,6 +268,7 @@
 #		- (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SoilWat input/output to be stored on disk
 #		- (drs) 'yearlyWaterBalanceFluxes': fixed column names (percolation and hydred were switched)
 #		- (drs) experimental design can replace information from the prodin datafile
+#		- (drs) added overall aggregation option 'dailyFrostInSnowfreePeriod'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -441,7 +442,7 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 648 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) #number of variables in aggregated dataset
+n_variables <- 649 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -3284,6 +3285,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(snowyears, snowyear.trim, res.snow, adjDays)
 				}#)
+				if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
+					if(print.debug) print("Aggregation of dailyFrostInSnowfreePeriod")
+					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
+					
+					frostWithoutSnow <- aggregate(SWE.dy$val == 0 & temp.dy$min < 0, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]#Numbers of days with min.temp < 0 and snow == 0
+					
+					resMeans[nv] <- mean(frostWithoutSnow, na.rm=TRUE)
+					resSDs[nv] <- sd(frostWithoutSnow, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "FreezingWithoutSnowpack_days_mean"
+					nv <- nv+1
+					
+					rm(frostWithoutSnow)
+				}
 			#scOutTiming[[9]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){	#daily weather frequency distributions
 					if(print.debug) print("Aggregation of dailyPrecipitationEventSizeDistribution")
