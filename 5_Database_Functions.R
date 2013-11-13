@@ -18,7 +18,7 @@ l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=T
 stopifnot(file.exists(dir.dat))
 
 #File names
-if(!file.exists(name.dbScen)) name.dbScen <- "dbTables.db"
+if(!exists("name.dbScen")) name.dbScen <- "dbTables.db"
 temp <- try(!file.exists(names.dbEns[1]), silent=TRUE)
 if(identical(class(temp), "try-error") || !temp) names.dbEns <- list.files(dir.dat, pattern="dbEnsemble_")
 
@@ -27,6 +27,27 @@ drv <- dbDriver("SQLite")
 
 
 #Database functions
+list.dbTables <- function(dbName){
+	con <- dbConnect(drv, file.path(dir.dat, dbName))
+	res <- dbListTables(con)
+	dbDisconnect(con)
+	return(res)
+}
+
+list.dbVariables <- function(dbName, dbTable){
+	con <- dbConnect(drv, file.path(dir.dat, dbName))
+	res <- dbListFields(con, dbTable)
+	dbDisconnect(con)
+	return(res)
+}
+
+list.dbVariablesOfAllTables <- function(dbName){
+	tables <- list.dbTables(dbName)
+	res <- sapply(tables, FUN=function(it) list.dbVariables(dbName, dbTable=it))
+	return(res)
+}
+
+
 get.SeveralOverallVariables_Scenario <- function(responseName, MeanOrSD="Mean", scenario="Current"){
 	dat <- iColumns <- NULL
 	if(length(responseName) > 0){
