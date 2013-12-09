@@ -1896,7 +1896,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			} else { # case treatments & soilsin turned on, file still in input directory
 				infilename <- file.path(dir.sw.in.tr, "soilsin", soilsin)
 			}
-			layers_depth <- swSoils_Layers(swRunScenariosData[[1]])[,1]
+			layers_depth <- swSoils_Layers(tr_soil[[soilsin]])[,1]
 			
 			d <- length(layers_depth)
 			soildepth <- max(layers_depth)
