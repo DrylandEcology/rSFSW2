@@ -485,8 +485,8 @@ if (source_input == "datafiles&treatments") {
 	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
 	
 	#update treatment specifications based on experimental design
-	sw_input_treatments_use[-1] <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
-	create_treatments <- names(sw_input_treatments_use[-1][which(sw_input_treatments_use[-1] > 0 & is.finite(as.numeric(sw_input_treatments_use[-1])))])
+	sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
+	create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
 	
 } else {
 	sw_input_soillayers <- NULL
@@ -531,32 +531,32 @@ if (source_input == "datafiles&treatments" & actionWithSoilWat) {
 		print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
 	if(any(create_treatments=="filesin")) {
 		tr_files <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
+		temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
 	}
 	if(any(create_treatments=="prodin")) {
 		tr_prod <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
+		temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
 	}
 	if(any(create_treatments=="siteparamin")) {
 		tr_site <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
+		temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
 	}
 	if(any(create_treatments=="soilsin")) {
 		tr_soil <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
-		tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoilLayers")),x))))
+		temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
 	}
 	if(any(create_treatments=="weathersetupin")) {
 		tr_weather <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
+		temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
 	}
 	if(any(create_treatments=="cloudin")) {
 		tr_cloud <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=FALSE)
+		temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
 	}
 	
@@ -580,7 +580,10 @@ trow  <- length(include_YN)
 temp.counter.width <- 1 + ceiling(log10(trow))	#max index digits for temporary output file
 if(!(length(runs) > 0)) stop(paste("at least 1 SoilWat-run needed for simulation, but", runs, "found"))
 trowExperimentals <- ifelse(length(create_experimentals) > 0, nrow(sw_input_experimentals), 0)
-
+#identify which SoilWat-runs = rows are to be carried out
+seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
+seq.todo <- (1:(runs * ifelse(trowExperimentals > 0, trowExperimentals, 1))) # consecutive number of all (tr x exp) simulations to be executed
+runsN.todo <- length(seq.todo)
 
 #------create scenario names
 climate.conditions <- c(climate.ambient, climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -5088,10 +5091,7 @@ work <- function(parallel_backend, Data) {
 #--------------------------------------------------------------------------------------------------#
 #------------------------RUN THE FRAMEWORK TASKS IN PARALLEL OR SERIAL
 
-#identify which SoilWat-runs = rows are to be carried out
-seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
-seq.todo <- (1:(runs * ifelse(trowExperimentals > 0, trowExperimentals, 1))) # consecutive number of all (tr x exp) simulations to be executed
-runsN.todo <- length(seq.todo)
+
 
 #parallelization
 if(runsN.todo > 0){
@@ -5713,7 +5713,7 @@ if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSo
 		}
 		write.csv(SWRunInformation, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.SWRunInformation, sep="")), row.names=FALSE)
 		write.csv(sw_input_soillayers, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.soillayers, sep="")), row.names=FALSE)
-		write.csv(rbind(sw_input_treatments_use, sw_input_treatments), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.treatments, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_treatments_use_combined, sw_input_treatments), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.treatments, sep="")), row.names=FALSE)
 		write.csv(rbind(sw_input_prod_use, sw_input_prod), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.prod, sep="")), row.names=FALSE)
 		write.csv(rbind(sw_input_site_use, sw_input_site), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.siteparam, sep="")), row.names=FALSE)
 		write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.soils, sep="")), row.names=FALSE)

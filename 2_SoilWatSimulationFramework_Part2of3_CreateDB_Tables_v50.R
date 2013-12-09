@@ -12,6 +12,23 @@ drv <- dbDriver("SQLite")
 con <- dbConnect(drv, dbname = name.OutputDB)
 
 Tables <- dbListTables(con)
+if(length(Tables) == 0) {
+	res<-dbSendQuery(con,"PRAGMA page_size=65536;")
+	fetch(res)
+	dbClearResult(res)
+	
+	res<-dbSendQuery(con,"PRAGMA max_page_count=2147483646;")
+	fetch(res)
+	dbClearResult(res)
+	
+	res<-dbSendQuery(con,"PRAGMA temp_store=2;")
+	fetch(res)
+	dbClearResult(res)
+	
+	res<-dbSendQuery(con,"PRAGMA foreign_keys = ON;")
+	fetch(res)
+	dbClearResult(res)
+}
 
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
