@@ -270,6 +270,7 @@
 #		- (drs) experimental design can replace information from the prodin datafile
 #		- (drs) added overall aggregation option 'dailyFrostInSnowfreePeriod'
 #		- (drs) fixed temporary db output if create_treatments == "Exclude_ClimateAmbient": superfluous end of line and header was factor values instead of characters
+#		- (drs) fixed adding treatment/experimental information to siteparam: flags were vectors of 0/1 and thus not suitable to subset
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 #------
@@ -2188,15 +2189,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#add site information to siteparamin
 		if(print.debug) print("Start of siteparamin")
 		if(sum(sw_input_site_use[-1]) > 0){
-			site_swc_use <- c(sw_input_site_use$SWC_min,sw_input_site_use$SWC_init,sw_input_site_use$SWC_wet)
+			site_swc_use <- as.logical(c(sw_input_site_use$SWC_min,sw_input_site_use$SWC_init,sw_input_site_use$SWC_wet))
 			if(any(site_swc_use)){
 				swSite_SWClimits(swRunScenariosData[[1]])[temp] <- c(i_sw_input_site$SWC_min,i_sw_input_site$SWC_init,i_sw_input_site$SWC_wet)[temp]
 			}
-			site_modelflag_use <- c(sw_input_site_use$SWC_YearlyReset,sw_input_site_use$SWC_Deepdrain)
+			site_modelflag_use <- as.logical(c(sw_input_site_use$SWC_YearlyReset,sw_input_site_use$SWC_Deepdrain))
 			if(any(site_modelflag_use)){
 				swSite_ModelFlags(swRunScenariosData[[1]])[site_modelflag_use] <- c(i_sw_input_site$SWC_YearlyReset,i_sw_input_site$SWC_Deepdrain)[site_modelflag_use]
 			}
-			site_modelcoef_use <- c(sw_input_site_use$PET_multiplier,sw_input_site_use$RunoffPercent_fromPondedWater)
+			site_modelcoef_use <- as.logical(c(sw_input_site_use$PET_multiplier,sw_input_site_use$RunoffPercent_fromPondedWater))
 			if(any(site_modelcoef_use)){
 				swSite_ModelCoefficients(swRunScenariosData[[1]])[site_modelcoef_use] <- c(i_sw_input_site$PET_multiplier, i_sw_input_site$RunoffPercent_fromPondedWater)[site_modelcoef_use]
 			}
@@ -2770,7 +2771,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								mpi.send.Robj(i,0,4)
 							return(NA)
 						})
-				if(is.na(runData[[sc]]))
+				if(isTRUE(is.na(runData[[sc]])))
 					todo$aggregate <- FALSE
 			} else {
 				try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
