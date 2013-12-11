@@ -269,7 +269,7 @@
 #		- (drs) 'yearlyWaterBalanceFluxes': fixed column names (percolation and hydred were switched)
 #		- (drs) experimental design can replace information from the prodin datafile
 #		- (drs) added overall aggregation option 'dailyFrostInSnowfreePeriod'
-
+#		- (drs) fixed temporary db output if create_treatments == "Exclude_ClimateAmbient": superfluous end of line and header was factor values instead of characters
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 #------
@@ -3084,9 +3084,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				if(makeOutputDB){
 					P_id <- ((i-1)*scenario_No+sc)
-					SQL <- paste0(SQL, paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(paste0("'",temp<-cbind(P_id, header, data.frame(matrix(NaN, nrow=1, ncol=dbOverallColumns), row.names=FALSE)),"'",sep=""),collapse=","),");", sep=""), sep="\n");
-					SQL <- paste0(SQL, paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(paste0("'",temp,"'",sep=""),collapse=","),");", sep=""), sep="\n");
-					#mpi.send.Robj(out.temp, 1, 2, 1) #only send header info when
+					SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp <- rep(sQuote(NaN), times=dbOverallColumns),collapse=","),sep=""),");", sep="")
+					SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp,collapse=","),sep=""),");", sep="")
+					if(length(SQL) == 0) {
+						SQL <- paste(SQL1, SQL2, sep="\n")
+					} else {
+						SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+					}
 				}
 			} else {
 				Exclude_ClimateAmbient <- FALSE
