@@ -3085,7 +3085,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				if(makeOutputDB){
 					P_id <- ((i-1)*scenario_No+sc)
-					SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp <- rep(sQuote(NaN), times=dbOverallColumns),collapse=","),sep=""),");", sep="")
+					SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
 					SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp,collapse=","),sep=""),");", sep="")
 					if(length(SQL) == 0) {
 						SQL <- paste(SQL1, SQL2, sep="\n")
