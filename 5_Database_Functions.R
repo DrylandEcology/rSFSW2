@@ -59,7 +59,7 @@ get.SeveralOverallVariables_Scenario <- function(responseName, MeanOrSD="Mean", 
 				iColumns <- c(iColumns, fields[grepl(pattern=responseName[i], x=fields, fixed=FALSE)])
 			}
 			if(length(iColumns) > 0){
-				sql <- paste0("SELECT ", paste0(paste0("\"", iColumns, "\""), collapse=", "), " FROM ", iTable, " WHERE Scenario=", shQuote(scenario), ";")
+				sql <- paste0("SELECT ", paste0(paste0("\"", iColumns, "\""), collapse=", "), " FROM ", iTable, " WHERE Scenario=", shQuote(scenario), " ORDER BY P_id;")
 				dat <- dbGetQuery(con, sql)
 			}
 		}
@@ -75,7 +75,7 @@ get.Table_Scenario <- function(responseName, MeanOrSD="Mean", scenario="Current"
 		con <- dbConnect(drv, file.path(dir.dat, name.dbScen))
 		iTable <- (temp <- dbListTables(con))[grepl(pattern=paste0(responseName, "_", MeanOrSD), x=temp, fixed=FALSE)]
 		if(length(iTable) == 1){
-			sql <- paste0("SELECT * FROM ", iTable, " WHERE Scenario=", shQuote(scenario), ";")
+			sql <- paste0("SELECT * FROM ", iTable, " WHERE Scenario=", shQuote(scenario), " ORDER BY P_id;")
 			dat <- dbGetQuery(con, sql)
 		}
 		dbDisconnect(con)
@@ -94,7 +94,7 @@ get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", 
 				iColumns <- c(iColumns, fields[grepl(pattern=responseName[i], x=fields, fixed=FALSE)])
 			}
 			if(length(iColumns) > 0){
-				sql <- paste0("SELECT ", paste0(paste0("\"", iColumns, "\""), collapse=", "), " FROM ", iTable, ";")
+				sql <- paste0("SELECT ", paste0(paste0("\"", iColumns, "\""), collapse=", "), " FROM ", iTable, " ORDER BY P_id;")
 				dat <- dbGetQuery(con, sql)
 			}
 		}
