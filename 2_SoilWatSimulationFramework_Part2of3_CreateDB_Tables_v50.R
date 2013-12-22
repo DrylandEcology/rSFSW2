@@ -115,6 +115,35 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		temp <- c(temp, paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep=""))
 	}
 	
+	if(aon$input_TranspirationCoeff){
+		if(AggLayer.daily){
+			ltemp <- paste("L0to", Depth_FirstAggLayer.daily, "cm", sep="")
+			if(is.null(Depth_SecondAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.numeric(Depth_SecondAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm", sep=""))
+			}
+			if(is.null(Depth_ThirdAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.na(Depth_ThirdAggLayer.daily)){
+			} else if(is.numeric(Depth_ThirdAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm", sep=""))
+			}
+			if(is.null(Depth_FourthAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.na(Depth_FourthAggLayer.daily)){
+			} else if(is.numeric(Depth_FourthAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
+			}
+			ltemp <- c(ltemp, rep("NA", times=SoilLayer_MaxNo-length(ltemp)))
+		} else {
+			ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
+		}
+	
+		temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
+
+	}
+	
 #5.
 	if(aon$input_ClimatePerturbations) {
 		temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))

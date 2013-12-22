@@ -271,6 +271,7 @@
 #		- (drs) added overall aggregation option 'dailyFrostInSnowfreePeriod'
 #		- (drs) fixed temporary db output if create_treatments == "Exclude_ClimateAmbient": superfluous end of line and header was factor values instead of characters
 #		- (drs) fixed adding treatment/experimental information to siteparam: flags were vectors of 0/1 and thus not suitable to subset
+#		- (drs) added overall aggregation option 'input_TranspirationCoeff'
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 #------
@@ -443,7 +444,6 @@ if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$daily
 
 
 #------constants
-n_variables <- 649 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) #number of variables in aggregated dataset
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
@@ -455,6 +455,7 @@ dirname.Scenarios <- "Scenarios"
 dirname.Ensembles <- "Ensembles"
 SoilWat.windspeedAtHeightAboveGround <- 2	#m
 st_mo <- 1:12
+n_variables <- 649 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
 
 
 #------ignore action == create if source_input == "folders"
@@ -3195,6 +3196,25 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep="")
 					nv <- nv+2
 				}#)
+				if(aon$input_TranspirationCoeff){
+					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 6:8]
+					TaggLs <- sapply(aggLs, FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
+					Ttb <- sapply(list(topL, bottomL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
+					
+					iinv <- inv <- nv
+					for(iv in 1:3){
+						nv <- nv+SoilLayer_MaxNo #We don't know the max number of soil layers (aggLs_no) among all simulations, i.e., set to the maximum
+						resMeans[(inv+(iv-1)*SoilLayer_MaxNo):(nv-1)] <- c(TaggLs[iv, ], rep(NA, times=SoilLayer_MaxNo-aggLs_no))
+					}
+					inv <- nv
+					for(iv in 1:3){
+						nv <- nv+2
+						resMeans[(inv+(iv-1)*2):(nv-1)] <- Ttb[iv, ]
+					}
+					
+					rm(Tcoeff, TaggLs, Ttb)
+				}
+				
 			#scOutTiming[[4]] <- system.time(
 				if(aon$input_ClimatePerturbations) {
 					if(print.debug) print("Aggregation of input_ClimatePerturbations")
