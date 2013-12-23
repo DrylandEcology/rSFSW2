@@ -273,6 +273,7 @@
 #		- (drs) fixed adding treatment/experimental information to siteparam: flags were vectors of 0/1 and thus not suitable to subset
 #		- (drs) added overall aggregation option 'input_TranspirationCoeff'
 #		- (drs) fixed TranspCoeffByVegType(): read in .csv table in two pieces: tr_input_TranspCoeff and tr_input_TranspCoeff_Code, so that tr_input_TranspCoeff is numeric and there can be no errors translating levels into numbers
+#		- (drs) fixed max.duration(): circumvented that 'no non-missing arguments to max'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -289,7 +290,7 @@ ow <- options(c("warn", "error"))
 if(print.debug){
 	options(warn=2, error=quote({dump.frames(to.file=TRUE); q()}))	#turns all warnings into errors, dumps all to a file, and quits
 } else {
-	options(warn=-1, error=traceback)	#turns all warnings off and on error returns a traceback()
+	options(warn=0, error=traceback)	#catches all warnings and on error returns a traceback()
 }
 
 #made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
@@ -946,8 +947,12 @@ circ.sd = function(x, int, na.rm=FALSE){
 #functions wet and dry periods
 max.duration <- function(x) {
 	r <- rle(x)
-	rmax <- max(r$lengths[which(r$values==1)])
-	return(ifelse(is.finite(rmax), rmax, 0)[1])
+	if(length(temp <- which(r$values==1)) > 0){
+		rmax <- max(r$lengths[temp])
+	} else {
+		rmax <- 0
+	}
+	return(rmax)
 }
 startDoyOfDuration <- function(x, duration=10) {
 	r <- rle(x)
@@ -2611,7 +2616,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth)
 				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth)
-				if(is.na(Grass.trco)) Grass.trco <- rep(0, 1:nrow(swSoils_Layers(swRunScenariosData[[sc]])))
+				if(is.na(sum(Grass.trco))) Grass.trco <- rep(0, d)
 				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Grass.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Shrub.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco			
@@ -3276,7 +3281,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "RainOnSnowOfMAP_fraction_mean"
 					nv <- nv+1
 					
-					rm(rainOnsnow)
+					rm(rainOnSnow)
 				}#)
 			#scOutTiming[[8]] <- system.time(		
 				if(any(simulation_timescales=="daily") & aon$dailySnowpack){#daily snowpack: accountNSHemispheres_agg
@@ -3369,7 +3374,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+7)] <- paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep="")
 					nv <- nv+8
 					
-					rm(events, durations, counts.available, counts.summary, freq.summary, eventsPerYear)
+					rm(events, counts.available, counts.summary, freq.summary, eventsPerYear)
 				}#)
 			#scOutTiming[[10]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyAET){
@@ -3516,7 +3521,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+4)] <- paste("DrySpells.Annual", c("_count", paste(".SizeClass", bins.summary+1, "to", c(bins.summary[-1], "365"), "days_fraction", sep="")), "_mean", sep="")
 					nv <- nv+5
 					
-					rm(events, durations, counts.available, counts.summary, freq.summary, eventsPerYear)
+					rm(durations, counts.available, counts.summary, freq.summary, eventsPerYear)
 				}#)
 		#scOutTiming[[17]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
