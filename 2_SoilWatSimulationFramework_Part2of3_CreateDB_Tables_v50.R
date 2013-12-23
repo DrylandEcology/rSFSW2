@@ -13,21 +13,10 @@ con <- dbConnect(drv, dbname = name.OutputDB)
 
 Tables <- dbListTables(con)
 if(length(Tables) == 0) {
-	res<-dbSendQuery(con,"PRAGMA page_size=65536;")
-	fetch(res)
-	dbClearResult(res)
-	
-	res<-dbSendQuery(con,"PRAGMA max_page_count=2147483646;")
-	fetch(res)
-	dbClearResult(res)
-	
-	res<-dbSendQuery(con,"PRAGMA temp_store=2;")
-	fetch(res)
-	dbClearResult(res)
-	
-	res<-dbSendQuery(con,"PRAGMA foreign_keys = ON;")
-	fetch(res)
-	dbClearResult(res)
+	res<-dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
+	res<-dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
+	res<-dbGetQuery(con,"PRAGMA temp_store=2;") #no return value
+	res<-dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
 }
 
 #Only do this if the database is empty
