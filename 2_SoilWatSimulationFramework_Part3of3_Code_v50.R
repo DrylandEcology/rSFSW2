@@ -274,6 +274,9 @@
 #		- (drs) added overall aggregation option 'input_TranspirationCoeff'
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
+
+if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
+
 #------
 actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
 actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")

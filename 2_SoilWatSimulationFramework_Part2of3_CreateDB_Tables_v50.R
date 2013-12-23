@@ -13,10 +13,12 @@ con <- dbConnect(drv, dbname = name.OutputDB)
 
 Tables <- dbListTables(con)
 if(length(Tables) == 0) {
-	res<-dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
-	res<-dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
-	res<-dbGetQuery(con,"PRAGMA temp_store=2;") #no return value
-	res<-dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
+	rs<-dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
+	rs<-dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
+	rs<-dbGetQuery(con,"PRAGMA temp_store=2;") #no return value
+	rs<-dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
+	
+	rm(rs)
 }
 
 #Only do this if the database is empty
@@ -315,7 +317,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		for(icrit in seq(along=SWPcrit_MPa)) {
 			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Annual.", rep(c("topLayers", "bottomLayers"), each=binsN+1), rep(c("_count", paste(".", binTitle, "_fraction", sep="")), times=2), "_mean", sep=""))
 		}
-		rm(binSize, binsN, binTitle, baseTitle)
+		rm(binSize, binsN, binTitle)
 	}
 	
 #34.
@@ -510,9 +512,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	sqlLines<-c(sqlLines,paste("CREATE INDEX idx_",as.character((length(Tables)+1):(2*length(Tables))), " ON \"",Tables,"\"(RunID,Scenario,Labels);",sep=""))
 	sqlLines<-c(sqlLines,paste("CREATE INDEX idx_",as.character((2*length(Tables)+1):(3*length(Tables))), " ON \"",Tables,"\"(Labels);",sep=""))
 	
-	for(j in 1:length(sqlLines)) {
-		rs<-dbSendQuery(con,sqlLines[j])
-		dbClearResult(rs)
-	}
+	for(j in 1:length(sqlLines)) rs<-dbGetQuery(con,sqlLines[j])
+	
+	rm(sqlLines, rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp, SQL_Table_Definitions1, SQL_Table_Definitions2, header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)
 }
-rm(Tables, sqlLines, rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp,  SQL_Table_Definitions,header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)
+rm(Tables) 
