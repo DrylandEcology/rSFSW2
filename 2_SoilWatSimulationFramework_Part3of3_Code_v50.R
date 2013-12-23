@@ -281,7 +281,11 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
 ow <- options(c("warn", "error"))
-options(warn=-1, error=traceback)	#turns all warnings off and on error returns a traceback()
+if(print.debug){
+	options(warn=2, error=quote({dump.frames(to.file=TRUE); q()}))	#turns all warnings into errors, dumps all to a file, and quits
+} else {
+	options(warn=-1, error=traceback)	#turns all warnings off and on error returns a traceback()
+}
 
 #made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
 dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
