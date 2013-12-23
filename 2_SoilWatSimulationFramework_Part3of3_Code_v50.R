@@ -272,6 +272,8 @@
 #		- (drs) fixed temporary db output if create_treatments == "Exclude_ClimateAmbient": superfluous end of line and header was factor values instead of characters
 #		- (drs) fixed adding treatment/experimental information to siteparam: flags were vectors of 0/1 and thus not suitable to subset
 #		- (drs) added overall aggregation option 'input_TranspirationCoeff'
+#		- (drs) fixed TranspCoeffByVegType(): read in .csv table in two pieces: tr_input_TranspCoeff and tr_input_TranspCoeff_Code, so that tr_input_TranspCoeff is numeric and there can be no errors translating levels into numbers
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
@@ -573,8 +575,12 @@ if (source_input == "datafiles&treatments" & actionWithSoilWat) {
 	if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
 	if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
 	if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "AdjRootProfile"))
-		tr_input_TranspCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable))
+	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "AdjRootProfile")){
+		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
+		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
+		tr_input_TranspCoeff <- read.csv(temp, skip=2)
+		colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+	}
 	if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
 	if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
 	if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
@@ -1284,9 +1290,9 @@ if(any(actions == "create")){
 			#extract data from table by category
 			#trco_type <- eval(parse(text=paste("LookupTranspCoeffFromTable_", veg, sep="")), envir=sw_input_treatments[index, ])
 			if(nchar(trco_type) > 0){
-				trco.code <- as.character((temp <- tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])[1])	#Soil 'Layers' or per cm 'DepthCM'
+				trco.code <- as.character(tr_input_TranspCoeff_Code[, which(colnames(tr_input_TranspCoeff_Code) == trco_type)])
 				trco <- rep(0, times=soillayer_no)
-				trco.raw <- na.omit(as.numeric(levels(temp <- temp[-(1:2)]))[temp])
+				trco.raw <- na.omit(tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])
 				
 				if(trco.code == "DepthCM"){
 					trco_sum <- ifelse((temp <- sum(trco.raw, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
@@ -1854,7 +1860,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					| deleteSoilWatFolderAfterAggregation & atemp
 	) 
 	
-	if( any(todo) ){
+	if( any(unlist(todo)) ){
 		#get treatment sw.input.filenames for this run
 		filesin <- swFilesIn
 		
@@ -2414,7 +2420,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(print.debug) print("Start of get SiteClimate")
 					do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || aon$dailyC4_TempVar
 					#redo SiteClimate_Ambient
-					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList,year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
+					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList, year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 				}
 			}
 
@@ -2525,12 +2531,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			#adjust init soil temperatures to climatic conditions
-			if(use_soil_temp <- unlist(lapply(parse(text=paste("SoilTemp_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))){
+			if(any(use_soil_temp <- as.logical(unlist(lapply(parse(text=paste("SoilTemp_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))))){
 				temp <- 1:nrow(swSoils_Layers(swRunScenariosData[[sc]]))
 				if(exists("init.soilTprofile")) {
-					swSoils_Layers(swRunScenariosData[[sc]])[,12][as.logical(use_soil_temp)] <- init.soilTprofile
+					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- init.soilTprofile
 				} else {
-					swSoils_Layers(swRunScenariosData[[sc]])[,12][as.logical(use_soil_temp)] <- eval(parse(text=paste("SoilTemp_L", temp, sep="")), envir=i_sw_input_soils)
+					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- eval(parse(text=paste("SoilTemp_L", temp, sep="")), envir=i_sw_input_soils)
 				}
 			}
 			
