@@ -275,6 +275,7 @@
 #		- (drs) fixed TranspCoeffByVegType(): read in .csv table in two pieces: tr_input_TranspCoeff and tr_input_TranspCoeff_Code, so that tr_input_TranspCoeff is numeric and there can be no errors translating levels into numbers
 #		- (drs) fixed max.duration(): circumvented that 'no non-missing arguments to max'
 #		- (drs) fixed aggregation of 'input_TranspirationCoeff': if there is only one aggLs or no bottomL
+#		- (drs) fixed get_Response_aggL(): transp and hydred output is for each soil layer for total and 3 vegtypes; # soil layer calculation was incorrect
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2846,7 +2847,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "yr"), scaler=10, FUN, weights=NULL){
 			FUN <- match.fun(FUN)
 			tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "yr"))
-			
+			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
+				responseRepeats <- 4
+			} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
+				responseRepeats <- 1
+			}
+
 			if((tscale == "dy") || (tscale == "dyAll"))
 				temp1 <- scaler * runData[[sc_i]][[response]][[4]]
 			if(tscale == "mo")
@@ -2872,7 +2878,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				index.usetimestep <- simTime$index.useyr
 				timestep_ForEachEntry <- NULL
 			}
-			layers <- 1:(ncol(temp1) - index.col)
+			layers <- 1:((ncol(temp1) - index.col) / responseRepeats)
 			if(max(layers) <= max(topL)){ #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
 				topL <- layers
 				bottomL <- 0
@@ -3220,7 +3226,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
 
 					TaggLs <- sapply(aggLs, FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
-					if(!is.null(bottomL)){
+					if(length(bottomL) > 0 && !identical(bottomL, 0)){
 						Ttb <- sapply(list(topL, bottomL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
 					} else {
 						Ttb <- sapply(list(topL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
@@ -3641,7 +3647,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc)
 					if(!exists("Esoil.yr")) Esoil.yr <- get_Response_aggL(sc, sw_evsoil, "yr", 10, sum)
 					if(!exists("deepDrain.yr")) deepDrain.yr <- get_DeepDrain_yr(sc)
-					
+
 					rain_toSoil <- prcp.yr$rain - intercept.yr$sum
 					transp.tot <- transp.yr$top + transp.yr$bottom
 					
