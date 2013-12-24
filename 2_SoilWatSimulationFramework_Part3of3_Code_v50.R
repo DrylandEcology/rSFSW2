@@ -274,6 +274,7 @@
 #		- (drs) added overall aggregation option 'input_TranspirationCoeff'
 #		- (drs) fixed TranspCoeffByVegType(): read in .csv table in two pieces: tr_input_TranspCoeff and tr_input_TranspCoeff_Code, so that tr_input_TranspCoeff is numeric and there can be no errors translating levels into numbers
 #		- (drs) fixed max.duration(): circumvented that 'no non-missing arguments to max'
+#		- (drs) fixed aggregation of 'input_TranspirationCoeff': if there is only one aggLs or no bottomL
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -286,7 +287,7 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 #--order output_aggregate_daily--#
 output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
-ow <- options(c("warn", "error"))
+ow <- options("warn", "error")
 if(print.debug){
 	options(warn=2, error=quote({dump.frames(to.file=TRUE); q()}))	#turns all warnings into errors, dumps all to a file, and quits
 } else {
@@ -3216,8 +3217,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}#)
 				if(aon$input_TranspirationCoeff){
 					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 6:8]
+					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
+
 					TaggLs <- sapply(aggLs, FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
-					Ttb <- sapply(list(topL, bottomL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
+					if(!is.null(bottomL)){
+						Ttb <- sapply(list(topL, bottomL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
+					} else {
+						Ttb <- sapply(list(topL), FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
+					}
 					
 					iinv <- inv <- nv
 					for(iv in 1:3){
