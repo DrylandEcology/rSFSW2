@@ -90,7 +90,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 #1. 
 	if(aon$input_FractionVegetationComposition) {
-		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees"), "_fraction_const", sep="")
+		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
 	}
 #2.
 	if(aon$input_VegetationBiomassMonthly) {

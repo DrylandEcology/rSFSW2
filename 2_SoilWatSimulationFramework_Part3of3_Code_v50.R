@@ -276,7 +276,8 @@
 #		- (drs) fixed max.duration(): circumvented that 'no non-missing arguments to max'
 #		- (drs) fixed aggregation of 'input_TranspirationCoeff': if there is only one aggLs or no bottomL
 #		- (drs) fixed get_Response_aggL(): transp and hydred output is for each soil layer for total and 3 vegtypes; # soil layer calculation was incorrect
-
+#		- (drs) added to aggregation 'input_FractionVegetationComposition': C3, C4, and annual-grass fractions
+#		- (drs) fixed create:soils: comparison of soil layer structure
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
@@ -467,7 +468,7 @@ dirname.Scenarios <- "Scenarios"
 dirname.Ensembles <- "Ensembles"
 SoilWat.windspeedAtHeightAboveGround <- 2	#m
 st_mo <- 1:12
-n_variables <- 649 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
+n_variables <- 652 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
 
 
 #------ignore action == create if source_input == "folders"
@@ -2252,7 +2253,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
 			layers_depth.soilsin <- swSoils_Layers(swRunScenariosData[[1]])[,1]
 			
-			if(all(layers_depth.datafile == layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
+			if(identical(layers_depth.datafile, layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
 				#soil texture data from SoilWat input file
 				tempdat <- swSoils_Layers(swRunScenariosData[[1]])
 				colnames(tempdat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")#names might be diff
@@ -2418,7 +2419,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#No NEED. delete superfluous files through copying swruns, but then adding treatment files
 		#if(length(oldInputFiles.toDelete)) file.remove(oldInputFiles.toDelete)
 		
-		#copy and make climate scenarios from datafiles	
+		#copy and make climate scenarios from datafiles
+		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
 		for (sc in 1:scenario_No){
 			if(sc > 1){
 				swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -2583,7 +2585,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						use_Shrubs_Fraction, Shrubs_Fraction)
 				grass.fraction <- temp$Composition[1]
 				swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
-				grasses.c3c4ann.fractions <- temp$grasses.c3c4ann.fractions
+				grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
 			}
 			
 			if(print.debug) print("Start of biomass adjustments")
@@ -2591,7 +2593,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				adjTemp <- any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature
 				adjPrep <- any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation
 				
-				temp<-AdjMonthlyBioMass(tr_VegetationComposition=tr_VegetationComposition, AdjMonthlyBioMass_Temperature=adjTemp, AdjMonthlyBioMass_Precipitation=adjPrep, grasses.c3c4ann.fractions=grasses.c3c4ann.fractions,growing.season.threshold.tempC=growing.season.threshold.tempC,isNorth=isNorth,MAP_mm=MAP_mm,monthly.temp=monthly.temp)
+				temp<-AdjMonthlyBioMass(tr_VegetationComposition=tr_VegetationComposition, AdjMonthlyBioMass_Temperature=adjTemp, AdjMonthlyBioMass_Precipitation=adjPrep, grasses.c3c4ann.fractions=grasses.c3c4ann.fractions[[sc]],growing.season.threshold.tempC=growing.season.threshold.tempC,isNorth=isNorth,MAP_mm=MAP_mm,monthly.temp=monthly.temp)
 				swProd_MonProd_grass(swRunScenariosData[[sc]])[,1:3] <- temp$grass[,1:3]
 				swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1:3] <- temp$shrub[,1:3]
 				rm(adjTemp,adjPrep)
@@ -2613,7 +2615,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					C3.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C3, layers_depth=layers_depth)
 					C4.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C4, layers_depth=layers_depth)
 					Annuals.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_annuals, layers_depth=layers_depth)
-					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[1] + C4.trco * grasses.c3c4ann.fractions[2] + Annuals.trco * grasses.c3c4ann.fractions[3]
+					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] + C4.trco * grasses.c3c4ann.fractions[[sc]][2] + Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
 				}
 				
 				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth)
@@ -3159,9 +3161,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#scOutTiming[[1]] <- system.time(
 				if(aon$input_FractionVegetationComposition) {
 					if(print.debug) print("Aggregation of input_FractionVegetationComposition")
-					resMeans[nv:(nv+2)] <- swProd_Composition(swRunScenariosData[[sc]])
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2)] <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees"), "_fraction_const", sep="")
-					nv <- nv+3
+					resMeans[nv:(nv+5)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+5)] <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
+					nv <- nv+6
 				}#)
 				if(aon$input_VegetationBiomassMonthly) {
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+107)] <- paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep="")
