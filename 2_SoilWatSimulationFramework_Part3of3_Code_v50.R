@@ -415,6 +415,8 @@ if(!parallel_runs) {
 	}
 }
 
+#if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[5]]); print(paste(rbar, circsd))}), at=4)
+
 gis_available <- FALSE
 if(exinfo$ExtractClimateChangeScenarios_NorthAmerica |
 		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
