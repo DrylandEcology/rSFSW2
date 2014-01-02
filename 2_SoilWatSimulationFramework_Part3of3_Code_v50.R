@@ -324,11 +324,11 @@ dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
-if(file.exists(temp <- file.remove(file.path(dir.out, timerfile))) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) try(file.remove(temp), silent=TRUE)
+if(file.exists(temp <- file.path(dir.out, timerfile)) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) try(file.remove(temp), silent=TRUE)
 write.table(NA, file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE)
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
-if(file.exists(temp <- file.remove(file.path(dir.out, timerfile2)))) try(file.remove(temp), silent=TRUE)
+if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
 write.table(t(c("", "Time_s", "Number")), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 
 #file: file list of all temporary output files
