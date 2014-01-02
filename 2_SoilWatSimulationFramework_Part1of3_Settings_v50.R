@@ -326,7 +326,7 @@ endyr <- 2010
 
 #------Output filename
 filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v49.csv"
-Index_RunInformation <- c(2, 4:6, 9, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+Index_RunInformation <- c(2, 4,6:7, 10, 17:18) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")

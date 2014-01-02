@@ -454,7 +454,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	for(i in 1:366) {
 		temp1[i] <- paste(c("\"", temp1[i], "\"", " REAL"), collapse = "")
 	}
-	temp1 <-paste(c(header_vector[1], "\"Layer\" INTEGER", header_vector[-1], temp1), collapse = ", ")
+	temp1 <-paste(c(header_vector[1], "\"Soil_Layer\" INTEGER", header_vector[-1], temp1), collapse = ", ")
 	temp1 <- sub(" PRIMARY KEY", "", temp1)
 	
 	if(any(simulation_timescales=="daily") && daily_no > 0) {
