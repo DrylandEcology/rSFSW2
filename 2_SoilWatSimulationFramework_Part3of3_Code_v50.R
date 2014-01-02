@@ -757,8 +757,9 @@ if(do.ensembles){
 
 #------ Create the Database and Tables within
 if(makeOutputDB){
-	name.OutputDB <- file.path(dir.out, "dbTables.db")
-	if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.db")
+	headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
+	name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
+	if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 	source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 }
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
@@ -3318,7 +3319,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							#attempt to get rid of for loop
 							#r.lengths <- aggregate(SWE.dy$val, by=list(snowyears), FUN=function(s) rle(ifelse(s>0,1,0))$lengths )[-c(1,30),]
 							#r.values <- aggregate(SWE.dy$val, by=list(snowyears), FUN=function(s) rle(ifelse(s>0,1,0))$values )[-c(1,30),]
-							
+						
 							syi <- 1
 							for (sy in res.snow[,1]){
 								r <- rle(ifelse(SWE.dy$val[which(snowyears == sy)]>0,1,0))
@@ -3572,7 +3573,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+length(rvec)-1)] <- paste(rep(paste("SPEI.", binSPEI_m[iscale], "monthsScale.", sep=""), length(rvec)), "Spell", rep(c("Pos.", "Neg."), each=2*length(probs)), rep(rep(c("Duration_months", "Value_none"), each=length(probs)), times=2), "_quantile", rep(probs, times=4), sep="")
 						nv <- nv+length(rvec)
 					}
-					
 				}#)
 				
 				
@@ -6177,7 +6177,7 @@ if(do.ensembles && all.complete &&
 			}
 		} else {
 			ensembles.completed <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-				collect_EnsembleFromScenarios(Tables)
+				collect_EnsembleFromScenarios(table)
 			}
 		}
 		
