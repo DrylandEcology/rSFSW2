@@ -3334,6 +3334,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								resMeans[nv:(nv+4)] <- res.snow[1,-1]
 								resSDs[nv:(nv+4)] <- 0
 							}
+							
+							rm(snowyears, snowyear.trim, res.snow, adjDays)
 						} else {
 							resMeans[nv:(nv+4)] <- resSDs[nv:(nv+4)] <- 0					
 						}
@@ -3344,7 +3346,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+4)] <- paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "Peak_mmSWE", "LongestContinuous.Duration_days", "Total_days"), "_mean", sep="")
 					nv <- nv+5
 					
-					rm(snowyears, snowyear.trim, res.snow, adjDays)
 				}#)
 				if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
 					if(print.debug) print("Aggregation of dailyFrostInSnowfreePeriod")
