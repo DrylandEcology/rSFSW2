@@ -278,6 +278,8 @@
 #		- (drs) fixed get_Response_aggL(): transp and hydred output is for each soil layer for total and 3 vegtypes; # soil layer calculation was incorrect
 #		- (drs) added to aggregation 'input_FractionVegetationComposition': C3, C4, and annual-grass fractions
 #		- (drs) fixed create:soils: comparison of soil layer structure
+#		- (drs) adjusted wrapper function circ.sd() because circular::sd.circular() can return NaN instead of 0 [in packageVersion("circular") <= "0.4.7"]
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
@@ -415,7 +417,7 @@ if(!parallel_runs) {
 	}
 }
 
-#if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[5]]); print(paste(rbar, circsd))}), at=4)
+#if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
 
 gis_available <- FALSE
 if(exinfo$ExtractClimateChangeScenarios_NorthAmerica |
@@ -937,6 +939,8 @@ circ.range = function(x, int, na.rm=FALSE) {
 circ.sd = function(x, int, na.rm=FALSE){
 	if(length(x) == sum(is.na(x))){
 		return(NA)
+	} else if(sd(x) == 0){
+		return(0)
 	} else {
 		require(circular)
 		
