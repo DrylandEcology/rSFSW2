@@ -2790,7 +2790,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							print("-------------Error-----------")
 							print(e)
 							print("-----------------------------")
-							if(parallel_runs)
+							if(parallel_runs && identical(parallel_backend,"mpi"))
 								mpi.send.Robj(i,0,4)
 							return(NA)
 						})
