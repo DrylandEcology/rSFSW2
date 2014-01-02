@@ -13,21 +13,12 @@ con <- dbConnect(drv, dbname = name.OutputDB)
 
 Tables <- dbListTables(con)
 if(length(Tables) == 0) {
-	res<-dbSendQuery(con,"PRAGMA page_size=65536;")
-	fetch(res)
-	dbClearResult(res)
+	rs<-dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
+	rs<-dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
+	rs<-dbGetQuery(con,"PRAGMA temp_store=2;") #no return value
+	rs<-dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
 	
-	res<-dbSendQuery(con,"PRAGMA max_page_count=2147483646;")
-	fetch(res)
-	dbClearResult(res)
-	
-	res<-dbSendQuery(con,"PRAGMA temp_store=2;")
-	fetch(res)
-	dbClearResult(res)
-	
-	res<-dbSendQuery(con,"PRAGMA foreign_keys = ON;")
-	fetch(res)
-	dbClearResult(res)
+	rm(rs)
 }
 
 #Only do this if the database is empty
@@ -99,7 +90,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 #1. 
 	if(aon$input_FractionVegetationComposition) {
-		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees"), "_fraction_const", sep="")
+		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
 	}
 #2.
 	if(aon$input_VegetationBiomassMonthly) {
@@ -113,6 +104,35 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 #4.
 	if(any(simulation_timescales=="monthly") && aon$input_Phenology) {
 		temp <- c(temp, paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep=""))
+	}
+	
+	if(aon$input_TranspirationCoeff){
+		if(AggLayer.daily){
+			ltemp <- paste("L0to", Depth_FirstAggLayer.daily, "cm", sep="")
+			if(is.null(Depth_SecondAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.numeric(Depth_SecondAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm", sep=""))
+			}
+			if(is.null(Depth_ThirdAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.na(Depth_ThirdAggLayer.daily)){
+			} else if(is.numeric(Depth_ThirdAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm", sep=""))
+			}
+			if(is.null(Depth_FourthAggLayer.daily)) {
+				ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", sep=""))
+			} else if(is.na(Depth_FourthAggLayer.daily)){
+			} else if(is.numeric(Depth_FourthAggLayer.daily)){
+				ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
+			}
+			ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SoilLayer_MaxNo, sep=""))
+		} else {
+			ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
+		}
+
+		temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
+
 	}
 	
 #5.
@@ -297,7 +317,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		for(icrit in seq(along=SWPcrit_MPa)) {
 			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Annual.", rep(c("topLayers", "bottomLayers"), each=binsN+1), rep(c("_count", paste(".", binTitle, "_fraction", sep="")), times=2), "_mean", sep=""))
 		}
-		rm(binSize, binsN, binTitle, baseTitle)
+		rm(binSize, binsN, binTitle)
 	}
 	
 #34.
@@ -492,9 +512,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	sqlLines<-c(sqlLines,paste("CREATE INDEX idx_",as.character((length(Tables)+1):(2*length(Tables))), " ON \"",Tables,"\"(RunID,Scenario,Labels);",sep=""))
 	sqlLines<-c(sqlLines,paste("CREATE INDEX idx_",as.character((2*length(Tables)+1):(3*length(Tables))), " ON \"",Tables,"\"(Labels);",sep=""))
 	
-	for(j in 1:length(sqlLines)) {
-		rs<-dbSendQuery(con,sqlLines[j])
-		dbClearResult(rs)
-	}
+	for(j in 1:length(sqlLines)) rs<-dbGetQuery(con,sqlLines[j])
+	
+	rm(sqlLines, rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp, SQL_Table_Definitions1, SQL_Table_Definitions2, header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)
 }
-rm(Tables, sqlLines, rs, sdString, meanString, temp, temp1, tableName, agg.analysis, agg.resp,  SQL_Table_Definitions,header_vector, header, header.names, treatment_header1, treatment_header2, i1, i2)
+rm(Tables) 

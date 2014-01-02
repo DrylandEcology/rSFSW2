@@ -338,6 +338,7 @@ output_aggregates <- c(
 						"input_VegetationBiomassMonthly", 1,
 						"input_VegetationPeak", 1,
 						"input_Phenology", 1,
+						"input_TranspirationCoeff", 1,
 						"input_ClimatePerturbations", 1,
 					#---Aggregation: Climate and weather
 						"yearlyTemp", 1,
