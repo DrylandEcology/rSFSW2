@@ -1560,6 +1560,8 @@ if(any(actions == "create")){
 		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 		
+		if(any(sand == 0, clay == 0)) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+		
 		rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, rat, g, locations)
 		
 		if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
@@ -2316,6 +2318,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				)
 			}
 			
+			#SoilWat needs positive values for sand and clay contents
+			if(!all(soildat[, "sand"] > 0, soildat[, "clay"] > 0)){
+				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
+				todo$execute <- todo$aggregate <- FALSE
+				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
+			}		
+								
 			#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
 			for(temp in d:1){
 				if(all(!is.na(soildat[temp, "bulkd"]), soildat[temp, "bulkd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
