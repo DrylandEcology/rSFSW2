@@ -126,11 +126,11 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			} else if(is.numeric(Depth_FourthAggLayer.daily)){
 				ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
 			}
-			ltemp <- c(ltemp, rep("NA", times=SoilLayer_MaxNo-length(ltemp)))
+			ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SoilLayer_MaxNo, sep=""))
 		} else {
 			ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
 		}
-	
+
 		temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
 
 	}
