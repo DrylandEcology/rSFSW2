@@ -271,7 +271,7 @@ ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
 #------Names of files that contain input data or treatment codes
-datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v10.csv"
+datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v11.csv"
 
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
@@ -321,8 +321,8 @@ startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
 #------Output filename
-filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v49.csv"
-Index_RunInformation <- c(2, 4,6:7, 10, 17:18) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v50.csv"
+Index_RunInformation <- c(2:3, 5:11, 10, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
