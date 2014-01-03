@@ -283,6 +283,8 @@
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
+source_input <- "datafiles&treatments"
+
 if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
 
 #------
@@ -474,46 +476,27 @@ SoilWat.windspeedAtHeightAboveGround <- 2	#m
 st_mo <- 1:12
 n_variables <- 652 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
 
-
-#------ignore action == create if source_input == "folders"
-if(source_input == "folders" & any(actions == "create")){
-	actions <- actions[-which(actions == "create")]
-}
-
 #------import data
-if(source_input == "folders"){
-	SWRunInformation <- Index_RunInformation <- NULL
-	labels <- try(list.files(dir.sw.runs))
-	include_YN <- rep(1, times=length(labels))
-} else {
-	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
-	include_YN <- SWRunInformation$Include_YN
-	labels <- SWRunInformation$Label
-}
+SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
+include_YN <- SWRunInformation$Include_YN
+labels <- SWRunInformation$Label
 
-if (source_input == "datafiles&treatments") {
-	sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
-	
-	sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
-	sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
-	colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
-	
-	sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
-	sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
-	colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
-	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
-	
-	#update treatment specifications based on experimental design
-	sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
-	create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
-	
-} else {
-	sw_input_soillayers <- NULL
-	sw_input_treatments <- NULL
-	create_treatments <- NULL
-}
+sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
 
-if (source_input == "datafiles&treatments" & actionWithSoilWat) {
+sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
+sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
+colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
+
+sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
+sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
+colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
+create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
+
+#update treatment specifications based on experimental design
+sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
+create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
+
+if (actionWithSoilWat) {
 	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
 	sw_input_cloud <- read.csv(temp, skip=1)
 	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
@@ -610,13 +593,8 @@ runsN.todo <- length(seq.todo)
 
 #------create scenario names
 climate.conditions <- c(climate.ambient, climate.conditions[!grepl(climate.ambient, climate.conditions)])
-if (source_input == "datafiles&treatments") {
-	scenario_No <- length(climate.conditions)
-	scenario <- climate.conditions
-} else if (source_input == "folders") {
-	scenario_No  <- 1
-	scenario <- climate.conditions[1]
-}
+scenario_No <- length(climate.conditions)
+scenario <- climate.conditions
 
 #------create ensembles
 do.ensembles <- any(actions=="ensemble") && !is.null(ensemble.families) && length(ensemble.levels) > 0 && is.numeric(ensemble.levels) && length(climate.conditions) > 1
@@ -643,7 +621,7 @@ if(do.ensembles) dir.create2(path=dir.out.ensembles <- file.path(dir.out, dirnam
 
 #append treatment information to the aggregated output in addition to selected Index_RunInformation
 Index_RunInformation_Treatments <- NULL
-if(source_input == "datafiles&treatments" & length(create_treatments) > 0) {
+if(length(create_treatments) > 0) {
 	Index_RunInformation_Treatments <- match(create_treatments, names(sw_input_treatments))
 }
 
@@ -760,12 +738,12 @@ if(do.ensembles){
 }
 
 #------ Create the Database and Tables within
-if(makeOutputDB){
-	headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
-	name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
-	if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
-	source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
-}
+
+headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
+name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
+if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
+source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) con<-dbConnect(drv,dbWeatherDataFile)
 
 #------simulation timing
@@ -938,13 +916,13 @@ circ.range = function(x, int, na.rm=FALSE) {
 	}
 }
 circ.sd = function(x, int, na.rm=FALSE){
-	if(length(x) == sum(is.na(x))){
+	#tryCatch(if(sd(x,na.rm=T) == 0) print(l),warning=function(m) print(x), error=function(m) print(x))
+	if(length(x) == sum(is.na(x)) | sum(!is.na(x)) == 1){
 		return(NA)
-	} else if(sd(x) == 0){
+	} else if(sd(x,na.rm=T) == 0){
 		return(0)
 	} else {
 		require(circular)
-		
 		circ <- 2 * pi / int
 		x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
 		x.int <- sd.circular(x.circ, na.rm=na.rm) / circ
@@ -1834,35 +1812,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	
 	flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
-	if(!makeOutputDB) {
-		dir.out.temp <- file.path(dir.out.temp, i_labels) #local temp folder
-		dir.create2(dir.out.temp, showWarnings=FALSE)
-		filenames.out.temp <- list.files(dir.out.temp, pattern=flag.icounter)
-		
-		for (sc in 1:scenario_No){
-			dir.sw.runs.sc[sc] <- paste(dir.sw.runs, .Platform$file.sep, i_labels, ifelse(scenario_No > 1, paste("_", scenario[sc], sep=""), ""), sep="")
-			dir.sw.runs.sc.in[sc] <- file.path(dir.sw.runs.sc[sc], ifelse(nchar(sw.inputs) > 0, sw.inputs, "Input"))
-			dir.sw.runs.sc.out[sc] <- file.path(dir.sw.runs.sc[sc], ifelse(nchar(sw.outputs) > 0, sw.outputs, "Output"))
-			
-			filename.out.temp.Means[sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.Aggregates[1, sc]), sep="")
-			filename.out.temp.SDs[sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.Aggregates[2, sc]), sep="")
-			isdone.overallAggs[sc] <- basename(filename.out.temp.Means[sc]) %in% filenames.out.temp #assuming if the file for Means is done then the one for SDs was done as well
-			
-			if(any(simulation_timescales=="daily") && daily_no > 0){
-				for(doi in 1:daily_no){
-					filename.out.temp.dailyMean[doi, sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.dailyMean[doi, sc]), sep="")
-					filename.out.temp.dailySD[doi, sc] <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", basename(resultfiles.dailySD[doi, sc]), sep="")
-					isdone.dailyAggs[doi, sc] <- all(basename(c(filename.out.temp.dailyMean[doi, sc], filename.out.temp.dailySD[doi, sc])) %in% filenames.out.temp)
-				}
-			}
-		}
-		
-		create <- !all(basename(dir.sw.runs.sc) %in% list.files(dir.sw.runs, pattern=as.character(i_labels)))
-		execute <- !all(sapply(1:scenario_No, FUN=function(sc) {f_no <- length(list.files(dir.sw.runs.sc.out[sc])); return(f_no > 0 | (f_no == 0) ) } ))
-	} else {
-		create <- TRUE
-		execute <- TRUE
-	}
+	
+	create <- TRUE
+	execute <- TRUE
+	
 	todo <- list(aggregate=	atemp <- (any(actions=="aggregate") & !continueAfterAbort) |
 					(any(actions=="aggregate") & continueAfterAbort & !(all(isdone.overallAggs) & all(isdone.dailyAggs))), #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
 			
@@ -1883,7 +1836,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#Since the data is in memory it will get written over by treatments no need to delete
 		oldInputFiles.toDelete <- NULL
-		if(source_input == "datafiles&treatments" & !is.null(create_treatments) & todo$create){	
+		if(!is.null(create_treatments) & todo$create){	
 			if(any(create_treatments == "sw")){
 				sw <- i_sw_input_treatments$sw
 			}
@@ -1907,8 +1860,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		
-		#if source_input is "folders" or action is not create then get sw.input.filenames from filesin for this run
-		if(source_input == "folders" | !todo$create){
+		#if action is not create then get sw.input.filenames from filesin for this run
+		if(!todo$create){
 			infilename <- file.path(dir.sw.runs.sc[1], filesin)
 			infiletext <- readLines(con = infilename)
 			soilsin <- basename(unlist(strsplit(infiletext[10], split="[[:space:]]"))[1])
@@ -1916,14 +1869,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#------Learn about soil layer structure
 		#determine number of soil layers = d and soildepth
-		if(source_input == "datafiles&treatments" & !any(create_treatments=="soilsin") & todo$create ) {
+		if(!any(create_treatments=="soilsin") & todo$create ) {
 			soildepth <- i_sw_input_soillayers$SoilDepth_cm
 			layers_depth <- na.omit(as.numeric(i_sw_input_soillayers[2 + lmax]))
 			if(!(length(d <- which(soildepth == layers_depth)) > 0)){	#soildepth is one of the lower layer boundaries
 				d <- min(length(layers_depth), findInterval(soildepth, layers_depth)+1)	#soildepth is not one of the lower layer boundaries, the next deeper layer boundary is used
 			}
 		} else {# needs to be read from soilsin file
-			if(source_input == "folders" | !todo$create) {
+			if(!todo$create) {
 				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
 			} else { # case treatments & soilsin turned on, file still in input directory
 				infilename <- file.path(dir.sw.in.tr, "soilsin", soilsin)
@@ -2749,35 +2702,21 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
 		#This file will be used to remake the input files for experimentals
-		if(makeOutputDB) {
-			
-			mpi.send.Robj(list(	SWRunInformation=cbind(data.frame(label=i_labels), data.frame(i_SWRunInformation[-1])),
-							sw_input_soillayers=cbind(data.frame(label=i_labels), data.frame(i_sw_input_soillayers[-1])),
-							sw_input_treatments=cbind(data.frame(label=i_labels), data.frame(i_sw_input_treatments[-1])),
-							sw_input_cloud=cbind(data.frame(label=i_labels), data.frame(i_sw_input_cloud[-1])),
-							sw_input_prod=cbind(data.frame(label=i_labels), data.frame(i_sw_input_prod[-1])),
-							sw_input_site=cbind(data.frame(label=i_labels), data.frame(i_sw_input_site[-1])),
-							sw_input_soils=cbind(data.frame(label=i_labels), data.frame(i_sw_input_soils[-1])),
-							sw_input_weather=cbind(data.frame(label=i_labels), data.frame(i_sw_input_weather[-1])),
-							sw_input_climscen=cbind(data.frame(label=i_labels), data.frame(i_sw_input_climscen[-1])),
-							sw_input_climscen_values=cbind(data.frame(label=i_labels), data.frame(i_sw_input_climscen_values[-1])) ), 1, 4, 1)
-		} else {
-			infiletext <- c(paste(i_labels, paste(i_SWRunInformation[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soillayers[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_treatments[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_cloud[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_prod[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_site[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soils[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_weather[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen_values[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-			
-			infilename <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "Experimental_InputData_All.csv", sep="")
-			infile <- file(infilename, "w+b")
-			writeLines(text = infiletext, con = infile, sep = "\n")
-			close(infile)
-		}
+		infiletext <- c(paste(i_labels, paste(i_SWRunInformation[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soillayers[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_treatments[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_cloud[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_prod[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_site[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soils[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_weather[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen_values[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		
+		infilename <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "Experimental_InputData_All.csv", sep="")
+		infile <- file(infilename, "w+b")
+		writeLines(text = infiletext, con = infile, sep = "\n")
+		close(infile)
 	}
 	
 	
@@ -3038,20 +2977,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		get_Runoff_yr <- function(sc){
 			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
 		}
-		if(makeOutputDB) {
-			SQL <- character(0)
-			if(parallel_runs && parallel_backend == "mpi") {
-				dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".txt",sep="")
-			} else if(parallel_runs && parallel_backend == "snow") {
-				dbTempFileName <- paste("SQL_Node_",nodeNumber,".txt",sep="")
-			} else if (parallel_runs && parallel_backend == "multicore") {
-				#TODO Get proper node number.
-				dbTempFileName <- paste("SQL_Node_",sample(1:500,1),".txt",sep="")
-			} else {
-				dbTempFileName <- "SQL.txt"
-			}
-			dbTempFile <- file.path(dir.out, "temp", dbTempFileName)
+		
+		SQL <- character(0)
+		if(parallel_runs && parallel_backend == "mpi") {
+			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".txt",sep="")
+		} else if(parallel_runs && parallel_backend == "snow") {
+			dbTempFileName <- paste("SQL_Node_",nodeNumber,".txt",sep="")
+		} else if (parallel_runs && parallel_backend == "multicore") {
+			#TODO Get proper node number.
+			dbTempFileName <- paste("SQL_Node_",sample(1:500,1),".txt",sep="")
+		} else {
+			dbTempFileName <- "SQL.txt"
 		}
+		dbTempFile <- file.path(dir.out, "temp", dbTempFileName)
+		
 		#Performance Measuring
 		#if(aggregate.timing) OutputTiming <- list()
 		#if(aggregate.timing) GeneralOutputTiming <- matrix(NA,nrow=scenario_No,ncol=2)
@@ -3062,17 +3001,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#only exclude if 1.) Exclude_ClimateAmbient is true in treatments 2.) That Run is set to Exclude_ClimateAmbient 3.) Our current Scenario is Current
 			if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient && sc==1 && i!=1) {
 				Exclude_ClimateAmbient <- TRUE
-				if(makeOutputDB){
-					#dbOverallColumns comes from database creation
-					P_id <- ((i-1)*scenario_No+sc)
-					SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
-					SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(temp,collapse=","),sep=""),");", sep="")
-					if(length(SQL) == 0) {
-						SQL <- paste(SQL1, SQL2, sep="\n")
-					} else {
-						SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-					}
+				
+				#dbOverallColumns comes from database creation
+				P_id <- ((i-1)*scenario_No+sc)
+				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
+				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(temp,collapse=","),sep=""),");", sep="")
+				if(length(SQL) == 0) {
+					SQL <- paste(SQL1, SQL2, sep="\n")
+				} else {
+					SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 				}
+				
 			} else {
 				Exclude_ClimateAmbient <- FALSE
 			}
@@ -3114,9 +3053,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(aon$input_FractionVegetationComposition) {
 					if(print.debug) print("Aggregation of input_FractionVegetationComposition")
 					resMeans[nv:(nv+5)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
-					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+5)] <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
 					nv <- nv+6
-				}#)
+				}
 				if(aon$input_VegetationBiomassMonthly) {
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
@@ -3579,7 +3517,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rain_toSoil <- prcp.yr$rain - intercept.yr$sum
 					transp.tot <- transp.yr$top + transp.yr$bottom
 					
-					evap_soil.tot <- Esoil.yr$top + Esoil.yr$bottom
+					evap_soil.tot <- as.vector(Esoil.yr$top + Esoil.yr$bottom)
 					evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
 					
 					temp1 <- 10 * runData[[sc]][[sw_percolation]][[sw_yr]]
@@ -4729,39 +4667,37 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#---Aggregation: done with options
 				
 				#temporaly save aggregate data					
-				if(makeOutputDB){
-					P_id <- ((i-1)*scenario_No+sc)
-					#save(P_id, header, resMeans, nv, resSDs,header.names, resultfiles.Aggregates.header, file=file.path(dir.out,"readThis.r"))
-					
-					if(typeof(resMeans) == "list") {
-						temp<-unlist(lapply(resMeans[1:(nv-1)], FUN=function(x) length(x)==0))
-						save(resMeans, file = file.path(dir.out, "resMeans.r"))
-						print(paste("Format for this Mean output variable was not right SC: ",sc, "Column in resMeans", which(temp), resultfiles.Aggregates.header[which(temp)], sep=" "))
-						resMeans[temp] <- NaN
-						resMeans <- unlist(resMeans)
-					} else if(typeof(resSDs) == "list") {
-						temp<-unlist(lapply(resSDs[1:(nv-1)], FUN=function(x) length(x)==0))
-						print(paste("Format for this SD output variable was not right ",resultfiles.Aggregates.header[which(temp)], sep=" "))
-						resSDs[temp] <- NaN
-						resSDs <- unlist(resSDs)
-					}
-					
-					resMeans[!is.finite(resMeans)] <- "NULL"
-					resSDs[!is.finite(resSDs)] <- "NULL"
-					SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
-					SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
-					if(length(SQL) == 0) {
-						SQL <- paste(SQL1, SQL2, sep="\n")
-					} else {
-						SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-					}
-					
+				
+				P_id <- ((i-1)*scenario_No+sc)
+				#save(P_id, header, resMeans, nv, resSDs,header.names, resultfiles.Aggregates.header, file=file.path(dir.out,"readThis.r"))
+				
+				if(typeof(resMeans) == "list") {
+					temp<-unlist(lapply(resMeans[1:(nv-1)], FUN=function(x) length(x)==0))
+					save(resMeans, file = file.path(dir.out, "resMeans.r"))
+					print(paste("Format for this Mean output variable was not right SC: ",sc, "Column in resMeans", which(temp), resultfiles.Aggregates.header[which(temp)], sep=" "))
+					resMeans[temp] <- NaN
+					resMeans <- unlist(resMeans)
+				} else if(typeof(resSDs) == "list") {
+					temp<-unlist(lapply(resSDs[1:(nv-1)], FUN=function(x) length(x)==0))
+					print(paste("Format for this SD output variable was not right ",resultfiles.Aggregates.header[which(temp)], sep=" "))
+					resSDs[temp] <- NaN
+					resSDs <- unlist(resSDs)
+				}
+				
+				resMeans[!is.finite(resMeans)] <- "NULL"
+				resSDs[!is.finite(resSDs)] <- "NULL"
+				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
+				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
+				if(length(SQL) == 0) {
+					SQL <- paste(SQL1, SQL2, sep="\n")
+				} else {
+					SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 				}
 			}
 			
 			#Daily Output
 			if(any(simulation_timescales=="daily") && daily_no > 0){
-				if(makeOutputDB) dailyList <- list()
+				dailyList <- list()
 				SQLc <- ""
 				#aggregate for each response variable
 				for (doi in 1:daily_no) {
@@ -4884,32 +4820,29 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							}
 						}
 						#temporary save daily data
-						if(makeOutputDB) {
-							P_id <- ((i-1)*scenario_No+sc)
+						P_id <- ((i-1)*scenario_No+sc)
 						
-							#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
-							if(agg.analysis == 1){
-								res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-								res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-								SQL1 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailyMean,collapse=",")),");", sep="")
-								SQL2 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailySD,collapse=",")),");", sep="")
-								SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-							} else {
-								#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
-								res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-								res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-								SQL1 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="") 
-								SQL2 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-								SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-							}
+						#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
+						if(agg.analysis == 1){
+							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
+							SQL1 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailyMean,collapse=",")),");", sep="")
+							SQL2 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailySD,collapse=",")),");", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+						} else {
+							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
+							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
+							SQL1 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="") 
+							SQL2 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 						}
+						
 					}#end if continueAfterAbort
 				}#doi loop
 			}#end if daily output
 		} #end loop through scenarios
-		if(makeOutputDB) {
-			write(SQL, dbTempFile, append=TRUE)
-		}
+		write(SQL, dbTempFile, append=TRUE)
 	} #end if do aggregate
 	
 	#ETA estimation
@@ -5206,7 +5139,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 #------------------------
 
 #------------------------
-if(makeOutputDB && any(actions=="concatenate")) {
+if(any(actions=="concatenate")) {
 	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1 <- Sys.time()))
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
@@ -5394,29 +5327,12 @@ if(checkCompleteness){
 delta.check <- difftime(Sys.time(), t.check, units="secs")
 if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
 
-
-
-#--------------------------------------------------------------------------------------------------#
-#------------------------COLLECT AND CONCATENATE SINGLE RESULT FILES INTO FINAL OUTPUT FILES
-t.concatenation <- Sys.time()	#timing of file concatenation
-if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat)){
-	#Removed no longer supporting files.
-} else {
-	concats.completed <- 0
-}
-
-#timing of file concatenation
-delta.concatenation <- difftime(Sys.time(), t.concatenation, units="secs")
-if(!be.quiet & any(actions=="concatenate")) print(paste("SWSF concatenates temporary results: ended after", round(delta.concatenation, 2), "s"))
-
-
 #--------------------------------------------------------------------------------------------------#
 #------------------------ENSEMBLE GENERATION
 t.ensembles <- Sys.time()	#timing of ensemble calculation
 
 if(do.ensembles && all.complete &&
-		(actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat) &&
-		(makeOutputDB || any(actions=="concatenate") && ((concats.completed == length(resultfiles.toConcatenate) && !makeOutputDB)) || !any(actions=="concatenate"))){
+		(actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat) ){
 	
 	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
 	
@@ -5628,7 +5544,6 @@ write.timer <- function(label, time_sec="", number=""){ write.table(t(c(label, t
 
 write.timer("Time_Total", time_sec=delta.overall)
 write.timer("Time_Check", time_sec=delta.check)
-write.timer("Time_FileConcatenation", time_sec=delta.concatenation)
 write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(actionWithSoilWat){

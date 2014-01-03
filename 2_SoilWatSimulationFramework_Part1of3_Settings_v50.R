@@ -218,7 +218,7 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
+actions <- c("create", "execute", "aggregate","concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if FALSE
@@ -228,9 +228,7 @@ makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 
-#------Define how aggregated output should be handled: options = {database via mpi or snow or non parallel, temporary csv files}
-#Output into database instead of  temp csv files
-makeOutputDB <- TRUE
+#------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
@@ -242,8 +240,6 @@ concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is load
 deleteTemporaryAggregationFiles <- TRUE
 
 #------Define type of simulations and source of input data
-#source_input is either "datafiles&treatments" or "folders"
-source_input <- "datafiles&treatments"
 #indicate whether to obtain external information (1) or not (0), don't delete any labels; GIS extractions not supported on JANUS
 do.ExternalInformation <- c(
 		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 0,
@@ -276,14 +272,14 @@ save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is sav
 
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v10.csv"
-if (source_input == "datafiles&treatments" ) {
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
-	datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
-	datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-	datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
-}
-if (source_input == "datafiles&treatments" && (any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
+
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
+datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
+
+if ((any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v10.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
@@ -294,7 +290,7 @@ if (source_input == "datafiles&treatments" && (any(actions == "create") || any(a
 	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
-if (source_input == "datafiles&treatments" && (any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
+if ((any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
 	trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
 	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
 	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
