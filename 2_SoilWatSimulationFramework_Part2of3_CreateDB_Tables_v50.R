@@ -61,6 +61,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	rm(site_col_types,site_columns,sites_data)
 	
 	useExperimentals <- trowExperimentals > 0 && length(create_experimentals) > 0
+	useTreatments <- !(length(create_treatments[!(create_treatments %in% create_experimentals)])==0)
 	
 	#############simulation_years table#########################
 	dbGetQuery(con, "CREATE TABLE simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT, simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL, EndYear INTEGER NOT NULL);")
@@ -75,6 +76,25 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		dbCommit(con)
 	}
 	##########
+	
+	####FUNCTIONS CONSIDER MOVING####
+	mapType <- function(type) {
+		if(type =="double")
+			return("REAL")
+		else if(type=="character")
+			return("TEXT")
+		else if(type=="logical")
+			return("INTEGER")
+		else if(type=="integer")
+			return("INTEGER")
+	}
+	columnType <- function(columnName) {
+		if(columnName %in% create_experimentals) {
+			mapType(typeof(sw_input_experimentals[,columnName]))
+		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
+			mapType(typeof(sw_input_treatments[,columnName]))
+		}
+	}
 	
 	#If LookupWeatherFolder is ON we need to make sure all of the weather folders are in weatherfolders table
 	if(any(create_treatments=="LookupWeatherFolder")) {
@@ -128,18 +148,22 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		if(trowExperimentals > 0 && length(create_experimentals)==0) warning("Rows in experimentals are not being used.")
 	}
 	
-	# we only need the columns that are turned on and not in experimentals. Experimentals over write. Only rows that are going to be used
-	db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)]])
-	
-	#
-	temp<-duplicated(df)
-	treatments_unique_map<-rep(NA,length(df))
-	temp2 <- data.frame(t(df))
-	treatments_unique_map[temp]<-match(data.frame(t(df[temp,])),temp2)
-	treatments_unique_map[!temp] <- match(data.frame(t(df[!temp,])),temp2)
-	db_treatments_map<-unique(treatments_unique_map)
-	treatments_unique_map <- sapply(treatments_unique_map, function(x) which(db_treatments_map == x))
-	rm(db_treatments_map)
+	if(useTreatments) {
+		# we only need the columns that are turned on and not in experimentals. Experimentals over write. Only rows that are going to be used
+		db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)]])
+		db_treatments_rows <- nrow(db_treatments)
+		#this maps locations from reduced
+		temp<-duplicated(df)
+		treatments_unique_map<-rep(NA,length(df))
+		temp2 <- data.frame(t(df))
+		treatments_unique_map[temp]<-match(data.frame(t(df[temp,])),temp2)
+		treatments_unique_map[!temp] <- match(data.frame(t(df[!temp,])),temp2)
+		db_treatments_map<-unique(treatments_unique_map)
+		treatments_unique_map <- sapply(treatments_unique_map, function(x) which(db_treatments_map == x))
+		rm(db_treatments_map)
+	} else {
+		db_treatments_rows <- 1
+	}
 	
 	#Replace the LookupWeatherFolder with the LookupWeatherFolder_id in either db_experimentals or db_treatments
 	if(any(create_treatments=="LookupWeatherFolder")) {
@@ -155,78 +179,63 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			db_treatments$LookupWeatherFolder_id <- sapply(db_treatments$LookupWeatherFolder_id,function(x) LookupWeatherFolder_index$id[LookupWeatherFolder_index$folder==x])
 		}
 	}
-	
-	#Create a table to hold the values going into the database
-	temp_numberRows <- ifelse(useExperimentals,nrow(db_experimentals)*nrow(db_treatments),nrow(db_treatments))
-	temp_numberColumns <- ifelse(useExperimentals,3,2)+length(create_treatments)
-	temp_columnNames <- c("id",if(useExperimentals) c("experimental_id"),"simulation_years_id",create_treatments)
-	db_combined_exp_treatments <- data.frame(matrix(data=NA, nrow=temp_numberRows, ncol=temp_numberColumns,dimnames=list(NULL, temp_columnNames)),stringsAsFactors = FALSE)
-	rm(temp_numberColumns,temp_columnNames,temp_numberRows)
-	
-	#fill in the id column.
-	db_combined_exp_treatments$id <- 1:nrow(db_combined_exp_treatments)
-	
-	#column types are listed in this data.frame along with what table it is from
-	db_treatments_column_types <- data.frame(column=create_treatments, type=character(length(create_treatments)),table=numeric(length(create_treatments)), stringsAsFactors = FALSE)
-	#0 for teatments 1 for experimentals
-	db_treatments_column_types[db_treatments_column_types[,1] %in% create_experimentals,3] <- 1
-	
-	
-	####FUNCTIONS CONSIDER MOVING####
-	mapType <- function(type) {
-		if(type =="double")
-			return("REAL")
-		else if(type=="character")
-			return("TEXT")
-		else if(type=="logical")
-			return("INTEGER")
-		else if(type=="integer")
-			return("INTEGER")
-	}
-	columnType <- function(columnName) {
-		if(columnName %in% create_experimentals) {
-			mapType(typeof(sw_input_experimentals[,columnName]))
-		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
-			mapType(typeof(sw_input_treatments[,columnName]))
-		}
-	}
-	######################
+	if(useExperimentals | useTreatments) {
+		#Create a table to hold the values going into the database
+		temp_numberRows <- ifelse(useExperimentals,nrow(db_experimentals)*db_treatments_rows,nrow(db_treatments))
+		temp_numberColumns <- ifelse(useExperimentals,3,2)+length(create_treatments)
+		temp_columnNames <- c("id",if(useExperimentals) c("experimental_id"),"simulation_years_id",create_treatments)
+		db_combined_exp_treatments <- data.frame(matrix(data=NA, nrow=temp_numberRows, ncol=temp_numberColumns,dimnames=list(NULL, temp_columnNames)),stringsAsFactors = FALSE)
+		rm(temp_numberColumns,temp_columnNames,temp_numberRows)
 		
-	#Get the column types from the proper tables
-	db_treatments_column_types[,2] <- sapply(db_treatments_column_types[,1], function(x) columnType(x))
-	
-	#Finalize db_treatments_column_types
-	#remove YearStart or YearEnd
-	if(any(db_treatments_column_types$column == "YearStart")) {
-		db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearStart"),]
-	}
-	if(any(db_treatments_column_types$column == "YearEnd")) {
-		db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearEnd"),]
-	}
-	
-	#rename weather folder column name and create the fk
-	fk_LookupWeatherFolder <- ""
-	if(any(create_treatments=="LookupWeatherFolder")) {
-		db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
-		colnames(db_combined_exp_treatments)[-(1:2)] <- db_treatments_column_types[,1]
-		fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
-	}
-	
-	#Create the table
-	dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",fk_LookupWeatherFolder,");", sep=""))
-	
-	#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
-	db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments
-	
-	if(useExperimentals) {
-		exp_start_rows<-seq(from=1,to=nrow(db_treatments)*nrow(db_experimentals),by=nrow(db_treatments))
-		#Insert data into our new data.frame
-		for(start in exp_start_rows) {
-			#Get experimental_label_id
-			db_combined_exp_treatments[start:(start+nrow(db_treatments)-1),2] <- which(exp_start_rows==start)
-			#insert all of the rows from experimentals
-			db_combined_exp_treatments[start:(start+nrow(db_treatments)-1),db_treatments_column_types[db_treatments_column_types[,3]==1,1]] <- db_experimentals[which(exp_start_rows==start),]
+		#fill in the id column.
+		db_combined_exp_treatments$id <- 1:nrow(db_combined_exp_treatments)
+		
+		#column types are listed in this data.frame along with what table it is from
+		db_treatments_column_types <- data.frame(column=create_treatments, type=character(length(create_treatments)),table=numeric(length(create_treatments)), stringsAsFactors = FALSE)
+		#0 for teatments 1 for experimentals
+		db_treatments_column_types[db_treatments_column_types[,1] %in% create_experimentals,3] <- 1
+		
+		######################	
+		#Get the column types from the proper tables
+		db_treatments_column_types[,2] <- sapply(db_treatments_column_types[,1], function(x) columnType(x))
+		
+		#Finalize db_treatments_column_types
+		#remove YearStart or YearEnd
+		if(any(db_treatments_column_types$column == "YearStart")) {
+			db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearStart"),]
 		}
+		if(any(db_treatments_column_types$column == "YearEnd")) {
+			db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearEnd"),]
+		}
+		
+		#rename weather folder column name and create the fk
+		fk_LookupWeatherFolder <- ""
+		if(any(create_treatments=="LookupWeatherFolder")) {
+			db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
+			colnames(db_combined_exp_treatments)[-(1:2)] <- db_treatments_column_types[,1]
+			fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
+		}
+		#Create the table
+		dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",fk_LookupWeatherFolder,");", sep=""))
+		
+		#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
+		if(useTreatments) {
+			db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments
+		}
+		
+		if(useExperimentals) {
+			exp_start_rows<-seq(from=1,to=db_treatments_rows*nrow(db_experimentals),by=db_treatments_rows)
+			#Insert data into our new data.frame
+			for(start in exp_start_rows) {
+				#Get experimental_label_id
+				db_combined_exp_treatments[start:(start+db_treatments_rows-1),2] <- which(exp_start_rows==start)
+				#insert all of the rows from experimentals
+				db_combined_exp_treatments[start:(start+db_treatments_rows-1),db_treatments_column_types[db_treatments_column_types[,3]==1,1]] <- db_experimentals[which(exp_start_rows==start),]
+			}
+		}
+	} else {
+		db_combined_exp_treatments <- data.frame(matrix(data=c(1,1), nrow=1, ncol=2,dimnames=list(NULL, c("id","simulation_years_id"))),stringsAsFactors = FALSE)
+		dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, simulation_years_id INTEGER);", sep=""))
 	}
 	
 	#if the column startYear or endYear are present move over to simulation_years
@@ -274,7 +283,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		dbCommit(con)
 	}
 	
-	
 	#Insert the data into the treatments table
 	dbBeginTransaction(con)
 	dbGetPreparedQuery(con, paste("INSERT INTO treatments VALUES(",paste(":",colnames(db_combined_exp_treatments),sep="",collapse=", "),")",sep=""), bind.data = db_combined_exp_treatments)
@@ -306,15 +314,28 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	db_runs$P_id <- 1:nrow(db_runs)
 	db_runs$scenario_id <- rep(1:scenario_No, times=runsN.todo)
 	
-	if(useExperimentals) {
-		db_runs$label_id <- rep(seq.todo,each=scenario_No)
-		db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
-		i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runs,ncol=trowExperimentals,byrow=T))
-		db_runs$treatment_id <- rep(i_exp+(treatments_unique_map-1),each=scenario_No)
+	if(useTreatments) {
+		if(useExperimentals) {
+			db_runs$label_id <- rep(seq.todo,each=scenario_No)
+			db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
+			i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runs,ncol=trowExperimentals,byrow=T))
+			db_runs$treatment_id <- rep(i_exp+(treatments_unique_map-1),each=scenario_No)
+		} else {
+			db_runs$label_id <- rep(seq.todo,each=scenario_No)
+			db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
+			db_runs$treatment_id <- rep(treatments_unique_map,each=scenario_No)
+		}
 	} else {
-		db_runs$label_id <- rep(seq.todo,each=scenario_No)
-		db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
-		db_runs$treatment_id <- rep(treatments_unique_map,each=scenario_No)
+		if(useExperimentals) {
+			db_runs$label_id <- rep(seq.todo,each=scenario_No)
+			db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
+			i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runs,ncol=trowExperimentals,byrow=T))
+			db_runs$treatment_id <- rep(i_exp,each=scenario_No)
+		} else {
+			db_runs$label_id <- rep(seq.todo,each=scenario_No)
+			db_runs$site_id <- rep(1:runs,each=scenario_No)
+			db_runs$treatment_id <- 1
+		}
 	}
 	
 	dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
@@ -325,7 +346,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	sites_columns <- colnames(SWRunInformation[Index_RunInformation])
 	sites_columns<-sub("ID","site_id",sites_columns)
 	sites_columns<-sub("WeatherFolder", "WeatherFolder_id",sites_columns)
-	header_columns<-c("runs.P_id","run_labels.label", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label", paste("treatments",colnames(db_combined_exp_treatments)[-(1:2)], sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
+	header_columns<-c("runs.P_id","run_labels.label", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label", if(useExperimentals | useTreatments) paste("treatments",colnames(db_combined_exp_treatments)[-(1:2)], sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 	header_columns<-paste(header_columns,collapse = ", ")
 	
 	dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ", if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
