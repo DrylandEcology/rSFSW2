@@ -284,8 +284,6 @@
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
-source_input <- "datafiles&treatments"
-
 if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
 
 #------
@@ -5561,7 +5559,6 @@ if(actionWithSoilWat){
 write.timer("N_cores", number=workersN)
 write.timer("N_Runs", number=runs.completed)
 write.timer("N_SWruns", number=runs.completed * scenario_No)
-write.timer("N_AggregationFiles", number=ifelse(exists("concats.completed"), concats.completed, 0))
 write.timer("N_EnsembleFiles", number=ifelse(exists("ensembles.completed"), ensembles.completed, 0))
 
 
