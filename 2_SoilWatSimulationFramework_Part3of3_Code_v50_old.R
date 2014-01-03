@@ -734,9 +734,9 @@ if(do.ensembles){
 	dimnames(ensembles.maker$outputs) <- list(NULL, ensemble.families, paste("Rank", ensemble.levels, sep=""), c("Means", "SDs", if(save.scenario.ranks) "Ranks"))
 	dimnames(ensembles.maker$scenarioFiles) <- list(NULL, ensemble.families, NULL, c("Means", "SDs"))
 	#overall
-	ensembles.maker$outputs[1,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.ensembles, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_overall_means", sep="")))
-	ensembles.maker$outputs[1,,, 2] <- gsub("_means", "_sds", ensembles.maker$outputs[1,,, 1])
-	if(save.scenario.ranks) ensembles.maker$outputs[1,,, 3] <- gsub("_means", "_ranks", ensembles.maker$outputs[1,,, 1])
+	ensembles.maker$outputs[1,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.ensembles, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_", filename.aggregatedMeans, sep="")))
+	ensembles.maker$outputs[1,,, 2] <- gsub(filename.aggregatedMeans, filename.aggregatedSD, ensembles.maker$outputs[1,,, 1])
+	if(save.scenario.ranks) ensembles.maker$outputs[1,,, 3] <- gsub(filename.aggregatedMeans, filename.aggregatedRanks, ensembles.maker$outputs[1,,, 1])
 	if(families_N > 1){
 		ensembles.maker$scenarioFiles[1,,, 1] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.Aggregates[1, x]))
 	} else {
@@ -746,15 +746,15 @@ if(do.ensembles){
 	#mean daily output
 	if(daily_no > 0){
 		for(doi in 1:daily_no){
-			ensembles.maker$outputs[1 + doi,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.daily.ens, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_means", sep="")))
+			ensembles.maker$outputs[1 + doi,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.daily.ens, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_", filename.aggregatedResults.dailyMean, sep="")))
 			if(families_N > 1){
 				ensembles.maker$scenarioFiles[1 + doi,,, 1] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.dailyMean[doi, x]))
 			} else {
 				ensembles.maker$scenarioFiles[1 + doi,,, 1] <- resultfiles.dailyMean[doi, scenarios.ineach.ensemble]
 			}
 		}
-		ensembles.maker$outputs[1 + 1:daily_no,,, 2] <- gsub("_means", "_sds", ensembles.maker$outputs[1 + 1:daily_no,,, 1])
-		if(save.scenario.ranks) ensembles.maker$outputs[1 + 1:daily_no,,, 3] <- gsub("_means", "_ranks", ensembles.maker$outputs[1 + 1:daily_no,,, 1])
+		ensembles.maker$outputs[1 + 1:daily_no,,, 2] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, ensembles.maker$outputs[1 + 1:daily_no,,, 1])
+		if(save.scenario.ranks) ensembles.maker$outputs[1 + 1:daily_no,,, 3] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedRanks, ensembles.maker$outputs[1 + 1:daily_no,,, 1])
 		ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 2] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 1])
 	}
 }
@@ -3058,15 +3058,79 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#aggregate for each scenario
 		for (sc in 1:scenario_No){
 			if(print.debug) print(paste("Start of overall aggregation for scenario:", sc))
-			#HEADER GENERATION REMOVED#	
-			#only exclude if 1.) Exclude_ClimateAmbient is true in treatments 2.) That Run is set to Exclude_ClimateAmbient 3.) Our current Scenario is Current
+			#if(aggregate.timing) scStartTime <- Sys.time()
+			#if(aggregate.timing) scOutTiming<-list()
+			#create header information for output files
+			if((i1 <- length(Index_RunInformation)) + (i2 <- length(Index_RunInformation_Treatments)) > 0 ) {
+				treatment_header1 <- treatment_header2 <- NULL
+				if(i1 > 0){
+					treatment_header1 <- i_SWRunInformation[Index_RunInformation]
+				}
+				if(i2 > 0){
+					if(trowExperimentals > 0 && length(create_experimentals) > 0) treatment_header2 <- c(treatment_header2,  sw_input_experimentals[i_exp, 1])
+					for(h in Index_RunInformation_Treatments){
+						treatment_header2 <- c(treatment_header2, as.character(i_sw_input_treatments[h]))
+					}
+					if(trowExperimentals > 0 && length(create_experimentals) > 0) names(treatment_header2) <- c("Experimental_Label", colnames(i_sw_input_treatments)[Index_RunInformation_Treatments])
+					else names(treatment_header2) <- colnames(i_sw_input_treatments)[Index_RunInformation_Treatments]
+					if(any(create_treatments == "YearStart")) if(is.na(treatment_header2["YearStart"])) treatment_header2["YearStart"] <- startyr
+					if(any(create_treatments == "YearEnd")) if(is.na(treatment_header2["YearEnd"])) treatment_header2["YearEnd"] <- endyr
+					
+				}
+				treatment_header <- c(treatment_header1, treatment_header2)
+				#check to see if the header.names includes YearStart, SimStartYear ,YearEnd
+				if(any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")) {#find index of YearStart and Add Sim
+					index.startYear <- match("YearStart",names(treatment_header))
+					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, treatment_header[(index.startYear+1):length(treatment_header)])
+				} else if(any(names(treatment_header) == "YearStart") && !any(names(treatment_header) == "YearEnd")){
+					index.startYear <- match("YearStart",names(treatment_header))
+					treatment_header <- c(treatment_header[1:index.startYear], "SimStartYear"=simstartyr, "YearEnd"=endyr, treatment_header[(index.startYear+1):length(treatment_header)])
+				} else if(!any(names(treatment_header) == "YearStart") && any(names(treatment_header) == "YearEnd")){
+					index.YearEnd <- match("YearEnd",names(treatment_header))
+					treatment_header <- c(treatment_header[1:index.YearEnd-1], "YearStart"=startyr, "SimStartYear"=simstartyr, treatment_header[index.YearEnd:length(treatment_header)])
+				} else {
+					treatment_header <- c(treatment_header, "YearStart"=startyr, "SimStartYear"=simstartyr, "YearEnd"=endyr)
+				}
+				if((i==ifirst && !makeOutputDB)) treatment_header.names <- names(treatment_header)
+				header <- c(i, as.character(i_labels), treatment_header, scenario[sc])
+				if((i==ifirst && !makeOutputDB)) header.names <-  c("RunID", "Labels", treatment_header.names, "Scenario")	#'Scenario' column has to be the last in the header
+			} else {
+				if(trowExperimentals > 0 && length(create_experimentals) > 0) {
+					header <- c(i, as.character(i_labels),sw_input_experimentals[i_exp,1] ,startyr, simstartyr, endyr, scenario[sc])
+					if((i==ifirst && !makeOutputDB)) header.names <- c("RunID", "Labels", "Experimental Design Label", "YearStart", "SimStartYear", "YearEnd","Scenario")	#'Scenario' column has to be the last in the header
+				} else {
+					header <- c(i, as.character(i_labels) ,startyr, simstartyr, endyr, scenario[sc])
+					if((i==ifirst && !makeOutputDB)) header.names <- c("RunID", "Labels", "YearStart", "SimStartYear", "YearEnd","Scenario")	#'Scenario' column has to be the last in the header
+				}
+			}
+			names(header) <- NULL
+			#convert factor labels to characters
+			for(ih in 1:length(header)){
+				if(nlevels(header[[ih]]) > 0){
+					header[[ih]] <- as.character(header[[ih]])
+				}
+			}
+			
+			
+			#only exclude if 1.) Exclude_ClimateAmbient is true in header 2.) That Run is set to Exclude_ClimateAmbient 3.) Our current Scenario is Current
 			if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient && sc==1 && i!=1) {
 				Exclude_ClimateAmbient <- TRUE
+				#Send to the database or write to file
+				#temporaly save aggregate data
+				out.temp <- header
+				
+				if((i==ifirst && !makeOutputDB)){
+					colnames(out.temp) <- header.names
+				}
+				
+				if(!makeOutputDB){
+					write.csv(out.temp, file=filename.out.temp.Means[sc], quote=FALSE, row.names=FALSE )
+					write.csv(out.temp, file=filename.out.temp.SDs[sc], quote=FALSE, row.names=FALSE )
+				}
 				if(makeOutputDB){
-					#dbOverallColumns comes from database creation
 					P_id <- ((i-1)*scenario_No+sc)
-					SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
-					SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(temp,collapse=","),sep=""),");", sep="")
+					SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
+					SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(temp,collapse=","),sep=""),");", sep="")
 					if(length(SQL) == 0) {
 						SQL <- paste(SQL1, SQL2, sep="\n")
 					} else {
@@ -3110,7 +3174,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#---Aggregation: SoilWat inputs
-			#1
+			#scOutTiming[[1]] <- system.time(
 				if(aon$input_FractionVegetationComposition) {
 					if(print.debug) print("Aggregation of input_FractionVegetationComposition")
 					resMeans[nv:(nv+5)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
@@ -3118,6 +3182,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv+6
 				}#)
 				if(aon$input_VegetationBiomassMonthly) {
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+107)] <- paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep="")
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]
@@ -3137,7 +3202,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]*swProd_MonProd_tree(swRunScenariosData[[sc]])[,3]
 					nv <- nv+12
 				}
-			#3
+			#scOutTiming[[2]] <- system.time(
 				if(aon$input_VegetationPeak) {
 					if(print.debug) print("Aggregation of input_VegetationPeak")
 					fracs <- swProd_Composition(swRunScenariosData[[sc]]) #get the fractional Composition of grasses, shrubs, and trees
@@ -3153,9 +3218,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					duration <- circ.range(maxMonth, 12)+1
 					
 					resMeans[nv:(nv+1)] <- c(meanPeakMonth, duration) #just in case we get more then one month
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("SWinput.PeakLiveBiomass_", c("month_mean","months_duration"), sep="")
 					nv <- nv+2
-				}
-			#4
+				}#)
+			#scOutTiming[[3]] <- system.time(
 				if(any(simulation_timescales=="monthly") && aon$input_Phenology) {
 					if(print.debug) print("Aggregation of input_Phenology")
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc) #see if we have data
@@ -3170,9 +3236,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					Input_PhenologyEnd_Month <- tail(Months_Above_Threshold, n=1) #get the last month
 					
 					resMeans[nv:(nv+1)] <- c(Input_PhenologyStart_Month, Input_PhenologyEnd_Month)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep="")
 					nv <- nv+2
-				}
-			#5
+				}#)
 				if(aon$input_TranspirationCoeff){
 					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 6:8]
 					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
@@ -3197,24 +3263,28 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(Tcoeff, TaggLs, Ttb)
 				}
-			#6
+				
+			#scOutTiming[[4]] <- system.time(
 				if(aon$input_ClimatePerturbations) {
 					if(print.debug) print("Aggregation of input_ClimatePerturbations")
 					resMeans[nv:(nv+35)] <- as.vector(as.numeric(swWeather_MonScalingParams(swRunScenariosData[[sc]])))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+35)] <- paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep="")
 					nv <- nv+36
-				}			
+				}#)
+				
 				
 				#---Aggregation: Climate and weather
-			#7
+			#scOutTiming[[5]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyTemp){
 					if(print.debug) print("Aggregation of yearlyTemp")
 					if(!exists("temp.yr"))	temp.yr <- get_Temp_yr(sc)
 					
 					resMeans[nv] <- mean(temp.yr$mean)
 					resSDs[nv] <- sd(temp.yr$mean)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "MAT_C_mean"
 					nv <- nv+1
-				}
-			#8
+				}#)
+			#scOutTiming[[6]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyPPT){			
 					if(print.debug) print("Aggregation of yearlyPPT")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3223,11 +3293,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv] <- sd(prcp.yr$ppt)
 					resMeans[nv+1] <- mean(snowofppt <- prcp.yr$snowfall/prcp.yr$ppt, na.rm=TRUE)
 					resSDs[nv+1] <- sd(snowofppt, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- c("MAP_mm_mean", "SnowOfPPT_fraction_mean")
 					nv <- nv+2
 					
 					rm(snowofppt)
-				}
-			#9
+				}#)
+			#scOutTiming[[7]] <- system.time(
 				if(any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack){			
 					if(print.debug) print("Aggregation of dailySnowpack")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3238,11 +3309,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv] <- mean(temp <- rainOnSnow / prcp.yr$ppt, na.rm=TRUE)
 					resSDs[nv] <- sd(temp, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "RainOnSnowOfMAP_fraction_mean"
 					nv <- nv+1
 					
 					rm(rainOnSnow)
-				}
-			#10	
+				}#)
+			#scOutTiming[[8]] <- system.time(		
 				if(any(simulation_timescales=="daily") & aon$dailySnowpack){#daily snowpack: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of dailySnowpack2")
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
@@ -3286,9 +3358,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					} else {
 						resMeans[nv:(nv+4)] <- resSDs[nv:(nv+4)] <- 0					
 					}
+					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+4)] <- paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "Peak_mmSWE", "LongestContinuous.Duration_days", "Total_days"), "_mean", sep="")
 					nv <- nv+5
-				}
-			#11
+					
+				}#)
 				if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
 					if(print.debug) print("Aggregation of dailyFrostInSnowfreePeriod")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
@@ -3298,11 +3372,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv] <- mean(frostWithoutSnow, na.rm=TRUE)
 					resSDs[nv] <- sd(frostWithoutSnow, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "FreezingWithoutSnowpack_days_mean"
 					nv <- nv+1
 					
 					rm(frostWithoutSnow)
 				}
-			#12
+			#scOutTiming[[9]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){	#daily weather frequency distributions
 					if(print.debug) print("Aggregation of dailyPrecipitationEventSizeDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3328,29 +3403,32 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv] <- sd(eventsPerYear)
 					resMeans[(nv+1):(nv+7)] <- apply(freq.summary, MARGIN=1, FUN=mean)
 					resSDs[(nv+1):(nv+7)] <- apply(freq.summary, MARGIN=1, FUN=sd)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+7)] <- paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep="")
 					nv <- nv+8
 					
 					rm(events, counts.available, counts.summary, freq.summary, eventsPerYear)
-				}
-			#13
+				}#)
+			#scOutTiming[[10]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyAET){
 					if(print.debug) print("Aggregation of yearlyAET")
 					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
 					
 					resMeans[nv] <- mean(AET.yr$val)
 					resSDs[nv] <- sd(AET.yr$val)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "AET_mm_mean"
 					nv <- nv+1
-				}
-			#14
+				}#)
+			#scOutTiming[[11]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyPET){
 					if(print.debug) print("Aggregation of yearlyPET")
 					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc)
 					
 					resMeans[nv] <- mean(PET.yr$val)
 					resSDs[nv] <- sd(PET.yr$val)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "PET_mm_mean"
 					nv <- nv+1
-				}
-			#15
+				}#)
+			#scOutTiming[[12]] <- system.time(
 				#correl monthly swp (top and bottom) vs. pet and ppt vs. temp, use product moment correlation coefficient {eqn. 11.6, \Sala, 1997 #45}
 				if(any(simulation_timescales=="monthly") & aon$monthlySeasonalityIndices){
 					if(print.debug) print("Aggregation of monthlySeasonalityIndices")
@@ -3372,12 +3450,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+2] <- mean( temp <- by(data.frame(temp.mo$mean, prcp.mo$ppt), INDICES=simTime2$yearno_ForEachUsedMonth, FUN=cor2), na.rm=TRUE )
 					resSDs[nv+2] <- sd(temp, na.rm=TRUE)
 					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2)] <- paste("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean", sep="")
 					nv <- nv+3
-				}
+				}#)
 				
 				
 				#---Aggregation: Climatic dryness
-			#16
+			#scOutTiming[[13]] <- system.time(
 				if(any(simulation_timescales=="yearly") & any(simulation_timescales=="monthly") & aon$yearlymonthlyTemperateDrylandIndices){
 					if(print.debug) print("Aggregation of yearlymonthlyTemperateDrylandIndices")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3398,22 +3477,24 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv:(nv+2)] <- unlist(di.normals)
 					resMeans[(nv+3):(nv+5)] <- apply(temp <- cbind(di.ts$ai, di.ts$TD, di.ts$criteria12), MARGIN=2, FUN=mean, na.rm=TRUE)
 					resSDs[(nv+3):(nv+5)] <- apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+5)] <- paste(c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".Normals", sep=""), paste(temp, ".Annual", sep="")), rep(c("_none", "_TF", "_TF"), times=2), "_mean", sep="")
 					nv <- nv+6
 					
 					rm(di.ts, di.normals)
-				}
-			#17
+				}#)
+		#scOutTiming[[14]] <- system.time(
 				if(any(simulation_timescales=="yearly") & aon$yearlyDryWetPeriods){			
 					if(print.debug) print("Aggregation of yearlyDryWetPeriods")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
 					temp.rle <- rle(sign(prcp.yr$ppt - mean(prcp.yr$ppt)))
 					
 					resMeans[nv:(nv+1)] <- c(quantile(temp.rle$lengths[temp.rle$values==-1], probs=0.9, type=7), quantile(temp.rle$lengths[temp.rle$values==1], probs=0.9, type=7))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste(c("Dry", "Wet"), "SpellDuration.90PercentEvents.ShorterThan_years_quantile0.9", sep="")
 					nv <- nv+2
 					
 					rm(temp.rle)
-				}
-			#18
+				}#)
+		#scOutTiming[[15]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyWeatherGeneratorCharacteristics){#daily response to weather generator treatments
 					if(print.debug) print("Aggregation of dailyWeatherGeneratorCharacteristics")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3438,11 +3519,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1+12] <- unlist(dds[2, ])
 					resMeans[nv+st_mo-1+24] <- unlist(tv[1, ])
 					resSDs[nv+st_mo-1+24] <- unlist(tv[2, ])
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+35)] <- paste(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each=12), ".m", st_mo, rep(c("_days", "_days", "_C"), each=12), "_mean", sep="")
 					nv <- nv+36
 					
 					rm(dws, dds, tv)
-				}
-			#19
+				}#)
+		#scOutTiming[[16]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationFreeEventDistribution){	#daily weather frequency distributions
 					if(print.debug) print("Aggregation of dailyPrecipitationFreeEventDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3468,11 +3550,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv] <- sd(eventsPerYear)
 					resMeans[(nv+1):(nv+4)] <- apply(freq.summary, MARGIN=1, FUN=mean)
 					resSDs[(nv+1):(nv+4)] <- apply(freq.summary, MARGIN=1, FUN=sd)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+4)] <- paste("DrySpells.Annual", c("_count", paste(".SizeClass", bins.summary+1, "to", c(bins.summary[-1], "365"), "days_fraction", sep="")), "_mean", sep="")
 					nv <- nv+5
 					
 					rm(durations, counts.available, counts.summary, freq.summary, eventsPerYear)
-				}
-			#20
+				}#)
+		#scOutTiming[[17]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
 					if(print.debug) print("Aggregation of monthlySPEIEvents")
 					require(SPEI)
@@ -3503,11 +3586,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						}
 						
 						resMeans[nv:(nv+length(rvec)-1)] <- rvec
+						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+length(rvec)-1)] <- paste(rep(paste("SPEI.", binSPEI_m[iscale], "monthsScale.", sep=""), length(rvec)), "Spell", rep(c("Pos.", "Neg."), each=2*length(probs)), rep(rep(c("Duration_months", "Value_none"), each=length(probs)), times=2), "_quantile", rep(probs, times=4), sep="")
 						nv <- nv+length(rvec)
 					}
-				}
+				}#)
+				
+				
 				#---Aggregation: Climatic control
-			#21
+		#scOutTiming[[18]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyPlantGrowthControls){	#Nemani RR, Keeling CD, Hashimoto H et al. (2003) Climate-Driven Increases in Global Terrestrial Net Primary Production from 1982 to 1999. Science, 300, 1560-1563.
 					if(print.debug) print("Aggregation of monthlyPlantGrowthControls")
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc)
@@ -3533,20 +3619,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					temp <- data.frame(control_temp, control_water, control_radiation)
 					resMeans[nv:(nv+2)] <- apply(temp, 2, mean, na.rm=TRUE)
 					resSDs[nv:(nv+2)] <- apply(temp, 2, sd, na.rm=TRUE)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2)] <- paste("NemaniEtAl2003.NPPControl.", c("Temperature", "Water", "Radiation"), "_none_mean", sep="")
 					nv <- nv+3
 					
 					rm(DayNumber_ForEachUsedMonth, DayNumber_ForEachUsedYear, control_temp, control_water, control_radiation, aridity, temp, cloudiness)
-				}
-			#22
+				}#)
+		#scOutTiming[[19]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyC4_TempVar){#Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 					if(print.debug) print("Aggregation of dailyC4_TempVar")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 					
 					resMeans[nv:(nv+2)] <- (temp <- as.numeric(sw_dailyC4_TempVar(dailyTempMin=temp.dy$min, dailyTempMean=temp.dy$mean, simTime2)))[1:3]	#accountNSHemispheres_agg
 					resSDs[nv:(nv+2)] <- temp[4:6]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2)] <- paste("TeeriEtAl1976.NSadj.", c("TempAirMin.7thMonth_C", "FreezeFreeGrowingPeriod_days", "AccumDegreeDaysAbove65F_daysC"), "_mean", sep="")
 					nv <- nv+3
-				}
-			#23
+				}#)
+		#scOutTiming[[20]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){	#Degree days based on daily temp
 					if(print.debug) print("Aggregation of dailyDegreeDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
@@ -3556,13 +3644,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv] <- mean(temp)
 					resSDs[nv] <- sd(temp)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- paste("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays_mean", sep="")
 					nv <- nv+1	
 					
 					rm(degday)
-				}
+				}#)	
 		
+				
 				#---Aggregation: Yearly water balance
-			#24
+		#scOutTiming[[21]] <- system.time(	
 				if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
 					if(print.debug) print("Aggregation of yearlyWaterBalanceFluxes")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3630,12 +3720,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+27] <- ifelse(sum(PET.yr$val)==0, 0, sd(transp.tot/PET.yr$val))
 					resSDs[nv+28] <- ifelse(sum(PET.yr$val)==0, 0, sd(evap_soil.tot/PET.yr$val))
 					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+28)] <- paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm", "Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep="")
 					nv <- nv+29
 					
 					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
-				}			
+				}#)
+				
+				
 				#---Aggregation: Daily extreme values
-			#25
+			#scOutTiming[[22]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {#mean and SD of DOY and value of minimum/maximum
 					if(print.debug) print("Aggregation of dailyTranspirationExtremes")
 					if(!exists("transp.dy")) transp.dy <- get_Response_aggL(sc, sw_transp, "dy", 10, FUN=sum)
@@ -3644,15 +3737,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep="")
 					nv <- nv+2
 					
 					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep="")
 					nv <- nv+2
 					
 					rm(extremes)
-				}
-			#26
+				}#)
+		#scOutTiming[[23]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
 					if(print.debug) print("Aggregation of dailyTotalEvaporationExtremes")
 					if(!exists("Esoil.dy")) Esoil.dy <- get_Response_aggL(sc, sw_evsoil, "dy", 10, FUN=sum)
@@ -3662,15 +3757,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm_mean", sep="")
 					nv <- nv+2
 					
 					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy_mean", sep="")
 					nv <- nv+2
 					
 					rm(extremes)
-				}
-			#27
+				}#)
+		#scOutTiming[[24]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
 					if(print.debug) print("Aggregation of dailyDrainageExtremes")
 					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
@@ -3679,15 +3776,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm_mean", sep="")
 					nv <- nv+2
 					
 					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy_mean", sep="")
 					nv <- nv+2
 					
 					rm(extremes)
-				}
-			#28
+				}#)
+		#scOutTiming[[25]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
 					if(print.debug) print("Aggregation of dailyInfiltrationExtremes")
 					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
@@ -3696,15 +3795,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Infiltration.", c("DailyMax", "DailyMin"), "_mm_mean", sep="")
 					nv <- nv+2
 					
 					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("Infiltration.", c("DailyMax", "DailyMin"), "_doy_mean", sep="")
 					nv <- nv+2
 					
 					rm(extremes)
-				}
-			#29
+				}#)
+		#scOutTiming[[26]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {						
 					if(print.debug) print("Aggregation of dailyAETExtremes")
 					if(!exists("AET.dy")) AET.dy <- get_AET_dy(sc)
@@ -3713,15 +3814,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("AET.", c("DailyMax", "DailyMin"), "_mm_mean", sep="")
 					nv <- nv+2
 					
 					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+1)] <- paste("AET.", c("DailyMax", "DailyMin"), "_doy_mean", sep="")
 					nv <- nv+2
 					
 					rm(extremes)
-				}
-			#30
+				}#)
+		#scOutTiming[[27]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
 					if(print.debug) print("Aggregation of dailySWPextremes")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -3735,14 +3838,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+3)] <- paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep="")
 					
 					nv <- nv+4
 					
 					rm(extremes)
-				}
+				}#)
+				
 				
 				#---Aggregation: Ecological dryness
-			#31
+		#scOutTiming[[28]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
 					if(print.debug) print("Aggregation of dailyWetDegreeDays")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -3769,11 +3874,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						resMeans[(nv+3*(icrit-1)):(nv+3*(icrit-1)+2)] <- apply(temp, MARGIN=2, FUN=mean)
 						resSDs[(nv+3*(icrit-1)):(nv+3*(icrit-1)+2)] <- apply(temp, MARGIN=2, FUN=sd)
 					}
+					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+3*length(SWPcrit_MPa)-1)] <- paste("WetDegreeDays.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep="")
 					nv <- nv+3*length(SWPcrit_MPa)	
 					
 					rm(degday, wet.top, wet.bottom, wetdegday.top, wetdegday.bottom, wetdegday.any)
-				}
-			#32
+				}#)
+		#scOutTiming[[29]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){#dry periods based on monthly swp data: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of monthlySWPdryness")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
@@ -3793,6 +3900,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(years.top, MARGIN=1, FUN=mean), apply(years.bottom, MARGIN=1, FUN=mean))
 					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(years.top, MARGIN=1, FUN=sd), apply(years.bottom, MARGIN=1, FUN=sd))
 					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2*length(SWPcrit_MPa)-1)] <- paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep="")
 					nv <- nv+2*length(SWPcrit_MPa)
 					
 					start.top <- apply(drymonths.top, MARGIN=c(1, 3), FUN=match, x=1, nomatch=0)
@@ -3803,11 +3911,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, FUN=function(x) circ.mean(x, int=12)), apply(start.bottom, MARGIN=1, FUN=function(x) circ.mean(x, int=12)))
 					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, FUN=function(x) circ.sd(x, int=12)), apply(start.bottom, MARGIN=1, FUN=function(x) circ.sd(x, int=12)))
 					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+4*length(SWPcrit_MPa)-1)] <- paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep="")
 					nv <- nv+2*length(SWPcrit_MPa)
 					
 					rm(drymonths.top, drymonths.bottom, years.top, start.top, years.bottom, start.bottom, adjMonths)
-				}
-			#33
+				}#)
+		#scOutTiming[[30]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of dailySWPdrynessANDwetness")
 					if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(sc, sw_vwc, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
@@ -3878,12 +3987,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE),
 								apply(res.dry[, c(1:2, 5:6)], MARGIN=2, FUN=function(x) circ.sd(x, int=365, na.rm=TRUE)))
 					}
+					
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+16*length(SWPcrit_MPa)-1)] <- paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)), rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each=4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each=2), times=2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times=2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times=2)), "_mean", sep="")
 					nv <- nv+16*length(SWPcrit_MPa)	
 					
 					rm(res.dry, wet.top, wet_crit, AtLeastOneWet.top, AllWet.top, AllDry.top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom, AtLeastOneWet.bottom, AllWet.bottom, AllDry.bottom)
-				}
-			#34
+				}#)
+			#scOutTiming[[31]] <- system.time(
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
 					if(print.debug) print("Aggregation of dailySWPdrynessDurationDistribution")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -3908,14 +4019,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							resMeans[nv:(nv+length(quantiles)-1)] <- quantile(durations.top, probs=quantiles, type=7)
 							resMeans[(nv+length(quantiles)):(nv+2*length(quantiles)-1)] <- if(length(bottomL) > 0 && !identical(bottomL, 0)) quantile(durations.bottom, probs=quantiles, type=7) else 0
 							
+							if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2*length(quantiles)-1)] <- paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Month", season.flag[season], ".", rep(c("topLayers", "bottomLayers"), each=length(quantiles)), ".Duration_days_quantile", rep(quantiles, times=2), sep="")
 							nv <- nv+2*length(quantiles)
 						}
 					}
 					
 					rm(wet.top, durations.top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom)
-				}
-			#35
+				}#)
+		#scOutTiming[[32]] <- system.time(
 				if(any(simulation_timescales=="daily") && aon$dailySWPdrynessEventSizeDistribution){
 					if(print.debug) print("Aggregation of dailySWPdrynessEventSizeDistribution")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -3931,6 +4043,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							}
 						}
 						return(bins)
+					}
+					if((i==ifirst && !makeOutputDB)) {
+						binTitle <- paste("SizeClass", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days", sep="")
 					}
 					
 					for(icrit in seq(along=SWPcrit_MPa)){
@@ -3969,12 +4084,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						}
 						
 						
+						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+2*binsN+1)] <- paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Annual.", rep(c("topLayers", "bottomLayers"), each=binsN+1), rep(c("_count", paste(".", binTitle, "_fraction", sep="")), times=2), "_mean", sep="")
 						nv <- nv+2+2*binsN
 					}
 					rm(dry.top, binsN, binSize, events.top, eventsPerYear, freqBins)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(dry.bottom, events.bottom)
-				}
-			#36
+				}#)
+		#scOutTiming[[33]] <- system.time(
 				if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity) {
 					if(print.debug) print("Aggregation of dailySWPdrynessIntensity")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4005,74 +4121,84 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						resMeans[(nv+4):(nv+7)] <- if(length(bottomL) > 0 && !identical(bottomL, 0)) c(IntensitySum_bottom[1], IntensityMean_bottom[1], IntensityDurationAndNumber_bottom[c(1, 3)]) else rep(0, 4)
 						resSDs[(nv+4):(nv+7)] <- if(length(bottomL) > 0 && !identical(bottomL, 0)) c(IntensitySum_bottom[2], IntensityMean_bottom[2], IntensityDurationAndNumber_bottom[c(2, 4)]) else rep(0, 4)
 						
+						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+7)] <- paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".MissingWater.", rep(c("topLayers", "bottomLayers"), each=4), ".", rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times=2), "_mean", sep="")
 						nv <- nv+8
 					}
 					rm(	SWCcritT, missingSWCtop, IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(SWCcritB, missingSWCbottom, IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom)
-				}
+				}#)
+				
+				
 				#---Aggregation: Mean monthly values
-			#37
+		#scOutTiming[[34]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyTemp){
 					if(print.debug) print("Aggregation of monthlyTemp")
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate(temp.mo$mean, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate(temp.mo$mean, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv+st_mo-1] <- paste("TempAir.m", st_mo, "_C_mean", sep="")
 					nv <- nv+12
-				}
-			#38
+				}#)
+		#scOutTiming[[35]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyPPT){
 					if(print.debug) print("Aggregation of monthlyPPT")
 					if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate(prcp.mo$ppt, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate(prcp.mo$ppt, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv+st_mo-1] <- paste("Precip.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#39
+				}#)
+		#scOutTiming[[36]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
 					if(print.debug) print("Aggregation of monthlySnowpack")
 					if(!exists("SWE.mo")) SWE.mo <- get_SWE_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate(SWE.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate(SWE.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv+st_mo-1] <- paste("Snowpack.m", st_mo, "_mmSWE_mean", sep="")
 					nv <- nv+12
-				}
-			#40
+				}#)
+		#scOutTiming[[37]] <- system.time(
 				if(any(simulation_timescales == "monthly") & aon$monthlySoilTemp) {
 					if(print.debug) print("Aggregation of monthlySoilTemp")
 					if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(sc, sw_soiltemp, "mo", scaler=1, FUN=weighted.mean, weights=layers_width)
 					
 					resMeans[nv+st_mo-1] <- soiltemp.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- soiltemp.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("TempSoil.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_C_mean", sep="")
 					nv <- nv+24
-				}
-			#41
+				}#)
+		#scOutTiming[[38]] <- system.time(	
 				if(any(simulation_timescales=="monthly") & aon$monthlyRunoff){
 					if(print.debug) print("Aggregation of monthlyRunoff")
 					if(!exists("runoff.mo")) runoff.mo <- get_Runoff_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate(runoff.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+11)] <- paste("Runoff.Total.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#42
+				}#)
+		#scOutTiming[[39]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyHydraulicRedistribution){
 					if(print.debug) print("Aggregation of monthlyHydraulicRedistribution")
 					if(!exists("hydred.mo")) hydred.mo <- get_Response_aggL(sc, sw_hd, "mo", 10, FUN=sum)
 					
 					resMeans[nv+st_mo-1] <- hydred.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- hydred.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
-				}
-			#43
+				}#)
+		#scOutTiming[[40]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyInfiltration){
 					if(print.debug) print("Aggregation of monthlyInfiltration")
 					if(!exists("inf.mo")) inf.mo <- get_Inf_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( inf.mo$inf , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+11)] <- paste("Infiltration.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#44
+				}#)
+		#scOutTiming[[41]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySWP){
 					if(print.debug) print("Aggregation of monthlySWP")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
@@ -4080,69 +4206,77 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- swp.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swp.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep="")
 					nv <- nv+24
-				}
-			#45
+				}#)
+		#scOutTiming[[42]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
 					if(print.debug) print("Aggregation of monthlyVWC")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
 					
 					resMeans[nv+st_mo-1] <- vwc.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- vwc.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep="")
 					nv <- nv+24
-				}		
-			#46
+				}#)			
+		#scOutTiming[[43]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySWC){
 					if(print.debug) print("Aggregation of monthlySWC")
 					if(!exists("swc.mo")) swc.mo <- get_Response_aggL(sc, sw_swc, "mo", 10, FUN=sum)
 					
 					resMeans[nv+st_mo-1] <- swc.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swc.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
-				}
-			#47
+				}#)			
+		#scOutTiming[[44]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySWA){
 					if(print.debug) print("Aggregation of monthlySWA")
 					if(!exists("swa.mo")) swa.mo <- get_Response_aggL(sc, sw_swa, "mo", 10, FUN=sum)
 					
 					resMeans[nv+st_mo-1] <- swa.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- swa.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
-				}
-			#48
+				}#)
+		#scOutTiming[[45]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
 					if(print.debug) print("Aggregation of monthlyTranspiration")
 					if(!exists("transp.mo")) transp.mo <- get_Response_aggL(sc, sw_transp, "mo", 10, FUN=sum)
 					
 					resMeans[nv+st_mo-1] <- transp.mo$aggMean.top
 					resMeans[nv+st_mo-1+12] <- transp.mo$aggMean.bottom
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep="")
 					nv <- nv+24
-				}
-			#49
+				}#)
+		#scOutTiming[[46]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlySoilEvaporation){
 					if(print.debug) print("Aggregation of monthlySoilEvaporation")
 					if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(sc, sw_evsoil, "mo", 10, FUN=sum)
 					
 					resMeans[nv+st_mo-1] <- aggregate(Esoil.mo$top + Esoil.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+11)] <- paste("Evaporation.Soil.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#50
+				}#)
+		#scOutTiming[[47]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyAET){
 					if(print.debug) print("Aggregation of monthlyAET")
 					if(!exists("AET.mo")) AET.mo <- get_AET_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( AET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+11)] <- paste("AET.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#51
+				}#)
+		#scOutTiming[[48]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyPET){
 					if(print.debug) print("Aggregation of monthlyPET")
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+11)] <- paste("PET.m", st_mo, "_mm_mean", sep="")
 					nv <- nv+12
-				}
-			#52
+				}#)
+		#scOutTiming[[49]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyAETratios){
 					if(print.debug) print("Aggregation of monthlyAETratios")
 					if(!exists("AET.mo")) AET.mo <- get_AET_mo(sc)
@@ -4151,9 +4285,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- aggregate( ifelse( AET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resMeans[nv+st_mo-1+12] <- aggregate( ifelse( AET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+23)] <- paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), st_mo, "_fraction_mean", sep="")
 					nv <- nv+24
-				}
-			#53
+				}#)
+		#scOutTiming[[50]] <- system.time(
 				if(any(simulation_timescales=="monthly") & aon$monthlyPETratios){
 					if(print.debug) print("Aggregation of monthlyPETratios")
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
@@ -4162,12 +4297,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv+st_mo-1] <- aggregate( ifelse( PET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resMeans[nv+st_mo-1+12] <- aggregate( ifelse( PET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					if(i==ifirst) resultfiles.Aggregates.header[nv:(nv+23)] <- paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), st_mo, "_fraction_mean", sep="")
 					nv <- nv+24
-				}
+				}#)
+				
 				
 				#---Aggregation: Potential regeneration
+				
 				#regeneration: accountNSHemispheres_agg
-			#54
+		#scOutTiming[[51]] <- system.time(
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_bySWPSnow) {
 					if(print.debug) print("Aggregation of dailyRegeneration_bySWPSnow")
 					if(!exists("swp.dy.all")) swp.dy.all <- list(val=-1/10*runData[[sc]][[sw_swp]][[dy]])	#no vwcdy available!
@@ -4229,14 +4367,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[nv] <- mean(temp <- c(by(data=data.frame(swp.surface, SWE.dy$val), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=regenerationThisYear_YN )))
 					resSDs[nv] <- sd(temp)
+					if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv] <- "Regeneration.Potential.SuitableYears.NSadj_fraction_mean"
 					nv <- nv+1
 					
 					rm(swp.surface)
-				}
+				}#)
 				
 				#Artemisia tridentata regeneration according to factor model (2012-02-15, drs), call for every regeneration species
 				#accountNSHemispheres_agg: param$Doy_SeedDispersalStart0 must be set correctly\
-			#55
+		#scOutTiming[[52]] <- system.time(
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
 					if(print.debug) print("Aggregation of dailyRegeneration_GISSM")
 					#---Access daily data, which do not depend on specific species parameters, i.e., start of season
@@ -4680,6 +4819,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						resMeans[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, MARGIN=2, FUN=mean, na.rm=TRUE) #if value==NA, then no germinations that year
 						resSDs[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, MARGIN=2, FUN=sd, na.rm=TRUE) #if value==NA, then no germinations that year
 						
+						temp.header1 <- c(paste(temp <- c("Germination", "Seedlings1stSeason"), ".SuitableYears_fraction_mean", sep=""),
+								paste(rep(temp, each=3), ".UnsuitableYears.Successive_years_quantile", rep(c(0.05, 0.5, 0.95), times=2), sep=""),
+								paste(temp, ".SuitableDaysPerYear_days_mean", sep=""),
+								paste(paste(rep(temp, each=3), ".", c("Start", "Middle", "End"), sep=""), "_doy_quantile", rep(c(0.9, 0.5, 0.9), times=2), sep=""),
+								paste("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"), "_days_mean", sep=""),
+								"Germination.TimeToGerminate_days_mean",
+								paste(colnames(SeedlingMortality_CausesByYear), "_days_mean", sep=""))
+						if((i==ifirst && !makeOutputDB)) resultfiles.Aggregates.header[nv:(nv+30)] <- paste(colnames(param.species_regeneration)[sp], temp.header1, sep=".")
 						nv <- nv+31
 						
 						#---Aggregate time series output
@@ -4724,11 +4871,25 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						#Prepare next species
 						prev.Doy_SeedDispersalStart <- Doy_SeedDispersalStart
 					}#end of species loop
-				}
-
+				}#)
+				#if(aggregate.timing) OutputTiming[[sc]] <- scOutTiming
 				#---Aggregation: done with options
 				
-				#temporaly save aggregate data					
+				#temporaly save aggregate data
+				
+				
+				if(!makeOutputDB){
+					header <- unlist(header)
+					
+					out.tempMeans <- c(header, resMeans[1:(nv-1)])
+					out.tempSDs <- c(header, resSDs[1:(nv-1)])
+					
+					if((i==ifirst && !makeOutputDB)) names(out.tempMeans) <- c(header.names, resultfiles.Aggregates.header[1:(nv-1)])
+					if((i==ifirst && !makeOutputDB)) names(out.tempSDs) <- c(header.names, gsub("_mean", "_sd", resultfiles.Aggregates.header[1:(nv-1)]))
+					
+					write.csv(t(out.tempMeans), file=filename.out.temp.Means[sc], quote=FALSE, row.names=FALSE )
+					write.csv(t(out.tempSDs), file=filename.out.temp.SDs[sc], quote=FALSE, row.names=FALSE )
+				}					
 				if(makeOutputDB){
 					P_id <- ((i-1)*scenario_No+sc)
 					#save(P_id, header, resMeans, nv, resSDs,header.names, resultfiles.Aggregates.header, file=file.path(dir.out,"readThis.r"))
@@ -4748,8 +4909,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					resMeans[!is.finite(resMeans)] <- "NULL"
 					resSDs[!is.finite(resSDs)] <- "NULL"
-					SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
-					SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
+					SQL1 <- paste0("INSERT INTO \"Aggregation_Overall_Mean\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
+					SQL2 <- paste0("INSERT INTO \"Aggregation_Overall_SD\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",sep="",collapse=","),",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
 					if(length(SQL) == 0) {
 						SQL <- paste(SQL1, SQL2, sep="\n")
 					} else {
@@ -4757,7 +4918,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 					
 				}
-			}
+			} #end overall aggregation
+			#if(aggregate.timing) {
+			#	temp <- Sys.time() - scStartTime
+			#	units(temp) <- "secs"
+			#	temp <- as.double(temp)
+			#	GeneralOutputTiming[sc,1] <- temp
+			#	scStartTime <- Sys.time()
+			#}
 			
 			#Daily Output
 			if(any(simulation_timescales=="daily") && daily_no > 0){
@@ -4886,30 +5054,70 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						#temporary save daily data
 						if(makeOutputDB) {
 							P_id <- ((i-1)*scenario_No+sc)
-						
+						} else {
+							agg.labels <- NULL
+							out.tempM <- t(c(header, res.dailyMean))
+							out.tempSD <- t(c(header, res.dailySD))
+							if(i==ifirst){
+								if(agg.analysis == 1){
+									agg.labels <- c(header.names, resultfiles.daily.labelsOne)
+								} else {
+									if(agg.resp == "SWA"){
+										agg.labels <- paste(resultfiles.daily.labelsLayers, "_", sub("SWA", "", output_aggregate_daily[doi]), sep="")
+										agg.labels <- c(header.names, agg.labels)
+									} else {
+										agg.labels <- c(header.names, resultfiles.daily.labelsLayers)
+									}
+								}
+							}
+							if((temp <- length(agg.labels) - ncol(out.tempM)) > 0){ #if i==ifirst doesn't have enough soil layers for all requested aggregation layers
+								out.tempM <- cbind(out.tempM, temp <- matrix(NA, nrow=1, ncol=temp))
+								out.tempSD <- cbind(out.tempSD, temp)
+							}
+							
+							colnames(out.tempM) <- colnames(out.tempSD) <- agg.labels
+						}
+						if(!makeOutputDB) {
+							if(!Exclude_ClimateAmbient) {
+								write.csv(out.tempM, file=filename.out.temp.dailyMean[doi, sc], quote=FALSE, row.names=FALSE )
+								write.csv(out.tempSD, file=filename.out.temp.dailySD[doi, sc], quote=FALSE, row.names=FALSE )
+							} else {
+								write.csv(out.tempM[,1:length(header)], file=filename.out.temp.dailyMean[doi, sc], quote=FALSE, row.names=FALSE )
+								write.csv(out.tempSD[,1:length(header)], file=filename.out.temp.dailySD[doi, sc], quote=FALSE, row.names=FALSE )
+							}
+						} else {
 							#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
 							if(agg.analysis == 1){
 								res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 								res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-								SQL1 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailyMean,collapse=",")),");", sep="")
-								SQL2 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailySD,collapse=",")),");", sep="")
+								SQL1 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailyMean,collapse=",")),");", sep="")
+								SQL2 <- paste0("INSERT INTO \"",paste0("Aggregation_Seasons_DailyValues_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailySD,collapse=",")),");", sep="")
 								SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 							} else {
 								#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
 								res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 								res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-								SQL1 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="") 
-								SQL2 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+								SQL1 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="") 
+								SQL2 <- paste0("INSERT INTO \"",paste("Aggregation_Seasons_DailyValues_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0("'",t(header),"'",collapse=","),",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 								SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 							}
 						}
+						#if(makeOutputDB) mpi.send.Robj(list(M=out.tempM, SD=out.tempSD, name=agg.resp, aggLs_no=aggLs_no), 1, 3, 1)
 					}#end if continueAfterAbort
 				}#doi loop
 			}#end if daily output
+			#if(aggregate.timing) {
+			#	temp <- Sys.time() - scStartTime
+			#	units(temp) <- "secs"
+			#	temp <- as.double(temp)
+			#	GeneralOutputTiming[sc,2] <- temp
+			#}
 		} #end loop through scenarios
+		#if(aggregate.timing) save(GeneralOutputTiming, OutputTiming, file=file.path(dir.out,paste("Timing_Run_",i,".data",sep="")))
 		if(makeOutputDB) {
 			write(SQL, dbTempFile, append=TRUE)
 		}
+		#mpi.wait(request=mpi.comm.rank())
 	} #end if do aggregate
 	
 	#ETA estimation
@@ -4918,7 +5126,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
 	write.table(dt, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE)
 	
+#	} #end if Include_YN
+	#return 1 to count total number of runs
 	return(1)	
+	
 } #end do_OneSite()
 #------------------------
 
@@ -5213,13 +5424,14 @@ if(makeOutputDB && any(actions=="concatenate")) {
 	temp <- as.double(temp)
 	if(temp <= (MaxRunDurationTime-900) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 15 minutes for anything useful
 		library(RSQLite)
+		
 		#Connect to the Database
 		drv <- dbDriver("SQLite")
 		con <- dbConnect(drv, dbname = name.OutputDB)
 		if(copyCurrentConditionsFromTempSQL) {
 			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=TRUE)
 			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
-			NumberTables <- length(dbListTables(con2)[-which(headerTables %in% dbListTables(con2))])
+			NumberTables <- length(dbListTables(con2))
 		}
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
@@ -5297,28 +5509,24 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			#Get sql for tables and index
 			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
 			sqlTables <- fetch(resSQL,n=-1)
-			sqlTables <- unlist(sqlTables)
-			sqlTables <- sqlTables[-grep(pattern="sqlite_sequence",sqlTables)]
+			sqlTables<-unlist(sqlTables)
 			dbClearResult(resSQL)
 			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='index' ORDER BY name;")
 			sqlIndex <- fetch(resIndex,n=-1)
 			dbClearResult(resIndex)
 			sqlIndex<-unlist(sqlIndex)
-			sqlIndex <- sqlIndex[!is.na(sqlIndex)]
 			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
 			
 			con <- dbConnect(drv, name.OutputDBCurrent)
 			for(i in 1:length(sqlTables)) {#Create the tables
 				res<-dbSendQuery(con, sqlTables[i])
 				dbClearResult(res)
 			}
-			if(sqlIndex > 0) {
-				for(i in 1:length(sqlIndex)) { #Create the indexes
-					res <- dbSendQuery(con,sqlIndex[i])
-					dbClearResult(res)
-				}
+			for(i in 1:length(resIndex)) { #Create the indexes
+				res <- dbSendQuery(con,sqlIndex[i])
+				dbClearResult(res)
 			}
+			
 			setwd(dir.out)
 			con <- dbConnect(drv) #Empty connection to attach both databases to the empty connection
 			resA1 <- dbSendQuery(con, paste("ATTACH ", shQuote(name.OutputDB), " AS X;", sep=""))
@@ -5326,11 +5534,7 @@ if(makeOutputDB && any(actions=="concatenate")) {
 			
 			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
 				dbBeginTransaction(con)
-				if(Tables[i] %in% headerTables[-1]) {
-					res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i],";",sep=""))
-				} else {
-					res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE X.",Tables[i],".P_id=X.runs.P_id AND X.runs.scenario_id=1;",sep=""))
-				}
+				res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE Scenario=", shQuote(climate.ambient), ";",sep=""))
 				dbClearResult(res)
 				dbCommit(con)
 			}
@@ -5400,7 +5604,265 @@ if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and outpu
 #------------------------COLLECT AND CONCATENATE SINGLE RESULT FILES INTO FINAL OUTPUT FILES
 t.concatenation <- Sys.time()	#timing of file concatenation
 if(!makeOutputDB && any(actions=="concatenate") && all.complete && (actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat)){
-	#Removed no longer supporting files.
+	if(!be.quiet) print(paste("SWSF concatenates temporary results: started at", t.concatenation))
+	
+	#collect and concatenate results into files
+	if(concatenation.inMemory){ #read, temporarily store in data.frame, and write to file at end (potentially big data.frame generation, but not much disk writing)
+		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
+			if(length(filelist) == 0 || !file.exists(filelist[1])) {
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated\n")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
+					return(0)
+				}
+			} else {
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
+			}
+			
+			f.temp <- read.csv(filelist[1])	#option: row.names=1
+			#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
+			maxCol <- dim(f.temp)[2]
+			scenarioColumn <- grep("Scenario", colnames(f.temp))
+			tempNA <- rep(NA, maxCol-scenarioColumn)
+			
+			data.temp <- matrix(data=NA, nrow=length(filelist), ncol=ncol(f.temp))
+			if(all(col.names == TRUE)){
+				colnames(data.temp) <- colnames(f.temp)
+			} else {
+				colnames(data.temp) <- col.names
+			}
+			data.temp[1, ] <- t(f.temp)
+			
+			if((no.files <- length(filelist)) > 1) for(f in 2:no.files) {
+					f.temp <- read.csv(filelist[f])
+					#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
+					if(dim(f.temp)[2] == scenarioColumn) {
+						data.temp[f, ] <- c(t(f.temp), tempNA)
+					} else {
+						data.temp[f, ] <- t(f.temp)
+					}
+				}
+			
+			#Exclude all columns with all NAs after 'colN.musthave' columns,
+			#i.e., only exclude those that are 'superfluous' on the right side, particularly, output for overall aggregated means and SD need to have the same n_variables number of columns
+			#but delete all empty columns, e.g. for the daily aggregates if all soil layers are selected --> code cannot know how many soil layers there will be, so use all, and then (here) delete superfluous columns
+			if(!is.null(colN.musthave) && colN.musthave < maxCol){
+				colN.musthave <- max(scenarioColumn, colN.musthave)
+				icol.allEmpty <- c(rep(FALSE, colN.musthave), apply(data.temp[, (colN.musthave+1):maxCol], MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp)))
+				if(sum(icol.allEmpty) > 0) data.temp <- data.temp[, !icol.allEmpty]	
+			}
+			
+			written <- try( write.csv(data.temp, file=resultfile, row.names=FALSE) )
+			if(!identical(class(written), "try-error")){
+				if(cleanup) try(file.remove(filelist), silent=TRUE)
+				return(1)
+			} else {
+				return(0)
+			}
+		}
+	} else {#concatenate by appending each temporary file to final file immediately
+		concatenate_TemporaryResultFiles <- function(resultfile, filelist, colN.musthave=NULL, col.names=TRUE, cleanup=FALSE){
+			if(length(filelist) == 0 || !file.exists(filelist[1])) {
+				if(file.exists(resultfile)){
+					cat(basename(resultfile), ": already concatenated\n")
+					return(1)
+				} else {
+					cat(basename(resultfile), ": no or not enough temporary files to collect results from\n")
+					return(0)
+				}
+			} else {
+				cat(basename(resultfile), ": concatenation started at", Sys.time(), "\n")
+			}
+			
+			f.temp <- read.csv(filelist[1])	#option: row.names=1
+			#maxCol and scenarioColumn used to add NA's on skipped Current Scenarios
+			maxCol <- dim(f.temp)[2]
+			scenarioColumn <- grep("Scenario", colnames(f.temp))
+			tempNA <- matrix(NA, nrow=1, ncol=maxCol-scenarioColumn)
+			
+			#init final file
+			written <- try(write.table(f.temp, file=resultfile, append=FALSE, quote=FALSE, sep=",", dec=".", row.names=FALSE, col.names=TRUE))
+			
+			if(!identical(class(written), "try-error")){
+				rfile <- file(resultfile, "at")	#only R can handle only 128 open connections
+				for(f in filelist[-1]){
+					f.temp <- read.csv(f)
+					#if f.temp only contains the header add NA, e.g., if we set Exclude_ClimateAmbient
+					if(dim(f.temp)[2] == scenarioColumn) {
+						f.temp <- cbind(f.temp, tempNA)
+					}
+					written <- try(cat(unlist(format(f.temp)), file=rfile, sep=",", append=TRUE))
+					if(identical(class(written), "try-error")) break
+					written <- try(cat("\n", file=rfile, sep="", append=TRUE))
+					if(identical(class(written), "try-error")) break
+				}
+				close(rfile)
+			}
+			
+			#Exclude all columns with all NAs after 'colN.musthave' columns,
+			#i.e., only exclude those that are 'superfluous' on the right side, particularly, output for overall aggregated means and SD need to have the same n_variables number of columns
+			#but delete all empty columns, e.g. for the daily aggregates if all soil layers are selected --> code cannot know how many soil layers there will be, so use all, and then (here) delete superfluous columns
+			if(!AggLayer.daily && !identical(class(written), "try-error") && !is.null(colN.musthave) && colN.musthave < maxCol){
+				colN.musthave <- max(scenarioColumn, colN.musthave)
+				data.temp <- read.csv(file=resultfile)
+				icol.allEmpty <- c(rep(FALSE, colN.musthave), apply(data.temp[, (colN.musthave+1):maxCol], MARGIN=2, FUN=function(x) sum(is.na(x)) == nrow(data.temp)))
+				if(sum(icol.allEmpty) > 0){
+					data.temp <- data.temp[, !icol.allEmpty]	
+					written <- try( write.csv(data.temp, file=resultfile, row.names=FALSE) )
+				}
+			}
+			
+			if(!identical(class(written), "try-error")){
+				if(cleanup) try(file.remove(filelist), silent=TRUE)
+				return(1)
+			} else {
+				return(0)
+			}
+		}
+	}
+	
+	getMatches <- function(filelist, pattern, targetN) {
+		temp <- filelist[grepl(pattern, filelist, fixed=TRUE)]
+		if(length(temp) != targetN) temp <- NULL
+		return(temp)
+	}
+	
+	#Determine how many concatenations needs to be done
+	resultfiles.toConcatenate <- c(unlist(resultfiles.Aggregates))
+	if(any(simulation_timescales=="daily") & daily_no > 0) resultfiles.toConcatenate <- c(resultfiles.toConcatenate, unlist(resultfiles.dailyMean), unlist(resultfiles.dailySD))
+	colNmusthaves.toConcatenate <- ifelse(grepl("/Aggregation_Overall/Scenarios", resultfiles.toConcatenate), n_variables, 1)
+	seq.concats <- 1:length(resultfiles.toConcatenate)
+	count.AllConcats <- length(resultfiles.toConcatenate) + exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature + exinfo$EstimateInitialSoilTemperatureForEachSoilLayer + ifelse(trowExperimentals > 0, makeInputForExperimentalDesign, 0)
+	
+	#Compile list of temporary output files to concatenate
+	checkList.theFileList <- list.files(path=dir.out, recursive=FALSE)
+	do.theFileList.create <- TRUE
+	if(filename.theFileList %in% checkList.theFileList){
+		theFileList <- read.csv(file=file.path(dir.out, filename.theFileList), colClasses="character")[, 1]
+		if(length(theFileList) != runsN.todo * count.AllConcats){#file on disk is incorrect
+			if(!be.quiet) print("TheFileList on disk contains an unexpected number of files. TheFileList will be recreated.")
+			file.rename(from=file.path(dir.out, filename.theFileList), to=file.path(dir.out, sub(".csv", "_old.csv", filename.theFileList)))
+		} else {
+			do.theFileList.create <- FALSE
+		}
+	}
+	if(do.theFileList.create){
+		theFileList <- list.files(path=dir.out.temp, full.names=TRUE, recursive=TRUE, include.dirs=FALSE)
+		write.csv(theFileList, file=file.path(dir.out, filename.theFileList), row.names=FALSE)
+	}
+	if(length(theFileList) != runsN.todo * count.AllConcats)#theFileList is incorrect
+		if(!be.quiet) print("TheFileList contains an unexpected number of files. Not all concatenations will be successful.")
+	
+	#Concatenate
+	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
+		ExpInputFiles <- getMatches(filelist=theFileList, pattern="Experimental_InputData_All.csv", targetN=runsN.todo)
+		print(paste("Experimental Input Data: concatenation started at", Sys.time()))
+		
+		SWRunInformation <- matrix(data="", nrow=runsN.todo, ncol=ncol(SWRunInformation), dimnames = list(NULL, colnames(SWRunInformation)))
+		sw_input_soillayers <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_soillayers), dimnames = list(NULL, colnames(sw_input_soillayers)))
+		sw_input_treatments <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_treatments), dimnames = list(NULL, colnames(sw_input_treatments)))
+		sw_input_cloud <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_cloud), dimnames = list(NULL, colnames(sw_input_cloud)))
+		sw_input_prod <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_prod), dimnames = list(NULL, colnames(sw_input_prod)))
+		sw_input_site <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_site), dimnames = list(NULL, colnames(sw_input_site)))
+		sw_input_soils <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_soils), dimnames = list(NULL, colnames(sw_input_soils)))
+		sw_input_weather <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_weather), dimnames = list(NULL, colnames(sw_input_weather)))
+		sw_input_climscen <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_climscen), dimnames = list(NULL, colnames(sw_input_climscen)))
+		sw_input_climscen_values <-  matrix(data="", nrow=runsN.todo, ncol=ncol(sw_input_climscen_values), dimnames = list(NULL, colnames(sw_input_climscen_values)))
+		
+		for(i in 1:length(ExpInputFiles)) {
+			infilename <- file.path(ExpInputFiles[i])
+			infiletext <- readLines(con = infilename)
+			
+			SWRunInformation[i,] <- (unlist(strsplit(infiletext[1], split=ExpInput_Seperator)))
+			sw_input_soillayers[i,] <- (unlist(strsplit(infiletext[2], split=ExpInput_Seperator)))
+			sw_input_treatments[i,] <- (unlist(strsplit(infiletext[3], split=ExpInput_Seperator)))
+			sw_input_cloud[i,] <- (unlist(strsplit(infiletext[4], split=ExpInput_Seperator)))
+			sw_input_prod[i,] <- (unlist(strsplit(infiletext[5], split=ExpInput_Seperator)))
+			sw_input_site[i,] <- (unlist(strsplit(infiletext[6], split=ExpInput_Seperator)))
+			sw_input_soils[i,] <- (unlist(strsplit(infiletext[7], split=ExpInput_Seperator)))
+			sw_input_weather[i,] <- (unlist(strsplit(infiletext[8], split=ExpInput_Seperator)))
+			sw_input_climscen[i,] <- (unlist(strsplit(infiletext[9], split=ExpInput_Seperator)))
+			sw_input_climscen_values[i,] <- (unlist(strsplit(infiletext[10], split=ExpInput_Seperator)))
+			
+			if(deleteTemporaryAggregationFiles) try(file.remove(infilename), silent=TRUE)
+		}
+		write.csv(SWRunInformation, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.SWRunInformation, sep="")), row.names=FALSE)
+		write.csv(sw_input_soillayers, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.soillayers, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_treatments_use_combined, sw_input_treatments), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.treatments, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_prod_use, sw_input_prod), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.prod, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_site_use, sw_input_site), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.siteparam, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.soils, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_weather_use, sw_input_weather), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.weathersetup, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_climscen_use, sw_input_climscen), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios, sep="")), row.names=FALSE)
+		write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.climatescenarios_values, sep="")), row.names=FALSE)
+	}
+	
+	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){#store soil temperature at lower boundary into datafile
+		try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_atLowerBoundary.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_atLowerBoundary", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+		if(try.cat > 0){
+			temp.soilT <- read.csv(temp.file)
+			try(file.remove(temp.file), silent=TRUE)
+			#write data to datafile.siteparam
+			temp.index <- match(temp.soilT[, 1], seq.tr)	#this doesn't work with trowExperimentals > 0
+			sw_input_site[, "SoilTempC_atUpperBoundary"][temp.index] <- temp.soilT[, 3]
+			sw_input_site[, "SoilTempC_atLowerBoundary"][temp.index] <- temp.soilT[, 4]
+			tempdat <- rbind(sw_input_site_use, sw_input_site)
+			if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) write.csv(tempdat, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.siteparam, sep="")), row.names=FALSE)
+			else write.csv(tempdat, file=file.path(dir.sw.dat, datafile.siteparam), row.names=FALSE)
+			
+			rm(try.cat, temp.soilT, temp.index, tempdat)
+		}
+	}
+	
+	if(trowExperimentals == 0 && runs.completed == runsN.todo && exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){#store initial soil temperature into datafile
+		try.cat <- concatenate_TemporaryResultFiles(resultfile=(temp.file <- file.path(dir.out.temp, "SoilTempC_InitProfile.csv")), filelist=getMatches(filelist=theFileList, pattern="SoilTempC_InitProfile", targetN=runsN.todo), colN.musthave=NULL, col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+		if(try.cat > 0){
+			temp.soilT <- read.csv(temp.file)
+			try(file.remove(temp.file), silent=TRUE)
+			#write data to datafile.soils
+			temp.index <- match(temp.soilT[, 1], seq.tr)	#this doesn't work with trowExperimentals > 0
+			ld <- 1:SoilLayer_MaxNo
+			
+			use.layers <- which(sw_input_soils_use[match(paste("SoilTemp_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)[1:(ncol(temp.soilT)-2)]
+			index.soilTemp <- match(paste("SoilTemp_L", ld, sep=""), colnames(sw_input_soils_use))[use.layers]
+			sw_input_soils[temp.index, index.soilTemp] <- ifelse(makeInputForExperimentalDesign, as.matrix(temp.soilT[, 3:ncol(temp.soilT)]), temp.soilT[, 3:ncol(temp.soilT)])
+			tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+			if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) write.csv(tempdat, file=file.path(dir.out.experimentalInput, paste("EXP_", datafile.soils, sep="")), row.names=FALSE)
+			else write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+			rm(try.cat, temp.soilT, temp.index, ld, use.layers, index.soilTemp, tempdat)
+		}
+	}
+	
+	if(runs.completed == runsN.todo && any(actions=="aggregate") || any(actions == "concatenate") && !any(actions=="aggregate")){
+		if(parallel_runs){
+			#objects to export
+			list.export <- c("concatenate_TemporaryResultFiles", "resultfiles.toConcatenate", "getMatches", "colNmusthaves.toConcatenate", "theFileList", "deleteTemporaryAggregationFiles", "seq.concats", "runsN.todo")
+			list.noexport <- (temp <- ls())[-match(list.export, temp, nomatch=0)]			
+			
+			if(identical(parallel_backend, "mpi")) {
+				exportObjects(list.export)
+				concats.completed <- mpi.parLapply(seq.concats, function(i) concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles))
+				concats.completed <- sum(as.numeric(unlist(concats.completed)), na.rm=TRUE)
+			}
+			if(identical(parallel_backend, "snow")){
+				snow::clusterExport(cl, list.export)
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE) %dopar% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+			}
+			if(identical(parallel_backend, "multicore")){
+				concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+			}
+		} else {
+			concats.completed <- foreach(i = seq.concats, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate[i], filelist=getMatches(filelist=theFileList, pattern=basename(resultfiles.toConcatenate[i]), targetN=runsN.todo), colN.musthave=colNmusthaves.toConcatenate[i], col.names=TRUE, cleanup=deleteTemporaryAggregationFiles)
+		}
+		
+		if(concats.completed != length(resultfiles.toConcatenate)) print(paste("Not all concatenations were successful:", concats.completed, "instead of", length(resultfiles.toConcatenate)))
+		
+		
+	} else if(runs.completed != runsN.todo){
+		print(paste("The 'foreach' simulation loop ran not often enough for concatenation:", runs.completed, "instead of", runsN.todo))
+	}
 } else {
 	concats.completed <- 0
 }
@@ -5447,170 +5909,296 @@ if(do.ensembles && all.complete &&
 		return(res)
 	}
 	
-	collect_EnsembleFromScenarios <- function(Table){
+	
+	if(!makeOutputDB) {
+		#Define ensemble function
+		collect_EnsembleFromScenarios <- function(outputs, elevels, filelist){
+			
+			if(length(filelist) == 0 || !file.exists(filelist[1, 1])) {
+				print("SWSF calculates ensembles: not enough scenario files to collect results from or bad path")
+				return(0)
+			}
+			if(sum(!is.na(outputs[, 1])) != sum(!is.na(outputs[, 2]))){
+				print("SWSF calculates ensembles: output is not organized with an associated file containing SDs; assuming column i in the files containing means and SD refer to a pair of mean±SD")
+				return(0)
+			}			
+			
+			doWrite <- function(dat, headerInfo, elevel, outfile){
+				#add info to 
+				name <- ensemble.families[sapply(ensemble.families, function(d) grepl(pattern=d, x=outfile))]
+				cAdd <- data.frame(matrix(data=c(name, elevel), nrow=nrow(headerInfo), ncol=2, byrow=TRUE))
+				colnames(cAdd) <- c("EnsembleName", "Level")
+				dat <- cbind(headerInfo, cAdd, dat)
+				written <- try(write.csv(dat, file=outfile, row.names=FALSE))
+				if(!identical(class(written), "try-error")){
+					return(1)
+				} else {
+					return(0)
+				}
+			}
+			
+			read.scenarios <- function(flist, export.header=TRUE){
+				#Read first file
+				f.temp <- read.csv(flist[1], comment.char="")
+				#store scenario information for just the first one
+				columnCutoff <- match("Scenario", colnames(f.temp))
+				ncols <- ncol(f.temp)
+				nrows <- nrow(f.temp)
+				#want to remove scenario column replace with one for ensemble family name and quantile
+				if(export.header) headerInfo <- f.temp[,1:(columnCutoff-1)]
+				dtemp1 <- f.temp[,-(1:columnCutoff)]
+				col.names <- colnames(dtemp1)
+				rm(f.temp)
+				
+				#read in data
+				data.temp <- list()
+				data.temp[[1]] <- c(dtemp1)
+				index.skipHeader <- c(sapply(1:nrows, FUN=function(x) (x-1)*ncols + 1:columnCutoff))
+				if((no.files <- length(flist)) > 1) for(f in 2:no.files){
+						data.temp[[f]] <- matrix(scan(file=flist[f], what="numeric", sep=",", skip=1, nmax=nrows*ncols, quiet=TRUE, comment.char="")[-index.skipHeader], nrow=nrows, byrow=TRUE)
+					}
+				data.temp <- unlist(data.temp)
+				dim(data.temp) <- c(nrow(dtemp1), ncol(dtemp1), no.files)
+				colnames(data.temp) <- col.names
+				class(data.temp) <- "numeric"
+				
+				if(export.header) {
+					return(list(headerInfo=headerInfo, data.scen=data.temp))
+				} else {
+					return(list(data.scen=data.temp))
+				}
+			}
+			
+			
+			#Read scenario data files
+			dataScen.Mean <- read.scenarios(flist=filelist[, 1], export.header=TRUE)
+			dataScen.SD <- read.scenarios(flist=filelist[, 2], export.header=FALSE)
+			
+			#get ensembles for non-SD file
+			dataEns.Mean <- calc.ensembles(dat=dataScen.Mean$data.scen, elevels=elevels) 
+			
+			#Lookup SD values from scenarios based on ranks determined from taking ensembles of the means 
+			lookup <- aperm(dataEns.Mean[(length(elevels) + 1):(2*length(elevels)),,], perm=c(2,3,1))
+			make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), ncol(lookup), length(elevels) + dim(dataScen.SD$data.scen)[3]))
+			dataEns.SD <- apply(make, MARGIN=c(1,2), FUN=function(lookANDscen) lookANDscen[(length(elevels)+1):dim(make)[3]][lookANDscen[1:length(elevels)]])
+			dimnames(dataEns.SD)[3] <- dimnames(dataScen.SD$data.scen)[2]
+			
+			#write ensemble files
+			nfiles <- 0
+			for(i in 1:length(elevels)){
+				nfiles <- nfiles + doWrite(dat=dataEns.Mean[i,,], headerInfo=dataScen.Mean$headerInfo, elevel=elevels[i], outfile=outputs[i, 1])
+				nfiles <- nfiles + doWrite(dat=dataEns.SD[i,,], headerInfo=dataScen.Mean$headerInfo, elevel=elevels[i], outfile=outputs[i, 2])
+				if(save.scenario.ranks) nfiles <- nfiles + doWrite(dat=dataEns.Mean[length(elevels) + i,,], headerInfo=dataScen.Mean$headerInfo, elevel=elevels[i], outfile=outputs[i, 3])
+			}
+			
+			return(nfiles)
+		}
+		
+		#Get ready for doing the ensembles
+		ensembles.completed <- 0
+		for(ios in 1:nrow(ensembles.maker$outputs)){
+			for(ifs in 1:ncol(ensembles.maker$outputs)){
+				nfiles <- collect_EnsembleFromScenarios(outputs=ensembles.maker$outputs[ios, ifs,,], elevels=ensemble.levels, filelist=ensembles.maker$scenarioFiles[ios, ifs,,])
+				ensembles.completed <- ensembles.completed + nfiles
+				if(nfiles != sum(!is.na(ensembles.maker$outputs[ios, ifs,,]))) print(paste("SWSF calculates ensembles: something went wrong with ensemble output:", basename(ensembles.maker$outputs[ios, ifs, 1, 1])))
+			}
+		}
+		if(ensembles.completed != sum(!is.na(ensembles.maker$outputs))) print("SWSF calculates ensembles: Something went wrong with ensemble output.")
+		
+	} else { #db
+		collect_EnsembleFromScenarios <- function(Table){
+			drv <- dbDriver("SQLite")
+			con <- dbConnect(drv, dbname = name.OutputDB)
+			#########TIMING#########
+			TableTimeStop <- Sys.time() - t.overall
+			units(TableTimeStop) <- "secs"
+			TableTimeStop <- as.double(TableTimeStop)
+			print(paste("Table: ",Table,": started at ",TableTime<-Sys.time(),sep=""))
+			
+			#########FUNCTIONS######
+			doWrite <- function(dat, headerInfo, elevel, outfile){
+				#add info to 
+				name <- ensemble.family
+				cAdd <- data.frame(matrix(data=c(name, elevel), nrow=nrow(headerInfo), ncol=2, byrow=TRUE))
+				colnames(cAdd) <- c("EnsembleName", "Level")
+				if(is.vector(dat)) {
+					dat <- cbind(headerInfo, cAdd, t(dat))
+				} else {
+					dat <- cbind(headerInfo, cAdd, dat)
+				}
+				written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
+				
+				if(written)
+					return(1)
+				else
+					return(0)
+			}
+			read.scenarios <- function(Table, start, stop, ensemble.family, export.header=TRUE){
+				#Read first file
+				sqlString <- paste("SELECT * FROM \"", Table, "\" WHERE P_id BETWEEN ",start," AND ",stop," AND \"Scenario\" LIKE '", tolower(ensemble.family), "%'", " ORDER BY \"P_id\"", sep="")
+				res <- dbSendQuery(con, sqlString)
+				dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
+				dbClearResult(res)
+				
+				columnCutoff <- match("Scenario", colnames(dataScen.Mean))
+				if(export.header) {
+					headerInfo <- lapply(unique(dataScen.Mean$Scenario), function (x) dataScen.Mean[dataScen.Mean$Scenario == x,(1:(columnCutoff-1))])
+					headerInfo <- headerInfo[[1]]
+				}
+				col.names <- colnames(dataScen.Mean[,-(1:columnCutoff)])
+				#We have all the scenarios in the family. We need to get unique scenario names and group them by that
+				data.temp <- lapply(unique(dataScen.Mean$Scenario), function (x) dataScen.Mean[dataScen.Mean$Scenario == x,-(1:columnCutoff)])
+				data.temp <- array(data=unlist(data.temp), dim=c(nrow(data.temp[[1]]), ncol(data.temp[[1]]), length(data.temp)) )
+				colnames(data.temp) <- col.names
+				class(data.temp) <- "numeric"
+				
+				if(export.header) {
+					return(list(headerInfo=headerInfo, data.scen=data.temp))
+				} else {
+					return(list(data.scen=data.temp))
+				}
+			}
+			
+			if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
+				dir.out.ensemble.db <- dir.out
+				tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table),".db",sep=""))
+				conEnsembleDB <- dbConnect(drv, dbname=tfile)
+				
+				nfiles <- 0
+				#Grab x rows at a time
+				SQL <- paste("SELECT MAX(P_id) FROM ",Table,";",sep="")
+				maxP_id <- as.integer(dbGetQuery(con,SQL))
+				maxRun_id <- (maxP_id/scenario_No)
+				
+				for(j in 1:length(ensemble.families)) {
+					EnsembleTimeStop <- Sys.time() - t.overall
+					units(EnsembleTimeStop) <- "secs"
+					EnsembleTimeStop <- as.double(EnsembleTimeStop)
+					if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
+						break
+					}
+					print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
+					outputs <- gsub(pattern=".csv", replacement="",basename(ensembles.maker$outputs[which(Tables==Table),j,,]))
+					if(save.scenario.ranks) {
+						dim(outputs) <- c(length(ensemble.levels),3)
+					} else {
+						dim(outputs) <- c(length(ensemble.levels),2)
+					}
+					
+					ensemble.family=ensemble.families[j]
+					#########################
+					for(i in seq(1,maxRun_id,ensembleCollectSize)) {
+						ptimes<-numeric(5)
+						start <- (i-1)*scenario_No+1
+						stop <- (min(i+ensembleCollectSize-1,maxRun_id)-1)*scenario_No+scenario_No
+						
+						MeanReadTime<-Sys.time()
+						dataScen.Mean <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=TRUE)
+						temp2<-Sys.time() - MeanReadTime
+						units(temp2) <- "secs"
+						temp2 <- as.double(temp2)
+						ptimes[1] <- temp2
+						
+						Table <- sub(pattern="Mean", replacement="SD", Table)
+						
+						SDReadTime<-Sys.time()
+						dataScen.SD <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=FALSE)			
+						temp2<-Sys.time() - SDReadTime
+						units(temp2) <- "secs"
+						temp2 <- as.double(temp2)
+						ptimes[2] <- temp2
+
+						Table <- sub(pattern="SD", replacement="Mean", Table)
+						#get ensembles for non-SD file
+						calcTime <- Sys.time()
+						dataEns.Mean <- calc.ensembles(dat=dataScen.Mean$data.scen, elevels=ensemble.levels)
+						temp2<-Sys.time() - calcTime
+						units(temp2) <- "secs"
+						temp2 <- as.double(temp2)
+						ptimes[3] <- temp2 
+						#Lookup SD values from scenarios based on ranks determined from taking ensembles of the means
+						rankTime <- Sys.time()
+						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
+							lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,1))
+							make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
+							dataEns.SD <- apply(make, MARGIN=1, FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[2]][lookANDscen[1:length(ensemble.levels)]])
+							dimnames(dataEns.SD)[2] <- dimnames(dataScen.SD$data.scen)[2]
+						} else {
+							lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,3,1))
+							make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), ncol(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
+							dataEns.SD <- apply(make, MARGIN=c(1,2), FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[3]][lookANDscen[1:length(ensemble.levels)]])
+							dimnames(dataEns.SD)[3] <- dimnames(dataScen.SD$data.scen)[2]
+						}
+						temp2<-Sys.time() - rankTime
+						units(temp2) <- "secs"
+						temp2 <- as.double(temp2)
+						ptimes[4] <- temp2
+						
+						#write ensemble files
+						writeTime <- Sys.time()
+						for(k in 1:length(ensemble.levels)){
+							nfiles <- nfiles + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 1])
+							if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
+								nfiles <- nfiles + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							} else {
+								nfiles <- nfiles + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							}
+							if(save.scenario.ranks) nfiles <- nfiles + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 3])
+						}
+						temp2<-Sys.time() - writeTime
+						units(temp2) <- "secs"
+						temp2 <- as.double(temp2)
+						ptimes[5] <- temp2
+						print(paste("          ",i,":",i+ensembleCollectSize-1," of ",maxRun_id," done. Mean Read: ",ptimes[1],". SD Read: ",ptimes[2],". Calc: ",ptimes[3],". Rank: ",ptimes[4],". Write: ",ptimes[5],". Total:",sum(ptimes),sep=""))
+					}
+					#########################
+					temp2<-Sys.time() - EnsembleTime
+					units(temp2) <- "secs"
+					temp2 <- as.double(temp2)
+					print(paste("     ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+				}
+			}
+			temp2<-Sys.time() - TableTime
+			units(temp2) <- "secs"
+			temp2 <- as.double(temp2)
+			print(paste("ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+			
+			return(nfiles)
+		}
+		
+		library(RSQLite,quietly = TRUE)
 		drv <- dbDriver("SQLite")
 		con <- dbConnect(drv, dbname = name.OutputDB)
-		#########TIMING#########
-		TableTimeStop <- Sys.time() - t.overall
-		units(TableTimeStop) <- "secs"
-		TableTimeStop <- as.double(TableTimeStop)
-		print(paste("Table: ",Table,": started at ",TableTime<-Sys.time(),sep=""))
 		
-		#########FUNCTIONS######
-		doWrite <- function(dat, headerInfo, elevel, outfile){
-			#add info to 
-			name <- ensemble.family
-			cAdd <- data.frame(matrix(data=c(name, elevel), nrow=nrow(headerInfo), ncol=2, byrow=TRUE))
-			colnames(cAdd) <- c("EnsembleName", "Level")
-			if(is.vector(dat)) {
-				dat <- cbind(headerInfo, cAdd, t(dat))
-			} else {
-				dat <- cbind(headerInfo, cAdd, dat)
-			}
-			written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
-			
-			if(written)
-				return(1)
-			else
-				return(0)
-		}
-		read.scenarios <- function(Table, start, stop, ensemble.family, export.header=TRUE){
-			#Read first file
-			
-			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",paste("\"",dbListFields(con,Table)[-1],"\"", sep="",collapse = ", ")," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
-			res <- dbSendQuery(con, sqlString)
-			dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
-			dbClearResult(res)
-			
-			columnCutoff <- match("Scenario", colnames(dataScen.Mean))
-			if(export.header) {
-				sqlString <- paste("SELECT P_id FROM header WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current';",sep="")
-				res <- dbSendQuery(con, sqlString)
-				headerInfo <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
-				dbClearResult(res)
-			}
-			col.names <- colnames(dataScen.Mean[,-(1:columnCutoff)])
-			#We have all the scenarios in the family. We need to get unique scenario names and group them by that
-			data.temp <- lapply(unique(dataScen.Mean$Scenario), function (x) dataScen.Mean[dataScen.Mean$Scenario == x,-(1:columnCutoff)])
-			data.temp <- array(data=unlist(data.temp), dim=c(nrow(data.temp[[1]]), ncol(data.temp[[1]]), length(data.temp)) )
-			colnames(data.temp) <- col.names
-			class(data.temp) <- "numeric"
-			
-			if(export.header) {
-				return(list(headerInfo=headerInfo, data.scen=data.temp))
-			} else {
-				return(list(data.scen=data.temp))
-			}
-		}
+		Tables <- dbListTables(con) #get a list of tables
+		Tables <- Tables[-grep(pattern="SD", Tables)]
 		
-		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
-			dir.out.ensemble.db <- dir.out
-			tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table),".sqlite3",sep=""))
-			conEnsembleDB <- dbConnect(drv, dbname=tfile)
-			
-			nfiles <- 0
-			#Grab x rows at a time
-			SQL <- paste("SELECT MAX(P_id) FROM ",Table,";",sep="")
-			maxP_id <- as.integer(dbGetQuery(con,SQL))
-			maxRun_id <- (maxP_id/scenario_No)
-			
-			for(j in 1:length(ensemble.families)) {
-				EnsembleTimeStop <- Sys.time() - t.overall
-				units(EnsembleTimeStop) <- "secs"
-				EnsembleTimeStop <- as.double(EnsembleTimeStop)
-				if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
-					break
-				}
-				print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
-				outputs <- gsub(pattern=".csv", replacement="",basename(ensembles.maker$outputs[which(unlist(lapply(strsplit(basename(ensembles.maker$outputs[,1,1,1]),"_"),FUN=function(x) x[4]))==(temp<-strsplit(Table,"_"))[[1]][ifelse(length(temp[[1]])==3,2,3)]),j,,]))
-				if(save.scenario.ranks) {
-					dim(outputs) <- c(length(ensemble.levels),3)
-				} else {
-					dim(outputs) <- c(length(ensemble.levels),2)
-				}
+		if(parallel_runs){
+			#call the simulations depending on parallel backend
+			list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend")
+			if(identical(parallel_backend, "mpi")) {
+				workersN <- (mpi.comm.size() - 1)
+				exportObjects(list.export)
 				
-				ensemble.family=ensemble.families[j]
-				#########################
-				for(i in seq(1,maxRun_id,ensembleCollectSize)) {
-					dataScen.Mean <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=TRUE)
-					Table <- sub(pattern="Mean", replacement="SD", Table)
-					dataScen.SD <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=FALSE)			
-					Table <- sub(pattern="SD", replacement="Mean", Table)
-					#get ensembles for non-SD file
-					dataEns.Mean <- calc.ensembles(dat=dataScen.Mean$data.scen, elevels=ensemble.levels)
-					#Lookup SD values from scenarios based on ranks determined from taking ensembles of the means
-					if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-						lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,1))
-						make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
-						dataEns.SD <- apply(make, MARGIN=1, FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[2]][lookANDscen[1:length(ensemble.levels)]])
-						dimnames(dataEns.SD)[2] <- dimnames(dataScen.SD$data.scen)[2]
-					} else {
-						lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,3,1))
-						make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), ncol(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
-						dataEns.SD <- apply(make, MARGIN=c(1,2), FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[3]][lookANDscen[1:length(ensemble.levels)]])
-						dimnames(dataEns.SD)[3] <- dimnames(dataScen.SD$data.scen)[2]
-					}
-					#write ensemble files
-					for(k in 1:length(ensemble.levels)){
-						nfiles <- nfiles + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 1])
-						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-							nfiles <- nfiles + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
-						} else {
-							nfiles <- nfiles + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
-						}
-						if(save.scenario.ranks) nfiles <- nfiles + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 3])
-					}
-					min(i+ensembleCollectSize-1,maxRun_id)
-					print(paste("          ",i,":",min(i+ensembleCollectSize-1,maxRun_id)," of ",maxRun_id," done.",sep=""))
-				}
-				#########################
-				temp2<-Sys.time() - EnsembleTime
-				units(temp2) <- "secs"
-				temp2 <- as.double(temp2)
-				print(paste("     ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+				mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+				mpi.bcast.cmd(drv<-dbDriver("SQLite"))
+				
+				ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			} else if(identical(parallel_backend, "snow")) {
+				snow::clusterExport(cl, list.export)
+				snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+				snow::clusterEvalQ(cl, drv<-dbDriver("SQLite"))
+				
+				ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
+			}
+		} else {
+			ensembles.completed <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
+				collect_EnsembleFromScenarios(table)
 			}
 		}
-		temp2<-Sys.time() - TableTime
-		units(temp2) <- "secs"
-		temp2 <- as.double(temp2)
-		print(paste("ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
 		
-		return(nfiles)
+		if(ensembles.completed != length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels)) print("SWSF calculates ensembles: something went wrong with ensemble output.")
 	}
-	
-	library(RSQLite,quietly = TRUE)
-	drv <- dbDriver("SQLite")
-	con <- dbConnect(drv, dbname = name.OutputDB)
-	
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables)]
-	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
-	
-	if(parallel_runs){
-		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
-		if(identical(parallel_backend, "mpi")) {
-			workersN <- (mpi.comm.size() - 1)
-			exportObjects(list.export)
-			
-			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
-			
-			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
-		} else if(identical(parallel_backend, "snow")) {
-			snow::clusterExport(cl, list.export)
-			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
-			snow::clusterEvalQ(cl, drv<-dbDriver("SQLite"))
-			
-			ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
-		}
-	} else {
-		ensembles.completed <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-			collect_EnsembleFromScenarios(table)
-		}
-	}
-	
-	if(ensembles.completed != length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels)) print("SWSF calculates ensembles: something went wrong with ensemble output.")
 }
 
 
