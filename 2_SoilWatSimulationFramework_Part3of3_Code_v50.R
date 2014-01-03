@@ -279,6 +279,7 @@
 #		- (drs) added to aggregation 'input_FractionVegetationComposition': C3, C4, and annual-grass fractions
 #		- (drs) fixed create:soils: comparison of soil layer structure
 #		- (drs) adjusted wrapper function circ.sd() because circular::sd.circular() can return NaN instead of 0 [in packageVersion("circular") <= "0.4.7"]
+#		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1328,6 +1329,8 @@ if(any(actions == "create")){
 					usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
 					trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 				}
+				
+				trco <- trco / sum(trco)
 				
 				return(trco)
 			} else {
@@ -2633,10 +2636,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					Annuals.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_annuals, layers_depth=layers_depth)
 					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] + C4.trco * grasses.c3c4ann.fractions[[sc]][2] + Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
 				}
+				if(is.na(sum(Grass.trco))) Grass.trco <- rep(0, d)
 				
 				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth)
 				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth)
-				if(is.na(sum(Grass.trco))) Grass.trco <- rep(0, d)
 				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Grass.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Shrub.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco			
