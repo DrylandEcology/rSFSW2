@@ -354,8 +354,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 	################CREATE VIEW########################
 	sites_columns <- colnames(SWRunInformation[Index_RunInformation])
-	sites_columns<-sub("ID","site_id",sites_columns)
-	sites_columns<-sites_columns[-grep(pattern="WeatherFolder",sites_columns)]
+	sites_columns <- sub("ID","site_id",sites_columns)
+	if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
 	treatment_columns <- colnames(db_combined_exp_treatments)[-(1:2)]
 	if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
 	header_columns<-c("runs.P_id","run_labels.label", paste("sites",sites_columns,sep=".",collapse = ", "), if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder" , if(useExperimentals) "experimental_labels.label AS Experimental_Label", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
