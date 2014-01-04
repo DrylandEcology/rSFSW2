@@ -389,10 +389,7 @@ if(!require(RSQLite,quietly = TRUE)) {
 	tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
 	stopifnot(require(RSQLite, quietly = TRUE))
 }
-if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
-	drv<-dbDriver("SQLite")
-	con<-dbConnect(drv,dbWeatherDataFile)
-}
+
 if(parallel_runs && identical(parallel_backend, "mpi")) { 
 	if(!require(Rmpi,quietly = TRUE)) {
 		tryCatch(install.packages("Rmpi",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
@@ -737,13 +734,16 @@ if(do.ensembles){
 }
 
 #------ Create the Database and Tables within
+drv <- dbDriver("SQLite")
 
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+con <- dbConnect(drv, dbname=name.OutputDB)
 
-if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) conWeather<-dbConnect(drv,dbWeatherDataFile)
+if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica)
+	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
@@ -4956,7 +4956,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	ifirst <- seq.todo[1]
 	#objects to export
-	list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values","con")
+	list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values", "con", "conWeather")
 	list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
 	
 	#ETA calculation
@@ -5017,12 +5017,16 @@ if(actionWithSoilWat && runsN.todo > 0){
 							i_sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 							if(is.null(i_sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 						} else {
+							con <- dbConnect(drv, dbname=name.OutputDB)
 							temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
 							if(WeatherDataFromDatabase) {
+								conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 								i_sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
+								dbDisconnect(conWeather)
 							} else {
 								i_sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 							}
+							dbDisconnect(con)
 						}
 						dataForRun <- list(do_OneSite=TRUE, concatenate_TemporaryResultFiles=FALSE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
 						mpi.send.Robj(dataForRun, slave_id, 1);
@@ -5052,22 +5056,23 @@ if(actionWithSoilWat && runsN.todo > 0){
 			snow::clusterExport(cl, list.export)
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %dopar% {
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-				if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
-					drv<-dbDriver("SQLite")
-					conWeather<-dbConnect(drv,dbWeatherDataFile)
-				}
 				#weather folder name and structure
 				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 					sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 				} else {
-					temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
+					drv <- dbDriver("SQLite")
+					con <- dbConnect(drv, dbname=name.OutputDB)
+					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
 					if(WeatherDataFromDatabase) {
+						conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 						sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+						dbDisconnect(conWeather)
 					} else {
 						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					}
+					dbDisconnect(con)
 				}
 				do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 			}
@@ -5075,22 +5080,23 @@ if(actionWithSoilWat && runsN.todo > 0){
 		if(identical(parallel_backend, "multicore")){
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-				if(WeatherDataFromDatabase) {
-					drv<-dbDriver("SQLite")
-					conWeather<-dbConnect(drv,dbWeatherDataFile)
-				}
 				#weather folder name and structure
 				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 					sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 				} else {
-					temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
+					drv <- dbDriver("SQLite")
+					con <- dbConnect(drv, dbname=name.OutputDB)
+					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
 					if(WeatherDataFromDatabase) {
+						conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 						sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+						dbDisconnect(conWeather)
 					} else {
 						sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					}
+					dbDisconnect(con)
 				}
 				do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 			}
@@ -5126,12 +5132,17 @@ if(actionWithSoilWat && runsN.todo > 0){
 				sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 				if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 			} else {
-				temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
+				drv <- dbDriver("SQLite")
+				con <- dbConnect(drv, dbname=name.OutputDB)
+				temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
 				if(WeatherDataFromDatabase) {
+					conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 					sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
+					dbDisconnect(conWeather)
 				} else {
 					sw_weatherList <- onGetWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 				}
+				dbDisconnect(con)
 			}
 			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 		}
