@@ -25,9 +25,16 @@ if(length(Tables) == 0) {
 #number of tables without ensembles (daily_no*2 + 2)
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
+	
+	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
+	
 	dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 	dbBeginTransaction(con)
-	dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors=FALSE))
+	if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
+		dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors=FALSE))
+	} else {
+		if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
+	}
 	dbCommit(con)
 	
 	#Site Table
@@ -46,13 +53,14 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	site_columns <- colnames(SWRunInformation)
 	site_columns <- sub(pattern="ID", replacement="site_id",site_columns)
 	site_columns <- sub(pattern="WeatherFolder",replacement="WeatherFolder_id",site_columns)
+	site_col_types[which(colnames(SWRunInformation) == "WeatherFolder")] <- "INTEGER"
 	dbGetQuery(con, paste("CREATE TABLE sites(id INTEGER PRIMARY KEY AUTOINCREMENT,", paste(site_columns, site_col_types, collapse=","), ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));", sep=""))
 	
 	
 	sites_data<-data.frame(SWRunInformation[seq.tr,],row.names=NULL, check.rows=FALSE, check.names=FALSE, stringsAsFactors=FALSE)
 	
 	colnames(sites_data) <- site_columns
-	sites_data$WeatherFolder_id <- 1:length(sites_data$site_id)
+	sites_data$WeatherFolder_id <- if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) 1:length(sites_data$site_id) else NA
 	#This works fast
 	dbBeginTransaction(con)
 	dbGetPreparedQuery(con, paste("INSERT INTO sites VALUES(NULL,",paste(":",site_columns,collapse=",",sep=""),")",sep=""), bind.data=sites_data)
@@ -210,7 +218,9 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		
 		#rename weather folder column name and create the fk
 		fk_LookupWeatherFolder <- ""
+		useTreatmentWeatherFolder <- FALSE
 		if(any(create_treatments=="LookupWeatherFolder")) {
+			useTreatmentWeatherFolder <- TRUE
 			db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
 			colnames(db_combined_exp_treatments)[-(1:2)] <- db_treatments_column_types[,1]
 			fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
@@ -345,11 +355,13 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	################CREATE VIEW########################
 	sites_columns <- colnames(SWRunInformation[Index_RunInformation])
 	sites_columns<-sub("ID","site_id",sites_columns)
-	sites_columns<-sub("WeatherFolder", "WeatherFolder_id",sites_columns)
-	header_columns<-c("runs.P_id","run_labels.label", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label", if(useExperimentals | useTreatments) paste("treatments",colnames(db_combined_exp_treatments)[-(1:2)], sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
+	sites_columns<-sites_columns[-grep(pattern="WeatherFolder",sites_columns)]
+	treatment_columns <- colnames(db_combined_exp_treatments)[-(1:2)]
+	if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
+	header_columns<-c("runs.P_id","run_labels.label", paste("sites",sites_columns,sep=".",collapse = ", "), if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder" , if(useExperimentals) "experimental_labels.label AS Experimental_Label", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 	header_columns<-paste(header_columns,collapse = ", ")
 	
-	dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ", if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
+	dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years, weatherfolders WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
 	##################################################
 	
 #B. Aggregation_Overall
