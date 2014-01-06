@@ -4998,7 +4998,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 					# are done if there are none.
 					if ((runs.completed < tail(seq.todo,n=1)) & (temp < MaxDoOneSiteTime)) {
 						# Send a task, and then remove it from the task list
-						i_tr <- seq.tr[(1+runs.completed - 1) %% runs + 1]
+						i_tr <- seq.tr[(runs.completed) %% runs + 1]
 						i_labels <- labels[i_tr]
 						i_SWRunInformation <- SWRunInformation[i_tr, ]
 						i_sw_input_soillayers <- sw_input_soillayers[i_tr, ]
@@ -5018,7 +5018,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 							if(is.null(i_sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 						} else {
 							con <- dbConnect(drv, dbname=name.OutputDB)
-							temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))
+							temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((runs.completed)*scenario_No+1)))
 							if(WeatherDataFromDatabase) {
 								conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 								i_sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
@@ -5408,15 +5408,17 @@ if(do.ensembles && all.complete &&
 		}
 		read.scenarios <- function(Table, start, stop, ensemble.family, export.header=TRUE){
 			#Read first file
-			
-			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",paste("\"",dbListFields(con,Table)[-1],"\"", sep="",collapse = ", ")," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
+			columns<-dbListFields(con,Table)[-1]
+			if(Layers<-any(temp<-grepl(pattern = "Soil_Layer",x=columns))) columns<-columns[-temp]
+			columns<-paste("\"",columns,"\"", sep="",collapse = ", ")
+			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
 			res <- dbSendQuery(con, sqlString)
 			dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
 			dbClearResult(res)
 			
 			columnCutoff <- match("Scenario", colnames(dataScen.Mean))
 			if(export.header) {
-				sqlString <- paste("SELECT P_id FROM header WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current';",sep="")
+				sqlString <- paste("SELECT ", Table,".P_id AS P_id ",if(Layers) ", Soil_Layer ","FROM ",Table,",header WHERE ",Table,".P_id=header.P_id AND header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current' ORDER BY P_id;",sep="")
 				res <- dbSendQuery(con, sqlString)
 				headerInfo <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
 				dbClearResult(res)
@@ -5464,6 +5466,8 @@ if(do.ensembles && all.complete &&
 				ensemble.family=ensemble.families[j]
 				#########################
 				for(i in seq(1,maxRun_id,ensembleCollectSize)) {
+					start <- (i-1)*scenario_No+1
+					stop <- (min(i+ensembleCollectSize-1,maxRun_id)-1)*scenario_No+scenario_No
 					dataScen.Mean <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=TRUE)
 					Table <- sub(pattern="Mean", replacement="SD", Table)
 					dataScen.SD <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=FALSE)			
