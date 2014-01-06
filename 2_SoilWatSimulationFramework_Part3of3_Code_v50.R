@@ -5454,7 +5454,7 @@ if(do.ensembles && all.complete &&
 				if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
 					break
 				}
-				print(paste("     Ensemble ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
+				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
 				outputs <- gsub(pattern=".csv", replacement="",basename(ensembles.maker$outputs[which(unlist(lapply(strsplit(basename(ensembles.maker$outputs[,1,1,1]),"_"),FUN=function(x) x[4]))==(temp<-strsplit(Table,"_"))[[1]][ifelse(length(temp[[1]])==3,2,3)]),j,,]))
 				if(save.scenario.ranks) {
 					dim(outputs) <- c(length(ensemble.levels),3)
@@ -5486,29 +5486,30 @@ if(do.ensembles && all.complete &&
 						dimnames(dataEns.SD)[3] <- dimnames(dataScen.SD$data.scen)[2]
 					}
 					#write ensemble files
+					ntemp <- 0
 					for(k in 1:length(ensemble.levels)){
-						nfiles <- nfiles + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 1])
+						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 1])
 						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-							nfiles <- nfiles + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
 						} else {
-							nfiles <- nfiles + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
 						}
-						if(save.scenario.ranks) nfiles <- nfiles + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 3])
+						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 3])
 					}
-					min(i+ensembleCollectSize-1,maxRun_id)
+					if(i == 1) nfiles <- nfiles + ntemp
 					print(paste("          ",i,":",min(i+ensembleCollectSize-1,maxRun_id)," of ",maxRun_id," done.",sep=""))
 				}
 				#########################
 				temp2<-Sys.time() - EnsembleTime
 				units(temp2) <- "secs"
 				temp2 <- as.double(temp2)
-				print(paste("     ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+				print(paste("Table: ", Table, ", Ensemble: ", ensemble.families[j], " ended at ",Sys.time(),", after ", round(temp2)," s.",sep=""))
 			}
 		}
 		temp2<-Sys.time() - TableTime
 		units(temp2) <- "secs"
 		temp2 <- as.double(temp2)
-		print(paste("ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+		print(paste("Table: ", Table, " ended at ",Sys.time(),", after ",round(temp2)," s.",sep=""))
 		
 		return(nfiles)
 	}
@@ -5545,8 +5546,8 @@ if(do.ensembles && all.complete &&
 			collect_EnsembleFromScenarios(table)
 		}
 	}
-	
-	if(ensembles.completed != length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels)) print("SWSF calculates ensembles: something went wrong with ensemble output.")
+
+	if(ensembles.completed != (temp <- length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels))) print("SWSF calculates ensembles: something went wrong with ensemble output: ensembles.completed = ", ensembles.completed, " instead of ", temp,".")
 }
 
 
