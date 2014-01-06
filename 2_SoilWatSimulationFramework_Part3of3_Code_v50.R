@@ -888,7 +888,7 @@ dir.remove <- function(dir){
 }
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean = function(x, int, na.rm=FALSE){
+circ.mean <- function(x, int, na.rm=FALSE){
 	if(length(x) == sum(is.na(x))){
 		return(NA)
 	} else {
@@ -901,7 +901,7 @@ circ.mean = function(x, int, na.rm=FALSE){
 		return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
 	}
 }
-circ.range = function(x, int, na.rm=FALSE) {
+circ.range <- function(x, int, na.rm=FALSE) {
 	if(length(x) == sum(is.na(x))){
 		return(NA)
 	} else {
@@ -914,11 +914,10 @@ circ.range = function(x, int, na.rm=FALSE) {
 		return(as.numeric(x.int))
 	}
 }
-circ.sd = function(x, int, na.rm=FALSE){
-	#tryCatch(if(sd(x,na.rm=T) == 0) print(l),warning=function(m) print(x), error=function(m) print(x))
-	if(length(x) == sum(is.na(x)) | sum(!is.na(x)) == 1){
+circ.sd <- function(x, int, na.rm=FALSE){
+	if(length(x) == sum(is.na(x)) || sum(!is.na(x)) == 1){
 		return(NA)
-	} else if(sd(x,na.rm=T) == 0){
+	} else if(sd(x, na.rm=TRUE) == 0){
 		return(0)
 	} else {
 		require(circular)
