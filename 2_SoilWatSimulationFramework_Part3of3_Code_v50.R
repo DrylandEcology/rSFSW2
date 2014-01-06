@@ -2278,13 +2278,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						0	#soiltemp information may depend on climatic conditions; it will be only added after weather/climate scenarios are completed
 				)
 			}
-			
-			#SoilWat needs positive values for sand and clay contents
-			if(!all(soildat[, "sand"] > 0, soildat[, "clay"] > 0)){
-				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
-				todo$execute <- todo$aggregate <- FALSE
-				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
-			}		
 								
 			#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
 			for(temp in d:1){
@@ -2324,6 +2317,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
 			}
+			
+			#SoilWat needs positive values for sand and clay contents
+			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, "sand_frac"] > 0, swSoils_Layers(swRunScenariosData[[1]])[, "clay_frac"] > 0)){
+				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
+				todo$execute <- todo$aggregate <- FALSE
+				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
+			}		
 		}
 		
 		
