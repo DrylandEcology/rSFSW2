@@ -700,38 +700,7 @@ if(any(simulation_timescales=="daily")){
 	}
 	resultfiles.daily_no <- 2 * daily_no * scenario_No
 }
-
-#prepare for ensembles
-if(do.ensembles){
-	ensembles.maker <- list(outputs=array(data=NA, dim=c(1 + daily_no, families_N, length(ensemble.levels), ifelse(save.scenario.ranks, 3, 2))),
-			scenarioFiles=array(data=NA, dim=c(1 + daily_no, families_N, scenariosPERensemble_N, 2)))
-	dimnames(ensembles.maker$outputs) <- list(NULL, ensemble.families, paste("Rank", ensemble.levels, sep=""), c("Means", "SDs", if(save.scenario.ranks) "Ranks"))
-	dimnames(ensembles.maker$scenarioFiles) <- list(NULL, ensemble.families, NULL, c("Means", "SDs"))
-	#overall
-	ensembles.maker$outputs[1,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.ensembles, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_overall_means", sep="")))
-	ensembles.maker$outputs[1,,, 2] <- gsub("_means", "_sds", ensembles.maker$outputs[1,,, 1])
-	if(save.scenario.ranks) ensembles.maker$outputs[1,,, 3] <- gsub("_means", "_ranks", ensembles.maker$outputs[1,,, 1])
-	if(families_N > 1){
-		ensembles.maker$scenarioFiles[1,,, 1] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.Aggregates[1, x]))
-	} else {
-		ensembles.maker$scenarioFiles[1,,, 1] <- resultfiles.Aggregates[1, scenarios.ineach.ensemble]
-	}
-	ensembles.maker$scenarioFiles[1,,, 2] <- gsub(filename.aggregatedMeans, filename.aggregatedSD, ensembles.maker$scenarioFiles[1,,, 1])
-	#mean daily output
-	if(daily_no > 0){
-		for(doi in 1:daily_no){
-			ensembles.maker$outputs[1 + doi,,, 1] <- t(sapply(ensemble.families, FUN=function(x) paste(dir.out.daily.ens, .Platform$file.sep, "Ensemble_", x, "_Rank", formatC(ensemble.levels, width=2, flag="0"), "_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_means", sep="")))
-			if(families_N > 1){
-				ensembles.maker$scenarioFiles[1 + doi,,, 1] <- t(apply(scenarios.ineach.ensemble, MARGIN=2, function(x) resultfiles.dailyMean[doi, x]))
-			} else {
-				ensembles.maker$scenarioFiles[1 + doi,,, 1] <- resultfiles.dailyMean[doi, scenarios.ineach.ensemble]
-			}
-		}
-		ensembles.maker$outputs[1 + 1:daily_no,,, 2] <- gsub("_means", "_sds", ensembles.maker$outputs[1 + 1:daily_no,,, 1])
-		if(save.scenario.ranks) ensembles.maker$outputs[1 + 1:daily_no,,, 3] <- gsub("_means", "_ranks", ensembles.maker$outputs[1 + 1:daily_no,,, 1])
-		ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 2] <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, ensembles.maker$scenarioFiles[1 + 1:daily_no,,, 1])
-	}
-}
+ensemble.levels<-sort(ensemble.levels)
 
 #------ Create the Database and Tables within
 drv <- dbDriver("SQLite")
@@ -5055,7 +5024,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
 
-			runs.completed <- foreach(i_sim=seq.todo[1:10], .combine="+", .inorder=FALSE) %dopar% {
+			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %dopar% {
 				if(!dbConnected) {
 					drv <- dbDriver("SQLite")
 					con <- dbConnect(drv, dbname=name.OutputDB)
@@ -5396,12 +5365,10 @@ if(do.ensembles && all.complete &&
 		doWrite <- function(dat, headerInfo, elevel, outfile){
 			#add info to 
 			name <- ensemble.family
-			cAdd <- data.frame(matrix(data=c(name, elevel), nrow=nrow(headerInfo), ncol=2, byrow=TRUE))
-			colnames(cAdd) <- c("EnsembleName", "Level")
 			if(is.vector(dat)) {
-				dat <- cbind(headerInfo, cAdd, t(dat))
+				dat <- cbind(headerInfo, t(dat))
 			} else {
-				dat <- cbind(headerInfo, cAdd, dat)
+				dat <- cbind(headerInfo, dat)
 			}
 			written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
 			
@@ -5460,12 +5427,6 @@ if(do.ensembles && all.complete &&
 					break
 				}
 				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
-				outputs <- gsub(pattern=".csv", replacement="",basename(ensembles.maker$outputs[which(unlist(lapply(strsplit(basename(ensembles.maker$outputs[,1,1,1]),"_"),FUN=function(x) x[4]))==(temp<-strsplit(Table,"_"))[[1]][ifelse(length(temp[[1]])==3,2,3)]),j,,]))
-				if(save.scenario.ranks) {
-					dim(outputs) <- c(length(ensemble.levels),3)
-				} else {
-					dim(outputs) <- c(length(ensemble.levels),2)
-				}
 				
 				ensemble.family=ensemble.families[j]
 				#########################
@@ -5493,13 +5454,14 @@ if(do.ensembles && all.complete &&
 					#write ensemble files
 					ntemp <- 0
 					for(k in 1:length(ensemble.levels)){
-						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 1])
+						outputs <- paste(ensemble.family,"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds","scenarioranks"),sep="")
+						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[1])
 						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[2])
 						} else {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[2])
 						}
-						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[k, 3])
+						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[3])
 					}
 					if(i == 1) nfiles <- nfiles + ntemp
 					print(paste("          ",i,":",min(i+ensembleCollectSize-1,maxRun_id)," of ",maxRun_id," done.",sep=""))
@@ -5529,7 +5491,7 @@ if(do.ensembles && all.complete &&
 	
 	if(parallel_runs){
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensembles.maker","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
 			workersN <- (mpi.comm.size() - 1)
 			exportObjects(list.export)
