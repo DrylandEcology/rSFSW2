@@ -5532,6 +5532,7 @@ if(do.ensembles && all.complete &&
 			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
 			
 			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			ensembles.completed <- sum(unlist(ensembles.completed))
 		} else if(identical(parallel_backend, "snow")) {
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
