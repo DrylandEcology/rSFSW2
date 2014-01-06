@@ -888,7 +888,7 @@ dir.remove <- function(dir){
 }
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean <- function(x, int, na.rm=FALSE){
+circ.mean = function(x, int, na.rm=FALSE){
 	if(length(x) == sum(is.na(x))){
 		return(NA)
 	} else {
@@ -901,7 +901,7 @@ circ.mean <- function(x, int, na.rm=FALSE){
 		return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
 	}
 }
-circ.range <- function(x, int, na.rm=FALSE) {
+circ.range = function(x, int, na.rm=FALSE) {
 	if(length(x) == sum(is.na(x))){
 		return(NA)
 	} else {
@@ -914,10 +914,11 @@ circ.range <- function(x, int, na.rm=FALSE) {
 		return(as.numeric(x.int))
 	}
 }
-circ.sd <- function(x, int, na.rm=FALSE){
-	if(length(x) == sum(is.na(x)) || sum(!is.na(x)) == 1){
+circ.sd = function(x, int, na.rm=FALSE){
+	#tryCatch(if(sd(x,na.rm=T) == 0) print(l),warning=function(m) print(x), error=function(m) print(x))
+	if(length(x) == sum(is.na(x)) | sum(!is.na(x)) == 1){
 		return(NA)
-	} else if(sd(x, na.rm=TRUE) == 0){
+	} else if(sd(x,na.rm=T) == 0){
 		return(0)
 	} else {
 		require(circular)
@@ -2277,6 +2278,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						0	#soiltemp information may depend on climatic conditions; it will be only added after weather/climate scenarios are completed
 				)
 			}
+			
+			#SoilWat needs positive values for sand and clay contents
+			if(!all(soildat[, "sand"] > 0, soildat[, "clay"] > 0)){
+				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
+				todo$execute <- todo$aggregate <- FALSE
+				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
+			}		
 								
 			#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
 			for(temp in d:1){
@@ -2316,13 +2324,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
 			}
-			
-			#SoilWat needs positive values for sand and clay contents
-			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, "sand_frac"] > 0, swSoils_Layers(swRunScenariosData[[1]])[, "clay_frac"] > 0)){
-				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
-				todo$execute <- todo$aggregate <- FALSE
-				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
-			}		
 		}
 		
 		
@@ -5532,6 +5533,7 @@ if(do.ensembles && all.complete &&
 			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
 			
 			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			ensembles.completed<-sum(unlist(ensembles.completed))
 		} else if(identical(parallel_backend, "snow")) {
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
