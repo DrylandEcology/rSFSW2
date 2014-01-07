@@ -2287,7 +2287,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			#SoilWat needs positive values for sand and clay contents
-			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, "sand_frac"] > 0, swSoils_Layers(swRunScenariosData[[1]])[, "clay_frac"] > 0)){
+			temp <- colnames(swSoils_Layers(swRunScenariosData[[1]]))
+			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, grep("sand", temp)] > 0, swSoils_Layers(swRunScenariosData[[1]])[, grep("clay", temp)] > 0)){
 				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
 				todo$execute <- todo$aggregate <- FALSE
 				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
