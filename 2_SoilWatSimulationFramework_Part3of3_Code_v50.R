@@ -321,7 +321,7 @@ if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.ou
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.runs, showWarnings=FALSE, recursive=TRUE)
-if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
+if(saveSoilWatInputOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
@@ -1653,8 +1653,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #i = i_sim: consecutive number of seq.todo, i.e., counting the simulation runs
 #i_xxx = the i_tr-row of xxx for the i-th simulation run; if trowExperimentals > 0 then these will eventually be repeated, and below replaced with experimental values
 #i_exp = the row of sw_input_experimentals for the i-th simulation run
+#P_id is a unique id number for each scenario in each run
 	
 	time.sys <- Sys.time()
+	
+	if(!be.quiet) print(paste(i, ":", i_labels, "started at ", time.sys))
 	
 #-----------------------Check for experimentals
 	if(trowExperimentals > 0 && length(create_experimentals) > 0) {
@@ -1662,77 +1665,43 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		i_labels <- paste(formatC(i, width=ceiling(log10(runsN.todo + 1)), format = "d", flag="0"), sw_input_experimentals[i_exp,1], i_labels, sep="_")
 		
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
-		#these columns of the experimental design replace information in the treatment design
-		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_treatments), nomatch=0))[!temp == 0]
-		if(length(ctemp) > 0){
-			cexp <- match(names(i_sw_input_treatments)[ctemp], names(sw_input_experimentals), nomatch=0)
-			i_sw_input_treatments[ctemp] <- sw_input_experimentals[i_exp, cexp]
+		transferExpDesignToInput <- function(i_sw_input){
+			ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input), nomatch=0))[!temp == 0]
+			if(length(ctemp) > 0){
+				cexp <- match(names(i_sw_input)[ctemp], names(sw_input_experimentals), nomatch=0)
+				i_sw_input[ctemp] <- sw_input_experimentals[i_exp, cexp]
+			}
+			return(i_sw_input)
 		}
-		#these columns of the experimental design replace information from the soilsin datafile
-		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_soils), nomatch=0))[!temp == 0]
-		if(length(ctemp) > 0){
-			cexp <- match(names(i_sw_input_soils)[ctemp], names(sw_input_experimentals), nomatch=0)
-			i_sw_input_soils[ctemp] <- sw_input_experimentals[i_exp, cexp]
-		}
-		#these columns of the experimental design replace information from the siteparam datafile
-		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_site), nomatch=0))[!temp == 0]
-		if(length(ctemp) > 0){
-			cexp <- match(names(i_sw_input_site)[ctemp], names(sw_input_experimentals), nomatch=0)
-			i_sw_input_site[ctemp] <- sw_input_experimentals[i_exp, cexp]
-		}
-		#these columns of the experimental design replace information from the prodin datafile
-		ctemp <- (temp <- match(names(sw_input_experimentals)[sw_input_experimentals_use == 1], names(i_sw_input_prod), nomatch=0))[!temp == 0]
-		if(length(ctemp) > 0){
-			cexp <- match(names(i_sw_input_prod)[ctemp], names(sw_input_experimentals), nomatch=0)
-			i_sw_input_prod[ctemp] <- sw_input_experimentals[i_exp, cexp]
-		}
+		
+		i_sw_input_treatments <- transferExpDesignToInput(i_sw_input_treatments)
+		i_sw_input_soils <- transferExpDesignToInput(i_sw_input_soils)
+		i_sw_input_site <- transferExpDesignToInput(i_sw_input_site)
+		i_sw_input_prod <- transferExpDesignToInput(i_sw_input_prod)
 	}
 	
-#	if (i_include_YN > 0){
-	
-	if(!be.quiet) print(paste(i, ":", i_labels, "started at ", time.sys))
-	
-	#P_id is a unique id number for each scenario in each run
 	
 #------------------------Preparations for simulation run
-	#------Get folder and file names
-	#create folder-names, temporary file-names, and checks existence of temporary files
-	dir.sw.runs.sc <- dir.sw.runs.sc.in <- dir.sw.runs.sc.out <- filename.out.temp.Means <- filename.out.temp.SDs <- vector(mode="character", length=scenario_No)
-	isdone.overallAggs <- vector(mode="logical", length=scenario_No)
-	isdone.overallAggs[1:scenario_No] <- FALSE
+	flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
+	
+	#Check what needs to be done
+	#TODO this currently doesn't work in the database setup
+	isdone.overallAggs <- rep(FALSE, scenario_No)
 	if(any(simulation_timescales=="daily") && daily_no > 0){
-		filename.out.temp.dailyMean <- filename.out.temp.dailySD <- isdone.dailyAggs <- matrix(data=NA, nrow=daily_no, ncol=scenario_No)
 		isdone.dailyAggs <- matrix(data=FALSE, nrow=daily_no, ncol=scenario_No)
 	} else {
 		isdone.dailyAggs <- TRUE
 	}
 	
+	todo <- list(	aggregate=TRUE, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
+					create=TRUE,
+					execute=TRUE) 
 	
-	flag.icounter <- formatC(i, width=temp.counter.width, flag="0")
-	
-	create <- TRUE
-	execute <- TRUE
-	
-	todo <- list(aggregate=	atemp <- (any(actions=="aggregate") & !continueAfterAbort) |
-					(any(actions=="aggregate") & continueAfterAbort & !(all(isdone.overallAggs) & all(isdone.dailyAggs))), #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
-			
-			create= !deleteSoilWatFolderAfterAggregation & (
-						(any(actions=="create") & !continueAfterAbort) |
-						(any(actions=="create") & continueAfterAbort &  create))
-					| deleteSoilWatFolderAfterAggregation & atemp,
-			
-			execute= !deleteSoilWatFolderAfterAggregation & (
-						(any(actions=="execute") & !continueAfterAbort) |
-						(any(actions=="execute") & continueAfterAbort & execute))
-					| deleteSoilWatFolderAfterAggregation & atemp
-	) 
-	
+	#----Get preparations done
 	if( any(unlist(todo)) ){
 		#get treatment sw.input.filenames for this run
 		filesin <- swFilesIn
 		
-		#Since the data is in memory it will get written over by treatments no need to delete
-		oldInputFiles.toDelete <- NULL
 		if(!is.null(create_treatments) & todo$create){	
 			if(any(create_treatments == "sw")){
 				sw <- i_sw_input_treatments$sw
@@ -1759,8 +1728,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#if action is not create then get sw.input.filenames from filesin for this run
 		if(!todo$create){
-			infilename <- file.path(dir.sw.runs.sc[1], filesin)
-			infiletext <- readLines(con = infilename)
+			stop("This currently doesn't work") #TODO make it work low PR
 			soilsin <- basename(unlist(strsplit(infiletext[10], split="[[:space:]]"))[1])
 		}
 		
@@ -1774,7 +1742,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		} else {# needs to be read from soilsin file
 			if(!todo$create) {
-				infilename <- file.path(dir.sw.runs.sc.in[1], soilsin)
+				stop("This currently doesn't work") #TODO make it work low PR
 			} else { # case treatments & soilsin turned on, file still in input directory
 				infilename <- file.path(dir.sw.in.tr, "soilsin", soilsin)
 			}
@@ -1840,7 +1808,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
-		if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels))
+		if(saveSoilWatInputOutput) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels))
 	}
 	
 	
@@ -1852,7 +1820,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#Make a local copy of the swInput object do not want to destroy orignal
 		swRunScenariosData<-list(scenario_No)
 		swRunScenariosData[[1]]<-swDataFromFiles
-		#dir.copy(dir.from=dir.sw.in, dir.to=dir.sw.runs.sc[1], overwrite=TRUE)
 		
 		#get folder and file names
 		outsetupin <- swOutSetupIn
@@ -2260,32 +2227,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			swWeather_pct_SnowRunoff(swRunScenariosData[[1]]) <- i_sw_input_weather$RunOffOnPerSnowmelt_Percent
 		swWeather_FirstYearHistorical(swRunScenariosData[[1]]) <- simstartyr
 				
-		#------Add different time-steps and create duplicate runs for different climate scenarios
-		#copy outsetup/filesin from shortest to others among dy/we/mo/yr
-		#for (r in 1:output_timescales_maxNo){ #daily, weekly, monthly, yearly output
-		#	rt <- switch(EXPR=r, "daily", "weekly", "monthly", "yearly")
-		#	if(output_timescales_shortest != r & any(simulation_timescales==rt)){
-		#		fin <- swFilesIn
-		#		oin <- swOutSetupIn
-		#		
-		#		file.copy2(from=file.path(dir.sw.in, oin), to=file.path(dir.sw.runs.sc[1], oin), overwrite=TRUE, copy.mode = TRUE)
-		#		
-		#		infilename <- file.path(dir.sw.runs.sc[1], fin)
-		#		file.copy2(from=file.path(dir.sw.runs.sc[1], filesin), to=infilename, overwrite=TRUE, copy.mode = TRUE)
-		#
-		#		infiletext <- readLines(con = infilename)
-		#		infiletext[28] <- paste(sw.inputs, .Platform$file.sep, oin, "\t# define output quantities", sep="")
-		#		infile <- file(infilename, "w+b")
-		#		writeLines(text = infiletext, con = infile, sep = "\n")
-		#		close(infile)
-		#	}
-		#}
 		
 		swOUT_TimeStep(swRunScenariosData[[1]]) <- sapply(simulation_timescales, function(x) ifelse(x=="daily", 1, ifelse(x=="weekly", 2, ifelse(x=="monthly", 3, ifelse(x=="yearly",4,5)))) )-1
 
-		#No NEED. delete superfluous files through copying swruns, but then adding treatment files
-		#if(length(oldInputFiles.toDelete)) file.remove(oldInputFiles.toDelete)
-		
 		#copy and make climate scenarios from datafiles
 		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
 		for (sc in 1:scenario_No){
@@ -2596,7 +2540,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}#end do scenario creations
 		
-		if(!deleteSoilWatFolderAfterAggregation) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
 	
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
@@ -2633,7 +2577,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		for (sc in Exclude_ClimateAmbient:scenario_No){
 			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
 			if(!exists("use_janus")){
-				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=ifelse(!deleteSoilWatFolderAfterAggregation, TRUE, FALSE))
+				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
 						}, warning = function(w) {
 							print("------------Warning----------")
 							print(w)
@@ -2654,17 +2598,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
 			}
 			
-			#if(sw.outputs == ""){
-			#	outputfiles <- try((ll <- list.files(dir.sw.runs.sc[sc]))[grepl(pattern=c(".dy", ".wk", ".mo", ".yr")[r], x=ll, fixed=TRUE)])
-			#	dir.create2(dir.sw.runs.sc.out[sc])
-			#	try(file.rename(from=file.path(dir.sw.runs.sc[sc], outputfiles), to=file.path(dir.sw.runs.sc.out[sc], outputfiles)))
-			#	sw.outputs.moved <- TRUE
-			#}
-			
-			
 		}
-		#print(paste(result,collapse = ","))
-		if(!deleteSoilWatFolderAfterAggregation) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
+		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 	}#end if do execute
 	
 	
@@ -4760,7 +4695,6 @@ work <- function(parallel_backend, Data) {
 		if (tag == 1) {
 			print(dataForRun$i)
 			if(dataForRun$do_OneSite) result <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values, i_sw_weatherList=dataForRun$sw_weatherList)
-			if(dataForRun$concatenate_TemporaryResultFiles) concatenate_TemporaryResultFiles(resultfile=resultfiles.toConcatenate, filelist=theFileList, col.names=col.names, cleanup=deleteTemporaryAggregationFiles)
 			# Send a results message back to the master
 			#print(results)
 			mpi.send.Robj(list(i=dataForRun$i,r=result),0,2)
@@ -4913,7 +4847,7 @@ tryCatch({
 							}
 							dbDisconnect(con)
 						}
-						dataForRun <- list(do_OneSite=TRUE, concatenate_TemporaryResultFiles=FALSE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
+						dataForRun <- list(do_OneSite=TRUE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
 						mpi.send.Robj(dataForRun, slave_id, 1);
 						print(paste("Slave:", slave_id, "Run:", (runs.completed+1), "started at", Sys.time()))
 						runs.completed <- runs.completed + 1
@@ -5127,7 +5061,7 @@ if(any(actions=="concatenate")) {
 				}
 			}
 			dbCommit(con)
-			if(deleteTemporaryAggregationFiles && !FAIL) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
+			if(!FAIL) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
 			if(print.debug) {
 				temp2<-Sys.time() - temp
 				units(temp2) <- "secs"

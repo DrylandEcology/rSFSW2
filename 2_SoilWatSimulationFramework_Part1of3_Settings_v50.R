@@ -221,8 +221,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
-#stores for each SoilWat simulation a folder with inputs and outputs if FALSE
-deleteSoilWatFolderAfterAggregation <- TRUE
+#stores for each SoilWat simulation a folder with inputs and outputs if TRUE
+saveSoilWatInputOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
@@ -233,11 +233,6 @@ cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becare
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
-
-#Type of concatenation (if not DB used)
-concatenation.inMemory <- FALSE #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
-#deletes all temporary files in the dir.out.temp folder after successful concatenation if TRUE
-deleteTemporaryAggregationFiles <- TRUE
 
 #------Define type of simulations and source of input data
 #indicate whether to obtain external information (1) or not (0), don't delete any labels; GIS extractions not supported on JANUS
