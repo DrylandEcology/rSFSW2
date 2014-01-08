@@ -51,7 +51,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	#This returns the SQLite Types of the columns
 	site_col_types <-sapply(X=1:ncol(SWRunInformation), function(x) mapType(typeof(SWRunInformation[[x]])))
 	site_columns <- colnames(SWRunInformation)
-	site_columns <- sub(pattern="ID", replacement="site_id",site_columns)
 	site_columns <- sub(pattern="WeatherFolder",replacement="WeatherFolder_id",site_columns)
 	site_col_types[which(colnames(SWRunInformation) == "WeatherFolder")] <- "INTEGER"
 	dbGetQuery(con, paste("CREATE TABLE sites(id INTEGER PRIMARY KEY AUTOINCREMENT,", paste(site_columns, site_col_types, collapse=","), ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));", sep=""))
@@ -743,18 +742,11 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	dbClearResult(rs)
 	
-	
-	temp <- resultfiles.daily.labelsOne
+	temp <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
 	for(i in 1:366) {
 		temp[i] <- paste(c("\"", temp[i], "\"", " REAL"), collapse = "")
 	}
-	temp <-paste(c("\"P_id\" INTEGER PRIMARY KEY",temp), collapse = ", ")
-	
-	temp1 <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-	for(i in 1:366) {
-		temp1[i] <- paste(c("\"", temp1[i], "\"", " REAL"), collapse = "")
-	}
-	temp1 <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", temp1,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
+	temp <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", temp,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
 	
 	if(any(simulation_timescales=="daily") && daily_no > 0) {
 		for(doi in 1:daily_no) {
@@ -776,8 +768,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
 			} else {
-					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
-					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep="")
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
@@ -787,6 +779,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		}
 		rm(tableName, agg.analysis, agg.resp)
 	}
-	rm(rs, sdString, meanString, temp, temp1)
+	rm(rs, sdString, meanString, temp)
 }
 rm(Tables)

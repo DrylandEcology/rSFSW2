@@ -320,8 +320,7 @@ startyr <- getStartYear(simstartyr)
 #year when SoilWat ends the simulation
 endyr <- 2010
 
-#------Output filename
-filename.aggregatedResults <- "20130508_PC_TemperateArid_PrjXXrX_v50.csv"
+#------Output Header Columns------#
 Index_RunInformation <- c(2:3, 5:11, 10, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups

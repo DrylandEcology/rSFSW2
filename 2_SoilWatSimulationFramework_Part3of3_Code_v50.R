@@ -317,13 +317,13 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 
 #create simulation directory structure
 dir.sw.in <- normalizePath(dir.sw.in)
-dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
+if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.runs, showWarnings=FALSE, recursive=TRUE)
 if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
-dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
+if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
@@ -333,10 +333,6 @@ write.table(NA, file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE)
 timerfile2 <- "Timing_Simulation.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
 write.table(t(c("", "Time_s", "Number")), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
-
-#file: file list of all temporary output files
-filename.theFileList <- "List_TemporaryOutput.csv"
-
 
 #------flagging which external information
 exinfo.help <- matrix(data=do.ExternalInformation, ncol=2, nrow=length(do.ExternalInformation)/2, byrow=TRUE)
@@ -463,11 +459,6 @@ output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
 lmax <- 1:SoilLayer_MaxNo
 dirname.sw.runs.weather <- "WeatherData"
-dirname.AggDaily <- "Aggregation_Seasons_DailyValues"
-dirname.AggTS <- "Aggregation_TimeSeries"
-dirname.Overall <- "Aggregation_Overall"
-dirname.Scenarios <- "Scenarios"
-dirname.Ensembles <- "Ensembles"
 SoilWat.windspeedAtHeightAboveGround <- 2	#m
 st_mo <- 1:12
 n_variables <- 652 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
@@ -611,35 +602,11 @@ if(do.ensembles){
 #------outputing data
 if(makeInputForExperimentalDesign) ExpInput_Seperator <- "X!X"
 
-#create folder structure
-dir.create2(path=dir.out.scenarios <- file.path(dir.out, dirname.Overall, dirname.Scenarios), showWarnings=FALSE, recursive=TRUE)
-if(do.ensembles) dir.create2(path=dir.out.ensembles <- file.path(dir.out, dirname.Overall, dirname.Ensembles), showWarnings=FALSE, recursive=TRUE)
-
 #append treatment information to the aggregated output in addition to selected Index_RunInformation
 Index_RunInformation_Treatments <- NULL
 if(length(create_treatments) > 0) {
 	Index_RunInformation_Treatments <- match(create_treatments, names(sw_input_treatments))
 }
-
-#make filenames for aggregated output
-filename.aggregatedMeans <- paste(unlist(strsplit(filename.aggregatedResults, ".csv")), "_Means.csv", sep="")
-filename.aggregatedSD <- paste(unlist(strsplit(filename.aggregatedResults, ".csv")), "_SDs.csv", sep="")
-if(save.scenario.ranks) filename.aggregatedRanks <- paste(unlist(strsplit(filename.aggregatedResults, ".csv")), "_ScenarioRanks.csv", sep="")
-resultfiles.Aggregates <- matrix(data=NA, ncol=scenario_No, nrow=2) #row 1: Means; row 2: SDs
-resultfiles.Aggregates[1, ] <- paste(dir.out.scenarios, .Platform$file.sep, "Scenario", formatC(0:(scenario_No-1), width=2, format="d", flag="0"), "_", climate.conditions, "_", filename.aggregatedMeans, sep="")
-resultfiles.Aggregates[2, ] <- gsub(filename.aggregatedMeans, filename.aggregatedSD, resultfiles.Aggregates[1, ])
-resultfiles.Aggregates.header <- vector(mode="character", length=n_variables)
-
-
-#prepare for aggregated time series output
-dir.out.AggTS <- file.path(dir.out, dirname.AggTS)
-dir.create2(dir.out.AggTS, showWarnings=FALSE, recursive=TRUE)
-if(any(ouput_aggregated_ts=="Regeneration")) dir.create2(dir.at <- file.path(dir.out.AggTS, "dailyRegeneration_GISSM"))
-
-
-#create seasonal daily output files
-filename.aggregatedResults.dailyMean <- paste(unlist(strsplit(filename.aggregatedResults, ".csv")), "_DailyMean.csv", sep="")
-filename.aggregatedResults.dailySD <- paste(unlist(strsplit(filename.aggregatedResults, ".csv")), "_DailySD.csv", sep="")
 
 daily_no <- length(output_aggregate_daily)
 if(any(simulation_timescales=="daily")){
@@ -653,52 +620,13 @@ if(any(simulation_timescales=="daily")){
 	
 	if(AggLayer.daily){
 		aggLs_no <- 2 + ifelse(is.null(Depth_ThirdAggLayer.daily), 1, ifelse(!is.na(Depth_ThirdAggLayer.daily), 1, 0)) + ifelse(is.null(Depth_FourthAggLayer.daily), 1, ifelse(!is.na(Depth_FourthAggLayer.daily), 1, 0))
-		dir.out.daily <- paste(dir.out, .Platform$file.sep, dirname.AggDaily, .Platform$file.sep, dirname.Scenarios, "_", aggLs_no, "AggSoilLayers", sep="")
-		if(do.ensembles) dir.out.daily.ens <- paste(dir.out, .Platform$file.sep, dirname.AggDaily, .Platform$file.sep, dirname.Ensembles, "_", aggLs_no, "AggSoilLayers", sep="")
 	} else {#at this stage we don't know how many soil layers we will have among the SoilWat runs; so just prepare for the maximum
 		if(!any(create_treatments == "soilsin") & !is.null(sw_input_soillayers)){
 			aggLs_no <- max(apply(sw_input_soillayers[, -1], MARGIN=1, FUN=function(x) ifelse(is.na(x[1]), NA, findInterval(x[1] - sqrt(.Machine$double.neg.eps), c(0, na.exclude(unlist(x[-1]))))) ), na.rm=TRUE)
 		} else {
 			aggLs_no <- SoilLayer_MaxNo
 		}
-		dir.out.daily <- paste(dir.out, .Platform$file.sep, dirname.AggDaily, .Platform$file.sep, dirname.Scenarios, "_AllSoilLayers", sep="")
-		if(do.ensembles) dir.out.daily.ens <- paste(dir.out, .Platform$file.sep, dirname.AggDaily, .Platform$file.sep, dirname.Ensembles, "_AllSoilLayers", sep="")
 	}
-	dir.create2(dir.out.daily, showWarnings=FALSE, recursive=TRUE)
-	if(do.ensembles) dir.create2(dir.out.daily.ens, showWarnings=FALSE, recursive=TRUE)
-	
-	resultfiles.daily.labelsOne <- paste("Var_doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-	if(AggLayer.daily){
-		resultfiles.daily.labelsLayers <- paste("L0to", Depth_FirstAggLayer.daily, "cm_doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-		if(is.null(Depth_SecondAggLayer.daily)) {
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", "_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		} else if(is.numeric(Depth_SecondAggLayer.daily)){
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		}
-		if(is.null(Depth_ThirdAggLayer.daily)) {
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", "_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		} else if(is.na(Depth_ThirdAggLayer.daily)){
-		} else if(is.numeric(Depth_ThirdAggLayer.daily)){
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		}
-		if(is.null(Depth_FourthAggLayer.daily)) {
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", "_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		} else if(is.na(Depth_FourthAggLayer.daily)){
-		} else if(is.numeric(Depth_FourthAggLayer.daily)){
-			resultfiles.daily.labelsLayers <- c(resultfiles.daily.labelsLayers, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm_doy", formatC(1:366, width=3, format="d", flag="0"), sep=""))
-		}
-	} else {
-		resultfiles.daily.labelsLayers <- paste(rep(paste("L", formatC(lmax, width=2, format="d", flag="0"), "_doy", sep=""), each=366), rep(formatC(1:366, width=3, format="d", flag="0"), times=SoilLayer_MaxNo), sep="")
-	}
-	
-	resultfiles.dailyMean <- resultfiles.dailySD <- matrix(data=NA, ncol=scenario_No, nrow=daily_no)
-	if(daily_no > 0){
-		for(doi in 1:daily_no){
-			resultfiles.dailyMean[doi,] <- paste(dir.out.daily, .Platform$file.sep, "Scenario", formatC(0:(scenario_No-1), width=2, format="d", flag="0"), "_", climate.conditions, "_", output_aggregate_daily[doi], "_", aggLs_no, "AggL", "_", filename.aggregatedResults.dailyMean, sep="")
-		}
-		resultfiles.dailySD <- gsub(filename.aggregatedResults.dailyMean, filename.aggregatedResults.dailySD, resultfiles.dailyMean)
-	}
-	resultfiles.daily_no <- 2 * daily_no * scenario_No
 }
 ensemble.levels<-sort(ensemble.levels)
 
@@ -2106,7 +2034,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				HD.datfile <- with(i_sw_input_prod, data.frame(Grass_HydRed_OnOff, Shrub_HydRed_OnOff, Tree_HydRed_OnOff))
 				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_HD] <- as.logical(HD.datfile[use_HD])
 			}
-			#biomass components TODO Fix This
+			#biomass components TODO Check This
 			biomassComponents <- function(FunctGroup){
 				if(	sum(litt <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Litter", sep=""), x=names(sw_input_prod_use))]) + 
 						sum(biom <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Biomass", sep=""), x=names(sw_input_prod_use))]) +
@@ -2457,10 +2385,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#anything that depends on weather
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
 			if(print.debug) print("Start of set soil temperature")
+			#TODO get this working LOW PR
 			if(exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 				soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
-				#temporaly save data #TODO get this working someday
+				#temporaly save data 
 				#out.temp <- data.frame(i, i_labels, soilTUpper, soilTlower)
 				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_atLowerBoundary.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
@@ -4639,20 +4568,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				#temporaly save aggregate data					
 				
 				P_id <- ((i-1)*scenario_No+sc)
-				#save(P_id, header, resMeans, nv, resSDs,header.names, resultfiles.Aggregates.header, file=file.path(dir.out,"readThis.r"))
-				
-				if(typeof(resMeans) == "list") {
-					temp<-unlist(lapply(resMeans[1:(nv-1)], FUN=function(x) length(x)==0))
-					save(resMeans, file = file.path(dir.out, "resMeans.r"))
-					print(paste("Format for this Mean output variable was not right SC: ",sc, "Column in resMeans", which(temp), resultfiles.Aggregates.header[which(temp)], sep=" "))
-					resMeans[temp] <- NaN
-					resMeans <- unlist(resMeans)
-				} else if(typeof(resSDs) == "list") {
-					temp<-unlist(lapply(resSDs[1:(nv-1)], FUN=function(x) length(x)==0))
-					print(paste("Format for this SD output variable was not right ",resultfiles.Aggregates.header[which(temp)], sep=" "))
-					resSDs[temp] <- NaN
-					resSDs <- unlist(resSDs)
-				}
 				
 				resMeans[!is.finite(resMeans)] <- "NULL"
 				resSDs[!is.finite(resSDs)] <- "NULL"
