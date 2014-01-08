@@ -321,7 +321,7 @@ if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.ou
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.runs, showWarnings=FALSE, recursive=TRUE)
-if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
+if(saveSoilWatInputOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
@@ -1808,7 +1808,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
-		if(!deleteSoilWatFolderAfterAggregation) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels))
+		if(saveSoilWatInputOutput) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels))
 	}
 	
 	
@@ -2540,7 +2540,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}#end do scenario creations
 		
-		if(!deleteSoilWatFolderAfterAggregation) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
 	
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
@@ -2577,7 +2577,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		for (sc in Exclude_ClimateAmbient:scenario_No){
 			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
 			if(!exists("use_janus")){
-				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=ifelse(!deleteSoilWatFolderAfterAggregation, TRUE, FALSE))
+				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
 						}, warning = function(w) {
 							print("------------Warning----------")
 							print(w)
@@ -2599,7 +2599,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 		}
-		if(!deleteSoilWatFolderAfterAggregation) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
+		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 	}#end if do execute
 	
 	

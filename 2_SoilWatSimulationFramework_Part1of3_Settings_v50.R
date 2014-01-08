@@ -221,8 +221,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
-#stores for each SoilWat simulation a folder with inputs and outputs if FALSE
-deleteSoilWatFolderAfterAggregation <- TRUE
+#stores for each SoilWat simulation a folder with inputs and outputs if TRUE
+saveSoilWatInputOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
