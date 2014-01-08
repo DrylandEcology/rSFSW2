@@ -26,6 +26,25 @@ if(length(Tables) == 0) {
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
 	
+	####FUNCTIONS CONSIDER MOVING####
+	mapType <- function(type) {
+		if(type =="double")
+			return("REAL")
+		else if(type=="character")
+			return("TEXT")
+		else if(type=="logical")
+			return("INTEGER")
+		else if(type=="integer")
+			return("INTEGER")
+	}
+	columnType <- function(columnName) {
+		if(columnName %in% create_experimentals) {
+			mapType(typeof(sw_input_experimentals[,columnName]))
+		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
+			mapType(typeof(sw_input_treatments[,columnName]))
+		}
+	}
+	
 	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 	dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
@@ -37,17 +56,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	}
 	dbCommit(con)
 	
-	#Site Table
-	mapType <- function(type) {
-		if(type =="double")
-			return("REAL")
-		else if(type=="character")
-			return("TEXT")
-		else if(type=="logical")
-			return("INTEGER")
-		else if(type=="integer")
-			return("INTEGER")
-	}
+	#############Site Table############################
 	#This returns the SQLite Types of the columns
 	site_col_types <-sapply(X=1:ncol(SWRunInformation), function(x) mapType(typeof(SWRunInformation[[x]])))
 	site_columns <- colnames(SWRunInformation)
@@ -82,26 +91,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		dbGetPreparedQuery(con, "INSERT INTO experimental_labels VALUES(NULL, :label);", bind.data = data.frame(label=sw_input_experimentals[,1],stringsAsFactors=FALSE))
 		dbCommit(con)
 	}
-	##########
-	
-	####FUNCTIONS CONSIDER MOVING####
-	mapType <- function(type) {
-		if(type =="double")
-			return("REAL")
-		else if(type=="character")
-			return("TEXT")
-		else if(type=="logical")
-			return("INTEGER")
-		else if(type=="integer")
-			return("INTEGER")
-	}
-	columnType <- function(columnName) {
-		if(columnName %in% create_experimentals) {
-			mapType(typeof(sw_input_experimentals[,columnName]))
-		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
-			mapType(typeof(sw_input_treatments[,columnName]))
-		}
-	}
+	################################
 	
 	#If LookupWeatherFolder is ON we need to make sure all of the weather folders are in weatherfolders table
 	if(any(create_treatments=="LookupWeatherFolder")) {
