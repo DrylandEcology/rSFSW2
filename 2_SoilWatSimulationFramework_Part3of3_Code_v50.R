@@ -5410,7 +5410,7 @@ if(do.ensembles && all.complete &&
 		
 		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
 			dir.out.ensemble.db <- dir.out
-			tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table),".sqlite3",sep=""))
+			tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- dbConnect(drv, dbname=tfile)
 			
 			nfiles <- 0
