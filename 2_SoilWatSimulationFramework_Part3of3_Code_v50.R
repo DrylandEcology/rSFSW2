@@ -4867,6 +4867,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 			runs.completed <- head(seq.todo,n=1)-1
 			#sTag <- c("Ready for task", "Done with Task", "Exiting")
 			while(closed_slaves < workersN) {
+tryCatch({
 				complete <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
 				complete_info <- mpi.get.sourcetag()
 				slave_id <- complete_info[1]
@@ -4933,6 +4934,11 @@ if(actionWithSoilWat && runsN.todo > 0){
 					print("Problem with run")
 					write.csv(x=data.frame(Slave=slave_id,Run=complete), file=file.path(dir.out, "ProblemRuns.csv"), append=TRUE,row.names<-FALSE,col.names=TRUE)
 				}
+}, interrupt=function(interrupt) {
+	print("Ctrl-C caught bringing work to an end.")
+	print(interrupt)
+	MaxDoOneSiteTime <<- 0
+})
 			}
 			print(runs.completed)
 		}
@@ -5057,7 +5063,9 @@ if(any(actions=="concatenate")) {
 		if(copyCurrentConditionsFromTempSQL) {
 			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=TRUE)
 			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
-			NumberTables <- length(dbListTables(con2)[-which(headerTables %in% dbListTables(con2))])
+			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
+			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
+			dbGetQuery(con2,"DELETE FROM header WHERE Scenario != 'Current';")
 		}
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
