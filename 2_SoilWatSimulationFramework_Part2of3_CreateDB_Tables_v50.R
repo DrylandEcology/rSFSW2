@@ -26,25 +26,6 @@ if(length(Tables) == 0) {
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
 	
-	####FUNCTIONS CONSIDER MOVING####
-	mapType <- function(type) {
-		if(type =="double")
-			return("REAL")
-		else if(type=="character")
-			return("TEXT")
-		else if(type=="logical")
-			return("INTEGER")
-		else if(type=="integer")
-			return("INTEGER")
-	}
-	columnType <- function(columnName) {
-		if(columnName %in% create_experimentals) {
-			mapType(typeof(sw_input_experimentals[,columnName]))
-		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
-			mapType(typeof(sw_input_treatments[,columnName]))
-		}
-	}
-	
 	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 	dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
@@ -732,11 +713,13 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	dbClearResult(rs)
 	
-	temp <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
+	
+	doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
 	for(i in 1:366) {
-		temp[i] <- paste(c("\"", temp[i], "\"", " REAL"), collapse = "")
+		doy_colnames[i] <- paste(c("\"", temp[i], "\"", " REAL"), collapse = "")
 	}
-	temp <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", temp,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
+	temp <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
+	temp1 <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
 	
 	if(any(simulation_timescales=="daily") && daily_no > 0) {
 		for(doi in 1:daily_no) {
@@ -758,8 +741,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
 			} else {
-					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
-					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep="")
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
@@ -769,6 +752,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		}
 		rm(tableName, agg.analysis, agg.resp)
 	}
-	rm(rs, sdString, meanString, temp)
+	rm(rs, sdString, meanString, temp,temp1, doy_colnames)
 }
 rm(Tables)
