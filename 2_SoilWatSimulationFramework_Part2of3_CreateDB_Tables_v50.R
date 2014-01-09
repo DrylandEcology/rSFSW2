@@ -28,6 +28,26 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
+	####FUNCTIONS CONSIDER MOVING####
+	mapType <- function(type) {
+		if(type =="double")
+			return("REAL")
+		else if(type=="character")
+			return("TEXT")
+		else if(type=="logical")
+			return("INTEGER")
+		else if(type=="integer")
+			return("INTEGER")
+	}
+	columnType <- function(columnName) {
+		if(columnName %in% create_experimentals) {
+			mapType(typeof(sw_input_experimentals[,columnName]))
+		} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
+			mapType(typeof(sw_input_treatments[,columnName]))
+		}
+	}
+	######################
+	
 	dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 	dbBeginTransaction(con)
 	if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
@@ -589,7 +609,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		temp <- c(temp, paste("Precip.m", st_mo, "_mm_mean", sep=""))
 	}
 	
-#38
+#38length(Tables) == 0)
 	if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
 		temp <- c(temp, paste("Snowpack.m", st_mo, "_mmSWE_mean", sep=""))
 	}
