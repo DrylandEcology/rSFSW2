@@ -631,6 +631,7 @@ if(any(simulation_timescales=="daily")){
 ensemble.levels<-sort(ensemble.levels)
 
 #------ Create the Database and Tables within
+if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.time()))
 drv <- dbDriver("SQLite")
 
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
@@ -641,6 +642,9 @@ con <- dbConnect(drv, dbname=name.OutputDB)
 
 if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica)
 	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
+
+if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
