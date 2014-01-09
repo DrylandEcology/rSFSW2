@@ -609,7 +609,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		temp <- c(temp, paste("Precip.m", st_mo, "_mm_mean", sep=""))
 	}
 	
-#38length(Tables) == 0)
+#38
 	if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
 		temp <- c(temp, paste("Snowpack.m", st_mo, "_mmSWE_mean", sep=""))
 	}
