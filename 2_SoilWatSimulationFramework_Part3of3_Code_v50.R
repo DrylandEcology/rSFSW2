@@ -280,6 +280,7 @@
 #		- (drs) fixed create:soils: comparison of soil layer structure
 #		- (drs) adjusted wrapper function circ.sd() because circular::sd.circular() can return NaN instead of 0 [in packageVersion("circular") <= "0.4.7"]
 #		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
+#		- (drs) added output option 'input_SoilProfile'
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -2610,6 +2611,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	if( todo$aggregate ){
 		if(print.debug) print("Preparations for aggregation")
+    
 		#get soil aggregation layer for daily aggregations
 		if(AggLayer.daily){
 			aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth)
@@ -2619,14 +2621,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		aggLs_no <- length(aggLs)
 		
 		#get soil texture data for each layer
-		if(exists("soildat") && all(!is.na(soildat[, c("sand", "clay")]))){
-			sand <- soildat[ld, "sand"]
-			clay <- soildat[ld, "clay"]
-		} else {
-			sand <- clay <- vector(length=d)
-			sand <- swSoils_Layers(swRunScenariosData[[1]])[,9]
-			clay <- swSoils_Layers(swRunScenariosData[[1]])[,10]
-		}
+		stemp <- swSoils_Layers(swRunScenariosData[[1]])
+		soilDepth_cm <- max(stemp[, 1])
+		soilLayers_N <- length(stemp[, 1])
+    
+		sand <- stemp[,9]
+		clay <- stemp[,10]
+		
 		texture <- list(sand.top=weighted.mean(sand[topL], layers_width[topL]),
 				sand.bottom=weighted.mean(sand[bottomL], layers_width[bottomL]),
 				clay.top=weighted.mean(clay[topL], layers_width[topL]),
@@ -2886,6 +2887,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#---Aggregation: SoilWat inputs
+			#0
+				if(aon$input_SoilProfile){
+					if(print.debug) print("Aggregation of input_SoilProfile")
+					resMeans[nv:(nv+5)] <- c(soilDepth_cm, soilLayers_N, unlist(texture))
+					nv <- nv+6
+				}
 			#1
 				if(aon$input_FractionVegetationComposition) {
 					if(print.debug) print("Aggregation of input_FractionVegetationComposition")
@@ -2893,6 +2900,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv+6
 				}
 				if(aon$input_VegetationBiomassMonthly) {
+					if(print.debug) print("Aggregation of input_VegetationBiomassMonthly")
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]
@@ -2949,6 +2957,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			#5
 				if(aon$input_TranspirationCoeff){
+					if(print.debug) print("Aggregation of input_TranspirationCoeff")
 					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 6:8]
 					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
 

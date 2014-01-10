@@ -26,7 +26,7 @@ if(length(Tables) == 0) {
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
 	
-	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
+	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && any(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 	####FUNCTIONS CONSIDER MOVING####
 	mapType <- function(type) {
@@ -357,10 +357,14 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 #B. Aggregation_Overall
 	
 	##############################################################---Aggregation: SoilWat inputs---##############################################################
-	
+#0.
+	if(aon$input_SoilProfile){
+		temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
+	}
+
 #1. 
 	if(aon$input_FractionVegetationComposition) {
-		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
+		temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
 	}
 #2.
 	if(aon$input_VegetationBiomassMonthly) {
