@@ -357,10 +357,14 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 #B. Aggregation_Overall
 	
 	##############################################################---Aggregation: SoilWat inputs---##############################################################
-	
+#0.
+	if(aon$input_SoilProfile){
+		temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
+	}
+
 #1. 
 	if(aon$input_FractionVegetationComposition) {
-		temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
+		temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
 	}
 #2.
 	if(aon$input_VegetationBiomassMonthly) {

@@ -324,7 +324,8 @@ simulation_timescales <- c("daily", "monthly", "yearly")
 #turn aggregation for variable groups on (1) or off (0), don't delete any variable group labels
 output_aggregates <- c(
 					#---Aggregation: SoilWat inputs
-						"input_FractionVegetationComposition", 1,
+						"input_SoilProfile", 1,
+            			"input_FractionVegetationComposition", 1,
 						"input_VegetationBiomassMonthly", 1,
 						"input_VegetationPeak", 1,
 						"input_Phenology", 1,
