@@ -26,7 +26,7 @@ if(length(Tables) == 0) {
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
 	
-	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && all(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
+	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && any(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 	####FUNCTIONS CONSIDER MOVING####
 	mapType <- function(type) {
