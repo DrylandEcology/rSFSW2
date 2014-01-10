@@ -710,8 +710,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			#Output for time series: not yet implemented for db			
 		}
 	}
-	
-	AggOverallDataCols <- length(temp)
+
 	dbOverallColumns <- length(temp)
 	
 	temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
@@ -729,7 +728,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	dbClearResult(rs)
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	dbClearResult(rs)
-	
 	
 	doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
 	doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
@@ -769,5 +767,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		rm(tableName, agg.analysis, agg.resp)
 	}
 	rm(rs, sdString, meanString, temp,temp1, doy_colnames)
+} else {
+	dbOverallColumns <- length(dbListFields(con,"aggregation_overall_mean"))-1
 }
 rm(Tables)

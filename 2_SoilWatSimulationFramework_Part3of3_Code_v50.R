@@ -461,7 +461,6 @@ lmax <- 1:SoilLayer_MaxNo
 dirname.sw.runs.weather <- "WeatherData"
 SoilWat.windspeedAtHeightAboveGround <- 2	#m
 st_mo <- 1:12
-n_variables <- 652 + (109*max(length(SWPcrit_MPa), 1)) + (31*no.species_regeneration) + (3*(2+SoilLayer_MaxNo))#number of variables in aggregated dataset
 
 #------import data
 SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
@@ -2879,7 +2878,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						), silent=TRUE)
 				
 				#result vector column index indicating variable within set of n_variables per scenario
-				resMeans <- resSDs <- rep(NA, length=n_variables)
+				resMeans <- resSDs <- rep(NA, length=dbOverallColumns)
 #check that db still works:
 #					res <- vector(mode="numeric", length=n_variables)
 #					res <- data.frame(t(res), stringsAsFactors = FALSE)
