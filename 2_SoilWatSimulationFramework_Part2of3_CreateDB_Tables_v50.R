@@ -308,7 +308,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 	
 	#####################runs table###################
-	dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
+	dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY AUTOINCREMENT, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
 	db_runs <- data.frame(matrix(data=0, nrow=runsN.todo*scenario_No, ncol=5,dimnames=list(NULL,c("P_id","label_id","site_id","treatment_id","scenario_id"))))
 	
 	db_runs$P_id <- 1:nrow(db_runs)
@@ -337,8 +337,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			db_runs$treatment_id <- 1
 		}
 	}
-	
-	dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
+	#dbWriteTable(con,name="runs",db_runs,append=TRUE)
+	dbGetPreparedQuery(con, "INSERT INTO runs VALUES(NULL, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
 	
 	##################################################
 	
@@ -712,16 +712,13 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	}
 	
 	AggOverallDataCols <- length(temp)
-	
 	dbOverallColumns <- length(temp)
-	for(i in 1:dbOverallColumns) {
-		temp[i] <- paste(c("\"", temp[i], "\"", " REAL"), collapse = "")
-	}
+	
+	temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
 	
 	sdString <- gsub("_mean", "_sd", temp)
 	meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",temp), collapse = ", ")
 	sdString <-paste(c("\"P_id\" INTEGER PRIMARY KEY",sdString), collapse = ", ")
-	
 	
 	SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_mean\" (", meanString, ");", sep="")
 	SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_sd\" (", sdString, ");", sep="")
@@ -735,9 +732,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 	
 	doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-	for(i in 1:366) {
-		doy_colnames[i] <- paste(c("\"", temp[i], "\"", " REAL"), collapse = "")
-	}
+	doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
+	
 	temp <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
 	temp1 <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
 	
