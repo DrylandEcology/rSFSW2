@@ -329,7 +329,7 @@ if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWa
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile)) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) try(file.remove(temp), silent=TRUE)
-write.table(NA, file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE)
+if(!file.exists(temp)) write.table(t(c(0,NA)), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) else todo.done <- sort(read.csv(file=temp,header=FALSE,skip=1)[,1])
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
@@ -4678,9 +4678,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	#ETA estimation
 	dt <- difftime(Sys.time(), time.sys, units="secs")
-	times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
+	times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("numeric", "numeric"))
 	if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
-	write.table(dt, file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE)
+	write.table(data.frame(i=i,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
 	
 	return(1)	
 } #end do_OneSite()
@@ -4780,8 +4780,10 @@ if(runsN.todo > 0){
 
 if(actionWithSoilWat && runsN.todo > 0){
 	
-	seq.todo <- seq.todo[1:20]
-	runsN.todo<-length(seq.todo)
+	if(exists("todo.done")) {
+		seq.todo <- seq.todo[-todo.done]
+		runsN.todo<-length(seq.todo)
+	}
 	
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
 	#Used for weather from files
