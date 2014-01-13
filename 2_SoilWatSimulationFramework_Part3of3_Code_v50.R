@@ -5011,7 +5011,7 @@ if(any(actions=="concatenate")) {
 			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
 			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
 			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
-			dbGetQuery(con2,"DELETE FROM header WHERE Scenario != 'Current';")
+			dbGetQuery(con2,"DELETE FROM runs WHERE scenario_id != 1;")
 		}
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
