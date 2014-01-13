@@ -21,6 +21,8 @@ if(length(Tables) == 0) {
 	rm(rs)
 }
 
+headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
+
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
@@ -709,7 +711,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 					"Germination.TimeToGerminate_days_mean",
 					paste(SeedlingMortality_CausesByYear_colnames, "_days_mean", sep=""))
 			
-			temp <- c(temp, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="."))
+			temp <- c(temp, temp1, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="."))
 			
 			#Output for time series: not yet implemented for db			
 		}
@@ -736,8 +738,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
 	doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
 	
-	temp <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
-	temp1 <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
+	dailySQL <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
+	dailyLayersSQL <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
 	
 	if(any(simulation_timescales=="daily") && daily_no > 0) {
 		for(doi in 1:daily_no) {
@@ -752,15 +754,15 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			tableName <- paste("aggregation_doy_", output_aggregate_daily[doi], sep="")
 			
 			if(agg.analysis == 1){
-					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp, ");", sep="")
-					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp, ");", sep="")
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailySQL, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailySQL, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
 			} else {
-					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", temp1, ");", sep="")
-					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", temp1, ");", sep="")
+					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailyLayersSQL, ");", sep="")
+					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailyLayersSQL, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
@@ -768,9 +770,47 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			}
 			
 		}
-		rm(tableName, agg.analysis, agg.resp)
+		rm(tableName, agg.analysis, agg.resp, SQL_Table_Definitions1, SQL_Table_Definitions2)
 	}
-	rm(rs, sdString, meanString, temp,temp1, doy_colnames)
+	rm(rs, temp, doy_colnames)
+	##########################################ENSEMBLE GENERATION#################################################
+	
+	Tables<-dbListTables(con)
+	Tables<-Tables[!(Tables %in% headerTables)]
+	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
+	Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
+	respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
+	respName<-sub(pattern="doy_",replacement="",x=respName,ignore.case = T)
+	respName<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respName)
+	
+	dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
+	for(i in seq_along(dbEnsemblesFilePaths)) {
+		con<-dbConnect(drv, dbEnsemblesFilePaths[i])
+		for(j in seq_along(ensemble.families)) {
+			for(k in seq_along(ensemble.levels)) {
+				EnsembleFamilyLevelTables<-paste(ensemble.families[j],"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
+				if(grepl(patter="overall",respName[i],ignore.case=TRUE)) {
+					dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", meanString, ");", sep=""))
+					dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
+					if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
+				} else {
+					agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+					if(agg.analysis == 1){
+						dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
+						dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
+						if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailySQL), ");", sep=""))
+					} else {
+						dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailyLayersSQL, ");", sep=""))
+						dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailyLayersSQL, ");", sep=""))
+						if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailyLayersSQL), ");", sep=""))
+					}
+				}
+			}
+		}
+		dbDisconnect(con)
+	}
+	
+	rm(sdString, meanString,dailySQL,dailyLayersSQL)
 } else {
 	dbOverallColumns <- length(dbListFields(con,"aggregation_overall_mean"))-1
 }

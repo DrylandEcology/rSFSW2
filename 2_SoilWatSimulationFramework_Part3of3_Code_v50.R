@@ -634,7 +634,6 @@ ensemble.levels<-sort(ensemble.levels)
 if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.time()))
 drv <- dbDriver("SQLite")
 
-headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
@@ -4781,6 +4780,9 @@ if(runsN.todo > 0){
 
 if(actionWithSoilWat && runsN.todo > 0){
 	
+	seq.todo <- seq.todo[1:20]
+	runsN.todo<-length(seq.todo)
+	
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
@@ -5011,7 +5013,7 @@ if(any(actions=="concatenate")) {
 			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
 			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
 			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
-			dbGetQuery(con2,"DELETE FROM header WHERE Scenario != 'Current';")
+			dbGetQuery(con2,"DELETE FROM runs WHERE scenario_id != 1;")
 		}
 		
 		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
@@ -5240,8 +5242,9 @@ if(do.ensembles && all.complete &&
 			} else {
 				dat <- cbind(headerInfo, dat)
 			}
+			#dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES(",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
+			#written<-1
 			written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
-			
 			if(written)
 				return(1)
 			else
@@ -5279,8 +5282,7 @@ if(do.ensembles && all.complete &&
 		}
 		
 		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
-			dir.out.ensemble.db <- dir.out
-			tfile <- file.path(dir.out.ensemble.db, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
+			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- dbConnect(drv, dbname=tfile)
 			
 			nfiles <- 0
