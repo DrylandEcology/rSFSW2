@@ -5077,7 +5077,7 @@ if(any(actions=="concatenate")) {
 				}
 			}
 			dbCommit(con)
-			if(!FAIL) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
+			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
 			if(print.debug) {
 				temp2<-Sys.time() - temp
 				units(temp2) <- "secs"
@@ -5442,3 +5442,5 @@ if(parallel_runs & identical(parallel_backend, "snow")) snow::stopCluster(cl)	#c
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#
+
+
