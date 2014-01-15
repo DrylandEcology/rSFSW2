@@ -27,7 +27,7 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "ensemble"))) {
 #A. Header Tables
-	
+
 	if(!exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica && any(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 	####FUNCTIONS CONSIDER MOVING####
