@@ -483,6 +483,11 @@ create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_expe
 sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
 create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
 
+if(dim(SWRunInformation)[2] == 1) stop("SWRunInformation might be tab separated instead of comma.")
+if(dim(sw_input_soillayers)[2] == 1) stop("SoilLayers might be tab separated instead of comma.")
+if(dim(sw_input_treatments_use)[2] == 1) stop("Treatments might be tab separated instead of comma.")
+if(dim(sw_input_experimentals_use)[2] == 1) stop("Experimentals might be tab separated instead of comma.")
+
 if (actionWithSoilWat) {
 	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
 	sw_input_cloud <- read.csv(temp, skip=1)
@@ -514,6 +519,14 @@ if (actionWithSoilWat) {
 	sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
 	sw_input_climscen_values <- read.csv(temp, skip=1)
 	colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
+	
+	if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
+	if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
+	if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
+	if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
+	if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
+	if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
+	if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
 	
 	#Create a list of possible treatment files with data.
 	if(any(create_treatments=="sw"))
@@ -1106,7 +1119,9 @@ if(any(actions == "create")){
 			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
 		} 
 		
-		if(!all(is.na(sw_input_treatments$LookupEvapCoeffFromTable))){#if not then data is in sw_input_experimentals
+		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals 
+			if(any(is.na(sw_input_treatments$LookupEvapCoeffFromTable))) stop("ERROR: LookupEvapCoeffFromTable column in treatments cannot have any NAs.")
+			if(!all(unique(sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) stop("ERROR: LookupEvapCoeffFromTable column values in treatments do not match up with trfile.LookupEvapCoeffFromTable row names.")
 			tempdat <- get.LookupEvapCoeffFromTable(evco_type=sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils)
 			sw_input_soils_use <- tempdat$sw_input_soils_use
 			sw_input_soils <- tempdat$sw_input_soils
@@ -1339,57 +1354,6 @@ if(any(actions == "create")){
 		if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
 	}
 	
-	if(exinfo$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
-		#calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
-		bsEvap.depth.max <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
-		
-		ld <- 1:SoilLayer_MaxNo
-		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
-		stopifnot(length(use.layers) > 0)
-		layers.depth <- as.matrix(sw_input_soillayers[, match(paste("depth_L", use.layers, sep=""), colnames(sw_input_soillayers))])
-		if(length(dim(layers.depth)) > 0){
-			layers.width <- t(apply(layers.depth, MARGIN=1, FUN=function(x) diff(c(0, x))))
-		} else {
-			layers.width <- diff(c(0, layers.depth))
-		}
-		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth.max - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
-		
-		sand <- sw_input_soils[, match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))]
-		clay <- sw_input_soils[, match(paste("Clay_L", ld, sep=""), colnames(sw_input_soils_use))]
-		sand.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(sand[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
-		clay.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(clay[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
-		
-		temp <- 4.1984+0.6695*sand.mean^2+168.7603*clay.mean^2	# soil texture influence: Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
-		bsEvap.depth.min <- ifelse(length(dim(layers.depth)) > 0, min(layers.width[, 1]), min(layers.width[1]))
-		stopifnot(bsEvap.depth.min < bsEvap.depth.max)
-		temp <- matrix(data=c(temp, rep(bsEvap.depth.min, times=nrow(layers.depth)), rep(bsEvap.depth.max, times=nrow(layers.depth))), ncol=3, byrow=FALSE)
-		bsEvap.depth <- apply(temp, MARGIN=1, FUN=function(x) min(c(x[3], max(x[1:2], na.rm=TRUE)), na.rm=TRUE))
-		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth[l] - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
-		
-		bsEvap.coeff <-  t(sapply(1:nrow(layers.depth), FUN=function(i) {
-							temp <- rep(NA, times=SoilLayer_MaxNo);
-							temp[bsEvap.ld[[i]]] <- 1 - exp(1 - layers.depth[i, bsEvap.ld[[i]]] * 5 / bsEvap.depth[i]) / exp(1);	#function made up to match previous cummulative distributions
-							return( (temp <- (c(temp <- as.numeric(temp), 1)-c(0, temp))[ld])/sum(temp, na.rm=TRUE) )	#garuantee that sum is 1
-						} ))
-		
-		i.bsE <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
-		
-		#add data to sw_input_cloud and set the use flags
-		sw_input_soils_use[i.bsE] <- 0
-		sw_input_soils_use[i.bsE][1:max(unlist(bsEvap.ld))] <- 1
-		
-		sw_input_soils[, i.bsE] <- 0
-		sw_input_soils[, i.bsE] <- bsEvap.coeff
-		
-		#write data to datafile.soils
-		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-		
-		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clayuse.layers, layers.depth, layers.width)
-		
-	}
-	
-	
 	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica && gis_available){
 		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
 		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
@@ -1450,6 +1414,56 @@ if(any(actions == "create")){
 		rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, rat, g, locations)
 		
 		if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
+	}
+	
+	if(exinfo$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
+		#calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
+		bsEvap.depth.max <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
+		
+		ld <- 1:SoilLayer_MaxNo
+		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
+		stopifnot(length(use.layers) > 0)
+		layers.depth <- as.matrix(sw_input_soillayers[, match(paste("depth_L", use.layers, sep=""), colnames(sw_input_soillayers))])
+		if(length(dim(layers.depth)) > 0){
+			layers.width <- t(apply(layers.depth, MARGIN=1, FUN=function(x) diff(c(0, x))))
+		} else {
+			layers.width <- diff(c(0, layers.depth))
+		}
+		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth.max - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
+		
+		sand <- sw_input_soils[, match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))]
+		clay <- sw_input_soils[, match(paste("Clay_L", ld, sep=""), colnames(sw_input_soils_use))]
+		sand.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(sand[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
+		clay.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(clay[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
+		
+		temp <- 4.1984+0.6695*sand.mean^2+168.7603*clay.mean^2	# soil texture influence: Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
+		bsEvap.depth.min <- ifelse(length(dim(layers.depth)) > 0, min(layers.width[, 1]), min(layers.width[1]))
+		stopifnot(bsEvap.depth.min < bsEvap.depth.max)
+		temp <- matrix(data=c(temp, rep(bsEvap.depth.min, times=nrow(layers.depth)), rep(bsEvap.depth.max, times=nrow(layers.depth))), ncol=3, byrow=FALSE)
+		bsEvap.depth <- apply(temp, MARGIN=1, FUN=function(x) min(c(x[3], max(x[1:2], na.rm=TRUE)), na.rm=TRUE))
+		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth[l] - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
+		
+		bsEvap.coeff <-  t(sapply(1:nrow(layers.depth), FUN=function(i) {
+							temp <- rep(NA, times=SoilLayer_MaxNo);
+							temp[bsEvap.ld[[i]]] <- 1 - exp(1 - layers.depth[i, bsEvap.ld[[i]]] * 5 / bsEvap.depth[i]) / exp(1);	#function made up to match previous cummulative distributions
+							return( (temp <- (c(temp <- as.numeric(temp), 1)-c(0, temp))[ld])/sum(temp, na.rm=TRUE) )	#garuantee that sum is 1
+						} ))
+		
+		i.bsE <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
+		
+		#add data to sw_input_cloud and set the use flags
+		sw_input_soils_use[i.bsE] <- 0
+		sw_input_soils_use[i.bsE][1:max(unlist(bsEvap.ld))] <- 1
+		
+		sw_input_soils[, i.bsE] <- 0
+		sw_input_soils[, i.bsE] <- bsEvap.coeff
+		
+		#write data to datafile.soils
+		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+		
+		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clayuse.layers, layers.depth, layers.width)
+		
 	}
 	
 	if(exinfo$CalculateFieldCapacityANDWiltingPointFromSoilTexture){
@@ -1871,9 +1885,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#------2. Step: b) Information for this SoilWat-run from treatment chunks stored in dir.sw.in.tr			
 		#Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) {
-			tempdat <- get.LookupEvapCoeffFromTable(evco_type=i_sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
-			sw_input_soils_use <- tempdat$sw_input_soils_use
-			i_sw_input_soils <- tempdat$sw_input_soils
+			if(any(is.na(i_sw_input_treatments$LookupEvapCoeffFromTable))) {
+				print("ERROR: LookupEvapCoeffFromTable column in expirementals cannot have any NAs.")
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE) 
+			} else {
+				tempdat <- get.LookupEvapCoeffFromTable(evco_type=i_sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
+				sw_input_soils_use <- tempdat$sw_input_soils_use
+				i_sw_input_soils <- tempdat$sw_input_soils
+			}
 		}
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) {
 			tempdat <- get.LookupTranspRegionsFromTable(trtype=i_sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
@@ -4779,7 +4798,7 @@ if(runsN.todo > 0){
 }
 
 if(actionWithSoilWat && runsN.todo > 0){
-	
+		
 	if(exists("todo.done")) {
 		seq.todo <- seq.todo[-todo.done]
 		runsN.todo<-length(seq.todo)
@@ -4814,7 +4833,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 			mpi.bcast.cmd(work(parallel_backend = "mpi", Data = 0))
 			junk <- 0
 			closed_slaves <- 0
-			runs.completed <- head(seq.todo,n=1)-1
+			runs.completed <- 1
 			#sTag <- c("Ready for task", "Done with Task", "Exiting")
 			while(closed_slaves < workersN) {
 tryCatch({
@@ -4831,9 +4850,9 @@ tryCatch({
 					
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
-					if ((runs.completed < tail(seq.todo,n=1)) & (temp < MaxDoOneSiteTime)) {
+					if ((runs.completed <= length(seq.todo)) & (temp < MaxDoOneSiteTime)) {
 						# Send a task, and then remove it from the task list
-						i_tr <- seq.tr[(runs.completed) %% runs + 1]
+						i_tr <- seq.tr[(seq.todo[runs.completed]-1) %% runs + 1]
 						i_labels <- labels[i_tr]
 						i_SWRunInformation <- SWRunInformation[i_tr, ]
 						i_sw_input_soillayers <- sw_input_soillayers[i_tr, ]
@@ -4853,7 +4872,7 @@ tryCatch({
 							if(is.null(i_sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 						} else {
 							con <- dbConnect(drv, dbname=name.OutputDB)
-							temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((runs.completed)*scenario_No+1)))
+							temp<- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((seq.todo[runs.completed]-1)*scenario_No+1)))
 							if(WeatherDataFromDatabase) {
 								conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 								i_sw_weatherList <- onGetWeatherData_database(con=conWeather,weatherDirName=temp,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
@@ -4863,9 +4882,9 @@ tryCatch({
 							}
 							dbDisconnect(con)
 						}
-						dataForRun <- list(do_OneSite=TRUE, i=(1+runs.completed), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
+						dataForRun <- list(do_OneSite=TRUE, i=(seq.todo[runs.completed]), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values, sw_weatherList=i_sw_weatherList)
 						mpi.send.Robj(dataForRun, slave_id, 1);
-						print(paste("Slave:", slave_id, "Run:", (runs.completed+1), "started at", Sys.time()))
+						print(paste("Slave:", slave_id, "Run:", (seq.todo[runs.completed]), "started at", Sys.time()))
 						runs.completed <- runs.completed + 1
 					} else {
 						mpi.send.Robj(junk, slave_id, 2)
