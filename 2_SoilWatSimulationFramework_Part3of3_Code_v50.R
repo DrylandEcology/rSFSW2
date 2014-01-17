@@ -1120,7 +1120,7 @@ if(any(actions == "create")){
 			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
 		} 
 		
-		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals 
+		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals and on in treatments
 			if(any(is.na(sw_input_treatments$LookupEvapCoeffFromTable))) stop("ERROR: LookupEvapCoeffFromTable column in treatments cannot have any NAs.")
 			if(!all(unique(sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) stop("ERROR: LookupEvapCoeffFromTable column values in treatments do not match up with trfile.LookupEvapCoeffFromTable row names.")
 			tempdat <- get.LookupEvapCoeffFromTable(evco_type=sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils)
@@ -1148,7 +1148,9 @@ if(any(actions == "create")){
 			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
 		}
 		
-		if(!all(is.na(sw_input_treatments$LookupTranspRegionsFromTable))){#if not then data is in sw_input_experimentals
+		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) ){#Use only if option is off in sw_input_experimentals
+			if(any(is.na(sw_input_treatments$LookupTranspRegionsFromTable))) stop("ERROR: LookupTranspRegionsFromTable column in treatments cannot have any NAs.")
+			if(!all(unique(sw_input_treatments$LookupTranspRegionsFromTable) %in% rownames(tr_input_TranspRegions))) stop("ERROR: LookupTranspRegionsFromTable column values in treatments do not match up with trfile.LookupTranspRegionsFromTable row names.")
 			tempdat <- get.LookupTranspRegionsFromTable(trtype=sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils)
 			sw_input_soils_use <- tempdat$sw_input_soils_use
 			sw_input_soils <- tempdat$sw_input_soils
@@ -1176,7 +1178,9 @@ if(any(actions == "create")){
 			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
 		}
 		
-		if(!all(is.na(sw_input_treatments$LookupSnowDensityFromTable))){#if not then data is in sw_input_experimentals
+		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) ){#Use only if option is off in sw_input_experimentals
+			if(any(is.na(sw_input_treatments$LookupSnowDensityFromTable))) stop("ERROR: LookupSnowDensityFromTable column in treatments cannot have any NAs.")
+			if(!all(unique(sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_TranspRegions))) stop("ERROR: LookupSnowDensityFromTable column values in treatments do not match up with trfile.LookupSnowDensityFromTable row names.")
 			tempdat <- get.LookupSnowDensityFromTable(sdcategories=sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud)
 			sw_input_cloud_use <- tempdat$sw_input_cloud_use
 			sw_input_cloud <- tempdat$sw_input_cloud
@@ -1895,55 +1899,97 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#------2. Step: b) Information for this SoilWat-run from treatment chunks stored in dir.sw.in.tr			
 		#Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) {
-			if(any(is.na(i_sw_input_treatments$LookupEvapCoeffFromTable))) {
-				print("ERROR: LookupEvapCoeffFromTable column in expirementals cannot have any NAs.")
+			if(any(is.na(i_sw_input_treatments$LookupEvapCoeffFromTable)) || !all(unique(i_sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) {
+				print("ERROR: LookupEvapCoeffFromTable column in expirementals cannot have any NAs or name is not in tr_input_EvapCoeff table.")
 				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE) 
 			} else {
 				tempdat <- get.LookupEvapCoeffFromTable(evco_type=i_sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
+				if(all(colSums(tempdat$sw_input_soils,na.rm=T)>0) && !any(is.na(colSums(tempdat$sw_input_soils))) ) {
+					sw_input_soils_use <- tempdat$sw_input_soils_use
+					i_sw_input_soils <- tempdat$sw_input_soils
+				} else {
+					print("ERROR: get.LookupEvapCoeffFromTable returned a Layer that didn't have a sum greater then 0 or had a NA.")
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+				}
+			}
+		}
+		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) {
+			if(any(is.na(i_sw_input_treatments$LookupTranspRegionsFromTable)) || !all(unique(i_sw_input_treatments$LookupTranspRegionsFromTable) %in% rownames(tr_input_TranspRegions))) {
+				print("ERROR: LookupTranspRegionsFromTable column in expirementals cannot have any NAs or name is not in LookupTranspRegionsFromTable data table.")
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE) 
+			} else {
+				tempdat <- get.LookupTranspRegionsFromTable(trtype=i_sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
 				sw_input_soils_use <- tempdat$sw_input_soils_use
 				i_sw_input_soils <- tempdat$sw_input_soils
 			}
 		}
-		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) {
-			tempdat <- get.LookupTranspRegionsFromTable(trtype=i_sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
-			sw_input_soils_use <- tempdat$sw_input_soils_use
-			i_sw_input_soils <- tempdat$sw_input_soils
-		}
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) {
-			tempdat <- get.LookupSnowDensityFromTable(sdcategories=i_sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=i_sw_input_cloud)
-			sw_input_cloud_use <- tempdat$sw_input_cloud_use
-			i_sw_input_cloud <- tempdat$sw_input_cloud
+			if(any(is.na(i_sw_input_treatments$LookupSnowDensityFromTable)) || !all(unique(i_sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_SnowD))) {
+				print("ERROR: LookupSnowDensityFromTable column in expirementals cannot have any NAs or name is not in tr_input_SnowD data table.")
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE) 
+			} else {
+				tempdat <- get.LookupSnowDensityFromTable(sdcategories=i_sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=i_sw_input_cloud)
+				sw_input_cloud_use <- tempdat$sw_input_cloud_use
+				i_sw_input_cloud <- tempdat$sw_input_cloud
+			}
 		} 
 		
 		#Treatment chunks
 		if(print.debug) print("Start of LookupTranspCoeff")
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Grass")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="positive")
-			if(!is.na(trco)){
-				#set the use flags
-				i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-				sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-				#add data to sw_input_soils
-				i_sw_input_soils[i.temp][1:length(trco)] <- trco
+			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass)) print("LookupTranspCoeffFromTable_Grass for this run cannot be NA.")
+			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Grass name for this run are not in tr_input_TranspCoeff table column names.")
+			if(temp || temp1) {
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+			} else {
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="positive")
+				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){#trco does not have NA and sum is greater than 0.
+					#set the use flags
+					i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
+					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
+					#add data to sw_input_soils
+					i_sw_input_soils[i.temp][1:length(trco)] <- trco
+				} else {
+					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type grass.")
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+				}
 			}
 		}
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Shrub")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Shrub", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
-			#set the use flags
-			if(!is.na(trco)){
-				i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-				sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-				#add data to sw_input_soils
-				i_sw_input_soils[i.temp][1:length(trco)] <- trco
+			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub)) print("LookupTranspCoeffFromTable_Shrub for this run cannot be NA.")
+			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Shrub name for this run are not in tr_input_TranspCoeff table column names.")
+			if(temp || temp1) {
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+			} else {
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Shrub", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
+				#set the use flags
+				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
+					i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
+					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
+					#add data to sw_input_soils
+					i_sw_input_soils[i.temp][1:length(trco)] <- trco
+				}  else {
+					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type shrub.")
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+				}
 			}
 		}
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Tree")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Tree", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
-			if(!is.na(trco)){				
-				i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-				sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-				#add data to sw_input_soils
-				i_sw_input_soils[i.temp][1:length(trco)] <- trco
+			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) print("LookupTranspCoeffFromTable_Tree for this run cannot be NA.")
+			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Tree name for this run are not in tr_input_TranspCoeff table column names.")
+			if(temp || temp1) {
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+			} else {
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Tree", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
+				if(!is.na(trco)){				
+					i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
+					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
+					#add data to sw_input_soils
+					i_sw_input_soils[i.temp][1:length(trco)] <- trco
+				} else {
+					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Tree.")
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+				}
 			}
 		}
 		
@@ -2582,7 +2628,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				max(temp[, 2]) <= max.tri.root ) TRRG_done <- TRUE
 		}#end do scenario creations
 		
-		stopifnot(EVCO_done, TRCO_done, TRRG_done)
+		if(!EVCO_done)
+			print("Evap Coef not set for this run.")
+		else if(!TRCO_done)
+			print("Transpiration Coef not set for this run.")
+		else if(!TRRG_done)
+			print("Transpiration Coef not set for this run.")
+		
+		if(!EVCO_done || !TRCO_done || !TRRG_done)
+			todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
 		
 		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
