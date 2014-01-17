@@ -1195,50 +1195,45 @@ if(any(actions == "create")){
 		TranspCoeffByVegType <- function(soillayer_no, trco_type, layers_depth, adjustType=c("positive", "inverse", "allToLast"))
 		{
 			#extract data from table by category
-			#trco_type <- eval(parse(text=paste("LookupTranspCoeffFromTable_", veg, sep="")), envir=sw_input_treatments[index, ])
-			if(nchar(trco_type) > 0){
-				trco.code <- as.character(tr_input_TranspCoeff_Code[, which(colnames(tr_input_TranspCoeff_Code) == trco_type)])
-				trco <- rep(0, times=soillayer_no)
-				trco.raw <- na.omit(tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])
-				
-				if(trco.code == "DepthCM"){
-					trco_sum <- ifelse((temp <- sum(trco.raw, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-					lup <- 1
-					for(l in 1:soillayer_no){
-						llow <- as.numeric(layers_depth[l])
-						#eval(parse(text=paste("depth_L", l, sep="")), envir=sw_input_soillayers[index, ])
-						if(is.na(llow) | lup > length(trco.raw))
-						{
-							l <- l - 1
-							break
-						}
-						trco[l] <- sum(trco.raw[lup:llow], na.rm=TRUE) / trco_sum
-						lup <- llow + 1
+			trco.code <- as.character(tr_input_TranspCoeff_Code[, which(colnames(tr_input_TranspCoeff_Code) == trco_type)])
+			trco <- rep(0, times=soillayer_no)
+			trco.raw <- na.omit(tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])
+			
+			if(trco.code == "DepthCM"){
+				trco_sum <- ifelse((temp <- sum(trco.raw, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+				lup <- 1
+				for(l in 1:soillayer_no){
+					llow <- as.numeric(layers_depth[l])
+					#eval(parse(text=paste("depth_L", l, sep="")), envir=sw_input_soillayers[index, ])
+					if(is.na(llow) | lup > length(trco.raw))
+					{
+						l <- l - 1
+						break
 					}
-					usel <- l
-				} else if(trco.code == "Layer"){
-					usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
-					trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+					trco[l] <- sum(trco.raw[lup:llow], na.rm=TRUE) / trco_sum
+					lup <- llow + 1
 				}
-				
-				if(identical(adjustType, "positive")){
-					trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
-				} else if(identical(adjustType, "inverse")){
-					irows <- 1:max(which(trco > 0))
-					trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
-				} else if(identical(adjustType, "allToLast")){
-					irow <- max(which(trco > 0))
-					if(irow > 1){
-						trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
-					} else {
-						trco[1] <- 1
-					}
-				}
-				
-				return(trco)
-			} else {
-				return(NA)
+				usel <- l
+			} else if(trco.code == "Layer"){
+				usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
+				trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 			}
+			
+			if(identical(adjustType, "positive")){
+				trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
+			} else if(identical(adjustType, "inverse")){
+				irows <- 1:max(which(trco > 0))
+				trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
+			} else if(identical(adjustType, "allToLast")){
+				irow <- max(which(trco > 0))
+				if(irow > 1){
+					trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
+				} else {
+					trco[1] <- 1
+				}
+			}
+			
+			return(trco)
 		}
 		#cannot write data from sw_input_soils to datafile.soils
 	}
@@ -1845,6 +1840,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #------------------------CREATE RUNS
 	if( todo$create ){	
 		if(print.debug) print("Start of section 'create'")
+		EVCO_done <- TRCO_done <- FALSE	#to check whether we get information for evaporation and transpiration coefficients
+		TRRG_done <- FALSE #to check whether we get information for transpiration regions
 		
 		#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
 		#Make a local copy of the swInput object do not want to destroy orignal
@@ -2113,22 +2110,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#recalculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
 			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
 			layers_depth.soilsin <- swSoils_Layers(swRunScenariosData[[1]])[,1]
+			mergeDatafileWithSoilsin <- FALSE
 			
 			if(identical(layers_depth.datafile, layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
 				#soil texture data from SoilWat input file
 				tempdat <- swSoils_Layers(swRunScenariosData[[1]])
 				colnames(tempdat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")#names might be diff
-				#flags for use of texture data from datafile
-				use_bulkd <- unlist(lapply(parse(text=paste("BD_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
-				use_fieldc <- unlist(lapply(parse(text=paste("FieldC_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
-				use_pwp <- unlist(lapply(parse(text=paste("WiltP_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
-				sum_use_evco <- sum(unlist(lapply(parse(text=paste("EvapCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
-				sum_use_trco_grass <- sum(unlist(lapply(parse(text=paste("Grass_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
-				sum_use_trco_shrub <- sum(unlist(lapply(parse(text=paste("Shrub_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
-				sum_use_trco_tree <- sum(unlist(lapply(parse(text=paste("Tree_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
-				use_sand <- unlist(lapply(parse(text=paste("Sand_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
-				use_clay <- unlist(lapply(parse(text=paste("Clay_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
-				use_imperm <- unlist(lapply(parse(text=paste("Imperm_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+				mergeDatafileWithSoilsin <- TRUE
 				
 			} else { #different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
 				d <- max(1, min(length(layers_depth.datafile), findInterval(i_sw_input_soillayers$SoilDepth_cm - sqrt(.Machine$double.neg.eps), c(0, layers_depth.datafile)), na.rm=TRUE), na.rm=TRUE)
@@ -2139,11 +2127,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				DeepestTopLayer <- setDeepestTopLayer(d)
 				topL <- setTopLayer(d)
 				bottomL <- setBottomLayer(d)
-				
-				#set all flags to use=1
-				use_bulkd <- use_fieldc <- use_pwp <- use_sand <- use_clay <- use_imperm <- rep(1, times=d)
-				sum_use_evco <- sum_use_trco_grass <- sum_use_trco_shrub <- sum_use_trco_tree <- 1
 			}
+
+			#flags for use of texture data from datafile
+			use_bulkd <- unlist(lapply(parse(text=paste("BD_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+			use_fieldc <- unlist(lapply(parse(text=paste("FieldC_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+			use_pwp <- unlist(lapply(parse(text=paste("WiltP_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+			sum_use_evco <- sum(unlist(lapply(parse(text=paste("EvapCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
+			sum_use_trco_grass <- sum(unlist(lapply(parse(text=paste("Grass_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
+			sum_use_trco_shrub <- sum(unlist(lapply(parse(text=paste("Shrub_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
+			sum_use_trco_tree <- sum(unlist(lapply(parse(text=paste("Tree_TranspCoeff_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use)))
+			use_sand <- unlist(lapply(parse(text=paste("Sand_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+			use_clay <- unlist(lapply(parse(text=paste("Clay_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+			use_imperm <- unlist(lapply(parse(text=paste("Imperm_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))
+
+			if(mergeDatafileWithSoilsin || sum_use_evco > 0) EVCO_done <- TRUE
+			if(mergeDatafileWithSoilsin || (sum_use_trco_grass > 0 && sum_use_trco_shrub > 0 && sum_use_trco_tree > 0)) TRCO_done <- TRUE
 			
 			#tr and ev coefficients data from datafile
 			evco <- unlist(lapply(parse(text=paste("EvapCoeff_L", ld, sep="")), FUN=eval, envir=i_sw_input_soils))
@@ -2231,7 +2230,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(sum(use_transpregion) > 0){
 			tr <- max(tr.layers <- na.omit(unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=i_sw_input_soils)))) # max transpiration region
 			
-			TranspirationRegions=matrix(data=NA,nrow=4,ncol=2)
+			TranspirationRegions <- matrix(data=NA,nrow=4,ncol=2)
 			colnames(TranspirationRegions)<-c("ndx","layer")
 			
 			ltreg.last <- 0
@@ -2248,8 +2247,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				stop("Transpiration Regions in Site can not be empty")
 			} else if(sum(tr_rows) == 1) {
 				swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data=TranspirationRegions[tr_rows,],nrow=1,ncol=2,byrow=T,dimnames=list(numeric(),c("ndx","layer")))
+				TRRG_done <- TRUE
 			} else {
 				swSite_TranspirationRegions(swRunScenariosData[[1]]) <- TranspirationRegions[tr_rows,]
+				TRRG_done <- TRUE
 			}
 		}
 		
@@ -2470,7 +2471,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth, adjustType="inverse")
 				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Grass.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Shrub.trco
-				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco			
+				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco
+				
+				TRCO_done <- TRUE			
 			}
 			
 			if(print.debug) print("Start of vegetation scaling")
@@ -2573,7 +2576,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- matrix(swSite_TranspirationRegions(swRunScenariosData[[sc]])[-tri,], ncol=2)
 					}
 			}
+			#check transpiration regions once more and set TRRG_done
+			temp <- swSite_TranspirationRegions(swRunScenariosData[[sc]])
+			if(nrow(temp) > 0 && temp[1, 2] >= 1 ||
+				max(temp[, 2]) <= max.tri.root ) TRRG_done <- TRUE
 		}#end do scenario creations
+		
+		stopifnot(EVCO_done, TRCO_done, TRRG_done)
 		
 		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
