@@ -10,7 +10,7 @@
 # - Ryan Murphy (rjm): 2012-2013
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
-#The R code below was tested on R versions 3.0.2
+#The R code below was tested on R version 3.0.2
 
 #------DISCLAIMER: This program is distributed in the hope that it will be useful,
 #but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -191,16 +191,7 @@ if(exists("use_janus")) {
 	print(paste("dir.prj:", dir.prj))
 } else {
 	#parent folder of simulation project
-	#dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
-	#dir.prj <- "/Volumes/Macintosh_HD_2/ryan_workspace/Projects/7_PC_TemperateArid_SWSF_SimulationTemplate03152013"
-	#dir.prj <- "~/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
-	dir.prj <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
-	#dir.prj <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
-	#parent folder containing all SoilWat runs (=each run is each in one sub-folder)
-	#dir.runs <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1"
-	#dir.runs <- "/dev/shm/7_PC_TemperateArid_SWSF_SimulationTemplate"
-	dir.runs <- "/home/ryan/Documents/Work/SoilWat_R_Wrapper/"
-	#dir.runs <- "~/Documents/dschlaep@UWy/200907-_UW/LabProjects/PostDoc_My/Daniel@UW/Product_PowellCenter/5_Data/7_PC_TemperateArid_SWSF_SimulationTemplate"
+	dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1/Prj01_Texture/1_PC_TempDry_Simulations_Prj01_r2mini"
 	dir.prj <- dir.runs <- getwd()
 }
 #parent folder containing external data
@@ -230,7 +221,7 @@ checkCompleteness <- FALSE
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
-deleteTmpSQLFiles <- FALSE
+deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
