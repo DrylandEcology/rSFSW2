@@ -281,6 +281,7 @@
 #		- (drs) adjusted wrapper function circ.sd() because circular::sd.circular() can return NaN instead of 0 [in packageVersion("circular") <= "0.4.7"]
 #		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
 #		- (drs) added output option 'input_SoilProfile'
+#		- (drs) added 'adjustType' option to function TranspCoeffByVegType(): with 'positive' as recommended for grasses (built-in Soilwat) and 'inverse' as recommended for woody plants and forbs
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -1191,7 +1192,7 @@ if(any(actions == "create")){
 		#first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
 		#second row of datafile is source of data
 		#the other rows contain the data for each distribution type = columns
-		TranspCoeffByVegType <- function(soillayer_no, trco_type, layers_depth)
+		TranspCoeffByVegType <- function(soillayer_no, trco_type, layers_depth, adjustType=c("positive", "inverse", "allToLast"))
 		{
 			#extract data from table by category
 			#trco_type <- eval(parse(text=paste("LookupTranspCoeffFromTable_", veg, sep="")), envir=sw_input_treatments[index, ])
@@ -1220,7 +1221,19 @@ if(any(actions == "create")){
 					trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 				}
 				
-				trco <- trco / sum(trco)
+				if(identical(adjustType, "positive")){
+					trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
+				} else if(identical(adjustType, "inverse")){
+					irows <- 1:max(which(trco > 0))
+					trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
+				} else if(identical(adjustType, "allToLast")){
+					irow <- max(which(trco > 0))
+					if(irow > 1){
+						trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
+					} else {
+						trco[1] <- 1
+					}
+				}
 				
 				return(trco)
 			} else {
@@ -1908,7 +1921,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#Treatment chunks
 		if(print.debug) print("Start of LookupTranspCoeff")
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Grass")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth)
+			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="positive")
 			if(!is.na(trco)){
 				#set the use flags
 				i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -1918,7 +1931,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Shrub")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Shrub", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth)
+			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Shrub", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
 			#set the use flags
 			if(!is.na(trco)){
 				i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -1928,7 +1941,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		if(any(create_treatments == "LookupTranspCoeffFromTable_Tree")){
-			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Tree", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth)
+			trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Tree", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
 			if(!is.na(trco)){				
 				i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
 				sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
@@ -2444,17 +2457,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				tro_type_tree <- ifelse(any(create_treatments == "LookupTranspCoeffFromTable_Tree") && is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree), i_sw_input_treatments$LookupTranspCoeffFromTable_Tree, "FILL")
 				
 				if(grass.fraction==0) { #if grass.fraction is 0 then Grass.trco will be 0
-					Grass.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type="FILL", layers_depth=layers_depth)
+					Grass.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type="FILL", layers_depth=layers_depth, adjustType="positive")
 				} else {
-					C3.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C3, layers_depth=layers_depth)
-					C4.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C4, layers_depth=layers_depth)
-					Annuals.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_annuals, layers_depth=layers_depth)
+					C3.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C3, layers_depth=layers_depth, adjustType="positive")
+					C4.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C4, layers_depth=layers_depth, adjustType="positive")
+					Annuals.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_annuals, layers_depth=layers_depth, adjustType="positive")
 					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] + C4.trco * grasses.c3c4ann.fractions[[sc]][2] + Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
 				}
 				if(is.na(sum(Grass.trco))) Grass.trco <- rep(0, d)
 				
-				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth)
-				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth)
+				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth, adjustType="inverse")
+				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth, adjustType="inverse")
 				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Grass.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Shrub.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco			
@@ -2876,24 +2889,24 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient){
 				
 				#delete data so that they are read if anew for each scenario; each variable is checked that datafile is read in only once per scenario			
-				try(rm(	temp.yr, temp.mo, temp.dy, 
+				try(rm(			temp.yr, temp.mo, temp.dy, 
 								prcp.yr, prcp.mo, prcp.dy, 
-								PET.yr, PET.mo, 
+								PET.yr, PET.mo, PET.dy,
 								AET.yr, AET.mo, AET.dy,
-								SWE.mo, SWE.dy,
-								soiltemp.mo,
-								swc.mo, 
-								swa.mo, 
-								vwc.mo, vwc.dy, vwc.dy.all, 
-								swp.mo, swp.dy, swp.dy.all, 
+								SWE.yr, SWE.mo, SWE.dy,
+								soiltemp.yr, soiltemp.mo, soiltemp.dy,
+								swc.yr, swc.mo, swc.dy,
+								swa.yr, swa.mo, swa.dy,
+								vwc.yr, vwc.mo, vwc.dy, vwc.dy.all, 
+								swp.yr, swp.mo, swp.dy, swp.dy.all, 
 								transp.yr, transp.mo, transp.dy,
 								Esoil.yr, Esoil.mo, Esoil.dy,
-								Esurface.yr, Esurface.dy,
-								hydred.mo, 
+								Esurface.yr, Esurface.mo, Esurface.dy,
+								hydred.yr, hydred.mo, hydred.dy,
 								inf.yr, inf.mo, inf.dy, 
-								runoff.mo, runoff.yr,
-								intercept.yr, 
-								deepDrain.yr, deepDrain.dy
+								runoff.yr, runoff.mo, runoff.dy,
+								intercept.yr, intercept.mo, intercept.dy,
+								deepDrain.yr, deepDrain.mo, deepDrain.dy
 						), silent=TRUE)
 				
 				#result vector column index indicating variable within set of n_variables per scenario
@@ -5096,7 +5109,7 @@ if(any(actions=="concatenate")) {
 				}
 			}
 			dbCommit(con)
-			if(!FAIL) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
+			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
 			if(print.debug) {
 				temp2<-Sys.time() - temp
 				units(temp2) <- "secs"
@@ -5461,3 +5474,5 @@ if(parallel_runs & identical(parallel_backend, "snow")) snow::stopCluster(cl)	#c
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#
+
+
