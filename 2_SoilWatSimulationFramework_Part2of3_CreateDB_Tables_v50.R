@@ -359,6 +359,8 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 #B. Aggregation_Overall
 	
 	##############################################################---Aggregation: SoilWat inputs---##############################################################
+	## Note: All '.' will be translated to "_" because of sqlite field name constraints
+
 #0.
 	if(aon$input_SoilProfile){
 		temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
@@ -716,7 +718,11 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			#Output for time series: not yet implemented for db			
 		}
 	}
-
+	
+	
+	#Convert '.' to "_"
+	temp <- gsub(".", "_", temp, fixed=TRUE)
+		
 	dbOverallColumns <- length(temp)
 	
 	temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
