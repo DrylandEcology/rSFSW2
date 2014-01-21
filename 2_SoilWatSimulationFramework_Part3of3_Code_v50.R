@@ -487,6 +487,8 @@ create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_expe
 
 #update treatment specifications based on experimental design
 sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
+temp<-which(!(create_experimentals %in% names(sw_input_treatments_use[-1])))
+if(length(temp) != 0) sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined, matrix(data=1,nrow=1,ncol=length(temp),dimnames=list(NA, c(create_experimentals[temp]))))
 create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
 
 if(dim(SWRunInformation)[2] == 1) stop("SWRunInformation might be tab separated instead of comma.")
