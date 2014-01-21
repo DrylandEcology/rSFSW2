@@ -1887,10 +1887,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			set_swFiles(swRunScenariosData[[1]]) <- tr_files[[filesin]]
 		if(any(create_treatments=="prodin"))
 			set_swProd(swRunScenariosData[[1]]) <- tr_prod[[prodin]]
-		if(any(create_treatments=="siteparamin"))
+		if(any(create_treatments=="siteparamin")){
 			set_swSite(swRunScenariosData[[1]]) <- tr_site[[siteparamin]]
-		if(any(create_treatments=="soilsin"))
+			TRRG_done <- TRUE
+		}
+		if(any(create_treatments=="soilsin")){
 			set_swSoils(swRunScenariosData[[1]]) <- tr_soil[[soilsin]]
+			EVCO_done <- TRCO_done <- TRUE
+		}	
 		if(any(create_treatments=="weathersetupin"))
 			set_swWeather(swRunScenariosData[[1]]) <- tr_weather[[weatherin]]
 		if(any(create_treatments=="cloudin"))
