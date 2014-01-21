@@ -330,7 +330,12 @@ if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWa
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile)) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) try(file.remove(temp), silent=TRUE)
-if(!file.exists(temp)) write.table(t(c(0,NA)), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) else todo.done <- sort(read.csv(file=temp,header=FALSE,skip=1)[,1])
+if(!file.exists(temp)){
+	write.table(t(c(0,NA)), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
+} else {
+	ttemp <- read.csv(file=temp, header=FALSE)
+	if(nrow(ttemp) > 1) todo.done <- sort(ttemp[-1, 1])
+}
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
