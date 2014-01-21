@@ -138,7 +138,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	if(useExperimentals) {#Only use experimentals if there is something in it
 		#Are all the columns NA
 		if(all(temp<-is.na(sw_input_experimentals[,create_experimentals]))) stop("All Columns in experimentals table are NA")
-		if(any(apply(temp,MARGIN=2, function(x) all(x)))) warning("One ore more columns in experimentals table are turned on with no value.")
+		if(any(apply(temp,MARGIN=2, function(x) all(x)))) warning("One ore more columns in experimentals table are turned on with no values or only with NA.")
 		db_experimentals <- unique(sw_input_experimentals[,create_experimentals])
 		#note experimentals should be unique if we have less rows then the original then lets throw an Error
 		stopifnot(nrow(db_experimentals) == nrow(sw_input_experimentals))
