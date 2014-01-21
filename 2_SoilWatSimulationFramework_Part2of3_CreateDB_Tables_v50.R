@@ -218,7 +218,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
 		}
 		#Create the table
-		dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",fk_LookupWeatherFolder,");", sep=""))
+		dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals || fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",if(fk_LookupWeatherFolder != "") ", ",fk_LookupWeatherFolder,");", sep=""))
 		
 		#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
 		if(useTreatments) {
@@ -324,7 +324,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 			db_runs$treatment_id <- rep(i_exp+(treatments_unique_map-1),each=scenario_No)
 		} else {
 			db_runs$label_id <- rep(seq.todo,each=scenario_No)
-			db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
+			db_runs$site_id <- rep(1:runs,each=scenario_No)
 			db_runs$treatment_id <- rep(treatments_unique_map,each=scenario_No)
 		}
 	} else {
