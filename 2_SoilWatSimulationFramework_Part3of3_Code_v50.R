@@ -2632,15 +2632,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				max(temp[, 2]) <= max.tri.root ) TRRG_done <- TRUE
 		}#end do scenario creations
 		
-		if(!EVCO_done)
-			print("Evap Coef not set for this run.")
-		else if(!TRCO_done)
-			print("Transpiration Coef not set for this run.")
-		else if(!TRRG_done)
-			print("Transpiration Coef not set for this run.")
-		
-		if(!EVCO_done || !TRCO_done || !TRRG_done)
-			todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+		if(!EVCO_done){
+			print("Evaporation coefficients not set for this run.")
+		} else if(!TRCO_done){
+			print("Transpiration coefficients not set for this run.")
+		} else if(!TRRG_done){
+			print("Transpiration regions not set for this run.")
+		}
+			
+		if(!EVCO_done || !TRCO_done || !TRRG_done) todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
 		
 		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
