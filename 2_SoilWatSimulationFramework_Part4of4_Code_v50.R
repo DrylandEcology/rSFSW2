@@ -579,6 +579,11 @@ trowExperimentals <- ifelse(length(create_experimentals) > 0, nrow(sw_input_expe
 seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
 seq.todo <- (1:(runs * ifelse(trowExperimentals > 0, trowExperimentals, 1))) # consecutive number of all (tr x exp) simulations to be executed
 runsN.todo <- length(seq.todo)
+if(exists("todo.done")) {
+	seq.todo <- seq.todo[-todo.done]
+	runsN.todo <- length(seq.todo)
+}
+	
 
 #------create scenario names
 climate.conditions <- c(climate.ambient, climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -1067,8 +1072,6 @@ adjust.WindspeedHeight <- function(uz, height){
 }
 
 
-#------------------------
-#--------------------------------------------------------------------------------------------------#
 #------------------------DAILY WEATHER
 if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
@@ -1110,6 +1113,65 @@ if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 		}
 	}
 }
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------SET UP PARALLELIZATION
+#used in: external dataset extractions, loop calling do_OneSite, and ensembles
+
+workersN <- 1
+parallel_init <- FALSE
+if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ensembles){
+	if(parallel_runs){
+		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+		if(identical(parallel_backend, "mpi")) {
+			mpi.spawn.Rslaves(nslaves=num_cores)
+		
+			exportObjects <- function(allObjects) {
+				print("exporting objects from master node to slave nodes")
+				t.bcast <- Sys.time()
+				for(obj in 1:length(allObjects)) {
+					bcast.tempString <- allObjects[obj]
+					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
+					mpi.bcast.Robj2slave(bcast.tempString)
+					mpi.bcast.Robj2slave(bcast.tempValue)
+					mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+				}
+				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
+			}
+		}
+	
+		if(identical(parallel_backend, "snow")){
+			if(exists("use_janus")){
+				print("janus exists")
+				cl <-  makeCluster(num_cores, type="MPI", outfile="")
+				print("cluster made")
+			} else if(!exists("use_janus")){
+				if(!be.quiet) setDefaultClusterOptions(outfile="")
+				#cl <-  makeCluster(num_cores, type="MPI", outfile="")
+				cl <- snow::makeSOCKcluster(num_cores)
+				clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
+				#snow::clusterSetupRNG(cl) #random numbers setup
+			}
+			doSNOW::registerDoSNOW(cl) 	# register foreach backend
+		}
+	
+		if(identical(parallel_backend, "multicore")) {
+			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
+			registerDoMC(num_cores)
+		}
+	
+		if(identical(parallel_backend, "mpi")){
+			workersN <- (mpi.comm.size() - 1)
+		} else {
+			workersN <- foreach::getDoParWorkers()
+		}
+		
+		parallel_init <- TRUE
+		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	}
+}
+
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
@@ -4509,107 +4571,43 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 #------------------------
 
-work <- function(parallel_backend, Data) {
-	# Note the use of the tag for sent messages:
-	#     1=ready_for_task, 2=done_task, 3=exiting
-	# Note the use of the tag for received messages:
-	#     1=task, 2=done_tasks
+	work <- function(parallel_backend, Data) {
+		# Note the use of the tag for sent messages:
+		#     1=ready_for_task, 2=done_task, 3=exiting
+		# Note the use of the tag for received messages:
+		#     1=task, 2=done_tasks
 	
-	junk <- 0
-	done <- 0
-	while (done != 1) {
-		# Signal being ready to receive a new task
-		mpi.send.Robj(junk,0,1)
+		junk <- 0
+		done <- 0
+		while (done != 1) {
+			# Signal being ready to receive a new task
+			mpi.send.Robj(junk,0,1)
 		
-		# Receive a task
-		dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
-		task_info <- mpi.get.sourcetag()
-		tag <- task_info[2]
+			# Receive a task
+			dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+			task_info <- mpi.get.sourcetag()
+			tag <- task_info[2]
 		
-		if (tag == 1) {
-			print(dataForRun$i)
-			if(dataForRun$do_OneSite) result <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values, i_sw_weatherList=dataForRun$sw_weatherList)
-			# Send a results message back to the master
-			#print(results)
-			mpi.send.Robj(list(i=dataForRun$i,r=result),0,2)
-		} else if (tag == 2) {
-			done <- 1
+			if (tag == 1) {
+				print(dataForRun$i)
+				if(dataForRun$do_OneSite) result <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values, i_sw_weatherList=dataForRun$sw_weatherList)
+				# Send a results message back to the master
+				#print(results)
+				mpi.send.Robj(list(i=dataForRun$i,r=result),0,2)
+			} else if (tag == 2) {
+				done <- 1
+			}
+			# We'll just ignore any unknown messages
 		}
-		# We'll just ignore any unknown messages
+		mpi.send.Robj(junk,0,3)
 	}
-	mpi.send.Robj(junk,0,3)
-}
 }
 #--------------------------------------------------------------------------------------------------#
-#------------------------RUN THE FRAMEWORK TASKS IN PARALLEL OR SERIAL
+#------------------------RUN RSOILWAT
 
-
-
-#parallelization: used for do_OneSite and/or for ensembles
-workersN <- 1
-parallel_init <- FALSE
-if((actionWithSoilWat && runsN.todo > 0) || do.ensembles){
-	if(parallel_runs){
-		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
-		if(identical(parallel_backend, "mpi")) {
-			mpi.spawn.Rslaves(nslaves=num_cores)
-		
-			exportObjects <- function(allObjects) {
-				print("exporting objects from master node to slave nodes")
-				t.bcast <- Sys.time()
-				for(obj in 1:length(allObjects)) {
-					bcast.tempString <- allObjects[obj]
-					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
-					mpi.bcast.Robj2slave(bcast.tempString)
-					mpi.bcast.Robj2slave(bcast.tempValue)
-					mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
-				}
-				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
-			}
-		}
-	
-		if(identical(parallel_backend, "snow")){
-			if(exists("use_janus")){
-				print("janus exists")
-				cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				print("cluster made")
-			} else if(!exists("use_janus")){
-				if(!be.quiet) setDefaultClusterOptions(outfile="")
-				#cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				cl <- snow::makeSOCKcluster(num_cores)
-				clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
-				#snow::clusterSetupRNG(cl) #random numbers setup
-			}
-			doSNOW::registerDoSNOW(cl) 	# register foreach backend
-			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
-			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(Rsoilwat,quietly=TRUE))
-		}
-	
-		if(identical(parallel_backend, "multicore")) {
-			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
-			registerDoMC(num_cores)
-		}
-	
-		if(identical(parallel_backend, "mpi")){
-			workersN <- (mpi.comm.size() - 1)
-		} else {
-			workersN <- foreach::getDoParWorkers()
-		}
-		
-		parallel_init <- TRUE
-		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
-	}
-}
 
 if(actionWithSoilWat && runsN.todo > 0){
 		
-	if(exists("todo.done")) {
-		seq.todo <- seq.todo[-todo.done]
-		runsN.todo<-length(seq.todo)
-	}
-	
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
@@ -4718,6 +4716,11 @@ tryCatch({
 			print(runs.completed)
 		}
 		if(identical(parallel_backend, "snow")){
+			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
+			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
+			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
+			snow::clusterEvalQ(cl, library(Rsoilwat,quietly=TRUE))
+
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
 
