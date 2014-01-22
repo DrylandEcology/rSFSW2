@@ -178,9 +178,13 @@ if(exists("use_janus")) {
 	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 	parallel_runs <- TRUE
 }
+
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
 MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
+
+#------Repository in case installation of additional R packages is required
+url.Rrepos <- "http://cran.us.r-project.org"
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------USER INPUT
@@ -208,7 +212,7 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("create", "execute", "aggregate", "concatenate", "ensemble")
+#actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
 actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
@@ -227,20 +231,32 @@ copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database 
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #------Define type of simulations and source of input data
-#indicate whether to obtain external information (1) or not (0), don't delete any labels; GIS extractions not supported on JANUS
-do.ExternalInformation <- c(
-		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 0,
-		"EstimateInitialSoilTemperatureForEachSoilLayer", 0,
-		"CalculateFieldCapacityANDWiltingPointFromSoilTexture", 0,	#Aridity template: extracted Dec 3, 2012
-		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 0,	#Aridity template: extracted Dec 3, 2012
+#Daily weather data: must be one of database, Maurer2002, or WeatherFolder (in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv)
+GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE 
+WeatherDataFromDatabase <- FALSE
+dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
+
+#indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
+do.ExtractExternalDatasets <- c(
 		"ExtractGriddedDailyWeatherFromNCEPCFSR_Global", 0,
 		"ExtractClimateChangeScenariosMaurer2009_Global", 0,
 		"ExtractSkyDataFromNCEPCFSR_Global", 0,
-		"ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
 		"ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica", 0,
 		"ExtractClimateChangeScenarios_NorthAmerica", 0,
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
+		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		"ExtractTopographyANDElevation_USA", 0
+)
+
+do.PriorCalculations <- c(
+		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 0,
+		"EstimateInitialSoilTemperatureForEachSoilLayer", 0,
+		"CalculateFieldCapacityANDWiltingPointFromSoilTexture", 0,
+		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 0
 )
 
 #------Meta-information of input data
@@ -287,10 +303,6 @@ if ((any(actions == "create") || any(actions == "execute") || any(actions == "ag
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
-
-#WeatherData Database#
-WeatherDataFromDatabase <- FALSE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
 
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)
@@ -561,5 +573,5 @@ if(any(actions == "aggregate")){
 ##############################################################################
 ########################Source of the code base###############################
 
-source("2_SoilWatSimulationFramework_Part3of3_Code_v50.R", echo=FALSE, keep.source=FALSE)
+source("2_SoilWatSimulationFramework_Part4of4_Code_v50.R", echo=FALSE, keep.source=FALSE)
 
