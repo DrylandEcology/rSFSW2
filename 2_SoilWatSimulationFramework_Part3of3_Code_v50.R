@@ -1777,13 +1777,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				d <- min(length(layers_depth), findInterval(soildepth, layers_depth)+1)	#soildepth is not one of the lower layer boundaries, the next deeper layer boundary is used
 			}
 		} else {# needs to be read from soilsin file
-			if(!todo$create) {
-				stop("This currently doesn't work") #TODO make it work low PR
-			} else { # case treatments & soilsin turned on, file still in input directory
-				infilename <- file.path(dir.sw.in.tr, "soilsin", soilsin)
-			}
+			if(!todo$create) stop("This currently doesn't work") #TODO make it work low PR
 			layers_depth <- swSoils_Layers(tr_soil[[soilsin]])[,1]
-			
 			d <- length(layers_depth)
 			soildepth <- max(layers_depth)
 		}
@@ -2339,36 +2334,52 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 			#get climate change information
 			use_pptValscen <- unlist(lapply(parse(text=pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use)) 
-			use_tempValscen <- unlist(lapply(parse(text=tempVal.colnames <- paste("TempC_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use)) 
-			use_pptscen <- unlist(lapply(parse(text=ppt.colnames <- paste("PPTfactor_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use)) 
-			use_tempscen <- unlist(lapply(parse(text=temp.colnames <- paste("deltaTempC_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use)) 
+			use_tempValMinScen <- unlist(lapply(parse(text=tempValMin.colnames <- paste("TempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use))
+			use_tempValMaxScen <- unlist(lapply(parse(text=tempValMax.colnames <- paste("TempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use)) 
 			
-			if(	sum(use_pptValscen) + sum(use_tempValscen) > 0){
+			use_pptscen <- unlist(lapply(parse(text=ppt.colnames <- paste("PPTfactor_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use)) 
+			use_tempMinScen <- unlist(lapply(parse(text=tempMin.colnames <- paste("deltaTempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use))
+			use_tempMaxScen <- unlist(lapply(parse(text=tempMax.colnames <- paste("deltaTempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use))
+			
+			if(	sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) > 0){
 				#convert climate change values to factors
 				#read values from datafile
 				pptVal_sc <- unlist(lapply(parse(text=pptVal.colnames), FUN=eval, envir=i_sw_input_climscen_values))
-				tVal_sc <-  unlist(lapply(parse(text=tempVal.colnames), FUN=eval, envir=i_sw_input_climscen_values))
+				tVal_min_sc <-  unlist(lapply(parse(text=tempValMin.colnames), FUN=eval, envir=i_sw_input_climscen_values))
+				tVal_max_sc <-  unlist(lapply(parse(text=tempValMax.colnames), FUN=eval, envir=i_sw_input_climscen_values))
 				#calculate change factors
 				ppt_sc <- pptVal_sc / (10 * SiteClimate_Ambient$meanMonthlyPPTcm)
-				t_sc <- tVal_sc - SiteClimate_Ambient$meanMonthlyTempC
+				t_min_sc <- tVal_min_sc - SiteClimate_Ambient$meanMonthlyTempC
+				t_max_sc <- tVal_max_sc - SiteClimate_Ambient$meanMonthlyTempC
 			} else if(	sum(use_pptscen) + sum(use_tempscen) > 0){
 				#read climate change factors from datafile
 				ppt_sc <- unlist(lapply(parse(text=ppt.colnames), FUN=eval, envir=i_sw_input_climscen))
-				t_sc <-  unlist(lapply(parse(text=temp.colnames), FUN=eval, envir=i_sw_input_climscen))
+				t_min_sc <-  unlist(lapply(parse(text=tempMin.colnames), FUN=eval, envir=i_sw_input_climscen))
+				t_max_sc <-  unlist(lapply(parse(text=tempMax.colnames), FUN=eval, envir=i_sw_input_climscen))
 			} else {
 				ppt_sc <- rep(1, times=12)
-				t_sc <- rep(0, times=12)
+				t_min_sc <- rep(0, times=12)
+				t_max_sc <- rep(0, times=12)
 			}
 			#guarantee that all entries are finite: this may not be the case for instance if any(meanMonthlyClimate$meanMonthlyPPTcm == 0)
 			ppt_sc <- temp_ppt_sc <- ifelse(is.finite(ppt_sc), ppt_sc, 1)
-			t_sc <- ifelse(is.finite(t_sc), t_sc, 0)
-			
+			t_min_sc <- ifelse(is.finite(t_min_sc), t_min_sc, 0)
+			t_max_sc <- ifelse(is.finite(t_max_sc), t_min_sc, 0)
 			
 			if(sc > 1){
 				if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
-					if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- rep(mean(t_sc), times=12)
-					if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- t_sc - mean(t_sc)
-					if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) t_sc <- rep(0, times=12)
+					if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+						t_min_sc <- rep(mean(t_min_sc), times=12)
+						t_max_sc <- rep(mean(t_max_sc), times=12)
+					}
+					if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+						t_min_sc <- t_min_sc - mean(t_min_sc)
+						t_max_sc <- t_max_sc - mean(t_max_sc)
+					} 
+					if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+						t_min_sc <- rep(0, times=12)
+						t_max_sc <- rep(0, times=12)
+					}
 				}
 				if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
 					temp_map_sc <- sum(SiteClimate_Ambient$meanMonthlyPPTcm * temp_ppt_sc)
@@ -2383,22 +2394,23 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#t1_old <- t2_old <- rep(0, times=12)
 			
 			ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
-			t1_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
-			t2_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
+			t_min_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
+			t_max_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
 
 			#write information into weatherin
 			if(use_pptscen || use_pptValscen){
 				ppt_f <- ppt_sc
-				t1_f <- t2_f <- t_sc
+				t_min_f <- t_min_sc
+				t_max_f <- t_max_sc
 			} else {
 				ppt_f <- ppt_old
-				t1_f <- t1_old
-				t2_f <- t2_old
+				t_min_f <- t_min_old
+				t_max_f <- t_max_old
 				
 			}
 			ppt_f <- ppt_f * as.numeric(ppt_scShift)
 			
-			MonthlyScalingParams<-matrix(data=c(ppt_f,t1_f,t2_f),nrow=12,ncol=3)
+			MonthlyScalingParams<-matrix(data=c(ppt_f,t_min_f,t_max_f),nrow=12,ncol=3)
 			colnames(MonthlyScalingParams)<-c("PPT","MaxT","MinT")
 			rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 			
@@ -2408,12 +2420,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(do.GetClimateMeans){
 				SiteClimate_Scenario <- list()
 				SiteClimate_Scenario$meanMonthlyPPTcm <- SiteClimate_Ambient$meanMonthlyPPTcm * ppt_f
-				tmean_f <- apply(cbind(t1_f, t2_f), MARGIN=1, FUN=mean)
+				tmean_f <- apply(cbind(t_min_f, t_max_f), MARGIN=1, FUN=mean)
 				SiteClimate_Scenario$meanMonthlyTempC <- SiteClimate_Ambient$meanMonthlyTempC + tmean_f
 				SiteClimate_Scenario$MAP_cm <- sum(SiteClimate_Scenario$meanMonthlyPPTcm)
 				SiteClimate_Scenario$MAT_C <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				if(do.C4vars){
-					SiteClimate_Scenario$dailyTempMin <- SiteClimate_Ambient$dailyTempMin + t2_f[simTime2$month_ForEachUsedDay]
+					SiteClimate_Scenario$dailyTempMin <- SiteClimate_Ambient$dailyTempMin + t_min_f[simTime2$month_ForEachUsedDay]
 					SiteClimate_Scenario$dailyTempMean <- SiteClimate_Ambient$dailyTempMean + tmean_f[simTime2$month_ForEachUsedDay]
 					SiteClimate_Scenario$dailyC4vars <- sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
 				}
