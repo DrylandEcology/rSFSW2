@@ -341,12 +341,6 @@ timerfile2 <- "Timing_Simulation.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
 write.table(t(c("", "Time_s", "Number")), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 
-#------flagging which external information
-exinfo.help <- matrix(data=do.ExternalInformation, ncol=2, nrow=length(do.ExternalInformation)/2, byrow=TRUE)
-exinfo <- data.frame(t(as.numeric(exinfo.help[,-1])))
-names(exinfo) <- exinfo.help[,1]
-
-
 #------load libraries
 dir.libraries <- .libPaths()[1]
 if (.Platform$OS.type == "windows") {
@@ -381,57 +375,44 @@ if(!require(Rsoilwat,quietly = TRUE)) {
 	stopifnot(require(Rsoilwat,quietly = TRUE))
 }
 if(!require(circular, quietly=TRUE)) {
-	tryCatch(install.packages("circular",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
+	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	stopifnot(require(circular, quietly=TRUE))
 }
 if(!require(SPEI, quietly=TRUE)) {
-	tryCatch(install.packages("SPEI",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
+	tryCatch(install.packages("SPEI",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	stopifnot(require(SPEI, quietly=TRUE))
 }
 if(!require(RSQLite,quietly = TRUE)) {
-	tryCatch(install.packages("RSQLite",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
+	tryCatch(install.packages("RSQLite",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
 	stopifnot(require(RSQLite, quietly = TRUE))
 }
 
 if(parallel_runs && identical(parallel_backend, "mpi")) { 
 	if(!require(Rmpi,quietly = TRUE)) {
-		tryCatch(install.packages("Rmpi",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
+		tryCatch(install.packages("Rmpi",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
 		stopifnot(require(Rmpi, quietly = TRUE))
 	}
 }
 if(parallel_runs && identical(parallel_backend, "snow")) {	
 	if(!require(doSNOW,quietly = TRUE)) {#requires: foreach, iterators, snow
-		tryCatch(install.packages("doSNOW",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("doSNOW failed to install"); stop("Stopping") })
+		tryCatch(install.packages("doSNOW",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("doSNOW failed to install"); stop("Stopping") })
 		stopifnot(require(doSNOW, quietly = TRUE))
 	}
 }
 if(parallel_runs && identical(parallel_backend, "multicore")) {
 	if(!require(doMC,quietly = TRUE)) {	#requires: foreach, iterators, codetools, and attaches: multicore
-		tryCatch(install.packages("doMC",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("doMC failed to install"); stop("Stopping") })
+		tryCatch(install.packages("doMC",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("doMC failed to install"); stop("Stopping") })
 		stopifnot(require(doMC, quietly = TRUE))
 	}
 }	
 if(!parallel_runs) {
 	if(!require(foreach,quietly = TRUE)) {
-		tryCatch(install.packages("foreach",repos='http://cran.us.r-project.org',lib=dir.libraries), warning=function(w) { print(w); print("foreach failed to install"); stop("Stopping") })
+		tryCatch(install.packages("foreach",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("foreach failed to install"); stop("Stopping") })
 		stopifnot(require(foreach, quietly = TRUE))
 	}
 }
 
 #if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
-
-gis_available <- FALSE
-if(exinfo$ExtractClimateChangeScenarios_NorthAmerica |
-		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica |
-		exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA |
-		exinfo$ExtractTopographyANDElevation_USA |
-		exinfo$ExtractClimateChangeScenariosMaurer2009_Global |
-		exinfo$ExtractSkyDataFromNCEPCFSR_Global |
-		exinfo$ExtractClimateChangeScenariosMaurer2009_Global |
-		exinfo$ExtractGriddedDailyWeatherFromNCEPCFSR_Global){
-	stopifnot(require(rgdal, quietly=TRUE))	#requires: sp; used for extracting external GIS information
-	gis_available <- TRUE
-}
 
 #------prepare output
 aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
@@ -598,6 +579,11 @@ trowExperimentals <- ifelse(length(create_experimentals) > 0, nrow(sw_input_expe
 seq.tr <- (1:trow)[include_YN > 0]	# sequence of row numbers in the master and treatment input files that are included
 seq.todo <- (1:(runs * ifelse(trowExperimentals > 0, trowExperimentals, 1))) # consecutive number of all (tr x exp) simulations to be executed
 runsN.todo <- length(seq.todo)
+if(exists("todo.done")) {
+	seq.todo <- seq.todo[-todo.done]
+	runsN.todo <- length(seq.todo)
+}
+	
 
 #------create scenario names
 climate.conditions <- c(climate.ambient, climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -657,10 +643,10 @@ drv <- dbDriver("SQLite")
 
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
-source("2_SoilWatSimulationFramework_Part2of3_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
 
-if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica)
+if(WeatherDataFromDatabase && !GriddedDailyWeatherFromMaurer2002_NorthAmerica)
 	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -1075,19 +1061,6 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth){
 }
 
 
-#function extracting climate information for one SoilWat-run from SoilWat weather files
-if(actionWithSoilWat) {
-	do.GetClimateMeans <- 	(sum(sw_input_climscen_values_use[-1]) > 0) |
-			exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature |
-			sw_input_site_use$SoilTempC_atLowerBoundary |
-			sw_input_site_use$SoilTempC_atUpperBoundary |
-			exinfo$EstimateInitialSoilTemperatureForEachSoilLayer |
-			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") |
-			any(create_treatments == "AdjMonthlyBioMass_Temperature") |
-			any(create_treatments == "AdjMonthlyBioMass_Precipitation") |
-			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
-}
-
 #function to extrapolate windspeeds measured at heights different than SoilWat required 2-m above ground
 adjust.WindspeedHeight <- function(uz, height){
 	# Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005) In The ASCE standardized reference evapotranspiration equation, pp. 59. ASCE-EWRI Task Committee Report.
@@ -1099,12 +1072,126 @@ adjust.WindspeedHeight <- function(uz, height){
 }
 
 
-#------------------------
-
+#------------------------DAILY WEATHER
+if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
+	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
+	#Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
+	
+	dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
+	stopifnot(file.exists(dir.ex.maurer2002))
+	
+	#function to be executed for each SoilWat-run
+	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname,startYear=NULL, endYear=NULL){
+		if(is.null(startYear))
+			startYear <- simstartyr
+		if(is.null(endYear))
+			endYear <- endyr
+		#read data from Maurer et al. 2002
+		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
+		if(!identical(class(weath.data), "try-error")){
+			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
+			
+			#times
+			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+					by="1 day")
+			doy <- 1 + as.POSIXlt(date)$yday
+			
+			years <- startYear:endYear
+			n_years <- length(years)
+			if(!all(years %in% unique(weath.data$year)))
+				stop("simstartyr or endyr out of weather data range")
+			weathDataList <- list()
+			for(y in 1:n_years) {
+				data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
+				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw),year=years[y])
+			}
+			names(weathDataList) <- as.character(years)
+			return(weathDataList)
+		} else {
+			return(NULL)
+		}
+	}
+}
 
 
 #--------------------------------------------------------------------------------------------------#
-#------------------------OBTAIN INFORMATION PRIOR TO SIMULATION RUNS TO CREATE THEM
+#------------------------SET UP PARALLELIZATION
+#used in: external dataset extractions, loop calling do_OneSite, and ensembles
+
+workersN <- 1
+parallel_init <- FALSE
+if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ensembles){
+	if(parallel_runs){
+		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+		if(identical(parallel_backend, "mpi")) {
+			mpi.spawn.Rslaves(nslaves=num_cores)
+		
+			exportObjects <- function(allObjects) {
+				print("exporting objects from master node to slave nodes")
+				t.bcast <- Sys.time()
+				for(obj in 1:length(allObjects)) {
+					bcast.tempString <- allObjects[obj]
+					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
+					mpi.bcast.Robj2slave(bcast.tempString)
+					mpi.bcast.Robj2slave(bcast.tempValue)
+					mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+				}
+				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
+			}
+		}
+	
+		if(identical(parallel_backend, "snow")){
+			if(exists("use_janus")){
+				print("janus exists")
+				cl <-  makeCluster(num_cores, type="MPI", outfile="")
+				print("cluster made")
+			} else if(!exists("use_janus")){
+				if(!be.quiet) setDefaultClusterOptions(outfile="")
+				#cl <-  makeCluster(num_cores, type="MPI", outfile="")
+				cl <- snow::makeSOCKcluster(num_cores)
+				clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
+				#snow::clusterSetupRNG(cl) #random numbers setup
+			}
+			doSNOW::registerDoSNOW(cl) 	# register foreach backend
+		}
+	
+		if(identical(parallel_backend, "multicore")) {
+			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
+			registerDoMC(num_cores)
+		}
+	
+		if(identical(parallel_backend, "mpi")){
+			workersN <- (mpi.comm.size() - 1)
+		} else {
+			workersN <- foreach::getDoParWorkers()
+		}
+		
+		parallel_init <- TRUE
+		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	}
+}
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
+#------flags
+temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractExternalDatasets)/2, byrow=TRUE)
+exinfo <- data.frame(t(as.numeric(temp[,-1])))
+names(exinfo) <- temp[,1]
+
+if(any(actions == "external") && any(exinfo > 0) && !(exists("use_janus") && use_janus)){
+	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
+	stopifnot(file.exists(dir.external))
+	
+	source("2_SoilWatSimulationFramework_Part3of4_ExternalDataExtractions_v50.R", echo=FALSE, keep.source=FALSE)
+	
+	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+}
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS TO CREATE THEM
 
 #------obtain information prior to simulation runs
 if(any(actions == "create")){
@@ -1254,188 +1341,28 @@ if(any(actions == "create")){
 
 
 #--------------------------------------------------------------------------------------------------#
-#------------------------OBTAIN EXTERNAL INFORMATION PRIOR TO SIMULATION RUNS TO CREATE THEM
+#------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
+#------flags
+temp <- matrix(data=do.PriorCalculations, ncol=2, nrow=length(do.PriorCalculations)/2, byrow=TRUE)
+pcalcs <- data.frame(t(as.numeric(temp[,-1])))
+names(pcalcs) <- temp[,1]
 
+if(actionWithSoilWat) {
+	do.GetClimateMeans <- 	(sum(sw_input_climscen_values_use[-1]) > 0) |
+			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature |
+			sw_input_site_use$SoilTempC_atLowerBoundary |
+			sw_input_site_use$SoilTempC_atUpperBoundary |
+			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer |
+			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") |
+			any(create_treatments == "AdjMonthlyBioMass_Temperature") |
+			any(create_treatments == "AdjMonthlyBioMass_Precipitation") |
+			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
+}
 
-#------obtain external information prior to simulation runs
-if(any(actions == "create")){
-	if(!be.quiet) print(paste("SWSF obtains external information prior to simulation runs: started at", t1 <- Sys.time()))
-	
-	if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global && gis_available){
-		#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
-		#accessed via climatewizard.org on July 10, 2012
-		if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
-		
-		list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
-		if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
-			
-			list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
-			
-			if(all(list.scenarios.datafile %in% list.scenarios.external)){
-				#locations of simulation runs
-				locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-				
-				for(sc in 1:length(list.scenarios.datafile)){
-					dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
-					temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Value", x=temp)])
-					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Value", x=temp)])
-					
-					list.temp.asc <- list.files(dir.ex.dat.sc.temp, pattern=".asc")
-					list.ppt.asc <- list.files(dir.ex.dat.sc.ppt, pattern=".asc")
-					
-					#extract data
-					get.month <- function(path, grid){
-						g <- readGDAL(fname=file.path(path, grid), silent=TRUE)
-						locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-						val <- unlist(sp::over(x=locations.CoordG, y=g))
-					}
-					sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#temp value in C
-					
-					sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#ppt value in mm
-					
-					#add data to sw_input_climscen and set the use flags
-					sw_input_climscen_values_use[i.temp <- match(paste("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
-					sw_input_climscen_values[, i.temp] <- sc.ppt
-					sw_input_climscen_values_use[i.temp <- match(paste("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
-					sw_input_climscen_values[, i.temp] <- sc.temp
-				}
-				
-				res <- nrow(sw_input_climscen_values[, i.temp]) - sum(complete.cases(sw_input_climscen_values[, i.temp]))
-				if(res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenariosMaurer2009_Global'"))
-				
-				#write data to datafile.climatescenarios_values
-				tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
-				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
-				
-				rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
-			} else {
-				print("Not all scenarios requested in 'datafile.SWRunInformation' are available in dir.external/ExtractClimateChangeScenarios")
-			}
-		}
-		if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
-	}
-	
-	if(exinfo$ExtractClimateChangeScenarios_NorthAmerica && gis_available){
-		#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
-		#accessed via climatewizard.org
-		if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
-		
-		list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
-		if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
-			
-			list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
-			
-			if(all(list.scenarios.datafile %in% list.scenarios.external)){
-				#locations of simulation runs
-				locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-				
-				for(sc in 1:length(list.scenarios.datafile)){
-					dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
-					temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Change", x=temp)])
-					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Change", x=temp)])
-					
-					list.temp.asc <- list.files(dir.ex.dat.sc.temp, pattern=".asc")
-					list.ppt.asc <- list.files(dir.ex.dat.sc.ppt, pattern=".asc")
-					
-					#extract data
-					get.month <- function(path, grid){
-						g <- readGDAL(fname=file.path(path, grid), silent=TRUE)
-						locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-						val <- unlist(sp::over(x=locations.CoordG, y=g))
-					}
-					sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#temp change in F
-					sc.temp <- sc.temp * 5/9	#temp addand in C
-					
-					sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#ppt change in %
-					sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
-					
-					#add data to sw_input_climscen and set the use flags
-					sw_input_climscen_use[i.temp <- match(paste("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
-					sw_input_climscen[, i.temp] <- sc.ppt
-					sw_input_climscen_use[i.temp <- match(paste("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
-					sw_input_climscen[, i.temp] <- sc.temp
-				}
-				
-				#write data to datafile.climatescenarios
-				tempdat <- rbind(sw_input_climscen_use, sw_input_climscen)
-				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios), row.names=FALSE)
-				
-				rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
-			} else {
-				print("Not all scenarios requested in 'datafile.SWRunInformation' are available in dir.external/ExtractClimateChangeScenarios")
-			}
-			
-		}
-		if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
-	}
-	
-	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica && gis_available){
-		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
-		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
-		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
-		cl <- 1:11
-		ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
-		
-		dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil")
-		datafile.bedrock <- "cs_bedrock"
-		datafile.bulkd <- "cs_bulkd"
-		datafile.sandsilt <- "cs_sandsilt"
-		
-		#locations of simulation runs
-		locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-		
-		#extract data
-		g <- readGDAL(fname=temp <- file.path(dir.ex.dat, datafile.bulkd), silent=TRUE)
-		locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-		rat <- attr(GDALinfo(temp, silent=TRUE, returnRAT=TRUE), "RATlist")[[1]]
-		val <- unlist(sp::over(x=locations.CoordG, y=g))
-		bedrock <- unlist(rat$ROCKDEPM[match(val, rat$VALUE)])	#depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
-		cl <- 1:(max(findInterval(bedrock, ldepth), na.rm=TRUE))
-		bulkd <- sapply(cl, FUN=function(l) eval(parse(text=paste("L", l, "_BD", sep="")), envir=rat)[match(val, rat$VALUE)])	#bulk density in g/cm3
-		
-		#Layer specific for bedrock, but it differs from bedrock in bulkd and sandsilt grids, which seem to make more sense
-		#g <- readGDAL(fname=paste(dir.ex.dat, .Platform$file.sep, datafile.bedrock, sep=""), silent=TRUE)
-		#bedrock <- sp::over(x=locations.CoordG, y=g)	#depth in cm
-		
-		g <- readGDAL(fname=temp <- file.path(dir.ex.dat, datafile.sandsilt), silent=TRUE)
-		rat <- attr(GDALinfo(temp, silent=TRUE, returnRAT=TRUE), "RATlist")[[1]]
-		val <- unlist(sp::over(x=locations.CoordG, y=g))
-		sand <- sapply(cl, FUN=function(l) eval(parse(text=paste("SAND_L", l, sep="")), envir=rat)[match(val, rat$VALUE)])/100	#sand fraction
-		clay <- sapply(cl, FUN=function(l) eval(parse(text=paste("CLAY_L", l, sep="")), envir=rat)[match(val, rat$VALUE)])/100	#sand fraction
-		
-		#set and save soil layer structure
-		sw_input_soillayers$SoilDepth_cm <- bedrock
-		sw_input_soillayers[, 2+cl] <- matrix(data=rep(ldepth[cl], times=nrow(sw_input_soillayers)), ncol=length(cl), byrow=TRUE)
-		write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
-		
-		#set and save soil texture
-		#add data to sw_input_soils and set the use flags
-		i.temp <- grepl(pattern="BD_L", x=names(sw_input_soils_use))
-		sw_input_soils[, i.temp][cl] <- bulkd
-		sw_input_soils_use[i.temp][cl] <- 1
-		i.temp <- grepl(pattern="Sand", x=names(sw_input_soils_use))
-		sw_input_soils[, i.temp][cl] <- sand
-		sw_input_soils_use[i.temp][cl] <- 1
-		i.temp <- grepl(pattern="Clay", x=names(sw_input_soils_use))
-		sw_input_soils[, i.temp][cl] <- clay
-		sw_input_soils_use[i.temp][cl] <- 1
-		
-		#write data to datafile.soils
-		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-		
-		if(any(sand == 0, clay == 0)) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
-		
-		rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, rat, g, locations)
-		
-		if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
-	}
-	
-	if(exinfo$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
+if(any(actions == "create") && any(pcalcs > 0)){
+	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
+
+	if(pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
 		#calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
 		bsEvap.depth.max <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
 		
@@ -1485,7 +1412,7 @@ if(any(actions == "create")){
 		
 	}
 	
-	if(exinfo$CalculateFieldCapacityANDWiltingPointFromSoilTexture){
+	if(pcalcs$CalculateFieldCapacityANDWiltingPointFromSoilTexture){
 		#lookup soil texture data from 'datafile.soils' for those that the use flag of sand and clay is set, and calculate field capacity and wilting point
 		ld <- 1:SoilLayer_MaxNo
 		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
@@ -1508,160 +1435,14 @@ if(any(actions == "create")){
 		rm(use.layers, sand, clay, fieldc, wiltp, tempdat, i.fieldc, i.wiltp)
 	}
 	
-	if(exinfo$ExtractTopographyANDElevation_USA && gis_available){
-		#LANDFIRE data
-		if(!be.quiet) print(paste("Started 'ExtractTopographyANDElevation_USA' at", Sys.time()))
-		
-		dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "LANDFIRE_30m")
-		datafile.elev <- "lf_elevation"
-		datafile.aspect <- "lf_aspect"
-		datafile.slope <- "lf_slope"
-		
-		#read raster data
-		g.elev <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.elev), silent=TRUE), silent=TRUE)
-		g.aspect <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.aspect), silent=TRUE), silent=TRUE)
-		g.slope <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.slope), silent=TRUE), silent=TRUE)
-		
-		if(any(identical(class(g.elev), "try-error"), identical(class(g.aspect), "try-error"), identical(class(g.slope), "try-error"))){
-			print("'ExtractTopographyANDElevation_USA': 30m-grid rasters too big to handle correctly by GDAL driver AIG: attempt to read instead 10km-grid")
-			
-			dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "LANDFIRE_10km")
-			datafile.elev <- "elev10km"
-			datafile.aspect <- "aspect10km"
-			datafile.slope <- "slope10km"
-			
-			g.elev <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.elev), silent=TRUE), silent=TRUE)
-			g.aspect <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.aspect), silent=TRUE), silent=TRUE)
-			g.slope <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.slope), silent=TRUE), silent=TRUE)
-		}
-		
-		#locations of simulation runs
-		locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-		locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
-		
-		#extract data for locations
-		SWRunInformation$ELEV_m <- unlist(sp::over(x=locations.CoordG, y=g.elev))	# elevation in m a.s.l.
-		SWRunInformation$ASPECT <- unlist(sp::over(x=locations.CoordG, y=g.aspect))	# aspect in degrees
-		SWRunInformation$SLOPE <- unlist(sp::over(x=locations.CoordG, y=g.slope))	# slope in degrees
-		
-		#write data to datafile.SWRunInformation
-		write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-		
-		rm(g.elev, g.aspect, g.slope, locations, locations.CoordG)
-		
-		if(!be.quiet) print(paste("Finished 'ExtractTopographyANDElevation_USA' at", Sys.time()))
-	}
-	
-	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA && gis_available){
-		if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
-		
-		reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
-		
-		#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
-		dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNOAAClimateAtlasUS")
-		dir.ex.dat.RH <- file.path(dir.ex.dat, "HumidityRelative_Percent")
-		dir.ex.dat.cover <- file.path(dir.ex.dat, "Sunshine_Percent")
-#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
-		dir.ex.dat.wind <- file.path(dir.ex.dat, "WindSpeed_mph")
-		
-		datafile.RH <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-		datafile.cover <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-		datafile.wind <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-		
-		code.RH <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
-		code.cover <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
-#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
-		code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
-		
-		#locations of simulation runs
-		locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-		projStringWGS84 <- proj4string(locations)
-		
-		#extract data
-		get.month <- function(path, shp, month){
-			s <- readOGR(dsn=path, layer=shp[month], verbose=FALSE)
-			s.wgs84 <- spTransform(s, CRS=CRS(projStringWGS84))	#transform to wgs84
-			val <- sp::over(x=locations, y=s.wgs84)$GRIDCODE
-		}
-		rh <- sapply(st_mo, FUN=function(m) code.RH[get.month(path=dir.ex.dat.RH, shp=datafile.RH, month=m)])
-		cover <- sapply(st_mo, FUN=function(m) 100 - code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)]) #subtract from 100% as we want cover not no-cover
-#		cover <- sapply(st_mo, FUN=function(m) code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)])
-		wind <- sapply(st_mo, FUN=function(m) code.wind[get.month(path=dir.ex.dat.wind, shp=datafile.wind, month=m)])
-		
-		if(sum(c(is.na(rh), is.na(cover), is.na(wind))) > 0) print(paste("Missing data in 'ExtractSkyDataFromNOAAClimateAtlas_USA'"))
-		
-		#add data to sw_input_cloud and set the use flags
-		sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp][st_mo] <- rh
-		sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp][st_mo] <- cover
-		sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-		sw_input_cloud[, i.temp][st_mo] <- wind
-		
-		sw_input_cloud[, grepl(pattern="RH_Source", x=names(sw_input_cloud))] <- paste("Variable RH23 from", reference)
-		sw_input_cloud[, grepl(pattern="SkyC_Source", x=names(sw_input_cloud))] <- paste("'100% - Variable SUN52' from", reference)
-		sw_input_cloud[, grepl(pattern="Wind_Source", x=names(sw_input_cloud))] <- paste("Variable WND60B from", reference)
-		
-		
-		#write data to datafile.cloud
-		tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
-		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
-		
-		rm(tempdat, i.temp, rh, cover, wind, locations, reference)
-		
-		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
-	}
-	
-	#------obtain external information during each simulation run: define functions here	
-	if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica){
-		#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
-		#Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
-		
-		dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
-		stopifnot(file.exists(dir.ex.maurer2002))
-		
-		#function to be executed for each SoilWat-run
-		ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname,startYear=NULL, endYear=NULL){
-			if(is.null(startYear))
-				startYear <- simstartyr
-			if(is.null(endYear))
-				endYear <- endyr
-			#read data from Maurer et al. 2002
-			weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
-			if(!identical(class(weath.data), "try-error")){
-				colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
-				
-				#times
-				date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-						to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-						by="1 day")
-				doy <- 1 + as.POSIXlt(date)$yday
-				
-				years <- startYear:endYear
-				n_years <- length(years)
-				if(!all(years %in% unique(weath.data$year)))
-					stop("simstartyr or endyr out of weather data range")
-				weathDataList <- list()
-				for(y in 1:n_years) {
-					data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
-					weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw),year=years[y])
-				}
-				names(weathDataList) <- as.character(years)
-				return(weathDataList)
-			} else {
-				return(NULL)
-			}
-		}
-	}
-	
-	if(exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
+	#------used during each simulation run: define functions here	
+	if(pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 		sw_input_site_use$SoilTempC_atLowerBoundary <- 1 #set use flag
 		sw_input_site_use$SoilTempC_atUpperBoundary <- 1
 		#call function 'SiteClimate' in each SoilWat-run
 	}
 	
-	if(exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){
+	if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
 		#set use flags
 		ld <- 1:SoilLayer_MaxNo
 		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
@@ -1676,15 +1457,14 @@ if(any(actions == "create")){
 		}
 	}
 	
-	if(!be.quiet) print(paste("SWSF obtains external information prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 }
-
-#--------------------------------------------------------------------------------------------------#
 
 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------FUNCTION FOR A SOILWAT SIMULATION
+if(actionWithSoilWat){
 do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i_sw_input_treatments, i_sw_input_cloud, i_sw_input_prod, i_sw_input_site, i_sw_input_soils, i_sw_input_weather, i_sw_input_climscen, i_sw_input_climscen_values, i_sw_weatherList) {
 #i = i_sim: consecutive number of seq.todo, i.e., counting the simulation runs
 #i_xxx = the i_tr-row of xxx for the i-th simulation run; if trowExperimentals > 0 then these will eventually be repeated, and below replaced with experimental values
@@ -2027,9 +1807,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				swWeather_MonScalingParams(swRunScenariosData[[1]])[m,] <- c(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]))
 		}
 		
-		#EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature Taken from here
-		
-		
+
 		#------4. Step: Information from datafiles are added if flagged 'use' to SoilWat input files
 		#add information from datafile to cloudin
 		if(print.debug) print("Start of cloudin")
@@ -2435,7 +2213,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
 			if(print.debug) print("Start of set soil temperature")
 			#TODO get this working LOW PR
-			if(exinfo$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
+			if(pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 				soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
 				#temporaly save data 
@@ -2449,7 +2227,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				soilTlower <- ifelse(exists("soilTlower"), soilTlower, i_sw_input_site$SoilTempC_atLowerBoundary)
 				swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])[8] <- soilTlower
 			}
-			if(exinfo$EstimateInitialSoilTemperatureForEachSoilLayer){
+			if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
 				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=180, soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
 				#out.temp <- data.frame(i, i_labels, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
@@ -4802,107 +4580,46 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	return(1)	
 } #end do_OneSite()
+
 #------------------------
 
-work <- function(parallel_backend, Data) {
-	# Note the use of the tag for sent messages:
-	#     1=ready_for_task, 2=done_task, 3=exiting
-	# Note the use of the tag for received messages:
-	#     1=task, 2=done_tasks
+	work <- function(parallel_backend, Data) {
+		# Note the use of the tag for sent messages:
+		#     1=ready_for_task, 2=done_task, 3=exiting
+		# Note the use of the tag for received messages:
+		#     1=task, 2=done_tasks
 	
-	junk <- 0
-	done <- 0
-	while (done != 1) {
-		# Signal being ready to receive a new task
-		mpi.send.Robj(junk,0,1)
+		junk <- 0
+		done <- 0
+		while (done != 1) {
+			# Signal being ready to receive a new task
+			mpi.send.Robj(junk,0,1)
 		
-		# Receive a task
-		dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
-		task_info <- mpi.get.sourcetag()
-		tag <- task_info[2]
+			# Receive a task
+			dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+			task_info <- mpi.get.sourcetag()
+			tag <- task_info[2]
 		
-		if (tag == 1) {
-			print(dataForRun$i)
-			if(dataForRun$do_OneSite) result <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values, i_sw_weatherList=dataForRun$sw_weatherList)
-			# Send a results message back to the master
-			#print(results)
-			mpi.send.Robj(list(i=dataForRun$i,r=result),0,2)
-		} else if (tag == 2) {
-			done <- 1
+			if (tag == 1) {
+				print(dataForRun$i)
+				if(dataForRun$do_OneSite) result <- do_OneSite(i=dataForRun$i, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values, i_sw_weatherList=dataForRun$sw_weatherList)
+				# Send a results message back to the master
+				#print(results)
+				mpi.send.Robj(list(i=dataForRun$i,r=result),0,2)
+			} else if (tag == 2) {
+				done <- 1
+			}
+			# We'll just ignore any unknown messages
 		}
-		# We'll just ignore any unknown messages
+		mpi.send.Robj(junk,0,3)
 	}
-	mpi.send.Robj(junk,0,3)
 }
-
 #--------------------------------------------------------------------------------------------------#
-#------------------------RUN THE FRAMEWORK TASKS IN PARALLEL OR SERIAL
+#------------------------RUN RSOILWAT
 
-
-
-#parallelization
-if(runsN.todo > 0){
-	if(parallel_runs){
-		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
-		if(identical(parallel_backend, "mpi")) {
-			mpi.spawn.Rslaves(nslaves=num_cores)
-			
-			exportObjects <- function(allObjects) {
-				print("exporting objects from master node to slave nodes")
-				t.bcast <- Sys.time()
-				for(obj in 1:length(allObjects)) {
-					bcast.tempString <- allObjects[obj]
-					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
-					mpi.bcast.Robj2slave(bcast.tempString)
-					mpi.bcast.Robj2slave(bcast.tempValue)
-					mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
-				}
-				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
-			}
-		}
-		
-		if(identical(parallel_backend, "snow")){
-			if(exists("use_janus")){
-				print("janus exists")
-				cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				print("cluster made")
-			} else if(!exists("use_janus")){
-				if(!be.quiet) setDefaultClusterOptions(outfile="")
-				#cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				cl <- snow::makeSOCKcluster(num_cores)
-				clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
-				#snow::clusterSetupRNG(cl) #random numbers setup
-			}
-			doSNOW::registerDoSNOW(cl) 	# register foreach backend
-			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
-			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(Rsoilwat,quietly=TRUE))
-		}
-		
-		if(identical(parallel_backend, "multicore")) {
-			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
-			registerDoMC(num_cores)
-		}
-		
-		if(identical(parallel_backend, "mpi")){
-			workersN <- (mpi.comm.size() - 1)
-		} else {
-			workersN <- foreach::getDoParWorkers()
-		}
-		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
-	} else {
-		workersN <- 1
-	}
-}
 
 if(actionWithSoilWat && runsN.todo > 0){
 		
-	if(exists("todo.done")) {
-		seq.todo <- seq.todo[-todo.done]
-		runsN.todo<-length(seq.todo)
-	}
-	
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
@@ -4916,7 +4633,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	
 	inputDataToSave <- list()
 	
-	if(parallel_runs){
+	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
 		if(identical(parallel_backend, "mpi")) {
 			workersN <- (mpi.comm.size() - 1)
@@ -4965,7 +4682,7 @@ tryCatch({
 						i_sw_input_climscen_values <- sw_input_climscen_values[i_tr, ]
 						
 						#weather folder name and structure
-						if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+						if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 							dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 							i_sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments == "YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments == "YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 							if(is.null(i_sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
@@ -5011,6 +4728,11 @@ tryCatch({
 			print(runs.completed)
 		}
 		if(identical(parallel_backend, "snow")){
+			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
+			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
+			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
+			snow::clusterEvalQ(cl, library(Rsoilwat,quietly=TRUE))
+
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
 
@@ -5024,7 +4746,7 @@ tryCatch({
 				
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 				#weather folder name and structure
-				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+				if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 					sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
@@ -5044,7 +4766,7 @@ tryCatch({
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
 				i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 				#weather folder name and structure
-				if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+				if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 					dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 					sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 					if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
@@ -5069,12 +4791,12 @@ tryCatch({
 		runs.completed <- 0
 #		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
 #			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-#			if(WeatherDataFromDatabase && !exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+#			if(WeatherDataFromDatabase && !GriddedDailyWeatherFromMaurer2002_NorthAmerica) {
 #				drv<-dbDriver("SQLite")
 #				con<-dbConnect(drv,dbWeatherDataFile)
 #			}
 #			#weather folder name and structure
-#			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+#			if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 #				dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 #				sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 #				if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
@@ -5090,7 +4812,7 @@ tryCatch({
 		#Best for debugging
 		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-			if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+			if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 				dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 				sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
 				if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
@@ -5312,8 +5034,7 @@ if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and outpu
 #------------------------ENSEMBLE GENERATION
 t.ensembles <- Sys.time()	#timing of ensemble calculation
 
-if(do.ensembles && all.complete &&
-		(actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat) ){
+if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN.todo || actionWithSWSFOutput && !actionWithSoilWat) ){
 	
 	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
 	
@@ -5481,7 +5202,7 @@ if(do.ensembles && all.complete &&
 	Tables <- Tables[-which(Tables %in% headerTables)]
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 	
-	if(parallel_runs){
+	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
 		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
@@ -5549,11 +5270,15 @@ if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=
 
 options(ow)	#sets the warning option to its previous value
 
-if(parallel_runs & identical(parallel_backend, "mpi")) {	#clean up mpi slaves
-	#mpi.close.Rslaves(dellog=FALSE)
-	mpi.exit()
+if(parallel_runs && parallel_init){
+	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
+		#mpi.close.Rslaves(dellog=FALSE)
+		mpi.exit()
+	}
+	if(identical(parallel_backend, "snow")){
+		snow::stopCluster(cl)	#clean up snow cluster
+	}
 }
-if(parallel_runs & identical(parallel_backend, "snow")) snow::stopCluster(cl)	#clean up snow cluster
 
 
 #rm(list=ls(all=TRUE))	#optional
