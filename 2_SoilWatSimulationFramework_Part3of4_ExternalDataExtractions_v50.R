@@ -112,24 +112,28 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				#call the simulations depending on parallel backend
 				list.export <- c("get.NEX", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp")
 				if(identical(parallel_backend, "mpi")) {
-					workersN <- (mpi.comm.size() - 1)
 					exportObjects(list.export)
-					#mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 					
 					res <- mpi.applyLB(x=1:requestN, fun={
 								ig <- (x - 1) %% nrow(reqGets) + 1
 								is <- (x - 1) %/% nrow(reqGets) + 1
 								get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)})
+
+					mpi.bcast.cmd(rm(list=ls(all=TRUE)))
+					mpi.bcast.cmd(gc())
+
 					temp <- sapply(res, FUN=rownames)
 					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL))
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
-					#snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
 					
 					res <- foreach(i = 1:requestN, .combine="rbind", .inorder=FALSE) %dopar% {
 						ig <- (i - 1) %% nrow(reqGets) + 1
 						is <- (i - 1) %/% nrow(reqGets) + 1
 						get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)}
+
+					snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
+					snow::clusterEvalQ(cl, gc())
 				} else if(identical(parallel_backend, "multicore")) {
 					res <- foreach(i = 1:requestN, .combine="rbind", .inorder=FALSE) %dopar% {
 						ig <- (i - 1) %% nrow(reqGets) + 1
@@ -319,7 +323,6 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 				#call the simulations depending on parallel backend
 				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "get.TimeStartIndex", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "prcpTagFile", "prcpTag", "tmeanTagFile", "tmeanTag", "tminTagFile", "tminTag", "tmaxTagFile", "tmaxTag")
 				if(identical(parallel_backend, "mpi")) {
-					workersN <- (mpi.comm.size() - 1)
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
 					
@@ -327,6 +330,10 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 								ig <- (x - 1) %% nrow(reqGets) + 1
 								is <- (x - 1) %/% nrow(reqGets) + 1
 								get.GDODCPUCLLNL(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)})
+
+					mpi.bcast.cmd(rm(list=ls(all=TRUE)))
+					mpi.bcast.cmd(gc())
+
 					temp <- sapply(res, FUN=rownames)
 					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL))
 				} else if(identical(parallel_backend, "snow")) {
@@ -337,6 +344,9 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 						ig <- (i - 1) %% nrow(reqGets) + 1
 						is <- (i - 1) %/% nrow(reqGets) + 1
 						get.GDODCPUCLLNL(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)}
+					
+					snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
+					snow::clusterEvalQ(cl, gc())
 				} else if(identical(parallel_backend, "multicore")) {
 					res <- foreach(i = 1:requestN, .combine="rbind", .inorder=FALSE) %dopar% {
 						ig <- (i - 1) %% nrow(reqGets) + 1
