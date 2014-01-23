@@ -223,27 +223,27 @@ dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(
-		"ExtractGriddedDailyWeatherFromNCEPCFSR_Global", 1, #code not integrated yet
+		"ExtractGriddedDailyWeatherFromNCEPCFSR_Global", 0, #code not integrated yet
 		
 		#Mean monthly PPT, Tmin, Tmax conditions
 		#CMIP3
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 1, #50-km resolution for mean of 2070-2099
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA", 1, #12-km resolution for mean change between 2070-2099 and 1971-2000
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 1,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 1,	#1/2-degree resolution
+		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 0, #50-km resolution for mean of 2070-2099
+		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA", 0, #12-km resolution for mean change between 2070-2099 and 1971-2000
+		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		#CMIP5
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 1,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 1,	#1/2-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 1,	#30-arcsec resolution; requires live internet access
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
 		
 		#Mean monthly wind, relative humidity, and 100% - sunshine 
-		"ExtractSkyDataFromNCEPCFSR_Global", 1, #code not integrated yet
-		"ExtractSkyDataFromNOAAClimateAtlas_USA", 1,
+		"ExtractSkyDataFromNCEPCFSR_Global", 0, #code not integrated yet
+		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		
 		#Soil texture and topography
-		"ExtractElevation_NED_USA", 1,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
-		"ExtractElevation_HWSD_Global", 1, #30-arcsec resolution, Harmonized World Soil Database 
-		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 1
+		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
+		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database 
+		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0
 )
 
 do.PriorCalculations <- c(
