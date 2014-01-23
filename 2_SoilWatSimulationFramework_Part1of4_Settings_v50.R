@@ -184,7 +184,7 @@ dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projec
 dir.prj <- dir.runs <- getwd()
 	
 #parent folder containing external data
-dir.external <- ""
+dir.external <- "/Users/drschlaep/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Software/SoilWat/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
 
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
@@ -244,17 +244,31 @@ do.PriorCalculations <- c(
 		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 0
 )
 
+#------Time frame of simulation: if not specified in the treatment datafile
+#year when SoilWat starts the simulation
+simstartyr  <- 1979
+#first year that is used for output aggregation, e.g., simstartyr + 1
+getStartYear <- function(simstartyr){
+	return(simstartyr + 1)
+}
+startyr <- getStartYear(simstartyr)
+#year when SoilWat ends the simulation
+endyr <- 2010
+
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 10 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
 
 #Climate conditions
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off
 #names of climate conditions/scenarios in the order of data in the climate scenarios datafile; this must have at least one entry (e.g., climate.ambient) and climate.ambient is forced to be the first entry
+#climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles
 climate.conditions <- c(climate.ambient, 	"sresa2.bccr_bcm2_0", "sresa2.cccma_cgcm3_1", "sresa2.cnrm_cm3", "sresa2.csiro_mk3_0", "sresa2.gfdl_cm2_0", "sresa2.gfdl_cm2_1", "sresa2.giss_model_e_r", "sresa2.inmcm3_0", "sresa2.ipsl_cm4", "sresa2.miroc3_2_medres", "sresa2.miub_echo_g", "sresa2.mpi_echam5", "sresa2.mri_cgcm2_3_2a", "sresa2.ncar_ccsm3_0", "sresa2.ncar_pcm1", "sresa2.ukmo_hadcm3",
 											"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
+#Future time period simulated = delta + simstartyr:endyr; also used to extract external climate conditions
+deltaFutureToSimStart_yr <- 90
 
 #Climate ensembles created across scenarios
-ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated
+ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
@@ -292,17 +306,6 @@ if ((any(actions == "create") || any(actions == "execute") || any(actions == "ag
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)
 accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemisphere) then shift monthly production values in prod.in file by six months
-
-#------Time frame of simulation: if not specified in the treatment datafile
-#year when SoilWat starts the simulation
-simstartyr  <- 1979
-#first year that is used for output aggregation, e.g., simstartyr + 1
-getStartYear <- function(simstartyr){
-	return(simstartyr + 1)
-}
-startyr <- getStartYear(simstartyr)
-#year when SoilWat ends the simulation
-endyr <- 2010
 
 #------Output Header Columns------#
 Index_RunInformation <- c(2:3, 5:11, 10, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
