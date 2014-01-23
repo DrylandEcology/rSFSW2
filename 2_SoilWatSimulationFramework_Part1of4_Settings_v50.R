@@ -225,7 +225,7 @@ dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
 do.ExtractExternalDatasets <- c(
 		"ExtractGriddedDailyWeatherFromNCEPCFSR_Global", 0, #code not integrated yet
 		
-		#Mean monthly PPT, Tmin, Tmax conditions
+		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
 		#CMIP3
 		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 0, #50-km resolution for mean of 2070-2099
 		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA", 0, #12-km resolution for mean change between 2070-2099 and 1971-2000
@@ -270,7 +270,7 @@ datafile.windspeedAtHeightAboveGround <- 10 #SoilWat requires 2 m, but some data
 #Climate conditions
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off
 #names of climate conditions/scenarios in the order of data in the climate scenarios datafile; this must have at least one entry (e.g., climate.ambient) and climate.ambient is forced to be the first entry
-#climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles
+#if requesting ensembles, then names must include the scenario flags of 'ensemble.families'
 climate.conditions <- c(climate.ambient, 	"sresa2.bccr_bcm2_0", "sresa2.cccma_cgcm3_1", "sresa2.cnrm_cm3", "sresa2.csiro_mk3_0", "sresa2.gfdl_cm2_0", "sresa2.gfdl_cm2_1", "sresa2.giss_model_e_r", "sresa2.inmcm3_0", "sresa2.ipsl_cm4", "sresa2.miroc3_2_medres", "sresa2.miub_echo_g", "sresa2.mpi_echam5", "sresa2.mri_cgcm2_3_2a", "sresa2.ncar_ccsm3_0", "sresa2.ncar_pcm1", "sresa2.ukmo_hadcm3",
 											"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
 #Future time period simulated = delta + simstartyr:endyr; also used to extract external climate conditions
