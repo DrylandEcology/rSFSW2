@@ -5306,7 +5306,7 @@ options(ow)	#sets the warning option to its previous value
 if(parallel_runs && parallel_init){
 	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
 		#mpi.close.Rslaves(dellog=FALSE)
-		#mpi.exit()
+		mpi.exit()
 	}
 	if(identical(parallel_backend, "snow")){
 		snow::stopCluster(cl)	#clean up snow cluster
