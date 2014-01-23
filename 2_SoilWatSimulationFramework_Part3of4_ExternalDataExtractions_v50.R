@@ -214,26 +214,13 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			endGDODCPUCLLNL <- min(2099, deltaFutureToSimStart_yr + endyr)
 			
 			if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global){
-				prcpTagFile <- "monthly.Prcp"
-				prcpTag <- "Prcp"
-				tmeanTagFile <- "monthly.Tavg"
-				tmeanTag <- "Tavg"
-				tminTagFile <- "_tas_"
-				tminTag <- "tas"
-				tmaxTagFile <- "_tas_"
-				tmaxTag <- "tas"
+				fileVarTags <- c("monthly.Prcp", "monthly.Tavg", "monthly.Tmin", "monthly.Tmax")
+				varTags <- c("Prcp", "Tavg", "Tmin", "Tmax")
 			}
 			if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
-				prcpTagFile <- "_pr_"
-				prcpTag <- "pr"
-				tmeanTagFile <- "_tas_"
-				tmeanTag <- "tas"
-				tminTagFile <- "_tas_"
-				tminTag <- "tas"
-				tmaxTagFile <- "_tas_"
-				tmaxTag <- "tas"
+				fileVarTags <- c("_pr_", "_tas_", "_tasmin_", "_tasmax_")
+				varTags <- c("pr", "tas", "tasmin", "tasmax")
 			}
-			
 			
 			#functions
 			whereNearest <- function(val, matrix) {
@@ -296,14 +283,14 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 				gcmFiles <- list.files(file.path(dir.ex.dat, scen), pattern=gcm, full.names=TRUE)
 				
 				#Get precipitation data
-				prcp <- get.netCDFcontent(filepath=gcmFiles[grepl(prcpTagFile, gcmFiles)], variable=prcpTag, unit="mm/d", startyear=startyear, timeCount=timeCount)
+				prcp <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", startyear=startyear, timeCount=timeCount)
 				prcp <- mmPerDay_to_cmPerMonth(prcp, startyear, endyear)
 				#Get temperature data
-				if(grepl(tminTagFile, gcmFiles) && grepl(tmaxTagFile, gcmFiles)){
-					tmin <- get.netCDFcontent(filepath=gcmFiles[grepl(tminTagFile, gcmFiles)], variable=tminTag, unit="C", startyear=startyear, timeCount=timeCount)
-					tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(tmaxTagFile, gcmFiles)], variable=tmaxTag, unit="C", startyear=startyear, timeCount=timeCount)
-				} else if(grepl(tmeanTagFile, gcmFiles)){
-					tmin <- tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(tmeanTagFile, gcmFiles)], variable=tmeanTag, unit="C", startyear=startyear, timeCount=timeCount)
+				if(grepl(fileVarTags[3], gcmFiles) && grepl(fileVarTags[4], gcmFiles)){
+					tmin <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[3], gcmFiles)], variable=varTags[3], unit="C", startyear=startyear, timeCount=timeCount)
+					tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[4], gcmFiles)], variable=varTags[4], unit="C", startyear=startyear, timeCount=timeCount)
+				} else if(grepl(fileVarTags[2], gcmFiles)){
+					tmin <- tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(tmeanTagFile, gcmFiles)], variable=varTags[2], unit="C", startyear=startyear, timeCount=timeCount)
 				}
 					
 				#calculate monthly averages for precipitation and temperature
@@ -321,7 +308,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			#get data from netCDF files
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "get.TimeStartIndex", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "prcpTagFile", "prcpTag", "tmeanTagFile", "tmeanTag", "tminTagFile", "tminTag", "tmaxTagFile", "tmaxTag")
+				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "get.TimeStartIndex", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
@@ -385,7 +372,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
 			
-			rm(locations, requestN, startGDODCPUCLLNL, endGDODCPUCLLNL, i_climCond, res, idLocs, idLocRes, icols)
+			rm(locations, requestN, startGDODCPUCLLNL, endGDODCPUCLLNL, i_climCond, res, idLocs, idLocRes, icols, fileVarTags, varTags)
 		} else {
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL'")
 		}
