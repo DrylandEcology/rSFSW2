@@ -2,20 +2,29 @@
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 
 #------Load required packages
-if(!require(sp, quietly=TRUE)) {
-	tryCatch(install.packages("sp", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("sp failed to install"); stop("Stopping") })
-	stopifnot(require(sp, quietly=TRUE))
+if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
+	if(!require(rgdal, quietly=TRUE)) {
+		tryCatch(install.packages("rgdal", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("rgdal failed to install"); stop("Stopping") })
+		stopifnot(require(rgdal, quietly=TRUE))
+	}
 }
 
-if(!require(rgdal, quietly=TRUE)) {
-	tryCatch(install.packages("rgdal", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("rgdal failed to install"); stop("Stopping") })
-	stopifnot(require(rgdal, quietly=TRUE))
+if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
+	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA ||
+	exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
+	exinfo$ExtractElevation_NED_USA ||
+	exinfo$ExtractElevation_HWSD_Global){
+
+	if(!require(raster, quietly=TRUE)) {
+		tryCatch(install.packages("raster", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("raster failed to install"); stop("Stopping") })
+		stopifnot(require(raster, quietly=TRUE))
+	}
 }
 
 if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
-		exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
-		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
-		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
+	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
+	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
 	
 	if(!require(ncdf4, quietly=TRUE)) {
 		tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
@@ -32,7 +41,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 	
 	temp <- unlist(strsplit(climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE))
 	
-	if(!is.null(temp) && sum(include_YN) < 5000){
+	if(!is.null(temp) && sum(include_YN) * length(temp) < 5000){
 		reqGets <- matrix(temp, ncol=2, byrow=TRUE)
 		
 		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
@@ -162,8 +171,8 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			print("Not all requested RCPs and/or GCMs requested are available in ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA")
 		}
 		rm(gcmsNEX, scenariosNEX)
-	} else if(sum(include_YN) >= 5000){
-		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations (here, ", sum(include_YN), "), a different approach downloading a spatial bounding box may be more appropriate"))
+	} else if(sum(include_YN) * length(temp) >= 5000){
+		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations x climate conditions (here, ", sum(include_YN) * length(), "), a different approach downloading a spatial bounding box may be more appropriate"))
 	}
 
 	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
@@ -179,14 +188,24 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 
 }
 
-if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global){
-	#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
-	#accessed via climatewizard.org on July 10, 2012
-	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
+if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
+	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+
+	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 	
 	list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 	if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-		dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
+		
+		if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+			#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
+			#accessed via climatewizard.org on July 10, 2012
+			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
+		}
+		if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+			#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
+			#accessed via climatewizard.org
+			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
+		}
 		
 		list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
 		
@@ -197,31 +216,48 @@ if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global){
 			for(sc in 1:length(list.scenarios.datafile)){
 				dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
 				temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-				dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Value", x=temp)])
-				dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Value", x=temp)])
-				
+				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Value", x=temp)])
+					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Value", x=temp)])
+				}		
+				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Change", x=temp)])
+					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Change", x=temp)])
+				}		
 				list.temp.asc <- list.files(dir.ex.dat.sc.temp, pattern=".asc")
 				list.ppt.asc <- list.files(dir.ex.dat.sc.ppt, pattern=".asc")
 				
 				#extract data
 				get.month <- function(path, grid){
-					g <- readGDAL(fname=file.path(path, grid), silent=TRUE)
+					g <- raster(file.path(path, grid))
 					locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-					val <- unlist(sp::over(x=locations.CoordG, y=g))
+					vals <- extract(g, locations.CoordG)
 				}
-				sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#temp value in C
+				sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
+				sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
 				
-				sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#ppt value in mm
-				
-				#add data to sw_input_climscen and set the use flags
-				sw_input_climscen_values_use[i.temp <- match(paste("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
-				sw_input_climscen_values[, i.temp] <- sc.ppt
-				sw_input_climscen_values_use[i.temp <- match(paste("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
-				sw_input_climscen_values[, i.temp] <- sc.temp
+				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+					#temp value in C
+					#ppt value in mm
+					#add data to sw_input_climscen and set the use flags
+					sw_input_climscen_values_use[i.temp <- match(paste("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
+					sw_input_climscen_values[, i.temp] <- sc.ppt
+					sw_input_climscen_values_use[i.temp <- match(paste("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
+					sw_input_climscen_values[, i.temp] <- sc.temp
+				}
+				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+					sc.temp <- sc.temp * 5/9	#temp addand in C
+					sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
+					#add data to sw_input_climscen and set the use flags
+					sw_input_climscen_use[i.temp <- match(paste("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
+					sw_input_climscen[, i.temp] <- sc.ppt
+					sw_input_climscen_use[i.temp <- match(paste("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
+					sw_input_climscen[, i.temp] <- sc.temp
+				}
 			}
 			
 			res <- nrow(sw_input_climscen_values[, i.temp]) - sum(complete.cases(sw_input_climscen_values[, i.temp]))
-			if(res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenariosMaurer2009_Global'"))
+			if(res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'"))
 			
 			#write data to datafile.climatescenarios_values
 			tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
@@ -229,101 +265,39 @@ if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global){
 			
 			rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
 		} else {
-			print("Not all scenarios requested in 'datafile.SWRunInformation' are available in dir.external/ExtractClimateChangeScenarios")
+			print("Not all scenarios requested in 'datafile.SWRunInformation' are available in with 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'")
 		}
 	}
-	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenariosMaurer2009_Global' at", Sys.time()))
+	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 }
 
-if(exinfo$ExtractClimateChangeScenarios_NorthAmerica){
-	#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
-	#accessed via climatewizard.org
-	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
-	
-	list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
-	if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
-		dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
-		
-		list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
-		
-		if(all(list.scenarios.datafile %in% list.scenarios.external)){
-			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-			
-			for(sc in 1:length(list.scenarios.datafile)){
-				dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
-				temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-				dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Change", x=temp)])
-				dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Change", x=temp)])
-				
-				list.temp.asc <- list.files(dir.ex.dat.sc.temp, pattern=".asc")
-				list.ppt.asc <- list.files(dir.ex.dat.sc.ppt, pattern=".asc")
-				
-				#extract data
-				get.month <- function(path, grid){
-					g <- readGDAL(fname=file.path(path, grid), silent=TRUE)
-					locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-					val <- unlist(sp::over(x=locations.CoordG, y=g))
-				}
-				sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#temp change in F
-				sc.temp <- sc.temp * 5/9	#temp addand in C
-				
-				sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))	#ppt change in %
-				sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
-				
-				#add data to sw_input_climscen and set the use flags
-				sw_input_climscen_use[i.temp <- match(paste("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
-				sw_input_climscen[, i.temp] <- sc.ppt
-				sw_input_climscen_use[i.temp <- match(paste("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
-				sw_input_climscen[, i.temp] <- sc.temp
-			}
-			
-			#write data to datafile.climatescenarios
-			tempdat <- rbind(sw_input_climscen_use, sw_input_climscen)
-			write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios), row.names=FALSE)
-			
-			rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
-		} else {
-			print("Not all scenarios requested in 'datafile.SWRunInformation' are available in dir.external/ExtractClimateChangeScenarios")
-		}
-		
-	}
-	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_NorthAmerica' at", Sys.time()))
-}
 
-if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica){
-	if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
+if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
+	if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 	#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
 	#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
-	cl <- 1:11
 	ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
 	
 	dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil")
-	datafile.bedrock <- "cs_bedrock"
-	datafile.bulkd <- "cs_bulkd"
-	datafile.sandsilt <- "cs_sandsilt"
 	
 	#locations of simulation runs
 	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	
 	#extract data
-	g <- readGDAL(fname=temp <- file.path(dir.ex.dat, datafile.bulkd), silent=TRUE)
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-	rat <- attr(GDALinfo(temp, silent=TRUE, returnRAT=TRUE), "RATlist")[[1]]
-	val <- unlist(sp::over(x=locations.CoordG, y=g))
-	bedrock <- unlist(rat$ROCKDEPM[match(val, rat$VALUE)])	#depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
-	cl <- 1:(max(findInterval(bedrock, ldepth), na.rm=TRUE))
-	bulkd <- sapply(cl, FUN=function(l) eval(parse(text=paste("L", l, "_BD", sep="")), envir=rat)[match(val, rat$VALUE)])	#bulk density in g/cm3
 	
-	#Layer specific for bedrock, but it differs from bedrock in bulkd and sandsilt grids, which seem to make more sense
-	#g <- readGDAL(fname=paste(dir.ex.dat, .Platform$file.sep, datafile.bedrock, sep=""), silent=TRUE)
-	#bedrock <- sp::over(x=locations.CoordG, y=g)	#depth in cm
-	
-	g <- readGDAL(fname=temp <- file.path(dir.ex.dat, datafile.sandsilt), silent=TRUE)
-	rat <- attr(GDALinfo(temp, silent=TRUE, returnRAT=TRUE), "RATlist")[[1]]
-	val <- unlist(sp::over(x=locations.CoordG, y=g))
-	sand <- sapply(cl, FUN=function(l) eval(parse(text=paste("SAND_L", l, sep="")), envir=rat)[match(val, rat$VALUE)])/100	#sand fraction
-	clay <- sapply(cl, FUN=function(l) eval(parse(text=paste("CLAY_L", l, sep="")), envir=rat)[match(val, rat$VALUE)])/100	#sand fraction
+	g <- raster(file.path(dir.ex.dat, "cs_bulkd"), RAT=TRUE)
+	val <- extract(g, locations.CoordG)
+	temp <- factorValues(g, val)
+	bedrock <- temp[, "ROCKDEPM"]	#depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
+	cl <- 1:max(findInterval(bedrock, ldepth), na.rm=TRUE)
+	bulkd <- temp[, paste0("L", cl, "_BD")]
+		
+	g <- raster(file.path(dir.ex.dat, "cs_sandsilt"), RAT=TRUE)
+	val <- extract(g, locations.CoordG)
+	temp <- factorValues(g, val)
+	sand <- temp[, paste0("SAND_L", cl)] / 100
+	clay <- temp[, paste0("CLAY_L", cl)] / 100	
 	
 	#set and save soil layer structure
 	sw_input_soillayers$SoilDepth_cm <- bedrock
@@ -346,56 +320,63 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica){
 	tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 	write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 	
-	if(any(sand == 0, clay == 0)) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+	if(any(sand == 0, clay == 0)) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 	
-	rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, rat, g, locations)
+	rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, temp, g, locations)
 	
-	if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_NorthAmerica' at", Sys.time()))
+	if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 }
 
-if(exinfo$ExtractTopographyANDElevation_USA){
-	#LANDFIRE data
-	if(!be.quiet) print(paste("Started 'ExtractTopographyANDElevation_USA' at", Sys.time()))
+
+if(exinfo$ExtractElevation_NED_USA){
+	if(!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
+	#ned.usgs.gov
 	
-	dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "LANDFIRE_30m")
-	datafile.elev <- "lf_elevation"
-	datafile.aspect <- "lf_aspect"
-	datafile.slope <- "lf_slope"
+	dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "NED_1arcsec")
 	
 	#read raster data
-	g.elev <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.elev), silent=TRUE), silent=TRUE)
-	g.aspect <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.aspect), silent=TRUE), silent=TRUE)
-	g.slope <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.slope), silent=TRUE), silent=TRUE)
+	g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
+
+	#locations of simulation runs
+	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
+	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
-	if(any(identical(class(g.elev), "try-error"), identical(class(g.aspect), "try-error"), identical(class(g.slope), "try-error"))){
-		print("'ExtractTopographyANDElevation_USA': 30m-grid rasters too big to handle correctly by GDAL driver AIG: attempt to read instead 10km-grid")
-		
-		dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "LANDFIRE_10km")
-		datafile.elev <- "elev10km"
-		datafile.aspect <- "aspect10km"
-		datafile.slope <- "slope10km"
-		
-		g.elev <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.elev), silent=TRUE), silent=TRUE)
-		g.aspect <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.aspect), silent=TRUE), silent=TRUE)
-		g.slope <- try(readGDAL(fname=file.path(dir.ex.dat, datafile.slope), silent=TRUE), silent=TRUE)
-	}
+	#extract data for locations
+	SWRunInformation$ELEV_m <- extract(g.elev, locations.CoordG)	# elevation in m a.s.l.
+
+	#write data to datafile.SWRunInformation
+	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	
+	rm(g.elev, locations, locations.CoordG)
+	
+	if(!be.quiet) print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
+}
+
+
+if(exinfo$ExtractElevation_HWSD_Global){
+	if(!be.quiet) print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
+	
+	dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "HWSD")
+	
+	#read raster data
+	g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
 	
 	#locations of simulation runs
 	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 	#extract data for locations
-	SWRunInformation$ELEV_m <- unlist(sp::over(x=locations.CoordG, y=g.elev))	# elevation in m a.s.l.
-	SWRunInformation$ASPECT <- unlist(sp::over(x=locations.CoordG, y=g.aspect))	# aspect in degrees
-	SWRunInformation$SLOPE <- unlist(sp::over(x=locations.CoordG, y=g.slope))	# slope in degrees
+	SWRunInformation$ELEV_m <- extract(g.elev, locations.CoordG)	# elevation in m a.s.l.
 	
 	#write data to datafile.SWRunInformation
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	
-	rm(g.elev, g.aspect, g.slope, locations, locations.CoordG)
+	rm(g.elev, locations, locations.CoordG)
 	
-	if(!be.quiet) print(paste("Finished 'ExtractTopographyANDElevation_USA' at", Sys.time()))
+	if(!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
 }
+
+
 
 if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
 	if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
