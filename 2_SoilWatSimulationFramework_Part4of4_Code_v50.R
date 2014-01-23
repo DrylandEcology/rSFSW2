@@ -4729,6 +4729,8 @@ tryCatch({
 	MaxDoOneSiteTime <<- 0
 })
 			}
+			mpi.bcast.cmd(rm(list=ls(all=TRUE)))
+			mpi.bcast.cmd(gc())
 			print(runs.completed)
 		}
 		if(identical(parallel_backend, "snow")){
@@ -4765,6 +4767,8 @@ tryCatch({
 				}
 				do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 			}
+			snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
+			snow::clusterEvalQ(cl, gc())
 		}
 		if(identical(parallel_backend, "multicore")){
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
@@ -5302,7 +5306,7 @@ options(ow)	#sets the warning option to its previous value
 if(parallel_runs && parallel_init){
 	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
 		#mpi.close.Rslaves(dellog=FALSE)
-		mpi.exit()
+		#mpi.exit()
 	}
 	if(identical(parallel_backend, "snow")){
 		snow::stopCluster(cl)	#clean up snow cluster
