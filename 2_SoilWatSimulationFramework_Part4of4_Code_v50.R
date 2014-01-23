@@ -302,9 +302,7 @@ if(print.debug){
 }
 
 #made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
-	#print(paste("a path:", path))
-	#if(!exists("use_janus")) 
+dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) { 
 	dir.create(path, showWarnings, recursive, mode)
 	if(times < 24)
 		if(!file.exists(path)) {
@@ -741,7 +739,6 @@ list.dirs2 <- function(path, full.names=TRUE, recursive=TRUE) {
 }
 #custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
 file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
-	#if(!exists("use_janus"))
 	file.copy(from, to, overwrite, FALSE, copy.mode)
 	if(times < 24)
 		if(file.exists(from))
@@ -1142,17 +1139,11 @@ if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ens
 		}
 	
 		if(identical(parallel_backend, "snow")){
-			if(exists("use_janus")){
-				print("janus exists")
-				cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				print("cluster made")
-			} else if(!exists("use_janus")){
-				if(!be.quiet) setDefaultClusterOptions(outfile="")
-				#cl <-  makeCluster(num_cores, type="MPI", outfile="")
-				cl <- snow::makeSOCKcluster(num_cores)
-				clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
-				#snow::clusterSetupRNG(cl) #random numbers setup
-			}
+			if(!be.quiet) setDefaultClusterOptions(outfile="")
+			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
+			cl <- snow::makeSOCKcluster(num_cores)
+			clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
+			#snow::clusterSetupRNG(cl) #random numbers setup
 			doSNOW::registerDoSNOW(cl) 	# register foreach backend
 		}
 	
@@ -1180,7 +1171,7 @@ temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractEx
 exinfo <- data.frame(t(as.numeric(temp[,-1])))
 names(exinfo) <- temp[,1]
 
-if(any(actions == "external") && any(exinfo > 0) && !(exists("use_janus") && use_janus)){
+if(any(actions == "external") && any(exinfo > 0)){
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
 	stopifnot(file.exists(dir.external))
 	
@@ -1206,12 +1197,17 @@ if(any(actions == "create")){
 			#add data to sw_input_soils and set the use flags
 			i.temp <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
 			tr.col.max <- max(rowSums(!is.na(table.EvapCoeff)))
-			sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
-			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			if(exists("sw_input_soils")) {
+				sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
+				sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			} else {
+				i_sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
+				i_sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			}
 			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
 			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
 			
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
+			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=ifelse(exists("sw_input_soils"), sw_input_soils, i_sw_input_soils)))
 		} 
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals and on in treatments
@@ -1234,12 +1230,17 @@ if(any(actions == "create")){
 			#add data to sw_input_soils and set the use flags
 			i.temp <- grepl(pattern="TranspRegion", x=names(sw_input_soils_use))
 			tr.col.max <- max(rowSums(!is.na(table.TranspReg)))
-			sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
-			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			if(exists("sw_input_soils")) {
+				sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
+				sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			} else {
+				i_sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
+				i_sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+			}
 			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
 			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
 			
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
+			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=ifelse(exists("sw_input_soils"), sw_input_soils, i_sw_input_soils)))
 		}
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) ){#Use only if option is off in sw_input_experimentals
@@ -1266,10 +1267,15 @@ if(any(actions == "create")){
 			
 			#add data to sw_input_cloud and set the use flags
 			sw_input_cloud_use[i.temp <- grepl(pattern="snowd", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[, i.temp][st_mo] <- snowd
-			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
+			if(exists("sw_input_cloud")) {
+				sw_input_cloud[, i.temp][st_mo] <- snowd
+				sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
+			} else {
+				i_sw_input_cloud[, i.temp][st_mo] <- snowd
+				i_sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(i_sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
+			}
 			
-			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
+			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=ifelse(exists("sw_input_cloud"),sw_input_cloud,i_sw_input_cloud)))
 		}
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) ){#Use only if option is off in sw_input_experimentals
@@ -2129,7 +2135,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_sc <- pptVal_sc / (10 * SiteClimate_Ambient$meanMonthlyPPTcm)
 				t_min_sc <- tVal_min_sc - SiteClimate_Ambient$meanMonthlyTempC
 				t_max_sc <- tVal_max_sc - SiteClimate_Ambient$meanMonthlyTempC
-			} else if(	sum(use_pptscen) + sum(use_tempscen) > 0){
+			} else if(	sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
 				#read climate change factors from datafile
 				ppt_sc <- unlist(lapply(parse(text=ppt.colnames), FUN=eval, envir=i_sw_input_climscen))
 				t_min_sc <-  unlist(lapply(parse(text=tempMin.colnames), FUN=eval, envir=i_sw_input_climscen))
@@ -2475,28 +2481,23 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		for (sc in Exclude_ClimateAmbient:scenario_No){
 			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
-			if(!exists("use_janus")){
-				runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
-						}, warning = function(w) {
-							print("------------Warning----------")
-							print(w)
-							print("-----------------------------")
-							#assign("todo$aggregate", FALSE, pos=2)
-							#mpi.send.Robj(i,0,4)
-						}, error = function(e) {
-							print("-------------Error-----------")
-							print(e)
-							print("-----------------------------")
-							if(parallel_runs && identical(parallel_backend,"mpi"))
-								mpi.send.Robj(i,0,4)
-							return(NA)
-						})
-				if(isTRUE(is.na(runData[[sc]])))
-					todo$aggregate <- FALSE
-			} else {
-				try(system(paste(exec_c_prefix, "./", shQuote(sw), " -f ", filesin, " -e -q", sep="")))
-			}
-			
+			runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
+					}, warning = function(w) {
+						print("------------Warning----------")
+						print(w)
+						print("-----------------------------")
+						#assign("todo$aggregate", FALSE, pos=2)
+						#mpi.send.Robj(i,0,4)
+					}, error = function(e) {
+						print("-------------Error-----------")
+						print(e)
+						print("-----------------------------")
+						if(parallel_runs && identical(parallel_backend,"mpi"))
+							mpi.send.Robj(i,0,4)
+						return(NA)
+					})
+			if(isTRUE(is.na(runData[[sc]])))
+				todo$aggregate <- FALSE			
 		}
 		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 	}#end if do execute
@@ -4583,7 +4584,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 #------------------------
 
-	work <- function(parallel_backend, Data) {
+	work <- function() {
 		# Note the use of the tag for sent messages:
 		#     1=ready_for_task, 2=done_task, 3=exiting
 		# Note the use of the tag for received messages:
@@ -4625,9 +4626,11 @@ if(actionWithSoilWat && runsN.todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	ifirst <- seq.todo[1]
 	#objects to export
-	list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values", "con", "conWeather","drv")
-	list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
-	
+	#list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values", "con", "conWeather","drv")
+	#list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
+	list.export <- c("siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","temp.counter.width","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
+	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
 	
@@ -4646,7 +4649,8 @@ if(actionWithSoilWat && runsN.todo > 0){
 			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
 			#mpi.bcast.cmd(con<-dbConnect(drv,dbWeatherDataFile))
 			
-			mpi.bcast.cmd(work(parallel_backend = "mpi", Data = 0))
+			mpi.bcast.cmd(work())
+	
 			junk <- 0
 			closed_slaves <- 0
 			runs.completed <- 1
@@ -4657,7 +4661,7 @@ tryCatch({
 				complete_info <- mpi.get.sourcetag()
 				slave_id <- complete_info[1]
 				tag <- complete_info[2]
-				#print(paste("From:", slave_id, "tag:", sTag[tag], "Message:", complete))
+				#print(paste("From:", slave_id, "tag:", tag, "Message:", complete))
 				
 				if (tag == 1) {
 					temp <- Sys.time() - t.overall
@@ -4810,6 +4814,10 @@ tryCatch({
 #			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 #		}
 		#Best for debugging
+		setwd(dir.prj)
+		exeEnv <- new.env()
+		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
+		
 		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
@@ -4829,7 +4837,28 @@ tryCatch({
 				}
 				dbDisconnect(con)
 			}
-			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
+			assign(x="i",value=i_sim,envir=exeEnv)
+			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
+			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_weatherList",value=sw_weatherList,envir=exeEnv)
+			
+			save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
+			rm(list=ls(all=TRUE))
+			load("test.Rdata")
+			
+			do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
+							i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
+							i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values,i_sw_weatherList=i_sw_weatherList)
+			#runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 		}
 	}
 	#save(inputDataToSave,file=file.path(dir.out,paste("swInputData_",head(seq.todo,n=1),"_",head(seq.todo,n=1)+runs.completed,".R",sep="")),compress=TRUE)

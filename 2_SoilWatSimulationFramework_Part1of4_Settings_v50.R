@@ -155,12 +155,8 @@
 #--------------------------------------------------------------------------------------------------#
 #---------------------------------------------SETUP------------------------------------------------#
 
-
-#------Location of execution: JANUS or local
-use_janus <- FALSE
-
 #------Clean the working environment
-if(!exists("use_janus") || !use_janus) rm(list=ls(all=TRUE))	# at least rm(use_janus) if run locally
+rm(list=ls(all=TRUE))
 
 #------Overall timing
 t.overall <- Sys.time()
@@ -168,16 +164,9 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework: serial or parallel
-if(exists("use_janus")) {
-	num_cores <- 240
-	exec_c_prefix	<- ""		# the prefix of './yourexecutable' on JANUS.  Needs a space at the end, e.g., 'mpirun '.  Can be blank also.
-	parallel_backend <- "mpi"	# do not change (can also use multicore (but can't use more then 12 procs, i.e., outside node which has 12 cores) for testing purposes).  mpi is faster then snow, but isn't giving as usable output (it generates a logfile for each processor, which can be really annoying)
-	parallel_runs <- TRUE		# do not change
-} else if(!exists("use_janus")) {
-	num_cores <- 10
-	parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
-	parallel_runs <- TRUE
-}
+num_cores <- 10
+parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
+parallel_runs <- TRUE
 
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
@@ -190,14 +179,10 @@ url.Rrepos <- "http://cran.us.r-project.org"
 #------------------------USER INPUT
 
 #------Set paths to simulation framework folders
-if(exists("use_janus")) { 
-	dir.prj <- dir.runs <- getwd() #sets the project & runs directories correctly if using JANUS, so this way I don't have to keep changing it everytime I move it over...
-	print(paste("dir.prj:", dir.prj))
-} else {
-	#parent folder of simulation project
-	dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1/Prj01_Texture/1_PC_TempDry_Simulations_Prj01_r2mini"
-	dir.prj <- dir.runs <- getwd()
-}
+#parent folder of simulation project
+dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1/Prj01_Texture/1_PC_TempDry_Simulations_Prj01_r2mini"
+dir.prj <- dir.runs <- getwd()
+	
 #parent folder containing external data
 dir.external <- ""
 
@@ -283,8 +268,8 @@ datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
 
 if ((any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
-	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v10.csv"
-	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v10.csv"
+	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
+	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v11.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
 	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
