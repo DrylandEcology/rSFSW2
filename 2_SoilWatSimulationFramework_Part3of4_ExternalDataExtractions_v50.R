@@ -6,28 +6,177 @@ if(!require(sp, quietly=TRUE)) {
 	tryCatch(install.packages("sp", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("sp failed to install"); stop("Stopping") })
 	stopifnot(require(sp, quietly=TRUE))
 }
+
 if(!require(rgdal, quietly=TRUE)) {
 	tryCatch(install.packages("rgdal", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("rgdal failed to install"); stop("Stopping") })
 	stopifnot(require(rgdal, quietly=TRUE))
 }
-if(!require(ncdf4, quietly=TRUE)) {
-	tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
-	stopifnot(require(ncdf4, quietly=TRUE))
-}
-if(parallel_runs && identical(parallel_backend, "multicore")) {
-	if(!require(doMC,quietly = TRUE)) {	#requires: foreach, iterators, codetools, and attaches: multicore
-		tryCatch(install.packages("doMC",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("doMC failed to install"); stop("Stopping") })
-		stopifnot(require(doMC, quietly = TRUE))
+
+if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
+		exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
+		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
+		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+	
+	if(!require(ncdf4, quietly=TRUE)) {
+		tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
+		stopifnot(require(ncdf4, quietly=TRUE))
 	}
-}	
+}
+
+
+
+#--------------------------------------------------------------------------------------------------#
 
 if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
+	
+	temp <- unlist(strsplit(climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE))
+	
+	if(!is.null(temp) && sum(include_YN) < 5000){
+		reqGets <- matrix(temp, ncol=2, byrow=TRUE)
+		
+		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
+		gcmsNEX <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", " GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
+		scenariosNEX <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
+		
+		if(all(reqGets[, 1] %in% scenariosNEX) && all(reqGets[, 2] %in% gcmsNEX)){
+			#locations of simulation runs
+			locations <- with(SWRunInformation[include_YN, ], data.frame(X_WGS84, Y_WGS84))
+			
+			#put requests together
+			requestN <- nrow(reqGets) * nrow(locations)
+			startNEX <- max(2006, deltaFutureToSimStart_yr + simstartyr)
+			endNEX <- min(2099, deltaFutureToSimStart_yr + endyr)
+			
+			#function communicating with NEX
+			url.nex.ncss <- "http://dataserver.nccs.nasa.gov/thredds/ncss/grid/bypass/NEX-DCP30"
+			downscaling <- "bcsd"
+			gcmrun <- "r1i1p1"
+			variables <- c("pr", "tasmin", "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
+		
+			get.NEX <- function(scen, gcm, lon, lat, startyear=NULL, endyear=NULL){
+				
+				mmPerSecond_to_cmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
+					DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths			
+					return(prcp_mmPerSecond / 10 * DaysPerMonths * 24 * 60 * 60)
+				}
+				
+				if(is.null(startyear)) startyear <- ifelse(identical(scen, "historical"), 1950, 2006)
+				if(is.null(endyear)) endyear <- ifelse(identical(scen, "historical"), 2005, 2099)
+				
+				get.NEXvariable <- function(var, scen, gcm, lon, lat){
+					request <- paste0(paste(url.nex.ncss, downscaling, scen, gcmrun,
+									paste0(gcm, "_", var, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", var), 
+							"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
+							paste0("&time_start=", startyear, "-01-16T12%3A00%3A00Z&time_end=", endyear, "-12-16T12%3A00%3A00Z&timeStride=1"),
+							"&accept=csv")
+					
+					success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
+					
+					if(!inherits(success, "try-error") && success == 0){
+						dat <- read.csv(ftemp, colClasses=c("NULL", "NULL", "NULL", "numeric"))[, 1] #colnames = Time, Lat, Long, Variable
+					} else {
+						dat <- rep(NA, times=12)
+					}
+					if(file.exists(ftemp)) unlink(ftemp)
+					
+					return(dat)
+				}
+				
+				res <- matrix(NA, nrow=1, ncol=2 + 3*12, dimnames=list(paste(sapply(list(scen, gcm), as.character), collapse="."), NULL))
+				res[1, 1:2] <- c(lon, lat)
+				for(iv in seq_along(variables)){
+					temp <- get.NEXvariable(var=variables[iv], scen=scen, gcm=gcm, lon=lon, lat=lat)
+					if(variables[iv] == "pr"){
+						temp <- mmPerSecond_to_cmPerMonth(temp, yearStart=startyear, yearEnd=endyear) #convert kg/m2/s -> cm/month
+					} else if(grepl("tas", variables[iv])){
+						temp <- temp - 273.15	#convert K -> C
+					}
+					res[2 + (iv - 1)*12 + 1:12] <- aggregate(temp, by=list(rep(1:12, times=length(temp) %/% 12)), FUN=mean)$x
+				}
+				
+				return(res)
+			}
+			
+			#get data from NEX
+			if(parallel_runs && parallel_init){
+				#call the simulations depending on parallel backend
+				list.export <- c("get.NEX", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp")
+				if(identical(parallel_backend, "mpi")) {
+					workersN <- (mpi.comm.size() - 1)
+					exportObjects(list.export)
+					#mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+					
+					res <- mpi.applyLB(x=1:requestN, fun={
+								ig <- (x - 1) %% nrow(reqGets) + 1
+								is <- (x - 1) %/% nrow(reqGets) + 1
+								get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)})
+					temp <- sapply(res, FUN=rownames)
+					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL))
+				} else if(identical(parallel_backend, "snow")) {
+					snow::clusterExport(cl, list.export)
+					#snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+					
+					res <- foreach(i = 1:requestN, .combine="rbind", .inorder=FALSE) %dopar% {
+						ig <- (i - 1) %% nrow(reqGets) + 1
+						is <- (i - 1) %/% nrow(reqGets) + 1
+						get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)}
+				} else if(identical(parallel_backend, "multicore")) {
+					res <- foreach(i = 1:requestN, .combine="rbind", .inorder=FALSE) %dopar% {
+						ig <- (i - 1) %% nrow(reqGets) + 1
+						is <- (i - 1) %/% nrow(reqGets) + 1
+						get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)}
+				}
+			} else {
+				res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% {
+					ig <- (i - 1) %% nrow(reqGets) + 1
+					is <- (i - 1) %/% nrow(reqGets) + 1
+					get.NEX(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startNEX, endyear=endNEX)}
+			}
+			
+			#prepare data for SoilWat wrapper format
+			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
+			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
+			res <- cbind(i_climCond, res)
+			dimnames(res) <- list(NULL, c("CC", "Lon", "Lat", paste0(rep(c("pr", "tmin", "tmax"), each=12), rep(1:12, times=2))))
+			res <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
+			
+			#sort sites
+			idLocs <- apply(locations, 1, paste0, collapse="_")
+			idLocRes <- apply(res[, 1:2], 1, paste0, collapse="_")
+			res <- res[match(idLocRes, idLocs, nomatch=0), ]
+			
+			if((temp <- nrow(res) - sum(complete.cases(res))) > 0) print(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'"))
+			
+			#add data to sw_input_climscen and set the use flags
+			icols <- 1 + 12 * 3 + 1:(nrow(reqGets) * 12 * 3)
+			sw_input_climscen_values_use[icols] <- 1
+			sw_input_climscen_values[include_YN, icols] <- res[, -(1:2)]
+			
+			#write data to datafile.climatescenarios_values
+			tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
+			write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
+			
+			rm(reqGets, tempdat, icols, res, idLocs, idLocRes, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
+		} else {
+			print("Not all requested RCPs and/or GCMs requested are available in ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA")
+		}
+		rm(gcmsNEX, scenariosNEX)
+	} else if(sum(include_YN) >= 5000){
+		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations (here, ", sum(include_YN), "), a different approach downloading a spatial bounding box may be more appropriate"))
+	}
+
+	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
 }
+
 
 if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
 	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
 	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+
+	dir.ex.dat <- file.path(dir.external, "Extract_GDO_DCP_UCLLNL_DownscaledClimateData")
+
 }
 
 if(exinfo$ExtractClimateChangeScenariosMaurer2009_Global){
