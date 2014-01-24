@@ -245,26 +245,36 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 				return(prcp)
 			}
 			
-			get.TimeStartIndex <- function(nc, startyear){
-				temp1 <- nc$dim$time$units
-				temp2 <- nc$dim$time$vals[1]
-				temp3 <- (temp <- lapply(strsplit(temp1, split=" ", fixed=TRUE)[[1]], FUN=function(x) as.Date(x, format="%Y-%m-%d")))[sapply(temp, FUN=function(x) !is.na(x))][[1]]
-				stopifnot(length(temp3) == 1)
-				startYear <- as.POSIXlt(temp3 + temp2)$year + 1900
-				startMonth <- as.POSIXlt(temp3 + temp2)$mon + 1
+			get.TimeIndices <- function(nc, startyear, endyear){
+				utemp <- nc$dim$time$units
+				N <- length(temp <- nc$dim$time$vals)
+				firstMonth <- temp[1]
+				lastMonth <- temp[N]
+				baseYear <- (temp <- lapply(strsplit(utemp, split=" ", fixed=TRUE)[[1]], FUN=function(x) as.Date(x, format="%Y-%m-%d")))[sapply(temp, FUN=function(x) !is.na(x))][[1]]
+				stopifnot(length(baseYear) == 1)
+				
+				startYear <- as.POSIXlt(baseYear + firstMonth)$year + 1900
+				startMonth <- as.POSIXlt(baseYear + firstMonth)$mon + 1
+				endYear <- as.POSIXlt(baseYear + lastMonth)$year + 1900
+				endMonth <- as.POSIXlt(baseYear + lastMonth)$mon + 1
 				
 				stopifnot(startYear < startyear || (startMonth == 1 && startYear == startyear)) 	#we only extract full years
+				timeStartIndex <- ((startyear - startYear - 1) * 12) + (12 - startMonth + 2)
 				
-				return( ((startyear - startYear - 1) * 12) + (12 - startMonth + 2) )
+				stopifnot(endYear >= endyear)	#account for missing months in last year, but don't allow missing years; e.g., precipitation of 'HadGEM2-ES' has values only until Nov 2099
+				addMissingMonthAtEnd <- 12 - endMonth
+				timeCount <- (endyear - startyear + 1) * 12 - addMissingMonthAtEnd
+				
+				return( list(timeStartIndex=timeStartIndex, timeCount=timeCount, addMissingMonthAtEnd=addMissingMonthAtEnd) )
 			}
 			
 			get.GDODCPUCLLNL <- function(scen, gcm, lon, lat, startyear, endyear){
-				get.netCDFcontent <- function(filepath, variable, unit, startyear, timeCount){
+				get.netCDFcontent <- function(filepath, variable, unit, startyear, endyear){
 					nc <- nc_open(filename=filepath, write=FALSE, readunlim=TRUE, verbose=FALSE)
 					stopifnot(grepl(unit, nc$var[[variable]]$units, fixed=TRUE))
 					
 					#Time index
-					timeStartIndex <- get.TimeStartIndex(nc=nc, startyear=startyear)
+					nct <- get.TimeIndices(nc=nc, startyear=startyear, endyear=endyear)
 					
 					#matrices containing the latitudes/longitudes in the netCDF files... these are used to get the correct indices in the whereNearest function in the nc_getByCoords function
 					lats <- nc$dim$lat$vals   # NOTE: dim values are CACHED, don't read them
@@ -272,25 +282,25 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 					if(any(lons > 180)) lons <- ifelse(lons > 180, lons - 360, lons)
 					
 					# getting the values from the netCDF files...
-					res <- nc_getByCoords(nc=nc, varid=variable, lats=lats, lons=lons, lat=lat, lon=lon, timeStartIndex=timeStartIndex, timeCount=timeCount)
+					res <- nc_getByCoords(nc=nc, varid=variable, lats=lats, lons=lons, lat=lat, lon=lon, timeStartIndex=nct$timeStartIndex, timeCount=nct$timeCount)
+					if(nct$addMissingMonthAtEnd > 0) res <- c(res, rep(NA, times=nct$addMissingMonthAtEnd))
 					
 					nc_close(nc) #close the netCDF file
 					return(res)
 				}
 				
 				nYears <- endyear - startyear + 1
-				timeCount <- nYears * 12
 				gcmFiles <- list.files(file.path(dir.ex.dat, scen), pattern=gcm, full.names=TRUE)
 				
 				#Get precipitation data
-				prcp <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", startyear=startyear, timeCount=timeCount)
+				prcp <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", startyear=startyear, endyear=endyear)
 				prcp <- mmPerDay_to_cmPerMonth(prcp, startyear, endyear)
 				#Get temperature data
-				if(grepl(fileVarTags[3], gcmFiles) && grepl(fileVarTags[4], gcmFiles)){
-					tmin <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[3], gcmFiles)], variable=varTags[3], unit="C", startyear=startyear, timeCount=timeCount)
-					tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[4], gcmFiles)], variable=varTags[4], unit="C", startyear=startyear, timeCount=timeCount)
-				} else if(grepl(fileVarTags[2], gcmFiles)){
-					tmin <- tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(tmeanTagFile, gcmFiles)], variable=varTags[2], unit="C", startyear=startyear, timeCount=timeCount)
+				if(any(grepl(fileVarTags[3], gcmFiles)) && any(grepl(fileVarTags[4], gcmFiles))){
+					tmin <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[3], gcmFiles)], variable=varTags[3], unit="C", startyear=startyear, endyear=endyear)
+					tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[4], gcmFiles)], variable=varTags[4], unit="C", startyear=startyear, endyear=endyear)
+				} else if(any(grepl(fileVarTags[2], gcmFiles))){
+					tmin <- tmax <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[2], gcmFiles)], variable=varTags[2], unit="C", startyear=startyear, endyear=endyear)
 				}
 					
 				#calculate monthly averages for precipitation and temperature
@@ -346,10 +356,8 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 					is <- (i - 1) %/% nrow(reqGets) + 1
 					get.GDODCPUCLLNL(scen=reqGets[ig, 1], gcm=reqGets[ig, 2], lon=locations[is, 1], lat=locations[is, 2], startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)}
 			}
-					
-					res <- foreach(i = 1:nrow(locations), .combine=rbind, .inorder=FALSE) %dopar%
-					do_OneCoord(siteN=i, lat=locations[i, 2], lon=locations[i, 1], startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL, scen=list.scenarios[isc], name.prcp=list.prcp[igcm], name.tavg=list.tavg[igcm])
 
+			
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
