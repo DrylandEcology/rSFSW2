@@ -163,7 +163,8 @@ t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- FALSE
 
-#------Mode of framework: serial or parallel
+#------Mode of framework
+minVersionRsoilwat <- "0.27.1"
 num_cores <- 10
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE

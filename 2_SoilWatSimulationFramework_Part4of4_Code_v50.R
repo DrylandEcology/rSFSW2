@@ -353,7 +353,7 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat,quietly = TRUE)) {
+if(!require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat) {
 	print("Going to try to install Rsoilwat library")
 	installed <- FALSE
 	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
@@ -1802,9 +1802,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			t_sc <- rep(NA, times=12)
 		}
 		if(any(create_treatments=="LookupClimatePPTScenarios") | any(create_treatments=="LookupClimateTempScenarios") ) {
-			ppt_old <- rep(1, times=12)
-			t1_old <- t2_old <- rep(0, times=12)
-		
 			ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,1]
 			t1_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,2]
 			t2_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,3]
