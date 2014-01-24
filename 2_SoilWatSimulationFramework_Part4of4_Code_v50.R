@@ -2178,8 +2178,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#t1_old <- t2_old <- rep(0, times=12)
 			
 			ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
-			t_min_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
-			t_max_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
+			t_max_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
+			t_min_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
 
 			#write information into weatherin
 			if(use_pptscen || use_pptValscen){
@@ -2194,7 +2194,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			ppt_f <- ppt_f * as.numeric(ppt_scShift)
 			
-			MonthlyScalingParams<-matrix(data=c(ppt_f,t_min_f,t_max_f),nrow=12,ncol=3)
+			MonthlyScalingParams<-matrix(data=c(ppt_f,t_max_f,t_min_f),nrow=12,ncol=3)
 			colnames(MonthlyScalingParams)<-c("PPT","MaxT","MinT")
 			rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 			
