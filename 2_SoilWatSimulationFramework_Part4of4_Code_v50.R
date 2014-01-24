@@ -353,7 +353,7 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat) {
+if(!require(Rsoilwat,quietly = TRUE) || (require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") < minVersionRsoilwat)) {
 	print("Going to try to install Rsoilwat library")
 	installed <- FALSE
 	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
@@ -370,7 +370,7 @@ if(!require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersion
 		installed <- is.null(installed)
 	}
 	if(!installed) stop("Could not install package Rsoilwat please contact admin.")
-	stopifnot(require(Rsoilwat,quietly = TRUE))
+	stopifnot(require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
 }
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
