@@ -344,7 +344,7 @@ dir.libraries <- .libPaths()[1]
 if (.Platform$OS.type == "windows") {
 	#test if user has write permission to standard library path
 	err <- try(write.table(1, file=ftemp <- file.path(dir.libraries, "testPermission.txt")))
-	if(identical(class(err), "try-error")){
+	if(inherits(err, "try-error")){
 		print(paste("User has no write permission for:", dir.libraries, ". A local path is attempted instead, but this is known to likely fail for the setup of 'snow' under Windows XP"))
 		dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
 		if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
@@ -1085,7 +1085,7 @@ if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			endYear <- endyr
 		#read data from Maurer et al. 2002
 		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
-		if(!identical(class(weath.data), "try-error")){
+		if(!inherits(weath.data, "try-error")){
 			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 			
 			#times
@@ -2548,7 +2548,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(tscale == "yr")
 				temp1 <- scaler * runData[[sc_i]][[response]][[1]]
 			
-			if(identical(class(temp1), "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
+			if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
 			if(tscale == "dy"){
 				index.col <- 2
 				index.usetimestep <- simTime$index.usedy
@@ -3922,7 +3922,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					temp.temp <- runData[[sc]][[sw_temp]][[sw_dy]]
 					TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
 					temp.soiltemp <- runData[[sc]][[sw_soiltemp]][[sw_dy]]
-					if(identical(class(temp.soiltemp), "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
+					if(inherits(temp.soiltemp, "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
 						use.soiltemp <- FALSE	#flag whether soil temperature output is available or not (and then air temperature is used instead of top soil temperature)
 					} else {
 						use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
