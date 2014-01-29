@@ -475,7 +475,7 @@ if(dim(sw_input_soillayers)[2] == 1) stop("SoilLayers might be tab separated ins
 if(dim(sw_input_treatments_use)[2] == 1) stop("Treatments might be tab separated instead of comma.")
 if(dim(sw_input_experimentals_use)[2] == 1) stop("Experimentals might be tab separated instead of comma.")
 
-if (actionWithSoilWat) {
+if (actionWithSoilWat || any(actions == "external")) {
 	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
 	sw_input_cloud <- read.csv(temp, skip=1)
 	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
