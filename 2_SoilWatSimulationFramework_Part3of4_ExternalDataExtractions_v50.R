@@ -43,6 +43,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 	
 	if(!is.null(temp) && sum(include_YN) * length(temp) < 5000){
 		reqGets <- matrix(temp, ncol=2, byrow=TRUE)
+		reqGets[, 1] <- tolower(reqGets[, 1])
 		
 		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
 		gcmsNEX <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", " GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
@@ -64,10 +65,11 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			variables <- c("pr", "tasmin", "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
 		
 			get.NEX <- function(i, startyear=NULL, endyear=NULL){
-				scen <- tolower(reqGets[ig <- (i - 1) %% nrow(reqGets) + 1, 1])
+				scen <- reqGets[ig <- (i - 1) %% nrow(reqGets) + 1, 1]
 				gcm <- reqGets[ig, 2]
 				lon <- locations[il <- (i - 1) %/% nrow(reqGets) + 1, 1]
 				lat <- locations[il, 2]
+				if(print.debug) print(paste("Extract NEX for", gcm, scen, "at", lon, lat))
 
 				mmPerSecond_to_cmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
 					DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths			
@@ -114,7 +116,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#get data from NEX
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("get.NEX", "reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp")
+				list.export <- c("get.NEX", "reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "print.debug")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					
@@ -138,7 +140,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			} else {
 					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 			}
-			
+						
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -162,6 +164,9 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
 			
 			rm(reqGets, icols, res, idLocs, idLocRes, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
+		
+			#make sure no lingering temp files are left on the hard drive
+			if(length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
 		} else {
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'")
 		}
@@ -340,7 +345,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			} else {
 				res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.GDODCPUCLLNL(i=i, startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)
 			}
-			
+
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
