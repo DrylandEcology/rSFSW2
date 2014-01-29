@@ -154,7 +154,7 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 		db_treatments_rows <- nrow(db_treatments)
 		#this maps locations from reduced
 		temp<-duplicated(df)
-		treatments_unique_map<-rep(NA,length(df))
+		treatments_unique_map<-rep(NA,nrow(df))
 		temp2 <- data.frame(t(df))
 		treatments_unique_map[temp]<-match(data.frame(t(df[temp,])),temp2)
 		treatments_unique_map[!temp] <- match(data.frame(t(df[!temp,])),temp2)
