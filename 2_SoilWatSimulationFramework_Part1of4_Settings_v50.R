@@ -294,7 +294,7 @@ datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
 
-if ((any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
+if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v11.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
@@ -305,7 +305,7 @@ if ((any(actions == "create") || any(actions == "execute") || any(actions == "ag
 	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
-if ((any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
+if (( any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
 	trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
 	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
 	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
