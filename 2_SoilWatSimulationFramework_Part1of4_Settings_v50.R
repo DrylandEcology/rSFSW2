@@ -274,11 +274,14 @@ climate.ambient <- "Current"	#Name of climatic conditions of the daily weather i
 #if requesting ensembles, then names must include the scenario flags of 'ensemble.families'
 climate.conditions <- c(climate.ambient, 	"sresa2.bccr_bcm2_0", "sresa2.cccma_cgcm3_1", "sresa2.cnrm_cm3", "sresa2.csiro_mk3_0", "sresa2.gfdl_cm2_0", "sresa2.gfdl_cm2_1", "sresa2.giss_model_e_r", "sresa2.inmcm3_0", "sresa2.ipsl_cm4", "sresa2.miroc3_2_medres", "sresa2.miub_echo_g", "sresa2.mpi_echam5", "sresa2.mri_cgcm2_3_2a", "sresa2.ncar_ccsm3_0", "sresa2.ncar_pcm1", "sresa2.ukmo_hadcm3",
 											"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
+climate.conditions <- c(climate.ambient,	"RCP45.CanESM2", "RCP45.CESM1-CAM5", "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2", "RCP45.FGOALS-s2", "RCP45.GFDL-CM3", "RCP45.GISS-E2-R", "RCP45.HadGEM2-CC", "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-MR", "RCP45.MIROC-ESM", "RCP45.MIROC5", "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3",
+											"RCP85.CanESM2", "RCP85.CESM1-CAM5", "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2", "RCP85.FGOALS-s2", "RCP85.GFDL-CM3", "RCP85.GISS-E2-R", "RCP85.HadGEM2-CC", "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-MR", "RCP85.MIROC-ESM", "RCP85.MIROC5", "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3")
 #Future time period simulated = delta + simstartyr:endyr; also used to extract external climate conditions
 deltaFutureToSimStart_yr <- 90
 
 #Climate ensembles created across scenarios
 ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
+ensemble.families <- c("RCP45", "RCP85")
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
