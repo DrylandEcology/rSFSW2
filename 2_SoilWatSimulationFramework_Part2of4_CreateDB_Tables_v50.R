@@ -741,44 +741,46 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	dbClearResult(rs)
 	
-	doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-	doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
-	
-	dailySQL <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
-	dailyLayersSQL <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
-	
-	if(any(simulation_timescales=="daily") && daily_no > 0) {
-		for(doi in 1:daily_no) {
-			if(regexpr("SWA", output_aggregate_daily[doi]) > 0){
-				agg.resp <- "SWA"
-				index.SWPcrit <- -as.numeric(sub("kPa", "", sub("SWAatSWPcrit", "", output_aggregate_daily[doi])))/1000
-			} else {
-				agg.resp <- output_aggregate_daily[doi]
-			}
-			agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-			
-			tableName <- paste("aggregation_doy_", output_aggregate_daily[doi], sep="")
-			
-			if(agg.analysis == 1){
+	if(!is.null(output_aggregate_daily)) {
+		doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
+		doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
+		
+		dailySQL <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
+		dailyLayersSQL <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
+		
+		if(any(simulation_timescales=="daily") && daily_no > 0) {
+			for(doi in 1:daily_no) {
+				if(regexpr("SWA", output_aggregate_daily[doi]) > 0){
+					agg.resp <- "SWA"
+					index.SWPcrit <- -as.numeric(sub("kPa", "", sub("SWAatSWPcrit", "", output_aggregate_daily[doi])))/1000
+				} else {
+					agg.resp <- output_aggregate_daily[doi]
+				}
+				agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+				
+				tableName <- paste("aggregation_doy_", output_aggregate_daily[doi], sep="")
+				
+				if(agg.analysis == 1){
 					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailySQL, ");", sep="")
 					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailySQL, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
-			} else {
+				} else {
 					SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailyLayersSQL, ");", sep="")
 					SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailyLayersSQL, ");", sep="")
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
 					dbClearResult(rs)
 					rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 					dbClearResult(rs)
+				}
+				
 			}
-			
+			rm(tableName, agg.analysis, agg.resp, SQL_Table_Definitions1, SQL_Table_Definitions2)
 		}
-		rm(tableName, agg.analysis, agg.resp, SQL_Table_Definitions1, SQL_Table_Definitions2)
+		rm(rs, temp, doy_colnames)
 	}
-	rm(rs, temp, doy_colnames)
 	##########################################ENSEMBLE GENERATION#################################################
 	
 	Tables<-dbListTables(con)
