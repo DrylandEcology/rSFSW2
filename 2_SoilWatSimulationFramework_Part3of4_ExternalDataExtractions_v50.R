@@ -69,7 +69,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				gcm <- reqGets[ig, 2]
 				lon <- locations[il <- (i - 1) %/% nrow(reqGets) + 1, 1]
 				lat <- locations[il, 2]
-				if(print.debug) print(paste("Extract NEX for", gcm, scen, "at", lon, lat))
+				if(!be.quiet) print(paste(i, "th extraction of NEX for", gcm, scen, "at", lon, lat))
 
 				mmPerSecond_to_cmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
 					DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths			
@@ -140,7 +140,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			} else {
 					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 			}
-						
+save(res, file=file.path(dir.out.temp, "extractionNEX.RData"))
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -270,6 +270,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 				gcm <- reqGets[ig, 2]
 				lon <- locations[il <- (i - 1) %/% nrow(reqGets) + 1, 1]
 				lat <- locations[il, 2]
+				if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction GDO-DCP-UC-LLNL for", gcm, scen, "at", lon, lat))
 
 				get.netCDFcontent <- function(filepath, variable, unit, startyear, endyear){
 					nc <- nc_open(filename=filepath, write=FALSE, readunlim=TRUE, verbose=FALSE)
@@ -320,7 +321,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			#get data from netCDF files
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags")
+				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
@@ -342,10 +343,11 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 					snow::clusterEvalQ(cl, gc())
 				} else if(identical(parallel_backend, "multicore")) {
 					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %dopar% get.GDODCPUCLLNL(i=i, startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)
+				}
 			} else {
 				res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.GDODCPUCLLNL(i=i, startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)
 			}
-
+save(res, file=file.path(dir.out.temp, "extractionGDODCPUCLLNL.RData"))
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
