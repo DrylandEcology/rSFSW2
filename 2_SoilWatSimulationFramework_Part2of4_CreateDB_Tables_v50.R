@@ -346,7 +346,6 @@ if((length(Tables) == 0) || (cleanDB && !(length(actions) == 1 && actions == "en
 	
 	################CREATE VIEW########################
 	sites_columns <- colnames(SWRunInformation[Index_RunInformation])
-	sites_columns <- sub("ID","site_id AS ID",sites_columns)
 	if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
 	treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
 	if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
