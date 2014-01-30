@@ -846,7 +846,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 	dbOverallColumns <- try(.local(), silent=TRUE)
 	if(inherits(dbOverallColumns, "try-error")){
-		temp <- list.files(dir.out, pattern=".sqlite3")
+		temp <- list.files(dir.out, pattern=".sqlite3", full.names=TRUE)
 		temp <- lapply(temp, unlink)
 		stop(paste("Creation of databases failed:", dbOverallColumns, collapse=", "))
 	}
