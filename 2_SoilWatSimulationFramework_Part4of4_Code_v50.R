@@ -589,7 +589,9 @@ scenario_No <- length(climate.conditions)
 scenario <- climate.conditions
 
 #------create ensembles
+if(length(ensemble.levels) > 0) ensemble.levels <- sort(ensemble.levels)
 do.ensembles <- any(actions=="ensemble") && !is.null(ensemble.families) && length(ensemble.levels) > 0 && is.numeric(ensemble.levels) && length(climate.conditions) > 1
+
 if(do.ensembles){
 	scenarios.ineach.ensemble <- sapply(ensemble.families, function(x) grepl(pattern=x, scenario, ignore.case=TRUE), simplify=TRUE)
 	ensemble.families <- ensemble.families[temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=any)]
@@ -633,7 +635,6 @@ if(any(simulation_timescales=="daily")){
 		}
 	}
 }
-ensemble.levels<-sort(ensemble.levels)
 
 #------ Create the Database and Tables within
 if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.time()))
