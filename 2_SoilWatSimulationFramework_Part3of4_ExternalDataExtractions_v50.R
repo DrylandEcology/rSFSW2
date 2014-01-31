@@ -347,7 +347,8 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			} else {
 				res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.GDODCPUCLLNL(i=i, startyear=startGDODCPUCLLNL, endyear=endGDODCPUCLLNL)
 			}
-save(res, file=file.path(dir.out.temp, "extractionGDODCPUCLLNL.RData"))
+			save(res, file=file.path(dir.sw.dat, "extractionGDODCPUCLLNL.RData"))
+			
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
@@ -360,7 +361,15 @@ save(res, file=file.path(dir.out.temp, "extractionGDODCPUCLLNL.RData"))
 			idLocRes <- apply(res[, 1:2], 1, paste0, collapse="_")
 			res <- res[match(idLocRes, idLocs, nomatch=0), ]
 			
-			if((temp <- nrow(res) - sum(complete.cases(res))) > 0) warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'"))
+			if((temp <- nrow(res) - sum(complete.cases(res))) > 0){
+				warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL'"))
+				failedLocations_GDODCPUCLLNL <- locations[temp <- which(apply(res, 1, FUN=function(x) any(is.na(x)))), ]
+				include_YN_updateFailed <- include_YN
+				include_YN_updateFailed[include_YN > 0][temp] <- 0
+				save(failedLocations_GDODCPUCLLNL, include_YN_updateFailed, file=file.path(dir.in, "failedLocations_GDODCPUCLLNL.RData"))
+				SWRunInformation_updateFailed <- cbind(SWRunInformation, include_YN_updateFailed=include_YN_updateFailed)
+				write.csv(SWRunInformation_updateFailed, file=file.path(dir.in, paste0("failedLocationsUpdated_GDODCPUCLLNL_", datafile.SWRunInformation)))
+			}
 			
 			#add data to sw_input_climscen and set the use flags
 			icols <- 1 + 12 * 3 + 1:(nrow(reqGets) * 12 * 3)
@@ -377,7 +386,7 @@ save(res, file=file.path(dir.out.temp, "extractionGDODCPUCLLNL.RData"))
 		rm(dir.ex.dat, gcmsGDODCPUCLLNL, scenariosGDODCPUCLLNL)
 	}
 
-	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios/BCSD_GDODCPUCLLNL' at", Sys.time()))
+	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL' at", Sys.time()))
 	
 }
 
