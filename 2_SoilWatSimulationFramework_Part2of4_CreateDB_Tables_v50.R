@@ -365,14 +365,14 @@ if((length(Tables) == 0) || do.clean) {
 		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 		header_columns<-paste(header_columns,collapse = ", ")
 	
-		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years, weatherfolders WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
+		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
 		##################################################
 	
 	#B. Aggregation_Overall
 	
 		##############################################################---Aggregation: SoilWat inputs---##############################################################
 		## Note: All '.' will be translated to "_" because of sqlite field name constraints
-
+		temp <- character(0)
 	#0.
 		if(aon$input_SoilProfile){
 			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
