@@ -5,9 +5,9 @@
 #--------------------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
-# - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2013
+# - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2014
 # - Donovan Miller (dlm): 2012
-# - Ryan Murphy (rjm): 2012-2013
+# - Ryan Murphy (rjm): 2012-2014
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
 #The R code below was tested on R version 3.0.2
