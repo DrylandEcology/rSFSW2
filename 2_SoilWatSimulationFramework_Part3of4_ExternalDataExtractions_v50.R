@@ -55,6 +55,8 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			
 			#put requests together
 			requestN <- nrow(reqGets) * nrow(locations)
+			if(!be.quiet) print(paste("'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' will run", requestN, "times"))
+			
 			startNEX <- max(2006, deltaFutureToSimStart_yr + simstartyr)
 			endNEX <- min(2099, deltaFutureToSimStart_yr + endyr)
 			
@@ -69,7 +71,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				gcm <- reqGets[ig, 2]
 				lon <- locations[il <- (i - 1) %/% nrow(reqGets) + 1, 1]
 				lat <- locations[il, 2]
-				if(!be.quiet) print(paste(i, "th extraction of NEX for", gcm, scen, "at", lon, lat))
+				if(!be.quiet) print(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, scen, "at", lon, lat))
 
 				mmPerSecond_to_cmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
 					DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths			
@@ -216,6 +218,8 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			#put requests together
 			locations <- with(SWRunInformation[include_YN > 0, ], data.frame(X_WGS84, Y_WGS84))	#locations of simulation runs
 			requestN <- nrow(reqGets) * nrow(locations)
+			if(!be.quiet) print(paste("'ExtractClimateChangeScenarios/BCSD_GDODCPUCLLNL' will run", requestN, "times"))
+			
 			startGDODCPUCLLNL <- max(2006, deltaFutureToSimStart_yr + simstartyr)
 			endGDODCPUCLLNL <- min(2099, deltaFutureToSimStart_yr + endyr)
 			
@@ -279,7 +283,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 				gcm <- reqGets[ig, 2]
 				lon <- locations[il <- (i - 1) %/% nrow(reqGets) + 1, 1]
 				lat <- locations[il, 2]
-				if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction GDO-DCP-UC-LLNL for", gcm, scen, "at", lon, lat))
+				if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction of GDO-DCP-UC-LLNL at", Sys.time(), "for", gcm, scen, "at", lon, lat))
 
 				get.netCDFcontent <- function(filepath, variable, unit, startyear, endyear){
 					nc <- nc_open(filename=filepath, write=FALSE, readunlim=TRUE, verbose=FALSE)
