@@ -32,6 +32,19 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 	}
 }
 
+if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
+	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
+	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
+	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global ||
+	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	
+	if(!require(reshape2, quietly=TRUE)) {
+		tryCatch(install.packages("reshape2", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("reshape2 failed to install"); stop("Stopping") })
+		stopifnot(require(reshape2, quietly=TRUE))
+	}
+}
+
+
 
 
 #--------------------------------------------------------------------------------------------------#
@@ -149,12 +162,13 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
 			res <- cbind(i_climCond, res)
 			dimnames(res) <- list(NULL, c("CC", "Lon", "Lat", paste0(rep(c("pr", "tmin", "tmax"), each=12), rep(1:12, times=2))))
-			res <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
+			#reshape uses too much memory: res <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
+			res <- acast(melt(as.data.frame(res), id.vars=c("CC", "Lon", "Lat")), formula=Lon+Lat~CC+variable)
 			
 			#sort sites
 			idLocs <- apply(locations, 1, paste0, collapse="_")
 			idLocRes <- apply(res[, 1:2], 1, paste0, collapse="_")
-			res <- res[match(idLocRes, idLocs, nomatch=0), ]
+			res <- res[match(rownames(res), idLocs, nomatch=0), ]
 			
 			if((temp <- nrow(res) - sum(complete.cases(res))) > 0){
 				warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'"))
@@ -169,7 +183,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#add data to sw_input_climscen and set the use flags
 			icols <- 1 + 12 * 3 + 1:(nrow(reqGets) * 12 * 3)
 			sw_input_climscen_values_use[icols] <- 1
-			sw_input_climscen_values[include_YN > 0, icols] <- res[, -(1:2)]
+			sw_input_climscen_values[include_YN > 0, icols] <- res
 			
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
@@ -367,12 +381,12 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
 			res <- cbind(i_climCond, res)
 			dimnames(res) <- list(NULL, c("CC", "Lon", "Lat", paste0(rep(c("pr", "tmin", "tmax"), each=12), rep(1:12, times=2))))
-			res <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
+			#uses too much memory: resRT <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
+			res <- acast(melt(as.data.frame(res), id.vars=c("CC", "Lon", "Lat")), formula=Lon+Lat~CC+variable)
 			
 			#sort sites
 			idLocs <- apply(locations, 1, paste0, collapse="_")
-			idLocRes <- apply(res[, 1:2], 1, paste0, collapse="_")
-			res <- res[match(idLocRes, idLocs, nomatch=0), ]
+			res <- res[match(rownames(res), idLocs, nomatch=0), ]
 			
 			if((temp <- nrow(res) - sum(complete.cases(res))) > 0){
 				warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL'"))
@@ -387,7 +401,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
 			#add data to sw_input_climscen and set the use flags
 			icols <- 1 + 12 * 3 + 1:(nrow(reqGets) * 12 * 3)
 			sw_input_climscen_values_use[icols] <- 1
-			sw_input_climscen_values[include_YN > 0, icols] <- res[, -(1:2)]
+			sw_input_climscen_values[include_YN > 0, icols] <- res
 			
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
