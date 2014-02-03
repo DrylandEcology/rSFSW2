@@ -1,6 +1,11 @@
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 
+exinfo$GDODCPUCLLNL <-  exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
+						exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
+						exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
+						exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global
+
 #------Load required packages
 if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
 	if(!require(rgdal, quietly=TRUE)) {
@@ -21,22 +26,14 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 	}
 }
 
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
-	
+if(exinfo$GDODCPUCLLNL){
 	if(!require(ncdf4, quietly=TRUE)) {
 		tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
 		stopifnot(require(ncdf4, quietly=TRUE))
 	}
 }
 
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+if(exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 	
 	if(!require(reshape2, quietly=TRUE)) {
 		tryCatch(install.packages("reshape2", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("reshape2 failed to install"); stop("Stopping") })
@@ -204,10 +201,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 }
 
 
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
-	exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+if(exinfo$GDODCPUCLLNL){
 
 	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios/BCSD_GDODCPUCLLNL' at", Sys.time()))
 
