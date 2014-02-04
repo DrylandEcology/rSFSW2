@@ -51,12 +51,12 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 	
 	temp <- unlist(strsplit(climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE))
 	
-	if(!is.null(temp) && sum(include_YN) * length(temp) < 5000){
+	if(!is.null(temp) && sum(include_YN) * length(temp) < 6500){
 		reqGets <- matrix(temp, ncol=2, byrow=TRUE)
 		reqGets[, 1] <- tolower(reqGets[, 1])
 		
 		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
-		gcmsNEX <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", " GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
+		gcmsNEX <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
 		scenariosNEX <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
 		
 		if(all(reqGets[, 1] %in% scenariosNEX) && all(reqGets[, 2] %in% gcmsNEX)){
@@ -128,7 +128,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#get data from NEX
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("get.NEX", "reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "print.debug")
+				list.export <- c("reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "be.quiet")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					
@@ -136,9 +136,13 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 
 					mpi.bcast.cmd(rm(list=ls(all=TRUE)))
 					mpi.bcast.cmd(gc())
-
+					
+					igood <- sapply(res, FUN=function(x) !inherits(x, "try-error"))
+					stopifnot(sum(igood) > 0)
+					res <- res[igood]
 					temp <- sapply(res, FUN=rownames)
-					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL))
+					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL), byrow=TRUE)
+					rm(igood)
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
 					
@@ -193,7 +197,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'")
 		}
 		rm(gcmsNEX, scenariosNEX)
-	} else if(sum(include_YN) * length(temp) >= 5000){
+	} else if(sum(include_YN) * length(temp) >= 6500){
 		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations x climate conditions (here, ", sum(include_YN) * length(), "), a different approach downloading a spatial bounding box may be more appropriate"))
 	}
 
@@ -342,7 +346,7 @@ if(exinfo$GDODCPUCLLNL){
 			#get data from netCDF files
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet")
+				list.export <- c("dir.ex.dat", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
@@ -352,8 +356,12 @@ if(exinfo$GDODCPUCLLNL){
 					mpi.bcast.cmd(rm(list=ls(all=TRUE)))
 					mpi.bcast.cmd(gc())
 
+					igood <- sapply(res, FUN=function(x) !inherits(x, "try-error"))
+					stopifnot(sum(igood) > 0)
+					res <- res[igood]
 					temp <- sapply(res, FUN=rownames)
-					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL))
+					res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL), byrow=TRUE)
+					rm(igood)
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
 					snow::clusterEvalQ(cl, library(ncdf4, quietly = TRUE))
