@@ -288,6 +288,13 @@
 
 if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
 
+.Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
+	if (is.loaded("mpi_initialize")){
+		if (mpi.comm.size(1) > 0) mpi.close.Rslaves()
+		.Call("mpi_finalize")
+	}
+}
+
 #------
 actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
 actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")
