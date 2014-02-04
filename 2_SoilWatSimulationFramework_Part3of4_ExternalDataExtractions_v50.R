@@ -168,8 +168,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			
 			#sort sites
 			idLocs <- apply(locations, 1, paste0, collapse="_")
-			idLocRes <- apply(res[, 1:2], 1, paste0, collapse="_")
-			res <- res[match(rownames(res), idLocs, nomatch=0), ]
+			res <- res[match(idLocs, rownames(res), nomatch=0), ]
 			
 			if((temp <- nrow(res) - sum(complete.cases(res))) > 0){
 				warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'"))
@@ -189,7 +188,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
 			
-			rm(reqGets, icols, res, idLocs, idLocRes, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
+			rm(reqGets, icols, res, idLocs, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
 		
 			#make sure no lingering temp files are left on the hard drive
 			if(length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
@@ -388,7 +387,7 @@ if(exinfo$GDODCPUCLLNL){
 			
 			#sort sites
 			idLocs <- apply(locations, 1, paste0, collapse="_")
-			res <- res[match(rownames(res), idLocs, nomatch=0), ]
+			res <- res[match(idLocs, rownames(res), nomatch=0), ]
 			
 			if((temp <- nrow(res) - sum(complete.cases(res))) > 0){
 				warning(paste(temp, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL'"))
@@ -408,7 +407,7 @@ if(exinfo$GDODCPUCLLNL){
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
 			
-			rm(locations, requestN, startGDODCPUCLLNL, endGDODCPUCLLNL, i_climCond, res, idLocs, idLocRes, icols, fileVarTags, varTags)
+			rm(locations, requestN, startGDODCPUCLLNL, endGDODCPUCLLNL, i_climCond, res, idLocs, icols, fileVarTags, varTags)
 		} else {
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP3/5_BCSD_GDODCPUCLLNL'")
 		}
