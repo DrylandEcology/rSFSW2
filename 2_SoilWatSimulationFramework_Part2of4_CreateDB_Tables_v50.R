@@ -449,7 +449,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 	#10.
 		if(any(simulation_timescales=="daily") & aon$dailySnowpack){
-			temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "Peak_mmSWE", "LongestContinuous.Duration_days", "Total_days"), "_mean", sep=""))
+			temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean", sep=""))
 		}
 	#
 		if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
