@@ -96,15 +96,19 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					request <- paste0(paste(url.nex.ncss, downscaling, scen, gcmrun,
 									paste0(gcm, "_", var, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", var), 
 							"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
-							paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T12%3A00%3A00Z&timeStride=1"),
+							paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 							"&accept=csv")
 					
 					success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
+
+#require(RCurl)
+#myCsv <- getURL("https://gist.github.com/raw/667867/c47ec2d72801cfd84c6320e1fe37055ffe600c87/test.csv")
+#WhatJDwants <- read.csv(textConnection(myCsv))
 					
 					dat <- rep(NA, times=12*yearsN)
 					if(!inherits(success, "try-error") && success == 0){
 						temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
-						if(nrow(temp) < 12*yearsN){
+						if(nrow(temp) < 12*yearsN){ #some GCMs only have values up to Nov 2099
 							tempYearMonth <- paste((temp2 <- as.POSIXlt(temp[, 1]))$year + 1900, temp2$mo + 1, sep="_")
 							targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
 							dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- temp[match(targetYearMonth, tempYearMonth, nomatch=0), 2]
@@ -112,7 +116,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							dat <- temp[, 2]
 						}
 					}
-					if(file.exists(ftemp)) unlink(ftemp)
+					#if(file.exists(ftemp)) unlink(ftemp)
 					
 					return(dat)
 				}
