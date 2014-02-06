@@ -790,7 +790,7 @@ if((length(Tables) == 0) || do.clean) {
 			}
 		}
 
-
+		
 		##########################################ENSEMBLE GENERATION#################################################
 		if(do.ensembles && ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)){
 	
@@ -837,10 +837,7 @@ if((length(Tables) == 0) || do.clean) {
 				dbDisconnect(con)
 			}
 		}
-
-
 		return(dbOverallColumns)
-	
 	}
 	
 	dbOverallColumns <- try(.local(), silent=TRUE)
