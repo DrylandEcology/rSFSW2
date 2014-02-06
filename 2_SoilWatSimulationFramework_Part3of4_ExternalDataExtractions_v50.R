@@ -90,20 +90,27 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				
 				if(is.null(startyear)) startyear <- ifelse(identical(scen, "historical"), 1950, 2006)
 				if(is.null(endyear)) endyear <- ifelse(identical(scen, "historical"), 2005, 2099)
+				yearsN <- endyear - startyear + 1
 				
 				get.NEXvariable <- function(var, scen, gcm, lon, lat){
 					request <- paste0(paste(url.nex.ncss, downscaling, scen, gcmrun,
 									paste0(gcm, "_", var, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", var), 
 							"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
-							paste0("&time_start=", startyear, "-01-16T12%3A00%3A00Z&time_end=", endyear, "-12-16T12%3A00%3A00Z&timeStride=1"),
+							paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T12%3A00%3A00Z&timeStride=1"),
 							"&accept=csv")
 					
 					success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
 					
+					dat <- rep(NA, times=12*yearsN)
 					if(!inherits(success, "try-error") && success == 0){
-						dat <- read.csv(ftemp, colClasses=c("NULL", "NULL", "NULL", "numeric"))[, 1] #colnames = Time, Lat, Long, Variable
-					} else {
-						dat <- rep(NA, times=12)
+						temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
+						if(nrow(temp) < 12*yearsN){
+							tempYearMonth <- paste((temp2 <- as.POSIXlt(temp[, 1]))$year + 1900, temp2$mo + 1, sep="_")
+							targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
+							dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- temp[match(targetYearMonth, tempYearMonth, nomatch=0), 2]
+						} else {
+							dat <- temp[, 2]
+						}
 					}
 					if(file.exists(ftemp)) unlink(ftemp)
 					
@@ -119,7 +126,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					} else if(grepl("tas", variables[iv])){
 						temp <- temp - 273.15	#convert K -> C
 					}
-					res[2 + (iv - 1)*12 + 1:12] <- aggregate(temp, by=list(rep(1:12, times=length(temp) %/% 12)), FUN=mean)$x
+					res[2 + (iv - 1)*12 + 1:12] <- aggregate(temp, by=list(rep(1:12, times=yearsN)), FUN=mean)$x
 				}
 				
 				return(res)
@@ -146,15 +153,15 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
 					
-					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
+					res <- foreach(i=1:requestN, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 
 					snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
 					snow::clusterEvalQ(cl, gc())
 				} else if(identical(parallel_backend, "multicore")) {
-					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
+					res <- foreach(i=1:requestN, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 				}
 			} else {
-					res <- foreach(i=1:requestN, .combine="rbind", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
+					res <- foreach(i=1:requestN, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 			}
 			save(res, file=file.path(dir.sw.dat, "extractionNEX.RData"))
 
