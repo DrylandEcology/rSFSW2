@@ -2284,11 +2284,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				Shrubs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
 				
 				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(dir.sw.runs, paste("Rsoilwat_composition_",i,"_",sc,sep="")))
-				temp <-PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
+				temp <- try(PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 						use_Annuals_Fraction, Annuals_Fraction,
 						use_C4_Fraction, C4_Fraction,
 						use_C3_Fraction, C3_Fraction,
-						use_Shrubs_Fraction, Shrubs_Fraction)
+						use_Shrubs_Fraction, Shrubs_Fraction), silent=TRUE)
+				if(inherits(temp, "try-error")){
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+					break
+				}
 				grass.fraction <- temp$Composition[1]
 				swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
 				grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
