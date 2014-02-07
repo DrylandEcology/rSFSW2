@@ -41,17 +41,27 @@ if(exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_US
 	}
 }
 
+if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	useRCurl <- FALSE
+	if(!require(RCurl, quietly=TRUE)) {
+		tryCatch(install.packages("RCurl", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("RCurl failed to install, using 'download.files' instead") })
+	}
+	if(require(RCurl, quietly=TRUE)) useRCurl <- TRUE
+}
+
 
 
 
 #--------------------------------------------------------------------------------------------------#
 
 if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	deleteNEXtempfiles <- FALSE
 	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
 	
 	temp <- unlist(strsplit(climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE))
+	tempN <- sum(include_YN) * length(temp)
 	
-	if(!is.null(temp) && sum(include_YN) * length(temp) < 6500){
+	if(!is.null(temp) && tempN < 6500){
 		reqGets <- matrix(temp, ncol=2, byrow=TRUE)
 		reqGets[, 1] <- tolower(reqGets[, 1])
 		
@@ -71,7 +81,9 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			endNEX <- min(2099, deltaFutureToSimStart_yr + endyr)
 			
 			#function communicating with NEX
-			url.nex.ncss <- "http://dataserver.nccs.nasa.gov/thredds/ncss/grid/bypass/NEX-DCP30"
+			nasa.dataserver <- "http://dataserver.nccs.nasa.gov"
+			if(useRCurl) stopifnot(url.exists(nasa.dataserver)) #check whether we are online
+			url.nex.ncss <- paste0(nasa.dataserver, "/thredds/ncss/grid/bypass/NEX-DCP30")
 			downscaling <- "bcsd"
 			gcmrun <- "r1i1p1"
 			variables <- c("pr", "tasmin", "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
@@ -99,12 +111,16 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 							"&accept=csv")
 					
-					success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
-
-#require(RCurl)
-#myCsv <- getURL("https://gist.github.com/raw/667867/c47ec2d72801cfd84c6320e1fe37055ffe600c87/test.csv")
-#WhatJDwants <- read.csv(textConnection(myCsv))
-					
+					if(useRCurl && deleteNEXtempfiles){
+						success <- try(getURL(request), silent=TRUE)
+						if(!inherits(success, "try-error")){
+							ftemp <- textConnection(success)
+							success <- 0
+						}
+					} else {
+						success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
+					}
+										
 					dat <- rep(NA, times=12*yearsN)
 					if(!inherits(success, "try-error") && success == 0){
 						temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
@@ -116,7 +132,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							dat <- temp[, 2]
 						}
 					}
-					#if(file.exists(ftemp)) unlink(ftemp)
+					if(deleteNEXtempfiles && file.exists(ftemp)) unlink(ftemp)
 					
 					return(dat)
 				}
@@ -139,9 +155,10 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#get data from NEX
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "be.quiet")
+				list.export <- c("reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "be.quiet", "deleteNEXtempfiles", "useRCurl")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
+					if(useRCurl && deleteNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
 					
 					res <- mpi.applyLB(x=1:requestN, fun=get.NEX, startyear=startNEX, endyear=endNEX)
 
@@ -156,6 +173,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					rm(igood)
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
+					if(useRCurl && deleteNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
 					
 					res <- foreach(i=1:requestN, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 
@@ -171,7 +189,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 
 			#prepare data for SoilWat wrapper format
 			#reshape from long to wide format for climate conditions sorted as in 'climate.conditions'
-			i_climCond <- match(rownames(res), climate.conditions[!grepl(climate.ambient, climate.conditions)])
+			i_climCond <- match(rownames(res), apply(reqGets, 1, paste0, collapse="."))
 			res <- cbind(i_climCond, res)
 			dimnames(res) <- list(NULL, c("CC", "Lon", "Lat", paste0(rep(c("pr", "tmin", "tmax"), each=12), rep(1:12, times=2))))
 			#reshape uses too much memory: res <- reshape(data=data.frame(res), timevar="CC", idvar=c("Lon","Lat"), direction="wide")
@@ -202,14 +220,15 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			rm(reqGets, icols, res, idLocs, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
 		
 			#make sure no lingering temp files are left on the hard drive
-			if(length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
+			if(deleteNEXtempfiles && length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
 		} else {
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'")
 		}
 		rm(gcmsNEX, scenariosNEX)
-	} else if(sum(include_YN) * length(temp) >= 6500){
+	} else if(tempN >= 6500){
 		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations x climate conditions (here, ", sum(include_YN) * length(), "), a different approach downloading a spatial bounding box may be more appropriate"))
 	}
+	rm(deleteNEXtempfiles, tempN)
 
 	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
 }
