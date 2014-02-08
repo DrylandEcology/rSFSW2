@@ -1879,9 +1879,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		isdone.dailyAggs <- TRUE
 	}
 	
-	todo <- list(	aggregate=TRUE, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
+	todo <- list(aggregate=TRUE, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
 					create=TRUE,
-					execute=TRUE) 
+					execute=TRUE)
+	success <- list(aggregate=FALSE, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
+					create=FALSE,
+					execute=FALSE)
 	
 	#----Get preparations done
 	if( any(unlist(todo)) ){
@@ -2416,7 +2419,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			temp <- colnames(swSoils_Layers(swRunScenariosData[[1]]))
 			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, grep("sand", temp)] > 0, swSoils_Layers(swRunScenariosData[[1]])[, grep("clay", temp)] > 0)){
 				warning(paste("Run:", i, ", no or zero sand or clay content: SoilWat will likely crash"))
-				todo$execute <- todo$aggregate <- FALSE
+				todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
 				if(parallel_runs && identical(parallel_backend,"mpi")) mpi.send.Robj(i,0,4)
 			}		
 		}
@@ -2640,14 +2643,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				Shrubs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
 				
 				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(dir.sw.runs, paste("Rsoilwat_composition_",i,"_",sc,sep="")))
-				temp <-PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
+				temp <- try(PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 						use_Annuals_Fraction, Annuals_Fraction,
 						use_C4_Fraction, C4_Fraction,
 						use_C3_Fraction, C3_Fraction,
-						use_Shrubs_Fraction, Shrubs_Fraction)
-				grass.fraction <- temp$Composition[1]
-				swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
-				grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
+						use_Shrubs_Fraction, Shrubs_Fraction), silent=TRUE)
+				if(inherits(temp, "try-error")){
+					todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+				} else {
+					grass.fraction <- temp$Composition[1]
+					swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
+					grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
+				}
 			}
 			
 			if(print.debug) print("Start of biomass adjustments")
@@ -2805,7 +2812,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 			
 		if(!EVCO_done || !TRCO_done || !TRRG_done) todo <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
-		
+			
 		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
 	
@@ -4934,11 +4941,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		write(SQL, dbTempFile, append=TRUE)
 	} #end if do aggregate
 	
+	if(any(!unlist(todo))) success <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+	
 	#ETA estimation
 	dt <- difftime(Sys.time(), time.sys, units="secs")
 	times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("numeric", "numeric"))
 	if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
-	write.table(data.frame(i=i,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
+	if(all(unlist(success))) write.table(data.frame(i=i,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
 	
 	return(1)	
 } #end do_OneSite()
