@@ -16,7 +16,7 @@ filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 
 #weather folder name and structure
-if(exinfo$ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
   dirname.sw.runs.weather <- paste("data", format(28.8125+round((SWRunInformation[i_tr,]$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((SWRunInformation[i_tr,]$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
   sw_weatherList <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), sw_input_treatments[i_tr,]$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), sw_input_treatments[i_tr,]$YearEnd, endyr))
   if(is.null(sw_weatherList)) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
