@@ -725,7 +725,7 @@ if((length(Tables) == 0) || do.clean) {
 						"Germination.TimeToGerminate_days_mean",
 						paste(SeedlingMortality_CausesByYear_colnames, "_days_mean", sep=""))
 			
-				temp <- c(temp, temp1, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="."))
+				temp <- c(temp, paste(colnames(param.species_regeneration)[sp], temp.header1, sep="."))
 			
 				#Output for time series: not yet implemented for db			
 			}
