@@ -2815,6 +2815,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 	}#end if do create runs
+	if(todo$create) success$create <- TRUE
 	
 	if(makeInputForExperimentalDesign && trowExperimentals > 0 && length(create_experimentals) > 0) {
 		#This file will be used to remake the input files for experimentals
@@ -2869,7 +2870,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 	}#end if do execute
-	
+	if(todo$execute) success$execute <- TRUE
 	
 #------------------------AGGREGATE SOILWAT OUTPUT
 	
@@ -4938,16 +4939,24 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}#doi loop
 			}#end if daily output
 		} #end loop through scenarios
-		write(SQL, dbTempFile, append=TRUE)
+		
 	} #end if do aggregate
 	
-	if(any(!unlist(todo))) success <- list(aggregate=FALSE, create=FALSE, execute=FALSE)
+	if(todo$aggregate && nchar(SQL) > 0){
+		success$aggregate <- TRUE
+		write(SQL, dbTempFile, append=TRUE)
+	}
 	
-	#ETA estimation
-	dt <- difftime(Sys.time(), time.sys, units="secs")
-	times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("numeric", "numeric"))
-	if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
-	if(all(unlist(success))) write.table(data.frame(i=i,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
+	
+	if(all(unlist(success))){
+		#ETA estimation
+		dt <- difftime(Sys.time(), time.sys, units="secs")
+		times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
+		if(!be.quiet) print(paste(i, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN.todo*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN.todo-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))	
+		write.table(data.frame(i=i,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
+	} else {
+		print(paste(i, ":", i_labels, " unsuccessful:", paste(success, collapse=", ")))	
+	}
 	
 	return(1)	
 } #end do_OneSite()
