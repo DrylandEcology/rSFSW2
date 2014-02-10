@@ -346,6 +346,10 @@ timerfile2 <- "Timing_Simulation.csv"
 if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
 write.table(t(c("", "Time_s", "Number")), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 
+#concatenate file keeps track of sql files inserted into data
+concatFile <- "sqlFilesInserted.csv"
+concatFileProblemLines <- "sqlFilesProblemLines.csv"
+
 #------load libraries
 dir.libraries <- .libPaths()[1]
 if (.Platform$OS.type == "windows") {
@@ -5248,7 +5252,7 @@ if(any(actions=="concatenate")) {
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
 	temp <- as.double(temp)
-	if(temp <= (MaxRunDurationTime-900) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 15 minutes for anything useful
+	if(temp <= (MaxRunDurationTime-36000) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 10 hours for anything useful
 		library(RSQLite)
 		#Connect to the Database
 		drv <- dbDriver("SQLite")
@@ -5260,8 +5264,15 @@ if(any(actions=="concatenate")) {
 			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
 			dbGetQuery(con2,"DELETE FROM runs WHERE scenario_id != 1;")
 		}
-		
-		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE)
+		if(file.exists(file.path(dir.out.temp,concatFile))) {
+			completedFiles <- readLines(file.path(dir.out.temp,concatFile))
+		} else {
+			completedFiles <- character(0)
+		}
+		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE, ignore.case=FALSE)
+		if(any(theFileList %in% completedFiles)) {
+			theFileList <- theFileList[-which(theFileList %in% completedFiles)]#remove any already inserted files from list
+		}
 		
 		for(j in 1:length(theFileList)) {
 			FAIL <- FALSE
@@ -5269,7 +5280,7 @@ if(any(actions=="concatenate")) {
 			temp <- Sys.time() - t.overall
 			units(temp) <- "secs"
 			temp <- as.double(temp)
-			if((temp > (MaxRunDurationTime-480) & parallel_runs & identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
+			if((temp > (MaxRunDurationTime-2100) & parallel_runs & identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
@@ -5283,6 +5294,7 @@ if(any(actions=="concatenate")) {
 				index <- 1
 			}
 			dbBeginTransaction(con)
+			if(copyCurrentConditionsFromTempSQL) dbBeginTransaction(con2)
 			for(k in 1:length(SQLlines)) {
 				if(copyCurrentConditionsFromTempSQL) {
 					if(k == CurrentScenarioStartLineNumbers[index]) {
@@ -5292,6 +5304,7 @@ if(any(actions=="concatenate")) {
 								}, error=function(e) {
 									print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
 									print(e)
+									write(paste(file.path(dir.out.temp, theFileList[j]),",Current,",j,sep=""), file=file.path(dir.out.temp,concatFileProblemLines), append = TRUE)
 									return(NA)
 						})
 						if(typeof(res1) != "S4") {
@@ -5309,6 +5322,7 @@ if(any(actions=="concatenate")) {
 						}, error=function(e) {
 							print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
 							print(e)
+							write(paste(file.path(dir.out.temp, theFileList[j]),",Main,",j,sep=""), file=file.path(dir.out.temp,concatFileProblemLines), append = TRUE)
 							return(NA)
 						})
 				if(typeof(res) != "S4") {
@@ -5319,7 +5333,9 @@ if(any(actions=="concatenate")) {
 					dbClearResult(res)
 				}
 			}
+			if(copyCurrentConditionsFromTempSQL) dbCommit(con2)
 			dbCommit(con)
+			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
 			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
 			if(print.debug) {
 				temp2<-Sys.time() - temp
@@ -5378,7 +5394,7 @@ if(any(actions=="concatenate")) {
 		}
 		
 	} else {
-		print("Need more than 15 minutes to put SQL in Database.")
+		print("Need more than 10 hours to put SQL in Database.")
 	}
 }
 
