@@ -55,9 +55,11 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 #--------------------------------------------------------------------------------------------------#
 
 if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
-	deleteNEXtempfiles <- FALSE
+	saveNEXtempfiles <- FALSE
 	repeatUntilComplete <- TRUE
 	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
+	opt <- options("timeout")
+	options(timeout=5*60)
 	
 	temp <- unlist(strsplit(climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE))
 	tempN <- sum(include_YN) * length(temp)
@@ -112,8 +114,8 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 							"&accept=csv")
 					
-					if(useRCurl && deleteNEXtempfiles){
-						success <- try(getURL(request), silent=TRUE)
+					if(useRCurl && !saveNEXtempfiles){
+						success <- try(getURL(request, .opts=list(timeout=5*60, connecttimeout=60)), silent=TRUE)
 						if(!inherits(success, "try-error")){
 							ftemp <- textConnection(success)
 							success <- 0
@@ -133,7 +135,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							dat <- temp[, 2]
 						}
 					}
-					if(deleteNEXtempfiles && file.exists(ftemp)) unlink(ftemp)
+					if(!saveNEXtempfiles && file.exists(ftemp)) unlink(ftemp)
 					
 					return(dat)
 				}
@@ -147,20 +149,20 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					} else if(grepl("tas", variables[iv])){
 						temp <- temp - 273.15	#convert K -> C
 					}
-					res[2 + (iv - 1)*12 + 1:12] <- aggregate(temp, by=list(rep(1:12, times=yearsN)), FUN=mean)$x
+					res[2 + (iv - 1)*12 + 1:12] <- aggregate(temp, by=list(rep(1:12, times=yearsN)), FUN=mean, na.rm=TRUE)$x
 				}
 				
 				return(res)
 			}
 			
 			#get data from NEX
-			tryToGet_NEX <- function(is_ToDo, repeatN){
+			tryToGet_NEX <- function(is_ToDo){
 				if(parallel_runs && parallel_init){
 					#call the simulations depending on parallel backend
-					list.export <- c("reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "be.quiet", "deleteNEXtempfiles", "useRCurl")
+					list.export <- c("get.NEX", "reqGets", "locations", "url.nex.ncss", "downscaling", "gcmrun", "variables", "dir.out.temp", "be.quiet", "saveNEXtempfiles", "useRCurl", "startNEX", "endNEX")
 					if(identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
-						if(useRCurl && deleteNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
+						if(useRCurl && !saveNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
 					
 						res <- mpi.applyLB(x=is_ToDo, fun=get.NEX, startyear=startNEX, endyear=endNEX)
 
@@ -173,7 +175,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 						res <- matrix(unlist(res), ncol=2 + 3*12, dimnames=list(temp, NULL), byrow=TRUE)
 					} else if(identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export)
-						if(useRCurl && deleteNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
+						if(useRCurl && !saveNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
 					
 						res <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 
@@ -181,16 +183,18 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 						snow::clusterEvalQ(cl, gc())
 					} else if(identical(parallel_backend, "multicore")) {
 						res <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %dopar% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
+					} else {
+						res <- NULL
 					}
 				} else {
-						res <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
+					res <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% get.NEX(i=i, startyear=startNEX, endyear=endNEX)
 				}
 				return(res=res)
 			}
 			
 			mergeM2intoM1_byRownames <- function(m1, m2){
-				if(nrow(m2) > 0 && sum(complete.cases(m2)) > 0){
-					m2 <- m2[complete.cases(m2), , drop=FALSE]
+				if(inherits(m1, "matrix") && inherits(m2, "matrix") && sum(itemp <- complete.cases(m2)) > 0){
+					m2 <- m2[itemp, , drop=FALSE]
 					m1[match(rownames(m2), rownames(m1), nomatch=0), ] <- m2[match(rownames(m1), rownames(m2), nomatch=0), ]
 				}
 				return(m1)
@@ -202,7 +206,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			} else {
 				res <- matrix(NA, nrow=requestN, ncol=2+3*12)
 				rownames(res) <- apply(expand.grid(apply(reqGets, 1, paste0, collapse="."), apply(locations, 1, paste0, collapse=".")), 1, paste0, collapse=".")
-				rtemp <- tryToGet_NEX(is_ToDo=1:requestN, repeatN)
+				rtemp <- tryToGet_NEX(is_ToDo=1:requestN)
 				res <- mergeM2intoM1_byRownames(m1=res, m2=rtemp)
 				save(res, file=file.path(dir.sw.dat, paste0("extractionNEX.RData")))
 			}
@@ -210,7 +214,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				while(length(is_ToDo <- which(!complete.cases(res))) > 0){
 					repeatN <- repeatN + 1
 					if(!be.quiet) print(paste("'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' will run a", repeatN, ". time to extract an additional", length(is_ToDo), "requests" ))
-					rtemp <- tryToGet_NEX(is_ToDo, repeatN)
+					rtemp <- tryToGet_NEX(is_ToDo)
 					res <- mergeM2intoM1_byRownames(m1=res, m2=rtemp)
 					save(res, file=file.path(dir.sw.dat, paste0("extractionNEX.RData")))
 				}
@@ -251,7 +255,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			rm(reqGets, icols, res, idLocs, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
 		
 			#make sure no lingering temp files are left on the hard drive
-			if(deleteNEXtempfiles && length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
+			if(!saveNEXtempfiles && length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
 		} else {
 			warning("Not all requested RCPs and/or GCMs requested are available in 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA'")
 		}
@@ -259,7 +263,8 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 	} else if(tempN >= 6500){
 		warning(paste0("This implementation of 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' gets data for single locations; for many locations x climate conditions (here, ", sum(include_YN) * length(), "), a different approach downloading a spatial bounding box may be more appropriate"))
 	}
-	rm(repeatUntilComplete, deleteNEXtempfiles, tempN)
+	options(opt)
+	rm(repeatUntilComplete, saveNEXtempfiles, tempN, opt)
 
 	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' at", Sys.time()))
 }
