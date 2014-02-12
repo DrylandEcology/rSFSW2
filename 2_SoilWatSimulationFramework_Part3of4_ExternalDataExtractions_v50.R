@@ -135,7 +135,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 							dat <- temp[, 2]
 						}
 					}
-					if(!saveNEXtempfiles && file.exists(ftemp)) unlink(ftemp)
+					if(!saveNEXtempfiles && !useRCurl && file.exists(ftemp)) unlink(ftemp)
 					
 					return(dat)
 				}
@@ -214,11 +214,10 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				while(length(is_ToDo <- which(!complete.cases(res))) > 0){
 					repeatN <- repeatN + 1
 					if(!be.quiet) print(paste("'ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA' will run a", repeatN, ". time to extract an additional", length(is_ToDo), "requests" ))
-					rtemp <- tryToGet_NEX(is_ToDo)
-					res <- mergeM2intoM1_byRownames(m1=res, m2=rtemp)
+					res <- mergeM2intoM1_byRownames(m1=res, m2=tryToGet_NEX(is_ToDo))
 					save(res, file=file.path(dir.sw.dat, paste0("extractionNEX.RData")))
 				}
-				rm("repeatN", "is_ToDo", "l1", "l2", "rtemp")
+				rm(is_ToDo)
 			}
 
 			#prepare data for SoilWat wrapper format
@@ -252,7 +251,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 			#write data to datafile.climatescenarios_values
 			write.csv(rbind(sw_input_climscen_values_use, sw_input_climscen_values), file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
 			
-			rm(reqGets, icols, res, idLocs, locations, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
+			rm(reqGets, icols, res, idLocs, locations, repeatN, i_climCond, get.NEX, url.nex.ncss, downscaling, gcmrun, variables, requestN, startNEX, endNEX)
 		
 			#make sure no lingering temp files are left on the hard drive
 			if(!saveNEXtempfiles && length(flist <- list.files(dir.out.temp, pattern="NEX_", full.names=TRUE)) > 0) sapply(flist, unlink)
