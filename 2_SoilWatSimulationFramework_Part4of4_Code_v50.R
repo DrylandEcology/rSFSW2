@@ -5268,7 +5268,7 @@ if(any(actions=="concatenate")) {
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
 	temp <- as.double(temp)
-	if(temp <= (MaxRunDurationTime-36000) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 10 hours for anything useful
+	if(temp <= (MinTimeConcat-36000) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 10 hours for anything useful
 		library(RSQLite)
 		#Connect to the Database
 		drv <- dbDriver("SQLite")
@@ -5296,7 +5296,7 @@ if(any(actions=="concatenate")) {
 			temp <- Sys.time() - t.overall
 			units(temp) <- "secs"
 			temp <- as.double(temp)
-			if((temp > (MaxRunDurationTime-2100) & parallel_runs & identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
+			if((temp > (MaxRunDurationTime-MaxConcatTime) & parallel_runs & identical(parallel_backend,"mpi"))) {#figure need at least 8 minutes for big ones
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
@@ -5410,7 +5410,7 @@ if(any(actions=="concatenate")) {
 		}
 		
 	} else {
-		print("Need more than 10 hours to put SQL in Database.")
+		print(paste("Need more than ", MinTimeConcat," seconds to put SQL in Database.",sep=""))
 	}
 }
 
