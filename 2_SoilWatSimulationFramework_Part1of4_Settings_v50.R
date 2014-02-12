@@ -172,6 +172,8 @@ parallel_runs <- TRUE
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
 MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
+MinTimeConcat <- 10 * 60 * 60 #This is the minimum time remaining after execution needed to begin concat
+MaxConcatTime <- 35 * 60 #This will stop any new sql file concat job at 'x' seconds before MaxRunDuration expires.
 
 #------Repository in case installation of additional R packages is required
 url.Rrepos <- "http://cran.us.r-project.org"
