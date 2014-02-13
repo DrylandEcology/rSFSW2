@@ -779,16 +779,18 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars=
 	return(res)
 }
 
-cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
-finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
-
 PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 		use_Annuals_Fraction,Annuals_Fraction,
 		use_C4_Fraction,C4_Fraction,
 		use_C3_Fraction,C3_Fraction,
 		use_Shrubs_Fraction,Shrubs_Fraction) {
+
+	cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
+	NAto0 <- function(x) {x[is.na(x)] <- 0; return(x)}
+	finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 	f.digits <- 3
 	tolerance <- 1.1*10^-f.digits
+
 	#Get the user specified fractions, if column is false set to NA
 	tree.fraction <- 0 #option 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' doesn't estimate tree cover, i.e., assumed to be == 0
 	AnnC4C3ShrubFraction <- rep(NA, 4)
@@ -865,7 +867,7 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 			x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
 			grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
 		}
-		grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
+		grass.c4.fractionNA <- ifelse(grass.c4.species >= 0, grass.c4.fractionNA, NA)
 		
 		#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
 		if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
@@ -876,9 +878,9 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 		
 		#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
 		#if na then use calc fraction else use the user defined fraction
-		shrubs.fraction <- finite01(shrubs.fractionNA)
-		grass.c4.fraction <- finite01(grass.c4.fractionNA)
-		grass.c3.fraction <- finite01(grass.c3.fractionNA)
+		shrubs.fraction <- NAto0(shrubs.fractionNA)
+		grass.c4.fraction <- NAto0(grass.c4.fractionNA)
+		grass.c3.fraction <- NAto0(grass.c3.fractionNA)
 		
 		sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
 		shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
@@ -5018,7 +5020,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	#objects to export
 	#list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values", "con", "conWeather","drv")
 	#list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
-	list.export <- c("AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996","cut0Inf","finite01","AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","temp.counter.width","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
