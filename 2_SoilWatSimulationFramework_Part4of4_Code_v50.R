@@ -5011,7 +5011,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 if(actionWithSoilWat && runsN.todo > 0){
 		
-	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,file.in=swFilesIn) #This acts for the basis for all runs.
+	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,files.in=swFilesIn) #This acts for the basis for all runs.
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	ifirst <- seq.todo[1]
