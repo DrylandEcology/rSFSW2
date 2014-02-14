@@ -228,7 +228,7 @@ get.Table <- function(responseName, MeanOrSD="Mean", i_climCat=1, whereClause=NU
 		if(climCat[i_climCat, 1] == currentSc){
 			scenario<-climCat[i_climCat, 1]
 			con <- dbConnect(drv, file.path(dir.dat, name.dbScen))
-			iTable <- (temp <- dbListTables(con))[grepl(pattern=paste0(responseName, "_", MeanOrSD), x=temp, ignore.case=T, fixed=FALSE)]
+			iTable <- (temp <- dbListTables(con))[grepl(pattern=paste0(responseName, "_", MeanOrSD), x=temp, ignore.case=TRUE, fixed=FALSE)]
 			if(length(iTable) == 1){
 				fields <- dbListFields(con, iTable)
 				fields<-fields[-1]
@@ -244,7 +244,7 @@ get.Table <- function(responseName, MeanOrSD="Mean", i_climCat=1, whereClause=NU
 			fam<-climCat[i_climCat, 1]
 			level<-climCat[i_climCat, 2]
 			con <- dbConnect(drv) 
-			dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, names.dbEns[grepl(pattern=paste0("_", responseName), x=names.dbEns)])), " AS X;", sep=""))
+			dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, names.dbEns[grepl(pattern=paste0("_", responseName), x=names.dbEns, ignore.case=TRUE)])), " AS X;", sep=""))
 			dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, name.dbScen)), " AS Y;", sep=""))
 			temp <- unlist(dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type='table';"))
 			iTable <- (temp)[grepl(pattern=fam, x=temp, ignore.case=T) & grepl(pattern=paste0("rank_", formatC(level, format="d", flag="0", width=2)), x=temp) & grepl(pattern=MeanOrSD, x=temp, ignore.case=T)]
