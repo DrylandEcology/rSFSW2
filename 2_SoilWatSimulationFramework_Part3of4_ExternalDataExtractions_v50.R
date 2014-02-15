@@ -323,12 +323,10 @@ if(exinfo$GDODCPUCLLNL){
 				return(ncvar_get(nc, varid, start=c(ix, iy, timeStartIndex), count=c(1, 1, timeCount)))
 			} 
 			
-			mmPerDay_to_cmPerMonth <- function(prcp_mmPerDay, yearStart, yearEnd){
-				prcp <- prcp_mmPerDay / 10	# mm -> cm
+			mmPerDay_to_mmPerMonth <- function(prcp_mmPerDay, yearStart, yearEnd){
 				DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths
-				prcp <- prcp * DaysPerMonths
 				
-				return(prcp)
+				return(prcp_mmPerDay * DaysPerMonths)
 			}
 			
 			get.TimeIndices <- function(nc, startyear, endyear){
@@ -385,8 +383,7 @@ if(exinfo$GDODCPUCLLNL){
 				gcmFiles <- list.files(file.path(dir.ex.dat, scen), pattern=gcm, full.names=TRUE)
 				
 				#Get precipitation data
-				prcp <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", startyear=startyear, endyear=endyear)
-				prcp <- mmPerDay_to_cmPerMonth(prcp, startyear, endyear)
+				prcp <- mmPerDay_to_mmPerMonth(get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", startyear=startyear, endyear=endyear), startyear, endyear)
 				#Get temperature data
 				if(any(grepl(fileVarTags[3], gcmFiles)) && any(grepl(fileVarTags[4], gcmFiles))){
 					tmin <- get.netCDFcontent(filepath=gcmFiles[grepl(fileVarTags[3], gcmFiles)], variable=varTags[3], unit="C", startyear=startyear, endyear=endyear)
@@ -410,7 +407,7 @@ if(exinfo$GDODCPUCLLNL){
 			#get data from netCDF files
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("dir.ex.dat", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet")
+				list.export <- c("dir.ex.dat", "reqGets", "locations", "get.TimeIndices", "mmPerDay_to_mmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
