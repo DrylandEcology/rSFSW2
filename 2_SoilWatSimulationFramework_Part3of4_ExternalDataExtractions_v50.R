@@ -98,9 +98,9 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				lat <- locations[il, 2]
 				if(!be.quiet) print(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, scen, "at", lon, lat))
 
-				mmPerSecond_to_cmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
+				mmPerSecond_to_mmPerMonth <- function(prcp_mmPerSecond, yearStart, yearEnd){
 					DaysPerMonths <- rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(yearStart, "-01-01")), to=as.POSIXlt(paste0(yearEnd, "-12-31")), by="1 day"))$mon)$lengths			
-					return(prcp_mmPerSecond / 10 * DaysPerMonths * 24 * 60 * 60)
+					return(prcp_mmPerSecond * DaysPerMonths * 24 * 60 * 60)
 				}
 				
 				if(is.null(startyear)) startyear <- ifelse(identical(scen, "historical"), 1950, 2006)
@@ -145,7 +145,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				for(iv in seq_along(variables)){
 					temp <- get.NEXvariable(var=variables[iv], scen=scen, gcm=gcm, lon=lon, lat=lat)
 					if(variables[iv] == "pr"){
-						temp <- mmPerSecond_to_cmPerMonth(temp, yearStart=startyear, yearEnd=endyear) #convert kg/m2/s -> cm/month
+						temp <- mmPerSecond_to_mmPerMonth(temp, yearStart=startyear, yearEnd=endyear) #convert kg/m2/s -> mm/month
 					} else if(grepl("tas", variables[iv])){
 						temp <- temp - 273.15	#convert K -> C
 					}
