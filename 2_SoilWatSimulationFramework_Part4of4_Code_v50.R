@@ -749,7 +749,7 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars=
 	itemp <- year.start <= sw.weather.suffices & year.end >= sw.weather.suffices
 	years <- sw.weather.suffices[itemp]
 	
-	temp <- ppt <- rep(0, times=12)
+	tempMean <- tempMin <- tempMax <- ppt <- rep(0, times=12)
 	mat <- NULL
 	if(do.C4vars){
 		dailyTempMin <- NULL
@@ -757,19 +757,26 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars=
 	}
 	if((no.yrs <- length(years)) > 0) for(y in 1:no.yrs){
 			temp.dailyTempMean <- apply(get_swWeatherData(weatherList, years[y])@data[, 2:3], 1, mean)
+			temp.dailyTempMin <- get_swWeatherData(weatherList, years[y])@data[, 3]
+			temp.dailyTempMax <- get_swWeatherData(weatherList, years[y])@data[, 2]
 			mat <- c(mat, mean(temp.dailyTempMean))
 			if(do.C4vars){
 				dailyTempMin <- c(dailyTempMin, get_swWeatherData(weatherList, years[y])@data[, 3])
 				dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
 			}
 			month_forEachDoy <- as.POSIXlt(seq(from=as.POSIXlt(paste(years[y], "-01-01", sep="")), to=as.POSIXlt(paste(years[y], "-12-31", sep="")), by="1 day"))$mon + 1
-			temp <- temp + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
+			tempMean <- tempMean + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
+			tempMin <- tempMin + aggregate(temp.dailyTempMin, by=list(month_forEachDoy), FUN=mean)[, 2]
+			tempMax <- tempMax + aggregate(temp.dailyTempMax, by=list(month_forEachDoy), FUN=mean)[, 2]
 			ppt <- ppt + aggregate(get_swWeatherData(weatherList, years[y])@data[, 4], by=list(month_forEachDoy), FUN=sum)[, 2]
 		}
-	temp <- temp / no.yrs
+	tempMean <- tempMean / no.yrs
+	tempMin <- tempMin / no.yrs
+	tempMax <- tempMax / no.yrs
 	ppt <- ppt / no.yrs
 	
-	res <- list(meanMonthlyTempC=temp, meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(mat))
+	res <- list(meanMonthlyTempC=tempMean, minMonthlyTempC=tempMin, maxMonthlyTempC=tempMax, 
+				meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(mat))
 	
 	if(do.C4vars){
 		res$dailyTempMin <- dailyTempMin
@@ -779,16 +786,18 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars=
 	return(res)
 }
 
-cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
-finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
-
 PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 		use_Annuals_Fraction,Annuals_Fraction,
 		use_C4_Fraction,C4_Fraction,
 		use_C3_Fraction,C3_Fraction,
 		use_Shrubs_Fraction,Shrubs_Fraction) {
+
+	cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
+	NAto0 <- function(x) {x[is.na(x)] <- 0; return(x)}
+	finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 	f.digits <- 3
 	tolerance <- 1.1*10^-f.digits
+
 	#Get the user specified fractions, if column is false set to NA
 	tree.fraction <- 0 #option 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' doesn't estimate tree cover, i.e., assumed to be == 0
 	AnnC4C3ShrubFraction <- rep(NA, 4)
@@ -865,7 +874,7 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 			x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
 			grass.c4.species <- as.numeric((1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
 		}
-		grass.c4.fractionNA <- ifelse(grass.c4.species > 0, grass.c4.fractionNA, NA)
+		grass.c4.fractionNA <- ifelse(grass.c4.species >= 0, grass.c4.fractionNA, NA)
 		
 		#3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
 		if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
@@ -876,9 +885,9 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 		
 		#4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
 		#if na then use calc fraction else use the user defined fraction
-		shrubs.fraction <- finite01(shrubs.fractionNA)
-		grass.c4.fraction <- finite01(grass.c4.fractionNA)
-		grass.c3.fraction <- finite01(grass.c3.fractionNA)
+		shrubs.fraction <- NAto0(shrubs.fractionNA)
+		grass.c4.fraction <- NAto0(grass.c4.fractionNA)
+		grass.c3.fraction <- NAto0(grass.c3.fractionNA)
 		
 		sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction + grass.c3.fraction
 		shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction) #scale these down to 1-annual fraction
@@ -2482,29 +2491,33 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 
 			#get climate change information
-			use_pptValscen <- unlist(lapply(parse(text=pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use)) 
-			use_tempValMinScen <- unlist(lapply(parse(text=tempValMin.colnames <- paste("TempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use))
-			use_tempValMaxScen <- unlist(lapply(parse(text=tempValMax.colnames <- paste("TempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_values_use)) 
+			use_pptValscen <- sw_input_climscen_values_use[, pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+			use_tempValMinScen <- sw_input_climscen_values_use[, tempValMin.colnames <- paste("TempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+			use_tempValMaxScen <- sw_input_climscen_values_use[, tempValMax.colnames <- paste("TempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
 			
-			use_pptscen <- unlist(lapply(parse(text=ppt.colnames <- paste("PPTfactor_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use)) 
-			use_tempMinScen <- unlist(lapply(parse(text=tempMin.colnames <- paste("deltaTempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use))
-			use_tempMaxScen <- unlist(lapply(parse(text=tempMax.colnames <- paste("deltaTempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")), FUN=eval, envir=sw_input_climscen_use))
+			use_pptscen <- sw_input_climscen_use[, ppt.colnames <- paste("PPTfactor_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+			use_tempMinScen <- sw_input_climscen_use[, tempMin.colnames <- paste("deltaTempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+			use_tempMaxScen <- sw_input_climscen_use[, tempMax.colnames <- paste("deltaTempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
 			
 			if(	sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) > 0){
 				#convert climate change values to factors
 				#read values from datafile
-				pptVal_sc <- unlist(lapply(parse(text=pptVal.colnames), FUN=eval, envir=i_sw_input_climscen_values))
-				tVal_min_sc <-  unlist(lapply(parse(text=tempValMin.colnames), FUN=eval, envir=i_sw_input_climscen_values))
-				tVal_max_sc <-  unlist(lapply(parse(text=tempValMax.colnames), FUN=eval, envir=i_sw_input_climscen_values))
+				pptVal_sc <- unlist(i_sw_input_climscen_values[, pptVal.colnames])
+				tVal_min_sc <- unlist(i_sw_input_climscen_values[, tempValMin.colnames])
+				tVal_max_sc <- unlist(i_sw_input_climscen_values[, tempValMax.colnames])
 				#calculate change factors
 				ppt_sc <- pptVal_sc / (10 * SiteClimate_Ambient$meanMonthlyPPTcm)
-				t_min_sc <- tVal_min_sc - SiteClimate_Ambient$meanMonthlyTempC
-				t_max_sc <- tVal_max_sc - SiteClimate_Ambient$meanMonthlyTempC
+				if(sum(abs(tVal_max_sc - tVal_min_sc)) > sqrt(.Machine$double.eps)){
+					t_min_sc <- tVal_min_sc - SiteClimate_Ambient$minMonthlyTempC
+					t_max_sc <- tVal_max_sc - SiteClimate_Ambient$maxMonthlyTempC
+				} else { #no information for tmin, tmax by GCM -> tmin=tmax=tmean
+					t_min_sc <- t_max_sc <- tVal_min_sc - SiteClimate_Ambient$meanMonthlyTempC
+				}
 			} else if(	sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
 				#read climate change factors from datafile
-				ppt_sc <- unlist(lapply(parse(text=ppt.colnames), FUN=eval, envir=i_sw_input_climscen))
-				t_min_sc <-  unlist(lapply(parse(text=tempMin.colnames), FUN=eval, envir=i_sw_input_climscen))
-				t_max_sc <-  unlist(lapply(parse(text=tempMax.colnames), FUN=eval, envir=i_sw_input_climscen))
+				ppt_sc <- unlist(i_sw_input_climscen[, ppt.colnames])
+				t_min_sc <- unlist(i_sw_input_climscen[, tempMin.colnames])
+				t_max_sc <- unlist(i_sw_input_climscen[, tempMax.colnames])
 			} else {
 				ppt_sc <- rep(1, times=12)
 				t_min_sc <- rep(0, times=12)
@@ -2513,7 +2526,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#guarantee that all entries are finite: this may not be the case for instance if any(meanMonthlyClimate$meanMonthlyPPTcm == 0)
 			ppt_sc <- temp_ppt_sc <- ifelse(is.finite(ppt_sc), ppt_sc, 1)
 			t_min_sc <- ifelse(is.finite(t_min_sc), t_min_sc, 0)
-			t_max_sc <- ifelse(is.finite(t_max_sc), t_min_sc, 0)
+			t_max_sc <- ifelse(is.finite(t_max_sc), t_max_sc, 0)
 			
 			if(sc > 1){
 				if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
@@ -2538,16 +2551,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			}				
 			
-			#information from input file
-			#ppt_old <- rep(1, times=12)
-			#t1_old <- t2_old <- rep(0, times=12)
-			
 			ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
 			t_max_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
 			t_min_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
 
 			#write information into weatherin
-			if(use_pptscen || use_pptValscen){
+			if(sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) + sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
 				ppt_f <- ppt_sc
 				t_min_f <- t_min_sc
 				t_max_f <- t_max_sc
@@ -2555,7 +2564,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_f <- ppt_old
 				t_min_f <- t_min_old
 				t_max_f <- t_max_old
-				
 			}
 			ppt_f <- ppt_f * as.numeric(ppt_scShift)
 			
@@ -2571,6 +2579,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				SiteClimate_Scenario$meanMonthlyPPTcm <- SiteClimate_Ambient$meanMonthlyPPTcm * ppt_f
 				tmean_f <- apply(cbind(t_min_f, t_max_f), MARGIN=1, FUN=mean)
 				SiteClimate_Scenario$meanMonthlyTempC <- SiteClimate_Ambient$meanMonthlyTempC + tmean_f
+				SiteClimate_Scenario$minMonthlyTempC <- SiteClimate_Ambient$minMonthlyTempC + t_min_f
+				SiteClimate_Scenario$maxMonthlyTempC <- SiteClimate_Ambient$maxMonthlyTempC + t_max_f
 				SiteClimate_Scenario$MAP_cm <- sum(SiteClimate_Scenario$meanMonthlyPPTcm)
 				SiteClimate_Scenario$MAT_C <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				if(do.C4vars){
@@ -5018,7 +5028,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	#objects to export
 	#list.noexport <- c("include_YN", "labels", "SWRunInformation", "sw_input_soillayers", "sw_input_treatments", "sw_input_cloud", "sw_input_prod", "sw_input_site", "sw_input_soils", "sw_input_weather", "sw_input_climscen", "sw_input_climscen_values", "con", "conWeather","drv")
 	#list.export <- (temp <- ls())[-match(list.noexport, temp, nomatch=0)]
-	list.export <- c("AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996","cut0Inf","finite01","AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","temp.counter.width","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
