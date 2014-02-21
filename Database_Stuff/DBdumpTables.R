@@ -27,7 +27,7 @@ if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd(),"
 	}
 }
 
-filesInDBdir <- list.files(dir.DB)
+filesInDBdir <- list.files(dir.DB,pattern="sqlite3")
 print(filesInDBdir)
 dbIndex <- 0
 readNumberRePrompt("dbIndex", "Please select DB: ")
@@ -36,7 +36,7 @@ dbName <- filesInDBdir[dbIndex]
 dir.out <- ""
 print("Path to database output. Windows use / instead of \\")
 if(as.logical(readline(paste("Use Current Directory (TRUE or FALSE): ",getwd()," : ",sep="")))) {
-	dir.DB <- getwd()
+	dir.out <- getwd()
 } else {
 	dir.out <- readline("Path to output Table(s): ")
 	if(!file.exists(dir.out)) {
@@ -51,7 +51,9 @@ dbFile <- file.path(dir.DB, dbName)
 drv <- dbDriver("SQLite")
 con <- dbConnect(drv, dbFile)
 
+headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 Tables <- dbListTables(con)
+if(any(Tables %in% headerTables)) Tables <- Tables[-which(Tables %in% headerTables)]
 print(Tables)
 TableNumber <- 0
 readNumberRePrompt("TableNumber", "Please select table to dump, 0=all : ")
@@ -61,9 +63,17 @@ if(TableNumber == 0) {
 		temp <- dbReadTable(con, Tables[i])
 		write.csv(x=temp, file=file.path(dir.out, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
 	}
+	con <- dbConnect(drv, file.path(dir.DB, "dbTables.sqlite3"))
+	temp <- dbReadTable(con, "header")
+	write.csv(x=temp, file=file.path(dir.out, paste("header",".csv",sep="")), row.names=FALSE, )
 } else {
 	temp <- dbReadTable(con, Tables[TableNumber])
 	write.csv(x=temp, file=file.path(dir.out, paste(Tables[TableNumber], ".csv", sep="")), row.names=FALSE)
+	if(as.logical(readline(paste("Write Header Table (TRUE or FALSE) : ",sep="")))) {
+		con <- dbConnect(drv, file.path(dir.DB, "dbTables.sqlite3"))
+		temp <- dbReadTable(con, "header")
+		write.csv(x=temp, file=file.path(dir.out, paste("header",".csv",sep="")), row.names=FALSE, )
+	}
 }
 
 

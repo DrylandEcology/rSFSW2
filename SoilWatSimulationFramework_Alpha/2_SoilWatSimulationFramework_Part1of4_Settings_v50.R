@@ -468,38 +468,7 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 
 if(any(actions == "aggregate")){
 	#index Numbers
-	sw_aet			<-1
-	sw_deepdrain	<-2
-	sw_estabs		<-3
-	sw_evsoil		<-4
-	sw_evapsurface	<-5
-	sw_hd			<-6
-	sw_inf_soil		<-7
-	sw_interception	<-8
-	sw_percolation	<-9
-	sw_pet			<-10
-	sw_precip		<-11
-	sw_runoff		<-12
-	sw_snow			<-13
-	sw_soiltemp		<-14
-	sw_surfaceWater	<-15
-	sw_swp			<-16
-	sw_swa			<-17
-	sw_swc			<-18
-	sw_temp			<-19
-	sw_transp		<-20
-	sw_vwc			<-21
-	sw_wetdays		<-22
-	sw_logfile		<-23
-	sw_yr			<-1
-	sw_mo			<-2
-	sw_wk			<-3
-	sw_dy			<-4
 	#sw output file names
-	aetdy <- "aet.dy"
-	aetwk <- "aet.wk"
-	aetmo <- "aet.mo"
-	aetyr <- "aet.yr"
 	deepdraindy <- "deep_drain.dy"
 	deepdrainwk <- "deep_drain.wk"
 	deepdrainmo <- "deep_drain.mo"
