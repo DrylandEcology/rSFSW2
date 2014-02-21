@@ -118,7 +118,7 @@ get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", 
 		dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, names.dbEns[grepl(pattern="Overall", ignore.case=T, x=names.dbEns)])), " AS X;", sep=""))
 		dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, name.dbScen)), " AS Y;", sep=""))
 		temp <- unlist(dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type='table';"))
-		iTable <- (temp)[grepl(pattern=fam, x=temp,ignore.case=T) & grepl(pattern=paste0("rank_", formatC(level, format="d", flag="0", width=2)), x=temp) & grepl(pattern=paste0("_", MeanOrSD), x=temp, ignore.case=T)]
+		iTable <- (temp)[grepl(pattern=fam, x=temp, ignore.case=T) & grepl(pattern=paste0("rank_", formatC(level, format="d", flag="0", width=2)), x=temp) & grepl(pattern=paste0("_", MeanOrSD), x=temp, ignore.case=T)]
 		if(length(iTable) == 1){
 			fields.header <- dbGetQuery(con, paste("PRAGMA Y.table_info(header);",sep=""))$name
 			fields.iTable <- dbGetQuery(con, paste("PRAGMA X.table_info(",iTable,");",sep=""))$name
@@ -157,7 +157,7 @@ get.SeveralOverallVariables <- function(responseName, MeanOrSD="Mean", i_climCat
 		} else {
 			dat <- get.SeveralOverallVariables_Ensemble(responseName=responseName, MeanOrSD=MeanOrSD, fam=climCat[i_climCat, 1], level=climCat[i_climCat, 2], whereClause=whereClause)
 		}
-		if(ncol(dat) == 1){
+		if(!is.null(dat) && ncol(dat) == 1){
 			dat <- as.vector(dat[,1])
 		}
 	} else {
