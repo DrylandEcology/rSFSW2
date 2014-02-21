@@ -4482,7 +4482,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					#Function that checks whether all relevant (those with roots) soil layers are under conditions of mortality (kill.conditions) for each day of a given year  
 					get_KilledBySoilLayers <- function(relevantLayers, kill.conditions){
 						temp <- data.frame(relevantLayers, kill.conditions)
-						return( apply(temp, MARGIN=1, FUN=function(x) {if(!is.na(x[1])){return(all(x[2:(2 + x[1] - 1)]))} else {return(NA)} } ) )
+						return( apply(temp, MARGIN=1, FUN=function(x) {if(!is.na(x[1])){return(all(as.logical(x[2:(2 + x[1] - 1)])))} else {return(NA)} } ) )
 					}
 					
 					
