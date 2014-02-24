@@ -1684,7 +1684,6 @@ if(any(actions == "create")){
 				lup <- 1
 				for(l in 1:soillayer_no){
 					llow <- as.numeric(layers_depth[l])
-					#eval(parse(text=paste("depth_L", l, sep="")), envir=sw_input_soillayers[index, ])
 					if(is.na(llow) | lup > length(trco.raw))
 					{
 						l <- l - 1
@@ -2111,7 +2110,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(temp || temp1) {
 				tasks$create <- 0
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Grass", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="positive")
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments["LookupTranspCoeffFromTable_Grass"], layers_depth=layers_depth, adjustType="positive")
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){#trco does not have NA and sum is greater than 0.
 					#set the use flags
 					i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -2130,7 +2129,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(temp || temp1) {
 				tasks$create <- 0
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Shrub", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments["LookupTranspCoeffFromTable_Shrub"], layers_depth=layers_depth, adjustType="inverse")
 				#set the use flags
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
 					i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -2149,7 +2148,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(temp || temp1) {
 				tasks$create <- 0
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=eval(parse(text=paste("LookupTranspCoeffFromTable_", "Tree", sep="")), envir=i_sw_input_treatments), layers_depth=layers_depth, adjustType="inverse")
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments["LookupTranspCoeffFromTable_Tree"], layers_depth=layers_depth, adjustType="inverse")
 				if(!is.na(trco)){				
 					i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
 					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
@@ -2312,8 +2311,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#add soil information to soilsin
 		if(print.debug) print("Start of soilsin")
-		if(sum(sw_input_soils_use[-1]) - sum(use_transpregion <- unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))) > 0){
-			
+		done.Imperm_L1 <- FALSE
+		if(sw_input_soils_use$Imperm_L1 == 1 && any(create_treatments == "soilsin")){
+			tempdat <- swSoils_Layers(swRunScenariosData[[1]])
+			tempdat[1, "impermeability_frac"] <- i_sw_input_soils$Imperm_L1
+			swSoils_Layers(swRunScenariosData[[1]]) <- tempdat
+			done.Imperm_L1 <- TRUE
+		}
+		if(sum(sw_input_soils_use[-1] + ifelse(done.Imperm_L1, -1, 0)) - sum(use_transpregion <- as.numeric(sw_input_soils_use[paste("TranspRegion_L", ld, sep="")])) > 0){
 			tempdat <- matrix(data=NA, nrow=SoilLayer_MaxNo, ncol=12)
 			colnames(tempdat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")
 			
@@ -2372,16 +2377,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			colnames(soildat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")
 			for (l in ld){
 				soildat[l, ] <- c(	layers_depth.datafile[l],
-						ifelse(use_bulkd[l], eval(parse(text=paste("BD_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "bulkd"]),
-						ifelse(use_fieldc[l], eval(parse(text=paste("FieldC_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "fieldc"]),
-						ifelse(use_pwp[l], eval(parse(text=paste("WiltP_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "wiltp"]),
+						ifelse(use_bulkd[l], as.numeric(i_sw_input_soils[paste("BD_L", l, sep="")]), tempdat[l, "bulkd"]),
+						ifelse(use_fieldc[l], as.numeric(i_sw_input_soils[paste("FieldC_L", l, sep="")]), tempdat[l, "fieldc"]),
+						ifelse(use_pwp[l], as.numeric(i_sw_input_soils[paste("WiltP_L", l, sep="")]), tempdat[l, "wiltp"]),
 						ifelse(!is.na(temp <- ifelse(sum_use_evco, evco[l], tempdat[l, "evco"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_grass, trco_grass[l], tempdat[l, "trco_grass"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_shrub, trco_shrub[l], tempdat[l, "trco_shrub"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_tree, trco_tree[l], tempdat[l, "trco_tree"])), temp, 0),
-						ifelse(use_sand[l], eval(parse(text=paste("Sand_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "sand"]),
-						ifelse(use_clay[l], eval(parse(text=paste("Clay_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "clay"]),
-						ifelse(!is.na(temp <- ifelse(use_imperm[l], eval(parse(text=paste("Imperm_L", l, sep="")), envir=i_sw_input_soils), tempdat[l, "imperm"])), temp, 0),
+						ifelse(use_sand[l], as.numeric(i_sw_input_soils[paste("Sand_L", l, sep="")]), tempdat[l, "sand"]),
+						ifelse(use_clay[l], as.numeric(i_sw_input_soils[paste("Clay_L", l, sep="")]), tempdat[l, "clay"]),
+						ifelse(!is.na(temp <- ifelse(use_imperm[l], as.numeric(i_sw_input_soils[paste("Imperm_L", l, sep="")]), tempdat[l, "imperm"])), temp, 0),
 						0	#soiltemp information may depend on climatic conditions; it will be only added after weather/climate scenarios are completed
 				)
 			}
@@ -2437,7 +2442,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#add transpiration regions information to siteparamin
 		if(print.debug) print("Start of transpregion")
 		if(sum(use_transpregion) > 0){
-			tr <- max(tr.layers <- na.omit(unlist(lapply(parse(text=paste("TranspRegion_L", ld, sep="")), FUN=eval, envir=i_sw_input_soils)))) # max transpiration region
+			tr <- max(tr.layers <- na.omit(as.numeric(i_sw_input_soils[paste("TranspRegion_L", ld, sep="")]))) # max transpiration region
 			
 			TranspirationRegions <- matrix(data=NA,nrow=4,ncol=2)
 			colnames(TranspirationRegions)<-c("ndx","layer")
@@ -2615,12 +2620,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			#adjust init soil temperatures to climatic conditions
-			if(any(use_soil_temp <- as.logical(unlist(lapply(parse(text=paste("SoilTemp_L", ld, sep="")), FUN=eval, envir=sw_input_soils_use))))){
+			if(any(use_soil_temp <- as.logical(sw_input_soils_use[paste("SoilTemp_L", ld, sep="")]))){
+				
 				temp <- 1:nrow(swSoils_Layers(swRunScenariosData[[sc]]))
 				if(exists("init.soilTprofile")) {
 					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- init.soilTprofile
 				} else {
-					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- eval(parse(text=paste("SoilTemp_L", temp, sep="")), envir=i_sw_input_soils)
+					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- as.numeric(i_sw_input_soils[paste("SoilTemp_L", temp, sep="")])
 				}
 			}
 			
