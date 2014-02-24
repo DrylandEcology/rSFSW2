@@ -21,7 +21,7 @@ l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=T
 stopifnot(file.exists(dir.dat))
 
 #---File names
-maker.climateScenarios <- function(currentScenario=currentSc, ensembleScenarios=c("SRESA2", "SRESB1"), ensembleLevels=c(2, 8, 15)){
+maker.climateScenarios <- function(currentScenario=currentSc, ensembleScenarios=c("RCP45", "RCP85"), ensembleLevels=c(2, 8, 15)){
 	climCat <- data.frame(matrix(NA, nrow=1 + length(ensembleScenarios)*length(ensembleLevels), ncol=2, dimnames=list(NULL, c("Family", "Rank"))))
 	climCat[1, 1] <- currentScenario
 	climCat[-1, 1] <- rep(ensembleScenarios, each=length(ensembleLevels))
@@ -167,7 +167,7 @@ get.SeveralOverallVariables <- function(responseName, MeanOrSD="Mean", i_climCat
 }
 
 #Get header and data for an entire table for one of the scenarios
-get.Table_Scenario <- function(responseName, MeanOrSD="Mean", scenario=currentSc, whereClause=NULL){
+get.Table_Scenario <- function(responseName, MeanOrSD="Mean", scenario=currentSc, whereClause=NULL, header=FALSE){
 	dat <- NULL
 	if(length(responseName) > 0){
 		con <- dbConnect(drv, file.path(dir.dat, name.dbScen))
@@ -175,9 +175,9 @@ get.Table_Scenario <- function(responseName, MeanOrSD="Mean", scenario=currentSc
 		if(length(iTable) == 1){
 			fields <- dbListFields(con, iTable)[-1]
 			if(length(whereClause) > 0){
-				sql <- paste0("SELECT header.*, ",  paste0(paste0("\"", fields, "\"",sep=""), collapse=", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id=header.P_id WHERE header.Scenario=", shQuote(scenario), " AND ", whereClause, " ORDER BY header.P_id;")
+				sql <- paste0("SELECT ", if(header) "header.*, ",  paste0(paste0("\"", fields, "\"",sep=""), collapse=", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id=header.P_id WHERE header.Scenario=", shQuote(scenario), " AND ", whereClause, " ORDER BY header.P_id;")
 			} else {
-				sql <- paste0("SELECT header.*, ",  paste0(paste0("\"", fields, "\"",sep=""), collapse=", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id=header.P_id WHERE header.Scenario=", shQuote(scenario), " ORDER BY header.P_id;")
+				sql <- paste0("SELECT ", if(header) "header.*, ",  paste0(paste0("\"", fields, "\"",sep=""), collapse=", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id=header.P_id WHERE header.Scenario=", shQuote(scenario), " ORDER BY header.P_id;")
 			}
 			dat <- dbGetQuery(con, sql)
 		}
@@ -187,7 +187,7 @@ get.Table_Scenario <- function(responseName, MeanOrSD="Mean", scenario=currentSc
 }
 
 #Get header and data for an entire table for one of the ensembles
-get.Table_Ensemble <- function(responseName, MeanOrSD="Mean", fam, level, whereClause=NULL){
+get.Table_Ensemble <- function(responseName, MeanOrSD="Mean", fam, level, whereClause=NULL, header=FALSE){
 	dat <- NULL
 	if(length(responseName) > 0){
 		con <- dbConnect(drv) 
@@ -204,9 +204,9 @@ get.Table_Ensemble <- function(responseName, MeanOrSD="Mean", fam, level, whereC
 			if("Soil_Layer" %in% column_names_iTable) {
 				column_names_iTable<-column_names_iTable[-1] #Remove Soil_Layer
 				temp<-paste0(paste0("\"", column_names_header, "\"",sep=""), collapse=", ")
-				sql<-paste("SELECT Y.header.P_id AS P_id, Soil_Layer, ",temp,", ",paste0(paste0("\"", column_names_iTable, "\"",sep=""), collapse=", "),sep="")
+				sql<-paste("SELECT ", if(header) "Y.header.P_id AS P_id, ", "Soil_Layer, ", if(header) temp,", ",paste0(paste0("\"", column_names_iTable, "\"",sep=""), collapse=", "),sep="")
 			} else {
-				sql<-paste("SELECT Y.header.*, ",paste0(paste0("\"", column_names_iTable, "\"",sep=""), collapse=", "),sep="")
+				sql<-paste("SELECT ", if(header) "Y.header.*, ",paste0(paste0("\"", column_names_iTable, "\"",sep=""), collapse=", "),sep="")
 			}
 			if(length(whereClause) > 0){
 				sql <- paste0(sql," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id=Y.header.P_id WHERE ", whereClause, " ORDER BY Y.header.P_id;",sep="")
