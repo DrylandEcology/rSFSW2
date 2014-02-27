@@ -1507,9 +1507,13 @@ if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ens
 				for(obj in 1:length(allObjects)) {
 					bcast.tempString <- allObjects[obj]
 					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
-					mpi.bcast.Robj2slave(bcast.tempString)
-					mpi.bcast.Robj2slave(bcast.tempValue)
-					mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+					if(!inherits(bcast.tempValue, "try-error")){
+						mpi.bcast.Robj2slave(bcast.tempString)
+						mpi.bcast.Robj2slave(bcast.tempValue)
+						mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+					} else {
+						print(paste(obj, bcast.tempString, "not successful"))
+					}
 				}
 				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
 			}
@@ -5134,7 +5138,7 @@ tryCatch({
 	MaxDoOneSiteTime <<- 0
 })
 			}
-			mpi.bcast.cmd(rm(list=ls(all=TRUE)))
+			mpi.bcast.cmd(rm(list=ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
 			mpi.bcast.cmd(gc())
 			print(runs.completed)
 		}
