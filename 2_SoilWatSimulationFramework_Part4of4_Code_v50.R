@@ -3104,16 +3104,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		SQL <- character(0)
 		if(parallel_runs && parallel_backend == "mpi") {
-			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".txt",sep="")
+			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".sql",sep="")
+			dbTempFileNameCurrent <- paste("SQL_Current_Node_",mpi.comm.rank(),".sql",sep="")
 		} else if(parallel_runs && parallel_backend == "snow") {
-			dbTempFileName <- paste("SQL_Node_",nodeNumber,".txt",sep="")
+			dbTempFileName <- paste("SQL_Node_",nodeNumber,".sql",sep="")
+			dbTempFileNameCurrent <- paste("SQL_Current_Node_",nodeNumber,".sql",sep="")
 		} else if (parallel_runs && parallel_backend == "multicore") {
 			#TODO Get proper node number.
-			dbTempFileName <- paste("SQL_Node_",sample(1:500,1),".txt",sep="")
+			dbTempFileName <- paste("SQL_Node_",sample(1:500,1),".sql",sep="")
+			dbTempFileNameCurrent <- paste("SQL_Current_Node_",sample(1:500,1),".sql",sep="")
 		} else {
-			dbTempFileName <- "SQL.txt"
+			dbTempFileName <- "SQL.sql"
 		}
 		dbTempFile <- file.path(dir.out, "temp", dbTempFileName)
+		dbTempFileCurrent <- file.path(dir.out, "temp", dbTempFileNameCurrent)
 		
 		#Performance Measuring
 		#if(aggregate.timing) OutputTiming <- list()
@@ -4959,6 +4963,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}#end if continueAfterAbort
 				}#doi loop
 			}#end if daily output
+			if(tasks$aggregate > 0 && nchar(SQL) > 0 && sc==1){
+				write(SQL, dbTempFileCurrent, append=TRUE)
+				#Clear SQL
+				SQL <- character(0)
+			}
 		} #end loop through scenarios
 		
 	} #end if do aggregate
@@ -5218,9 +5227,9 @@ tryCatch({
 #			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 #		}
 		#Best for debugging
-		setwd(dir.prj)
-		exeEnv <- new.env()
-		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
+		#setwd(dir.prj)
+		#exeEnv <- new.env()
+		#for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
 		
 		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
@@ -5241,28 +5250,28 @@ tryCatch({
 				}
 				dbDisconnect(con)
 			}
-			assign(x="i",value=i_sim,envir=exeEnv)
-			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
-			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_weatherList",value=sw_weatherList,envir=exeEnv)
+			#assign(x="i",value=i_sim,envir=exeEnv)
+			#assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
+			#assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
+			#assign(x="i_sw_weatherList",value=sw_weatherList,envir=exeEnv)
 			
-			save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
-			rm(list=ls(all=TRUE))
-			load("test.Rdata")
+			#save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
+			#rm(list=ls(all=TRUE))
+			#load("test.Rdata")
 			
-			do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
-							i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
-							i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values,i_sw_weatherList=i_sw_weatherList)
-			#runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
+			#do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
+			#				i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
+			#				i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values,i_sw_weatherList=i_sw_weatherList)
+			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ],i_sw_weatherList=sw_weatherList)
 		}
 	}
 	#save(inputDataToSave,file=file.path(dir.out,paste("swInputData_",head(seq.todo,n=1),"_",head(seq.todo,n=1)+runs.completed,".R",sep="")),compress=TRUE)
@@ -5275,6 +5284,8 @@ tryCatch({
 #------------------------
 if(any(actions=="concatenate")) {
 	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1 <- Sys.time()))
+	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+	
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
 	temp <- as.double(temp)
@@ -5310,57 +5321,13 @@ if(any(actions=="concatenate")) {
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
-			SQLlines <- readLines(file.path(dir.out.temp, theFileList[j]))
-			if(copyCurrentConditionsFromTempSQL) {
-				CurrentScenarioStartLineNumber <- seq(from=1,to=length(SQLlines),by=(scenario_No)*NumberTables)
-				CurrentScenarioStartLineNumbers <- numeric(0)
-				for(i in 1:length(CurrentScenarioStartLineNumber)) {
-					CurrentScenarioStartLineNumbers<-c(CurrentScenarioStartLineNumbers,CurrentScenarioStartLineNumber[i]:(CurrentScenarioStartLineNumber[i]+NumberTables-1))
-				}
-				index <- 1
+			
+			command<-paste(paste(settings,collapse="\n"),"BEGIN;",paste(".read ",file.path(dir.out.temp,theFileList[j]),sep=""),"COMMIT;",sep="\n")
+			system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDB)))
+			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current_Node", theFileList[j])) {
+				system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDBCurrent)))
 			}
-			dbBeginTransaction(con)
-			if(copyCurrentConditionsFromTempSQL) dbBeginTransaction(con2)
-			for(k in 1:length(SQLlines)) {
-				if(copyCurrentConditionsFromTempSQL) {
-					if(k == CurrentScenarioStartLineNumbers[index]) {
-						res1<-tryCatch(dbSendQuery(con2,SQLlines[k]), warning = function(w) { 
-									print(paste("Warning: ",theFileList[j]," Line: ",k,sep=""))
-									print(w)
-								}, error=function(e) {
-									print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
-									print(e)
-									write(paste(file.path(dir.out.temp, theFileList[j]),",Current,",j,sep=""), file=file.path(dir.out.temp,concatFileProblemLines), append = TRUE)
-									return(NA)
-						})
-						if(typeof(res1) != "S4") {
-							FAIL <- TRUE
-							Sys.sleep(5)
-						} else {
-							dbClearResult(res1)
-						}
-						if(index < length(CurrentScenarioStartLineNumbers)) index <- index+1
-					}
-				}
-				res<-tryCatch(dbSendQuery(con,SQLlines[k]), warning = function(w) { 
-							print(paste("Warning: ",theFileList[j]," Line: ",k,sep=""))
-							print(w)
-						}, error=function(e) {
-							print(paste("Error: ",theFileList[j]," Line: ",k,sep=""))
-							print(e)
-							write(paste(file.path(dir.out.temp, theFileList[j]),",Main,",j,sep=""), file=file.path(dir.out.temp,concatFileProblemLines), append = TRUE)
-							return(NA)
-						})
-				if(typeof(res) != "S4") {
-					FAIL <- TRUE
-					print("Failed")
-					Sys.sleep(5)
-				} else {
-					dbClearResult(res)
-				}
-			}
-			if(copyCurrentConditionsFromTempSQL) dbCommit(con2)
-			dbCommit(con)
+			
 			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
 			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
 			if(print.debug) {
@@ -5381,11 +5348,11 @@ if(any(actions=="concatenate")) {
 			sqlTables <- unlist(sqlTables)
 			sqlTables <- sqlTables[-grep(pattern="sqlite_sequence",sqlTables)]
 			dbClearResult(resSQL)
-			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='index' ORDER BY name;")
-			sqlIndex <- fetch(resIndex,n=-1)
+			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='view' ORDER BY name;")
+			sqlView <- fetch(resIndex,n=-1)
 			dbClearResult(resIndex)
-			sqlIndex<-unlist(sqlIndex)
-			sqlIndex <- sqlIndex[!is.na(sqlIndex)]
+			sqlView<-unlist(sqlView)
+			sqlView <- sqlView[!is.na(sqlView)]
 			Tables <- dbListTables(con)
 			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
 			
@@ -5394,31 +5361,37 @@ if(any(actions=="concatenate")) {
 				res<-dbSendQuery(con, sqlTables[i])
 				dbClearResult(res)
 			}
-			if(sqlIndex > 0) {
-				for(i in 1:length(sqlIndex)) { #Create the indexes
-					res <- dbSendQuery(con,sqlIndex[i])
-					dbClearResult(res)
-				}
-			}
-			setwd(dir.out)
-			con <- dbConnect(drv) #Empty connection to attach both databases to the empty connection
-			resA1 <- dbSendQuery(con, paste("ATTACH ", shQuote(name.OutputDB), " AS X;", sep=""))
-			resA2 <- dbSendQuery(con, paste("ATTACH ", shQuote(name.OutputDBCurrent), " AS Y;", sep=""))
+			dbGetQuery(con, sqlView)
 			
-			for(i in 1:length(Tables)) {#We can parallize this? Also divide up the inserts on yellowstone.
-				dbBeginTransaction(con)
-				if(Tables[i] %in% headerTables[-1]) {
-					res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i],";",sep=""))
-				} else {
-					res <- dbSendQuery(con, paste("INSERT INTO Y.",Tables[i]," SELECT * FROM X.",Tables[i]," WHERE X.",Tables[i],".P_id=X.runs.P_id AND X.runs.scenario_id=1;",sep=""))
-				}
-				dbClearResult(res)
-				dbCommit(con)
-			}
-			dbClearResult(resA1)
-			dbClearResult(resA2)
+			con <- dbConnect(drv, dbname = name.OutputDB)
+			#Get Tables minus ones we do not want
+			Tables <- dbListTables(con)
+			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
+			Tables <- Tables[-(which(Tables %in% headerTables))]
+			
+			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
+			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
+			
+			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
+			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
+			
+			unlink(paste(Tables,".sql",sep=""))
+			
+			Tables <- dbListTables(con)
+			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
+			Tables <- Tables[(which(Tables %in% headerTables[-1]))]
+			
+			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
+			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
+			
+			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
+			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
+			
+			unlink(paste(Tables,".sql",sep=""))
+			unlink(c("dump.txt","insert.txt"))
 		}
-		
 	} else {
 		print(paste("Need more than ", MinTimeConcat," seconds to put SQL in Database.",sep=""))
 	}

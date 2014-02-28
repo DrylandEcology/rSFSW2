@@ -192,6 +192,7 @@ if((length(Tables) == 0) || do.clean) {
 				db_treatments$LookupWeatherFolder_id <- sapply(db_treatments$LookupWeatherFolder_id,function(x) LookupWeatherFolder_index$id[LookupWeatherFolder_index$folder==x])
 			}
 		}
+		useTreatmentWeatherFolder <- FALSE
 		if(useExperimentals | useTreatments) {
 			#Create a table to hold the values going into the database
 			temp_numberRows <- ifelse(useExperimentals,nrow(db_experimentals)*db_treatments_rows,nrow(db_treatments))
@@ -223,7 +224,6 @@ if((length(Tables) == 0) || do.clean) {
 		
 			#rename weather folder column name and create the fk
 			fk_LookupWeatherFolder <- ""
-			useTreatmentWeatherFolder <- FALSE
 			if(any(create_treatments=="LookupWeatherFolder")) {
 				useTreatmentWeatherFolder <- TRUE
 				db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
@@ -792,7 +792,8 @@ if((length(Tables) == 0) || do.clean) {
 
 		
 		##########################################ENSEMBLE GENERATION#################################################
-		if(do.ensembles && ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)){
+		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
+		if(do.ensembles){
 	
 			Tables<-dbListTables(con)
 			Tables<-Tables[!(Tables %in% headerTables)]
