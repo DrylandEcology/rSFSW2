@@ -76,13 +76,14 @@ addHeaderToWhereClause <- function(whereClause, headers=headerFields){
 #Access data from a database
 #Get data of variables in the overall aggregation table for one of the scenarios
 get.SeveralOverallVariables_Scenario <- function(responseName, MeanOrSD="Mean", scenario=currentSc, whereClause=NULL){
-	dat <- iColumns.iTable <- iColumns.header <- NULL
+	dat <- outOrder <- iColumns.iTable <- iColumns.header <- NULL
 	if(length(responseName) > 0){
 		con <- dbConnect(drv, file.path(dir.dat, name.dbScen))
 		iTable <- (temp <- dbListTables(con))[grepl(pattern=paste0("Overall_", MeanOrSD), x=temp, ignore.case=T, fixed=FALSE)]
 		if(length(iTable) == 1){
 			fields.header <- dbListFields(con,"header")
 			fields.iTable <- dbListFields(con, iTable)
+			responseNameC <- responseName
 			if("P_id" %in% responseName) {
 				addPid <- TRUE
 				responseName<-responseName[!(responseName %in% "P_id")]
@@ -94,6 +95,11 @@ get.SeveralOverallVariables_Scenario <- function(responseName, MeanOrSD="Mean", 
 				for(i in seq_along(responseName)){
 					iColumns.iTable <- c(iColumns.iTable, fields.iTable[grepl(pattern=responseName[i], x=gsub(".", "_", fields.iTable, fixed=TRUE), fixed=FALSE)])
 					iColumns.header <- c(iColumns.header, fields.header[grepl(pattern=responseName[i], x=gsub(".", "_", fields.header, fixed=TRUE), fixed=FALSE)])
+				}
+				fields.iTable <- fields.iTable[!(fields.iTable %in% "P_id")]
+				for(i in seq_along(responseNameC)) {
+					outOrder <- c(outOrder, fields.iTable[grepl(pattern=responseNameC[i], x=gsub(".", "_", fields.iTable, fixed=TRUE), fixed=FALSE)],
+						fields.header[grepl(pattern=responseNameC[i], x=gsub(".", "_", fields.header, fixed=TRUE), fixed=FALSE)])	
 				}
 			}
 			if(length(iColumns.header) > 0 | length(iColumns.iTable) > 0 | addPid){
@@ -107,12 +113,13 @@ get.SeveralOverallVariables_Scenario <- function(responseName, MeanOrSD="Mean", 
 		}
 		dbDisconnect(con)
 	}
+	dat <- dat[,outOrder]
 	return(dat)
 }
 
 #Get data of variables in the overall aggregation table for one of the ensembles
 get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", fam, level, whereClause=NULL){
-	dat <- iColumns.iTable <- iColumns.header <- NULL
+	dat <- outOrder <- iColumns.iTable <- iColumns.header <- NULL
 	if(length(responseName) > 0){
 		con <- dbConnect(drv)#
 		dbGetQuery(con, paste("ATTACH ", shQuote(file.path(dir.dat, names.dbEns[grepl(pattern="Overall", ignore.case=T, x=names.dbEns)])), " AS X;", sep=""))
@@ -122,6 +129,7 @@ get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", 
 		if(length(iTable) == 1){
 			fields.header <- dbGetQuery(con, paste("PRAGMA Y.table_info(header);",sep=""))$name
 			fields.iTable <- dbGetQuery(con, paste("PRAGMA X.table_info(",iTable,");",sep=""))$name
+			responseNameC<-responseName
 			if("P_id" %in% responseName) {
 				addPid <- TRUE
 				responseName<-responseName[!(responseName %in% "P_id")]
@@ -133,6 +141,11 @@ get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", 
 				for(i in seq_along(responseName)){
 					iColumns.iTable <- c(iColumns.iTable, fields.iTable[grepl(pattern=responseName[i], x=gsub(".", "_", fields.iTable, fixed=TRUE), fixed=FALSE)])
 					iColumns.header <- c(iColumns.header, fields.header[grepl(pattern=responseName[i], x=gsub(".", "_", fields.header, fixed=TRUE), fixed=FALSE)])
+				}
+				fields.iTable <- fields.iTable[!(fields.iTable %in% "P_id")]
+				for(i in seq_along(responseNameC)) {
+					outOrder <- c(outOrder, fields.iTable[grepl(pattern=responseNameC[i], x=gsub(".", "_", fields.iTable, fixed=TRUE), fixed=FALSE)],
+						fields.header[grepl(pattern=responseNameC[i], x=gsub(".", "_", fields.header, fixed=TRUE), fixed=FALSE)])
 				}
 			}
 			if(length(iColumns.header) > 0 | length(iColumns.iTable) > 0 | addPid){
@@ -146,6 +159,7 @@ get.SeveralOverallVariables_Ensemble <- function(responseName, MeanOrSD="Mean", 
 		}
 		dbDisconnect(con)
 	}
+	dat <- dat[,outOrder]
 	return(dat)
 }
 
