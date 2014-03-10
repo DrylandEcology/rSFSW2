@@ -348,6 +348,7 @@ output_aggregates <- c(
 						"yearlyPPT", 1,
 						"dailySnowpack", 1,
 						"dailyFrostInSnowfreePeriod", 1,
+						"dailyHotDays", 1,
 						"dailyPrecipitationEventSizeDistribution", 1,
 						"yearlyAET", 1,
 						"yearlyPET", 1,
@@ -412,6 +413,10 @@ ouput_aggregated_ts <- NULL #c("Regeneration")
 #------Parameters used in output aggregation
 #critical soil water potential
 SWPcrit_MPa <- c(-1.5, -3.0, -3.5, -3.9) #e.g., -1.5 or c(-3.0, -3.9, -4.9); critical soil water potential(s) to calculate 'dry' and 'wet' soils (aka wilting point) and available soil water
+
+#critical temperatures
+Tmin_crit_C <- c(-15, -9, 0)	#e.g., 0 or c(-15, -9, 0)
+Tmax_crit_C <- c(34, 40)	#e.g., 34 or c(34, 40)
 
 #degree-days
 DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are accumulated

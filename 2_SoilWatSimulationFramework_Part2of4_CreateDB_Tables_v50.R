@@ -453,7 +453,10 @@ if((length(Tables) == 0) || do.clean) {
 		}
 	#
 		if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
-			temp <- c(temp, "FreezingWithoutSnowpack_days_mean")
+			temp <- c(temp, paste0("TminBelow", ifelse(Tmin_crit_C < 0, "Neg", ifelse(Tmin_crit_C > 0, "Pos", "")), abs(Tmin_crit_C), "degCwithoutSnowpack_days_mean"))
+		}
+		if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
+			temp <- c(temp, paste0("TmaxAbove", ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "degC_days_mean"))
 		}
 	#11
 		if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){
