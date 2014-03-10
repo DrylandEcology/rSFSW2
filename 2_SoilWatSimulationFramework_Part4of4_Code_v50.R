@@ -3053,7 +3053,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
 		}
 		get_Temp_dy <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4], mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5]))
+			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
+						mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
+						max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
 		}
 		
 		get_PPT_yr <- function(sc){
@@ -3396,13 +3398,29 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
 					
-					frostWithoutSnow <- aggregate(SWE.dy$val == 0 & temp.dy$min < 0, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]#Numbers of days with min.temp < 0 and snow == 0
+					for(iTmin in Tmin_crit_C){
+						frostWithoutSnow <- aggregate(SWE.dy$val == 0 & temp.dy$min < iTmin, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]#Numbers of days with min.temp < 0 and snow == 0
 					
-					resMeans[nv] <- mean(frostWithoutSnow, na.rm=TRUE)
-					resSDs[nv] <- sd(frostWithoutSnow, na.rm=TRUE)
-					nv <- nv+1
+						resMeans[nv] <- mean(frostWithoutSnow, na.rm=TRUE)
+						resSDs[nv] <- sd(frostWithoutSnow, na.rm=TRUE)
+						nv <- nv+1
+					}
 					
 					rm(frostWithoutSnow)
+				}
+				if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
+					if(print.debug) print("Aggregation of dailyHotDays")
+					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					
+					for(iTmax in Tmax_crit_C){
+						HotDays <- aggregate(temp.dy$max > iTmax, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]#Numbers of days with max.temp > 0
+					
+						resMeans[nv] <- mean(HotDays, na.rm=TRUE)
+						resSDs[nv] <- sd(HotDays, na.rm=TRUE)
+						nv <- nv+1
+					}
+					
+					rm(HotDays)
 				}
 			#12
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){	#daily weather frequency distributions
