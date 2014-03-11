@@ -2365,10 +2365,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(mergeDatafileWithSoilsin || (sum_use_trco_grass > 0 && sum_use_trco_shrub > 0 && sum_use_trco_tree > 0)) TRCO_done <- TRUE
 			
 			#tr and ev coefficients data from datafile
-			evco <- as.numeric(sw_input_soils[paste("EvapCoeff_L", ld, sep="")])
-			trco_grass <- as.numeric(sw_input_soils[paste("Grass_TranspCoeff_L", ld, sep="")])
-			trco_shrub <- as.numeric(sw_input_soils[paste("Shrub_TranspCoeff_L", ld, sep="")])
-			trco_tree <- as.numeric(sw_input_soils[paste("Tree_TranspCoeff_L", ld, sep="")])
+			evco <- as.numeric(i_sw_input_soils[paste("EvapCoeff_L", ld, sep="")])
+			trco_grass <- as.numeric(i_sw_input_soils[paste("Grass_TranspCoeff_L", ld, sep="")])
+			trco_shrub <- as.numeric(i_sw_input_soils[paste("Shrub_TranspCoeff_L", ld, sep="")])
+			trco_tree <- as.numeric(i_sw_input_soils[paste("Tree_TranspCoeff_L", ld, sep="")])
 			
 			#normalize transpiration and evaporation coefficients from datafile
 			if(sum_use_evco) evco <- evco / ifelse((temp <- sum(evco, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
