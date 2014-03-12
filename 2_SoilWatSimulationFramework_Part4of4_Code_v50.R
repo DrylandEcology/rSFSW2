@@ -283,7 +283,9 @@
 #		- (drs) added output option 'input_SoilProfile'
 #		- (drs) added 'adjustType' option to function TranspCoeffByVegType(): with 'positive' as recommended for grasses (built-in Soilwat) and 'inverse' as recommended for woody plants and forbs
 #		- (drs) added output options 'dailyRechargeExtremes' and 'dailyHotDays'; added option for multiple Tmin values in 'dailyFrostInSnowfreePeriod'
-#		- (drs) added output options 'dailySuitablePeriodsDuration' and 'dailySuitablePeriodsAvailableWater'
+#		- (drs) added output options 'dailySuitablePeriodsDuration', 'dailySuitablePeriodsAvailableWater', and 'dailySuitablePeriodsDrySpells'
+#		- (drs) fixed 'startDoyOfDuration' and 'endDoyOfDuration': picked first/last period of length of first suitable period instead of picking first/last suitable period of length of first/last suitable period
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
@@ -1229,7 +1231,7 @@ startDoyOfDuration <- function(x, duration=10) {
 	} else {
 		first10dry <- r$lengths[which(r$values==1 & r$lengths>=duration)][1] #pick first period
 		if( !is.na(first10dry) ){
-			ind <- which(r$lengths==first10dry)[1] #always pick start of first suitable period
+			ind <- which(r$lengths==first10dry & r$values==1)[1] #always pick start of first suitable period
 		} else {
 			ind <- -1
 		}
@@ -1249,7 +1251,7 @@ endDoyAfterDuration <- function(x, duration=10) {
 	} else {
 		last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=duration)])[length(rl)] #pick last period
 		if( length(last10dry) > 0 ){
-			ind <- (temp <- which(r$lengths==last10dry))[length(temp)]	#always pick end of last period
+			ind <- (temp <- which(r$lengths==last10dry & r$values==1))[length(temp)]	#always pick end of last suitable period
 		} else {
 			ind <- -1
 		}
@@ -4064,7 +4066,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
-					if(print.debug) print("Aggregation of dailySuitablePeriodsDuration")
+					if(print.debug) print("Aggregation of dailySuitablePeriodsAvailableWater")
 					if(!exists("swc.dy")) swc.dy <- get_Response_aggL(sc, sw_swc, "dy", 10, FUN=sum)
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
@@ -4090,6 +4092,46 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 					
 					rm(swa.top, swa.bottom, suitable)
+				}
+				
+				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDrySpells){
+					if(print.debug) print("Aggregation of dailySuitablePeriodsDrySpells")
+					if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(sc, sw_vwc, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
+					if(!exists("swp.dy.all")) swp.dy.all <- get_SWP_aggL(vwc.dy.all) #swp.dy.all is required to get all layers
+					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
+					
+					suitable <- (SWE.dy$val == 0) & (temp.dy$mean >= DegreeDayBase)
+					
+					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+					durationDryPeriods.min <- 10 # days
+					
+					for(icrit in seq(along=SWPcrit_MPa)){
+						dry_crit <- swp.dy.all$val < SWPcrit_MPa[icrit]
+						if(length(topL) > 1) {
+							dry.top <- apply(dry_crit[simTime$index.usedy,2+topL], 1, sum)
+						} else {
+							dry.top <- dry_crit[simTime$index.usedy,2+topL]
+						}
+						dry.top <- (suitable & dry.top >= length(topL))
+						if(length(bottomL) > 1) {
+							dry.bottom <- apply(dry_crit[simTime$index.usedy,2+bottomL], 1, sum)
+						} else if(length(bottomL) > 0 && !identical(bottomL, 0)) {
+							dry.bottom <- ifelse(dry_crit[simTime$index.usedy,2+bottomL], 1, 0)
+						}
+						if(length(bottomL) > 0 && !identical(bottomL, 0)){
+							dry.bottom <- (suitable & dry.bottom >= length(bottomL))
+						} else {
+							dry.bottom <- rep(FALSE, length(dry.top))
+						}
+						
+						temp <- aggregate(cbind(dry.top, dry.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) c(if(any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration=durationDryPeriods.min) - adjDays))
+						resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3], 2, mean), circ.mean(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3], 2, mean), circ.mean(x=temp$dry.bottom[, 4], int=365))
+						resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3], 2, sd), circ.sd(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3], 2, sd), circ.sd(x=temp$dry.bottom[, 4], int=365))
+						nv <- nv+8
+					}
+					
+					rm(dry.top, dry.bottom, suitable, dry_crit, adjDays, durationDryPeriods.min)
 				}
 				
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
