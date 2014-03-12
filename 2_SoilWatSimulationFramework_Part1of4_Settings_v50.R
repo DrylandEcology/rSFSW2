@@ -379,6 +379,7 @@ output_aggregates <- c(
 						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
 						"dailySuitablePeriodsDuration", 1,
 						"dailySuitablePeriodsAvailableWater", 1,
+						"dailySuitablePeriodsDrySpells", 1,
 						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
 						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
 						"dailySWPdrynessIntensity", 1,

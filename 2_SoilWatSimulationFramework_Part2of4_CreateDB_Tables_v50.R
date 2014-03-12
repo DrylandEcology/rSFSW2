@@ -594,12 +594,16 @@ if((length(Tables) == 0) || do.clean) {
 	#33
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
 			quantiles <- c(0.05, 0.5, 0.95)
-			temp <- c(temp, paste("WetThermalSnowfreeSeason.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
+			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
 			rm(quantiles)
 		}
 
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
-			temp <- c(temp, paste("WetThermalSnowfreeSeason.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), "_AvailableWater_mm_mean", sep=""))
+			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), "_AvailableWater_mm_mean", sep=""))
+		}
+				
+		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDrySpells){
+			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
 		}
 				
 		if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){
