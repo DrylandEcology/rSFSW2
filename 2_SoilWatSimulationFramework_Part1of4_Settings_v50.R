@@ -377,6 +377,8 @@ output_aggregates <- c(
 						"dailyWetDegreeDays", 1,
 						"monthlySWPdryness", 1,
 						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
+						"dailySuitablePeriodsDuration", 1,
+						"dailySuitablePeriodsAvailableWater", 1,
 						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
 						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
 						"dailySWPdrynessIntensity", 1,
@@ -419,7 +421,7 @@ SWPcrit_MPa <- c(-1.5, -3.0, -3.5, -3.9) #e.g., -1.5 or c(-3.0, -3.9, -4.9); cri
 Tmin_crit_C <- c(-15, -9, 0)	#e.g., 0 or c(-15, -9, 0)
 Tmax_crit_C <- c(34, 40)	#e.g., 34 or c(34, 40)
 
-#degree-days
+#degree-days and suitable temperature
 DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are accumulated
 
 #soil layers

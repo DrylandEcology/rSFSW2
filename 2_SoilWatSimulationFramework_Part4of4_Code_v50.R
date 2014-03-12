@@ -282,8 +282,8 @@
 #		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
 #		- (drs) added output option 'input_SoilProfile'
 #		- (drs) added 'adjustType' option to function TranspCoeffByVegType(): with 'positive' as recommended for grasses (built-in Soilwat) and 'inverse' as recommended for woody plants and forbs
-#		- (drs) added output options 'dailyRechargeExtremes' and 'dailyHotDays'; added option for multiple Tmin values in 'dailyFrostInSnowfreePeriod', 
-
+#		- (drs) added output options 'dailyRechargeExtremes' and 'dailyHotDays'; added option for multiple Tmin values in 'dailyFrostInSnowfreePeriod'
+#		- (drs) added output options 'dailySuitablePeriodsDuration' and 'dailySuitablePeriodsAvailableWater'
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
@@ -4032,6 +4032,66 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom, AtLeastOneWet.bottom, AllWet.bottom, AllDry.bottom)
 				}
 			#34
+				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
+					if(print.debug) print("Aggregation of dailySuitablePeriodsDuration")
+					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
+					if(!exists("swp.dy")) swp.dy <- get_SWP_aggL(vwc.dy)
+					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
+					
+					quantiles <- c(0.05, 0.5, 0.95)
+					snowfree <- SWE.dy$val == 0
+					niceTemp <- temp.dy$mean >= DegreeDayBase
+					
+					for(icrit in seq(along=SWPcrit_MPa)){
+						wet.top <- swp.dy$top >= SWPcrit_MPa[icrit]
+						
+						if(length(bottomL) > 0 && !identical(bottomL, 0)){
+							wet.bottom <- swp.dy$bottom >= SWPcrit_MPa[icrit]
+						} else {
+							wet.bottom <- rep(FALSE, length(wet.top))
+						}
+
+						durations.top <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle((snowfree & niceTemp & wet.top)[simTime2$year_ForEachUsedDay == y]))$lengths[temp$values]) > 0) {return(max(temp))} else {return(0)}} )
+						durations.bottom <- sapply(simTime$useyrs, FUN=function(y) {if(length(temp <- (temp <- rle((snowfree & niceTemp & wet.bottom)[simTime2$year_ForEachUsedDay == y]))$lengths[temp$values]) > 0) {return(max(temp))} else {return(0)}} )
+							
+						resMeans[nv:(nv+2*length(quantiles)-1)] <- c(quantile(durations.top, probs=quantiles, type=8), quantile(durations.bottom, probs=quantiles, type=8))
+							
+						nv <- nv+2*length(quantiles)
+					}
+					
+					rm(wet.top, wet.bottom, durations.top, snowfree, nicetemp)
+				}
+				
+				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
+					if(print.debug) print("Aggregation of dailySuitablePeriodsDuration")
+					if(!exists("swc.dy")) swc.dy <- get_Response_aggL(sc, sw_swc, "dy", 10, FUN=sum)
+					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
+					
+					suitable <- (SWE.dy$val == 0) & (temp.dy$mean >= DegreeDayBase)
+					
+					cut0 <- function(x) {x[x < 0] <- 0; return(x)}
+					for(icrit in seq(along=SWPcrit_MPa)){
+						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
+						swa.top <- ifelse(suitable, cut0(swc.dy$top - SWCcritT), 0)
+						
+						if(length(bottomL) > 0 && !identical(bottomL, 0)){
+							SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
+							swa.bottom <- ifelse(suitable, cut0(swc.dy$bottom - SWCcritB), 0)
+						} else {
+							swa.bottom <- rep(0, length(swa.top))
+						}
+
+						temp <- aggregate(cbind(swa.top, swa.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=sum)
+						resMeans[nv:(nv+1)] <- apply(temp[, -1], 2, mean)
+						resSDs[nv:(nv+1)] <- apply(temp[, -1], 2, sd)
+						nv <- nv+2
+					}
+					
+					rm(swa.top, swa.bottom, suitable)
+				}
+				
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
 					if(print.debug) print("Aggregation of dailySWPdrynessDurationDistribution")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4132,7 +4192,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) SWCbottom <- vwc.dy$bottom * sum(layers_width[bottomL])*10
 					
 					for(icrit in seq(along=SWPcrit_MPa)){
-						
 						#amount of SWC required so that layer wouldn't be dry
 						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10							
 						missingSWCtop <- cut0(SWCcritT - SWCtop) 
