@@ -372,6 +372,7 @@ output_aggregates <- c(
 						"dailyInfiltrationExtremes", 1,
 						"dailyAETExtremes", 1,
 						"dailySWPextremes", 1,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
+						"dailyRechargeExtremes", 1,
 					#---Aggregation: Ecological dryness
 						"dailyWetDegreeDays", 1,
 						"monthlySWPdryness", 1,
