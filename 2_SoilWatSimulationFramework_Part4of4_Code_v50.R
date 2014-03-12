@@ -282,6 +282,7 @@
 #		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
 #		- (drs) added output option 'input_SoilProfile'
 #		- (drs) added 'adjustType' option to function TranspCoeffByVegType(): with 'positive' as recommended for grasses (built-in Soilwat) and 'inverse' as recommended for woody plants and forbs
+#		- (drs) added output options 'dailyRechargeExtremes' and 'dailyHotDays'; added option for multiple Tmin values in 'dailyFrostInSnowfreePeriod', 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -3853,12 +3854,39 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						extremes <- cbind(temp <- as.matrix(aggregate(swp.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
 					}
 					
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=mean, na.rm=TRUE)
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=sd, na.rm=TRUE)
+					nv <- nv+4
+
 					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					
 					nv <- nv+4
 					
 					rm(extremes)
+				}
+				if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
+					if(print.debug) print("Aggregation of dailyRechargeExtremes")
+					if(!exists("swc.dy")) swc.dy <- get_Response_aggL(sc, sw_swc, "dy", 10, FUN=sum)
+					
+					recharge.dy <- NULL
+					recharge.dy$top <- swc.dy$top / (SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
+					
+					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
+						recharge.dy$bottom <- swc.dy$bottom / (SWPtoVWC(-0.033, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])) 
+						extremes <- as.matrix(aggregate(cbind(recharge.dy$top, recharge.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+					} else {
+						extremes <- cbind(temp <- as.matrix(aggregate(recharge.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
+					}
+					
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
+					nv <- nv+4
+
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+4
+					
+					rm(recharge.dy, extremes)
 				}
 				
 				#---Aggregation: Ecological dryness
