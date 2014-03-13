@@ -4062,7 +4062,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+2*length(quantiles)
 					}
 					
-					rm(wet.top, wet.bottom, durations.top, snowfree, nicetemp)
+					rm(wet.top, wet.bottom, durations.top, snowfree, niceTemp)
 				}
 				
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
