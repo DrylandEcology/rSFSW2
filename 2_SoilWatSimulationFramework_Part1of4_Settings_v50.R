@@ -220,9 +220,11 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of database, Maurer2002, or WeatherFolder (in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv)
-GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE 
-WeatherDataFromDatabase <- FALSE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.db"
+GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
+getCurrentWeatherDataFromDatabase <- FALSE
+getScenarioWeatherDataFromDatabase <- TRUE
+dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.sqlite"
+createWeatherDatabaseFromLookupWeatherFolder <- FALSE #Will create a database will data from LookupWeather Folder
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(

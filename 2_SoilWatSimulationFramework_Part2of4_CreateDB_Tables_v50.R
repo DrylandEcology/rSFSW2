@@ -28,6 +28,15 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
+if(createWeatherDatabaseFromLookupWeatherFolder) {
+	if(file.exists(dbWeatherDataFile)) {
+		print("Removing old database")
+		file.remove(dbWeatherDataFile)
+	}
+	print("Creating New Weather database")
+	createDatabaseFromLookupWeatherFolder(dbWeatherDataFile,file.path(dir.sw.in.tr,"LookupWeatherFolder"),ScenarioName=climate.ambient)
+}
+
 if((length(Tables) == 0) || do.clean) {
 
 	.local <- function(){
@@ -429,7 +438,8 @@ if((length(Tables) == 0) || do.clean) {
 		if(aon$input_ClimatePerturbations) {
 			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 		}
-	
+		
+		#226
 		##############################################################---Aggregation: Climate and weather---##############################################################
 	
 	#7.
@@ -525,7 +535,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){
 			temp <- c(temp, paste("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays_mean", sep=""))
 		}
-	
+		#127
 		##############################################################---Aggregation: Yearly water balance---##############################################################
 	
 	#23
@@ -533,7 +543,7 @@ if((length(Tables) == 0) || do.clean) {
 			temp <- c(temp, paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
 									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
 		}
-	
+		#27
 		##############################################################---Aggregation: Daily extreme values---##############################################################
 	
 	#24
@@ -565,7 +575,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
 			temp <- c(temp, paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), "_doy_mean", sep=""))
 		}
-	
+		#27
 		##############################################################---Aggregation: Ecological dryness---##############################################################
 	
 	#30
@@ -616,7 +626,7 @@ if((length(Tables) == 0) || do.clean) {
 				temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".MissingWater.", rep(c("topLayers", "bottomLayers"), each=4), ".", rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times=2), "_mean", sep=""))
 			}
 		}
-	
+		#340
 		##############################################################---Aggregation: Mean monthly values---##############################################################
 	
 	#36
@@ -703,7 +713,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(any(simulation_timescales=="monthly") & aon$monthlyPETratios){
 			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), st_mo, "_fraction_mean", sep=""))
 		}
-	
+		#312
 		##############################################################---Aggregation: Potential regeneration---##############################################################
 	
 	#53

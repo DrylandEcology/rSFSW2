@@ -364,7 +364,7 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat,quietly = TRUE) || (require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") < minVersionRsoilwat)) {
+if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat") < minVersionRsoilwat)) {
 	print("Going to try to install Rsoilwat library")
 	installed <- FALSE
 	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
@@ -381,7 +381,7 @@ if(!require(Rsoilwat,quietly = TRUE) || (require(Rsoilwat,quietly = TRUE) && pac
 		installed <- is.null(installed)
 	}
 	if(!installed) stop("Could not install package Rsoilwat please contact admin.")
-	stopifnot(require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
+	stopifnot(require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
 }
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
@@ -2699,17 +2699,35 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			
 			if(print.debug) print("Start of vegetation scaling")
-			if(any(create_treatments %in% c("Vegetation_TotalBiomass_ScalingFactor", "Vegetation_LiveBiomass_ScalingFactor", "Vegetation_Litter_ScalingFactor"))){
+			Grass_Scaling_use <- c("Grass_TotalBiomass_ScalingFactor", "Grass_LiveBiomass_ScalingFactor", "Grass_Litter_ScalingFactor")
+			Shrub_Scaling_use <- c("Shrub_TotalBiomass_ScalingFactor", "Shrub_LiveBiomass_ScalingFactor", "Shrub_Litter_ScalingFactor")
+			Tree_Scaling_use <- c("Tree_TotalBiomass_ScalingFactor", "Tree_LiveBiomass_ScalingFactor", "Tree_Litter_ScalingFactor")
+			if(any(create_treatments %in% c(Grass_Scaling_use, Shrub_Scaling_use, Tree_Scaling_use))){
 				finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
-			
-				LitterTotalLiveScalingFactors <- rep(1, 3)
 				
-				if(any(create_treatments == "Vegetation_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Vegetation_Litter_ScalingFactor))
-					LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Vegetation_Litter_ScalingFactor
-				if(any(create_treatments == "Vegetation_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Vegetation_TotalBiomass_ScalingFactor))
-					LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Vegetation_TotalBiomass_ScalingFactor
-				if(any(create_treatments == "Vegetation_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Vegetation_LiveBiomass_ScalingFactor))
-					LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Vegetation_LiveBiomass_ScalingFactor
+				grass_LitterTotalLiveScalingFactors <- rep(1, 3)
+				if(any(create_treatments == "Grass_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_Litter_ScalingFactor))
+					grass_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Grass_Litter_ScalingFactor
+				if(any(create_treatments == "Grass_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_TotalBiomass_ScalingFactor))
+					grass_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Grass_TotalBiomass_ScalingFactor
+				if(any(create_treatments == "Grass_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_LiveBiomass_ScalingFactor))
+					grass_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Grass_LiveBiomass_ScalingFactor
+				
+				shrub_LitterTotalLiveScalingFactors <- rep(1, 3)
+				if(any(create_treatments == "Shrub_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_Litter_ScalingFactor))
+					shrub_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Shrub_Litter_ScalingFactor
+				if(any(create_treatments == "Shrub_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_TotalBiomass_ScalingFactor))
+					shrub_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Shrub_TotalBiomass_ScalingFactor
+				if(any(create_treatments == "Shrub_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_LiveBiomass_ScalingFactor))
+					shrub_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Shrub_LiveBiomass_ScalingFactor
+				
+				tree_LitterTotalLiveScalingFactors <- rep(1, 3)
+				if(any(create_treatments == "Tree_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_Litter_ScalingFactor))
+					tree_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Tree_Litter_ScalingFactor
+				if(any(create_treatments == "Tree_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_TotalBiomass_ScalingFactor))
+					tree_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Tree_TotalBiomass_ScalingFactor
+				if(any(create_treatments == "Tree_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor))
+					tree_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor
 				
 				ScalingSeason <- i_sw_input_treatments$Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing
 				if(is.na(ScalingSeason) || !any(c("All", "Growing", "Nongrowing") == ScalingSeason)) #set to All for default
@@ -2718,38 +2736,38 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && !is.na(ScalingSeason) && !(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && ScalingSeason == "All")) {
 					if(ScalingSeason == "Growing") { #Growing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT > growing.season.threshold.tempC
 						if((templength<-length((temp<-SiteClimate_Scenario$meanMonthlyTempC>growing.season.threshold.tempC)[temp==TRUE]))>1) {
-							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
+							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
+							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
+							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
 						} else if(templength==1) {
-							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
-							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
-							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
+							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*grass_LitterTotalLiveScalingFactors
+							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*shrub_LitterTotalLiveScalingFactors
+							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*tree_LitterTotalLiveScalingFactors
 						} else {
 							print("To Cold to do Vegetation Scaling Season for Growing")
 						}
 					} else if(ScalingSeason == "Nongrowing") {# Nongrowing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT <= growing.season.threshold.tempC
 						if((templength<-length((temp<-SiteClimate_Scenario$meanMonthlyTempC<=growing.season.threshold.tempC)[temp==TRUE]))>1) {
-							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
+							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
+							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
+							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
 						} else if (templength==1) {
-							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
-							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
-							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*LitterTotalLiveScalingFactors
+							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*grass_LitterTotalLiveScalingFactors
+							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*shrub_LitterTotalLiveScalingFactors
+							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*tree_LitterTotalLiveScalingFactors
 						} else {
 							print("To Hot to do Vegetation Scaling Season for NonGrowing")
 						}
 					}
 				} else {
-					swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-					swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
-					swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", LitterTotalLiveScalingFactors)
+					swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
+					swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
+					swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
 				}
 				swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
 				swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
 				swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-			}			
+			}		
 			
 			if(any(create_treatments == "Vegetation_Height_ScalingFactor")) {
 				#scale constant height
@@ -2918,18 +2936,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "yr"), scaler=10, FUN, weights=NULL){
 			FUN <- match.fun(FUN)
 			tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "yr"))
-			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
+			if(response %in% c("TRANSP", "HYDRED")){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
 				responseRepeats <- 4
 			} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
 				responseRepeats <- 1
 			}
 
 			if((tscale == "dy") || (tscale == "dyAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[4]]
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Day")
 			if(tscale == "mo")
-				temp1 <- scaler * runData[[sc_i]][[response]][[2]]
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Month")
 			if(tscale == "yr")
-				temp1 <- scaler * runData[[sc_i]][[response]][[1]]
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Year")
 			
 			if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
 			if(tscale == "dy"){
@@ -3009,87 +3027,87 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		get_Temp_yr <- function(sc){
-			return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
+			return(list(mean=slot(slot(runData[[sc]],"TEMP"),"Year")[simTime$index.useyr, 4]))
 		}
 		get_Temp_mo <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
+			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 4], mean=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 5]))
 		}
 		get_Temp_dy <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4], mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5]))
+			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 4], mean=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 5]))
 		}
 		
 		get_PPT_yr <- function(sc){
-			ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
-			rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
-			snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
-			snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
-			snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
+			ppt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 2]
+			rain <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 3]
+			snowfall <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 4]
+			snowmelt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 5]
+			snowloss <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 6]
 			return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
 		}
 		get_PPT_mo <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
+			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 4], snowmelt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 6]))
 		}
 		get_PPT_dy <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
+			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 4]))
 		}
 		
 		get_PET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"PET"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_PET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"PET"),"Month")[simTime$index.usemo, 3]))
 		}
 		
 		get_AET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_AET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_AET_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Day")[simTime$index.usedy, 3]))
 		}
 		
 		get_SWE_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"SNOWPACK"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_SWE_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"SNOWPACK"),"Day")[simTime$index.usedy, 3]))
 		}
 		
 		get_Inf_yr <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_Inf_mo <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_Inf_dy <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Day")[simTime$index.usedy, 3]))
 		}
 		
 		get_Esurface_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
+			return(list(sum=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 2], veg=apply(10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 3:6], 1, sum), litter=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 7], surfacewater=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 8]))
 		}
 		get_Esurface_dy <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
+			return(list(sum=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 3], veg=apply(10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 4:7], 1, sum), litter=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 8], surfacewater=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 9]))
 		}
 		
 		get_Interception_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
+			return(list(sum=10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 2], veg=apply(10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 3:6], 1, sum), litter=10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 7]))
 		}
 		
 		get_DeepDrain_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"DEEPSWC"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_DeepDrain_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"DEEPSWC"),"Day")[simTime$index.usedy, 3]))
 		}
 		
 		get_Runoff_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
+			return(list(val=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 3], ponded=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 4], snowmelt=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 5]))
 		}
 		get_Runoff_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
+			return(list(val=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 2], ponded=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 3], snowmelt=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 4]))
 		}
 		
 		SQL <- character(0)
@@ -3144,9 +3162,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								AET.yr, AET.mo, AET.dy,
 								SWE.yr, SWE.mo, SWE.dy,
 								soiltemp.yr, soiltemp.mo, soiltemp.dy,
-								swc.yr, swc.mo, swc.dy,
+								swcBulk.yr, swc.mo, swc.dy, swc.yr, swc.mo, swc.dy,
 								swa.yr, swa.mo, swa.dy,
-								vwc.yr, vwc.mo, vwc.dy, vwc.dy.all, 
+								vwcBulk.yr, vwcMatric.yr, vwcBulk.mo, vwcMatric.mo, vwcBulk.dy, vwcMatric.dy, vwcBulk.dy.all, vwcMatric.dy.all, 
 								swp.yr, swp.mo, swp.dy, swp.dy.all, 
 								transp.yr, transp.mo, transp.dy,
 								Esoil.yr, Esoil.mo, Esoil.dy,
