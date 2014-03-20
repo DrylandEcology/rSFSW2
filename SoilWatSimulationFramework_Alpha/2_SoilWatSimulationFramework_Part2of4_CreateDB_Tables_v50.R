@@ -369,31 +369,41 @@ if((length(Tables) == 0) || do.clean) {
 		##################################################
 	
 	#B. Aggregation_Overall
+
+		sqlCNames <- function(columnNames) {
+			temp <- gsub(".", "_", columnNames, fixed=TRUE)
+			temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
+			return(temp)
+		}
 	
 		##############################################################---Aggregation: SoilWat inputs---##############################################################
 		## Note: All '.' will be translated to "_" because of sqlite field name constraints
-		temp <- character(0)
 	#0.
 		if(aon$input_SoilProfile){
 			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_SoilProfile\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 
 	#1. 
 		if(aon$input_FractionVegetationComposition) {
-			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
+			temp <- paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_FractionVegetationComposition\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	#2.
 		if(aon$input_VegetationBiomassMonthly) {
-			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forbs",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
+			temp <- paste(c(rep("Grass",3),rep("Shrub",3),rep("Tree",3),rep("Forbs",3)),"_",c("Litter","TotalBiomass","LiveBiomass"),"_gPERm2",sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_VegetationBiomassMonthly\" (\"P_id\" INTEGER", "\"Month\" INTEGER", sqlCNames(temp),"PRIMARY KEY (\"P_id\",\"Month\")"))
 		}
 	#3. 
 		if(aon$input_VegetationPeak) {
-			temp <- c(temp, paste("SWinput.PeakLiveBiomass_", c("month_mean","months_duration"), sep=""))
+			temp <- paste("SWinput.PeakLiveBiomass_", c("month_mean","months_duration"), sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_VegetationPeak\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
 	#4.
 		if(any(simulation_timescales=="monthly") && aon$input_Phenology) {
-			temp <- c(temp, paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep=""))
+			temp <- paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_Phenology\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	#5.
 		if(aon$input_TranspirationCoeff){
@@ -421,60 +431,69 @@ if((length(Tables) == 0) || do.clean) {
 				ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
 			}
 
-			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
-
+			temp <- c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep=""))
+			dbGetQuery(con, paste("CREATE TABLE \"input_TranspirationCoeff\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
 	#6.
 		if(aon$input_ClimatePerturbations) {
-			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
+			temp <- paste(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier", "TmaxAddand", "TminAddand"), sep=""), c("_none", "_C", "_C"), "_const", sep="")
+			dbGetQuery(con, paste("CREATE TABLE \"input_ClimatePerturbations\" (\"P_id\" INTEGER", "\"Month\" INTEGER", sqlCNames(temp),"PRIMARY KEY (\"P_id\",\"Month\")"))
 		}
 	
 		##############################################################---Aggregation: Climate and weather---##############################################################
 	
 	#7.
 		if(any(simulation_timescales=="yearly") & aon$yearlyTemp){
-			temp <- c(temp, "MAT_C_mean")
+			temp <- "MAT_C_mean"
+			dbGetQuery(con, paste("CREATE TABLE \"yearlyTemp\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
 	#8.
 		if(any(simulation_timescales=="yearly") & aon$yearlyPPT){
-			temp <- c(temp, c("MAP_mm_mean", "SnowOfPPT_fraction_mean"))
+			temp <- c("MAP_mm_mean", "SnowOfPPT_fraction_mean")
+			dbGetQuery(con, paste("CREATE TABLE \"yearlyPPT\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
-	#9.
-		if(any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack){
-			temp <- c(temp, "RainOnSnowOfMAP_fraction_mean")
+	#9. 
+		if((any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack) || (any(simulation_timescales=="daily") & aon$dailySnowpack)) {
+			temp <- character(0)
+			if(any(simulation_timescales=="daily") & any(simulation_timescales=="yearly") & aon$dailySnowpack){
+				temp <- "RainOnSnowOfMAP_fraction_mean"
+			}
+			if(any(simulation_timescales=="daily") & aon$dailySnowpack) {
+				temp <- c(temp,paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean", sep=""))
+			}
+			dbGetQuery(con, paste("CREATE TABLE \"dailySnowpack\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
-	
-	#10.
-		if(any(simulation_timescales=="daily") & aon$dailySnowpack){
-			temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean", sep=""))
-		}
-	#
+	#10
 		if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
-			temp <- c(temp, "FreezingWithoutSnowpack_days_mean")
+			temp <- "FreezingWithoutSnowpack_days_mean"
+			dbGetQuery(con, paste("CREATE TABLE \"dailyFrostInSnowfreePeriod\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	#11
 		if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){
 			bins.summary <- (0:6) * bin.prcpSizes
-			temp <- c(temp, paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep=""))
+			temp <- c(paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep=""))
+			dbGetQuery(con, paste("CREATE TABLE \"dailyPrecipitationEventSizeDistribution\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 			rm(bins.summary)
 		}
 	
 	#12
 		if(any(simulation_timescales=="yearly") & aon$yearlyAET){
-			temp <- c(temp, "AET_mm_mean")
+			temp <- "AET_mm_mean"
+			dbGetQuery(con, paste("CREATE TABLE \"yearlyAET\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
 	#13
 		if(any(simulation_timescales=="yearly") & aon$yearlyPET){
-			temp <- c(temp, "PET_mm_mean")
+			temp <- "PET_mm_mean"
+			dbGetQuery(con, paste("CREATE TABLE \"yearlyPET\" (\"P_id\" INTEGER PRIMARY KEY,", sqlCNames(temp), ");", sep=""))
 		}
 	
 	#14
 		if(any(simulation_timescales=="monthly") & aon$monthlySeasonalityIndices){
-			temp <- c(temp, paste("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean", sep=""))
+			temp <- c(paste("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean", sep=""))
 		}
 	
 	#15
@@ -734,6 +753,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 		#Convert '.' to "_"
 		temp <- gsub(".", "_", temp, fixed=TRUE)
+		temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
 		
 		dbOverallColumns <- length(temp)
 	
