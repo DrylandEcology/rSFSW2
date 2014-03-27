@@ -34,7 +34,36 @@ if(createWeatherDatabaseFromLookupWeatherFolder) {
 		file.remove(dbWeatherDataFile)
 	}
 	print("Creating New Weather database")
-	createDatabaseFromLookupWeatherFolder(dbWeatherDataFile,file.path(dir.sw.in.tr,"LookupWeatherFolder"),ScenarioName=climate.ambient)
+	dbW_createDatabase(dbWeatherDataFile)
+	
+	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
+	Rsoilwat:::dbW_addSites(MetaData)
+	
+	MetaData <- data.frame(Scenario=climate.conditions)
+	Rsoilwat:::dbW_addScenarios(MetaData)
+	
+	Time <- Sys.time()
+	
+	for(i in seq_along(seq.tr)) {#
+		WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
+		weath <- list.files(WeatherFolder)
+		years <- as.numeric(sub(pattern="weath.",replacement="",weath))
+		weatherData <- list()
+		for(j in 1:length(weath)) {
+			year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
+			temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
+			weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
+		}
+		names(weatherData) <- years
+		Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,weatherData)
+		if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
+			temp2<-Sys.time() - Time
+			units(temp2) <- "secs"
+			temp2 <- as.double(temp2)
+			print(paste(i,":",temp2))
+		}
+	}
+	dbW_disconnectConnection()
 }
 
 if((length(Tables) == 0) || do.clean) {
