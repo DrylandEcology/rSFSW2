@@ -13,11 +13,11 @@ con <- dbConnect(drv, dbname = name.OutputDB)
 Tables <- dbListTables(con)
 
 set_PRAGMAs <- function(con){
-	rs<-dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
-	rs<-dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
-	rs<-dbGetQuery(con,"PRAGMA temp_store=2;") #no return value
-	rs<-dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
-
+	dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
+	dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
+	dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
+	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+	lapply(settings, function(x) dbGetQuery(con,x))
 	rm(rs)
 }
 
@@ -78,7 +78,7 @@ if((length(Tables) == 0) || do.clean) {
 
 
 	#A. Header Tables
-
+		
 		if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica && any(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 		####FUNCTIONS CONSIDER MOVING####
