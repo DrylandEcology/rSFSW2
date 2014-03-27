@@ -2616,9 +2616,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				swWeather_MonScalingParams(swRunScenariosData[[sc]]) <- MonthlyScalingParams
 			}
 			if(any(create_treatments=="LookupShiftedPPTScenarios")){
-				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
-#TODO			ppt_f <- ppt_f * as.numeric(ppt_scShift)
-				swWeather_MonScalingParams(swRunScenariosData[[sc]])
+				ppt_f <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
+				ppt_f <- ppt_f * as.numeric(ppt_scShift)
+				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_f
 			}
 				
 			#Update climate data with climate scenario information
