@@ -397,6 +397,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					if(identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
 						if(useRCurl && !saveNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
+						mpi.bcast.cmd(library(Rsoilwat, quietly = TRUE))
 						
 						i_Done <- mpi.applyLB(x=is_ToDo, fun=get.NEX)
 						
@@ -405,6 +406,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					} else if(identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export)
 						if(useRCurl && !saveNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
+						snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
 						
 						i_Done <- snow::clusterApplyLB(cl, x=is_ToDo, fun=get.NEX)
 						
@@ -723,6 +725,7 @@ if(exinfo$GDODCPUCLLNL){
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
+					mpi.bcast.cmd(library(Rsoilwat, quietly = TRUE))
 					
 					i_Done <- mpi.applyLB(x=1:requestN, fun=get.GDODCPUCLLNL)
 					
@@ -731,7 +734,8 @@ if(exinfo$GDODCPUCLLNL){
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
 					snow::clusterEvalQ(cl, library(ncdf4, quietly = TRUE))
-					
+					snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
+
 					i_Done <- snow::clusterApplyLB(cl, x=1:requestN, fun=get.GDODCPUCLLNL)
 					
 					snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
