@@ -201,7 +201,7 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")
+actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
@@ -276,17 +276,21 @@ datafile.windspeedAtHeightAboveGround <- 10 #SoilWat requires 2 m, but some data
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off
 #names of climate conditions/scenarios in the order of data in the climate scenarios datafile; this must have at least one entry (e.g., climate.ambient) and climate.ambient is forced to be the first entry
 #if requesting ensembles, then names must include the scenario flags of 'ensemble.families'
-#16 GCMs for CMIP3 (Maurer et al. 2007/2009)
-climate.conditions <- c(climate.ambient, 	"sresa2.bccr_bcm2_0", "sresa2.cccma_cgcm3_1", "sresa2.cnrm_cm3", "sresa2.csiro_mk3_0", "sresa2.gfdl_cm2_0", "sresa2.gfdl_cm2_1", "sresa2.giss_model_e_r", "sresa2.inmcm3_0", "sresa2.ipsl_cm4", "sresa2.miroc3_2_medres", "sresa2.miub_echo_g", "sresa2.mpi_echam5", "sresa2.mri_cgcm2_3_2a", "sresa2.ncar_ccsm3_0", "sresa2.ncar_pcm1", "sresa2.ukmo_hadcm3",
-											"sresb1.bccr_bcm2_0", "sresb1.cccma_cgcm3_1", "sresb1.cnrm_cm3", "sresb1.csiro_mk3_0", "sresb1.gfdl_cm2_0", "sresb1.gfdl_cm2_1", "sresb1.giss_model_e_r", "sresb1.inmcm3_0", "sresb1.ipsl_cm4", "sresb1.miroc3_2_medres", "sresb1.miub_echo_g", "sresb1.mpi_echam5", "sresb1.mri_cgcm2_3_2a", "sresb1.ncar_ccsm3_0", "sresb1.ncar_pcm1", "sresb1.ukmo_hadcm3")
-#16 GCMs for CMIP5 by GDO-DCP-UC-LLNL (selection based on Knutti et al. 2013 GRL)
-climate.conditions <- c(climate.ambient,	"RCP45.CanESM2", "RCP45.CESM1-CAM5", "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2", "RCP45.FGOALS-s2", "RCP45.GFDL-CM3", "RCP45.GISS-E2-R", "RCP45.HadGEM2-CC", "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-MR", "RCP45.MIROC-ESM", "RCP45.MIROC5", "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3",
-											"RCP85.CanESM2", "RCP85.CESM1-CAM5", "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2", "RCP85.FGOALS-s2", "RCP85.GFDL-CM3", "RCP85.GISS-E2-R", "RCP85.HadGEM2-CC", "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-MR", "RCP85.MIROC-ESM", "RCP85.MIROC5", "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3")
-#16 GCMs for CMIP5 by NEX (selection based on Knutti et al. 2013 GRL)
-climate.conditions <- c(climate.ambient,	"RCP45.CanESM2", "RCP45.CESM1-CAM5", "RCP45.CNRM-CM5", "RCP45.CSIRO-Mk3-6-0", "RCP45.FGOALS-g2", "RCP45.FIO-ESM", "RCP45.GFDL-CM3", "RCP45.GISS-E2-R", "RCP45.HadGEM2-CC", "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-MR", "RCP45.MIROC-ESM", "RCP45.MIROC5", "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3",
-											"RCP85.CanESM2", "RCP85.CESM1-CAM5", "RCP85.CNRM-CM5", "RCP85.CSIRO-Mk3-6-0", "RCP85.FGOALS-g2", "RCP85.FIO-ESM", "RCP85.GFDL-CM3", "RCP85.GISS-E2-R", "RCP85.HadGEM2-CC", "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-MR", "RCP85.MIROC-ESM", "RCP85.MIROC5", "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3")
+#16 GCMs for CMIP5 by GDO-DCP-UC-LLNL for 2069-2099 (selection based on Knutti et al. 2013 GRL)
+climate.conditions <- c(climate.ambient,	"delta.RCP45.CanESM2", "delta.RCP45.CESM1-CAM5", "delta.RCP45.CSIRO-Mk3-6-0", "delta.RCP45.GFDL-CM3", "delta.RCP45.GISS-E2-R", "delta.RCP45.HadGEM2-CC", "delta.RCP45.HadGEM2-ES", "delta.RCP45.inmcm4", "delta.RCP45.IPSL-CM5A-MR", "delta.RCP45.MIROC-ESM", "delta.RCP45.MIROC5", "delta.RCP45.MPI-ESM-MR", "delta.RCP45.MRI-CGCM3",
+											"delta.RCP85.CanESM2", "delta.RCP85.CESM1-CAM5", "delta.RCP85.CSIRO-Mk3-6-0", "delta.RCP85.GFDL-CM3", "delta.RCP85.GISS-E2-R", "delta.RCP85.HadGEM2-CC", "delta.RCP85.HadGEM2-ES", "delta.RCP85.inmcm4", "delta.RCP85.IPSL-CM5A-MR", "delta.RCP85.MIROC-ESM", "delta.RCP85.MIROC5", "delta.RCP85.MPI-ESM-MR", "delta.RCP85.MRI-CGCM3")
+climate.conditions <- c(climate.ambient,	"delta.RCP45.CanESM2", "delta.RCP45.CESM1-CAM5", "delta.RCP45.CSIRO-Mk3-6-0", "delta.RCP45.EC-EARTH", "delta.RCP45.FGOALS-g2", "delta.RCP45.FGOALS-s2", "delta.RCP45.GFDL-CM3", "delta.RCP45.GISS-E2-R", "delta.RCP45.HadGEM2-CC", "delta.RCP45.HadGEM2-ES", "delta.RCP45.inmcm4", "delta.RCP45.IPSL-CM5A-MR", "delta.RCP45.MIROC-ESM", "delta.RCP45.MIROC5", "delta.RCP45.MPI-ESM-MR", "delta.RCP45.MRI-CGCM3",
+											"delta.RCP85.CanESM2", "delta.RCP85.CESM1-CAM5", "delta.RCP85.CSIRO-Mk3-6-0", "delta.RCP85.EC-EARTH", "delta.RCP85.FGOALS-g2", "delta.RCP85.FGOALS-s2", "delta.RCP85.GFDL-CM3", "delta.RCP85.GISS-E2-R", "delta.RCP85.HadGEM2-CC", "delta.RCP85.HadGEM2-ES", "delta.RCP85.inmcm4", "delta.RCP85.IPSL-CM5A-MR", "delta.RCP85.MIROC-ESM", "delta.RCP85.MIROC5", "delta.RCP85.MPI-ESM-MR", "delta.RCP85.MRI-CGCM3",
+											"hybrid-delta.RCP45.CanESM2", "hybrid-delta.RCP45.CESM1-CAM5", "hybrid-delta.RCP45.CSIRO-Mk3-6-0", "hybrid-delta.RCP45.EC-EARTH", "hybrid-delta.RCP45.FGOALS-g2", "hybrid-delta.RCP45.FGOALS-s2", "hybrid-delta.RCP45.GFDL-CM3", "hybrid-delta.RCP45.GISS-E2-R", "hybrid-delta.RCP45.HadGEM2-CC", "hybrid-delta.RCP45.HadGEM2-ES", "hybrid-delta.RCP45.inmcm4", "hybrid-delta.RCP45.IPSL-CM5A-MR", "hybrid-delta.RCP45.MIROC-ESM", "hybrid-delta.RCP45.MIROC5", "hybrid-delta.RCP45.MPI-ESM-MR", "hybrid-delta.RCP45.MRI-CGCM3",
+											"hybrid-delta.RCP85.CanESM2", "hybrid-delta.RCP85.CESM1-CAM5", "hybrid-delta.RCP85.CSIRO-Mk3-6-0", "hybrid-delta.RCP85.EC-EARTH", "hybrid-delta.RCP85.FGOALS-g2", "hybrid-delta.RCP85.FGOALS-s2", "hybrid-delta.RCP85.GFDL-CM3", "hybrid-delta.RCP85.GISS-E2-R", "hybrid-delta.RCP85.HadGEM2-CC", "hybrid-delta.RCP85.HadGEM2-ES", "hybrid-delta.RCP85.inmcm4", "hybrid-delta.RCP85.IPSL-CM5A-MR", "hybrid-delta.RCP85.MIROC-ESM", "hybrid-delta.RCP85.MIROC5", "hybrid-delta.RCP85.MPI-ESM-MR", "hybrid-delta.RCP85.MRI-CGCM3",
+											"raw.RCP45.CanESM2", "raw.RCP45.CESM1-CAM5", "raw.RCP45.CSIRO-Mk3-6-0", "raw.RCP45.EC-EARTH", "raw.RCP45.FGOALS-g2", "raw.RCP45.FGOALS-s2", "raw.RCP45.GFDL-CM3", "raw.RCP45.GISS-E2-R", "raw.RCP45.HadGEM2-CC", "raw.RCP45.HadGEM2-ES", "raw.RCP45.inmcm4", "raw.RCP45.IPSL-CM5A-MR", "raw.RCP45.MIROC-ESM", "raw.RCP45.MIROC5", "raw.RCP45.MPI-ESM-MR", "raw.RCP45.MRI-CGCM3",
+											"raw.RCP85.CanESM2", "raw.RCP85.CESM1-CAM5", "raw.RCP85.CSIRO-Mk3-6-0", "raw.RCP85.EC-EARTH", "raw.RCP85.FGOALS-g2", "raw.RCP85.FGOALS-s2", "raw.RCP85.GFDL-CM3", "raw.RCP85.GISS-E2-R", "raw.RCP85.HadGEM2-CC", "raw.RCP85.HadGEM2-ES", "raw.RCP85.inmcm4", "raw.RCP85.IPSL-CM5A-MR", "raw.RCP85.MIROC-ESM", "raw.RCP85.MIROC5", "raw.RCP85.MPI-ESM-MR", "raw.RCP85.MRI-CGCM3")
 #Future time period simulated = delta + simstartyr:endyr; also used to extract external climate conditions
 deltaFutureToSimStart_yr <- 90
+
+#Downscaling method: monthly scenario -> daily forcing variables
+#must match up with 1st name parts of climate.condition
+downscaling.method <- c("delta", "hybrid-delta", "raw")	#one or multiple of "raw", "delta" (Hay et al. 2002), or "hybrid-delta" (Hamlet et al. 2010)
 
 #Climate ensembles created across scenarios
 ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
