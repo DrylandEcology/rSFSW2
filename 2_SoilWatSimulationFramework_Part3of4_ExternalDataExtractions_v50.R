@@ -316,7 +316,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					lat <- locations[il, 2]
 					site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
 					if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-					
+		
 					#Data Bounding Box = lat= [24.06,49.92] lon= [-125.02,-66.48]
 					if(lat >= 24.06 && lat <= 49.92 && lon >= -125.02 && lon <= -66.48){
 						#Scenario monthly weather time-series
@@ -397,6 +397,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					if(identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
 						if(useRCurl && !saveNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
+						mpi.bcast.cmd(library(Rsoilwat, quietly = TRUE))
 						mpi.bcast.cmd(Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 						
 						i_Done <- mpi.applyLB(x=is_ToDo, fun=get.NEX)
@@ -407,6 +408,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					} else if(identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export)
 						if(useRCurl && !saveNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
+						snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
 						snow::clusterExport(cl, Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 						
 						i_Done <- snow::clusterApplyLB(cl, x=is_ToDo, fun=get.NEX)
