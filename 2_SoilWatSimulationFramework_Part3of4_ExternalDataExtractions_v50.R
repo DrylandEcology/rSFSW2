@@ -316,7 +316,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					lat <- locations[il, 2]
 					site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
 					if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-		
+					
 					#Data Bounding Box = lat= [24.06,49.92] lon= [-125.02,-66.48]
 					if(lat >= 24.06 && lat <= 49.92 && lon >= -125.02 && lon <= -66.48){
 						#Scenario monthly weather time-series
@@ -397,17 +397,21 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 					if(identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
 						if(useRCurl && !saveNEXtempfiles) mpi.bcast.cmd(library(RCurl, quietly = TRUE))
+						mpi.bcast.cmd(Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 						
 						i_Done <- mpi.applyLB(x=is_ToDo, fun=get.NEX)
 						
+						mpi.bcast.cmd(Rsoilwat::dbW_disconnectConnection())
 						mpi.bcast.cmd(rm(list=ls(all=TRUE)))
 						mpi.bcast.cmd(gc())
 					} else if(identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export)
 						if(useRCurl && !saveNEXtempfiles) snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
+						snow::clusterExport(cl, Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 						
 						i_Done <- snow::clusterApplyLB(cl, x=is_ToDo, fun=get.NEX)
 						
+						snow::clusterEvalQ(cl, Rsoilwat::dbW_disconnectConnection())
 						snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
 						snow::clusterEvalQ(cl, gc())
 					} else if(identical(parallel_backend, "multicore")) {
@@ -429,10 +433,10 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				files <- list.files(path=file.path(dir.out, "temp"), pattern="NEX", recursive=TRUE, include.dirs = FALSE, no..=TRUE)
 				if(length(files) != 0) {
 					for (i in 1:length(files)) {
-						wdata <- load(file.path(dir.out, "temp",files[i]))
-						for(j in 1:length(wdata)) {
-							for(l in 1:length(wdata[[j]])) {
-								Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdata[[j]][[l]]$Site_id, Scenario_id=wdata[[j]][[l]]$Scenario_id, weatherData=wdata[[j]][[l]]$weatherData)
+						load(file.path(dir.out, "temp",files[i]))
+						for(j in 1:length(wdataOut)) {
+							for(l in 1:length(wdataOut[[j]])) {
+								Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, weatherData=wdataOut[[j]][[l]]$weatherData)
 							}
 						}
 					}
@@ -691,13 +695,13 @@ if(exinfo$GDODCPUCLLNL){
 								scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly)
 								scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == paste("delta", rcps[ir], gcm, sep="."), "id"]
 								data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-								types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=scen.fut.daily)
+								types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
 							}
 							if("hybrid-delta" %in% downs){
 								scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly)
 								scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == paste("hybrid-delta", rcps[ir], gcm, sep="."), "id"]
 								data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-								types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=scen.fut.daily)
+								types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
 							}
 							wdataOut[[ir]] <- types
 						}
@@ -718,22 +722,28 @@ if(exinfo$GDODCPUCLLNL){
 			#get data from netCDF files
 			if(parallel_runs && parallel_init){
 				#call the simulations depending on parallel backend
-				list.export <- c("dir.ex.dat", "get.GDODCPUCLLNL", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "get.netCDFcontent", "get_GCMdata", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet", "dbWeatherDataFile", "climate.ambient",  "dbW_iSiteTable", "dbW_iScenarioTable",
+				list.export <- c("dir.out","dir.ex.dat", "get.GDODCPUCLLNL", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "get.netCDFcontent", "get_GCMdata", "get.TimeIndices", "mmPerDay_to_cmPerMonth", "nc_getByCoords", "whereNearest", "fileVarTags", "varTags", "be.quiet", "dbWeatherDataFile", "climate.ambient",  "dbW_iSiteTable", "dbW_iScenarioTable",
 						"bbox", "timeLLNL", "simstartyr", "endyr", "get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid")
 				if(identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 					mpi.bcast.cmd(library(ncdf4, quietly = TRUE))
+					mpi.bcast.cmd(library(Rsoilwat, quietly = TRUE))
+					mpi.bcast.cmd(Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 					
 					i_Done <- mpi.applyLB(x=1:requestN, fun=get.GDODCPUCLLNL)
 					
+					mpi.bcast.cmd(Rsoilwat::dbW_disconnectConnection())
 					mpi.bcast.cmd(rm(list=ls(all=TRUE)))
 					mpi.bcast.cmd(gc())
 				} else if(identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export)
 					snow::clusterEvalQ(cl, library(ncdf4, quietly = TRUE))
+					snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
+					snow::clusterEvalQ(cl, Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 					
 					i_Done <- snow::clusterApplyLB(cl, x=1:requestN, fun=get.GDODCPUCLLNL)
 					
+					snow::clusterEvalQ(cl, Rsoilwat::dbW_disconnectConnection())
 					snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
 					snow::clusterEvalQ(cl, gc())
 				} else if(identical(parallel_backend, "multicore")) {
@@ -753,10 +763,10 @@ if(exinfo$GDODCPUCLLNL){
 			files <- list.files(path=file.path(dir.out, "temp"), pattern="GDO-DCP-UC-LLNL", recursive=TRUE, include.dirs = FALSE, no..=TRUE)
 			if(length(files) != 0) {
 				for (i in 1:length(files)) {
-					wdata <- load(file.path(dir.out, "temp",files[i]))
-					for(j in 1:length(wdata)) {
-						for(l in 1:length(wdata[[j]])) {
-							Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdata[[j]][[l]]$Site_id, Scenario_id=wdata[[j]][[l]]$Scenario_id, weatherData=wdata[[j]][[l]]$weatherData)
+					load(file.path(dir.out, "temp",files[i]))
+					for(j in 1:length(wdataOut)) {
+						for(l in 1:length(wdataOut[[j]])) {
+							Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, weatherData=wdataOut[[j]][[l]]$weatherData)
 						}
 					}
 				}
