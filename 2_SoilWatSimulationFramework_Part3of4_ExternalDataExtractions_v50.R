@@ -742,7 +742,7 @@ if(exinfo$GDODCPUCLLNL){
 					snow::clusterEvalQ(cl, library(ncdf4, quietly = TRUE))
 					snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
 					snow::clusterEvalQ(cl, Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
-					
+
 					i_Done <- snow::clusterApplyLB(cl, x=1:requestN, fun=get.GDODCPUCLLNL)
 					
 					snow::clusterEvalQ(cl, Rsoilwat::dbW_disconnectConnection())
