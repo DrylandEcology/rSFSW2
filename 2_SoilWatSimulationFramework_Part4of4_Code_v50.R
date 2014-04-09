@@ -2493,15 +2493,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		} else {
 			if(getCurrentWeatherDataFromDatabase) {
 				.local <- function(i_sw_weatherList){
+					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					if(!exists("con") | !parallel_runs) {
 						drv <<- dbDriver("SQLite")
 						con <<- dbConnect(drv, dbname=name.OutputDB)
-						dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					}
 					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))[1,1]
 					dbDisconnect(con)
-					for(i in 1:ifelse(getScenarioWeatherDataFromDatabase, length(climate.conditions), 1))
-						i_sw_weatherList[[i]] <- dbW_getWeatherData(Label=temp,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[i])
+					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, length(climate.conditions), 1))
+						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=temp,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[k])
 					return(i_sw_weatherList)
 				}
 				i_sw_weatherList <- try(.local(i_sw_weatherList), silent=TRUE)
@@ -2524,6 +2524,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[1]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 				}
 			}
+			
 			if(!getScenarioWeatherDataFromDatabase) {
 				#get climate change information
 				use_pptValscen <- sw_input_climscen_values_use[, pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
@@ -2586,9 +2587,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 				}				
 				
-				ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
-				t_max_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2]
-				t_min_old <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3]
+				ppt_old <- (temp <- swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
+				t_max_old <- temp[,2]
+				t_min_old <- temp[,3]
 				
 				#write information into weatherin
 				if(sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) + sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
@@ -2606,43 +2607,63 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 				
 				swWeather_MonScalingParams(swRunScenariosData[[sc]]) <- MonthlyScalingParams
+
+				#Update climate data with climate scenario information
+				if(do.GetClimateMeans){
+					SiteClimate_Scenario <- list()
+					SiteClimate_Scenario$meanMonthlyPPTcm <- SiteClimate_Ambient$meanMonthlyPPTcm * ppt_f
+					tmean_f <- apply(cbind(t_min_f, t_max_f), MARGIN=1, FUN=mean)
+					SiteClimate_Scenario$meanMonthlyTempC <- SiteClimate_Ambient$meanMonthlyTempC + tmean_f
+					SiteClimate_Scenario$minMonthlyTempC <- SiteClimate_Ambient$minMonthlyTempC + t_min_f
+					SiteClimate_Scenario$maxMonthlyTempC <- SiteClimate_Ambient$maxMonthlyTempC + t_max_f
+					SiteClimate_Scenario$MAP_cm <- sum(SiteClimate_Scenario$meanMonthlyPPTcm)
+					SiteClimate_Scenario$MAT_C <- mean(SiteClimate_Scenario$meanMonthlyTempC)
+					if(do.C4vars){
+						SiteClimate_Scenario$dailyTempMin <- SiteClimate_Ambient$dailyTempMin + t_min_f[simTime2$month_ForEachUsedDay]
+						SiteClimate_Scenario$dailyTempMean <- SiteClimate_Ambient$dailyTempMean + tmean_f[simTime2$month_ForEachUsedDay]
+						SiteClimate_Scenario$dailyC4vars <- sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
+					}
+				}
 			} else {
 				SiteClimate_Scenario <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[sc]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs))
-				if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
-					if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						# -(mean monthly of scenario - mean monthly of current) + (mean annual of scenario - mean annual of current)
-						t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
-						t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
-					}
-					if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						# -(mean annual of scenario - mean annual of current)
-						t_min <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C),12)
-						t_max <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C),12)
-					} 
-					if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						# -(mean monthly of scenario - mean monthly of current)
-						t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC)
-						t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC)
-					}
-				}
-				if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
-					
-					if(grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						#ppt_sc = rep(sum(SiteClimate_Ambient$meanMonthlyPPTcm * temp_ppt_sc) / SiteClimate_Ambient$MAP_cm, times=12)
-						ppt_sc =(SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm) * (SiteClimate_Scenario$MAP_cm / SiteClimate_Ambient$MAP_cm)
-					}
-					if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						#ppt_sc = ppt_sc * SiteClimate_Ambient$MAP_cm / temp_map_sc
-						ppt_sc <- rep((SiteClimate_Ambient$MAP_cm / SiteClimate_Scenario$MAP_cm),12)
-					}
-					if(grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-						ppt_sc = (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm)
-					}
-				}
+				if(sc > 1){
+					ppt_sc <- (temp <- swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
+					t_max <- temp[,2]
+					t_min <- temp[,3]
 				
-				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_sc
-				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2] <- t_max
-				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3] <- t_min
+					if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
+						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							# -(mean monthly of scenario - mean monthly of current) + (mean annual of scenario - mean annual of current)
+							t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
+							t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
+						}
+						if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							# -(mean annual of scenario - mean annual of current)
+							t_min <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C),12)
+							t_max <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C),12)
+						} 
+						if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							# -(mean monthly of scenario - mean monthly of current)
+							t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC)
+							t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC)
+						}
+					}
+					if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
+						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm) * (SiteClimate_Scenario$MAP_cm / SiteClimate_Ambient$MAP_cm)
+						}
+						if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							ppt_sc <- rep((SiteClimate_Ambient$MAP_cm / SiteClimate_Scenario$MAP_cm),12)
+						}
+						if(grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
+							ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm)
+						}
+					}
+					
+					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_sc
+					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2] <- t_max
+					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3] <- t_min
+				}
 			}
 			
 			if(any(create_treatments=="LookupShiftedPPTScenarios")){
@@ -2651,23 +2672,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_f
 			}
 				
-			#Update climate data with climate scenario information
-			if(do.GetClimateMeans){
-				SiteClimate_Scenario <- list()
-				SiteClimate_Scenario$meanMonthlyPPTcm <- SiteClimate_Ambient$meanMonthlyPPTcm * ppt_f
-				tmean_f <- apply(cbind(t_min_f, t_max_f), MARGIN=1, FUN=mean)
-				SiteClimate_Scenario$meanMonthlyTempC <- SiteClimate_Ambient$meanMonthlyTempC + tmean_f
-				SiteClimate_Scenario$minMonthlyTempC <- SiteClimate_Ambient$minMonthlyTempC + t_min_f
-				SiteClimate_Scenario$maxMonthlyTempC <- SiteClimate_Ambient$maxMonthlyTempC + t_max_f
-				SiteClimate_Scenario$MAP_cm <- sum(SiteClimate_Scenario$meanMonthlyPPTcm)
-				SiteClimate_Scenario$MAT_C <- mean(SiteClimate_Scenario$meanMonthlyTempC)
-				if(do.C4vars){
-					SiteClimate_Scenario$dailyTempMin <- SiteClimate_Ambient$dailyTempMin + t_min_f[simTime2$month_ForEachUsedDay]
-					SiteClimate_Scenario$dailyTempMean <- SiteClimate_Ambient$dailyTempMean + tmean_f[simTime2$month_ForEachUsedDay]
-					SiteClimate_Scenario$dailyC4vars <- sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
-				}
-			}
-			
 			#anything that depends on weather
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
 			if(print.debug) print("Start of set soil temperature")
