@@ -2934,6 +2934,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 		if(tasks$create <= 0 || !EVCO_done || !TRCO_done || !TRRG_done){
 			tasks$create <- 0
+			tasks$execute <- tasks$aggregate <- -1
 		} else {
 			tasks$create <- 2
 		}
@@ -3000,7 +3001,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
-		if(tasks$execute > 0) tasks$execute <- 2
+		if(tasks$execute > 0){
+			tasks$execute <- 2
+		} else {
+			tasks$aggregate <- -1
+		}
 	}#end if do execute
 	
 #------------------------AGGREGATE SOILWAT OUTPUT
