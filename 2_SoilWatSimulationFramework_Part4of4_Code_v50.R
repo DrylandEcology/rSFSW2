@@ -1590,17 +1590,13 @@ if(any(actions == "create")){
 			#add data to sw_input_soils and set the use flags
 			i.temp <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
 			tr.col.max <- max(rowSums(!is.na(table.EvapCoeff)))
-			if(exists("sw_input_soils")) {
-				sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
-				sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
-			} else {
-				i_sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
-				i_sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
-			}
+			sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
+			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+
 			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
 			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
 			
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=ifelse(exists("sw_input_soils"), sw_input_soils, i_sw_input_soils)))
+			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
 		} 
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals and on in treatments
@@ -1623,17 +1619,13 @@ if(any(actions == "create")){
 			#add data to sw_input_soils and set the use flags
 			i.temp <- grepl(pattern="TranspRegion", x=names(sw_input_soils_use))
 			tr.col.max <- max(rowSums(!is.na(table.TranspReg)))
-			if(exists("sw_input_soils")) {
-				sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
-				sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
-			} else {
-				i_sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
-				i_sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
-			}
+			sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
+			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+
 			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
 			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
 			
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=ifelse(exists("sw_input_soils"), sw_input_soils, i_sw_input_soils)))
+			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
 		}
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) ){#Use only if option is off in sw_input_experimentals
@@ -1660,15 +1652,10 @@ if(any(actions == "create")){
 			
 			#add data to sw_input_cloud and set the use flags
 			sw_input_cloud_use[i.temp <- grepl(pattern="snowd", x=names(sw_input_cloud_use))] <- 1
-			if(exists("sw_input_cloud")) {
-				sw_input_cloud[, i.temp][st_mo] <- snowd
-				sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
-			} else {
-				i_sw_input_cloud[, i.temp][st_mo] <- snowd
-				i_sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(i_sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
-			}
+			sw_input_cloud[, i.temp][st_mo] <- snowd
+			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
 			
-			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=ifelse(exists("sw_input_cloud"),sw_input_cloud,i_sw_input_cloud)))
+			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
 		}
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) ){#Use only if option is off in sw_input_experimentals
