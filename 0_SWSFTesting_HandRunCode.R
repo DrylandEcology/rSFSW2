@@ -7,7 +7,7 @@ filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 #i_xxx = the i_tr-row of xxx for the i-th simulation run; if trowExperimentals > 0 then these will eventually be repeated, and below replaced with experimental values
 #i_exp = the row of sw_input_experimentals for the i-th simulation run
 #P_id is a unique id number for each scenario in each run
-i_sim <- 64
+i_sim <- 1
 i_tr <- seq.tr[(i_sim-1) %% runs + 1]
 
 drv <- dbDriver("SQLite")
