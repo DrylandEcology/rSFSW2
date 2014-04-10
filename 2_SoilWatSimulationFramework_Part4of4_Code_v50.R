@@ -2494,7 +2494,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(getCurrentWeatherDataFromDatabase) {
 				.local <- function(i_sw_weatherList){
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
-					if(!exists("con") | !parallel_runs) {
+					if(!exists("con") || !isIdCurrent(con) || !parallel_runs) {
 						drv <<- dbDriver("SQLite")
 						con <<- dbConnect(drv, dbname=name.OutputDB)
 					}
@@ -2513,7 +2513,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#copy and make climate scenarios from datafiles
 		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
-		if(tasks$create <= 0) for(sc in 1:scenario_No){
+		if(tasks$create > 0) for(sc in 1:scenario_No){
 			if(sc > 1){
 				swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
 			} else {
@@ -2625,7 +2625,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 				}
 			} else {
-				SiteClimate_Scenario <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[sc]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs))
+				SiteClimate_Scenario <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[sc]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 				if(sc > 1){
 					ppt_sc <- (temp <- swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
 					t_max <- temp[,2]
