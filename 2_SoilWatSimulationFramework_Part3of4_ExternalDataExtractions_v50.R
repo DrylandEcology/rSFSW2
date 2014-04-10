@@ -198,7 +198,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		test_sigmaGamma <- function(data){
 			#Testing that ppt values are within 6 sigma of a gamma distribution approximation (http://en.wikipedia.org/wiki/Gamma_distribution#Maximum_likelihood_estimation); requires at least two values > 0, otherwise shape = Inf and scale = 0
 			tempD <- scen.fut.xadj[scen.fut.xadj > 0]
-			if(length(tempD) >= 2){
+			if(length(tempD) >= 2 && sd(tempD) > 0){
 				temp <- log(tempM <- mean(tempD)) - mean(log(tempD))
 				#Approximate shape and scale instead of: g <- MASS::fitdistr(scen.fut.xadj, "gamma")
 				gshape <- (3 - temp + sqrt((temp - 3)^2 + 24*temp)) / (12 * temp)
