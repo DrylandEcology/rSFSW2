@@ -295,8 +295,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 											} else if(any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)){ #no rainy day for this month in historic record: locate rainy days in any months from other years
 												#Locate data of any month in any year
 												i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
-												newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[obs.hist.monthly[i_newMYear, "Year"]][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
-												newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]][1:sum(im_month)]
+												i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
+												newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+												newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
 												#Adjust data
 												newMonthData <- adjustLength(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a month with a different number of days
 												res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
