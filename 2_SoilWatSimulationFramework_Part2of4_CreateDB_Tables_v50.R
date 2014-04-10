@@ -55,7 +55,8 @@ if(createWeatherDatabaseFromLookupWeatherFolder) {
 			weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
 		}
 		names(weatherData) <- years
-		Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,weatherData)
+		data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
+		Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,data_blob)
 		if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
 			temp2<-Sys.time() - Time
 			units(temp2) <- "secs"
