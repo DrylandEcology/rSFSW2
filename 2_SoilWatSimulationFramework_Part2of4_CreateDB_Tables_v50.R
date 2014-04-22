@@ -18,7 +18,6 @@ set_PRAGMAs <- function(con){
 	dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
 	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 	lapply(settings, function(x) dbGetQuery(con,x))
-	rm(rs)
 }
 
 if(length(Tables) == 0) set_PRAGMAs(con)
