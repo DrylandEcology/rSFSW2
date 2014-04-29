@@ -580,8 +580,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			lat <- locations[il, 2]
 			site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
 			if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#TODO: remove
-if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path("/Users/drschlaep/Dropbox/Work_Stuff/Rwork/GCMextractions", paste0("iteration_", i, ".rds")))
+#			if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
 			
 			if(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2]){#Data Bounding Box
 				#Scenario monthly weather time-series
@@ -634,10 +633,6 @@ if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path("/Users/drschlaep/Dro
 						types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
 					}
 					if("hybrid-delta" %in% downs){
-#TODO
-#print(paste(i, ir))
-#save(i, ir, obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-#	file=file.path(dir.out.temp, gcm, paste0(rcps[ir], "_", i, ".RData")))
 						scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly)
 						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == paste("hybrid-delta", rcps[ir], gcm, sep="."), "id"]
 						data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
@@ -655,7 +650,9 @@ if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path("/Users/drschlaep/Dro
 			return(res)
 		}
 		
-		res <- if(inherits(try(.local(i), silent=FALSE), "try-error")) NULL else i	
+		res <- if(temp <- inherits(try(.local(i), silent=FALSE), "try-error")) NULL else i
+		if(temp) save(i, obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, file=file.path(dir.out.temp, paste0("failed_", i, ".RData")))
+	
 		return(res)
 	}	
 
@@ -764,27 +761,16 @@ if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path("/Users/drschlaep/Dro
 	rm(i_ToDo, logFile)
 
 	#Clean up: report unfinished locations, etc.
-#TODO remove
-dir.in1 <- dir.in
-dir.in <- "/Volumes/Macintosh_HD_2/ryan_workspace/Product_PowellCenter/6_Projects_Year1"
-dir.dro <- "/Users/drschlaep/Dropbox/Work_Stuff/Rwork/GCMextractions"
-save(i_Done, file=file.path(dir.in, "Ryan_TheDatabaseCodeIsDone.RData"))
-save(i_Done, file=file.path(dir.dro, "Ryan_TheDatabaseCodeIsDone.RData"))
 	if(length(i_ToDo <- if(length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0){
-save(i_ToDo, file=file.path(dir.in, "Ryan_TheRunsInThisFileFailed.RData"))
-save(i_ToDo, file=file.path(dir.dro, "Ryan_TheRunsInThisFileFailed.RData"))
 		warning(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", tagDB, "'"))
 		failedLocations_DB <- locations[temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1), ]
 		include_YN_updateFailed <- include_YN
 		include_YN_updateFailed[include_YN > 0][temp] <- 0
 		save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, "failedLocations_ClimDB.RData"))
-save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.dro, "failedLocations_ClimDB.RData"))
 		SWRunInformation_updateFailed <- cbind(SWRunInformation, include_YN_updateFailed=include_YN_updateFailed)
 		write.csv(SWRunInformation_updateFailed, file=file.path(dir.in, paste0("failedLocationsUpdated_ClimDB_", datafile.SWRunInformation)))
-write.csv(SWRunInformation_updateFailed, file=file.path(dir.dro, paste0("failedLocationsUpdated_ClimDB_", datafile.SWRunInformation)))
 		rm(failedLocations_DB, include_YN_updateFailed, SWRunInformation_updateFailed)
 	}
-dir.in <- dir.in1
 	
 	if(!be.quiet) print(paste("Finished '", tagDB, "' at", Sys.time()))
 	
