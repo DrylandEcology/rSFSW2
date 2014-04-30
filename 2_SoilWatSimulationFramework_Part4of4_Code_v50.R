@@ -2492,19 +2492,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(is.null(i_sw_weatherList[[1]])) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 		} else {
 			if(getCurrentWeatherDataFromDatabase) {
-				.local <- function(i_sw_weatherList){
+				.local <- function(i){
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					if(!exists("con") || !isIdCurrent(con) || !parallel_runs) {
 						drv <<- dbDriver("SQLite")
 						con <<- dbConnect(drv, dbname=name.OutputDB)
 					}
-					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i_sim-1)*scenario_No+1)))[1,1]
+					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i-1)*scenario_No+1)))[1,1]
 					dbDisconnect(con)
+					i_sw_weatherList <- list()
 					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, length(climate.conditions), 1))
 						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=temp,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[k])
 					return(i_sw_weatherList)
 				}
-				i_sw_weatherList <- try(.local(i_sw_weatherList), silent=TRUE)
+				i_sw_weatherList <- try(.local(i), silent=TRUE)
 				if(inherits(i_sw_weatherList, "try-error")) tasks$create <- 0
 			} else {
 				i_sw_weatherList[[1]] <- getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
