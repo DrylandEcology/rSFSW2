@@ -434,7 +434,7 @@ names(aon) <- aon.help[,1]
 #------import regeneration data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
-if(any(actions == "aggregate") & any(simulation_timescales=="daily") & aon$dailyRegeneration_GISSM) {
+if(any(simulation_timescales=="daily") & aon$dailyRegeneration_GISSM) {
 	list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
 	no.species_regeneration <- length(list.species_regeneration)
 	if(no.species_regeneration > 0){
