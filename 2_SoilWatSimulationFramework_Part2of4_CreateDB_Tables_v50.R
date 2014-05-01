@@ -7,7 +7,7 @@
 # 
 #
 ###############################################################################
-library(RSQLite)
+suppressMessages(library(RSQLite))
 drv <- dbDriver("SQLite")
 con <- dbConnect(drv, dbname = name.OutputDB)
 Tables <- dbListTables(con)
