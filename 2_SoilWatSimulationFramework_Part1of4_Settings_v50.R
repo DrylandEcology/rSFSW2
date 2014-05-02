@@ -397,6 +397,7 @@ output_aggregates <- c(
 						"monthlyRunoff", 1,
 						"monthlyHydraulicRedistribution", 1,
 						"monthlyInfiltration", 1,
+						"monthlyDeepDrainage", 1,
 						"monthlySWP", 1,
 						"monthlyVWC", 1,
 						"monthlySWC", 1,
