@@ -5676,7 +5676,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			columns<-dbListFields(con,Table)[-1]
 			if(Layers<-any(temp<-grepl(pattern = "Soil_Layer",x=columns))) columns<-columns[-temp]
 			columns<-paste("\"",columns,"\"", sep="",collapse = ", ")
-			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
+			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
 			res <- dbSendQuery(con, sqlString)
 			dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
 			dbClearResult(res)
