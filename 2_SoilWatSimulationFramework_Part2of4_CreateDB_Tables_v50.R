@@ -712,6 +712,9 @@ if((length(Tables) == 0) || do.clean) {
 		if(any(simulation_timescales=="monthly") & aon$monthlyInfiltration){
 			temp <- c(temp, paste("Infiltration.m", st_mo, "_mm_mean", sep=""))
 		}
+		if(any(simulation_timescales=="monthly") & aon$monthlyDeepDrainage){
+			temp <- c(temp, paste("DeepDrainage.m", st_mo, "_mm_mean", sep=""))
+		}
 	
 	#43
 		if(any(simulation_timescales=="monthly") & aon$monthlySWP){

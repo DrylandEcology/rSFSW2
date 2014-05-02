@@ -3200,6 +3200,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		get_DeepDrain_yr <- function(sc){
 			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
 		}
+		get_DeepDrain_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
+		}
 		get_DeepDrain_dy <- function(sc){
 			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
 		}
@@ -4379,6 +4382,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("runoff.mo")) runoff.mo <- get_Runoff_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate(runoff.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(runoff.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
 			#42
@@ -4396,6 +4400,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("inf.mo")) inf.mo <- get_Inf_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( inf.mo$inf , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( inf.mo$inf , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					nv <- nv+12
+				}
+				if(any(simulation_timescales=="monthly") & aon$monthlyDeepDrainage){
+					if(print.debug) print("Aggregation of monthlyDeepDrainage")
+					if(!exists("deepDrain.mo")) deepDrain.mo <- get_DeepDrain_mo(sc)
+					
+					resMeans[nv+st_mo-1] <- aggregate( deepDrain.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( deepDrain.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
 			#44
@@ -4449,7 +4462,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(print.debug) print("Aggregation of monthlySoilEvaporation")
 					if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(sc, sw_evsoil, "mo", 10, FUN=sum)
 					
-					resMeans[nv+st_mo-1] <- aggregate(Esoil.mo$top + Esoil.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resMeans[nv+st_mo-1] <- aggregate(temp <- Esoil.mo$top + Esoil.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
 			#50
@@ -4458,6 +4472,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("AET.mo")) AET.mo <- get_AET_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( AET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( AET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
 			#51
@@ -4466,6 +4481,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
 					
 					resMeans[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
 			#52
@@ -4475,8 +4491,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(sc, sw_evsoil, "mo", 10, FUN=sum)
 					if(!exists("transp.mo")) transp.mo <- get_Response_aggL(sc, sw_transp, "mo", 10, FUN=sum)
 					
-					resMeans[nv+st_mo-1] <- aggregate( ifelse( AET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
-					resMeans[nv+st_mo-1+12] <- aggregate( ifelse( AET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resMeans[nv+st_mo-1] <- aggregate( temp <- ifelse( AET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate( temp <- ifelse( AET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / AET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate( temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#53
@@ -4486,8 +4504,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(sc, sw_evsoil, "mo", 10, FUN=sum)
 					if(!exists("transp.mo")) transp.mo <- get_Response_aggL(sc, sw_transp, "mo", 10, FUN=sum)
 					
-					resMeans[nv+st_mo-1] <- aggregate( ifelse( PET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
-					resMeans[nv+st_mo-1+12] <- aggregate( ifelse( PET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resMeans[nv+st_mo-1] <- aggregate( temp <- ifelse( PET.mo$val == 0, 0, (transp.mo$top + transp.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate( temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate( temp <- ifelse( PET.mo$val == 0, 0, (Esoil.mo$top + Esoil.mo$bottom) / PET.mo$val) , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate( temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 				
