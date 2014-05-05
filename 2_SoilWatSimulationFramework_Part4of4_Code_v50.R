@@ -2514,6 +2514,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#copy and make climate scenarios from datafiles
 		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
+		ClimatePerturbationsVals <- matrix(data=NA,nrow=scenario_No, ncol=12*3, dimnames=paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 		if(tasks$create > 0) for(sc in 1:scenario_No){
 			if(sc > 1){
 				swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -2608,6 +2609,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 				
 				swWeather_MonScalingParams(swRunScenariosData[[sc]]) <- MonthlyScalingParams
+				ClimatePerturbationsVals[sc,1:12] <- MonthlyScalingParams[,1]
+				ClimatePerturbationsVals[sc,13:24] <- MonthlyScalingParams[,2]
+				ClimatePerturbationsVals[sc,25:36] <- MonthlyScalingParams[,3]
 
 				#Update climate data with climate scenario information
 				if(do.GetClimateMeans){
@@ -2664,6 +2668,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_sc
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2] <- t_max
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3] <- t_min
+					ClimatePerturbationsVals[sc,1:12] <- ppt_sc
+					ClimatePerturbationsVals[sc,13:24] <- t_max
+					ClimatePerturbationsVals[sc,25:36] <- t_min
 				}
 			}
 			
@@ -2671,6 +2678,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_f <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
 				ppt_f <- ppt_f * as.numeric(ppt_scShift)
 				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_f
+				ClimatePerturbationsVals[sc,1:12] <- ppt_f
 			}
 				
 			#anything that depends on weather
@@ -3387,7 +3395,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#6
 				if(aon$input_ClimatePerturbations) {
 					if(print.debug) print("Aggregation of input_ClimatePerturbations")
-					resMeans[nv:(nv+35)] <- as.vector(as.numeric(swWeather_MonScalingParams(swRunScenariosData[[sc]])))
+					resMeans[nv:(nv+35)] <- as.vector(as.numeric(ClimatePerturbationsVals[sc,]))
 					nv <- nv+36
 				}			
 				
