@@ -29,6 +29,8 @@ if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "L
 #  }
 }
 
+nodeNumber <- 1
+
 i <- i_sim
 i_labels <- labels[i_tr]
 i_SWRunInformation <- SWRunInformation[i_tr, ]

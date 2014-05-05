@@ -77,7 +77,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		# 3. Apply deltas to historic daily weather
 		scen.fut.daily <- lapply(obs.hist.daily, FUN=function(obs) {
 					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
-					new("swWeatherData", data=data.matrix(cbind(obs@data[, "DOY"], obs@data[, c("Tmax_C", "Tmin_C")] + deltas[month, 1:2], obs@data[, "PPT_cm"] * deltas[month, 3]), rownames.force=FALSE), year=obs@year)
+					new("swWeatherData", data=round(data.matrix(cbind(obs@data[, "DOY"], obs@data[, c("Tmax_C", "Tmin_C")] + deltas[month, 1:2], obs@data[, "PPT_cm"] * deltas[month, 3]), rownames.force=FALSE), 2), year=obs@year)
 				})
 		return(scen.fut.daily)
 	}
@@ -102,7 +102,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		# 3. Apply deltas to historic daily weather
 		scen.fut.daily <- lapply(obs.hist.daily, FUN=function(obs) {
 					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
-					new("swWeatherData", data=data.matrix(cbind(obs@data[, "DOY"], obs@data[, c("Tmax_C", "Tmin_C")] + deltas[month, 1:2], obs@data[, "PPT_cm"] * deltas[month, 3]), rownames.force=FALSE), year=obs@year)
+					new("swWeatherData", data=round(data.matrix(cbind(obs@data[, "DOY"], obs@data[, c("Tmax_C", "Tmin_C")] + deltas[month, 1:2], obs@data[, "PPT_cm"] * deltas[month, 3]), rownames.force=FALSE), 2), year=obs@year)
 				})
 		return(scen.fut.daily)
 	}
@@ -269,7 +269,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		scen.fut.daily <- lapply(obs.hist.daily, FUN=function(obs) {
 						month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
 						ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
-						new("swWeatherData", data=data.matrix(cbind(
+						new("swWeatherData", data=round(data.matrix(cbind(
 								obs@data[, "DOY"],
 								obs@data[, c("Tmax_C", "Tmin_C")] + ydelta[month, 1:2],						
 								controlExtremePPTevents(unlist(lapply(1:12, FUN=function(m) {
@@ -310,7 +310,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 									}
 									return(res)
 								}))) ),
-							rownames.force=FALSE), year=obs@year)
+							rownames.force=FALSE), 2), year=obs@year)
 					})
 		return(scen.fut.daily)
 	}
