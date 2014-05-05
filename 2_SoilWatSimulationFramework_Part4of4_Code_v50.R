@@ -2668,9 +2668,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_sc
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,2] <- t_max
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,3] <- t_min
-					ClimatePerturbationsVals[sc,1:12] <- ppt_sc
-					ClimatePerturbationsVals[sc,13:24] <- t_max
-					ClimatePerturbationsVals[sc,25:36] <- t_min
+					ClimatePerturbationsVals[sc,1:12] <- ppt_sc * SiteClimate_Scenario$meanMonthlyPPTcm / SiteClimate_Ambient$meanMonthlyPPTcm
+					ClimatePerturbationsVals[sc,13:24] <- t_max + (SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC)
+					ClimatePerturbationsVals[sc,25:36] <- t_min + (SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC)
 				}
 			}
 			
@@ -2678,7 +2678,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				ppt_f <- swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1]
 				ppt_f <- ppt_f * as.numeric(ppt_scShift)
 				swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_f
-				ClimatePerturbationsVals[sc,1:12] <- ppt_f
+				if(getScenarioWeatherDataFromDatabase){
+					ClimatePerturbationsVals[sc,1:12] <- ppt_f * ClimatePerturbationsVals[sc,1:12]
+				} else {
+					ClimatePerturbationsVals[sc,1:12] <- ppt_f
+				}
 			}
 				
 			#anything that depends on weather
