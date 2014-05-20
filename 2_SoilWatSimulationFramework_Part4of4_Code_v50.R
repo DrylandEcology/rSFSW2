@@ -5437,34 +5437,33 @@ tryCatch({
 #			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 #		}
 		#Best for debugging
-		#setwd(dir.prj)
-		#exeEnv <- new.env()
-		#for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
+		setwd(dir.prj)
+		exeEnv <- new.env()
+		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
 		
 		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			
-			#assign(x="i",value=i_sim,envir=exeEnv)
-			#assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
-			#assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
-			#assign(x="i_sw_weatherList",value=sw_weatherList,envir=exeEnv)
+			assign(x="i",value=i_sim,envir=exeEnv)
+			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
+			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
+			assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
 			
-			#save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
-			#rm(list=ls(all=TRUE))
-			#load("test.Rdata")
+			save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
+			rm(list=ls(all=TRUE))
+			load("test.Rdata")
 			
-			#do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
-			#				i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
-			#				i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values,i_sw_weatherList=i_sw_weatherList)
+			do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
+							i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
+							i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values)
 			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
 	}
