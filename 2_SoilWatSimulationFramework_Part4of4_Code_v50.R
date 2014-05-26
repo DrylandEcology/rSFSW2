@@ -2655,14 +2655,57 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 					if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
 						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-							ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm) * (SiteClimate_Scenario$MAP_cm / SiteClimate_Ambient$MAP_cm)
+							#Mean of weather == mean of scenario, seasonality of weather = seasonality of ambient
+							if(isTRUE(all.equal(SiteClimate_Ambient$MAP_cm, 0))){
+								SiteClimate_Ambient$MAP_cm <- sqrt(.Machine$double.eps)
+								if(isTRUE(all.equal(SiteClimate_Scenario$MAP_cm, 0))){
+									SiteClimate_Scenario$MAP_cm <- sqrt(.Machine$double.eps)
+									ppt_sc <- rep(0, times=12)
+								} else {
+									warning("Problem with scaling to 'mean' for ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone because of zero precipitation periods")
+								}
+							}
+							if(sum(ppt_sc) > 0){
+								if(sum(temp <- sapply(SiteClimate_Scenario$meanMonthlyPPTcm, FUN=function(x) isTRUE(all.equal(x, 0)))) > 0){
+									warning("Problem with scaling to 'mean' for ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone because of zero precipitation periods")
+									SiteClimate_Scenario$meanMonthlyPPTcm[temp] <- sqrt(.Machine$double.eps)
+								}
+								ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm) * (SiteClimate_Scenario$MAP_cm / SiteClimate_Ambient$MAP_cm)
+							}
 						}
 						if(grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-							ppt_sc <- rep((SiteClimate_Ambient$MAP_cm / SiteClimate_Scenario$MAP_cm),12)
+							#Mean of weather == mean of ambient, seasonality of weather = seasonality of scenario
+							if(isTRUE(all.equal(SiteClimate_Scenario$MAP_cm, 0))){
+								SiteClimate_Scenario$MAP_cm <- sqrt(.Machine$double.eps)
+								if(isTRUE(all.equal(SiteClimate_Ambient$MAP_cm, 0))){
+									SiteClimate_Ambient$MAP_cm <- sqrt(.Machine$double.eps)
+									ppt_sc <- rep(0, times=12)
+								} else {
+									warning("Problem with scaling to 'mean' for ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone because of zero precipitation periods")
+								}
+							}
+							if(sum(ppt_sc) > 0){
+								ppt_sc <- rep((SiteClimate_Ambient$MAP_cm / SiteClimate_Scenario$MAP_cm),12)
+							}
 						}
 						if(grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-							ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm)
+							#Mean of weather == mean of ambient, seasonality of weather = seasonality of ambient
+							if(isTRUE(all.equal(SiteClimate_Ambient$MAP_cm, 0)) && isTRUE(all.equal(SiteClimate_Scenario$MAP_cm, 0))){
+								SiteClimate_Ambient$MAP_cm <- SiteClimate_Scenario$MAP_cm <- sqrt(.Machine$double.eps)
+								ppt_sc <- rep(0, times=12)
+							}
+							if(sum(ppt_sc) > 0){
+								if(sum(temp <- sapply(SiteClimate_Scenario$meanMonthlyPPTcm, FUN=function(x) isTRUE(all.equal(x, 0)))) > 0){
+									warning("Problem with scaling to 'mean' for ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone because of zero precipitation periods")
+									SiteClimate_Scenario$meanMonthlyPPTcm[temp] <- sqrt(.Machine$double.eps)
+								}
+								ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm)
+							}
 						}
+					}
+					if(sum(temp <- sapply(SiteClimate_Ambient$meanMonthlyPPTcm, FUN=function(x) isTRUE(all.equal(x, 0)))) > 0){
+						warning("Problem with scaling to 'mean' for ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone because of zero precipitation periods")
+						SiteClimate_Ambient$meanMonthlyPPTcm[temp] <- sqrt(.Machine$double.eps)
 					}
 					
 					swWeather_MonScalingParams(swRunScenariosData[[sc]])[,1] <- ppt_sc
