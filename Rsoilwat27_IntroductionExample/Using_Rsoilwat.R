@@ -19,7 +19,7 @@ swIn2 <- sw_inputDataFromFiles(dir=dir.sw, file.in="files_v27.in")
 str(swIn2, max.level=2)
 
 #Read in forcing weather data
-weatherList <- onGetWeatherData_folders(LookupWeatherFolder=dir.sw, weatherDirName="Weather_Test", 
+weatherList <- getWeatherData_folders(LookupWeatherFolder=dir.sw, weatherDirName="Weather_Test", 
     filebasename="weath", startYear=1979, endYear=2010)
 str(weatherList, max.level=1)
 
