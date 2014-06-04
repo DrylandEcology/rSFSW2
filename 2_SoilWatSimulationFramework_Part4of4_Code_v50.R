@@ -5488,7 +5488,7 @@ if(any(actions=="concatenate")) {
 		drv <- dbDriver("SQLite")
 		con <- dbConnect(drv, dbname = name.OutputDB)
 		if(copyCurrentConditionsFromTempSQL) {
-			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=TRUE)
+			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=FALSE)
 			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
 			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
 			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
