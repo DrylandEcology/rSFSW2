@@ -357,7 +357,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 		dir.ex.dat <- NULL
 		nasa.dataserver <- "http://dataserver.nccs.nasa.gov"
-		if(useRCurl) stopifnot(url.exists(nasa.dataserver)) #check whether we are online
+		if(useRCurl){
+			stopifnot(url.exists(nasa.dataserver)) #check whether we are online
+			saveNEXtempfiles <- FALSE
+		} else {
+			saveNEXtempfiles <- TRUE
+		}
 		url.nex.ncss <- paste0(nasa.dataserver, "/thredds/ncss/grid/bypass/NEX-DCP30/bcsd")
 		gcmrun <- "r1i1p1"
 
@@ -429,7 +434,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		
 		get.DBvariable <- function(i, variable, scen, gcm, lon, lat, startyear, endyear){
 			request <- paste0(paste(url.nex.ncss, scen, gcmrun,
-							paste0(gcm, "_", variable, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", var), 
+							paste0(gcm, "_", variable, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", variable), 
 					"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
 					paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 					"&accept=csv")
