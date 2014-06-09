@@ -482,7 +482,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					if(length(vtemp) < 12*yearsN){ #some GCMs only have values up to Nov 2099
 						tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep="_")
 						targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
-						dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- vtemp[match(targetYearMonth, tempYearMonth, nomatch=0), 2]
+						dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- vtemp[match(targetYearMonth, tempYearMonth, nomatch=0)]
 					} else {
 						dat <- vtemp
 					}
