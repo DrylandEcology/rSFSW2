@@ -121,6 +121,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		sigmaN <- 6 #test whether new distributions are within sigmaN * sd of mean
 		PPTratioCutoff <- 10 #above and below that value use additive instead of multiplicative; 3 was too small -> resulting in too many medium-sized ppt-event
 		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
+		dailyPPTtoExtremeToBeReal <- 10 / 1.5 * dailyPPTceiling #if more than 1000% of observed value then assume that something went wrong and error out
 	
 		#Functions
 		eCDF.Cunnane <- function(x){
@@ -171,19 +172,28 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			return(data)
 		}
 		controlExtremePPTevents <- function(data, rep=1){
+			stopifnot(data < dailyPPTtoExtremeToBeReal) #something went wrong, e.g., GCM data is off
 			if(rep <= 30 && length(i_extreme <- which(data > dailyPPTceiling)) > 0){#limit recursive calls: if too many wet days, then not possible to distribute all the water!
 				newValues <- dailyPPTceiling * runif(n=length(i_extreme), min=1-1/10, max=1)
 				pptToDistribute <- data[i_extreme] - newValues
 				data[i_extreme] <- newValues
 				newPPTevent_N <- ceiling(pptToDistribute / dailyPPTceiling)
 				newPPTevents <- lapply(seq_along(i_extreme), FUN=function(i) {
-					#Randomly select days within ± sigmaN days from a normal distribution		
-					xt <- (temp <- (-sigmaN*newPPTevent_N[i]):(sigmaN*newPPTevent_N[i]))[(i_extreme[i] + temp > 0)]
-					probs <- dnorm(x=xt, mean=0, sd=newPPTevent_N[i])
-					probs[which.max(probs)] <- 0
-					dayDelta <- (temp <- sample(x=xt, size=newPPTevent_N[i], replace=FALSE, prob=probs))[rank(abs(temp), ties.method="random")]
-					#Distribute PPT to add among the selected days with a linear decay function
-					return(list(newDays=i_extreme[i] + dayDelta, newPPT=pptToDistribute[i] * (temp <- 1/abs(dayDelta))/sum(temp)) )
+					if(newPPTevent_N[i] > 0){
+						#Randomly select days within ± sigmaN days from a normal distribution		
+						xt <- (temp <- (-sigmaN*newPPTevent_N[i]):(sigmaN*newPPTevent_N[i]))[(i_extreme[i] + temp > 0)]
+						probs <- dnorm(x=xt, mean=0, sd=newPPTevent_N[i])
+						probs[which.max(probs)] <- 0
+						dayDelta <- (temp <- sample(x=xt, size=newPPTevent_N[i], replace=FALSE, prob=probs))[rank(abs(temp), ties.method="random")]
+						#Distribute PPT to add among the selected days with a linear decay function
+						newDays <- i_extreme[i] + dayDelta
+						newPPT <- pptToDistribute[i] * (temp <- 1/abs(dayDelta))/sum(temp)
+					} else {
+						warning("A daily PPT event was > 1000% observed maximum. Something went probably wrong.")
+						newDays <- i_extreme[i]
+						newPPT <- 0
+					}
+					return(list(newDays=newDays, newPPT=newPPT) )
 				})
 				for(i in seq_along(i_extreme)){
 					data[newPPTevents[[i]]$newDays] <- data[newPPTevents[[i]]$newDays] + newPPTevents[[i]]$newPPT
@@ -349,6 +359,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		if(any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
 		
 		gcmsDB <- unique(unlist(sapply(scenariosDB, FUN=function(x) sapply(strsplit(list.files(file.path(dir.ex.dat, x)), split="_", fixed=TRUE), FUN=function(x) x[5]))))	
+		
+		print_int <- 1000
 	}
 	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
@@ -363,14 +375,14 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		} else {
 			saveNEXtempfiles <- TRUE
 		}
-		url.nex.ncss <- paste0(nasa.dataserver, "/thredds/ncss/grid/bypass/NEX-DCP30/bcsd")
-		gcmrun <- "r1i1p1"
 
 		reqRCPs <- tolower(reqRCPs)
 		reqRCPsPerGCM <- lapply(reqRCPsPerGCM, tolower)
 		dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
 		gcmsDB <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
 		scenariosDB <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
+
+		print_int <- 1
 	}
 	
 	#Tests
@@ -385,8 +397,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#bounding box
 	bbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(NULL, c("lat", "lon"))))
 	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
-		bbox$lat <- c(24.06, 49.92)
-		bbox$lon <- c(-125.02, -66.48)
+		bbox$lat <- c(24.0625, 49.9375)
+		bbox$lon <- c(-125.02083333, -66.47916667)
 	}
 	if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA){
 		bbox$lat <- c(25.125, 52.875)
@@ -435,40 +447,78 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		
 		get.DBvariable <- function(i, variable, scen, gcm, lon, lat, startyear, endyear){
-			request <- paste0(paste(url.nex.ncss, scen, gcmrun,
-							paste0(gcm, "_", variable, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", variable), 
-					"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
-					paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
-					"&accept=csv")
-			
-			if(useRCurl && !saveNEXtempfiles){
-				success <- try(getURL(request, .opts=list(timeout=5*60, connecttimeout=60)), silent=TRUE)
-				if(!inherits(success, "try-error")){
-					if(grepl("Not Found", success, ignore.case=TRUE)){
-						class(success) <- "try-error"
-					} else {
-						ftemp <- textConnection(success)
-						success <- 0
+			get.request <- function(service, request){
+				if(useRCurl && !saveNEXtempfiles){
+					success <- try(getURL(request, .opts=list(timeout=5*60, connecttimeout=60)), silent=TRUE)
+					if(!inherits(success, "try-error")){
+						if(grepl("Not Found", success, ignore.case=TRUE)){
+							class(success) <- "try-error"
+						} else {
+							if(service == "ncss"){
+								ftemp <- textConnection(success)
+							} else if(service == "opendap"){
+								ftemp <- textConnection((temp <- strsplit(success, split="\n\n", fixed=TRUE))[[1]][3])
+								ttemp <- as.POSIXlt("1950-01-01") + 60*60*24*as.numeric(scan(text=sub("\n", ",", temp[[1]][4], fixed=TRUE), what="character", sep=",", quiet=TRUE)[-1])
+							}
+							success <- 0
+						}
 					}
-				}
-			} else {
-				success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", var, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
-			}
-			
-			yearsN <- endyear - startyear + 1
-			dat <- rep(NA, times=12*yearsN)
-			if(!inherits(success, "try-error") && success == 0){
-				temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
-				if(!saveNEXtempfiles && !useRCurl && file.exists(ftemp)) unlink(ftemp)
-				if(nrow(temp) < 12*yearsN){ #some GCMs only have values up to Nov 2099
-					tempYearMonth <- paste((temp2 <- as.POSIXlt(temp[, 1]))$year + 1900, temp2$mo + 1, sep="_")
-					targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
-					dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- temp[match(targetYearMonth, tempYearMonth, nomatch=0), 2]
 				} else {
-					dat <- temp[, 2]
+					if(service == "opendap") stop("Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)")
+					success <- try(download.file(url=request, destfile=ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", variable, "_", round(lat, 5), "&", round(lon, 5), ".csv")), quiet=TRUE), silent=TRUE)
 				}
-			} else {
-				stop(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, scen, "at", lon, lat, ": not successful"))
+			
+				yearsN <- endyear - startyear + 1
+				dat <- rep(NA, times=12*yearsN)
+				if(!inherits(success, "try-error") && success == 0){
+					if(service == "ncss"){
+						temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
+						vtemp <- temp[, 2]
+						ttemp <- as.POSIXlt(temp[, 1])
+					} else if(service == "opendap"){
+						vtemp <- read.csv(ftemp, colClasses=c("NULL", "numeric"), header=FALSE)[-1, ] #columns = Index, Variable
+					}
+					if(!saveNEXtempfiles && !useRCurl && file.exists(ftemp)) unlink(ftemp)
+					if(length(vtemp) < 12*yearsN){ #some GCMs only have values up to Nov 2099
+						tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep="_")
+						targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
+						dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- vtemp[match(targetYearMonth, tempYearMonth, nomatch=0), 2]
+					} else {
+						dat <- vtemp
+					}
+				} else {
+					stop(paste(i, "th extraction of NEX at", Sys.time(), "for", gcm, scen, "at", lon, lat, ": not successful"))
+				}
+				
+				return(dat)
+			}
+
+			gcmrun <- "r1i1p1"
+			#1st attempt: TRHEDDS ncss/netCDF subsetting service
+			request <- paste0(paste(nasa.dataserver, "thredds/ncss/grid/bypass/NEX-DCP30/bcsd", scen, gcmrun,
+								paste0(gcm, "_", variable, ".ncml"), sep="/"), "?var=", paste0(gcm, "_", variable), 
+								"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
+								paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
+								"&accept=csv")
+			dat <- get.request(service="ncss", request)
+			if(any(dat > 1e5 | dat < -1e5)){ #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
+				#2nd attempt: TRHEDDS opendap/dodsC
+				lat.index <- round((lat - bbox$lat[1]) / 0.0083333333, 0)
+				lon.index <- round((lon - bbox$lon[1]) / 0.0083333333, 0)
+				if(startyear < 2006 && scen == "historical"){
+					index.time.start <- (startyear - 1950) * 12
+					index.time.end <- (endyear + 1 - 1950) * 12 - 1
+				} else {
+					index.time.start <- (startyear - 2006) * 12
+					index.time.end <- (endyear + 1 - 2006) * 12 - 1
+				}
+				request <- paste0(paste(nasa.dataserver, "thredds/dodsC/bypass/NEX-DCP30/bcsd", scen, gcmrun,
+								paste0(gcm, "_", variable, ".ncml.ascii"), sep="/"),
+								"?lat[", lat.index, "],lon[", lon.index, "],",
+								gcm, "_", variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][", lon.index, "]")
+
+				dat <- get.request(service="opendap", request)
+				stopifnot(dat < 1e5 & dat > -1e5)
 			}
 			
 			return(dat)
@@ -586,8 +636,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			lon <- locations[il <- (i - 1) %/% length(reqGCMs) + 1, 1]
 			lat <- locations[il, 2]
 			site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
-			if(!be.quiet && i %% 1000 == 1) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#			if(!be.quiet && i %% 10000 == 1) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
+			if(!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
+#			if(!be.quiet && (i-1) %% 10000 == 0) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
 			
 			if(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2]){#Data Bounding Box
 				#Scenario monthly weather time-series
@@ -666,11 +716,11 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	tryToGet_ClimDB <- function(is_ToDo){
 		if(parallel_runs && parallel_init){
 			#objects that need exporting to slaves
-			list.export <- c("dir.out.temp", "dir.ex.dat", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "timeSlices", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB",
+			list.export <- c("dir.out.temp", "dir.ex.dat", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "timeSlices", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
 					"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
 					"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid")
 			if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
-				list.export <- c(list.export, "url.nex.ncss", "gcmrun", "saveNEXtempfiles", "useRCurl",  
+				list.export <- c(list.export, "nasa.dataserver", "saveNEXtempfiles", "useRCurl",  
 					"mmPerSecond_to_cmPerMonth")
 			}
 			if(exinfo$GDODCPUCLLNL){
