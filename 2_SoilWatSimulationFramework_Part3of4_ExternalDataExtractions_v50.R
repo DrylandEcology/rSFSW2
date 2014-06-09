@@ -367,6 +367,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		gcmrun <- "r1i1p1"
 
 		reqRCPs <- tolower(reqRCPs)
+		reqRCPsPerGCM <- lapply(reqRCPsPerGCM, tolower)
+		dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
 		gcmsDB <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
 		scenariosDB <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
 	}
@@ -639,7 +641,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					}
 					if("hybrid-delta" %in% downs){
 						scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly)
-						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == paste("hybrid-delta", rcps[ir], gcm, sep="."), "id"]
+						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", rcps[ir], gcm, sep=".")), "id"]
 						data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
 						types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
 					}
