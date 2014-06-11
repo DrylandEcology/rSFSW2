@@ -14,6 +14,9 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
 	}
 }
 
+#new option
+r <- 1
+
 if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 		exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA ||
 		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
