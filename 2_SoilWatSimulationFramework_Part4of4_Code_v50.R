@@ -2969,6 +2969,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			temp <- swSite_TranspirationRegions(swRunScenariosData[[sc]])
 			if(nrow(temp) > 0 && temp[1, 2] >= 1 ||
 				max(temp[, 2]) <= max.tri.root ) TRRG_done <- TRUE
+		
+			if(print.debug) print(paste0(i_labels, " created scenario ", sc, ": tasks = ", paste(tasks, collapse=", "), ", evco = ", EVCO_done, ", trco = ", TRCO_done, ", trrg = ", TRRG_done))
 		}#end do scenario creations
 		
 		if(!EVCO_done){
