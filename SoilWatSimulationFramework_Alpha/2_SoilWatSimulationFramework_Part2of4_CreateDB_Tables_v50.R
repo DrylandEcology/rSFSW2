@@ -292,10 +292,10 @@ if((length(Tables) == 0) || do.clean) {
 				useTreatmentWeatherFolder <- TRUE
 				db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
 				colnames(db_combined_exp_treatments)[-(1:2)] <- db_treatments_column_types[,1]
-				fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
+				fk_LookupWeatherFolder <- "FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
 			}
 			#Create the table
-			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals || fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",if(fk_LookupWeatherFolder != "") ", ",fk_LookupWeatherFolder,");", sep=""))
+			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals | fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",fk_LookupWeatherFolder,");", sep=""))
 		
 			#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
 			if(useTreatments) {
@@ -424,7 +424,7 @@ if((length(Tables) == 0) || do.clean) {
 		################CREATE VIEW########################
 		sites_columns <- colnames(SWRunInformation[Index_RunInformation])
 		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
-		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
+		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:ifelse(useExperimentals,3,2))]
 		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
 		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 		header_columns<-paste(header_columns,collapse = ", ")
@@ -885,10 +885,10 @@ if((length(Tables) == 0) || do.clean) {
 			Tables<-dbListTables(con)
 			Tables<-Tables[!(Tables %in% headerTables)]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
-			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
-			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
-			respName<-sub(pattern="doy_",replacement="",x=respName,ignore.case = T)
-			respName<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respName)
+			Tables <- sub(pattern="_Mean$",replacement="",x=Tables,ignore.case = T)
+			respNames<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
+			respNames<-sub(pattern="doy_",replacement="",x=respNames,ignore.case = T)
+			respNames<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respNames)
 	
 			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
 			for(i in seq_along(dbEnsemblesFilePaths)) {
@@ -904,14 +904,14 @@ if((length(Tables) == 0) || do.clean) {
 				for(j in seq_along(ensemble.families)) {
 					for(k in seq_along(ensemble.levels)) {
 						EnsembleFamilyLevelTables<-paste(ensemble.families[j],"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
-						if(grepl(patter="overall",respName[i],ignore.case=TRUE)) {
-							respName<-sub(pattern="overall_",replacement="",x=respName,ignore.case = T)
+						if(grepl(patter="overall",respNames[i],ignore.case=TRUE)) {
+							respName<-sub(pattern="overall_",replacement="",x=respNames[i],ignore.case = T)
 							nidx <- switch(respName, "Inputs"=1, "ClimateAndweather"=2, "YearlyWaterBalance"=3, "DailyExtremeValues"=4, "EcologicalDryness"=5, "MeanMonthlyValues"=6, "PotentialRegeneration"=7)
 							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", OverallTables[[nidx]][[1]], ");", sep=""))
 							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", OverallTables[[nidx]][[2]], ");", sep=""))
-							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
+							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=OverallTables[[nidx]][[1]]), ");", sep=""))
 						} else {
-							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+							agg.analysis <- switch(EXPR=respNames[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 							if(agg.analysis == 1){
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
@@ -927,7 +927,7 @@ if((length(Tables) == 0) || do.clean) {
 				dbDisconnect(con)
 			}
 		}
-		return(dbOverallColumns)
+		return(1)
 	}
 	
 	dbOverallColumns <- try(.local(), silent=TRUE)

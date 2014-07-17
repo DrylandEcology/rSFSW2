@@ -367,7 +367,7 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat") < minVersionRsoilwat)) {
+if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
 	print("Going to try to install Rsoilwat library")
 	installed <- FALSE
 	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
