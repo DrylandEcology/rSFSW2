@@ -5639,39 +5639,68 @@ if(any(actions=="concatenate")) {
 t.check <- Sys.time()
 
 if(checkCompleteness){
+	
 	if(!be.quiet) print(paste("SWSF checks simulations and output: started at", t.check))
 	
-	if(exists("theredone")){
+	
+	checkForMissing <- function(Table, database){
+		drv <- dbDriver("SQLite")
+		con <- dbConnect(drv, dbname = database)
 		
-		res <- matrix(NA, ncol=2, nrow=0)
-		vec <- vector(length=2)
+		sql <- paste("SELECT runs.P_id FROM runs LEFT JOIN ",Table," ON (runs.P_id=",Table,".P_id) WHERE ",Table,".P_id is NULL ORDER BY runs.P_id",sep="")
 		
-		dirt <- "/Volumes/DRS4_BigData2/3_20120720_PC_GlobalDrylandEcoHydro_PrelimSim"
+		mP_ids <- dbGetQuery(con, sql)$P_id
 		
-		for(d in dirlist){
-			vec <- c(basename(d), length(list.files(file.path(dirt, d), recursive=TRUE, include.dirs=TRUE)))
-			res <- rbind(res, vec)
+		if(length(mP_ids) > 0)
+			save(mP_ids,file=paste(database,"_",Table,"_missing_P_ids.RData"))
+		
+		return(length(mP_ids))
+	}
+	
+	library(RSQLite,quietly = TRUE)
+	drv <- dbDriver("SQLite")
+	con <- dbConnect(drv, dbname = name.OutputDB)
+	
+	Tables <- dbListTables(con) #get a list of tables
+	Tables <- Tables[-which(Tables %in% headerTables)]
+	
+	
+	if(parallel_runs && parallel_init){
+		#call the simulations depending on parallel backend
+		if(identical(parallel_backend, "mpi")) {
+			workersN <- (mpi.comm.size() - 1)
+			
+			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+			
+			numberMissing <- mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDB)
+			TotalMissing <- sum(unlist(numberMissing))
+			
+			print(paste("dbTables.sqlite3 is missing : ",TotalMissing,"",sep=""))
+			
+			numberMissing <- mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDBCurrent)
+			TotalMissing <- sum(unlist(numberMissing))
+			
+			print(paste("dbTables_current.sqlite3 is missing : ",TotalMissing,"",sep=""))
+		} else if(identical(parallel_backend, "snow")) {
+			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+			
+			numberMissing <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% checkForMissing(Tables[i], database=name.OutputDB)
+			print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
+			numberMissing <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% checkForMissing(Tables[i], database=name.OutputDBCurrent)
+			print(paste("dbTables_current.sqlite3 is missing : ",numberMissing,"",sep=""))
 		}
-		
-		target<-paste(rep(t$Label, each=7), c(climate.ambient, as.character(unlist(t[1, 13:18]))), sep="_")
-		index<-match(target, as.character(s[,1]))
-		target[which(is.na(index))]
-	}
-	
-	
-	#check SoilWat simulation directories: number of runs and number of files in each directory
-	if(any(actions=="create") | any(actions=="execute")){
-		
 	} else {
-		complete.simulations <- TRUE	#assume all is good
+		numberMissing <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
+			checkForMissing(table, database=name.OutputDB)
+		}
+		print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
+		
+		numberMissing <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
+			checkForMissing(table, database=name.OutputDBCurrent)
+		}
+		print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
 	}
 	
-	#check temporary output aggregation file number
-	if(any(actions=="aggregate")){
-		
-	} else {
-		complete.aggregations <- TRUE	#assume all is good
-	}
 	
 	
 	all.complete <- complete.aggregations & complete.simulations	#do check here: still need to implement
@@ -5796,8 +5825,19 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
 				
 				ensemble.family=ensemble.families[j]
+				EnsembleFamilyLevelTables<-paste(ensemble.family,"_rank_",formatC(ensemble.levels, width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
+				LastPid <- integer(length=length(EnsembleFamilyLevelTables))
+				for(i in 1:length(LastPid)) {
+					SQL <- paste("SELECT MAX(P_id) FROM ",EnsembleFamilyLevelTables[i],";",sep="")
+					LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB,SQL))+(scenario_No-1)#Need to add all the scenarios because last P_id will always be Current
+				}
+				if(any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
+					minRun_id <- 1
+				} else {
+					minRun_id <- (min(LastPid)/scenario_No)+1 #This is already done so we add one
+				}				
 				#########################
-				for(i in seq(1,maxRun_id,ensembleCollectSize)) {
+				for(i in seq(minRun_id,maxRun_id,ensembleCollectSize)) {
 					start <- (i-1)*scenario_No+1
 					stop <- (min(i+ensembleCollectSize-1,maxRun_id)-1)*scenario_No+scenario_No
 					dataScen.Mean <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=TRUE)

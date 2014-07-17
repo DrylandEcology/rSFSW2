@@ -164,8 +164,8 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.7"
-num_cores <- 10
+minVersionRsoilwat <- "0.31.07"
+num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
 
@@ -212,7 +212,7 @@ makeInputForExperimentalDesign <- FALSE
 checkCompleteness <- FALSE
 
 #------Define how aggregated output should be handled:
-cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
@@ -221,9 +221,9 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of database, Maurer2002, or WeatherFolder (in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv)
 GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
-getCurrentWeatherDataFromDatabase <- FALSE
+getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.sqlite"
+dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData_GTD.sqlite"
 createWeatherDatabaseFromLookupWeatherFolder <- FALSE #Will create a database will data from LookupWeather Folder
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
@@ -301,21 +301,17 @@ save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is sav
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v11.csv"
 
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_v9.csv"	
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
 
 if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
-	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v11.csv"
+	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
-	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
+	datafile.prod <- "SWRuns_InputData_prod_v10.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_v11.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
 if (( any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
@@ -323,7 +319,7 @@ if (( any(actions == "external") || any(actions == "create") || any(actions == "
 	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
 	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
 	trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
-	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients.csv"
+	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients_v2.csv"
 	trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
@@ -334,7 +330,7 @@ accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemis
 accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemisphere) then shift monthly production values in prod.in file by six months
 
 #------Output Header Columns------#
-Index_RunInformation <- c(2:3, 5:11, 10, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+Index_RunInformation <- c(2:3, 5:11, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
