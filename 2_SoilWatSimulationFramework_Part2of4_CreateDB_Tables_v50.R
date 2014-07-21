@@ -27,7 +27,7 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
-if(createWeatherDatabaseFromLookupWeatherFolder) {
+if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 	if(file.exists(dbWeatherDataFile)) {
 		print("Removing old database")
 		file.remove(dbWeatherDataFile)
@@ -35,33 +35,53 @@ if(createWeatherDatabaseFromLookupWeatherFolder) {
 	print("Creating New Weather database")
 	dbW_createDatabase(dbWeatherDataFile)
 	
+
+	if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){#prepare: get weather from Maurer et al. 2002
+		Maurer <- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_"))
+		SWRunInformation$WeatherFolder[seq.tr] <- paste0(SWRunInformation$Label[seq.tr], "_", Maurer)
+		write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	}
+	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
 	Rsoilwat:::dbW_addSites(MetaData)
-	
+
 	MetaData <- data.frame(Scenario=climate.conditions)
 	Rsoilwat:::dbW_addScenarios(MetaData)
-	
+
 	Time <- Sys.time()
 	
-	for(i in seq_along(seq.tr)) {#
-		WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
-		weath <- list.files(WeatherFolder)
-		years <- as.numeric(sub(pattern="weath.",replacement="",weath))
-		weatherData <- list()
-		for(j in 1:length(weath)) {
-			year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
-			temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
-			weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
+	if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica){ #get weather data from LookupWeather
+		for(i in seq_along(seq.tr)) {#
+			WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
+			weath <- list.files(WeatherFolder)
+			years <- as.numeric(sub(pattern="weath.",replacement="",weath))
+			weatherData <- list()
+			for(j in 1:length(weath)) {
+				year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
+				temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
+				weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
+			}
+			names(weatherData) <- years
+			data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
+			Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,data_blob)
+			if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
+				temp2<-Sys.time() - Time
+				units(temp2) <- "secs"
+				temp2 <- as.double(temp2)
+				print(paste(i,":",temp2))
+			}
 		}
-		names(weatherData) <- years
-		data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
-		Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,data_blob)
-		if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
-			temp2<-Sys.time() - Time
-			units(temp2) <- "secs"
-			temp2 <- as.double(temp2)
-			print(paste(i,":",temp2))
+	} else {#get weather from Maurer et al. 2002	
+		for(i in seq_along(seq.tr)){
+			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[i],startYear=simstartyr, endYear=endyr)
+			if(!is.null(weatherData)){
+				data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
+				Rsoilwat:::dbW_addWeatherDataNoCheck(i, 1, data_blob)
+			} else {
+				print(paste("Moving daily weather data from Maurer et al. 2002 to database unsuccessful", i, Maurer[i]))
+			}
 		}
+		rm(Maurer)
 	}
 	dbW_disconnectConnection()
 }
