@@ -45,6 +45,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 
 #--------------------------------------------------------------------------------------------------#
 if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 	
 	dbW_setConnection(dbFilePath=dbWeatherDataFile)
 	dbW_iSiteTable <- dbW_getSiteTable()
