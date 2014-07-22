@@ -5480,7 +5480,7 @@ tryCatch({
 		
 	} else { #call the simulations in seriel
 		runs.completed <- 0
-#		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %do% {
+#		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %do% {
 #			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 #			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 #		}
@@ -5492,6 +5492,7 @@ tryCatch({
 		for(i_sim in seq.todo) {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
 			
+			assign(x="runs.completed", value=0, envir=exeEnv)
 			assign(x="i",value=i_sim,envir=exeEnv)
 			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
 			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
