@@ -223,8 +223,8 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
 getCurrentWeatherDataFromDatabase <- FALSE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData.sqlite"
-createWeatherDatabaseFromLookupWeatherFolder <- FALSE #Will create a database will data from LookupWeather Folder
+dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
+createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 <- FALSE #Will create a database will data from LookupWeather Folder or, if GriddedDailyWeatherFromMaurer2002_NorthAmerica, from dataset by Maurer et al. 2002
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(
@@ -248,7 +248,7 @@ do.ExtractExternalDatasets <- c(
 		#Soil texture and topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
 		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database 
-		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0
+		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 1
 )
 
 do.PriorCalculations <- c(
@@ -305,7 +305,7 @@ datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v02.csv"
+datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v03.csv"
 
 if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"

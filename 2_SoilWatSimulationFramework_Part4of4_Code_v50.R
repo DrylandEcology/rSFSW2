@@ -649,6 +649,51 @@ if(any(simulation_timescales=="daily")){
 		}
 	}
 }
+
+
+#------------------------DAILY WEATHER
+if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
+	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
+	#Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
+	
+	dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
+	stopifnot(file.exists(dir.ex.maurer2002))
+	
+	#function to be executed for each SoilWat-run
+	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname,startYear=NULL, endYear=NULL){
+		if(is.null(startYear))
+			startYear <- simstartyr
+		if(is.null(endYear))
+			endYear <- endyr
+		#read data from Maurer et al. 2002
+		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
+		if(!inherits(weath.data, "try-error")){
+			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
+			
+			#times
+			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+					by="1 day")
+			doy <- 1 + as.POSIXlt(date)$yday
+			
+			years <- startYear:endYear
+			n_years <- length(years)
+			if(!all(years %in% unique(weath.data$year)))
+				stop("simstartyr or endyr out of weather data range")
+			weathDataList <- list()
+			for(y in 1:n_years) {
+				data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
+				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw),year=years[y])
+			}
+			names(weathDataList) <- as.character(years)
+			return(weathDataList)
+		} else {
+			return(NULL)
+		}
+	}
+}
+
+
 #------flags for external------#
 temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractExternalDatasets)/2, byrow=TRUE)
 exinfo <- data.frame(t(as.numeric(temp[,-1])))
@@ -662,7 +707,7 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$Ex
 }
 if(getScenarioWeatherDataFromDatabase) {
 	getCurrentWeatherDataFromDatabase<-TRUE
-	if(!createWeatherDatabaseFromLookupWeatherFolder && !file.exists(dbWeatherDataFile))
+	if(!createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 && !file.exists(dbWeatherDataFile))
 		stop("Create or use existing Weather database with Scenario data inside.")
 }
 #------ Create the Database and Tables within
@@ -674,7 +719,7 @@ if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.Ou
 source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v50.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
 
-if(getCurrentWeatherDataFromDatabase && !GriddedDailyWeatherFromMaurer2002_NorthAmerica)
+if(getCurrentWeatherDataFromDatabase)
 	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -1461,49 +1506,6 @@ adjust.WindspeedHeight <- function(uz, height){
 	
 	stopifnot(all(uz >= 0) && height >= 2 )
 	return( uz * 4.87 / log(67.8 * height - 5.42) )	# eqn. 33 in Allen et al. (2005)
-}
-
-
-#------------------------DAILY WEATHER
-if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
-	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
-	#Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
-	
-	dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
-	stopifnot(file.exists(dir.ex.maurer2002))
-	
-	#function to be executed for each SoilWat-run
-	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname,startYear=NULL, endYear=NULL){
-		if(is.null(startYear))
-			startYear <- simstartyr
-		if(is.null(endYear))
-			endYear <- endyr
-		#read data from Maurer et al. 2002
-		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
-		if(!inherits(weath.data, "try-error")){
-			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
-			
-			#times
-			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-					by="1 day")
-			doy <- 1 + as.POSIXlt(date)$yday
-			
-			years <- startYear:endYear
-			n_years <- length(years)
-			if(!all(years %in% unique(weath.data$year)))
-				stop("simstartyr or endyr out of weather data range")
-			weathDataList <- list()
-			for(y in 1:n_years) {
-				data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
-				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw),year=years[y])
-			}
-			names(weathDataList) <- as.character(years)
-			return(weathDataList)
-		} else {
-			return(NULL)
-		}
-	}
 }
 
 
@@ -2487,7 +2489,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 		#############TODO Get Weather Data################
 		i_sw_weatherList <- list()
-		if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
+		if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 			dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 			if(is.null(i_sw_weatherList[[1]])) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
