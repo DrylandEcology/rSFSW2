@@ -164,7 +164,7 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.27.8"
+minVersionRsoilwat <- "0.27.9"
 num_cores <- 7
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
@@ -334,7 +334,7 @@ accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemis
 accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemisphere) then shift monthly production values in prod.in file by six months
 
 #------Output Header Columns------#
-Index_RunInformation <- c(2:3, 5:11, 10, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+Index_RunInformation <- c(2:3, 5:11, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
