@@ -5295,7 +5295,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}#end if continueAfterAbort
 				}#doi loop
 			}#end if daily output
-			if(tasks$aggregate > 0 && nchar(SQL) > 0 && sc==1){
+			if(tasks$aggregate > 0 && length(SQL) > 0 && sc == 1){
 				write(SQL, dbTempFileCurrent, append=TRUE)
 				#Clear SQL
 				SQL <- character(0)
@@ -5304,9 +5304,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 	} #end if do aggregate
 	
-	if(tasks$aggregate > 0 && nchar(SQL) > 0){
+	if(tasks$aggregate > 0 && length(SQL) > 0){ 
 		tasks$aggregate <- 2
 		write(SQL, dbTempFile, append=TRUE)
+	} else if(sc == 1 && tasks$aggregate > 0){#if sc == 1 then SQL can be equal to character(0), but still all is correct
+		tasks$aggregate <- 2
 	}
 	
 	
