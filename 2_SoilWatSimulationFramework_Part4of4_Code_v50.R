@@ -1663,7 +1663,7 @@ if(any(actions == "create")){
 		
 		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) ){#Use only if option is off in sw_input_experimentals
 			if(any(is.na(sw_input_treatments$LookupSnowDensityFromTable))) stop("ERROR: LookupSnowDensityFromTable column in treatments cannot have any NAs.")
-			if(!all(unique(sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_TranspRegions))) stop("ERROR: LookupSnowDensityFromTable column values in treatments do not match up with trfile.LookupSnowDensityFromTable row names.")
+			if(!all(unique(sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_SnowD))) stop("ERROR: LookupSnowDensityFromTable column values in treatments do not match up with trfile.LookupSnowDensityFromTable row names.")
 			tempdat <- get.LookupSnowDensityFromTable(sdcategories=sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud)
 			sw_input_cloud_use <- tempdat$sw_input_cloud_use
 			sw_input_cloud <- tempdat$sw_input_cloud
