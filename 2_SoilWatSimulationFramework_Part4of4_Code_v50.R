@@ -2156,7 +2156,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				tasks$create <- 0
 			} else {
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Tree"], layers_depth=layers_depth, adjustType="inverse")
-				if(!is.na(trco)){				
+				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){				
 					i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
 					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
 					#add data to sw_input_soils
