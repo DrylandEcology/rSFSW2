@@ -16,7 +16,7 @@ set_PRAGMAs <- function(con){
 	dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
 	dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
 	dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
-	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 	lapply(settings, function(x) dbGetQuery(con,x))
 }
 
@@ -878,6 +878,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(do.ensembles){
 	
 			Tables<-dbListTables(con)
+			dbDisconnect(con)
 			Tables<-Tables[!(Tables %in% headerTables)]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
@@ -919,6 +920,8 @@ if((length(Tables) == 0) || do.clean) {
 				}
 				dbDisconnect(con)
 			}
+		} else {
+			dbDisconnect(con)
 		}
 		return(dbOverallColumns)
 	}

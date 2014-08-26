@@ -2498,10 +2498,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				.local <- function(i){
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					if(!exists("con") || !isIdCurrent(con) || !parallel_runs) {
+					#	print("Connecting to Con")
 						drv <<- dbDriver("SQLite")
 						con <<- dbConnect(drv, dbname=name.OutputDB)
 					}
 					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i-1)*scenario_No+1)))[1,1]
+					print(temp)
 					dbDisconnect(con)
 					i_sw_weatherList <- list()
 					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, length(climate.conditions), 1))
@@ -2509,7 +2511,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					return(i_sw_weatherList)
 				}
 				i_sw_weatherList <- try(.local(i), silent=TRUE)
-				if(inherits(i_sw_weatherList, "try-error")) tasks$create <- 0
+				if(inherits(i_sw_weatherList, "try-error")) {
+					if(print.debug) print("i_sw_weatherList ERROR")
+					tasks$create <- 0
+				}
 			} else {
 				i_sw_weatherList[[1]] <- getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
 			}
@@ -5528,7 +5533,7 @@ tryCatch({
 #------------------------
 if(any(actions=="concatenate")) {
 	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1 <- Sys.time()))
-	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 	
 	temp <- Sys.time() - t.overall
 	units(temp) <- "secs"
@@ -5614,7 +5619,7 @@ if(any(actions=="concatenate")) {
 			Tables <- Tables[-(which(Tables %in% headerTables))]
 			
 			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
 			
 			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
@@ -5627,7 +5632,7 @@ if(any(actions=="concatenate")) {
 			Tables <- Tables[(which(Tables %in% headerTables[-1]))]
 			
 			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
 			
 			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
