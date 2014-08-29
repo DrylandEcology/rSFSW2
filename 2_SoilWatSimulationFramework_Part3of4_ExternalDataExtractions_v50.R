@@ -357,9 +357,6 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA) dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
 		if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global) dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
 		
-		reqRCPs <- toupper(reqRCPs)
-		reqRCPsPerGCM <- lapply(reqRCPsPerGCM, toupper)
-
 		scenariosDB <- list.dirs(dir.ex.dat, full.names=FALSE, recursive=FALSE)
 		if(any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
 		
@@ -381,17 +378,20 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			saveNEXtempfiles <- TRUE
 		}
 
-		reqRCPs <- tolower(reqRCPs)
-		reqRCPsPerGCM <- lapply(reqRCPsPerGCM, tolower)
 		gcmsDB <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
 		scenariosDB <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
 
 		print_int <- 1
 	}
 	
-	#Tests
-	stopifnot(length(reqGCMs) > 0, all(reqGCMs %in% gcmsDB))
-	stopifnot(length(reqRCPs) > 0, all(reqRCPs %in% scenariosDB), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
+	#Force dataset specific lower/uper case for GCMs and RCPs
+	reqGCMs <- gcmsDB[match(tolower(reqGCMs), tolower(gcmsDB), nomatch=NA)]
+	reqRCPs <- scenariosDB[match(tolower(reqRCPs), tolower(scenariosDB), nomatch=NA)]
+	reqRCPsPerGCM <- lapply(reqRCPsPerGCM, FUN=function(r) scenariosDB[match(tolower(r), tolower(scenariosDB), nomatch=NA)])
+	
+	#Tests that all requested conditions will be extracted
+	stopifnot(length(reqGCMs) > 0, any(is.na(reqGCMs)))
+	stopifnot(length(reqRCPs) > 0, any(is.na(reqRCPs)), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
 
 	#put requests together
 	locations <- with(SWRunInformation[include_YN > 0, ], data.frame(X_WGS84, Y_WGS84, WeatherFolder))	#locations of simulation runs
