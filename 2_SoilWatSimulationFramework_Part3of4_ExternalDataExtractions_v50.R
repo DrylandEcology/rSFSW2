@@ -209,13 +209,13 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		test_sigmaGamma <- function(data){
 			#Testing that ppt values are within 6 sigma of a gamma distribution approximation (http://en.wikipedia.org/wiki/Gamma_distribution#Maximum_likelihood_estimation); requires at least two values > 0, otherwise shape = Inf and scale = 0
-			tempD <- scen.fut.xadj[scen.fut.xadj > 0]
+			tempD <- data[data > 0]
 			if(length(tempD) >= 2 && sd(tempD) > 0){
 				temp <- log(tempM <- mean(tempD)) - mean(log(tempD))
 				#Approximate shape and scale instead of: g <- MASS::fitdistr(scen.fut.xadj, "gamma")
 				gshape <- (3 - temp + sqrt((temp - 3)^2 + 24*temp)) / (12 * temp)
 				gscale <- tempM / gshape
-				stopifnot(scen.fut.xadj <= qgamma(erf(sigmaN/sqrt(2)), shape=gshape, scale=gscale))
+				stopifnot(data <= qgamma(erf(sigmaN/sqrt(2)), shape=gshape, scale=gscale))
 			}
 		}
 
@@ -267,11 +267,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				if(any(iv <= 2, any(scHistToHist < 1/(10*PPTratioCutoff)), any(scHistToFutRatio > PPTratioCutoff), any(scHistToFutRatio < 1/PPTratioCutoff))){
 					mapFut <- scen.fut2.ecdf$fun(obs.hist.ecdf$q, extrapol="linear") - scHistToHist
 					if(iv == 3) ppt_fun[m] <- "+"
-					test_sigmaNormal(data=mapFut)
 				} else {
 					mapFut <- scHistToFutRatio
 					stopifnot(all(!is.infinite(mapFut)), all(!is.nan(mapFut))) #if(sum(temp <- is.nan(mapFut)) > 0) mapFut[temp] <- 0
-					test_sigmaGamma(data=mapFut)
 				}
 				delta_ts[delta_ts[, "Month"] == m, 2 + iv] <- mapFut[rank(obs.hist.x, ties.method="random")]
 			}
@@ -281,48 +279,54 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		scen.fut.daily <- lapply(obs.hist.daily, FUN=function(obs) {
 						month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
 						ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
-						new("swWeatherData", data=round(data.matrix(cbind(
-								obs@data[, "DOY"],
-								obs@data[, c("Tmax_C", "Tmin_C")] + ydelta[month, 1:2],						
-								controlExtremePPTevents(unlist(lapply(1:12, FUN=function(m) {
-									im_month <- month == m
-									m_ydelta <- ydelta[m, 3]
-									m_data <- obs@data[im_month, "PPT_cm"]
-									if(ppt_fun[m] == "*"){# multiply ppt
-										res <- m_data * m_ydelta
-									} else if(m_ydelta == 0){ #add ppt here and below: nothing to add
-										res <- m_data
-									} else if(any(i_rainyDays <- m_data > 0)){ #there are rainy days in the historic record: add to those
-										res <- do_PPTAdjustment(data=m_data, rainyElems=i_rainyDays, addDelta=m_ydelta)
-									} else { #there are no rainy days in the historic record
-										if(m_ydelta > 0){ #we need rainy days in the historic record to add precipitation
-											if(any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)){ #sample from the same historic month in an other with rainy days instead
-												#Locate data of same month in other year
-												i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
-												newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
-												newMonthData <- newObs@data[, "PPT_cm"][newMonth == m]
-												#Adjust data
-												newMonthData <- adjustLength(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a leap year February issue
-												res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
-											} else if(any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)){ #no rainy day for this month in historic record: locate rainy days in any months from other years
-												#Locate data of any month in any year
-												i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
-												i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
-												newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
-												newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
-												#Adjust data
-												newMonthData <- adjustLength(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a month with a different number of days
-												res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
-											} else {
-												stop(paste("no rainy day in historic record, but requested for the future prediction"))
-											}
-										} else {#there is no rain in the historic record, so we cannot remove any
-											res <- rep(0, length(m_data))
-										}
-									}
-									return(res)
-								}))) ),
-							rownames.force=FALSE), 2), year=obs@year)
+					
+						tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
+						test_sigmaNormal(data=tmax)
+
+						tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
+						test_sigmaNormal(data=tmin)
+
+						ppt <- controlExtremePPTevents(unlist(lapply(1:12, FUN=function(m) {
+															im_month <- month == m
+															m_ydelta <- ydelta[m, 3]
+															m_data <- obs@data[im_month, "PPT_cm"]
+															if(ppt_fun[m] == "*"){# multiply ppt
+																res <- m_data * m_ydelta
+															} else if(m_ydelta == 0){ #add ppt here and below: nothing to add
+																res <- m_data
+															} else if(any(i_rainyDays <- m_data > 0)){ #there are rainy days in the historic record: add to those
+																res <- do_PPTAdjustment(data=m_data, rainyElems=i_rainyDays, addDelta=m_ydelta)
+															} else { #there are no rainy days in the historic record
+																if(m_ydelta > 0){ #we need rainy days in the historic record to add precipitation
+																	if(any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)){ #sample from the same historic month in an other with rainy days instead
+																		#Locate data of same month in other year
+																		i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
+																		newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+																		newMonthData <- newObs@data[, "PPT_cm"][newMonth == m]
+																		#Adjust data
+																		newMonthData <- adjustLength(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a leap year February issue
+																		res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
+																	} else if(any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)){ #no rainy day for this month in historic record: locate rainy days in any months from other years
+																		#Locate data of any month in any year
+																		i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
+																		i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
+																		newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+																		newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
+																		#Adjust data
+																		newMonthData <- adjustLength(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a month with a different number of days
+																		res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
+																	} else {
+																		stop(paste("no rainy day in historic record, but requested for the future prediction"))
+																	}
+																} else {#there is no rain in the historic record, so we cannot remove any
+																	res <- rep(0, length(m_data))
+																}
+															}
+															return(res)
+														})))			
+						test_sigmaGamma(data=ppt)
+
+						new("swWeatherData", data=round(data.matrix(cbind(obs@data[, "DOY"], tmax, tmin, ppt), rownames.force=FALSE), 2), year=obs@year)
 					})
 		return(scen.fut.daily)
 	}
