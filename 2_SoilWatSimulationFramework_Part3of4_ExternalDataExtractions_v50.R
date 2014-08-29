@@ -390,8 +390,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	reqRCPsPerGCM <- lapply(reqRCPsPerGCM, FUN=function(r) scenariosDB[match(tolower(r), tolower(scenariosDB), nomatch=NA)])
 	
 	#Tests that all requested conditions will be extracted
-	stopifnot(length(reqGCMs) > 0, any(is.na(reqGCMs)))
-	stopifnot(length(reqRCPs) > 0, any(is.na(reqRCPs)), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
+	stopifnot(length(reqGCMs) > 0, all(!is.na(reqGCMs)))
+	stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
 
 	#put requests together
 	locations <- with(SWRunInformation[include_YN > 0, ], data.frame(X_WGS84, Y_WGS84, WeatherFolder))	#locations of simulation runs
