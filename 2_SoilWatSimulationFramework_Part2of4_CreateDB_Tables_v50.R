@@ -381,7 +381,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 	
 		#####################runs table###################
-		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY AUTOINCREMENT, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
+		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
 		db_runs <- data.frame(matrix(data=0, nrow=runsN.todo*scenario_No, ncol=5,dimnames=list(NULL,c("P_id","label_id","site_id","treatment_id","scenario_id"))))
 	
 		db_runs$P_id <- 1:nrow(db_runs)
@@ -410,9 +410,9 @@ if((length(Tables) == 0) || do.clean) {
 				db_runs$treatment_id <- 1
 			}
 		}
-		#dbWriteTable(con,name="runs",db_runs,append=TRUE)
-		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(NULL, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
-	
+		dbBeginTransaction(con)
+		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
+		dbCommit(con)
 		##################################################
 	
 		################CREATE VIEW########################
