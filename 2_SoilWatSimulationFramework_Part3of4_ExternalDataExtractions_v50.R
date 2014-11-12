@@ -51,13 +51,13 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	dbW_iSiteTable <- dbW_getSiteTable()
 	dbW_iScenarioTable <- dbW_getScenariosTable()
 	
-	climScen <- data.frame(matrix(unlist(strsplit(temp <- climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE)), ncol=3, byrow=TRUE), stringsAsFactors=FALSE)
+	climScen <- data.frame(matrix(unlist(strsplit(temp <- climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE)), ncol=4, byrow=TRUE), stringsAsFactors=FALSE)
 	climScen$imap_todbW <- match(temp, table=dbW_iScenarioTable$Scenario, nomatch=0)
 	dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
-	reqGCMs <- unique(climScen[, 3])
-	reqRCPs <- unique(climScen[, 2])
-	reqRCPsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 3], 2]))
-	reqDownscalingsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 3], 1]))
+	reqGCMs <- unique(climScen[, 4])
+	reqRCPs <- unique(climScen[, 3])
+	reqRCPsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 3]))
+	reqDownscalingsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 1]))
 	
 	for(i in 1:length(reqGCMs)) {
 		dir.create2(file.path(dir.out.temp, reqGCMs[i]), showWarnings=FALSE, recursive=TRUE)
@@ -355,7 +355,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#Specific flags
 	if(exinfo$GDODCPUCLLNL){
 		##gdo-dcp.ucllnl.org/downscaled_cmip_projections
-		dir.ex.dat <- file.path(dir.external, "Extract_GDO_DCP_UCLLNL_DownscaledClimateData")
+		dir.ex.dat <- file.path(dir.external, "GDO_DCP_UCLLNL_DownscaledClimateData")
 		if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA) dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
 		if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global) dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
 		if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA) dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
@@ -366,7 +366,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		
 		gcmsDB <- unique(unlist(sapply(scenariosDB, FUN=function(x) sapply(strsplit(list.files(file.path(dir.ex.dat, x)), split="_", fixed=TRUE), FUN=function(x) x[5]))))	
 		
-		print_int <- 1000
+		print_int <- 100
 	}
 	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 		##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
@@ -417,34 +417,72 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		bbox$lon <- c(-179.75-0.25, 179.75+0.25)
 	}
 
-	#timing: time slices: the same for both datasets
-	timeSlices <- data.frame(matrix(NA, ncol=4, nrow=8, dimnames=list(NULL, c("Run", "Slice", "Time", "Year"))))
-	timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("hist", "fut"))[, 3:1]
-	
+	#timing: time slices: data is organized into 'historical' runs 1950-2005 (="first") and future 'rcp' runs 2006-2099 (="second")
+	timeSlices <- data.frame(matrix(NA, ncol=4, nrow=4 + 4*length(deltaFutureToSimStart_yr), dimnames=list(NULL, c("Run", "Slice", "Time", "Year"))))
+	timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", paste0(deltaFutureToSimStart_yr, "years")))[, 3:1]
+	#historic
 	timeSlices[1, 4] <- max(1950, simstartyr)
 	timeSlices[2, 4] <- min(2005, endyr)
 	if(endyr > 2005){
 		timeSlices[3, 4] <- 2006
 		timeSlices[4, 4] <- min(2099, endyr)
 	}
-	timeSlices[7, 4] <- max(2006, deltaFutureToSimStart_yr + simstartyr)
-	timeSlices[8, 4] <- min(2099, deltaFutureToSimStart_yr + endyr)
-	if(deltaFutureToSimStart_yr + simstartyr < 2006){
-		timeSlices[5, 4] <- max(1950, deltaFutureToSimStart_yr + simstartyr)
-		timeSlices[6, 4] <- 2006
+	#loop through deltaFutureToSimStart_yr
+	for(it in seq_along(deltaFutureToSimStart_yr)){
+		timeSlices[3 + 4*it, 4] <- max(2006, deltaFutureToSimStart_yr[it] + simstartyr)
+		timeSlices[4 + 4*it, 4] <- min(2099, deltaFutureToSimStart_yr[it] + endyr)
+		if(deltaFutureToSimStart_yr[it] + simstartyr < 2006){
+			timeSlices[1 + 4*it, 4] <- max(1950, deltaFutureToSimStart_yr[it] + simstartyr)
+			timeSlices[2 + 4*it, 4] <- 2006
+		}
 	}
-
+	#get unique time slices
+	unique_times <- function(slice="first"){
+		starts <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
+		ends <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
+		temp <- lapply(seq_along(starts), FUN=function(x) starts[x]:ends[x])
+		temp1 <- vector("integer", length=0)
+		for(it in seq_along(temp)) temp1 <- union(temp1, temp[[it]])
+		n <- 1 + length(temp2 <- which(diff(temp1) > 1))
+		temp2 <- c(1, 1 + temp2, length(temp1) + 1)
+		res <- matrix(NA, nrow=n, ncol=2)
+		for(it in 1:n) res[it, ] <- c(temp1[temp2[it]], temp1[temp2[it+1] - 1])
+		
+		return(res)
+	}
+	temp1 <- unique_times(slice="first")
+	temp2 <- unique_times(slice="second")
+	getYears <- list(n_first=nrow(temp1), first=temp1, n_second=nrow(temp2), second=temp2)
+	#logical on how to select from getYears
+	assocYears <- vector("list", length=1 + length(reqRCPs) + length(deltaFutureToSimStart_yr))
+	names_assocYears <- c("historical", paste0(deltaFutureToSimStart_yr, "years.", rep(reqRCPs, each=length(deltaFutureToSimStart_yr))))
+	useSlices <- function(run, slice){
+		res <- rep(FALSE, length=nrow(getYears[[slice]]))
+		temp <- timeSlices$Year[timeSlices$Run == run & timeSlices$Slice == slice]
+		if(all(!is.na(temp))){
+			istart <- findInterval(temp[1], getYears[[slice]][, 1], rightmost.closed=FALSE, all.inside=FALSE)
+			iend <- findInterval(temp[2], getYears[[slice]][, 2], rightmost.closed=FALSE, all.inside=FALSE)
+			res[istart:iend] <- TRUE
+		}
+		return(res)
+	}
+	for(it in 1:length(assocYears)){
+		temp <- strsplit(names_assocYears[it], ".", fixed=TRUE)[[1]][[1]]
+		assocYears[[it]] <- list(first=useSlices(run=temp, slice="first"), second=useSlices(run=temp, slice="second"))
+	}
+	names(assocYears) <- names_assocYears
+		
 	#Variable tags
 	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 		varTags <- c("pr", "tasmin", "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
 	}
 	if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global){
-		fileVarTags <- c("monthly.Prcp", "monthly.Tavg", "monthly.Tmin", "monthly.Tmax")
 		varTags <- c("Prcp", "Tavg", "Tmin", "Tmax")
+		fileVarTags <- paste("monthly", varTags, sep=".")
 	}
 	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
-		fileVarTags <- c("_pr_", "_tas_", "_tasmin_", "_tasmax_")
 		varTags <- c("pr", "tas", "tasmin", "tasmax")
+		fileVarTags <- paste0("_", varTags, "_")
 	}
 
 	#DB access functions
@@ -615,7 +653,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		
 		get_GCMdata <- function(i, gcm, scen, lon, lat, startyear, endyear){
-			gcmFiles <- list.files(file.path(dir.ex.dat, as.character(scen)), pattern=as.character(gcm), full.names=TRUE)
+			gcmFiles <- list.files(file.path(dir.ex.dat, as.character(scen)), pattern=paste0("_", as.character(gcm), "_"), full.names=TRUE)
 			
 			#Get precipitation data
 			prcp <- mmPerDay_to_cmPerMonth(get.DBvariable(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", lon=lon, lat=lat, startyear=startyear, endyear=endyear), startyear, endyear)
@@ -649,23 +687,17 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			
 			if(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2]){#Data Bounding Box
 				#Scenario monthly weather time-series
-				scen.monthly <- matrix(data=vector("list", length=2*(1 + length(rcps))), ncol=2, dimnames=list(c("Current", as.character(rcps)), c("hist", "fut")))
+				scen.monthly <- matrix(data=vector("list", length=(getYears$n_first+getYears$n_second)*(1 + length(rcps))), ncol=getYears$n_first+getYears$n_second, dimnames=list(c("Current", as.character(rcps)), c(paste0("first", 1:getYears$n_first), paste0("second", 1:getYears$n_second))))
 				for(isc in 1:nrow(scen.monthly)){ #Get GCM data for each scenario and time slice
 					scen <- c("historical", as.character(rcps))[isc]
 					
-					if(isc == 1){ #Slice past: 1950-2005
-						if(!is.na(timeSlices[1, 4]) && !all(downs == "raw")) {# past slice for 'historic' data; 'raw' downscaling doesn't need "historical" scenario
-							scen.monthly[isc, 1] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=timeSlices[1, 4], endyear=timeSlices[2, 4])
+					if(isc == 1){ #First slice ('historical'): 1950-2005
+						for(it in 1:getYears$n_first){
+							scen.monthly[isc, it] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=getYears$first[it, 1], endyear=getYears$first[it, 2])
 						}
-						if(!is.na(timeSlices[5, 4])){ #past slice for 'future' scenario
-							scen.monthly[isc, 2] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=timeSlices[5, 4], endyear=timeSlices[6, 4])
-						}
-					} else { #Slice future: 2006-2099
-						if(!is.na(timeSlices[3, 4])){ #future slice for 'historic' data
-							scen.monthly[isc, 1] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=timeSlices[3, 4], endyear=timeSlices[4, 4])
-						}
-						if(!is.na(timeSlices[7, 4])){ #future slice for 'future' scenario
-							scen.monthly[isc, 2] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=timeSlices[7, 4], endyear=timeSlices[8, 4])
+					} else { #Second slice ('future scenarios'): 2006-2099
+						for(it in 1:getYears$n_second){
+							scen.monthly[isc, getYears$n_first + it] <- get_GCMdata(i=i, gcm=gcm, scen=scen, lon=lon, lat=lat, startyear=getYears$second[it, 1], endyear=getYears$second[it, 2])
 						}
 					}
 				}
@@ -676,32 +708,42 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				
 				wdataOut <- list()
 				for(ir in seq_along(rcps)){ #Apply downscaling for each RCP
-					if(!all(downs == "raw")){
-						scen.hist.monthly <- scen.monthly[1, 1][[1]]
-						if(!is.null(scen.monthly[1 + ir, 1][[1]])) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, 1][[1]])
-					}
-					scen.fut.monthly <- scen.monthly[1 + ir, 2][[1]]
-					if(!is.null(scen.monthly[1, 2][[1]])) scen.fut.monthly <- rbind(scen.monthly[1, 2][[1]], scen.fut.monthly)
+					#Put historical data together
 					#NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs because some GCMs do not provide data for the last month of a time slice (e.g. December 2005 may be NA)
+					if(!all(downs == "raw")){
+						scen.hist.monthly <- NULL
+						for(itt in which(assocYears[["historical"]]$first)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
+						for(itt in which(assocYears[["historical"]]$second)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+					}
 					
 					types <- list()
-					if("raw" %in% downs){
-						scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly)
-						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("raw", rcps[ir], gcm, sep=".")), "id"]
-						data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-						types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
-					}
-					if("delta" %in% downs){
-						scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly)
-						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("delta", rcps[ir], gcm, sep=".")), "id"]
-						data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-						types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
-					}
-					if("hybrid-delta" %in% downs){
-						scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly)
-						scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", rcps[ir], gcm, sep=".")), "id"]
-						data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-						types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+					for(it in seq_along(deltaFutureToSimStart_yr)){
+						tag <- paste0(deltaFutureToSimStart_yr[it], "years.", rcps[ir])
+						
+						#Put future data together
+						scen.fut.monthly <- NULL
+						for(itt in which(assocYears[[tag]]$first)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
+						for(itt in which(assocYears[[tag]]$second)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+
+						#Apply downscaling					
+						if("raw" %in% downs){
+							scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly)
+							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("raw", tag, gcm, sep=".")), "id"]
+							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+						}
+						if("delta" %in% downs){
+							scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly)
+							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("delta", tag, gcm, sep=".")), "id"]
+							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+						}
+						if("hybrid-delta" %in% downs){
+							scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly)
+							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", tag, gcm, sep=".")), "id"]
+							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+						}
 					}
 					wdataOut[[ir]] <- types
 				}
@@ -724,7 +766,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	tryToGet_ClimDB <- function(is_ToDo){
 		if(parallel_runs && parallel_init){
 			#objects that need exporting to slaves
-			list.export <- c("dir.out.temp", "dir.ex.dat", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "timeSlices", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
+			list.export <- c("dir.out.temp", "dir.ex.dat", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "deltaFutureToSimStart_yr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
 					"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
 					"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid")
 			if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
@@ -839,7 +881,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 	if(!be.quiet) print(paste("Finished '", tagDB, "' at", Sys.time()))
 	
-	rm(locations, requestN, tagDB, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, gcmsDB, scenariosDB)
+	rm(locations, requestN, tagDB, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, getYears, assocYears, gcmsDB, scenariosDB)
 }
 
 

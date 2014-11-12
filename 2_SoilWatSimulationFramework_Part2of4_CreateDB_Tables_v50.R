@@ -122,7 +122,7 @@ if((length(Tables) == 0) || do.clean) {
 		######################
 	
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
 			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors=FALSE))
 		} else {
@@ -144,7 +144,7 @@ if((length(Tables) == 0) || do.clean) {
 		colnames(sites_data) <- site_columns
 		sites_data$WeatherFolder_id <- if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) 1:length(sites_data$site_id) else NA
 		#This works fast
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, paste("INSERT INTO sites VALUES(NULL,",paste(":",site_columns,collapse=",",sep=""),")",sep=""), bind.data=sites_data)
 		dbCommit(con)
 	
@@ -161,7 +161,7 @@ if((length(Tables) == 0) || do.clean) {
 		##########Create table experimental_labels only if using experimentals
 		if(useExperimentals) {
 			dbGetQuery(con, "CREATE TABLE experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO experimental_labels VALUES(NULL, :label);", bind.data = data.frame(label=sw_input_experimentals[,1],stringsAsFactors=FALSE))
 			dbCommit(con)
 		}
@@ -198,7 +198,7 @@ if((length(Tables) == 0) || do.clean) {
 					weatherfolders_index <- as.numeric(dbGetQuery(con,"SELECT MAX(id) FROM weatherfolders;"))+1
 					LookupWeatherFolder_index$id[!temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[!temp])-1)
 					#Write those in
-					dbBeginTransaction(con)
+					dbBegin(con)
 					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[!temp,])
 					dbCommit(con)
 				}
@@ -221,7 +221,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 		if(useTreatments) {
 			# we only need the columns that are turned on and not in experimentals. Experimentals over write. Only rows that are going to be used
-			db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)]])
+			db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)], drop=FALSE])
 			db_treatments_rows <- nrow(db_treatments)
 			#this maps locations from reduced
 			temp<-duplicated(df)
@@ -346,31 +346,31 @@ if((length(Tables) == 0) || do.clean) {
 				db_combined_exp_treatments$simulation_years_id <- sim_years_unique_map
 			}
 			#write to the database
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(unique_simulation_years))
 			dbCommit(con)
 		} else {#Treatment option for simulation Years is turned off. Get the default one from settings.
 			db_combined_exp_treatments$simulation_years_id <- 1
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(simulationStartYear=simstartyr, StartYear=startyr, EndYear=endyr))
 			dbCommit(con)
 		}
 	
 		#Insert the data into the treatments table
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, paste("INSERT INTO treatments VALUES(",paste(":",colnames(db_combined_exp_treatments),sep="",collapse=", "),")",sep=""), bind.data = db_combined_exp_treatments)
 		dbCommit(con)
 	
 		##############scenario_labels table###############
 		dbGetQuery(con, "CREATE TABLE scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, "INSERT INTO scenario_labels VALUES(NULL, :label);", bind.data = data.frame(label=climate.conditions,stringsAsFactors = FALSE))
 		dbCommit(con)
 		##################################################
 	
 		#############run_labels table#########################
 		dbGetQuery(con, "CREATE TABLE run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		if(useExperimentals) {
 			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);", bind.data = data.frame(label=paste(formatC(seq.todo, width=ceiling(log10(runsN.todo + 1)), format = "d", flag="0"), rep(sw_input_experimentals[,1],each=runs), labels[seq.tr], sep="_"),stringsAsFactors = FALSE))
 		} else {
@@ -410,7 +410,7 @@ if((length(Tables) == 0) || do.clean) {
 				db_runs$treatment_id <- 1
 			}
 		}
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
 		dbCommit(con)
 		##################################################
@@ -595,9 +595,22 @@ if((length(Tables) == 0) || do.clean) {
 			temp <- c(temp, paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
 									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
 		}
+	#23b
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "NRCS_MoistureControlSection_Lower_cm", "NRCS_Permafrost_TF"),
+							paste0(c(c("SoilTemp_50cmDepth_Annual_C_mm", "SoilTemp_50cmDepth_JJA_C_mm", "SoilTemp_50cmDepth_DJF_C_mm", "Saturation_ConsecutiveMaxDuration_JJA_days"),
+							c("MCS_AllDry_T50Above5C_proportion", "MCS_PartDry_days", "MCS_PartMoist_days", "MCS_PartMoist_ConsecutiveMaxDuration_days", "MCS_PartMoist_T50Above8C_ConsecutiveMaxDuration_days", "MCS_AllMoist_ConsecutiveMaxDuration_Dec21Apr21_days", "MCS_AllDry_ConsecutiveMaxDuration_Jun21Oct21_days")), "_mean"),
+							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
+							paste0("SoilMoistureRegime_", c("Aridic", "Udic", "Ustic", "Xeric")))))
+		}	
+	#23c	
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
+			temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
+			rm(cats)
+		}
 		#27
 		##############################################################---Aggregation: Daily extreme values---##############################################################
-	
 	#24
 		if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
 			temp <- c(temp, paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
