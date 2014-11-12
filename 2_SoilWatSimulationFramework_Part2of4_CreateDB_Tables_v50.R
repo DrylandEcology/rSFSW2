@@ -601,7 +601,7 @@ if((length(Tables) == 0) || do.clean) {
 							paste0(c(c("SoilTemp_50cmDepth_Annual_C_mm", "SoilTemp_50cmDepth_JJA_C_mm", "SoilTemp_50cmDepth_DJF_C_mm", "Saturation_ConsecutiveMaxDuration_JJA_days"),
 							c("MCS_AllDry_T50Above5C_proportion", "MCS_PartDry_days", "MCS_PartMoist_days", "MCS_PartMoist_ConsecutiveMaxDuration_days", "MCS_PartMoist_T50Above8C_ConsecutiveMaxDuration_days", "MCS_AllMoist_ConsecutiveMaxDuration_Dec21Apr21_days", "MCS_AllDry_ConsecutiveMaxDuration_Jun21Oct21_days")), "_mean"),
 							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-							paste0("SoilMoistureRegime_", c("Aridic", "Udic", "Ustic", "Xeric")))))
+							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
 		}	
 	#23c	
 		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
