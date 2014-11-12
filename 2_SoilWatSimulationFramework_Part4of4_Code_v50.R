@@ -3841,24 +3841,26 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(degday)
 				}
+				
 			#23b
-				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes && swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
 
 					#Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 					#Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
 					#Soil Survey Staff. 2010. Keys to soil taxonomy, 11th ed., USDA Natural Resources Conservation Service, Washington, DC.
 					if(!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(sc, sw_soiltemp, "yrAll", scaler=1, FUN=weighted.mean, weights=layers_width)
-										
+					
 					#Result containers
 					Tregime_names <- c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
 					Tregime <- rep(0, times=length(Tregime_names))
 					names(Tregime) <- Tregime_names
-					Sregime_names <- c("Aridic", "Udic", "Ustic", "Xeric")
+					Sregime_names <- c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")
 					Sregime <- rep(0, times=length(Sregime_names))
 					names(Sregime) <- Sregime_names
 
-					MAT50 <- T50jja <- T50djf <- CSPartSummer <- PDAll_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
+					MAT50 <- T50jja <- T50djf <- CSPartSummer <- PDAll_at5C <- PWPart_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
+					regimes_done <- FALSE
 					
 					#Parameters
 					SWP_dry <- -1.5	#dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
@@ -3870,7 +3872,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					clay_temp <- weighted.mean(clay, layers_width)
 				
 					#Required soil layers
-					stemp <- swSoils_Layers(swRunScenariosData[[1]])
+					stemp <- swSoils_Layers(swRunScenariosData[[sc]])
 					#50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
 					imp_depth <- which(stemp[, "impermeability_frac"] >= impermeability)
 					imp_depth <- min(imp_depth, max(stemp[, "depth_cm"]))	#Interpret maximum soil depth as possible impermeable layer
@@ -3886,18 +3888,25 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 									} else if(sand_temp < (0.70 + clay_temp)){ c(20, 60)
 									} else c(30, 90)
 					#If 7.5 cm of water moistens the soil to a densic, lithic, paralithic, or petroferric contact or to a petrocalcic or petrogypsic horizon or a duripan, the contact or the upper boundary of the cemented horizon constitutes the lower boundary of the soil moisture control section. If a soil is moistened to one of these contacts or horizons by 2.5 cm of water, the soil moisture control section is the boundary of the contact itself. The control section of such a soil is considered moist if the contact or upper boundary of the cemented horizon has a thin film of water. If that upper boundary is dry, the control section is considered dry.
-					if(any(imp_depth < MCS_depth[1])){
-						MCS_depth <- imp_depth
-						if(nrow(stemp) >= 2){
-							if((temp <- findInterval(imp_depth, stemp[, "depth_cm"])) > 1){
-								MCS_depth <- c(stemp[temp - 1, "depth_cm"], imp_depth)
-							} else {
-								MCS_depth <- c(imp_depth, stemp[temp + 1, "depth_cm"])
+					adjustLayer_byImp <- function(depths, imp_depth){
+						if(any(imp_depth < depths[1])){
+							depths <- imp_depth
+							if(nrow(stemp) >= 2){
+								if((temp <- findInterval(imp_depth, stemp[, "depth_cm"])) > 1){
+									depths <- c(stemp[temp - 1, "depth_cm"], imp_depth)
+								} else {
+									depths <- c(imp_depth, stemp[temp + 1, "depth_cm"])
+								}
 							}
+						} else if(any(imp_depth < depths[2])){
+							depths <- c(depths[1], imp_depth)
 						}
-					} else if(any(imp_depth < MCS_depth[2])){
-						MCS_depth <- c(MCS_depth[1], imp_depth)
+						return(depths)
 					}
+					MCS_depth <- adjustLayer_byImp(depths=MCS_depth, imp_depth=imp_depth)
+					
+					#Soil layer 10-70 cm used for anhydrous layer definition; adjusted for impermeable layer
+					Lanh_depth <- adjustLayer_byImp(depths=c(10, 70), imp_depth=imp_depth)
 					
 					#Permafrost (Soil Survey Staff 2014: p.28) is defined as a thermal condition in which a material (including soil material) remains below 0 C for 2 or more years in succession
 					permafrost <- any(apply(soiltemp.yr.all$val[simTime$index.useyr, -1], 2, FUN=function(x) {
@@ -3907,7 +3916,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 					
 					#Calculations
-					if(all(c(Fifty_depth, MCS_depth) %in% stemp[, "depth_cm"])){ #Test for presence of required soil depths
+					if(all(c(Fifty_depth, MCS_depth) %in% stemp[, "depth_cm"]) && sd(soiltemp.yr.all$val[,-1]) > 0){ #Test for presence of required soil depths and for simulated soil temperature output
 						if(!exists("soiltemp.mo.all")) soiltemp.mo.all <- get_Response_aggL(sc, sw_soiltemp, "moAll", scaler=1, FUN=weighted.mean, weights=layers_width)
 						if(!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, "dyAll", scaler=1, FUN=weighted.mean, weights=layers_width)
 						if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(sc, sw_vwc, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
@@ -3977,17 +3986,49 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							if(is.na(MCS_depth[2])){
 								i_MCS <- findInterval(MCS_depth[1], vec=stemp[, "depth_cm"])
 							} else {
-								i_MCS <- findInterval(MCS_depth[1], vec=stemp[, "depth_cm"]):findInterval(MCS_depth[2], vec=stemp[, "depth_cm"])
+								i_MCS <- (1 + findInterval(MCS_depth[1], vec=stemp[, "depth_cm"])):findInterval(MCS_depth[2], vec=stemp[, "depth_cm"])
 							}
 							MCS <- swp.dy.all$val[simTime$index.usedy, 2 + i_MCS, drop=FALSE]
-
+							#Anhydrous soil layer moisture
+							if(is.na(Lanh_depth[2])){
+								i_Lanh_depth <- findInterval(Lanh_depth[1], vec=stemp[, "depth_cm"])
+							} else {
+								i_Lanh_depth <- (1 + findInterval(Lanh_depth[1], vec=stemp[, "depth_cm"])):findInterval(Lanh_depth[2], vec=stemp[, "depth_cm"])
+							}
+							MLanh <- swp.dy.all$val[simTime$index.usedy, 2 + i_Lanh_depth, drop=FALSE]
+							Lanh_widths <- layers_width[i_Lanh_depth]
+							Lanh_width <- sum(Lanh_widths)
+							
+							#T@MCS@5: Soil temperature at 50 cm is > 5 C for at least 1 day for in least 1 normal year
+							T50_at5C <- (1 <= sum(sapply(wyears_normal, FUN=function(yr) sum(T50[wateryears == yr] > 5) >= 1)))
+							#PDHalfHalf_at0C: dry (water held at 1500 kPa or more) in one-half or more of the soil for one-half or more of the time the layer from 10 to 70 cm has a soil temperature above 0 C
+							PDHalfHalf_at0C <- sum(temp <- sapply(wyears_normal, FUN=function(yr){
+												i_temp <- (wateryears == yr)
+												temp0 <- (T50[i_temp] > 0)
+												if(sum(temp0) > 0){
+													tempDry <- apply(MLanh[i_temp, , drop=FALSE], 1, FUN=function(x) {
+																	temp <- which(x < SWP_dry)
+																	res <- if(length(temp) > 0) sum(Lanh_widths[temp]) else 0
+																	return(res)})
+													tempHalfHalf0 <- (tempDry >= Lanh_width/2) & temp0 #one-half or more of the soil [width]
+													res <- ((sum(tempHalfHalf0) / sum(temp0)) >= 0.5) #one-half or more of the time when > 0 C
+												} else {
+													res <- NA
+												}
+												return(res)})) / length(temp)
 							#PDALL@5 :  Proportion of days when MCS is all Dry when T50 > 5C
 							PDAll_at5C <- mean(sapply(wyears_normal, FUN=function(yr){
 												i_temp <- (wateryears == yr)
 												temp5 <- (T50[i_temp] > 5)
-												temp <- apply(MCS[i_temp, , drop=FALSE], 1, FUN=function(x) all(x < SWP_dry)) & temp5
-												res <- sum(temp) / sum(temp5)
-												return(res)}))
+												if(sum(temp5) > 0){
+													temp <- apply(MCS[i_temp, , drop=FALSE], 1, FUN=function(x) all(x < SWP_dry)) & temp5
+													res <- sum(temp) / sum(temp5)
+												} else {
+													res <- NA
+												}
+												return(res)}), na.rm=TRUE)
+							#PDAll_at5C + PWPart_at5C = 1
+							PWPart_at5C <- 1 - PDAll_at5C
 							#DDPART : Days with MCS part Dry
 							DDPart <- mean(sapply(wyears_normal, FUN=function(yr){
 												i_temp <- (wateryears == yr)
@@ -4034,10 +4075,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 							#---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31						
 							#we ignore 'Aquic'
-							#Aridic soil moisture regime
-							if(PDAll_at5C >= 0.5 && CWPart_at8C < 90) Sregime["Aridic"] <- 1
+							#Aridic soil moisture regime; The limits set for soil temperature exclude from these soil moisture regimes soils in the very cold and dry polar regions and in areas at high elevations. Such soils are considered to have anhydrous condition
+							if(T50_at5C && PDAll_at5C >= 0.5 && CWPart_at8C < 90) Sregime["Aridic"] <- 1
+							#Anhydrous condition: Soil Survey Staff 2010: p.16/Soil Survey Staff 2014: p.18
+							if(MAT50 <= 0 && PDHalfHalf_at0C >= 0.5) Sregime["Anhydrous"] <- 1	#we ignore test for 'ice-cemented permafrost' and 'rupture-resistance class'
 							#Udic soil moisture regime
-							if(DDPart <= 90){ #we ignore test for 'three- phase system' during T50 > 0
+							if(DDPart <= 90 && T50_at5C){ #we ignore test for 'three- phase system' during T50 > 5
 								if(MAT50 < 22 && abs(T50jja - T50djf) >= 6){
 									if(CDAllSummer < 45) Sregime["Udic"] <- 1
 								} else {
@@ -4049,7 +4092,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								if(MAT50 >= 22 || abs(T50jja - T50djf) < 6){
 									if(DDPart >= 90 && (DWPart > 180 || CWPart > 90)) Sregime["Ustic"] <- 1
 								} else {
-									if(DDPart >= 90 && PDAll_at5C <= 0.5){ #PDAll_at5C + PWPart_at5C = 1
+									if(DDPart >= 90 && T50_at5C && PDAll_at5C <= 0.5){ 
 										if(CWAllWinter >= 45){
 											if(CDAllSummer < 45) Sregime["Ustic"] <- 1
 										} else {
@@ -4059,12 +4102,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							}
 							#Xeric soil moisture regime
 							if((CWAllWinter >= 45 && CDAllSummer >= 45) && 
-								(PDAll_at5C < 0.5 || CWPart_at8C > 90) &&
+								T50_at5C && (PWPart_at5C > 0.5 || CWPart_at8C > 90) &&
 								(MAT50 < 22 && abs(T50jja - T50djf) >= 6)){
 									Sregime["Xeric"] <- 1
 								}
 							}
-							rm(i_MCS, MCS)	
+							
+							regimes_done <- TRUE
+							
+							rm(i_MCS, MCS, T50_at5C, i_Lanh_depth, MLanh, Lanh_widths, Lanh_width)	
 
 						} else {
 							Sregime[] <- NA
@@ -4082,11 +4128,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 																							Tregime, Sregime)
 					nv <- nv+4+11+length(Tregime_names)+length(Sregime_names)
 					
-					rm(SWP_dry, SWP_sat, impermeability, Tregime_names, Sregime_names, stemp, sand_temp, clay_temp, imp_depth, MCS_depth, Fifty_depth, permafrost, MAT50, T50jja, T50djf, CSPartSummer, PDAll_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer)
+					rm(SWP_dry, SWP_sat, impermeability, Tregime_names, Sregime_names, stemp, sand_temp, clay_temp, imp_depth, MCS_depth, Fifty_depth, Lanh_depth, permafrost, MAT50, T50jja, T50djf, CSPartSummer, PDAll_at5C, PWPart_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer)
 					
 				}
+
 			#23c	
-				if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+				if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes && regimes_done){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 					if(print.debug) print("Aggregation of dailyNRCS_Chambers2014_ResilienceResistance")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -4119,7 +4166,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv + 2*length(cats)
 					
 					rm(cats, resilience, resistance, rows_resilience, rows_resistance, Table1_EcologicalType, Type,
-						MAP, Table1_Characteristics_mm, Characteristics, RR, Tregime, Sregime)
+						MAP, Table1_Characteristics_mm, Characteristics, RR, Tregime, Sregime, regimes_done)
 					
 				}
 				
