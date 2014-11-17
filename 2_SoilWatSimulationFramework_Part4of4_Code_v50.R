@@ -3841,8 +3841,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(degday)
 				}
-				
+
 			#23b
+				if(aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+					regimes_done <- FALSE
+				}
+				
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes && swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
 
@@ -3860,7 +3864,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					names(Sregime) <- Sregime_names
 
 					MAT50 <- T50jja <- T50djf <- CSPartSummer <- PDAll_at5C <- PWPart_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
-					regimes_done <- FALSE
 					
 					#Parameters
 					SWP_dry <- -1.5	#dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
