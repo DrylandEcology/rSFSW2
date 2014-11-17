@@ -765,6 +765,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	tryToGet_ClimDB <- function(is_ToDo){
 		if(parallel_runs && parallel_init){
+			is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 			#objects that need exporting to slaves
 			list.export <- c("dir.out.temp", "dir.ex.dat", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "deltaFutureToSimStart_yr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
 					"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
