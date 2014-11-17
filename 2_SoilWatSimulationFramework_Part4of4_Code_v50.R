@@ -3843,9 +3843,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 
 			#23b
-				if(aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
-					regimes_done <- FALSE
-				}
+				regimes_done <- FALSE
 				
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes && swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
@@ -4169,9 +4167,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv + 2*length(cats)
 					
 					rm(cats, resilience, resistance, rows_resilience, rows_resistance, Table1_EcologicalType, Type,
-						MAP, Table1_Characteristics_mm, Characteristics, RR, Tregime, Sregime, regimes_done)
+						MAP, Table1_Characteristics_mm, Characteristics, RR, Tregime, Sregime)
 					
 				}
+				rm(regimes_done)
 				
 				
 				#---Aggregation: Yearly water balance
