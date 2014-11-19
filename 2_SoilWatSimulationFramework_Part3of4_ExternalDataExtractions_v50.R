@@ -361,6 +361,21 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA) dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
 		if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global) dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
 		
+		#CMIP3 Global and USA
+		#	- obs: 1950 Jan to 1999 Dec
+		#	- SRES: 1950 Jan to 2099 Dec
+		#	- all same time + spatial coordinates
+		#CMIP5 Global and USA
+		#	- historical: 1950 Jan to 2005 Dec (except: HadGEM2-CC and HadGEM2-ES, to 2005 Nov)
+		#	- RCPs:
+		#		- in general: 2006 Jan to 2099 Dec or 2100 Dec
+		#		- HadGEM2-CC and HadGEM2-ES: 2005 Dec to 2099 Dec
+		#		- RCP45 & Globus: HadGEM2-ES: 2005 Dec to 2099 Nov
+		#		- RCP45: HadCM2 and MIROC4h: 2006 Jan to 2035 Dec
+		#		- no RCP85: GISS-E2-H-CC, GISS-E2-R-CC
+		#	=> ignore missing Dec value; ignore 2005 Dec value if that is the start
+		#	- all same spatial coordinates
+		
 		scenariosDB <- list.dirs(dir.ex.dat, full.names=FALSE, recursive=FALSE)
 		if(any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
 		
@@ -416,24 +431,35 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		bbox$lat <- c(-55.25-0.25, 83.25+0.25)
 		bbox$lon <- c(-179.75-0.25, 179.75+0.25)
 	}
+	
+	#time box
+	tbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(c("start", "end"), c("first", "second"))))
+	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+		tbox$first <- c(1950, 2005)
+		tbox$second <- c(2006, 2099)
+	}
+	if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global){
+		tbox$first <- c(1950, 1999)
+		tbox$second <- c(2000, 2099)
+	}
 
 	#timing: time slices: data is organized into 'historical' runs 1950-2005 (="first") and future 'rcp' runs 2006-2099 (="second")
 	timeSlices <- data.frame(matrix(NA, ncol=4, nrow=4 + 4*length(deltaFutureToSimStart_yr), dimnames=list(NULL, c("Run", "Slice", "Time", "Year"))))
 	timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", paste0(deltaFutureToSimStart_yr, "years")))[, 3:1]
 	#historic
-	timeSlices[1, 4] <- max(1950, simstartyr)
-	timeSlices[2, 4] <- min(2005, endyr)
-	if(endyr > 2005){
-		timeSlices[3, 4] <- 2006
-		timeSlices[4, 4] <- min(2099, endyr)
+	timeSlices[1, 4] <- max(tbox$first[1], simstartyr)
+	timeSlices[2, 4] <- min(tbox$first[2], endyr)
+	if(endyr > tbox$first[2]){
+		timeSlices[3, 4] <- tbox$second[1]
+		timeSlices[4, 4] <- min(tbox$second[2], endyr)
 	}
 	#loop through deltaFutureToSimStart_yr
 	for(it in seq_along(deltaFutureToSimStart_yr)){
-		timeSlices[3 + 4*it, 4] <- max(2006, deltaFutureToSimStart_yr[it] + simstartyr)
-		timeSlices[4 + 4*it, 4] <- min(2099, deltaFutureToSimStart_yr[it] + endyr)
-		if(deltaFutureToSimStart_yr[it] + simstartyr < 2006){
-			timeSlices[1 + 4*it, 4] <- max(1950, deltaFutureToSimStart_yr[it] + simstartyr)
-			timeSlices[2 + 4*it, 4] <- 2006
+		timeSlices[3 + 4*it, 4] <- max(tbox$second[1], deltaFutureToSimStart_yr[it] + simstartyr)
+		timeSlices[4 + 4*it, 4] <- min(tbox$second[2], deltaFutureToSimStart_yr[it] + endyr)
+		if(deltaFutureToSimStart_yr[it] + simstartyr < tbox$second[1]){
+			timeSlices[1 + 4*it, 4] <- max(tbox$first[1], deltaFutureToSimStart_yr[it] + simstartyr)
+			timeSlices[2 + 4*it, 4] <- tbox$second[1]
 		}
 	}
 	#get unique time slices
@@ -589,6 +615,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			return(list(cbind(year=date$year + 1900, month=date$mon + 1, clim[["tasmax"]], clim[["tasmin"]], clim[["pr"]])))
 		}
 	}
+
 	if(exinfo$GDODCPUCLLNL){
 		whereNearest <- function(val, matrix) {
 			#this returns the index of the closest value in the matrix to the passed in value.
@@ -611,32 +638,40 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		
 		get.TimeIndices <- function(nc, startyear, endyear){
 			utemp <- nc$dim$time$units
-			N <- length(temp <- nc$dim$time$vals)
-			firstMonth <- temp[1]
-			lastMonth <- temp[N]
 			baseYear <- (temp <- lapply(strsplit(utemp, split=" ", fixed=TRUE)[[1]], FUN=function(x) as.Date(x, format="%Y-%m-%d")))[sapply(temp, FUN=function(x) !is.na(x))][[1]]
 			stopifnot(length(baseYear) == 1)
+
+			N <- length(temp <- nc$dim$time$vals)
+			firstDate <- as.POSIXlt(baseYear + temp[1])
+			lastDate <- as.POSIXlt(baseYear + temp[N])
 			
-			startYear <- as.POSIXlt(baseYear + firstMonth)$year + 1900
-			startMonth <- as.POSIXlt(baseYear + firstMonth)$mon + 1
-			endYear <- as.POSIXlt(baseYear + lastMonth)$year + 1900
-			endMonth <- as.POSIXlt(baseYear + lastMonth)$mon + 1
+			startYear <- firstDate$year + 1900
+			startMonth <- firstDate$mon + 1
+			endYear <- lastDate$year + 1900
+			endMonth <- lastDate$mon + 1
 			
-			stopifnot(startYear < startyear || (startMonth == 1 && startYear == startyear)) 	#we only extract full years
-			timeStartIndex <- ((startyear - startYear - 1) * 12) + (12 - startMonth + 2)
+			stopifnot(startYear <= startyear || (startMonth == 1 && startYear == startyear)) 	#we only extract full years and require data from the startyear on
+			timeStartIndex <- ((startyear - startYear) * 12) + (2 - startMonth) #we extract beginning with January of startyear
 			
-			stopifnot(endYear >= endyear)	#account for missing months in last year, but don't allow missing years; e.g., precipitation of 'HadGEM2-ES' has values only until Nov 2099
-			addMissingMonthAtEnd <- 12 - endMonth
-			timeCount <- (endyear - startyear + 1) * 12 - addMissingMonthAtEnd
+			#account for missing months: assume all are at the end; e.g., precipitation of 'HadGEM2-ES' has values only until Nov 2099 instead Dec 2100
+			timeCount_should <- (endyear - startyear + 1) * 12 #timeCount must include a count at timeStartIndex; to extract two values at 1:2, have timeStartIndex=1 and timeCount=2
+			N_should <- timeStartIndex + timeCount_should - 1
+			if(N >= N_should){
+				timeCount <- timeCount_should
+				addMissingMonthAtEnd <- 0
+			} else {
+				timeCount <- N - timeStartIndex
+				addMissingMonthAtEnd <- N_should - N
+			}
 			
 			return( list(timeStartIndex=timeStartIndex, timeCount=timeCount, addMissingMonthAtEnd=addMissingMonthAtEnd) )
-		}
+		}		
 		
 		get.DBvariable <- function(filepath, variable, unit, lon, lat, startyear, endyear){
 			nc <- nc_open(filename=filepath, write=FALSE, readunlim=TRUE, verbose=FALSE)
 			stopifnot(grepl(unit, nc$var[[variable]]$units, fixed=TRUE))
 			
-			#Time index
+			#Time index: can differ among RCPs from the same GCM
 			nct <- get.TimeIndices(nc=nc, startyear=startyear, endyear=endyear)
 			
 			#matrices containing the latitudes/longitudes in the netCDF files... these are used to get the correct indices in the whereNearest function in the nc_getByCoords function
@@ -656,7 +691,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			gcmFiles <- list.files(file.path(dir.ex.dat, as.character(scen)), pattern=paste0("_", as.character(gcm), "_"), full.names=TRUE)
 			
 			#Get precipitation data
-			prcp <- mmPerDay_to_cmPerMonth(get.DBvariable(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", lon=lon, lat=lat, startyear=startyear, endyear=endyear), startyear, endyear)
+			prcp <- get.DBvariable(filepath=gcmFiles[grepl(fileVarTags[1], gcmFiles)], variable=varTags[1], unit="mm/d", lon=lon, lat=lat, startyear=startyear, endyear=endyear)
+			prcp <- mmPerDay_to_cmPerMonth(prcp, startyear, endyear)
 			
 			#Get temperature data
 			if(any(temp3 <- grepl(fileVarTags[3], gcmFiles)) && any(temp4 <- grepl(fileVarTags[4], gcmFiles))){
@@ -854,10 +890,13 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	repeatN <- 0
 	i_AllToDo <- 1:requestN
 	i_Done <- NULL
-	if(file.exists(logFile <- file.path(dir.out, paste0("extractionsDone_", tagDB, ".rds")))){
+	
+	logFile <- file.path(dir.out, paste0("extractionsDone_", tagDB, ".rds"))
+	if(file.exists(logFile)){
 		i_Done <- sort(unique(c(i_Done, readRDS(file=logFile))))
 	}
-	if(length(temp.files <- list.files(path=dir.out.temp, pattern=tagDB, recursive=TRUE, include.dirs=FALSE, no..=TRUE)) > 0){
+	temp.files <- list.files(path=dir.out.temp, pattern=tagDB, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+	if(length(temp.files) > 0){
 		i_Done <- sort(unique(c(i_Done, as.integer(unlist(strsplit(unlist(strsplit(temp.files, split="_", fixed=TRUE))[c(FALSE, TRUE)], split=".", fixed=TRUE))[c(TRUE, FALSE)]))))
 	}
 	while(repeatExtractionLoops_maxN > repeatN && length(i_ToDo <- if(length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0){
