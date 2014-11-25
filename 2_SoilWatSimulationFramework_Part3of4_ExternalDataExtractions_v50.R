@@ -270,8 +270,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		# 2. Calculate deltas between historic and future mean scenario values
 				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, colnames(obs.hist.monthly)))
-		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
+		delta_ts <- matrix(NA, ncol=5, nrow=nrow(scen.hist.monthly), dimnames=list(NULL, colnames(scen.hist.monthly)))
+		delta_ts[, 1:2] <- scen.hist.monthly[, 1:2]
 		ppt_fun <- rep("*", 12)
 
 		delta_temps <- scen.fut.mean[, 1:2] - scen.hist.mean[, 1:2]
@@ -282,7 +282,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 
 		deltas <- as.matrix(cbind(delta_temps, delta_ppts))
-		for(id in 1:(nrow(obs.hist.monthly)/12)) delta_ts[1:12 + (id-1)*12, -(1:2)] <- deltas
+		for(id in 1:(nrow(scen.hist.monthly)/12)) delta_ts[1:12 + (id-1)*12, -(1:2)] <- deltas
 		
 		# 3. Apply deltas to historic daily weather
 		scen.fut.daily <- applyDeltas(obs.hist.daily, delta_ts, ppt_fun, do_checks=do_checks)
@@ -802,6 +802,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				scen.monthly <- matrix(data=vector("list", length=(getYears$n_first+getYears$n_second)*(1 + length(rcps))), ncol=getYears$n_first+getYears$n_second, dimnames=list(c("Current", as.character(rcps)), c(paste0("first", 1:getYears$n_first), paste0("second", 1:getYears$n_second))))
 				#First slice ('historical'): 1950-2005
 				scen <- "historical"
+				isc <- 1
 				ncFiles <- if(exinfo$GDODCPUCLLNL) ncFiles_gcm[grepl(as.character(scen), ncFiles_gcm)] else NULL
 				for(it in 1:getYears$n_first){
 					nct <- if(exinfo$GDODCPUCLLNL) get.TimeIndices(filename=ncFiles[1], startyear=getYears$first[it, 1], endyear=getYears$first[it, 2]) else NULL	#Time index: differs among variables from the same GCMxRCP: in only once case: HadGEM2-ES x RCP45
@@ -903,14 +904,14 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#objects that need exporting to slaves
 			list.export <- c("dir.out.temp", "dir.ex.dat", "exinfo", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "deltaFutureToSimStart_yr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
 					"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
-					"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid", "sigmaN", "PPTratioCutoff", "erf", "do_PPTAdjustment", "adjustLength", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma")
+					"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid", "sigmaN", "PPTratioCutoff", "erf", "do_PPTAdjustment", "adjustLength", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "applyDeltas")
 			if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 				list.export <- c(list.export, "nasa.dataserver", "saveNEXtempfiles", "useRCurl",  
 					"mmPerSecond_to_cmPerMonth")
 			}
 			if(exinfo$GDODCPUCLLNL){
 				list.export <- c(list.export, "fileVarTags", "gcmFiles",  
-					"mmPerDay_to_cmPerMonth", "whereNearest", "get.TimeIndices", "get.ncIndices", "do_ncvar_get")
+					"mmPerDay_to_cmPerMonth", "whereNearest", "get.TimeIndices", "get.SpatialIndices", "do_ncvar_get")
 			}
 			#call the simulations depending on parallel backend
 			if(identical(parallel_backend, "mpi")) {
