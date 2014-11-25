@@ -237,7 +237,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		# 2. Calculate deltas between observed historic and future mean scenario values
 				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, colnames(obs.hist.monthly)))
+		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 		ppt_fun <- rep("*", 12)
 
@@ -270,7 +270,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		# 2. Calculate deltas between historic and future mean scenario values
 				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(scen.hist.monthly), dimnames=list(NULL, colnames(scen.hist.monthly)))
+		delta_ts <- matrix(NA, ncol=5, nrow=nrow(scen.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		delta_ts[, 1:2] <- scen.hist.monthly[, 1:2]
 		ppt_fun <- rep("*", 12)
 
@@ -311,7 +311,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 
 		#Delta time series values									
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, colnames(obs.hist.monthly)))
+		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 		ppt_fun <- rep("*", 12)
 		for(iv in 1:3){
@@ -848,6 +848,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							if(inherits(scen.fut.daily, "try-error")){#raw unsuccessful, replace with raw without checks
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": raw method: checks turned off for monthly->daily"))
 								scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+								stopifnot(!inherits(scen.fut.daily, "try-error"))
 							}
 							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
 							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
@@ -858,6 +859,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							if(inherits(scen.fut.daily, "try-error")){#delta unsuccessful, replace with delta without checks
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta method: checks turned off for monthly->daily"))
 								scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+								stopifnot(!inherits(scen.fut.daily, "try-error"))
 							}
 							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
 							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
@@ -867,6 +869,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE)
 							if(inherits(scen.fut.daily, "try-error")){#delta-hybrid unsuccessful, replace with delta method
 								scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+								stopifnot(!inherits(scen.fut.daily, "try-error"))
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta-hybrid replaced by delta method for monthly->daily"))
 							}
 							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
