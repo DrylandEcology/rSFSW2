@@ -2516,7 +2516,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				i_sw_weatherList <- try(.local(i), silent=TRUE)
 				if(inherits(i_sw_weatherList, "try-error")) {
-					if(print.debug) print("i_sw_weatherList ERROR")
+					if(!be.quiet) print(paste(i, "i_sw_weatherList ERROR"))
 					tasks$create <- 0
 				}
 			} else {
