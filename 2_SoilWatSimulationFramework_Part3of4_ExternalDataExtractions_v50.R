@@ -66,6 +66,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	#---Downscaling/bias-correction functions	
 		#obs.hist.daily: list of years with soilwat weather
+		#obs.hist.monthly: matrix with monthly time-series of observed weather calculated from obs.hist.daily
 		#scen.hist.monthly: matrix with monthly time-series of scenario weather under historic time period
 		#scen.fut.monthly: matrix with monthly time-series of scenario weather under projected time period
 	
@@ -164,7 +165,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	}
 	
 	#Add/multiply deltas to historic daily data to generate future daily SoilWat-formatted weather
-	applyDeltas <- function(obs.hist.daily, delta_ts, ppt_fun, do_checks=FALSE){
+	applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, do_checks=FALSE){
 		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
 
 		res <- try(lapply(obs.hist.daily, FUN=function(obs) {
@@ -252,12 +253,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		for(id in 1:(nrow(obs.hist.monthly)/12)) delta_ts[1:12 + (id-1)*12, -(1:2)] <- deltas
 		
 		# 3. Apply deltas to historic daily weather
-		scen.fut.daily <- applyDeltas(obs.hist.daily, delta_ts, ppt_fun, do_checks=do_checks)
+		scen.fut.daily <- applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, do_checks=do_checks)
 
 		return(scen.fut.daily)
 	}
 	
-	downscale.delta <- function(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE){
+	downscale.delta <- function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE){
 		#Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta change and downscaled gcm scenarios for three mountainous basins in the United States. Journal of the American Water Resources Association 36:387-397.
 		#Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 		
@@ -285,7 +286,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		for(id in 1:(nrow(scen.hist.monthly)/12)) delta_ts[1:12 + (id-1)*12, -(1:2)] <- deltas
 		
 		# 3. Apply deltas to historic daily weather
-		scen.fut.daily <- applyDeltas(obs.hist.daily, delta_ts, ppt_fun, do_checks=do_checks)
+		scen.fut.daily <- applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, do_checks=do_checks)
 
 		return(scen.fut.daily)
 	}
@@ -369,7 +370,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		
 		# 6. Apply deltas to historic daily weather
-		scen.fut.daily <- applyDeltas(obs.hist.daily, delta_ts, ppt_fun, do_checks=do_checks)
+		scen.fut.daily <- applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, do_checks=do_checks)
 
 		return(scen.fut.daily)
 	}
@@ -846,20 +847,20 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("raw", tag, gcm, sep=".")), "id"]
 							scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, do_checks=TRUE)
 							if(inherits(scen.fut.daily, "try-error")){#raw unsuccessful, replace with raw without checks
-								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": raw method: checks turned off for monthly->daily"))
 								scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, do_checks=FALSE)
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
+								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": raw method: checks turned off for monthly->daily"))
 							}
 							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
 							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
 						}
 						if("delta" %in% downs){
 							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("delta", tag, gcm, sep=".")), "id"]
-							scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE)
+							scen.fut.daily <- downscale.delta(obs.hist.daily, downscale.delta, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE)
 							if(inherits(scen.fut.daily, "try-error")){#delta unsuccessful, replace with delta without checks
-								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta method: checks turned off for monthly->daily"))
-								scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+								scen.fut.daily <- downscale.delta(obs.hist.daily, downscale.delta, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
+								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta method: checks turned off for monthly->daily"))
 							}
 							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
 							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
@@ -868,7 +869,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", tag, gcm, sep=".")), "id"]
 							scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE)
 							if(inherits(scen.fut.daily, "try-error")){#delta-hybrid unsuccessful, replace with delta method
-								scen.fut.daily <- downscale.delta(obs.hist.daily, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+								scen.fut.daily <- downscale.delta(obs.hist.daily, downscale.delta, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta-hybrid replaced by delta method for monthly->daily"))
 							}
