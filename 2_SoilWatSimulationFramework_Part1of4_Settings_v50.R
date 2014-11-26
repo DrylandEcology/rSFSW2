@@ -187,7 +187,9 @@ dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projec
 dir.prj <- dir.runs <- getwd()
 	
 #parent folder containing external data
-dir.external <- "/Users/drschlaep/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Software/SoilWat/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
+dir.external <- "/Volumes/DRS4_Calluna/BigData/GIS/SoilWat_DataSet_External"
+dir.external <- "/Volumes/Macintosh_HD_2/BigData/GIS/SoilWat_DataSet_External"
+
 
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
@@ -213,15 +215,15 @@ checkCompleteness <- FALSE
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
-deleteTmpSQLFiles <- TRUE
-copyCurrentConditionsFromTempSQL <- TRUE
+deleteTmpSQLFiles <- FALSE
+copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of database, Maurer2002, or WeatherFolder (in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv)
 GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
-getCurrentWeatherDataFromDatabase <- FALSE
+getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
 createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 <- FALSE #Will create a database will data from LookupWeather Folder or, if GriddedDailyWeatherFromMaurer2002_NorthAmerica, from dataset by Maurer et al. 2002
@@ -270,7 +272,8 @@ startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
 #------Meta-information of input data
-datafile.windspeedAtHeightAboveGround <- 10 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
+datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
+adjust.soilDepth <- FALSE # [FALSE] fill soil layer structure from shallower layer(s) or [TRUE] adjust soil depth if there is no soil texture information for the lowest layers
 
 #Climate conditions
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off

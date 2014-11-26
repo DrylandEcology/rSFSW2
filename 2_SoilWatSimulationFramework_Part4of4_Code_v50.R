@@ -2403,19 +2403,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				)
 			}
 								
-			#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
-			for(temp in d:1){
-				if(all(!is.na(soildat[temp, "bulkd"]), soildat[temp, "bulkd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
-			}
-			if(d != temp){
-				d <- temp	
-				layers_depth <- adjustLayersDepth(layers_depth, d)
-				layers_width <- getLayersWidth(layers_depth)
-				ld <- setLayerSequence(d)
+			if(adjust.soilDepth){#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
+				for(temp in d:1){
+					if(all(!is.na(soildat[temp, "bulkd"]), soildat[temp, "bulkd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
+				}
+				if(d != temp){
+					d <- temp	
+					layers_depth <- adjustLayersDepth(layers_depth, d)
+					layers_width <- getLayersWidth(layers_depth)
+					ld <- setLayerSequence(d)
 				
-				DeepestTopLayer <- setDeepestTopLayer(d)
-				topL <- setTopLayer(d)
-				bottomL <- setBottomLayer(d)
+					DeepestTopLayer <- setDeepestTopLayer(d)
+					topL <- setTopLayer(d)
+					bottomL <- setBottomLayer(d)
+				}
 			}
 			
 			# Resize swSoils Layers to proper size
@@ -5718,7 +5719,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
 	list.export <- c("Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002","getCurrentWeatherDataFromDatabase","GriddedDailyWeatherFromMaurer2002_NorthAmerica","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
-			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
