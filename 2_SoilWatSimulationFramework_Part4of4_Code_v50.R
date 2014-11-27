@@ -3846,7 +3846,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#23b
 				regimes_done <- FALSE
 				
-				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes)){
+				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
 
 					#Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
@@ -3864,7 +3864,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					MCS_depth <- Lanh_depth <- rep(NA, 2)
 					Fifty_depth <- permafrost <- MAT50 <- T50jja <- T50djf <- CSPartSummer <- PDAll_at5C <- PWPart_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
 					
-					if(swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]){#we need soil temperature
+					if(swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])){#we need soil temperature
 						if(!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(sc, sw_soiltemp, "yrAll", scaler=1, FUN=weighted.mean, weights=layers_width)
 					
 						#Parameters
