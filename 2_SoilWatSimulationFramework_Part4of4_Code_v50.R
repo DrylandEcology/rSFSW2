@@ -3985,7 +3985,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						if(length(wyears_normal) > 1){
 							#MCS (Soil Survey Staff 2014: p.29)
-							if(is.na(MCS_depth[2])){
+							if(is.na(MCS_depth[2]) || isTRUE(all.equal(MCS_depth[1], MCS_depth[2]))){
 								i_MCS <- findInterval(MCS_depth[1], vec=stemp[, "depth_cm"])
 							} else {
 								i_MCS <- (1 + findInterval(MCS_depth[1], vec=stemp[, "depth_cm"])):findInterval(MCS_depth[2], vec=stemp[, "depth_cm"])
