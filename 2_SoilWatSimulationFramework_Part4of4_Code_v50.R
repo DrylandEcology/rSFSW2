@@ -1225,198 +1225,6 @@ adjust.WindspeedHeight <- function(uz, height){
 	return( uz * 4.87 / log(67.8 * height - 5.42) )	# eqn. 33 in Allen et al. (2005)
 }
 
-#data access functions
-get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler=10, FUN, weights=NULL){
-	FUN <- match.fun(FUN)
-	tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"))
-	if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
-		responseRepeats <- 4
-	} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
-		responseRepeats <- 1
-	}
-
-	if((tscale == "dy") || (tscale == "dyAll"))
-		temp1 <- scaler * runData[[sc_i]][[response]][[4]]
-	if((tscale == "mo") || (tscale == "moAll"))
-		temp1 <- scaler * runData[[sc_i]][[response]][[2]]
-	if((tscale == "yr") || (tscale == "yrAll"))
-		temp1 <- scaler * runData[[sc_i]][[response]][[1]]
-	
-	if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
-	if(tscale == "dy"){
-		index.col <- 2
-		index.usetimestep <- simTime$index.usedy
-		timestep_ForEachEntry <- simTime2$doy_ForEachUsedDay
-	} else if(tscale == "dyAll"){
-		index.col <- 2
-		index.usetimestep <- 1:nrow(temp1)
-		timestep_ForEachEntry <- NULL
-	} else if(tscale == "mo"){
-		index.col <- 2
-		index.usetimestep <- simTime$index.usemo
-		timestep_ForEachEntry <- simTime2$month_ForEachUsedMonth
-	} else if(tscale == "moAll"){
-		index.col <- 2
-		index.usetimestep <- 1:nrow(temp1)
-		timestep_ForEachEntry <- NULL
-	} else if(tscale == "yr"){
-		index.col <- 1
-		index.usetimestep <- simTime$index.useyr
-		timestep_ForEachEntry <- NULL
-	} else if(tscale == "yrAll"){
-		index.col <- 1
-		index.usetimestep <- 1:nrow(temp1)
-		timestep_ForEachEntry <- NULL
-	}
-	layers <- 1:((ncol(temp1) - index.col) / responseRepeats)
-	if(max(layers) <= max(topL)){ #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
-		topL <- layers
-		bottomL <- 0
-	} else if(max(layers) < max(bottomL)){
-		bottomL <- min(bottomL):max(layers)
-	}					
-	if(length(topL) > 1) {
-		if(is.null(weights)){
-			val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN)
-		} else {
-			val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN, weights[topL])
-		}
-	} else {
-		val.top <- temp1[index.usetimestep, index.col + topL]
-	}
-	if(length(bottomL) > 1) {
-		if(is.null(weights)){
-			val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN)
-		} else {
-			val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN, weights[bottomL])
-		}
-	} else if(is.null(bottomL) || identical(bottomL, 0)) {
-		val.bottom <- matrix(data=0, nrow=length(index.usetimestep), ncol=1)
-	} else {
-		val.bottom  <- temp1[index.usetimestep, index.col + bottomL]
-	}
-	if(!is.null(timestep_ForEachEntry)){
-		aggMean.top <- aggregate(val.top, by=list(timestep_ForEachEntry), FUN=mean)[,2]
-		aggMean.bottom <- aggregate(val.bottom, by=list(timestep_ForEachEntry), FUN=mean)[,2]
-		return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
-	} else {
-		if(tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll"){
-			return(list(val=temp1, top=val.top, bottom=val.bottom))
-		} else {
-			return(list(top=val.top, bottom=val.bottom))
-		}
-	}
-}
-get_SWP_aggL <- function(vwc){
-	val.top <- VWCtoSWP(vwc$top, texture$sand.top, texture$clay.top)
-	val.bottom <- VWCtoSWP(vwc$bottom, texture$sand.bottom, texture$clay.bottom)				
-	if(!is.null(vwc$aggMean.top)){
-		aggMean.top <- VWCtoSWP(vwc$aggMean.top, texture$sand.top, texture$clay.top)
-		aggMean.bottom <- VWCtoSWP(vwc$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
-		return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
-	}
-	if(!is.null(vwc$val)){
-		if(all(as.integer(vwc$val[,2])==vwc$val[,2])){
-			index.header <- 1:2
-		} else {
-			index.header <- 1
-		}
-		val <- cbind(vwc$val[, index.header], VWCtoSWP(vwc$val[, -index.header], sand, clay))
-		return(list(val=val, top=val.top, bottom=val.bottom))
-	} else {
-		return(list(top=val.top, bottom=val.bottom))
-	}
-}
-get_Temp_yr <- function(sc){
-	return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
-}
-get_Temp_mo <- function(sc){
-	return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
-}
-get_Temp_dy <- function(sc){
-	return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
-				mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
-				max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
-}
-
-get_PPT_yr <- function(sc){
-	ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
-	rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
-	snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
-	snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
-	snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
-	return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
-}
-get_PPT_mo <- function(sc){
-	return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
-}
-get_PPT_dy <- function(sc){
-	return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
-}
-
-get_PET_yr <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
-}
-get_PET_mo <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
-}
-
-get_AET_yr <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
-}
-get_AET_mo <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
-}
-get_AET_dy <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
-}
-
-get_SWE_mo <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
-}
-get_SWE_dy <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
-}
-
-get_Inf_yr <- function(sc){
-	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
-}
-get_Inf_mo <- function(sc){
-	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
-}
-get_Inf_dy <- function(sc){
-	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
-}
-
-get_Esurface_yr <- function(sc){
-	return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
-}
-get_Esurface_dy <- function(sc){
-	return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
-}
-
-get_Interception_yr <- function(sc){
-	return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
-}
-
-get_DeepDrain_yr <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
-}
-get_DeepDrain_mo <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
-}
-get_DeepDrain_dy <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
-}
-
-get_Runoff_mo <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
-}
-get_Runoff_yr <- function(sc){
-	return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
-}
-
-
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------SET UP PARALLELIZATION
@@ -3005,8 +2813,199 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					clay=sapply(1:aggLs_no, FUN=function(x) weighted.mean(clay[aggLs[[x]]], layers_width[aggLs[[x]]])))
 		}
 		
+		#data access functions
+		get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler=10, FUN, weights=NULL){
+			FUN <- match.fun(FUN)
+			tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"))
+			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
+				responseRepeats <- 4
+			} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
+				responseRepeats <- 1
+			}
+
+			if((tscale == "dy") || (tscale == "dyAll"))
+				temp1 <- scaler * runData[[sc_i]][[response]][[4]]
+			if((tscale == "mo") || (tscale == "moAll"))
+				temp1 <- scaler * runData[[sc_i]][[response]][[2]]
+			if((tscale == "yr") || (tscale == "yrAll"))
+				temp1 <- scaler * runData[[sc_i]][[response]][[1]]
+	
+			if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
+			if(tscale == "dy"){
+				index.col <- 2
+				index.usetimestep <- simTime$index.usedy
+				timestep_ForEachEntry <- simTime2$doy_ForEachUsedDay
+			} else if(tscale == "dyAll"){
+				index.col <- 2
+				index.usetimestep <- 1:nrow(temp1)
+				timestep_ForEachEntry <- NULL
+			} else if(tscale == "mo"){
+				index.col <- 2
+				index.usetimestep <- simTime$index.usemo
+				timestep_ForEachEntry <- simTime2$month_ForEachUsedMonth
+			} else if(tscale == "moAll"){
+				index.col <- 2
+				index.usetimestep <- 1:nrow(temp1)
+				timestep_ForEachEntry <- NULL
+			} else if(tscale == "yr"){
+				index.col <- 1
+				index.usetimestep <- simTime$index.useyr
+				timestep_ForEachEntry <- NULL
+			} else if(tscale == "yrAll"){
+				index.col <- 1
+				index.usetimestep <- 1:nrow(temp1)
+				timestep_ForEachEntry <- NULL
+			}
+			layers <- 1:((ncol(temp1) - index.col) / responseRepeats)
+			if(max(layers) <= max(topL)){ #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
+				topL <- layers
+				bottomL <- 0
+			} else if(max(layers) < max(bottomL)){
+				bottomL <- min(bottomL):max(layers)
+			}					
+			if(length(topL) > 1) {
+				if(is.null(weights)){
+					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN)
+				} else {
+					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN, weights[topL])
+				}
+			} else {
+				val.top <- temp1[index.usetimestep, index.col + topL]
+			}
+			if(length(bottomL) > 1) {
+				if(is.null(weights)){
+					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN)
+				} else {
+					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN, weights[bottomL])
+				}
+			} else if(is.null(bottomL) || identical(bottomL, 0)) {
+				val.bottom <- matrix(data=0, nrow=length(index.usetimestep), ncol=1)
+			} else {
+				val.bottom  <- temp1[index.usetimestep, index.col + bottomL]
+			}
+			if(!is.null(timestep_ForEachEntry)){
+				aggMean.top <- aggregate(val.top, by=list(timestep_ForEachEntry), FUN=mean)[,2]
+				aggMean.bottom <- aggregate(val.bottom, by=list(timestep_ForEachEntry), FUN=mean)[,2]
+				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
+			} else {
+				if(tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll"){
+					return(list(val=temp1, top=val.top, bottom=val.bottom))
+				} else {
+					return(list(top=val.top, bottom=val.bottom))
+				}
+			}
+		}
+		get_SWP_aggL <- function(vwc){
+			val.top <- VWCtoSWP(vwc$top, texture$sand.top, texture$clay.top)
+			val.bottom <- VWCtoSWP(vwc$bottom, texture$sand.bottom, texture$clay.bottom)				
+			if(!is.null(vwc$aggMean.top)){
+				aggMean.top <- VWCtoSWP(vwc$aggMean.top, texture$sand.top, texture$clay.top)
+				aggMean.bottom <- VWCtoSWP(vwc$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
+				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
+			}
+			if(!is.null(vwc$val)){
+				if(all(as.integer(vwc$val[,2])==vwc$val[,2])){
+					index.header <- 1:2
+				} else {
+					index.header <- 1
+				}
+				val <- cbind(vwc$val[, index.header], VWCtoSWP(vwc$val[, -index.header], sand, clay))
+				return(list(val=val, top=val.top, bottom=val.bottom))
+			} else {
+				return(list(top=val.top, bottom=val.bottom))
+			}
+		}
+		get_Temp_yr <- function(sc){
+			return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
+		}
+		get_Temp_mo <- function(sc){
+			return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
+		}
+		get_Temp_dy <- function(sc){
+			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
+						mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
+						max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
+		}
+
+		get_PPT_yr <- function(sc){
+			ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
+			rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
+			snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
+			snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
+			snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
+			return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
+		}
+		get_PPT_mo <- function(sc){
+			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
+		}
+		get_PPT_dy <- function(sc){
+			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
+		}
+
+		get_PET_yr <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
+		}
+		get_PET_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
+		}
+
+		get_AET_yr <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
+		}
+		get_AET_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
+		}
+		get_AET_dy <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
+		}
+
+		get_SWE_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
+		}
+		get_SWE_dy <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
+		}
+
+		get_Inf_yr <- function(sc){
+			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
+		}
+		get_Inf_mo <- function(sc){
+			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
+		}
+		get_Inf_dy <- function(sc){
+			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
+		}
+
+		get_Esurface_yr <- function(sc){
+			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
+		}
+		get_Esurface_dy <- function(sc){
+			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
+		}
+
+		get_Interception_yr <- function(sc){
+			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
+		}
+
+		get_DeepDrain_yr <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
+		}
+		get_DeepDrain_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
+		}
+		get_DeepDrain_dy <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
+		}
+
+		get_Runoff_mo <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
+		}
+		get_Runoff_yr <- function(sc){
+			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
+		}
+
 		#prepare SQL result container		
-		SQL <- character(0)
+		SQL <- SQLcurrent <- character(0)
 		if(parallel_runs && parallel_backend == "mpi") {
 			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".sql",sep="")
 			dbTempFileNameCurrent <- paste("SQL_Current_Node_",mpi.comm.rank(),".sql",sep="")
@@ -5379,20 +5378,20 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}#end if continueAfterAbort
 				}#doi loop
 			}#end if daily output
+			
 			if(tasks$aggregate > 0 && length(SQL) > 0 && sc == 1){
-				write(SQL, dbTempFileCurrent, append=TRUE)
 				#Clear SQL
+				SQLcurrent <- SQL <- character(0)
 				SQL <- character(0)
 			}
 		} #end loop through scenarios
 		
 	} #end if do aggregate
 	
-	if(tasks$aggregate > 0 && length(SQL) > 0){ 
+	if(tasks$aggregate > 0 && (length(SQL) > 0 || length(SQLcurrent) > 0)){ 
 		tasks$aggregate <- 2
-		write(SQL, dbTempFile, append=TRUE)
-	} else if(sc == 1 && tasks$aggregate > 0){#if sc == 1 then SQL can be equal to character(0), but still all is correct
-		tasks$aggregate <- 2
+		if(length(SQLcurrent) > 0) write(SQLcurrent, dbTempFileCurrent, append=TRUE)
+		if(length(SQL) > 0) write(SQL, dbTempFile, append=TRUE)
 	}
 	
 	
@@ -5453,8 +5452,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
 	list.export <- c("Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002","getCurrentWeatherDataFromDatabase","GriddedDailyWeatherFromMaurer2002_NorthAmerica","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
-			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN",
-			"get_Response_aggL", "get_SWP_aggL", "get_Temp_yr", "get_Temp_mo", "get_Temp_dy", "get_PPT_yr", "get_PPT_mo", "get_PPT_dy", "get_PET_yr", "get_PET_mo", "get_AET_yr", "get_AET_mo", "get_AET_dy", "get_SWE_mo", "get_SWE_dy", "get_Inf_yr", "get_Inf_mo", "get_Inf_dy", "get_Esurface_yr", "get_Esurface_dy", "get_Interception_yr", "get_DeepDrain_yr", "get_DeepDrain_mo", "get_DeepDrain_dy", "get_Runoff_mo", "get_Runoff_yr")
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
