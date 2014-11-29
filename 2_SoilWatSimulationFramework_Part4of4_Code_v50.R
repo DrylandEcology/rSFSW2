@@ -1,292 +1,4 @@
 #--------------------------------------------------------------------------------------------------#
-
-#------------------------FRAMEWORK FOR SOILWAT SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
-
-#--------------------------------------------------------------------------------------------------#
-
-#------CODE developed and written by
-# - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2013
-# - Donovan Miller (dlm): 2012
-# - Ryan Murphy (rjm): 2012-2013
-#for contact and further information see also: sites.google.com/site/drschlaepfer
-
-#The R code below was tested on R version 3.0.2
-
-#------DISCLAIMER: This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-#------SoilWat Simulation Framework, SWSF
-
-#------NOTES:
-#	- the code performs only rudimentary error checking and handling
-#	- SoilWat is forced by:
-#		- daily: rainfall (cm), maximum and minimum air temperature at 2-m height (C)
-#		- mean monthly: wind speed at 2-m height (miles/h before v24, m/s starting with v24), relative humidity at 2-m height (%), and cloud cover (%)
-
-#------VERSIONING
-#	v37 (20111213):
-#	v38	(20111227-20120104):
-#		- added to datafile.treatments: YearStart and YearEnd to adjust simulation period for each SoilWat-run individually
-#		- adjusted for treatment = 'LookupWeatherFolder' so that if the weather folder does not contain cloudin and treatment != 'cloudin', then cloudin is copied from 'dir.sw.in'
-#		- fixed bug in function 'TranspCoeffByVegType' where if 'DepthCM', the coefficients for the deepest soil layer were not added up if the soil layer was deeper than the coefficients
-#		- fixed bug in 'ExtractSkyDataFromNOAAClimateAtlasUS': codes for cover and wind were erroneous
-#		- fixed bug in 'ExtractSoilDataFromCONUSSOILFromSTATSGO': extraction of values was erroneous
-#		- fixed bug in 'add soil information to soilsin': re-adjustment of deepest soil layer when multiple lowest soil layer data was empty, was erroneous
-#		- fixed bug in function 'setSecondLayer' and 'setThirdLayer': DeepestSecondDailyAggLayer and DeepestThirdDailyAggLayer were calculated erroneously if soil layer re-adjustment decreased number of soil layers below desired value
-#		- fixed bug in 'determine soil layer structure': if not create, then re-adjustment of deepest soil layer when multiple lowest soil layer data was empty, was erroneous
-#		- converted header information from levels of factors to characters if necessary
-#		- function 'SWPtoVWC': can now handle NAs in sand or clay
-#		- improved dir.remove: removes now also files in recursive directories
-#	v39 (20120104-20120113):
-#		- aggregated output files contain only selected output variables and no longer all
-#		- added aggregated output:
-#			- sd for climate and weather, for climate correlations, and for water balance fluxes
-#			- group 'dailyWeatherEventSizeDistribution' including frequency distribution of prcp-event size and of duration of dry days (no prcp); also added two constants to determine bin sizes
-#			- group 'dailySWPdrynessDurationDistribution' including cummulative frequency distribution values (i.e., sampled at deciles plus at extremes) of duration of dry soils in top and bottom soils for each of the four seasons for each of the SWP.crit
-#		- improved 'LookupEvapCoeffFromTable' and 'LookupTranspRegionsFromTable': if datafile has from previous run more soil layers than current, these old data are now deleted
-#		- introduced function 'simTiming' which produces a list 'simTime': to better handle run-specific timing
-#		- fixed bug in 'dailySnowpack': checks now that there are enough snow years available (i.e., 2) to calculate response variables
-#	v40 (20120113-20120123):
-#		- added flag 'deleteSoilWatOutputAfterAggregation': deletes all SoilWat simulation output after aggregation for run is complete, but maintains the SoilWat input file structure; this safes space (e.g., for 1000 years of complete output = 490 MB); if other response variables are needed, then only actions==c("execute", "aggregate") are needed, but not "create"
-#		- fixed bug in column names of daily aggregations 
-#		- added vector 'delete.exceptions': if 'deleteSoilWatOutputAfterAggregation' is turned on, then it doesn't delete files listed
-#		- fixed bug in 'dailyWeatherEventSizeDistribution': incorrect result or subscript out of bounds if no data present for a summary bin
-#	v41 (20120123-20120217):
-#		- added flag 'continueAfterAbort': if true, then performs actions only if not already completed, i.e., SoilWat-run folder present for 'create', output folder not empty unless deleteSoilWatOutputAfterAggregation==TRUE & delete.exceptions==NULL for 'execute', and appropriate temporary output files present for 'aggregate'
-#		- fixed bug in calculation of 'doy_ForEachUsedDay', 'year_ForEachUsedDay', and 'month_ForEachUsedDay': required output file may not have been available if 'deleteSoilWatOutputAfterAggregation' was on and actions != execute
-#		- fixed bug in daily aggregation: rain, snowfall, snowmelt
-#		- added daily aggregation response variables: PET, TotalPrecipitation
-#		- fixed bug in 'dailyWeatherEventSizeDistribution': subscript out of bounds if data present for only one bin larger than the largest summary bin
-#		- changed daily aggregation 'SWA' from daily means of SWA (truncated at 0) to daily SWA based on daily means of SWC: otherwise if a single day had SWA > 0 then daily mean for that doy > 0 even though daily average of SWP could be < SWPcrit
-#		- added external data source option for 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'
-#		- added code to delete duplicated input files originating by copying 'swruns' and then adding treatment files
-#		- fixed bug in calculation of number of layers if soildepth was exactly a lower layer boundary
-#		- column names of daily aggregation 'SWA' include now value of SWPcrit instead an index
-#		- added daily aggregation response variables: minimum and maximum temperature
-#		- fixed bug in ETA calculation: didn't ignore excluded runs
-#		- fixed bug in calculation of ifirst: if first row was not included then no column headers were generated
-#		- fixed bug in concatenating output files: if error writing file then all temp files still deleted instead of saved for later attempts
-#		- fixed simTime
-#	v42	(20120217-20120503)
-#		- added aggregation: Artemisia tridentata germination and first-year seedling survival
-#		- added option for 4 aggregated soil layers for daily aggregation responses
-#		- fixed bug in calculation of daily aggregation of SWA
-#		- unified simulation output file access: data is read only once
-#		- temporary variables are now removed for each aggregation group
-#		- fixed bug in aggregation of 'dailySnowpack': apply failed if nrow(matrix) == 1
-#		- added aggregation 'dailyWeatherGeneratorCharacteristics': duration of wet spells (days with precipitation), duration of dry spells (days without precipitation), daily temperature standard deviation
-#		- fixed bug in daily aggregation of SWA: soiltexture
-#		- fixed bug in column names for aggregation of 'dailyWeatherEventSizeDistribution'
-#		- fixed bug in aggregation 'monthlyCorrelations' when there was no precipitation during a given year
-#		- fixed bug in creation of soils.in: if use_imperm not set and soilsin contained no data, then set impermeability to 0
-#		- fixed bug in aggregation of 'dailyWeatherEventSizeDistribution': if only 1 or 2 years of simulation data
-#	v43 (20120503-20120604)
-#		- added option for aggregated time series output
-#		- added option for 'ArtemisiaTridentataRegeneration' yearly time series output of germination and seedling survival successes
-#		- fixed bug in aggregation of 'ArtemisiaTridentataRegeneration': number of years was mis-calculated
-#		- fixed bug in determination of layers_depth if adjusted during soilsin creation: added function: layers_depth <- adjustLayersDepth(layers_depth, d)
-#		- fixed bug in creation of soils.in: if no data for impermeability in datafile and datafile different soil layer structure than soilsin, then set impermeability to 0
-#		- added overall timing measurements and output
-#		- fixed bug in determination of 'layers_depth.datafile': if more depths values available in datafile than column 'SoilDepth_cm' indicated, then values for soilsin taken from datafile (which may be empty) instead of input file
-#	v44 (20120604-20120612)
-#		- (DLM) began updating the framework for use with SOILWAT v_23 (now includes: soil temperature)
-#		- (DLM) updated the adding of site information to siteparamin to account for changes in the siteparamin file... (IE: the inclusion of the soil temperature constants).  updated the line numbers for the transp regions part.
-#		- (DLM) updated the adding of soil information to soilsin to include the initial soil temperature for each soil layer.  also changed the SW_Runs_InputData_Soils.csv file to include columns for the initial soil temperature for each soil layer.
-#		- (DLM) added new aggregation response variable "monthlySoilTemp" to output monthly soil temperature
-#		- (DLM) added new daily response variable "SoilTemperature" to output daily soil temperature
-#		- added to datafile 'SWRuns_InputData_siteparam_v10.csv': option to turn on/off soil temperature calculations, and option to adjust constant soil temperature at lower boundary (estimated as mean annual air temperature)
-#		- added option to extract data externally 'EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature': calculates mean annual air temperature from daily weather input previous to runs; data per run needs to be stored temporarilly and afterwards concatenated and stored into datafile.siteparam
-#		- added option to extract data externally 'EstimateInitialSoilTemperatureForEachSoilLayer': estimate initial soil temperature values for each layer as linear regression = f(soil layer depth) between (0 cm, 0C) and (lower bound, lower bound constant temperature); data per run needs to be stored temporarilly and afterwards concatenated and stored into datafile.soils
-#		- fixed bug in 'collect_ResultsWithTemporaryDataFrame' if there was only one run to aggregate
-#		- fixed bug in creation of soils.in: if datafile.soils used and not data for initial soil temperatures, but these calculated in EstimateInitialSoilTemperatureForEachSoilLayer, then values were not taken from the calculated ones
-#	v45 (20120612-20120705)
-#		- updated 'ArtemisiaTridentataRegeneration' and made it on average 15% faster
-#		- renamed 'ArtemisiaTridentataRegeneration' to 'dailyRegeneration_byTempSWPSnow'
-#		- parameter values for 'dailyRegeneration_byTempSWPSnow' are read in from a species.csv file from folder input/regeneration
-#		- added option for multiple species in 'dailyRegeneration_byTempSWPSnow': for each file in folder input/regeneration, 'dailyRegeneration_byTempSWPSnow' is called 
-#		- added option 'be.quiet': if TRUE, no reports on timing and runs is printed
-#	v46 (20120705-20120725)
-#		- (DLM) added a few changes for running on JANUS, made a R script to run the framework (rToCallR.R) that sets a global variable "use_janus" to make a few minor changes for specifically running the code on JANUS.  (ie. doesn't load libraries since they're not installed on JANUS, sets the project directory differently, sets the number of cores to use differently, & calls the C code slightly differently).
-#		- (DLM) made a few small changes to facilitate running the code on R version 2.13 (ie. the version on JANUS) mainly wrote a function list.dirs2 to handle list.dir calls, since the list.dir function is different in 2.13 and 2.15.  also made a small edit to the dir.copy function (commented out 1 line that was giving an error & added a new one that does the same thing and doesn't throw an error).  Code is running on both version 2.13 & 2.15 now!
-#		- framework is no longer compatible with SoilWat versions prior to v20 due to requirements for sw.inputs and sw.output folders
-#		- added options to extract data from global datasets: "ExtractGriddedDailyWeatherFromNCEPCFSR_Global", "ExtractClimateChangeScenariosMaurer2009_Global", "ExtractSkyDataFromNCEPCFSR_Global"
-#		- added input datafile 'SWRuns_InputData_ClimateScenarios_Values_v10.csv': SoilWat climate scenario factors (delta temperature, precipitation multiplier) are not taken from 'SWRuns_InputData_ClimateScenarios_Change_v10.csv', but are calculated as difference between climate scenario values and current climate calculated from daily input data (goal: match timeframe of model and change)
-#		- added option to 'actions': concatenate temporarily stored files after simulation runs or not (e.g., run everything on JANUS and then concatenate locally because it's not parallelized)
-#		- fixed bug in aggregation of mean or median aggregated soil layer response variables: previously, aggregated mean or medians were simple averages across soil layers thereby values from wide soil layers were underrepresented; now, aggregated means are weighted by soil layer width (note, SWP aggregated across soil layers is now done by first aggregating VWC and then converting to SWP)
-#		- added function 'VWCtoSWP': converting VWC for layers with known sand and clay contents to SWP
-#		- aggregation of SWP across soil layers is now done by first aggregating VWC (weighted by soil layer widths) and then converting to SWP because SWP is not linear
-#		- improved 'continueAfterAbort': now checks first for each temporary output file and then decides whether it needs to re-execute SoilWat and aggregate or not
-#		- improved handling of 'include_YN': the work-horse function is now only called for runs/sites with include_YN > 0 
-#	v47 (20120725-20120829)
-#		- implemented parallelization with doSNOW/snow as an option to doMC/multicore - JANUS: only use snow, because multicore cannot access cores outside master node
-#		- calculation of 'calculate doy_ForEachUsedDay, month_ForEachUsedDay, and year_ForEachUsedDay' is expensive for many years: creation of these vectors once before each simulation is started if possible, i.e., already executed and all simulations have same simulation years
-#		- temporary files written to a run-specific sub-directory in dir.out.temp instead of all files to dir.out.temp: linear increase in computation time per run if too many files in dir.out.temp (limit ca. 600,000 files)
-#		- (DLM) added function dir.create2: made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-#		- added option 'deleteTemporaryAggregationFiles' to delete all temporary aggregation files in folder dir.out.temp after successful concatenation (or not if FALSE)
-#		- (DLM) concatenation made much faster: concatenation step only creates the file list once instead of each time
-#		- concatenation of temporary aggregated output is now performed in parallel
-#		- added option to check completeness of SoilWat simulation directories and of temporary output aggregation files 'checkCompleteness'; creates a list with missing directories and files
-#		- (DLM) added option to use Rmpi for the multi-threading, it's performing better on JANUS and is slightly easier to debug then using SNOW (as it will print out an error message for every site that fails, unlike SNOW which will only print out the first error).  The only bad thing is that the output is harder to read as all the print statements that are made inside the do_OneSite() function are seperated into log files for each thread by Rmpi.  To keep all the logfiles change the call to mpi.close.Rslaves(dellog = TRUE) to mpi.close.Rslaves(dellog = FALSE).  It's fairly easy to check if it ran right because if any of them do not it will still print the error to the main logfile (or stdout if running locally).
-#		- (DLM) changed dir.create2 & file.copy2 functions to recursively call themselves until the file/dir is copied/created.  This is because for some strange reason when using MPI on JANUS, the functions both don't work everytime and fail to throw an error when they don't work.  It's quite aggravating really, but this is the only way I got it actually working.
-#		- (DLM) program is still called the same on JANUS when using Rmpi, ex: "R --no-save --slave < 2_SoilWatSimulationFramework_PC_GlobalDrylandEcoHydro_PrelimSim_v47.R", and is running correctly on JANUS again
-#		- (DLM) fixed bug in daily aggregation if no daily aggregation was selected
-#		- fixed bug in "CalculateBareSoilEvaporationCoefficientsFromSoilTexture"
-#		- fixed bug in "CalculateFieldCapacityANDWiltingPointFromSoilTexture": call to SWPtoVWC was not designed for matrices of sand and clay
-#	v48 (20120829-20121018)
-#		- replaced variable in 'ExtractSkyDataFromNOAAClimateAtlas_USA': replaced 'Sky Cover' with 'Percent Sunshine' as SoilWat's PET function estimates clearsky = 1 - cloudcover (hence, percent sunshine fits SoilWat's interpretation better than sky cover; PET values were too low generally as sky cover values are generally high in the NOAA US Climate Atlas)
-#		- added option in overall aggregations: 'yearlyUNAridityIndex' = mean(PPT/PET)
-#		- added option 'deleteSoilWatFolderAfterAggregation': to completely delete each SoilWat run folder after completion of all required 'actions'; calculations of 'todo' actions (picking up after stop) accounts for 'deleteSoilWatFolderAfterAggregation'
-#		- added option in overall aggregations: 'monthlyPlantGrowthControls', see Nemani RR, Keeling CD, Hashimoto H et al. (2003) Climate-Driven Increases in Global Terrestrial Net Primary Production from 1982 to 1999. Science, 300, 1560-1563.
-#		- fixed bug: guaranteed that all climate change entries in 'weathersetup' are finite: this was not the case for instance if any(meanMonthlyClimate$meanMonthlyPPTcm == 0)
-#		- added code for storing to disk/reading from disk/creating the list of temporary output files to concatenate (because creating this list can be quite costly), and checking whether enough temporary files are on disk for successful concatenations
-#		- fixed bug: in 'dailySWPbasedRegeneration' swp and SWE were not of the same time frame
-#		- introduced sw_v24: main change: unit of wind speed at 2-m height (miles/h before v24, m/s starting with v24)
-#		- added code to check if input datafile measurement height above ground of windspeed is SoilWat required 2-m, if not convert with function 'adjust.WindspeedHeight'
-#		- new vegetation interception coefficients for shrubs
-#	v49 (20121102-20130801)
-#		- (rjm) adjusted line numbers for prod.in file
-#		- (rjm) Fixed sim timing to have Start and End not Start and Start
-#		- (rjm) Aggregate for each senario, has a header that includes YearStart and YearEnd
-#		- (rjm) created variables 	shrub.fraction.limit 			- potential natural vegetation based on climate data (Jose Paruelo et al. 1996, 1998)
-#		- (rjm) 					growing.season.threshold.tempC 	- used to define threshold temp of a growing month
-#		- (rjm)						grass.c4.fractionG, grass.c3.fractionG, grass.Annual.fraction - represent percentage of Grass based on various values.
-#		- (rjm) added code to find relative composition of vegetation based on climate
-#		- (rjm) added code to adjust composition based on mean temp and mean ppt. 
-#		- (rjm) added code to calc rooting fraction based on those relative composition
-#		- (rjm) Fixed the code so that all 'create' sections based on climate is carried out after the climate change scenario are made
-#		- more verbose during preparation stages of code
-#		- streamlined code for parallelization
-#		- added option in overall aggregations: 'dailyC4_TempVar' = c('mean July minimum temperature', 'mean length of annual freeze-free periods (days)', 'mean annual degree-days above 65F (day C)'
-#		- replaced simTime$mo == 1:12 with global variable st_mo: functions to extract external information don't need to import simTime any more
-#		- added function 'simTiming_ForEachUsedTimeUnit' to calculate necessary timing variables such as 'doy_ForEachUsedDay' without readin from SoilWat files (which was quite costly) 
-#		- accounting for North/South hemispheres:
-#			- added global option flag 'accountNSHemispheres_agg': if TRUE then add a set of counting of the timing variables for sites with latitude < 0 (i.e., southern hemisphere), which have time shifted by 6 months (e.g., July becomes 1st month, etc.); i.e., introduced simTime2 as calculated by function 'simTiming_ForEachUsedTimeUnit'
-#				- this affects aggregation of: monthlySWPdryness, dailySWPdrynessANDwetness, dailySnowpack, dailyC4_TempVar, dailySWPbasedRegeneration, dailyRegeneration_byTempSWPSnow (param$Doy_SeedDispersalStart0 must be set correctly)
-#			- (rjm) added global option flag 'accountNSHemispheres_veg' to shift monthly production values in prod.in file by six months
-#		- moved scenarios from master datafile to script because it should be the same for every simulation run
-#		- fixed bug in "CalculateBareSoilEvaporationCoefficientsFromSoilTexture": affected layers were incorrectly estimated when limit was a soil layer boundary
-#		- fixed bug in "CalculateFieldCapacityANDWiltingPointFromSoilTexture": data was incorrectly assigned to simulation runs
-#		- changed aggregated output names for SWPcrit from 1, 2, 3, ... to actual values, e.g., 1500kPa
-#		- efforts made to reduce memory load for forked processes:
-#			(i) deleted all global variables when not needed any more,
-#			(ii) 'large' variables such as SWRunInformation or sw_input_climscen_values only passed row-wise to function do_OneSite()
-#				- problems: works on multicore, works on snow (but each process utilizes 2x memory than if run with multicore), does not work on mpi
-#		- added global option for daily aggregations: output for every soil layer instead for aggregated soil layers
-#		- added option to treatment datafile: 'Vegetation_Biomass_ScalingFactor': litter and total biomass values are multiplied by scaling factor
-#		- added option to treatment datafile: 'Vegetation_Height_ScalingFactor': height of vegetation (either constant or as described by a tangens-function(biomass)) is multiplied by scaling factor
-#		- added overall output option: replaced 'yearlyUNAridityIndex' with 'yearlymonthlyTemperateDrylandIndices': includes UN Aridity Index, Trewartha's D, and the combination of both
-#		- added name of climate scenarios to output filenames
-#		- (rjm) introduced sw_v25: main change: topography (slope, aspect as inputs to siteparam.in) affects PET; datafile siteparam adjusted
-#		- (rjm)	added code to handle ensemble.families & ensemble.quantiles, new function collect_EnsembleFromScenarios
-#		- (rjm) tested relative composition based on climate, adjust composition based on mean temp and mean ppt, rooting profile
-#		- (rjm) fixed line numbers to prod file in my code, added infile<-file(infilename,"w+b") in my code, fixed mpi bug, replaced TranspirationCoefficients.csv, removed soillayers_depth<-NULL from my code, removed double tab when writing to prodin file line 6 in my code
-#		- (rjm) 'input_FractionVegetationComposition' in output_aggregates: add three columns ("SWinput_Fraction_{Grasses, Shrubs, Trees}") to overall aggregation file: with content of line 6 of file prodin
-#		- (rjm) 'input_VegetationPeak' in output_aggregates:add one column ("SWinput_PeakLiveBiomass_Month") to overall aggregation file: with content of the month corresponding to the maximal value, weighted by fractional composition of grasses, shrubs, and trees, of biomass * percLive
-#		- (rjm) 'input_ClimatePerturbations' in output_aggregates:' add 36 columns ("SWinput_ClimatePerturbations_{PrcpMultiplier, TminAddand, TmaxAddand}_m1:12") to overall aggregation file: with content of the mean monthly climate perturbations from file weathsetupin lines 17-28
-#		- (rjm) add column to treatment datafile 'PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate" with values "Reference" or "Scenario" : calculate C3, C4, and shrub potential compositions using 'SiteClimate_Ambient', if "Reference", and 'SiteClimate_Scenario', if "Scenario" or not set
-#		- (rjm) introduced sw_v26: main change: a set fraction of ponded water can be runoff
-#		- (drs) updated 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': fraction of C4 grasses accounts now limits set by Teeri JA, Stowe LG (1976); If no or only one successful equation, then 	add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm
-#		- (drs) updated 'max.duration': added handling of durations of length 0
-#		- (drs) added SD to output: 'dailySWPextremes', 'dailySnowpack'
-#		- (drs)	incorporated circular calculations for time output (via library 'circular' accessed with wrapper functions 'circ.mean' and 'circ.sd'): 'dailySWPextremes', 'dailySnowpack', 'monthlySWPdryness', 'dailySWPdrynessANDwetness'
-#		- (drs) fixed code after introduction of 'experimental design' so that do_OneSite is called with proper inputs only if include_YN > 0
-#		- (drs) in 'create' at the end of each scenario-loop: control that transpiration regions are within limits of adjusted soil depth and rooting depth
-#		- (drs) fixed 'makeInputForExperimentalDesign' & !makeOutputDB: parsing of the files was incorrect if separator was already used by text; added a (hopefully) unique 'ExpInput_Seperator'
-#		- (drs) generalized experimental design: structure of 'datafile.Experimentals' does no longer need to be a copy of the structure of 'datafile.treatments'; currently, experimental design could now cover any changes to sw_input_treatments, sw_input_site, and sw_input_soils
-#		- (drs) fixed concatenation: 'tempFiles_N' wasn't exported to nodes
-#		- (drs) fixed aggregation of 'input_VegetationPeak': 2nd column wasn't labelled correctly
-#		- (drs) output of functions circ.xxx (e.g., xxx = {mean, range, sd}) give now numeric result, instead of class circular; i.e., this caused some inadverted problems converting results to vectors
-#		- (drs) added to aggregation of 'yearlymonthlyTemperateDrylandIndices': indices based on climate normals in addition to mean±SD of time series
-#		- (drs) added columns for source information to datafile.cloud, which will be promoted to the cloudin file
-#		- (drs) function 'get.LookupSnowDensityFromTable' replaces months with NA or 0 with an estimate of density for freshly fallen snow
-#		- (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
-#		- (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
-#		- (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
-#		- (drs) fixed bug in ensembles.maker$outputs (wrong dimensions) and created a own section for do.ensembles with timing, pulling together the version for temporary files and the one with the MPI-based sql-database
-#		- (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
-#		- (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
-#		- (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
-#		- (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)
-#		- (drs) fixed bug in how 'experimental design' is assigned to the underlaying inputs: subsetting threw error if multiple columns didn't match beside at least a matching one. (Bug in R? that data.frame[i, c(0,0,3,0)]  <- 3 shows error of 'duplicate subscripts for columns')
-#		- (drs) fixed bug in climate scenario creation: error due to wrong dimensions in scalors if treatments of ClimateScenario_{Temp, PPT}_PerturbationInMeanSeasonalityBothOrNone were 'None'
-#		- (drs) fixed bug and numerical instability in circ.mean: wrong cycle for x=int+1 yielded 0 instead of int; rounding error for x=366 if int=365 yielded 366 instead of 365
-#		- (drs) fixed bug in treatment option 'Vegetation_Biomass_Scaling': no scaling occured if 'Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing' was 'All'
-#		- (drs) fixed bug in creation of soilsin from input datafile: writing to file of impermeability was done after rounding to 0 digits, thereby missing all content except 0 and 1
-#		- (drs) aggregation options 'dailySWPextremes', 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', and 'dailyDrainageExtremes', 'dailyAETExtremes': adapted that the mean instead of the first of multiple extreme days is used
-#		- (drs) aggregation options 'dailyTranspirationExtremes', 'dailyTotalEvaporationExtremes', 'dailyDrainageExtremes', and 'dailyAETExtremes': fixed a index bug in the header
-#		- (drs) aggregation option 'RainOnSnowOfMAP': added SD
-#		- (drs) aggregation option 'dailySWPdrynessIntensity': added mean of the amount of dry-period missing water, as well as the duration and the number
-#		- (drs) fixed bug in aggregation options 'dailySWPdrynessEventSizeDistribution' and 'dailySWPdrynessIntensity': used xx.dy.all instead of xx.dy (yearly aggregations are based on xx.dy-formatted data)
-#		- (drs) generalized functions 'start10days' and 'end10days' (only used in aggregation option 'dailySWPdrynessANDwetness'), i.e., removed exlcusion of dry periods in first 90 days, generalized from fix 10 days to n days periods; replaced with 'startDoyOfDuration', 'endDoyAfterDuration'
-#		- (drs) added aggregation option 'monthlySPEIEvents': duration and intensity of the standardized precipitation-evapotranspiration index at different scales
-#		- (drs) renamed 'SWCtot' -> 'SWC' and 'SWCvol' -> 'VWC'
-#		- (drs) updated n_variables to represent actual numbers of aggregations: apparently, in the past, when aggregation options were added, the update of n_variables was forgotten
-#		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if all fractions set, but didn't quite sum up to 1 (due to that fractions in prodin are only written with 3 digits), then error was thrown
-#		- (drs) added information on number of runs, scenarios, concatenations, ensembles, and workers to the overall timing file
-#		- (drs) adjusted 'adjustLayersDepth': included a round(, 0) because the wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
-#		- (drs) aggregation option 'dailyWeatherEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4)
-#		- (drs) aggregation option 'dailySWPdrynessEventSizeDistribution": re-formulated counts per year to frequencies per year, added mean count per year and SD to output (adjusted n_variables by +4 per icrit)
-#		- (drs) added action 'ensemble': as separate from concatenation
-#		- (drs) re-organized 'ensemble's:
-#					- ensemble levels are now taken by ranks instead of quantiles (type 3, even order statistics); they are taken individually for each variable=column
-#					- ensembles are taken directly for all response variables except for SD which are the ones associated at the scenario-level with the selected ensemble variable
-#					- i.e., all output must be organized in two files: one for the means, etc., and one file for the SDs organized in the same columns --> overall aggregated output is now split up in two files like the daily aggregations already were
-#					- option 'save.scenario.ranks' if TRUE then for each ensemble.levels an additional file is generated with the scenario numbers corresponding to the ensemble.levels
-#		- (drs) re-arranged overall aggregated output: it is now split up in two files (means and others, optional SDs), like the daily aggregations already were
-#					- Column names always consist of three parts:
-#						1. variable name: sortable,
-#							i.e., most common name parts go first,
-#							if monthly then at the end m1 ... m12, separated by "."
-#							if for top and bottom layers, then ".topLayers", ".bottomLayers"
-#						2. units: "_mm", "_fraction", "_TF" (true or false), etc. if unitless then "_none"
-#						3. type of aggregation: "_mean", "_sd", "_const", "_median", "_quantilePROBS", etc.
-#		- (drs) fixed bug in some of the aggregations if bottomL == 0
-#		- (drs) fixed bug in create 'control transpiration regions for adjusted soil depth and rooting depth' if number of soil layers == 1
-#		- (drs) fixed bug in some of the aggregations if topL == 1
-#		- (drs) changed functions 'circ.' {mean, range, sd}: if all elements of x are NA and na.rm==TRUE, then output was 'numeric(0)' which caused aggregated output variables from numeric vectors into a list; changed that these functions now put out NA instead of 'numeric(0)'
-#		- (drs) faster version of 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica'
-#		- (drs) deleted empty line(s) in soilsin -> r wrapper hangs with empty last line
-#		- (drs) added option 'print.debug' to print statements about code advancement (may be useful for debugging)
-#		- (drs) fixed bug in 'dailyRegeneration_byTempSWPSnow': if only one soil layer, then variable 'swp' needs to be forced to be a matrix
-#		- (drs) fixed bug in 'SiteClimate': MAT was taken as mean of monthly values which biased the result; instead the function is now correctly taking the mean of the mean annual temperature values
-#		- (drs) added code that reports if SoilWat execution or 'ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica' failed
-#		- (drs) fixed bug in 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996': if no vegetation was estimated for the components to be estimated and the fixed ones summed up to 0, then the result contained NA: now, vegetation is forced > 0
-#		- (drs) fixed bug in section of concatenation: if actions included concatenation and ensemble, but not aggregation, then no concatenation occurred mistakenly
-#		- (drs) added option 'concatenation.inMemory': #concatenation.inMemory: all temp output is loaded into a giant data.frame, then written to final file; if !concatenation.inMemory, temp output is read and immediately appended to final file
-#		- (drs) renamed function 'collect_ResultsWithTemporaryDataFrame' to 'concatenate_TemporaryResultFiles'
-#		- (drs) added two functions 'concatenate_TemporaryResultFiles': one to concatenate in memory (as before), one to concatenate via append (new); these are selected via option 'concatenation.inMemory'
-#		- (drs) fixed bug in 'concatenate_TemporaryResultFiles': if cleanup and concatenation resumed, then already final files deleted
-#	v50 (20130801-20130909)
-#		- (rjm) fixed database creation so page size is max and using REAL instead of double.
-#		- (rjm) Each node writes out a sql file with all the data from run. This is loaded into the dbTables.db database after runs are finished
-#		- (rjm) Ensembles via database now works in with Rmpi. A database for each scenario table is generated with its ensembles.
-#		- (rjm) The weather is loaded from a database by the master node and gives it to slave node via memory OR it can look it up in files
-#		- (rjm) The soilwat setup files are loaded in memory via Rsoilwat structures objects and passed to the slaves who then work with that instead of files.
-#		- (rjm) daily values are sorted to match database.
-#		- (rjm) fixed SWA output only outputing for one crit
-#		- (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SoilWat input/output to be stored on disk
-#		- (drs) 'yearlyWaterBalanceFluxes': fixed column names (percolation and hydred were switched)
-#		- (drs) experimental design can replace information from the prodin datafile
-#		- (drs) added overall aggregation option 'dailyFrostInSnowfreePeriod'
-#		- (drs) fixed temporary db output if create_treatments == "Exclude_ClimateAmbient": superfluous end of line and header was factor values instead of characters
-#		- (drs) fixed adding treatment/experimental information to siteparam: flags were vectors of 0/1 and thus not suitable to subset
-#		- (drs) added overall aggregation option 'input_TranspirationCoeff'
-#		- (drs) fixed TranspCoeffByVegType(): read in .csv table in two pieces: tr_input_TranspCoeff and tr_input_TranspCoeff_Code, so that tr_input_TranspCoeff is numeric and there can be no errors translating levels into numbers
-#		- (drs) fixed max.duration(): circumvented that 'no non-missing arguments to max'
-#		- (drs) fixed aggregation of 'input_TranspirationCoeff': if there is only one aggLs or no bottomL
-#		- (drs) fixed get_Response_aggL(): transp and hydred output is for each soil layer for total and 3 vegtypes; # soil layer calculation was incorrect
-#		- (drs) added to aggregation 'input_FractionVegetationComposition': C3, C4, and annual-grass fractions
-#		- (drs) fixed create:soils: comparison of soil layer structure
-#		- (drs) adjusted wrapper function circ.sd() because circular::sd.circular() can return NaN instead of 0 [in packageVersion("circular") <= "0.4.7"]
-#		- (drs) scale TranspCoeffByVegType() to 1 as SoilWat does: co/sum(co)
-#		- (drs) added output option 'input_SoilProfile'
-#		- (drs) added 'adjustType' option to function TranspCoeffByVegType(): with 'positive' as recommended for grasses (built-in Soilwat) and 'inverse' as recommended for woody plants and forbs
-#		- (drs) added output options 'dailyRechargeExtremes' and 'dailyHotDays'; added option for multiple Tmin values in 'dailyFrostInSnowfreePeriod'
-#		- (drs) added output options 'dailySuitablePeriodsDuration', 'dailySuitablePeriodsAvailableWater', and 'dailySuitablePeriodsDrySpells'
-#		- (drs) fixed 'startDoyOfDuration' and 'endDoyOfDuration': picked first/last period of length of first suitable period instead of picking first/last suitable period of length of first/last suitable period
-
-#--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
 if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
@@ -1513,6 +1225,198 @@ adjust.WindspeedHeight <- function(uz, height){
 	return( uz * 4.87 / log(67.8 * height - 5.42) )	# eqn. 33 in Allen et al. (2005)
 }
 
+#data access functions
+get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler=10, FUN, weights=NULL){
+	FUN <- match.fun(FUN)
+	tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"))
+	if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
+		responseRepeats <- 4
+	} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
+		responseRepeats <- 1
+	}
+
+	if((tscale == "dy") || (tscale == "dyAll"))
+		temp1 <- scaler * runData[[sc_i]][[response]][[4]]
+	if((tscale == "mo") || (tscale == "moAll"))
+		temp1 <- scaler * runData[[sc_i]][[response]][[2]]
+	if((tscale == "yr") || (tscale == "yrAll"))
+		temp1 <- scaler * runData[[sc_i]][[response]][[1]]
+	
+	if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
+	if(tscale == "dy"){
+		index.col <- 2
+		index.usetimestep <- simTime$index.usedy
+		timestep_ForEachEntry <- simTime2$doy_ForEachUsedDay
+	} else if(tscale == "dyAll"){
+		index.col <- 2
+		index.usetimestep <- 1:nrow(temp1)
+		timestep_ForEachEntry <- NULL
+	} else if(tscale == "mo"){
+		index.col <- 2
+		index.usetimestep <- simTime$index.usemo
+		timestep_ForEachEntry <- simTime2$month_ForEachUsedMonth
+	} else if(tscale == "moAll"){
+		index.col <- 2
+		index.usetimestep <- 1:nrow(temp1)
+		timestep_ForEachEntry <- NULL
+	} else if(tscale == "yr"){
+		index.col <- 1
+		index.usetimestep <- simTime$index.useyr
+		timestep_ForEachEntry <- NULL
+	} else if(tscale == "yrAll"){
+		index.col <- 1
+		index.usetimestep <- 1:nrow(temp1)
+		timestep_ForEachEntry <- NULL
+	}
+	layers <- 1:((ncol(temp1) - index.col) / responseRepeats)
+	if(max(layers) <= max(topL)){ #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
+		topL <- layers
+		bottomL <- 0
+	} else if(max(layers) < max(bottomL)){
+		bottomL <- min(bottomL):max(layers)
+	}					
+	if(length(topL) > 1) {
+		if(is.null(weights)){
+			val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN)
+		} else {
+			val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN, weights[topL])
+		}
+	} else {
+		val.top <- temp1[index.usetimestep, index.col + topL]
+	}
+	if(length(bottomL) > 1) {
+		if(is.null(weights)){
+			val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN)
+		} else {
+			val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN, weights[bottomL])
+		}
+	} else if(is.null(bottomL) || identical(bottomL, 0)) {
+		val.bottom <- matrix(data=0, nrow=length(index.usetimestep), ncol=1)
+	} else {
+		val.bottom  <- temp1[index.usetimestep, index.col + bottomL]
+	}
+	if(!is.null(timestep_ForEachEntry)){
+		aggMean.top <- aggregate(val.top, by=list(timestep_ForEachEntry), FUN=mean)[,2]
+		aggMean.bottom <- aggregate(val.bottom, by=list(timestep_ForEachEntry), FUN=mean)[,2]
+		return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
+	} else {
+		if(tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll"){
+			return(list(val=temp1, top=val.top, bottom=val.bottom))
+		} else {
+			return(list(top=val.top, bottom=val.bottom))
+		}
+	}
+}
+get_SWP_aggL <- function(vwc){
+	val.top <- VWCtoSWP(vwc$top, texture$sand.top, texture$clay.top)
+	val.bottom <- VWCtoSWP(vwc$bottom, texture$sand.bottom, texture$clay.bottom)				
+	if(!is.null(vwc$aggMean.top)){
+		aggMean.top <- VWCtoSWP(vwc$aggMean.top, texture$sand.top, texture$clay.top)
+		aggMean.bottom <- VWCtoSWP(vwc$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
+		return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
+	}
+	if(!is.null(vwc$val)){
+		if(all(as.integer(vwc$val[,2])==vwc$val[,2])){
+			index.header <- 1:2
+		} else {
+			index.header <- 1
+		}
+		val <- cbind(vwc$val[, index.header], VWCtoSWP(vwc$val[, -index.header], sand, clay))
+		return(list(val=val, top=val.top, bottom=val.bottom))
+	} else {
+		return(list(top=val.top, bottom=val.bottom))
+	}
+}
+get_Temp_yr <- function(sc){
+	return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
+}
+get_Temp_mo <- function(sc){
+	return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
+}
+get_Temp_dy <- function(sc){
+	return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
+				mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
+				max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
+}
+
+get_PPT_yr <- function(sc){
+	ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
+	rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
+	snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
+	snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
+	snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
+	return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
+}
+get_PPT_mo <- function(sc){
+	return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
+}
+get_PPT_dy <- function(sc){
+	return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
+}
+
+get_PET_yr <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
+}
+get_PET_mo <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
+}
+
+get_AET_yr <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
+}
+get_AET_mo <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
+}
+get_AET_dy <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
+}
+
+get_SWE_mo <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
+}
+get_SWE_dy <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
+}
+
+get_Inf_yr <- function(sc){
+	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
+}
+get_Inf_mo <- function(sc){
+	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
+}
+get_Inf_dy <- function(sc){
+	return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
+}
+
+get_Esurface_yr <- function(sc){
+	return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
+}
+get_Esurface_dy <- function(sc){
+	return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
+}
+
+get_Interception_yr <- function(sc){
+	return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
+}
+
+get_DeepDrain_yr <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
+}
+get_DeepDrain_mo <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
+}
+get_DeepDrain_dy <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
+}
+
+get_Runoff_mo <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
+}
+get_Runoff_yr <- function(sc){
+	return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
+}
+
+
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------SET UP PARALLELIZATION
@@ -2527,7 +2431,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		
 		#copy and make climate scenarios from datafiles
 		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
-		ClimatePerturbationsVals <- matrix(data=c(rep(1,12),rep(0,24)),nrow=scenario_No, ncol=12*3) #, dimnames=list(NULL,paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
+		ClimatePerturbationsVals <- matrix(data=c(rep(1,12),rep(0,24)),nrow=scenario_No, ncol=12*3, byrow=TRUE) #, dimnames=list(NULL,paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 		if(tasks$create > 0) for(sc in 1:scenario_No){
 			if(sc > 1){
 				swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -3101,197 +3005,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					clay=sapply(1:aggLs_no, FUN=function(x) weighted.mean(clay[aggLs[[x]]], layers_width[aggLs[[x]]])))
 		}
 		
-		#data access functions
-		get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler=10, FUN, weights=NULL){
-			FUN <- match.fun(FUN)
-			tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"))
-			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
-				responseRepeats <- 4
-			} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
-				responseRepeats <- 1
-			}
-
-			if((tscale == "dy") || (tscale == "dyAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[4]]
-			if((tscale == "mo") || (tscale == "moAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[2]]
-			if((tscale == "yr") || (tscale == "yrAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[1]]
-			
-			if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
-			if(tscale == "dy"){
-				index.col <- 2
-				index.usetimestep <- simTime$index.usedy
-				timestep_ForEachEntry <- simTime2$doy_ForEachUsedDay
-			} else if(tscale == "dyAll"){
-				index.col <- 2
-				index.usetimestep <- 1:nrow(temp1)
-				timestep_ForEachEntry <- NULL
-			} else if(tscale == "mo"){
-				index.col <- 2
-				index.usetimestep <- simTime$index.usemo
-				timestep_ForEachEntry <- simTime2$month_ForEachUsedMonth
-			} else if(tscale == "moAll"){
-				index.col <- 2
-				index.usetimestep <- 1:nrow(temp1)
-				timestep_ForEachEntry <- NULL
-			} else if(tscale == "yr"){
-				index.col <- 1
-				index.usetimestep <- simTime$index.useyr
-				timestep_ForEachEntry <- NULL
-			} else if(tscale == "yrAll"){
-				index.col <- 1
-				index.usetimestep <- 1:nrow(temp1)
-				timestep_ForEachEntry <- NULL
-			}
-			layers <- 1:((ncol(temp1) - index.col) / responseRepeats)
-			if(max(layers) <= max(topL)){ #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
-				topL <- layers
-				bottomL <- 0
-			} else if(max(layers) < max(bottomL)){
-				bottomL <- min(bottomL):max(layers)
-			}					
-			if(length(topL) > 1) {
-				if(is.null(weights)){
-					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN)
-				} else {
-					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN, weights[topL])
-				}
-			} else {
-				val.top <- temp1[index.usetimestep, index.col + topL]
-			}
-			if(length(bottomL) > 1) {
-				if(is.null(weights)){
-					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN)
-				} else {
-					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN, weights[bottomL])
-				}
-			} else if(is.null(bottomL) || identical(bottomL, 0)) {
-				val.bottom <- matrix(data=0, nrow=length(index.usetimestep), ncol=1)
-			} else {
-				val.bottom  <- temp1[index.usetimestep, index.col + bottomL]
-			}
-			if(!is.null(timestep_ForEachEntry)){
-				aggMean.top <- aggregate(val.top, by=list(timestep_ForEachEntry), FUN=mean)[,2]
-				aggMean.bottom <- aggregate(val.bottom, by=list(timestep_ForEachEntry), FUN=mean)[,2]
-				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
-			} else {
-				if(tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll"){
-					return(list(val=temp1, top=val.top, bottom=val.bottom))
-				} else {
-					return(list(top=val.top, bottom=val.bottom))
-				}
-			}
-		}
-		get_SWP_aggL <- function(vwc){
-			val.top <- VWCtoSWP(vwc$top, texture$sand.top, texture$clay.top)
-			val.bottom <- VWCtoSWP(vwc$bottom, texture$sand.bottom, texture$clay.bottom)				
-			if(!is.null(vwc$aggMean.top)){
-				aggMean.top <- VWCtoSWP(vwc$aggMean.top, texture$sand.top, texture$clay.top)
-				aggMean.bottom <- VWCtoSWP(vwc$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
-				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
-			}
-			if(!is.null(vwc$val)){
-				if(all(as.integer(vwc$val[,2])==vwc$val[,2])){
-					index.header <- 1:2
-				} else {
-					index.header <- 1
-				}
-				val <- cbind(vwc$val[, index.header], VWCtoSWP(vwc$val[, -index.header], sand, clay))
-				return(list(val=val, top=val.top, bottom=val.bottom))
-			} else {
-				return(list(top=val.top, bottom=val.bottom))
-			}
-		}
-		get_Temp_yr <- function(sc){
-			return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
-		}
-		get_Temp_mo <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
-		}
-		get_Temp_dy <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
-						mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
-						max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
-		}
-		
-		get_PPT_yr <- function(sc){
-			ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
-			rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
-			snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
-			snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
-			snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
-			return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
-		}
-		get_PPT_mo <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
-		}
-		get_PPT_dy <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
-		}
-		
-		get_PET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
-		}
-		get_PET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
-		}
-		
-		get_AET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
-		}
-		get_AET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
-		}
-		get_AET_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
-		}
-		
-		get_SWE_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
-		}
-		get_SWE_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
-		}
-		
-		get_Inf_yr <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
-		}
-		get_Inf_mo <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
-		}
-		get_Inf_dy <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
-		}
-		
-		get_Esurface_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
-		}
-		get_Esurface_dy <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
-		}
-		
-		get_Interception_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
-		}
-		
-		get_DeepDrain_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
-		}
-		get_DeepDrain_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
-		}
-		get_DeepDrain_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
-		}
-		
-		get_Runoff_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
-		}
-		get_Runoff_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
-		}
-		
+		#prepare SQL result container		
 		SQL <- character(0)
 		if(parallel_runs && parallel_backend == "mpi") {
 			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".sql",sep="")
@@ -3381,6 +3095,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv:(nv+5)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
 					nv <- nv+6
 				}
+			#2
 				if(aon$input_VegetationBiomassMonthly) {
 					if(print.debug) print("Aggregation of input_VegetationBiomassMonthly")
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,1]
@@ -3570,6 +3285,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(frostWithoutSnow)
 				}
+			#12
 				if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
 					if(print.debug) print("Aggregation of dailyHotDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
@@ -3584,7 +3300,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(HotDays)
 				}
-			#12
+			#13
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){	#daily weather frequency distributions
 					if(print.debug) print("Aggregation of dailyPrecipitationEventSizeDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3614,7 +3330,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(events, counts.available, counts.summary, freq.summary, eventsPerYear)
 				}
-			#13
+			#14
 				if(any(simulation_timescales=="yearly") & aon$yearlyAET){
 					if(print.debug) print("Aggregation of yearlyAET")
 					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
@@ -3623,7 +3339,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv] <- sd(AET.yr$val)
 					nv <- nv+1
 				}
-			#14
+			#15
 				if(any(simulation_timescales=="yearly") & aon$yearlyPET){
 					if(print.debug) print("Aggregation of yearlyPET")
 					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc)
@@ -3632,7 +3348,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv] <- sd(PET.yr$val)
 					nv <- nv+1
 				}
-			#15
+			#16
 				#correl monthly swp (top and bottom) vs. pet and ppt vs. temp, use product moment correlation coefficient {eqn. 11.6, \Sala, 1997 #45}
 				if(any(simulation_timescales=="monthly") & aon$monthlySeasonalityIndices){
 					if(print.debug) print("Aggregation of monthlySeasonalityIndices")
@@ -3659,7 +3375,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#---Aggregation: Climatic dryness
-			#16
+			#17
 				if(any(simulation_timescales=="yearly") & any(simulation_timescales=="monthly") & aon$yearlymonthlyTemperateDrylandIndices){
 					if(print.debug) print("Aggregation of yearlymonthlyTemperateDrylandIndices")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3684,7 +3400,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(di.ts, di.normals)
 				}
-			#17
+			#18
 				if(any(simulation_timescales=="yearly") & aon$yearlyDryWetPeriods){			
 					if(print.debug) print("Aggregation of yearlyDryWetPeriods")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -3695,7 +3411,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(temp.rle)
 				}
-			#18
+			#19
 				if(any(simulation_timescales=="daily") & aon$dailyWeatherGeneratorCharacteristics){#daily response to weather generator treatments
 					if(print.debug) print("Aggregation of dailyWeatherGeneratorCharacteristics")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3724,7 +3440,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(dws, dds, tv)
 				}
-			#19
+			#20
 				if(any(simulation_timescales=="daily") & aon$dailyPrecipitationFreeEventDistribution){	#daily weather frequency distributions
 					if(print.debug) print("Aggregation of dailyPrecipitationFreeEventDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc)
@@ -3754,7 +3470,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(durations, counts.available, counts.summary, freq.summary, eventsPerYear)
 				}
-			#20
+			#21
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
 					if(print.debug) print("Aggregation of monthlySPEIEvents")
 					require(SPEI)
@@ -3788,8 +3504,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						nv <- nv+length(rvec)
 					}
 				}
+				
+				
 				#---Aggregation: Climatic control
-			#21
+			#22
 				if(any(simulation_timescales=="monthly") & aon$monthlyPlantGrowthControls){	#Nemani RR, Keeling CD, Hashimoto H et al. (2003) Climate-Driven Increases in Global Terrestrial Net Primary Production from 1982 to 1999. Science, 300, 1560-1563.
 					if(print.debug) print("Aggregation of monthlyPlantGrowthControls")
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc)
@@ -3819,7 +3537,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(DayNumber_ForEachUsedMonth, DayNumber_ForEachUsedYear, control_temp, control_water, control_radiation, aridity, temp, cloudiness)
 				}
-			#22
+			#23
 				if(any(simulation_timescales=="daily") & aon$dailyC4_TempVar){#Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 					if(print.debug) print("Aggregation of dailyC4_TempVar")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
@@ -3828,7 +3546,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv:(nv+2)] <- temp[4:6]
 					nv <- nv+3
 				}
-			#23
+			#24
 				if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){	#Degree days based on daily temp
 					if(print.debug) print("Aggregation of dailyDegreeDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
@@ -3843,9 +3561,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(degday)
 				}
 
-			#23b
+			#25
 				regimes_done <- FALSE
-				
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
 
@@ -3862,7 +3579,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					names(Sregime) <- Sregime_names
 
 					MCS_depth <- Lanh_depth <- rep(NA, 2)
-					Fifty_depth <- permafrost <- MAT50 <- T50jja <- T50djf <- CSPartSummer <- PDAll_at5C <- PWPart_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
+					Fifty_depth <- permafrost <- NA
+					MAT50 <- T50jja <- T50djf <- CSPartSummer <- T50_at5C <- PDHalfHalf_at0C <- PDAll_at5C <- PWPart_at5C <- DDPart <- DWPart <- CWPart <- CWPart_at8C <- CWAllWinter <- CDAllSummer <- NA
 					
 					if(swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])){#we need soil temperature
 						if(!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(sc, sw_soiltemp, "yrAll", scaler=1, FUN=weighted.mean, weights=layers_width)
@@ -3942,7 +3660,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							T50jja <- mean(soiltemp.mo.all$val[simTime$index.usemo, 1 + i_depth50][simTime2$month_ForEachUsedMonth_NSadj %in% 6:8])
 							T50djf <- mean(soiltemp.mo.all$val[simTime$index.usemo, 1 + i_depth50][simTime2$month_ForEachUsedMonth_NSadj %in% c(12, 1:2)])
 							T50 <- soiltemp.dy.all$val[simTime$index.usedy, 2 + i_depth50]
-					
+
 							#CSPartSummer: Consecutive days all soil is part saturated from June1 (=regular doy 244) - Aug31 (=regular doy 335)
 							CSPartSummer <- mean(sapply(wyears, FUN=function(yr){
 												i_temp <- (wateryears == yr)
@@ -4003,7 +3721,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								MLanh <- swp.dy.all$val[simTime$index.usedy, 2 + i_Lanh_depth, drop=FALSE]
 								Lanh_widths <- layers_width[i_Lanh_depth]
 								Lanh_width <- sum(Lanh_widths)
-							
+
 								#T@MCS@5: Soil temperature at 50 cm is > 5 C for at least 1 day for in least 1 normal year
 								T50_at5C <- (1 <= sum(sapply(wyears_normal, FUN=function(yr) sum(T50[wateryears == yr] > 5) >= 1)))
 								#PDHalfHalf_at0C: dry (water held at 1500 kPa or more) in one-half or more of the soil for one-half or more of the time the layer from 10 to 70 cm has a soil temperature above 0 C
@@ -4115,7 +3833,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							
 								regimes_done <- TRUE
 							
-								rm(i_MCS, MCS, T50_at5C, i_Lanh_depth, MLanh, Lanh_widths, Lanh_width)	
+								rm(i_MCS, MCS, i_Lanh_depth, MLanh, Lanh_widths, Lanh_width)	
 
 							} else {
 								Sregime[] <- NA
@@ -4129,16 +3847,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						}
 					}
 
-					resMeans[nv:(nv+4+11+length(Tregime_names)+length(Sregime_names)-1)] <- c(Fifty_depth, MCS_depth[1:2], as.integer(permafrost),
-																							MAT50, T50jja, T50djf, CSPartSummer, PDAll_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer,
+					resMeans[nv:(nv+6+14+length(Tregime_names)+length(Sregime_names)-1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost),
+																							MAT50, T50jja, T50djf, CSPartSummer, T50_at5C, PDHalfHalf_at0C, PDAll_at5C, PWPart_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer,
 																							Tregime, Sregime)
-					nv <- nv+4+11+length(Tregime_names)+length(Sregime_names)
+					nv <- nv+6+14+length(Tregime_names)+length(Sregime_names)
 					
-					rm(SWP_dry, SWP_sat, impermeability, Tregime_names, Sregime_names, stemp, sand_temp, clay_temp, imp_depth, MCS_depth, Fifty_depth, Lanh_depth, permafrost, MAT50, T50jja, T50djf, CSPartSummer, PDAll_at5C, PWPart_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer)
+					rm(SWP_dry, SWP_sat, impermeability, Tregime_names, Sregime_names, stemp, sand_temp, clay_temp, imp_depth, MCS_depth, Fifty_depth, Lanh_depth, permafrost, MAT50, T50jja, T50djf, CSPartSummer, T50_at5C, PDHalfHalf_at0C, PDAll_at5C, PWPart_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer)
 					
 				}
 
-			#23c	
+			#26	
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 					if(print.debug) print("Aggregation of dailyNRCS_Chambers2014_ResilienceResistance")
@@ -4185,7 +3903,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				
 				#---Aggregation: Yearly water balance
-			#24
+			#27
 				if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
 					if(print.debug) print("Aggregation of yearlyWaterBalanceFluxes")
 					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
@@ -4257,8 +3975,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
 				}			
+				
+				
 				#---Aggregation: Daily extreme values
-			#25
+			#28
 				if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {#mean and SD of DOY and value of minimum/maximum
 					if(print.debug) print("Aggregation of dailyTranspirationExtremes")
 					if(!exists("transp.dy")) transp.dy <- get_Response_aggL(sc, sw_transp, "dy", 10, FUN=sum)
@@ -4275,7 +3995,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
-			#26
+			#29
 				if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
 					if(print.debug) print("Aggregation of dailyTotalEvaporationExtremes")
 					if(!exists("Esoil.dy")) Esoil.dy <- get_Response_aggL(sc, sw_evsoil, "dy", 10, FUN=sum)
@@ -4293,7 +4013,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
-			#27
+			#30
 				if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
 					if(print.debug) print("Aggregation of dailyDrainageExtremes")
 					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
@@ -4310,7 +4030,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
-			#28
+			#31
 				if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
 					if(print.debug) print("Aggregation of dailyInfiltrationExtremes")
 					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
@@ -4327,7 +4047,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
-			#29
+			#32
 				if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {						
 					if(print.debug) print("Aggregation of dailyAETExtremes")
 					if(!exists("AET.dy")) AET.dy <- get_AET_dy(sc)
@@ -4344,7 +4064,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
-			#30
+			#33
 				if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
 					if(print.debug) print("Aggregation of dailySWPextremes")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4366,6 +4086,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(extremes)
 				}
+			#34
 				if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
 					if(print.debug) print("Aggregation of dailyRechargeExtremes")
 					if(!exists("swc.dy")) swc.dy <- get_Response_aggL(sc, sw_swc, "dy", 10, FUN=sum)
@@ -4392,7 +4113,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 				
 				#---Aggregation: Ecological dryness
-			#31
+			#35
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
 					if(print.debug) print("Aggregation of dailyWetDegreeDays")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4423,7 +4144,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(degday, wet.top, wet.bottom, wetdegday.top, wetdegday.bottom, wetdegday.any)
 				}
-			#32
+			#36
 				if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){#dry periods based on monthly swp data: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of monthlySWPdryness")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
@@ -4457,7 +4178,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(drymonths.top, drymonths.bottom, years.top, start.top, years.bottom, start.bottom, adjMonths)
 				}
-			#33
+			#37
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of dailySWPdrynessANDwetness")
 					if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(sc, sw_vwc, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
@@ -4533,7 +4254,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(res.dry, wet.top, wet_crit, AtLeastOneWet.top, AllWet.top, AllDry.top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom, AtLeastOneWet.bottom, AllWet.bottom, AllDry.bottom)
 				}
-			#34
+			#38
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
 					if(print.debug) print("Aggregation of dailySuitablePeriodsDuration")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4564,7 +4285,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(wet.top, wet.bottom, durations.top, snowfree, niceTemp)
 				}
-				
+			#39
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
 					if(print.debug) print("Aggregation of dailySuitablePeriodsAvailableWater")
 					if(!exists("swc.dy")) swc.dy <- get_Response_aggL(sc, sw_swc, "dy", 10, FUN=sum)
@@ -4593,7 +4314,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(swa.top, swa.bottom, suitable)
 				}
-				
+			#40
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDrySpells){
 					if(print.debug) print("Aggregation of dailySuitablePeriodsDrySpells")
 					if(!exists("vwc.dy.all")) vwc.dy.all <- get_Response_aggL(sc, sw_vwc, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
@@ -4633,7 +4354,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					rm(dry.top, dry.bottom, suitable, dry_crit, adjDays, durationDryPeriods.min)
 				}
-				
+			#41
 				if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
 					if(print.debug) print("Aggregation of dailySWPdrynessDurationDistribution")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4665,7 +4386,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(wet.top, durations.top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom)
 				}
-			#35
+			#42
 				if(any(simulation_timescales=="daily") && aon$dailySWPdrynessEventSizeDistribution){
 					if(print.debug) print("Aggregation of dailySWPdrynessEventSizeDistribution")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4724,7 +4445,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(dry.top, binsN, binSize, events.top, eventsPerYear, freqBins)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(dry.bottom, events.bottom)
 				}
-			#36
+			#43
 				if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity) {
 					if(print.debug) print("Aggregation of dailySWPdrynessIntensity")
 					if(!exists("vwc.dy")) vwc.dy <- get_Response_aggL(sc, sw_vwc, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -4759,8 +4480,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(	SWCcritT, missingSWCtop, IntensitySum_top, IntensityMean_top, IntensityDurationAndNumber_top)
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(SWCcritB, missingSWCbottom, IntensitySum_bottom, IntensityMean_bottom, IntensityDurationAndNumber_bottom)
 				}
+
+
 				#---Aggregation: Mean monthly values
-			#37
+			#44
 				if(any(simulation_timescales=="monthly") & aon$monthlyTemp){
 					if(print.debug) print("Aggregation of monthlyTemp")
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc)
@@ -4769,7 +4492,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate(temp.mo$mean, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#38
+			#45
 				if(any(simulation_timescales=="monthly") & aon$monthlyPPT){
 					if(print.debug) print("Aggregation of monthlyPPT")
 					if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc)
@@ -4778,7 +4501,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate(prcp.mo$ppt, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#39
+			#46
 				if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
 					if(print.debug) print("Aggregation of monthlySnowpack")
 					if(!exists("SWE.mo")) SWE.mo <- get_SWE_mo(sc)
@@ -4787,7 +4510,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate(SWE.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#40
+			#47
 				if(any(simulation_timescales == "monthly") & aon$monthlySoilTemp) {
 					if(print.debug) print("Aggregation of monthlySoilTemp")
 					if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(sc, sw_soiltemp, "mo", scaler=1, FUN=weighted.mean, weights=layers_width)
@@ -4796,7 +4519,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- soiltemp.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#41
+			#48
 				if(any(simulation_timescales=="monthly") & aon$monthlyRunoff){
 					if(print.debug) print("Aggregation of monthlyRunoff")
 					if(!exists("runoff.mo")) runoff.mo <- get_Runoff_mo(sc)
@@ -4805,7 +4528,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate(runoff.mo$val, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#42
+			#49
 				if(any(simulation_timescales=="monthly") & aon$monthlyHydraulicRedistribution){
 					if(print.debug) print("Aggregation of monthlyHydraulicRedistribution")
 					if(!exists("hydred.mo")) hydred.mo <- get_Response_aggL(sc, sw_hd, "mo", 10, FUN=sum)
@@ -4814,7 +4537,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- hydred.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#43
+			#50
 				if(any(simulation_timescales=="monthly") & aon$monthlyInfiltration){
 					if(print.debug) print("Aggregation of monthlyInfiltration")
 					if(!exists("inf.mo")) inf.mo <- get_Inf_mo(sc)
@@ -4823,6 +4546,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate( inf.mo$inf , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
+			#51
 				if(any(simulation_timescales=="monthly") & aon$monthlyDeepDrainage){
 					if(print.debug) print("Aggregation of monthlyDeepDrainage")
 					if(!exists("deepDrain.mo")) deepDrain.mo <- get_DeepDrain_mo(sc)
@@ -4831,7 +4555,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate( deepDrain.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#44
+			#52
 				if(any(simulation_timescales=="monthly") & aon$monthlySWP){
 					if(print.debug) print("Aggregation of monthlySWP")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
@@ -4841,7 +4565,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- swp.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#45
+			#53
 				if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
 					if(print.debug) print("Aggregation of monthlyVWC")
 					if(!exists("vwc.mo")) vwc.mo <- get_Response_aggL(sc, sw_vwc, "mo", 1, FUN=weighted.mean, weights=layers_width)
@@ -4850,7 +4574,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- vwc.mo$aggMean.bottom
 					nv <- nv+24
 				}		
-			#46
+			#54
 				if(any(simulation_timescales=="monthly") & aon$monthlySWC){
 					if(print.debug) print("Aggregation of monthlySWC")
 					if(!exists("swc.mo")) swc.mo <- get_Response_aggL(sc, sw_swc, "mo", 10, FUN=sum)
@@ -4859,7 +4583,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- swc.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#47
+			#55
 				if(any(simulation_timescales=="monthly") & aon$monthlySWA){
 					if(print.debug) print("Aggregation of monthlySWA")
 					if(!exists("swa.mo")) swa.mo <- get_Response_aggL(sc, sw_swa, "mo", 10, FUN=sum)
@@ -4868,7 +4592,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- swa.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#48
+			#56
 				if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
 					if(print.debug) print("Aggregation of monthlyTranspiration")
 					if(!exists("transp.mo")) transp.mo <- get_Response_aggL(sc, sw_transp, "mo", 10, FUN=sum)
@@ -4877,7 +4601,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resMeans[nv+st_mo-1+12] <- transp.mo$aggMean.bottom
 					nv <- nv+24
 				}
-			#49
+			#57
 				if(any(simulation_timescales=="monthly") & aon$monthlySoilEvaporation){
 					if(print.debug) print("Aggregation of monthlySoilEvaporation")
 					if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(sc, sw_evsoil, "mo", 10, FUN=sum)
@@ -4886,7 +4610,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate(temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#50
+			#58
 				if(any(simulation_timescales=="monthly") & aon$monthlyAET){
 					if(print.debug) print("Aggregation of monthlyAET")
 					if(!exists("AET.mo")) AET.mo <- get_AET_mo(sc)
@@ -4895,7 +4619,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate( AET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#51
+			#59
 				if(any(simulation_timescales=="monthly") & aon$monthlyPET){
 					if(print.debug) print("Aggregation of monthlyPET")
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
@@ -4904,7 +4628,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
 				}
-			#52
+			#60
 				if(any(simulation_timescales=="monthly") & aon$monthlyAETratios){
 					if(print.debug) print("Aggregation of monthlyAETratios")
 					if(!exists("AET.mo")) AET.mo <- get_AET_mo(sc)
@@ -4917,7 +4641,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					resSDs[nv+st_mo-1+12] <- aggregate( temp, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
-			#53
+			#61
 				if(any(simulation_timescales=="monthly") & aon$monthlyPETratios){
 					if(print.debug) print("Aggregation of monthlyPETratios")
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
@@ -4933,7 +4657,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				#---Aggregation: Potential regeneration
 				#regeneration: accountNSHemispheres_agg
-			#54
+			#62
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_bySWPSnow) {
 					if(print.debug) print("Aggregation of dailyRegeneration_bySWPSnow")
 					if(!exists("swp.dy.all")) swp.dy.all <- list(val=-1/10*runData[[sc]][[sw_swp]][[dy]])	#no vwcdy available!
@@ -5002,7 +4726,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				#Artemisia tridentata regeneration according to factor model (2012-02-15, drs), call for every regeneration species
 				#accountNSHemispheres_agg: param$Doy_SeedDispersalStart0 must be set correctly\
-			#55
+			#63
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
 					if(print.debug) print("Aggregation of dailyRegeneration_GISSM")
 					#---Access daily data, which do not depend on specific species parameters, i.e., start of season
@@ -5729,7 +5453,8 @@ if(actionWithSoilWat && runsN.todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
 	list.export <- c("Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002","getCurrentWeatherDataFromDatabase","GriddedDailyWeatherFromMaurer2002_NorthAmerica","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
-			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_dy","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_mo","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swa","sw_swc","sw_swp","sw_temp","sw_transp","sw_vwc","sw_yr","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN",
+			"get_Response_aggL", "get_SWP_aggL", "get_Temp_yr", "get_Temp_mo", "get_Temp_dy", "get_PPT_yr", "get_PPT_mo", "get_PPT_dy", "get_PET_yr", "get_PET_mo", "get_AET_yr", "get_AET_mo", "get_AET_dy", "get_SWE_mo", "get_SWE_dy", "get_Inf_yr", "get_Inf_mo", "get_Inf_dy", "get_Esurface_yr", "get_Esurface_dy", "get_Interception_yr", "get_DeepDrain_yr", "get_DeepDrain_mo", "get_DeepDrain_dy", "get_Runoff_mo", "get_Runoff_yr")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN.todo, "out of", trow * ifelse(trowExperimentals==0, 1, trowExperimentals), " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
