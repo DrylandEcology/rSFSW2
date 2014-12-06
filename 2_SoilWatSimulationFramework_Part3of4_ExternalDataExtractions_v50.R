@@ -1125,9 +1125,9 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	
 	#extract data
+	g <- raster(file.path(dir.ex.dat, "cs_bulkd"), RAT=TRUE)
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
 	
-	g <- raster(file.path(dir.ex.dat, "cs_bulkd"), RAT=TRUE)
 	val <- extract(g, locations.CoordG)
 	temp <- factorValues(g, val)
 	bedrock <- temp[, "ROCKDEPM"]	#depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
@@ -1183,7 +1183,7 @@ if(exinfo$ExtractElevation_NED_USA){
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 	#extract data for locations
-	SWRunInformation$ELEV_m <- extract(g.elev, locations.CoordG)	# elevation in m a.s.l.
+	SWRunInformation$ELEV_m <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
 	
 	#write data to datafile.SWRunInformation
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
