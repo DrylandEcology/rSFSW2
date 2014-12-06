@@ -5381,7 +5381,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			if(tasks$aggregate > 0 && length(SQL) > 0 && sc == 1){
 				#Clear SQL
-				SQLcurrent <- SQL <- character(0)
+				SQLcurrent <- SQL
 				SQL <- character(0)
 			}
 		} #end loop through scenarios
