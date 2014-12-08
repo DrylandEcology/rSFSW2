@@ -1513,7 +1513,7 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 		
-		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clayuse.layers, layers.depth, layers.width)
+		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clay, use.layers, layers.depth, layers.width)
 		
 	}
 	
