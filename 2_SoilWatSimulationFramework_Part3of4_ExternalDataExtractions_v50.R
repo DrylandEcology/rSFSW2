@@ -1119,51 +1119,65 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
 	ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
 	
-	dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil")
+	dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil", "output", "albers")
 	
 	#locations of simulation runs
 	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	
 	#extract data
-	g <- raster(file.path(dir.ex.dat, "cs_bulkd"), RAT=TRUE)
+	g <- brick(file.path(dir.ex.dat, "bd.tif"))
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
+	bulkd <- extract(g, locations.CoordG) / 100
 	
-	val <- extract(g, locations.CoordG)
-	temp <- factorValues(g, val)
-	bedrock <- temp[, "ROCKDEPM"]	#depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
-	cl <- 1:max(findInterval(bedrock, ldepth), na.rm=TRUE)
-	bulkd <- temp[, paste0("L", cl, "_BD")]
+	g <- raster(file.path(dir.ex.dat, "rockdepm.tif"))
+	bedrock <- extract(g, locations.CoordG) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
+	lys <- 1:max(findInterval(bedrock, ldepth), na.rm=TRUE)
+
+	#TODO: v31: turn on rockvol
+#	g <- brick(file.path(dir.ex.dat, "rockvol.tif"))
+#	rockvol <- extract(g, locations.CoordG) / 100
 	
-	g <- raster(file.path(dir.ex.dat, "cs_sandsilt"), RAT=TRUE)
-	val <- extract(g, locations.CoordG)
-	temp <- factorValues(g, val)
-	sand <- temp[, paste0("SAND_L", cl)] / 100
-	clay <- temp[, paste0("CLAY_L", cl)] / 100	
+	g <- brick(file.path(dir.ex.dat, "sand.tif"))
+	sand <- extract(g, locations.CoordG) / 100
+	g <- brick(file.path(dir.ex.dat, "clay.tif"))
+	clay <- extract(g, locations.CoordG) / 100
+	g <- brick(file.path(dir.ex.dat, "silt.tif"))
+	silt <- extract(g, locations.CoordG) / 100
+	totals <- sand + clay + silt
+#	totals <- sand + clay + silt + rockvol
+
+	sand <- round(sand / totals, 2)
+	sand <- ifelse(is.nan(sand), NA, sand)
+	clay <- round(clay / totals, 2)
+	clay <- ifelse(is.nan(clay), NA, clay)
+#	rockvol <- round(rockvol / totals, 2)
+#	rockvol <- ifelse(is.nan(rockvol), NA, rockvol)
 	
 	#set and save soil layer structure
 	sw_input_soillayers$SoilDepth_cm <- bedrock
-	sw_input_soillayers[, 2+cl] <- matrix(data=rep(ldepth[cl], times=nrow(sw_input_soillayers)), ncol=length(cl), byrow=TRUE)
+	sw_input_soillayers[, 2+lys] <- matrix(data=rep(ldepth[lys], times=nrow(sw_input_soillayers)), ncol=length(lys), byrow=TRUE)
 	write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
 	
 	#set and save soil texture
 	#add data to sw_input_soils and set the use flags
 	i.temp <- grepl(pattern="BD_L", x=names(sw_input_soils_use))
-	sw_input_soils[, i.temp][cl] <- bulkd
-	sw_input_soils_use[i.temp][cl] <- 1
+	sw_input_soils[, i.temp][lys] <- bulkd[, lys]
+	sw_input_soils_use[i.temp][lys] <- 1
 	i.temp <- grepl(pattern="Sand", x=names(sw_input_soils_use))
-	sw_input_soils[, i.temp][cl] <- sand
-	sw_input_soils_use[i.temp][cl] <- 1
+	sw_input_soils[, i.temp][lys] <- sand[, lys]
+	sw_input_soils_use[i.temp][lys] <- 1
 	i.temp <- grepl(pattern="Clay", x=names(sw_input_soils_use))
-	sw_input_soils[, i.temp][cl] <- clay
-	sw_input_soils_use[i.temp][cl] <- 1
+	sw_input_soils[, i.temp][lys] <- clay[, lys]
+	sw_input_soils_use[i.temp][lys] <- 1
 	
 	#write data to datafile.soils
 	tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 	write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 	
-	if(any(sand == 0, clay == 0)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+	if(any(na.exclude(sand) == 0, na.exclude(clay) == 0)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 	
-	rm(tempdat, i.temp, cl, bedrock, bulkd, sand, clay, val, temp, g, locations)
+	rm(tempdat, i.temp, lys, bedrock, bulkd, sand, clay, silt, g, locations)
+#	rm(rockvol)
 	
 	if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 }
