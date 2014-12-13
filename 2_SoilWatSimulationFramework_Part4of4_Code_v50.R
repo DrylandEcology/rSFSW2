@@ -405,7 +405,7 @@ if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			names(weathDataList) <- as.character(years)
 			return(weathDataList)
 		} else {
-			return(NULL)
+			return(weath.data)
 		}
 	}
 }
@@ -2210,31 +2210,37 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 			dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
 			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
-			if(is.null(i_sw_weatherList[[1]])) stop("ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica failed")
 		} else {
+			#Get name of weather file
+			.local <- function(i){
+				if(!exists("con") || !dbIsValid(con) || !parallel_runs) {
+				#	print("Connecting to Con")
+					drv <<- dbDriver("SQLite")
+					con <<- dbConnect(drv, dbname=name.OutputDB)
+				}
+				temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i-1)*scenario_No+1)))[1,1]
+				dbDisconnect(con)
+				return(temp)
+			}		
+			weatherDirName <- try(.local(i), silent=TRUE)
+			#Extract weather data
 			if(getCurrentWeatherDataFromDatabase) {
-				.local <- function(i){
+				.local <- function(i){#Extract weather data from db
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
-					if(!exists("con") || !dbIsValid(con) || !parallel_runs) {
-					#	print("Connecting to Con")
-						drv <<- dbDriver("SQLite")
-						con <<- dbConnect(drv, dbname=name.OutputDB)
-					}
-					temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i-1)*scenario_No+1)))[1,1]
-					dbDisconnect(con)
 					i_sw_weatherList <- list()
 					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, scenario_No, 1))
-						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=temp,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[k])
+						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=weatherDirName,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[k])
 					return(i_sw_weatherList)
 				}
 				i_sw_weatherList <- try(.local(i), silent=TRUE)
-				if(inherits(i_sw_weatherList, "try-error")) {
-					if(!be.quiet) print(paste(i, "i_sw_weatherList ERROR"))
-					tasks$create <- 0
-				}
-			} else {
-				i_sw_weatherList[[1]] <- getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=temp,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
+			} else {#Read weather data from folder
+				i_sw_weatherList[[1]] <- try(getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=weatherDirName,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr)), silent=TRUE)
 			}
+		}
+		#Check that extraction of weather data was successful
+		if(inherits(i_sw_weatherList, "try-error")) {
+			if(!be.quiet) print(paste(i, "i_sw_weatherList ERROR"))
+			tasks$create <- 0
 		}
 		
 		#copy and make climate scenarios from datafiles
