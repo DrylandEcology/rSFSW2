@@ -63,10 +63,10 @@
 
 # ---- Hydraulic redistribution: Ryel, Ryel R, Caldwell, Caldwell M, Yoder, Yoder C, Or, Or D, Leffler, Leffler A. 2002. Hydraulic redistribution in a stand of Artemisia tridentata: evaluation of benefits to transpiration assessed with a simulation model. Oecologia 130: 173-184.
 # Grasses	Shrubs		Trees
-0			1			1       # flag to turn on/off (1/0) hydraulic redistribution
-0			-0.2328		-0.2328	# maxCondroot - maximum radial soil-root conductance of the entire active root system for water (cm/-bar/day) = 0.097 cm/MPa/h
-0			10.			10.		# swp50 - soil water potential (-bar) where conductance is reduced by 50% = -1. MPa
-0			3.22		3.22	# shapeCond - shaping parameter for the empirical relationship from van Genuchten to model relative soil-root conductance for water
+1			1			1       # flag to turn on/off (1/0) hydraulic redistribution
+-0.2328		-0.2328		-0.2328	# maxCondroot - maximum radial soil-root conductance of the entire active root system for water (cm/-bar/day) = 0.097 cm/MPa/h
+10.			10.			10.		# swp50 - soil water potential (-bar) where conductance is reduced by 50% = -1. MPa
+3.22		3.22		3.22	# shapeCond - shaping parameter for the empirical relationship from van Genuchten to model relative soil-root conductance for water
 
 
 # ---- Critical soil water potential (MPa), i.e., when transpiration rates cannot sustained anymore, for instance, for many crop species -1.5 MPa is assumed and called wilting point
@@ -85,15 +85,15 @@
 #Litter  Biomass  %Live LAI_conv
  75.0    150.0    0.00  300.     # January
  80.0    150.0    0.00  300.     # February
- 85.0    150.0    0.10  300.     # March
+ 85.0    150.0    0.15  300.     # March
  90.0    170.0    0.30  300.     # April
  50.0    190.0    0.60  300.     # May
- 50.0    220.0    0.80  300.     # June
- 50.0    250.0    0.60  300.     # July
- 55.0    220.0    0.60  300.     # August
- 60.0    190.0    0.30  300.     # September
- 65.0    180.0    0.10  300.     # October
- 70.0    170.0    0.00  300.     # November
+ 50.0    220.0    0.90  300.     # June
+ 50.0    250.0    0.90  300.     # July
+ 55.0    220.0    0.90  300.     # August
+ 60.0    190.0    0.60  300.     # September
+ 65.0    180.0    0.30  300.     # October
+ 70.0    170.0    0.15  300.     # November
  75.0    160.0    0.00  300.     # December
 
 # Shrublands component:

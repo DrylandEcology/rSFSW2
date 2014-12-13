@@ -273,10 +273,13 @@ if((length(Tables) == 0) || do.clean) {
 		
 			#Finalize db_treatments_column_types
 			#remove YearStart or YearEnd
+			db_treatments_years <- NULL
 			if(any(db_treatments_column_types$column == "YearStart")) {
+				db_treatments_years <- rbind(db_treatments_years, db_treatments_column_types[which(db_treatments_column_types$column == "YearStart"),])
 				db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearStart"),]
 			}
 			if(any(db_treatments_column_types$column == "YearEnd")) {
+				db_treatments_years <- rbind(db_treatments_years, db_treatments_column_types[which(db_treatments_column_types$column == "YearEnd"),])
 				db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearEnd"),]
 			}
 		
@@ -293,7 +296,12 @@ if((length(Tables) == 0) || do.clean) {
 		
 			#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
 			if(useTreatments) {
-				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments
+				i_start <- which(colnames(db_treatments) == "YearStart")
+				i_end <- which(colnames(db_treatments) == "YearEnd")
+				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments[, -c(i_start, i_end)]
+				#Handle StartYear and EndYear separately
+				if(length(i_start) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearStart"] <- db_treatments[, i_start]
+				if(length(i_end) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearEnd", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearEnd"] <- db_treatments[, i_end]
 			}
 		
 			if(useExperimentals) {
@@ -316,18 +324,18 @@ if((length(Tables) == 0) || do.clean) {
 			simulation_years<-matrix(data=NA, nrow=nrow(db_combined_exp_treatments), ncol = 4, dimnames=list(NULL,c("id","simulationStartYear","StartYear","EndYear")))
 			#Get from treatments or get from settings
 			if(any(colnames(db_combined_exp_treatments) == "YearStart")) {
-				simulation_years$simulationStartYear <- db_combined_exp_treatments$YearStart
+				simulation_years[, "simulationStartYear"] <- db_combined_exp_treatments$YearStart
 				db_combined_exp_treatments <- db_combined_exp_treatments[,-which(colnames(db_combined_exp_treatments) == "YearStart")]
 			} else {
-				simulation_years$simulationStartYear <- simstartyr
+				simulation_years[, "simulationStartYear"] <- simstartyr
 			}
 			if(any(colnames(db_combined_exp_treatments) == "YearEnd")) {
-				simulation_years$EndYear <- db_combined_exp_treatments$YearEnd
+				simulation_years[, "EndYear"] <- db_combined_exp_treatments$YearEnd
 				db_combined_exp_treatments <- db_combined_exp_treatments[,-which(colnames(db_combined_exp_treatments) == "YearEnd")]
 			} else {
-				simulation_years$EndYear <- endyr
+				simulation_years[, "EndYear"] <- endyr
 			}
-			simulation_years$StartYear <- getStartYear(simulation_years$simulationStartYear)
+			simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"])
 		
 			unique_simulation_years <- unique(simulation_years)
 			#each row is unique so add id to db_combined
