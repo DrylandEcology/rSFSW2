@@ -2209,7 +2209,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		i_sw_weatherList <- list()
 		if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 			dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
-			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs))
+			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
 		} else {
 			#Get name of weather file
 			.local <- function(i){
@@ -2229,12 +2229,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					i_sw_weatherList <- list()
 					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, scenario_No, 1))
-						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=weatherDirName,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs), Scenario=climate.conditions[k])
+						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=weatherDirName,startYear=simstartyr, endYear=endyr, Scenario=climate.conditions[k])
 					return(i_sw_weatherList)
 				}
 				i_sw_weatherList <- try(.local(i), silent=TRUE)
 			} else {#Read weather data from folder
-				i_sw_weatherList[[1]] <- try(getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=weatherDirName,filebasename=filebasename,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs)), silent=TRUE)
+				i_sw_weatherList[[1]] <- try(getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=weatherDirName,filebasename=filebasename,startYear=simstartyr, endYear=endyr), silent=TRUE)
 			}
 		}
 		#Check that extraction of weather data was successful
@@ -2683,7 +2683,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			#get rooting depth
 			if(nrow(swSoils_Layers(swRunScenariosData[[sc]])) > 1){
-				max.tri.root <- min(apply(swSoils_Layers(swRunScenariosData[[sc]])[, c(6,7,8)], MARGIN=2, FUN=function(x) sum(x > 0)))
+				max.tri.root <- min(apply(swSoils_Layers(swRunScenariosData[[sc]])[, c(6,7,8), drop=FALSE], MARGIN=2, FUN=function(x) sum(x > 0)))
 			} else {
 				max.tri.root <- 1
 			}
@@ -2871,18 +2871,18 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}					
 			if(length(topL) > 1) {
 				if(is.null(weights)){
-					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN)
+					val.top <- apply(temp1[index.usetimestep, index.col + topL, drop=FALSE], 1, FUN)
 				} else {
-					val.top <- apply(temp1[index.usetimestep, index.col + topL], 1, FUN, weights[topL])
+					val.top <- apply(temp1[index.usetimestep, index.col + topL, drop=FALSE], 1, FUN, weights[topL])
 				}
 			} else {
 				val.top <- temp1[index.usetimestep, index.col + topL]
 			}
 			if(length(bottomL) > 1) {
 				if(is.null(weights)){
-					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN)
+					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL, drop=FALSE], 1, FUN)
 				} else {
-					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL], 1, FUN, weights[bottomL])
+					val.bottom <- apply(temp1[index.usetimestep, index.col + bottomL, drop=FALSE], 1, FUN, weights[bottomL])
 				}
 			} else if(is.null(bottomL) || identical(bottomL, 0)) {
 				val.bottom <- matrix(data=0, nrow=length(index.usetimestep), ncol=1)
@@ -2983,14 +2983,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 
 		get_Esurface_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
+			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
 		}
 		get_Esurface_dy <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
+			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
 		}
 
 		get_Interception_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
+			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
 		}
 
 		get_DeepDrain_yr <- function(sc){
@@ -3637,7 +3637,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						Lanh_depth <- adjustLayer_byImp(depths=c(10, 70), imp_depth=imp_depth)
 					
 						#Permafrost (Soil Survey Staff 2014: p.28) is defined as a thermal condition in which a material (including soil material) remains below 0 C for 2 or more years in succession
-						permafrost <- any(apply(soiltemp.yr.all$val[simTime$index.useyr, -1], 2, FUN=function(x) {
+						permafrost <- any(apply(soiltemp.yr.all$val[simTime$index.useyr, -1, drop=FALSE], 2, FUN=function(x) {
 											temp <- rle(x < 0)
 											res <- (any(temp$values) && any(temp$lengths[temp$values] >= 2))
 										}))
@@ -3936,7 +3936,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 					temp1 <- 10 * runData[[sc]][[sw_hd]][[sw_yr]]
 					if(length(topL) > 1) {
-						hydred.topTobottom <- apply(temp1[simTime$index.useyr,1+topL], 1, sum)
+						hydred.topTobottom <- apply(temp1[simTime$index.useyr, 1+topL, drop=FALSE], 1, sum)
 					} else {
 						hydred.topTobottom <- temp1[simTime$index.useyr,1+topL]
 					}					
@@ -3990,11 +3990,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
 					nv <- nv+2
 					
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
 					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+2
 					
@@ -4008,12 +4008,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					extremes <- as.matrix(aggregate(cbind(Esoil.dy$top + Esoil.dy$bottom + Esurface.dy$sum), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
 					nv <- nv+2
 					
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+2
 					
 					rm(extremes)
@@ -4025,12 +4025,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					extremes <- as.matrix(aggregate(deepDrain.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
 					nv <- nv+2
 					
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+2
 					
 					rm(extremes)
@@ -4042,12 +4042,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					extremes <- as.matrix(aggregate(inf.dy$inf, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
 					nv <- nv+2
 					
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+2
 					
 					rm(extremes)
@@ -4059,12 +4059,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					extremes <- as.matrix(aggregate(AET.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3)], MARGIN=2, FUN=mean)
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
 					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)						
 					nv <- nv+2
 					
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+2
 					
 					rm(extremes)
@@ -4081,12 +4081,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						extremes <- cbind(temp <- as.matrix(aggregate(swp.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
 					}
 					
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=mean, na.rm=TRUE)
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=sd, na.rm=TRUE)
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=mean, na.rm=TRUE)
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=sd, na.rm=TRUE)
 					nv <- nv+4
 
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+4
 					
 					rm(extremes)
@@ -4106,12 +4106,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						extremes <- cbind(temp <- as.matrix(aggregate(recharge.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
 					}
 					
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7)], MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
 					nv <- nv+4
 
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9)], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
 					nv <- nv+4
 					
 					rm(recharge.dy, extremes)
@@ -4141,7 +4141,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						wetdegday.bottom <- ifelse(wet.bottom > 0, degday, 0)
 						wetdegday.any <- ifelse(wet.top + wet.bottom > 0, degday, 0)
 						
-						temp <- aggregate(data.frame(wetdegday.top, wetdegday.bottom, wetdegday.any), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2:4]
+						temp <- aggregate(data.frame(wetdegday.top, wetdegday.bottom, wetdegday.any), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2:4, drop=FALSE]
 						resMeans[(nv+3*(icrit-1)):(nv+3*(icrit-1)+2)] <- apply(temp, MARGIN=2, FUN=mean)
 						resSDs[(nv+3*(icrit-1)):(nv+3*(icrit-1)+2)] <- apply(temp, MARGIN=2, FUN=sd)
 					}
@@ -4250,9 +4250,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						
 						#aggregate results
 						resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)]), MARGIN=2, FUN=mean, na.rm=TRUE),
-								apply(res.dry[, c(1:2, 5:6)], MARGIN=2, FUN=function(x) circ.mean(x, int=365, na.rm=TRUE)))
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365, na.rm=TRUE)))
 						resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE),
-								apply(res.dry[, c(1:2, 5:6)], MARGIN=2, FUN=function(x) circ.sd(x, int=365, na.rm=TRUE)))
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365, na.rm=TRUE)))
 					}
 					nv <- nv+16*length(SWPcrit_MPa)	
 					
@@ -4312,8 +4312,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						}
 
 						temp <- aggregate(cbind(swa.top, swa.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=sum)
-						resMeans[nv:(nv+1)] <- apply(temp[, -1], 2, mean)
-						resSDs[nv:(nv+1)] <- apply(temp[, -1], 2, sd)
+						resMeans[nv:(nv+1)] <- apply(temp[, -1, drop=FALSE], 2, mean)
+						resSDs[nv:(nv+1)] <- apply(temp[, -1, drop=FALSE], 2, sd)
 						nv <- nv+2
 					}
 					
@@ -4352,8 +4352,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						}
 						
 						temp <- aggregate(cbind(dry.top, dry.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) c(if(any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration=durationDryPeriods.min) - adjDays))
-						resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3], 2, mean), circ.mean(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3], 2, mean), circ.mean(x=temp$dry.bottom[, 4], int=365))
-						resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3], 2, sd), circ.sd(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3], 2, sd), circ.sd(x=temp$dry.bottom[, 4], int=365))
+						resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop=FALSE], 2, mean), circ.mean(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3, drop=FALSE], 2, mean), circ.mean(x=temp$dry.bottom[, 4], int=365))
+						resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop=FALSE], 2, sd), circ.sd(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3, drop=FALSE], 2, sd), circ.sd(x=temp$dry.bottom[, 4], int=365))
 						nv <- nv+8
 					}
 					
