@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.27.9"
+minVersionRsoilwat <- "0.27.10"
 num_cores <- 7
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
