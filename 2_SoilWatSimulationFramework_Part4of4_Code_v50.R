@@ -2209,7 +2209,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		i_sw_weatherList <- list()
 		if(GriddedDailyWeatherFromMaurer2002_NorthAmerica & !createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 & !any(create_treatments == "LookupWeatherFolder")){ #obtain external weather information that needs to be executed for each run
 			dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
-			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr))
+			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs))
 		} else {
 			#Get name of weather file
 			.local <- function(i){
@@ -2229,12 +2229,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 					i_sw_weatherList <- list()
 					for(k in 1:ifelse(getScenarioWeatherDataFromDatabase, scenario_No, 1))
-						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=weatherDirName,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr), Scenario=climate.conditions[k])
+						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label=weatherDirName,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs), Scenario=climate.conditions[k])
 					return(i_sw_weatherList)
 				}
 				i_sw_weatherList <- try(.local(i), silent=TRUE)
 			} else {#Read weather data from folder
-				i_sw_weatherList[[1]] <- try(getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=weatherDirName,filebasename=filebasename,startYear=ifelse(any(create_treatments=="YearStart"), i_sw_input_treatments$YearStart, simstartyr), endYear=ifelse(any(create_treatments=="YearEnd"), i_sw_input_treatments$YearEnd, endyr)), silent=TRUE)
+				i_sw_weatherList[[1]] <- try(getWeatherData_folders(LookupWeatherFolder=file.path(dir.sw.in.tr, "LookupWeatherFolder"),weatherDirName=weatherDirName,filebasename=filebasename,startYear=min(simTime$useyrs), endYear=max(simTime$useyrs)), silent=TRUE)
 			}
 		}
 		#Check that extraction of weather data was successful
