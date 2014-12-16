@@ -122,12 +122,23 @@ if((length(Tables) == 0) || do.clean) {
 				mapType(typeof(sw_input_treatments[,columnName]))
 			}
 		}
+		getSiteIds <- function(folderNames) {
+			temp <- integer(0)
+			for(i in 1:length(folderNames)) {
+				id <- dbGetQuery(con, paste("SELECT id FROM weatherfolders WHERE folder='",folderNames[i],"'",sep=""))$id
+				if(length(id) == 0 | is.null(id))
+					temp <- c(temp, NA)
+				else
+					temp <- c(temp, id)
+			}
+			return(temp)
+		}
 		######################
 	
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 		dbBegin(con)
 		if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
-			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors=FALSE))
+			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=unique(SWRunInformation$WeatherFolder[seq.tr]),stringsAsFactors=FALSE))
 		} else {
 			if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
 		}
@@ -144,8 +155,9 @@ if((length(Tables) == 0) || do.clean) {
 	
 		sites_data<-data.frame(SWRunInformation[seq.tr,],row.names=NULL, check.rows=FALSE, check.names=FALSE, stringsAsFactors=FALSE)
 	
+		#Consider a faster way than this....
 		colnames(sites_data) <- site_columns
-		sites_data$WeatherFolder_id <- if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) 1:length(sites_data$site_id) else NA
+		sites_data$WeatherFolder_id <- getSiteIds(sites_data$WeatherFolder_id)
 		#This works fast
 		dbBegin(con)
 		dbGetPreparedQuery(con, paste("INSERT INTO sites VALUES(NULL,",paste(":",site_columns,collapse=",",sep=""),")",sep=""), bind.data=sites_data)
@@ -193,16 +205,16 @@ if((length(Tables) == 0) || do.clean) {
 				#make a temp data.frame of a column NA's and a column of folder names
 				LookupWeatherFolder_index <- data.frame(id=rep(NA,length(treatments_lookupweatherfolders)), folder=treatments_lookupweatherfolders, stringsAsFactors = F)
 				#Get the id from sites table if the folder is in it
-				temp <- LookupWeatherFolder_index$folder %in% SWRunInformation$WeatherFolder[seq.tr]
-				LookupWeatherFolder_index$id[temp] <- sapply(which(temp), function(x) which(SWRunInformation$WeatherFolder[seq.tr] == LookupWeatherFolder_index$folder[x]))
+				LookupWeatherFolder_index$id <- getSiteIds(LookupWeatherFolder_index$folder)
 				#if there are any NA's we need to add those to the weatherfolder db table and update its id in our lookuptable for weatherfolder
 				if(any(is.na(LookupWeatherFolder_index$id))) {
 					#get max id from weatherfolders table
+					temp<-is.na(LookupWeatherFolder_index$id)
 					weatherfolders_index <- as.numeric(dbGetQuery(con,"SELECT MAX(id) FROM weatherfolders;"))+1
-					LookupWeatherFolder_index$id[!temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[!temp])-1)
+					LookupWeatherFolder_index$id[temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[temp])-1)
 					#Write those in
 					dbBegin(con)
-					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[!temp,])
+					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[temp,])
 					dbCommit(con)
 				}
 			}
