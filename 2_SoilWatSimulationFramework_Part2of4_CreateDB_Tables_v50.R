@@ -39,11 +39,14 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 	if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){#prepare: get weather from Maurer et al. 2002
 		Maurer <- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
 		SWRunInformation$WeatherFolder[seq.tr] <- paste0(SWRunInformation$Label[seq.tr], "_", Maurer)
-		write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+		#write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	}
 	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
 	Rsoilwat:::dbW_addSites(MetaData)
+	
+	SWRunInformation$site_id[seq.tr] <- dbW_getSiteTable()$Site_id
+	write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 
 	MetaData <- data.frame(Scenario=climate.conditions)
 	Rsoilwat:::dbW_addScenarios(MetaData)
