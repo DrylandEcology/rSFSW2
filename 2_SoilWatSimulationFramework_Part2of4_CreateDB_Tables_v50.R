@@ -313,7 +313,10 @@ if((length(Tables) == 0) || do.clean) {
 			if(useTreatments) {
 				i_start <- which(colnames(db_treatments) == "YearStart")
 				i_end <- which(colnames(db_treatments) == "YearEnd")
-				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments[, -c(i_start, i_end)]
+				i_use <- 1:ncol(db_treatments)
+				if(length(i_start) > 0) i_use <- i_use[-i_start]
+				if(length(i_end) > 0) i_use <- i_use[-i_end]
+				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments[, i_use]
 				#Handle StartYear and EndYear separately
 				if(length(i_start) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearStart"] <- db_treatments[, i_start]
 				if(length(i_end) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearEnd", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearEnd"] <- db_treatments[, i_end]
