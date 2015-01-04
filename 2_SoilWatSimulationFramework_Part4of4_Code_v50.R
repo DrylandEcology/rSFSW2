@@ -3718,7 +3718,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								}
 								MCS <- swp.dy.all$val[simTime$index.usedy, 2 + i_MCS, drop=FALSE]
 								#Anhydrous soil layer moisture
-								if(is.na(Lanh_depth[2])){
+								if(is.na(Lanh_depth[2]) || isTRUE(all.equal(Lanh_depth[1], Lanh_depth[2]))){
 									i_Lanh_depth <- findInterval(Lanh_depth[1], vec=stemp[, "depth_cm"])
 								} else {
 									i_Lanh_depth <- (1 + findInterval(Lanh_depth[1], vec=stemp[, "depth_cm"])):findInterval(Lanh_depth[2], vec=stemp[, "depth_cm"])
