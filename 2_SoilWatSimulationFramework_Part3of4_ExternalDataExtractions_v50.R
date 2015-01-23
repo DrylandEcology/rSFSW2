@@ -624,7 +624,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 								"&accept=csv")
 			dat <- get.request(service="ncss", request)
-			if(any(dat > 1e5 | dat < -1e5)){ #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
+			if(inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5)){ #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
 				#2nd attempt: TRHEDDS opendap/dodsC
 				lat.index <- round((lat - bbox$lat[1]) / 0.0083333333, 0)
 				lon.index <- round((lon - bbox$lon[1]) / 0.0083333333, 0)
@@ -641,7 +641,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								gcm, "_", variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][", lon.index, "]")
 
 				dat <- get.request(service="opendap", request)
-				stopifnot(dat < 1e5 & dat > -1e5)
+				stopifnot(!inherits(dat, "try-error"), dat < 1e5 & dat > -1e5)
 			}
 			
 			return(dat)
