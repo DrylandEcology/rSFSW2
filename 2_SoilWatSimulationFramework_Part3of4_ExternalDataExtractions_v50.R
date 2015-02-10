@@ -851,8 +851,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": raw method: checks turned off for monthly->daily"))
 							}
-							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+							data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+							years <- as.integer(names(scen.fut.daily))
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=head(years,n=1), EndYear=tail(years,n=1), weatherData=data_blob)
 						}
 						if("delta" %in% downs){
 							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("delta", tag, gcm, sep=".")), "id"]
@@ -862,8 +863,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta method: checks turned off for monthly->daily"))
 							}
-							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+							data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+							years <- as.integer(names(scen.fut.daily))
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=head(years,n=1), EndYear=tail(years,n=1), weatherData=data_blob)
 						}
 						if("hybrid-delta" %in% downs){
 							scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", tag, gcm, sep=".")), "id"]
@@ -873,8 +875,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								stopifnot(!inherits(scen.fut.daily, "try-error"))
 								print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta-hybrid replaced by delta method for monthly->daily"))
 							}
-							data_blob <- paste0("x'",paste0(memCompress(serialize(scen.fut.daily,NULL),type="gzip"),collapse = ""),"'",sep="")
-							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, weatherData=data_blob)
+							data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+							years <- as.integer(names(scen.fut.daily))
+							types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=head(years,n=1), EndYear=tail(years,n=1), weatherData=data_blob)
 						}
 					}
 					wdataOut[[ir]] <- types
@@ -976,7 +979,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
 				for(j in 1:length(wdataOut)) {
 					for(l in 1:length(wdataOut[[j]])) {
-						res <- try(Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
+						res <- try(Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
 						if(inherits(res, "try-error")) break
 					}
 					if(inherits(res, "try-error")) break
