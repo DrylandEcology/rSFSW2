@@ -2213,11 +2213,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		} else {
 			#Get name of weather file
 			.local <- function(i){
-				if(!exists("con") || !dbIsValid(con) || !parallel_runs) {
+				# I was having problems with this if statement doing some runs
+				#if(!exists("con") || !dbIsValid(con) || !parallel_runs) {
 				#	print("Connecting to Con")
 					drv <<- dbDriver("SQLite")
 					con <<- dbConnect(drv, dbname=name.OutputDB)
-				}
+				#}
 				temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",((i-1)*scenario_No+1)))[1,1]
 				dbDisconnect(con)
 				return(temp)

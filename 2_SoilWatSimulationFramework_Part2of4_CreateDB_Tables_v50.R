@@ -65,8 +65,10 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 				weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
 			}
 			names(weatherData) <- years
-			data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
-			Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,data_blob)
+			StartYear <- head(years,n=1)
+			EndYear <- tail(years,n=1)
+			data_blob <- dbW_weatherData_to_blob(weatherData)
+			Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
 			if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
 				temp2<-Sys.time() - Time
 				units(temp2) <- "secs"
@@ -78,8 +80,11 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 		for(i in seq_along(seq.tr)){
 			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[i],startYear=simstartyr, endYear=endyr)
 			if(!is.null(weatherData)){
-				data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
-				Rsoilwat:::dbW_addWeatherDataNoCheck(i, 1, data_blob)
+				data_blob <- dbW_weatherData_to_blob(weatherData)
+				years <- as.integer(names(weatherData))
+				StartYear <- head(years,n=1)
+				EndYear <- tail(years,n=1)
+				Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
 			} else {
 				print(paste("Moving daily weather data from Maurer et al. 2002 to database unsuccessful", i, Maurer[i]))
 			}
