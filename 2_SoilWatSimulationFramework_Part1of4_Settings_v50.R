@@ -7,7 +7,7 @@
 #------CODE developed and written by
 # - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2014
 # - Donovan Miller (dlm): 2012
-# - Ryan Murphy (rjm): 2012-2014
+# - Ryan Murphy (rjm): 2012-2015
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
 #The R code below was tested on R version 3.1.1
@@ -35,8 +35,8 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.27.13"
-num_cores <- 7
+minVersionRsoilwat <- "0.31.07"
+num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
 
@@ -58,9 +58,7 @@ dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projec
 dir.prj <- dir.runs <- getwd()
 	
 #parent folder containing external data
-dir.external <- "/Volumes/DRS4_Calluna/BigData/GIS/SoilWat_DataSet_External"
-dir.external <- "/Volumes/Macintosh_HD_2/BigData/GIS/SoilWat_DataSet_External"
-
+dir.external <- "/Users/drschlaep/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Software/SoilWat/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
 
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
@@ -85,9 +83,9 @@ makeInputForExperimentalDesign <- FALSE
 checkCompleteness <- FALSE
 
 #------Define how aggregated output should be handled:
-cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
-deleteTmpSQLFiles <- FALSE
-copyCurrentConditionsFromTempSQL <- FALSE
+cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+deleteTmpSQLFiles <- TRUE
+copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
@@ -96,8 +94,8 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
-createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 <- FALSE #Will create a database will data from LookupWeather Folder or, if GriddedDailyWeatherFromMaurer2002_NorthAmerica, from dataset by Maurer et al. 2002
+dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData_GTD.sqlite"
+createWeatherDatabaseFromLookupWeatherFolder <- FALSE #Will create a database will data from LookupWeather Folder
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(
@@ -121,7 +119,7 @@ do.ExtractExternalDatasets <- c(
 		#Soil texture and topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
 		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database 
-		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 1
+		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0
 )
 
 do.PriorCalculations <- c(
@@ -175,7 +173,7 @@ datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v03.csv"
+datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v04.csv"
 
 if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
@@ -193,7 +191,7 @@ if (( any(actions == "external") || any(actions == "create") || any(actions == "
 	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
 	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
 	trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
-	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients.csv"
+	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients_v2.csv"
 	trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
@@ -352,118 +350,32 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 
 	#characteristics of sw input files
 	soilsin.firstDataLine <- 18	# 18, if soilsin >= v23; 17, if soilsin < v23
-}
-
-if(any(actions == "aggregate")){
-	#index Numbers
-	sw_aet			<-1
-	sw_deepdrain	<-2
-	sw_estabs		<-3
-	sw_evsoil		<-4
-	sw_evapsurface	<-5
-	sw_hd			<-6
-	sw_inf_soil		<-7
-	sw_interception	<-8
-	sw_percolation	<-9
-	sw_pet			<-10
-	sw_precip		<-11
-	sw_runoff		<-12
-	sw_snow			<-13
-	sw_soiltemp		<-14
-	sw_surfaceWater	<-15
-	sw_swp			<-16
-	sw_swa			<-17
-	sw_swc			<-18
-	sw_temp			<-19
-	sw_transp		<-20
-	sw_vwc			<-21
-	sw_wetdays		<-22
-	sw_logfile		<-23
-	sw_yr			<-1
-	sw_mo			<-2
-	sw_wk			<-3
-	sw_dy			<-4
-	#sw output file names
-	aetdy <- "aet.dy"
-	aetwk <- "aet.wk"
-	aetmo <- "aet.mo"
-	aetyr <- "aet.yr"
-	deepdraindy <- "deep_drain.dy"
-	deepdrainwk <- "deep_drain.wk"
-	deepdrainmo <- "deep_drain.mo"
-	deepdrainyr <- "deep_drain.yr"
-	evapsurfacedy <- "evap_surface.dy"
-	evapsurfacewk <- "evap_surface.wk"
-	evapsurfacemo <- "evap_surface.mo"
-	evapsurfaceyr <- "evap_surface.yr"
-	evsoildy <- "evap_soil.dy"
-	evsoilwk <- "evap_soil.wk"
-	evsoilmo <- "evap_soil.mo"
-	evsoilyr <- "evap_soil.yr"
-	hddy <- "hydred.dy"
-	hdwk <- "hydred.wk"
-	hdmo <- "hydred.mo"
-	hdyr <- "hydred.yr"
-	inf_soildy <- "infiltration.dy"
-	inf_soilwk <- "infiltration.wk"
-	inf_soilmo <- "infiltration.mo"
-	inf_soilyr <- "infiltration.yr"
-	interceptiondy <- "interception.dy"
-	interceptionwk <- "interception.wk"
-	interceptionmo <- "interception.mo"
-	interceptionyr <- "interception.yr"
-	percolationdy <- "percolation.dy"
-	percolationwk <- "percolation.wk"
-	percolationmo <- "percolation.mo"
-	percolationyr <- "percolation.yr"
-	petdy <- "pet.dy"
-	petwk <- "pet.wk"
-	petmo <- "pet.mo"
-	petyr <- "pet.yr"
-	precipdy <- "precip.dy"
-	precipwk <- "precip.wk"
-	precipmo <- "precip.mo"
-	precipyr <- "precip.yr"
-	runoffdy <- "runoff.dy"
-	runoffwk <-	"runoff.wk"
-	runoffmo <- "runoff.mo"
-	runoffyr <- "runoff.yr"
-	snowdy <- "snowpack.dy"
-	snowwk <- "snowpack.wk"
-	snowmo <- "snowpack.mo"
-	snowyr <- "snowpack.yr"
-	swady <- "swa.dy"
-	swawk <- "swa.wk"
-	swamo <- "swa.mo"
-	swayr <- "swa.yr"
-	swcdy <- "swc.dy"
-	swcwk <- "swc.wk"
-	swcmo <- "swc.mo"
-	swcyr <- "swc.yr"
-	vwcdy <- "vwc.dy"
-	vwcwk <- "vwc.wk"
-	vwcmo <- "vwc.mo"
-	vwcyr <- "vwc.yr"
-	swpdy <- "sw_pot.dy"
-	swpwk <- "sw_pot.wk"
-	swpmo <- "sw_pot.mo"
-	swpyr <- "sw_pot.yr"
-	tempdy <- "temp.dy"
-	tempwk <- "temp.wk"
-	tempmo <- "temp.mo"
-	tempyr <- "temp.yr"
-	transpdy <- "transp.dy"
-	transpwk <- "transp.wk"
-	transpmo <- "transp.mo"
-	transpyr <- "transp.yr"
-	wetdaysdy <- "wetdays.dy"
-	wetdayswk <- "wetdays.wk"
-	wetdaysmo <- "wetdays.mo"
-	wetdaysyr <- "wetdays.yr"
-	soiltempdy <- "soil_temp.dy"
-	soiltempwk <- "soil_temp.wk"
-	soiltempmo <- "soil_temp.mo"
-	soiltempyr <- "soil_temp.yr"
+	
+	sw_aet			<- "AET"
+	sw_deepdrain	<- "DEEPSWC"
+	sw_estabs		<- "ESTABL"
+	sw_evsoil		<- "EVAPSOIL"
+	sw_evapsurface	<- "EVAPSURFACE"
+	sw_hd			<- "HYDRED"
+	sw_inf_soil		<- "SOILINFILT"
+	sw_interception	<- "INTERCEPTION"
+	sw_percolation	<- "LYRDRAIN"
+	sw_pet			<- "PET"
+	sw_precip		<- "PRECIP"
+	sw_runoff		<- "RUNOFF"
+	sw_snow			<- "SNOWPACK"
+	sw_soiltemp		<- "SOILTEMP"
+	sw_surfaceWater	<- "SURFACEWATER"
+	sw_swp			<- "SWPMATRIC"
+	sw_swabulk		<- "SWABULK"
+	sw_swamatric	<- "SWAMATRIC"
+	sw_swcbulk		<- "SWCBULK"
+	sw_temp			<- "TEMP"
+	sw_transp		<- "TRANSP"
+	sw_vwcbulk		<- "VWCBULK"
+	sw_vwcmatric	<- "VWCMATRIC"
+	sw_wetdays		<- "WETDAY"
+	sw_logfile		<- "LOG"
 }
 
 ##############################################################################
