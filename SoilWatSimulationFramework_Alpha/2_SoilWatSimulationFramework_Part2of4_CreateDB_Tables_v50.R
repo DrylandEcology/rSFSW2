@@ -16,7 +16,7 @@ set_PRAGMAs <- function(con){
 	dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
 	dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
 	dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
-	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = OFF;","PRAGMA journal_mode = OFF;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA count_changes = OFF;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
 	lapply(settings, function(x) dbGetQuery(con,x))
 }
 
@@ -27,7 +27,7 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
-if(createWeatherDatabaseFromLookupWeatherFolder) {
+if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 	if(file.exists(dbWeatherDataFile)) {
 		print("Removing old database")
 		file.remove(dbWeatherDataFile)
@@ -35,33 +35,61 @@ if(createWeatherDatabaseFromLookupWeatherFolder) {
 	print("Creating New Weather database")
 	dbW_createDatabase(dbWeatherDataFile)
 	
+
+	if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){#prepare: get weather from Maurer et al. 2002
+		Maurer <- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
+		SWRunInformation$WeatherFolder[seq.tr] <- paste0(SWRunInformation$Label[seq.tr], "_", Maurer)
+		#write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	}
+	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
 	Rsoilwat:::dbW_addSites(MetaData)
 	
+	SWRunInformation$site_id[seq.tr] <- dbW_getSiteTable()$Site_id
+	write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+
 	MetaData <- data.frame(Scenario=climate.conditions)
 	Rsoilwat:::dbW_addScenarios(MetaData)
-	
+
 	Time <- Sys.time()
 	
-	for(i in seq_along(seq.tr)) {#
-		WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
-		weath <- list.files(WeatherFolder)
-		years <- as.numeric(sub(pattern="weath.",replacement="",weath))
-		weatherData <- list()
-		for(j in 1:length(weath)) {
-			year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
-			temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
-			weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
+	if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica){ #get weather data from LookupWeather
+		for(i in seq_along(seq.tr)) {#
+			WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
+			weath <- list.files(WeatherFolder)
+			years <- as.numeric(sub(pattern="weath.",replacement="",weath))
+			weatherData <- list()
+			for(j in 1:length(weath)) {
+				year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
+				temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
+				weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
+			}
+			names(weatherData) <- years
+			StartYear <- head(years,n=1)
+			EndYear <- tail(years,n=1)
+			data_blob <- dbW_weatherData_to_blob(weatherData)
+			Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
+			if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
+				temp2<-Sys.time() - Time
+				units(temp2) <- "secs"
+				temp2 <- as.double(temp2)
+				print(paste(i,":",temp2))
+			}
 		}
-		names(weatherData) <- years
-		data_blob <- paste0("x'",paste0(memCompress(serialize(weatherData,NULL),type="gzip"),collapse = ""),"'",sep="")
-		Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,data_blob)
-		if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
-			temp2<-Sys.time() - Time
-			units(temp2) <- "secs"
-			temp2 <- as.double(temp2)
-			print(paste(i,":",temp2))
+	} else {#get weather from Maurer et al. 2002	
+		for(i in seq_along(seq.tr)){
+			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[i],startYear=simstartyr, endYear=endyr)
+			if(!is.null(weatherData)){
+				data_blob <- dbW_weatherData_to_blob(weatherData)
+				years <- as.integer(names(weatherData))
+				StartYear <- head(years,n=1)
+				EndYear <- tail(years,n=1)
+				Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
+			} else {
+				print(paste("Moving daily weather data from Maurer et al. 2002 to database unsuccessful", i, Maurer[i]))
+			}
 		}
+		rm(Maurer)
 	}
 	dbW_disconnectConnection()
 }
@@ -75,33 +103,7 @@ if((length(Tables) == 0) || do.clean) {
 			con <- dbConnect(drv, dbname = name.OutputDB)
 			set_PRAGMAs(con)
 		}
-		
-		createOverallTable <- function(tablename, colnames) {
-			if(length(colnames) != 0) { #only create table if inputs are turned on
-				#Convert '.' to "_"
-				temp <- gsub(".", "_", colnames, fixed=TRUE)
-		
-				dbOverallColumns <- length(temp)
-		
-				temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
-	
-				sdString <- gsub("_mean", "_sd", temp)
-				meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",temp), collapse = ", ")
-				sdString <-paste(c("\"P_id\" INTEGER PRIMARY KEY",sdString), collapse = ", ")
-	
-				SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_",tablename,"_mean\" (", meanString, ");", sep="")
-				SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_",tablename,"_sd\" (", sdString, ");", sep="")
-		
-				rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-				dbClearResult(rs)
-				rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
-				dbClearResult(rs)
-			
-				return(list(mean=meanString,sd=sdString))
-			} else {
-				return(FALSE)
-			}
-		}
+
 
 	#A. Header Tables
 		
@@ -125,12 +127,23 @@ if((length(Tables) == 0) || do.clean) {
 				mapType(typeof(sw_input_treatments[,columnName]))
 			}
 		}
+		getSiteIds <- function(folderNames) {
+			temp <- integer(0)
+			for(i in 1:length(folderNames)) {
+				id <- dbGetQuery(con, paste("SELECT id FROM weatherfolders WHERE folder='",folderNames[i],"'",sep=""))$id
+				if(length(id) == 0 | is.null(id))
+					temp <- c(temp, NA)
+				else
+					temp <- c(temp, id)
+			}
+			return(temp)
+		}
 		######################
 	
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
-			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors=FALSE))
+			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=unique(SWRunInformation$WeatherFolder[seq.tr]),stringsAsFactors=FALSE))
 		} else {
 			if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
 		}
@@ -147,10 +160,11 @@ if((length(Tables) == 0) || do.clean) {
 	
 		sites_data<-data.frame(SWRunInformation[seq.tr,],row.names=NULL, check.rows=FALSE, check.names=FALSE, stringsAsFactors=FALSE)
 	
+		#Consider a faster way than this....
 		colnames(sites_data) <- site_columns
-		sites_data$WeatherFolder_id <- if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) 1:length(sites_data$site_id) else NA
+		sites_data$WeatherFolder_id <- getSiteIds(sites_data$WeatherFolder_id)
 		#This works fast
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, paste("INSERT INTO sites VALUES(NULL,",paste(":",site_columns,collapse=",",sep=""),")",sep=""), bind.data=sites_data)
 		dbCommit(con)
 	
@@ -167,7 +181,7 @@ if((length(Tables) == 0) || do.clean) {
 		##########Create table experimental_labels only if using experimentals
 		if(useExperimentals) {
 			dbGetQuery(con, "CREATE TABLE experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO experimental_labels VALUES(NULL, :label);", bind.data = data.frame(label=sw_input_experimentals[,1],stringsAsFactors=FALSE))
 			dbCommit(con)
 		}
@@ -196,16 +210,16 @@ if((length(Tables) == 0) || do.clean) {
 				#make a temp data.frame of a column NA's and a column of folder names
 				LookupWeatherFolder_index <- data.frame(id=rep(NA,length(treatments_lookupweatherfolders)), folder=treatments_lookupweatherfolders, stringsAsFactors = F)
 				#Get the id from sites table if the folder is in it
-				temp <- LookupWeatherFolder_index$folder %in% SWRunInformation$WeatherFolder[seq.tr]
-				LookupWeatherFolder_index$id[temp] <- sapply(which(temp), function(x) which(SWRunInformation$WeatherFolder[seq.tr] == LookupWeatherFolder_index$folder[x]))
+				LookupWeatherFolder_index$id <- getSiteIds(LookupWeatherFolder_index$folder)
 				#if there are any NA's we need to add those to the weatherfolder db table and update its id in our lookuptable for weatherfolder
 				if(any(is.na(LookupWeatherFolder_index$id))) {
 					#get max id from weatherfolders table
+					temp<-is.na(LookupWeatherFolder_index$id)
 					weatherfolders_index <- as.numeric(dbGetQuery(con,"SELECT MAX(id) FROM weatherfolders;"))+1
-					LookupWeatherFolder_index$id[!temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[!temp])-1)
+					LookupWeatherFolder_index$id[temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[temp])-1)
 					#Write those in
-					dbBeginTransaction(con)
-					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[!temp,])
+					dbBegin(con)
+					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[temp,])
 					dbCommit(con)
 				}
 			}
@@ -227,7 +241,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 		if(useTreatments) {
 			# we only need the columns that are turned on and not in experimentals. Experimentals over write. Only rows that are going to be used
-			db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)]])
+			db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)], drop=FALSE])
 			db_treatments_rows <- nrow(db_treatments)
 			#this maps locations from reduced
 			temp<-duplicated(df)
@@ -279,10 +293,13 @@ if((length(Tables) == 0) || do.clean) {
 		
 			#Finalize db_treatments_column_types
 			#remove YearStart or YearEnd
+			db_treatments_years <- NULL
 			if(any(db_treatments_column_types$column == "YearStart")) {
+				db_treatments_years <- rbind(db_treatments_years, db_treatments_column_types[which(db_treatments_column_types$column == "YearStart"),])
 				db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearStart"),]
 			}
 			if(any(db_treatments_column_types$column == "YearEnd")) {
+				db_treatments_years <- rbind(db_treatments_years, db_treatments_column_types[which(db_treatments_column_types$column == "YearEnd"),])
 				db_treatments_column_types <- db_treatments_column_types[-which(db_treatments_column_types$column == "YearEnd"),]
 			}
 		
@@ -292,14 +309,22 @@ if((length(Tables) == 0) || do.clean) {
 				useTreatmentWeatherFolder <- TRUE
 				db_treatments_column_types[which(db_treatments_column_types[,1] == "LookupWeatherFolder"),1:2] <- c("LookupWeatherFolder_id","INTEGER")
 				colnames(db_combined_exp_treatments)[-(1:2)] <- db_treatments_column_types[,1]
-				fk_LookupWeatherFolder <- "FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
+				fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
 			}
 			#Create the table
-			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals | fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",fk_LookupWeatherFolder,");", sep=""))
+			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals || fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",if(fk_LookupWeatherFolder != "") ", ",fk_LookupWeatherFolder,");", sep=""))
 		
 			#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
 			if(useTreatments) {
-				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments
+				i_start <- which(colnames(db_treatments) == "YearStart")
+				i_end <- which(colnames(db_treatments) == "YearEnd")
+				i_use <- 1:ncol(db_treatments)
+				if(length(i_start) > 0) i_use <- i_use[-i_start]
+				if(length(i_end) > 0) i_use <- i_use[-i_end]
+				db_combined_exp_treatments[,db_treatments_column_types[db_treatments_column_types[,3]==0,1]] <- db_treatments[, i_use]
+				#Handle StartYear and EndYear separately
+				if(length(i_start) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearStart"] <- db_treatments[, i_start]
+				if(length(i_end) > 0 && !is.null(db_treatments_years) && db_treatments_years[db_treatments_years$column == "YearEnd", "table"] == 0) db_combined_exp_treatments[, colnames(db_combined_exp_treatments) == "YearEnd"] <- db_treatments[, i_end]
 			}
 		
 			if(useExperimentals) {
@@ -322,18 +347,18 @@ if((length(Tables) == 0) || do.clean) {
 			simulation_years<-matrix(data=NA, nrow=nrow(db_combined_exp_treatments), ncol = 4, dimnames=list(NULL,c("id","simulationStartYear","StartYear","EndYear")))
 			#Get from treatments or get from settings
 			if(any(colnames(db_combined_exp_treatments) == "YearStart")) {
-				simulation_years$simulationStartYear <- db_combined_exp_treatments$YearStart
+				simulation_years[, "simulationStartYear"] <- db_combined_exp_treatments$YearStart
 				db_combined_exp_treatments <- db_combined_exp_treatments[,-which(colnames(db_combined_exp_treatments) == "YearStart")]
 			} else {
-				simulation_years$simulationStartYear <- simstartyr
+				simulation_years[, "simulationStartYear"] <- simstartyr
 			}
 			if(any(colnames(db_combined_exp_treatments) == "YearEnd")) {
-				simulation_years$EndYear <- db_combined_exp_treatments$YearEnd
+				simulation_years[, "EndYear"] <- db_combined_exp_treatments$YearEnd
 				db_combined_exp_treatments <- db_combined_exp_treatments[,-which(colnames(db_combined_exp_treatments) == "YearEnd")]
 			} else {
-				simulation_years$EndYear <- endyr
+				simulation_years[, "EndYear"] <- endyr
 			}
-			simulation_years$StartYear <- getStartYear(simulation_years$simulationStartYear)
+			simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"])
 		
 			unique_simulation_years <- unique(simulation_years)
 			#each row is unique so add id to db_combined
@@ -352,31 +377,31 @@ if((length(Tables) == 0) || do.clean) {
 				db_combined_exp_treatments$simulation_years_id <- sim_years_unique_map
 			}
 			#write to the database
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(unique_simulation_years))
 			dbCommit(con)
 		} else {#Treatment option for simulation Years is turned off. Get the default one from settings.
 			db_combined_exp_treatments$simulation_years_id <- 1
-			dbBeginTransaction(con)
+			dbBegin(con)
 			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(simulationStartYear=simstartyr, StartYear=startyr, EndYear=endyr))
 			dbCommit(con)
 		}
 	
 		#Insert the data into the treatments table
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, paste("INSERT INTO treatments VALUES(",paste(":",colnames(db_combined_exp_treatments),sep="",collapse=", "),")",sep=""), bind.data = db_combined_exp_treatments)
 		dbCommit(con)
 	
 		##############scenario_labels table###############
 		dbGetQuery(con, "CREATE TABLE scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		dbGetPreparedQuery(con, "INSERT INTO scenario_labels VALUES(NULL, :label);", bind.data = data.frame(label=climate.conditions,stringsAsFactors = FALSE))
 		dbCommit(con)
 		##################################################
 	
 		#############run_labels table#########################
 		dbGetQuery(con, "CREATE TABLE run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBeginTransaction(con)
+		dbBegin(con)
 		if(useExperimentals) {
 			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);", bind.data = data.frame(label=paste(formatC(seq.todo, width=ceiling(log10(runsN.todo + 1)), format = "d", flag="0"), rep(sw_input_experimentals[,1],each=runs), labels[seq.tr], sep="_"),stringsAsFactors = FALSE))
 		} else {
@@ -387,7 +412,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 	
 		#####################runs table###################
-		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY AUTOINCREMENT, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
+		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
 		db_runs <- data.frame(matrix(data=0, nrow=runsN.todo*scenario_No, ncol=5,dimnames=list(NULL,c("P_id","label_id","site_id","treatment_id","scenario_id"))))
 	
 		db_runs$P_id <- 1:nrow(db_runs)
@@ -416,15 +441,15 @@ if((length(Tables) == 0) || do.clean) {
 				db_runs$treatment_id <- 1
 			}
 		}
-		#dbWriteTable(con,name="runs",db_runs,append=TRUE)
-		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(NULL, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
-	
+		dbBegin(con)
+		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
+		dbCommit(con)
 		##################################################
 	
 		################CREATE VIEW########################
 		sites_columns <- colnames(SWRunInformation[Index_RunInformation])
 		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
-		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:ifelse(useExperimentals,3,2))]
+		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
 		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
 		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 		header_columns<-paste(header_columns,collapse = ", ")
@@ -436,7 +461,6 @@ if((length(Tables) == 0) || do.clean) {
 	
 		##############################################################---Aggregation: SoilWat inputs---##############################################################
 		## Note: All '.' will be translated to "_" because of sqlite field name constraints
-		OverallTables <- list() #Used to keep track of Overall Tables because they are split now
 		temp <- character(0)
 	#0.
 		if(aon$input_SoilProfile){
@@ -445,11 +469,11 @@ if((length(Tables) == 0) || do.clean) {
 
 	#1. 
 		if(aon$input_FractionVegetationComposition) {
-			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
+			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
 		}
 	#2.
 		if(aon$input_VegetationBiomassMonthly) {
-			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forb",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
+			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
 		}
 	#3. 
 		if(aon$input_VegetationPeak) {
@@ -486,7 +510,7 @@ if((length(Tables) == 0) || do.clean) {
 				ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
 			}
 
-			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree","Forb"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
+			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
 
 		}
 	
@@ -495,9 +519,6 @@ if((length(Tables) == 0) || do.clean) {
 			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 		}
 		
-		OverallTables[[1]] <- createOverallTable("Inputs",temp)
-		temp <- character(0)
-		#226
 		##############################################################---Aggregation: Climate and weather---##############################################################
 	
 	#7.
@@ -519,58 +540,61 @@ if((length(Tables) == 0) || do.clean) {
 		if(any(simulation_timescales=="daily") & aon$dailySnowpack){
 			temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean", sep=""))
 		}
-	#
+	#11
 		if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
 			temp <- c(temp, paste0("TminBelow", ifelse(Tmin_crit_C < 0, "Neg", ifelse(Tmin_crit_C > 0, "Pos", "")), abs(Tmin_crit_C), "degCwithoutSnowpack_days_mean"))
 		}
+	#12
 		if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
 			temp <- c(temp, paste0("TmaxAbove", ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "degC_days_mean"))
 		}
-	#11
+	#13
 		if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){
 			bins.summary <- (0:6) * bin.prcpSizes
 			temp <- c(temp, paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep=""))
 			rm(bins.summary)
 		}
 	
-	#12
+	#14
 		if(any(simulation_timescales=="yearly") & aon$yearlyAET){
 			temp <- c(temp, "AET_mm_mean")
 		}
 	
-	#13
+	#15
 		if(any(simulation_timescales=="yearly") & aon$yearlyPET){
 			temp <- c(temp, "PET_mm_mean")
 		}
 	
-	#14
+	#16
 		if(any(simulation_timescales=="monthly") & aon$monthlySeasonalityIndices){
 			temp <- c(temp, paste("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean", sep=""))
 		}
-	
-	#15
+
+
+				#---Aggregation: Climatic dryness	
+	#17
 		if(any(simulation_timescales=="yearly") & any(simulation_timescales=="monthly") & aon$yearlymonthlyTemperateDrylandIndices){
 			temp <- c(temp, paste(c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".Normals", sep=""), paste(temp, ".Annual", sep="")), rep(c("_none", "_TF", "_TF"), times=2), "_mean", sep=""))
 		}
 	
-	#16
+	#18
 		if(any(simulation_timescales=="yearly") & aon$yearlyDryWetPeriods){
 			temp <- c(temp, paste(c("Dry", "Wet"), "SpellDuration.90PercentEvents.ShorterThan_years_quantile0.9", sep=""))
 		}
 	
-	#17
+	#19
 		if(any(simulation_timescales=="daily") & aon$dailyWeatherGeneratorCharacteristics){
 			temp <- c(temp, paste(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each=12), ".m", st_mo, rep(c("_days", "_days", "_C"), each=12), "_mean", sep=""))
 		}
 	
-	#18
+	#20
 		if(any(simulation_timescales=="daily") & aon$dailyPrecipitationFreeEventDistribution){
 			bins.summary <- (0:3) * bin.prcpfreeDurations
 			temp <- c(temp, paste("DrySpells.Annual", c("_count", paste(".SizeClass", bins.summary+1, "to", c(bins.summary[-1], "365"), "days_fraction", sep="")), "_mean", sep=""))
 			rm(bins.summary)
 		}
 	
-	#19
+	#21
 		if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
 			binSPEI_m <- c(1, 12, 24, 48) #months
 			probs <- c(0.025, 0.5, 0.975)
@@ -582,105 +606,114 @@ if((length(Tables) == 0) || do.clean) {
 			rm(binSPEI_m, probs)
 		}
 	
-	#20
+	#---Aggregation: Climatic control
+	#22
 		if(any(simulation_timescales=="monthly") & aon$monthlyPlantGrowthControls){
 			temp <- c(temp, paste("NemaniEtAl2003.NPPControl.", c("Temperature", "Water", "Radiation"), "_none_mean", sep=""))
 		}
 	
-	#21
+	#23
 		if(any(simulation_timescales=="daily") & aon$dailyC4_TempVar){
 			temp <- c(temp, paste("TeeriEtAl1976.NSadj.", c("TempAirMin.7thMonth_C", "FreezeFreeGrowingPeriod_days", "AccumDegreeDaysAbove65F_daysC"), "_mean", sep=""))
 		}
 	
-	#22
+	#24
 		if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){
 			temp <- c(temp, paste("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays_mean", sep=""))
 		}
-		OverallTables[[2]] <- createOverallTable("ClimateAndweather",temp)
-		temp <- character(0)
-		#127
+	#25
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "MoistureControlSection_Lower_cm", "AnhydrousControlSection_Upper_cm", "AnhydrousControlSection_Lower_cm", "Permafrost_TF"),
+							paste0(c(c("SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
+							c("T50Above5C_AtLeast1DayIn1NormalYear_TF", "ACS_HalfDry_HalfTime_Above0C_proportion", "MCS_AllDry_T50Above5C_proportion", "MCS_PartWet_T50Above5C_proportion", "MCS_PartDry_days", "MCS_PartMoist_days", "MCS_PartMoist_ConsecutiveMaxDuration_days", "MCS_PartMoist_T50Above8C_ConsecutiveMaxDuration_days", "MCS_AllMoist_ConsecutiveMaxDuration_Dec21Apr21_days", "MCS_AllDry_ConsecutiveMaxDuration_Jun21Oct21_days")), "_mean"),
+							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
+							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
+		}	
+	#26	
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
+			temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
+			rm(cats)
+		}
+
 		##############################################################---Aggregation: Yearly water balance---##############################################################
 	
-	#23
+	#27
 		if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
 			temp <- c(temp, paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
 									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
 		}
-		OverallTables[[3]] <- createOverallTable("YearlyWaterBalance",temp)
-		temp <- character(0)
-		#27
+
 		##############################################################---Aggregation: Daily extreme values---##############################################################
-	
-	#24
+	#28
 		if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
 			temp <- c(temp, paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
 		}
 	
-	#25
+	#29
 		if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
 			temp <- c(temp, paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
 		}
 	
-	#26
+	#30
 		if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
 			temp <- c(temp, paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
 		}
 	
-	#27
+	#31
 		if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
 			temp <- c(temp, paste("Infiltration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Infiltration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
 		}
 	
-	#28
+	#32
 		if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {
 			temp <- c(temp, paste("AET.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("AET.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
 		}
 	
-	#29
+	#33
 		if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
 			temp <- c(temp, paste(paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_MPa_mean", "_doy_mean"), each=4), sep=""))
 		}
+	#34
 		if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
 			temp <- c(temp, paste(paste("RelRecharge.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_Fraction_mean", "_doy_mean"), each=4), sep=""))
 		}
-		
-		OverallTables[[4]] <- createOverallTable("DailyExtremeValues",temp)
-		temp <- character(0)
-		#27
+
+
 		##############################################################---Aggregation: Ecological dryness---##############################################################
 	
-	#30
+	#35
 		if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){
 			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
 		}
 	
-	#31
+	#36
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){
 			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""), 
 					paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep=""))
 		}
 	
-	#32
+	#37
 		if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){
 			temp <- c(temp, paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)), 
 							rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each=4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each=2), times=2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times=2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times=2)), "_mean", sep=""))
 		}
 	
-	#33
+	#38
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
 			quantiles <- c(0.05, 0.5, 0.95)
 			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
 			rm(quantiles)
 		}
-
+	#39
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
 			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), "_AvailableWater_mm_mean", sep=""))
 		}
-				
+	#40
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDrySpells){
 			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
 		}
-				
+	#41
 		if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){
 			deciles <- (0:10)*10/100
 			quantiles <- (0:4)/4
@@ -694,7 +727,7 @@ if((length(Tables) == 0) || do.clean) {
 			rm(deciles, quantiles, mo_seasons, season.flag)
 		}
 	
-	#34
+	#42
 		if(any(simulation_timescales=="daily") && aon$dailySWPdrynessEventSizeDistribution) {
 			binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
 			binsN <- length(binSize) - 1
@@ -705,116 +738,113 @@ if((length(Tables) == 0) || do.clean) {
 			rm(binSize, binsN, binTitle)
 		}
 	
-	#35
+	#43
 		if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity) {
 			for(icrit in seq(along=SWPcrit_MPa)){
 				temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".MissingWater.", rep(c("topLayers", "bottomLayers"), each=4), ".", rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times=2), "_mean", sep=""))
 			}
 		}
-		
-		OverallTables[[5]] <- createOverallTable("EcologicalDryness",temp)
-		temp <- character(0)
-		#340
+
 		##############################################################---Aggregation: Mean monthly values---##############################################################
 	
-	#36
+	#44
 		if(any(simulation_timescales=="monthly") & aon$monthlyTemp){
 			temp <- c(temp, paste("TempAir.m", st_mo, "_C_mean", sep=""))
 		}
 	
-	#37
+	#45
 		if(any(simulation_timescales=="monthly") & aon$monthlyPPT){
 			temp <- c(temp, paste("Precip.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#38
+	#46
 		if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
 			temp <- c(temp, paste("Snowpack.m", st_mo, "_mmSWE_mean", sep=""))
 		}
 	
-	#39
+	#47
 		if(any(simulation_timescales == "monthly") & aon$monthlySoilTemp) {
 			temp <- c(temp, paste("TempSoil.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_C_mean", sep=""))
 		}
 	
-	#40
+	#48
 		if(any(simulation_timescales=="monthly") & aon$monthlyRunoff){
 			temp <- c(temp, paste("Runoff.Total.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#41
+	#49
 		if(any(simulation_timescales=="monthly") & aon$monthlyHydraulicRedistribution){
 			temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#42
+	#50
 		if(any(simulation_timescales=="monthly") & aon$monthlyInfiltration){
 			temp <- c(temp, paste("Infiltration.m", st_mo, "_mm_mean", sep=""))
 		}
+
+	#51
 		if(any(simulation_timescales=="monthly") & aon$monthlyDeepDrainage){
 			temp <- c(temp, paste("DeepDrainage.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#43
+	#52
 		if(any(simulation_timescales=="monthly") & aon$monthlySWP){
 			temp <- c(temp, paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
 		}
 	
-	#44
+	#53
 		if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
 			temp <- c(temp, paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
 		}
 	
-	#45
+	#54
 		if(any(simulation_timescales=="monthly") & aon$monthlySWC){
 			temp <- c(temp, paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#46
+	#55
 		if(any(simulation_timescales=="monthly") & aon$monthlySWA){
 			temp <- c(temp, paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#47
+	#56
 		if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
 			temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#48
+	#57
 		if(any(simulation_timescales=="monthly") & aon$monthlySoilEvaporation){
 			temp <- c(temp, paste("Evaporation.Soil.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#49
+	#58
 		if(any(simulation_timescales=="monthly") & aon$monthlyAET){
 			temp <- c(temp, paste("AET.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#50
+	#59
 		if(any(simulation_timescales=="monthly") & aon$monthlyPET){
 			temp <- c(temp, paste("PET.m", st_mo, "_mm_mean", sep=""))
 		}
 	
-	#51
+	#60
 		if(any(simulation_timescales=="monthly") & aon$monthlyAETratios){
 			temp <- c(temp, paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), st_mo, "_fraction_mean", sep=""))
 		}
 	
-	#52
+	#61
 		if(any(simulation_timescales=="monthly") & aon$monthlyPETratios){
 			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), st_mo, "_fraction_mean", sep=""))
 		}
-		OverallTables[[6]] <- createOverallTable("MeanMonthlyValues",temp)
-		temp <- character(0)
-		#312
+
 		##############################################################---Aggregation: Potential regeneration---##############################################################
 	
-	#53
+	#62
 		if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_bySWPSnow) {
 			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction_mean")
 		}
 	
-	#54
+	#63
 		if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
 			for(sp in 1:no.species_regeneration){
 				SeedlingMortality_CausesByYear_colnames <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
@@ -834,7 +864,26 @@ if((length(Tables) == 0) || do.clean) {
 			}
 		}
 	
+		#---Aggregation: done with options
+	
+		#Convert '.' to "_"
+		temp <- gsub(".", "_", temp, fixed=TRUE)
 		
+		dbOverallColumns <- length(temp)
+	
+		temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
+	
+		sdString <- gsub("_mean", "_sd", temp)
+		meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",temp), collapse = ", ")
+		sdString <-paste(c("\"P_id\" INTEGER PRIMARY KEY",sdString), collapse = ", ")
+	
+		SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_mean\" (", meanString, ");", sep="")
+		SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_sd\" (", sdString, ");", sep="")
+		
+		rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+		dbClearResult(rs)
+		rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
+		dbClearResult(rs)
 	
 		if(!is.null(output_aggregate_daily)) {
 			doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
@@ -875,20 +924,19 @@ if((length(Tables) == 0) || do.clean) {
 			}
 		}
 
-		OverallTables[[7]] <- createOverallTable("PotentialRegeneration",temp)
-		temp <- character(0)
 		
 		##########################################ENSEMBLE GENERATION#################################################
 		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
 		if(do.ensembles){
 	
 			Tables<-dbListTables(con)
+			dbDisconnect(con)
 			Tables<-Tables[!(Tables %in% headerTables)]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
-			Tables <- sub(pattern="_Mean$",replacement="",x=Tables,ignore.case = T)
-			respNames<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
-			respNames<-sub(pattern="doy_",replacement="",x=respNames,ignore.case = T)
-			respNames<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respNames)
+			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
+			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
+			respName<-sub(pattern="doy_",replacement="",x=respName,ignore.case = T)
+			respName<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respName)
 	
 			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
 			for(i in seq_along(dbEnsemblesFilePaths)) {
@@ -904,14 +952,12 @@ if((length(Tables) == 0) || do.clean) {
 				for(j in seq_along(ensemble.families)) {
 					for(k in seq_along(ensemble.levels)) {
 						EnsembleFamilyLevelTables<-paste(ensemble.families[j],"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
-						if(grepl(patter="overall",respNames[i],ignore.case=TRUE)) {
-							respName<-sub(pattern="overall_",replacement="",x=respNames[i],ignore.case = T)
-							nidx <- switch(respName, "Inputs"=1, "ClimateAndweather"=2, "YearlyWaterBalance"=3, "DailyExtremeValues"=4, "EcologicalDryness"=5, "MeanMonthlyValues"=6, "PotentialRegeneration"=7)
-							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", OverallTables[[nidx]][[1]], ");", sep=""))
-							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", OverallTables[[nidx]][[2]], ");", sep=""))
-							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=OverallTables[[nidx]][[1]]), ");", sep=""))
+						if(grepl(patter="overall",respName[i],ignore.case=TRUE)) {
+							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", meanString, ");", sep=""))
+							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
+							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
 						} else {
-							agg.analysis <- switch(EXPR=respNames[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 							if(agg.analysis == 1){
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
@@ -926,8 +972,10 @@ if((length(Tables) == 0) || do.clean) {
 				}
 				dbDisconnect(con)
 			}
+		} else {
+			dbDisconnect(con)
 		}
-		return(1)
+		return(dbOverallColumns)
 	}
 	
 	dbOverallColumns <- try(.local(), silent=TRUE)
