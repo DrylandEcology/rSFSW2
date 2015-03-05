@@ -79,7 +79,7 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat,quietly = TRUE) || (require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") < minVersionRsoilwat)) {
+if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
 	print("Going to try to install Rsoilwat library")
 	installed <- FALSE
 	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
@@ -96,7 +96,7 @@ if(!require(Rsoilwat,quietly = TRUE) || (require(Rsoilwat,quietly = TRUE) && pac
 		installed <- is.null(installed)
 	}
 	if(!installed) stop("Could not install package Rsoilwat please contact admin.")
-	stopifnot(require(Rsoilwat,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
+	stopifnot(require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
 }
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
@@ -279,7 +279,7 @@ if (actionWithSoilWat || any(actions == "external")) {
 	if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
 	if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
 	if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "AdjRootProfile")){
+	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
 		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
 		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
 		tr_input_TranspCoeff <- read.csv(temp, skip=2)
@@ -317,6 +317,7 @@ if(length(temp) > 0){
 }
 climate.conditions <- c(climate.ambient, temp)
 scenario_No <- length(climate.conditions)
+scenario <- climate.conditions
 
 #------create ensembles
 if(length(ensemble.levels) > 0) ensemble.levels <- sort(ensemble.levels)
@@ -1390,7 +1391,7 @@ if(any(actions == "create")){
 		}
 	}
 	
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "AdjRootProfile"))
+	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile"))
 	{
 		#lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'
 		#first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
@@ -1884,6 +1885,24 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				}
 			}
 		}
+		if(any(create_treatments == "LookupTranspCoeffFromTable_Forb")){
+			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb)) print("LookupTranspCoeffFromTable_Forb for this run cannot be NA.")
+			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Forb name for this run are not in tr_input_TranspCoeff table column names.")
+			if(temp || temp1) {
+				tasks$create <- 0
+			} else {
+				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Forb"], layers_depth=layers_depth, adjustType="inverse")
+				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){				
+					i.temp <- grepl(pattern=paste("Forb", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
+					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
+					#add data to sw_input_soils
+					i_sw_input_soils[i.temp][1:length(trco)] <- trco
+				} else {
+					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Forb.")
+					tasks$create <- 0
+				}
+			}
+		}
 		
 		#the monthly ppt-shifts are extracted, but written to the weathersetup input file only at the end of the create section 'copy and make climate scenarios from datafiles', because they are multiplied with any climate change factors
 		ppt_scShift <- rep(1, times=12)
@@ -1948,22 +1967,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(sum(sw_input_prod_use[-1]) > 0){
 			#composition
 			if(sum(use_comp <- unlist(sw_input_prod_use[grepl(pattern="Composition", x=names(sw_input_prod_use))])) > 0) {
-				comp.datfile <- with(i_sw_input_prod, data.frame(Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction))
+				comp.datfile <- with(i_sw_input_prod, data.frame(Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction, Composition_ForbFraction, Composition_BareGround))
 				swProd_Composition(swRunScenariosData[[1]])[use_comp] <- comp.datfile[use_comp]
 			}
 			#albedo
 			if(sum(use_albedo <- unlist(sw_input_prod_use[grepl(pattern="Albedo", x=names(sw_input_prod_use))])) > 0) {
-				albedo.datfile <- with(i_sw_input_prod, data.frame(Grass_Albedo, Shrub_Albedo, Tree_Albedo))
+				albedo.datfile <- with(i_sw_input_prod, data.frame(Grass_Albedo, Shrub_Albedo, Tree_Albedo, Forb_Albedo, BareGround_Albedo))
 				swProd_Albedo(swRunScenariosData[[1]])[use_albedo] <- albedo.datfile[use_albedo]
 			}
 			#constant canopy height
 			if(sum(use_height <- unlist(sw_input_prod_use[grepl(pattern="CanopyHeight_Constant", x=names(sw_input_prod_use))])) > 0) {
-				height.datfile <- with(i_sw_input_prod, data.frame(Grass_CanopyHeight_Constant_cm, Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm))
+				height.datfile <- with(i_sw_input_prod, data.frame(Grass_CanopyHeight_Constant_cm, Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,Forb_CanopyHeight_Constant_cm))
 				swProd_CanopyHeight(swRunScenariosData[[1]])[5,][use_height] <- height.datfile[use_height]
 			}
 			#flag for hydraulic redistribution
 			if(sum(use_HD <- unlist(sw_input_prod_use[grepl(pattern="HydRed", x=names(sw_input_prod_use))])) > 0) {
-				HD.datfile <- with(i_sw_input_prod, data.frame(Grass_HydRed_OnOff, Shrub_HydRed_OnOff, Tree_HydRed_OnOff))
+				HD.datfile <- with(i_sw_input_prod, data.frame(Grass_HydRed_OnOff, Shrub_HydRed_OnOff, Tree_HydRed_OnOff, Forb_HydRed_OnOff))
 				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_HD] <- as.logical(HD.datfile[use_HD])
 			}
 			#biomass components TODO Check This
@@ -1984,6 +2003,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							swProd_MonProd_shrub(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
 						if(FunctGroup=="Tree")
 							swProd_MonProd_tree(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						if(FunctGroup=="Forb")
+							swProd_MonProd_forb(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
 					}
 				}
 				if(FunctGroup=="Grass")
@@ -1992,10 +2013,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					return(swProd_MonProd_shrub(swRunScenariosData[[1]]))
 				if(FunctGroup=="Tree")
 					return(swProd_MonProd_tree(swRunScenariosData[[1]]))
+				if(FunctGroup="Forb")
+					return(swProd_MonProd_forb(swRunScenariosData[[1]]))
 			}
 			swProd_MonProd_grass(swRunScenariosData[[1]]) <- biomassComponents(FunctGroup="Grass")
 			swProd_MonProd_shrub(swRunScenariosData[[1]]) <- biomassComponents(FunctGroup="Shrub")
 			swProd_MonProd_tree(swRunScenariosData[[1]])  <- biomassComponents(FunctGroup="Tree")
+			swProd_MonProd_forb(swRunScenariosData[[1]])  <- biomassComponents(FunctGroup="Forb")
 		}
 		#Moved adjust to southern Hemi
 		
@@ -2017,6 +2041,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#replace if in treatment file
 			if(sw_input_site_use$Param_UnsaturatedPercolation){
 				swSite_DrainageCoefficient(swRunScenariosData[[1]]) <- i_sw_input_site$Param_UnsaturatedPercolation
+			}
+			if(sw_input_site_use$Latitude) {
+				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_sw_input_site$Latitude
+			}
+			if(sw_input_site_use$Altitude) {
+				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_sw_input_site$Altitude
 			}
 			if(sw_input_site_use$Slope){
 				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[3] <- i_sw_input_site$Slope
@@ -2044,7 +2074,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		}
 		if(sum(sw_input_soils_use[-1] + ifelse(done.Imperm_L1, -1, 0)) - sum(use_transpregion <- as.numeric(sw_input_soils_use[paste("TranspRegion_L", ld, sep="")])) > 0){
 			tempdat <- matrix(data=NA, nrow=SoilLayer_MaxNo, ncol=12)
-			colnames(tempdat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")
+			colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
 			
 			#recalculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
 			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
@@ -2054,7 +2084,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			if(identical(layers_depth.datafile, layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
 				#soil texture data from SoilWat input file
 				tempdat <- swSoils_Layers(swRunScenariosData[[1]])
-				colnames(tempdat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")#names might be diff
+				colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")#names might be diff
 				mergeDatafileWithSoilsin <- TRUE
 				
 			} else { #different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
@@ -2069,13 +2099,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 
 			#flags for use of texture data from datafile
-			use_bulkd <- as.numeric(sw_input_soils_use[paste("BD_L", ld, sep="")])
-			use_fieldc <- as.numeric(sw_input_soils_use[paste("FieldC_L", ld, sep="")])
-			use_pwp <- as.numeric(sw_input_soils_use[paste("WiltP_L", ld, sep="")])
+			use_matricd <- as.numeric(sw_input_soils_use[paste("Matricd_L", ld, sep="")])
+			use_gravelC <- as.numeric(sw_input_soils_use[paste("GravelContent_L", ld, sep="")])
+			#use_pwp <- as.numeric(sw_input_soils_use[paste("WiltP_L", ld, sep="")])
 			sum_use_evco <- sum(sw_input_soils_use[paste("EvapCoeff_L", ld, sep="")])
 			sum_use_trco_grass <- sum(sw_input_soils_use[paste("Grass_TranspCoeff_L", ld, sep="")])
 			sum_use_trco_shrub <- sum(sw_input_soils_use[paste("Shrub_TranspCoeff_L", ld, sep="")])
 			sum_use_trco_tree <- sum(sw_input_soils_use[paste("Tree_TranspCoeff_L", ld, sep="")])
+			sum_use_trco_forb <- sum(sw_input_soils_use[paste("Forb_TranspCoeff_L", ld, sep="")])
 			use_sand <- as.numeric(sw_input_soils_use[paste("Sand_L", ld, sep="")])
 			use_clay <- as.numeric(sw_input_soils_use[paste("Clay_L", ld, sep="")])
 			use_imperm <- as.numeric(sw_input_soils_use[paste("Imperm_L", ld, sep="")])
@@ -2088,26 +2119,28 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			trco_grass <- as.numeric(i_sw_input_soils[paste("Grass_TranspCoeff_L", ld, sep="")])
 			trco_shrub <- as.numeric(i_sw_input_soils[paste("Shrub_TranspCoeff_L", ld, sep="")])
 			trco_tree <- as.numeric(i_sw_input_soils[paste("Tree_TranspCoeff_L", ld, sep="")])
+			trco_forb <- as.numeric(i_sw_input_soils[paste("Forb_TranspCoeff_L", ld, sep="")])
 			
 			#normalize transpiration and evaporation coefficients from datafile
 			if(sum_use_evco) evco <- evco / ifelse((temp <- sum(evco, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 			if(sum_use_trco_grass) trco_grass <- trco_grass / ifelse((temp <- sum(trco_grass, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 			if(sum_use_trco_shrub) trco_shrub <- trco_shrub / ifelse((temp <- sum(trco_shrub, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 			if(sum_use_trco_tree) trco_tree <- trco_tree / ifelse((temp <- sum(trco_tree, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+			if(sum_use_trco_forb) trco_forb <- trco_forb / ifelse((temp <- sum(trco_forb, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 			
 			#compile soil information from both sources
 			#changed ncol to 12, and added "soil_temp" to colnames...
 			soildat <- matrix(data=NA, nrow=d, ncol=12)
-			colnames(soildat) <- c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")
+			colnames(soildat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
 			for (l in ld){
 				soildat[l, ] <- c(	layers_depth.datafile[l],
-						ifelse(use_bulkd[l], as.numeric(i_sw_input_soils[paste("BD_L", l, sep="")]), tempdat[l, "bulkd"]),
-						ifelse(use_fieldc[l], as.numeric(i_sw_input_soils[paste("FieldC_L", l, sep="")]), tempdat[l, "fieldc"]),
-						ifelse(use_pwp[l], as.numeric(i_sw_input_soils[paste("WiltP_L", l, sep="")]), tempdat[l, "wiltp"]),
+						ifelse(use_matricd[l], as.numeric(i_sw_input_soils[paste("Matricd_L", l, sep="")]), tempdat[l, "bulkd"]),
+						ifelse(use_gravelC[l], as.numeric(i_sw_input_soils[paste("GravelContent_L", l, sep="")]), tempdat[l, "fieldc"]),
 						ifelse(!is.na(temp <- ifelse(sum_use_evco, evco[l], tempdat[l, "evco"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_grass, trco_grass[l], tempdat[l, "trco_grass"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_shrub, trco_shrub[l], tempdat[l, "trco_shrub"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_tree, trco_tree[l], tempdat[l, "trco_tree"])), temp, 0),
+						ifelse(!is.na(temp <- ifelse(sum_use_trco_forb, trco_forb[l], tempdat[l, "trco_forb"])), temp, 0),
 						ifelse(use_sand[l], as.numeric(i_sw_input_soils[paste("Sand_L", l, sep="")]), tempdat[l, "sand"]),
 						ifelse(use_clay[l], as.numeric(i_sw_input_soils[paste("Clay_L", l, sep="")]), tempdat[l, "clay"]),
 						ifelse(!is.na(temp <- ifelse(use_imperm[l], as.numeric(i_sw_input_soils[paste("Imperm_L", l, sep="")]), tempdat[l, "imperm"])), temp, 0),
@@ -2117,7 +2150,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								
 			if(adjust.soilDepth){#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
 				for(temp in d:1){
-					if(all(!is.na(soildat[temp, "bulkd"]), soildat[temp, "bulkd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
+					#TODO: bulkd to matricd?
+					if(all(!is.na(soildat[temp, "matricd"]), soildat[temp, "matricd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
 				}
 				if(d != temp){
 					d <- temp	
@@ -2133,7 +2167,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			
 			# Resize swSoils Layers to proper size
 			if(length(ld)==1) {
-				swSoils_Layers(swRunScenariosData[[1]]) <- matrix(data=swSoils_Layers(swRunScenariosData[[1]])[ld,], nrow=length(ld), ncol=12, byrow=TRUE, dimnames=list(numeric(),c("depth", "bulkd", "fieldc", "wiltp", "evco", "trco_grass", "trco_shrub", "trco_tree", "sand", "clay", "imperm", "soiltemp")))
+				swSoils_Layers(swRunScenariosData[[1]]) <- matrix(data=swSoils_Layers(swRunScenariosData[[1]])[ld,], nrow=length(ld), ncol=12, byrow=TRUE, dimnames=list(numeric(),c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")))
 			} else {
 				if(nrow(swSoils_Layers(swRunScenariosData[[1]])) != d) {
 					if(nrow(swSoils_Layers(swRunScenariosData[[1]])) > d) {
@@ -2145,12 +2179,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			this_soil <- soildat[1, ]
 			for (l in ld){
-				missingtext <- ifelse(soildat[l, "bulkd"] > 0 & soildat[l, "fieldc"] > 0 & soildat[l, "wiltp"] > 0 & soildat[l, "sand"] > 0 & soildat[l, "clay"] > 0,"", paste("Layer ",l,": soil data missing for this layer -> data used from previous layer */",sep=""))
+				missingtext <- ifelse(soildat[l, "matricd"] > 0 & soildat[l, "gravelContent"] > 0 & soildat[l, "sand"] > 0 & soildat[l, "clay"] > 0,"", paste("Layer ",l,": soil data missing for this layer -> data used from previous layer */",sep=""))
 				if(nchar(missingtext)==0){
 					this_soil <- soildat[l, ]
 				} else {
 					swLog_setLine(swRunScenariosData[[1]]) <- missingtext
-					this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
+					this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
 			}
@@ -2523,7 +2557,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				C3_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction
 				use_Shrubs_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction")
 				Shrubs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
+				use_bareGround_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction")
+				bareGround_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction
 				
+				#TODO: Include forbs or bareground in PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
 				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(dir.sw.runs, paste("Rsoilwat_composition_",i,"_",sc,sep="")))
 				temp <- try(PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 						use_Annuals_Fraction, Annuals_Fraction,
@@ -2558,8 +2595,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				trco_type_C4 <- ifelse(any(create_treatments == "RootProfile_C4") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C4), i_sw_input_treatments$RootProfile_C4, "SchenkJackson2003_PCdry_grasses")
 				trco_type_annuals <- ifelse(any(create_treatments == "RootProfile_Annuals") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Annuals), i_sw_input_treatments$RootProfile_Annuals, "Jacksonetal1996_crops")
 				trco_type_shrubs <- ifelse(any(create_treatments == "RootProfile_Shrubs") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Shrubs), i_sw_input_treatments$RootProfile_Shrubs, "SchenkJackson2003_PCdry_shrubs")
+				tro_type_forb <- ifelse(any(create_treatments == "RootProfile_Forbs") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Forbs), i_sw_input_treatments$RootProfile_Forbs, "SchenkJackson2003_PCdry_forbs")
 				tro_type_tree <- ifelse(any(create_treatments == "LookupTranspCoeffFromTable_Tree") && is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree), i_sw_input_treatments$LookupTranspCoeffFromTable_Tree, "FILL")
-				
+				#TODO: Adjust trco_type_forb?
+	
 				if(grass.fraction==0) { #if grass.fraction is 0 then Grass.trco will be 0
 					Grass.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type="FILL", layers_depth=layers_depth, adjustType="positive")
 				} else {
@@ -2572,9 +2611,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				
 				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth, adjustType="inverse")
 				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth, adjustType="inverse")
-				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Grass.trco
-				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Shrub.trco
-				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Tree.trco
+				Forb.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_forb, layers_depth=layers_depth, adjustType="inverse")
+				swSoils_Layers(swRunScenariosData[[sc]])[,5] <- Grass.trco
+				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Shrub.trco
+				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Tree.trco
+				swSoils_Layers(swRunScenariosData[[sc]])[,8] <- Forb.trco
 				
 				TRCO_done <- TRUE			
 			}
@@ -2583,7 +2624,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			Grass_Scaling_use <- c("Grass_TotalBiomass_ScalingFactor", "Grass_LiveBiomass_ScalingFactor", "Grass_Litter_ScalingFactor")
 			Shrub_Scaling_use <- c("Shrub_TotalBiomass_ScalingFactor", "Shrub_LiveBiomass_ScalingFactor", "Shrub_Litter_ScalingFactor")
 			Tree_Scaling_use <- c("Tree_TotalBiomass_ScalingFactor", "Tree_LiveBiomass_ScalingFactor", "Tree_Litter_ScalingFactor")
-			if(any(create_treatments %in% c(Grass_Scaling_use, Shrub_Scaling_use, Tree_Scaling_use))){
+			Forb_Scaling_use <- c("Forb_TotalBiomass_ScalingFactor", "Forb_LiveBiomass_ScalingFactor", "Forb_Litter_ScalingFactor")
+			if(any(create_treatments %in% c(Grass_Scaling_use, Shrub_Scaling_use, Tree_Scaling_use, Forb_Scaling_use))){
 				finite01 <- function(x) {x[x < 0 | is.na(x)] <- 0; x[x > 1] <- 1; return(x)}
 			
 				grass_LitterTotalLiveScalingFactors <- rep(1, 3)
@@ -2610,6 +2652,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(any(create_treatments == "Tree_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor))
 					tree_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor
 				
+				forb_LitterTotalLiveScalingFactors <- rep(1, 3)
+				if(any(create_treatments == "Forb_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_Litter_ScalingFactor))
+					forb_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Forb_Litter_ScalingFactor
+				if(any(create_treatments == "Forb_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_TotalBiomass_ScalingFactor))
+					forb_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Forb_TotalBiomass_ScalingFactor
+				if(any(create_treatments == "Forb_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_LiveBiomass_ScalingFactor))
+					forb_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Forb_LiveBiomass_ScalingFactor
+				
 				ScalingSeason <- i_sw_input_treatments$Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing
 				if(is.na(ScalingSeason) || !any(c("All", "Growing", "Nongrowing") == ScalingSeason)) #set to All for default
 					ScalingSeason <- "All"
@@ -2620,10 +2670,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
 							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
 							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
+							swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", forb_LitterTotalLiveScalingFactors)
 						} else if(templength==1) {
 							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*grass_LitterTotalLiveScalingFactors
 							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*shrub_LitterTotalLiveScalingFactors
 							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*tree_LitterTotalLiveScalingFactors
+							swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <-swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
 						} else {
 							print("To Cold to do Vegetation Scaling Season for Growing")
 						}
@@ -2632,10 +2684,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
 							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
 							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
+							swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3], MARGIN=2, FUN="*", forb_LitterTotalLiveScalingFactors)
 						} else if (templength==1) {
 							swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_grass(swRunScenariosData[[sc]])[temp,1:3]*grass_LitterTotalLiveScalingFactors
 							swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp,1:3]*shrub_LitterTotalLiveScalingFactors
 							swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_tree(swRunScenariosData[[sc]])[temp,1:3]*tree_LitterTotalLiveScalingFactors
+							swProd_MonProd_forb(swRunScenariosData[[sc]])[temp,1:3]<-swProd_MonProd_forb(swRunScenariosData[[sc]])[temp,1:3]*forb_LitterTotalLiveScalingFactors
 						} else {
 							print("To Hot to do Vegetation Scaling Season for NonGrowing")
 						}
@@ -2644,10 +2698,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", grass_LitterTotalLiveScalingFactors)
 					swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", shrub_LitterTotalLiveScalingFactors)
 					swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", tree_LitterTotalLiveScalingFactors)
+					swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3] <- sweep(swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3], MARGIN=2, FUN="*", forb_LitterTotalLiveScalingFactors)
 				}
 				swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
 				swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
 				swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+				swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- finite01(swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
 			}			
 			
 			if(any(create_treatments == "Vegetation_Height_ScalingFactor")) {
@@ -2663,6 +2719,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- rbind(swProd_MonProd_grass(swRunScenariosData[[sc]])[7:12,], swProd_MonProd_grass(swRunScenariosData[[sc]])[1:6,])
 				swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rbind(swProd_MonProd_shrub(swRunScenariosData[[sc]])[7:12,], swProd_MonProd_shrub(swRunScenariosData[[sc]])[1:6,])
 				swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- rbind(swProd_MonProd_tree(swRunScenariosData[[sc]])[7:12,], swProd_MonProd_tree(swRunScenariosData[[sc]])[1:6,])
+				swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- rbind(swProd_MonProd_forb(swRunScenariosData[[sc]])[7:12,], swProd_MonProd_forb(swRunScenariosData[[sc]])[1:6,])
 			}
 
 			#--control transpiration regions for adjusted soil depth and rooting depth
@@ -2824,19 +2881,19 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		get_Response_aggL <- function(sc_i, response, tscale=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler=10, FUN, weights=NULL){
 			FUN <- match.fun(FUN)
 			tscale <- match.arg(tscale, choices=c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"))
-			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, grasses
-				responseRepeats <- 4
+			if(response %in% c(sw_transp, sw_hd)){#divide by 4, because: each soil layer (cm): total, trees, shrubs, forbs, grasses
+				responseRepeats <- 5
 			} else { #c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
 				responseRepeats <- 1
 			}
 
 			if((tscale == "dy") || (tscale == "dyAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[4]]
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Day")
 			if((tscale == "mo") || (tscale == "moAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[2]]
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Month")
 			if((tscale == "yr") || (tscale == "yrAll"))
-				temp1 <- scaler * runData[[sc_i]][[response]][[1]]
-	
+				temp1 <- scaler * slot(slot(runData[[sc_i]],response),"Year")
+			
 			if(inherits(temp1, "try-error")) stop("Necessary SoilWat output files are not present for aggregation of results")
 			if(tscale == "dy"){
 				index.col <- 2
@@ -2923,92 +2980,90 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		get_Temp_yr <- function(sc){
-			return(list(mean=runData[[sc]][[sw_temp]][[sw_yr]][simTime$index.useyr, 4]))
+			return(list(mean=slot(slot(runData[[sc]],"TEMP"),"Year")[simTime$index.useyr, 4]))
 		}
 		get_Temp_mo <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 4], mean=runData[[sc]][[sw_temp]][[sw_mo]][simTime$index.usemo, 5]))
+			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 4], mean=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 5]))
 		}
 		get_Temp_dy <- function(sc){
-			return(list(min=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 4],
-						mean=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 5],
-						max=runData[[sc]][[sw_temp]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 4], mean=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 5]))
 		}
-
+		
 		get_PPT_yr <- function(sc){
-			ppt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 2]
-			rain <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 3]
-			snowfall <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 4]
-			snowmelt <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 5]
-			snowloss <- 10 * runData[[sc]][[sw_precip]][[sw_yr]][simTime$index.useyr, 6]
+			ppt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 2]
+			rain <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 3]
+			snowfall <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 4]
+			snowmelt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 5]
+			snowloss <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Year")[simTime$index.useyr, 6]
 			return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
 		}
 		get_PPT_mo <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_precip]][[sw_mo]][simTime$index.usemo, 6]))
+			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 4], snowmelt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 6]))
 		}
 		get_PPT_dy <- function(sc){
-			return(list(ppt=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 3], rain=10 * runData[[sc]][[sw_precip]][[sw_dy]][simTime$index.usedy, 4]))
+			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 4]))
 		}
-
+		
 		get_PET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"PET"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_PET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_pet]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"PET"),"Month")[simTime$index.usemo, 3]))
 		}
-
+		
 		get_AET_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_AET_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_AET_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_aet]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"AET"),"Day")[simTime$index.usedy, 3]))
 		}
-
+		
 		get_SWE_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"SNOWPACK"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_SWE_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_snow]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"SNOWPACK"),"Day")[simTime$index.usedy, 3]))
 		}
-
+		
 		get_Inf_yr <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Year")[simTime$index.useyr, 2]))
 		}
 		get_Inf_mo <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_mo]][simTime$index.usemo, 3]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_Inf_dy <- function(sc){
-			return(list(inf=10 * runData[[sc]][[sw_inf_soil]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(inf=10 * slot(slot(runData[[sc]],"SOILINFILT"),"Day")[simTime$index.usedy, 3]))
 		}
-
+		
 		get_Esurface_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 3:5, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 6], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_yr]][simTime$index.useyr, 7]))
+			return(list(sum=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 2], veg=apply(10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 3:6], 1, sum), litter=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 7], surfacewater=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Year")[simTime$index.useyr, 8]))
 		}
 		get_Esurface_dy <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 3], veg=apply(10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 4:6, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 7], surfacewater=10 * runData[[sc]][[sw_evapsurface]][[sw_dy]][simTime$index.usedy, 8]))
+			return(list(sum=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 3], veg=apply(10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 4:7], 1, sum), litter=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 8], surfacewater=10*slot(slot(runData[[sc]],"EVAPSURFACE"),"Day")[simTime$index.usedy, 9]))
 		}
-
+		
 		get_Interception_yr <- function(sc){
-			return(list(sum=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 2], veg=apply(10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 3:5, drop=FALSE], 1, sum), litter=10 * runData[[sc]][[sw_interception]][[sw_yr]][simTime$index.useyr, 6]))
+			return(list(sum=10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 2], veg=apply(10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 3:6], 1, sum), litter=10*slot(slot(runData[[sc]],"INTERCEPTION"),"Year")[simTime$index.useyr, 7]))
 		}
-
+		
 		get_DeepDrain_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_yr]][simTime$index.useyr, 2]))
+			return(list(val=10 * slot(slot(runData[[sc]],"DEEPSWC"),"Year")[simTime$index.useyr, 2]))
 		}
-		get_DeepDrain_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_mo]][simTime$index.usemo, 3]))
+		get_DeepDrain_mo <- function(sc) {
+			return(list(val=10 * slot(slot(runData[[sc]],"DEEPSWC"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_DeepDrain_dy <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_deepdrain]][[sw_dy]][simTime$index.usedy, 3]))
+			return(list(val=10 * slot(slot(runData[[sc]],"DEEPSWC"),"Day")[simTime$index.usedy, 3]))
 		}
-
+		
 		get_Runoff_mo <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 3], ponded=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 4], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_mo]][simTime$index.usemo, 5]))
+			return(list(val=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 3], ponded=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 4], snowmelt=10 * slot(slot(runData[[sc]],"RUNOFF"),"Month")[simTime$index.usemo, 5]))
 		}
 		get_Runoff_yr <- function(sc){
-			return(list(val=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 2], ponded=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 3], snowmelt=10 * runData[[sc]][[sw_runoff]][[sw_yr]][simTime$index.useyr, 4]))
+			return(list(val=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 2], ponded=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 3], snowmelt=10 * slot(slot(runData[[sc]],"RUNOFF"),"Year")[simTime$index.useyr, 4]))
 		}
 
 		#prepare SQL result container		
@@ -3063,13 +3118,13 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								prcp.yr, prcp.mo, prcp.dy, 
 								PET.yr, PET.mo, PET.dy,
 								AET.yr, AET.mo, AET.dy,
-								SWE.yr, SWE.mo, SWE.dy,
 								soiltemp.yr, soiltemp.mo, soiltemp.dy,
-								soiltemp.yr.all, soiltemp.mo.all, soiltemp.dy.all,
-								swc.yr, swc.mo, swc.dy,
-								swa.yr, swa.mo, swa.dy,
-								vwc.yr, vwc.mo, vwc.dy, vwc.dy.all, 
-								swp.yr, swp.mo, swp.dy, swp.dy.all, 
+								swcbulk.yr,swcbulk.mo,swcbulk.dy,
+								swabulk.yr,swabulk.mo, swabulk.dy,
+								swamatric.yr,swamatric.mo,swamatric.dy,
+								vwcbulk.yr,vwcbulk.mo,vwcbulk.dy,vwcbulk.dy.all,
+								vwcmatric.yr,vwcmatric.mo,vwcmatric.dy,vwcmatric.dy.all,
+								swpmatric.yr,swpmatric.mo,swpmatric.dy,swpmatric.dy.all, 
 								transp.yr, transp.mo, transp.dy,
 								Esoil.yr, Esoil.mo, Esoil.dy,
 								Esurface.yr, Esurface.mo, Esurface.dy,
@@ -3098,8 +3153,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#1
 				if(aon$input_FractionVegetationComposition) {
 					if(print.debug) print("Aggregation of input_FractionVegetationComposition")
-					resMeans[nv:(nv+5)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
-					nv <- nv+6
+					resMeans[nv:(nv+7)] <- c(swProd_Composition(swRunScenariosData[[sc]]), grasses.c3c4ann.fractions[[sc]])
+					nv <- nv+8
 				}
 			#2
 				if(aon$input_VegetationBiomassMonthly) {
@@ -3110,28 +3165,38 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]*swProd_MonProd_grass(swRunScenariosData[[sc]])[,3]
 					nv <- nv+12
+					
 					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,2]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,2]*swProd_MonProd_shrub(swRunScenariosData[[sc]])[,3]
 					nv <- nv+12
+					
 					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,1]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]
 					nv <- nv+12
 					resMeans[nv:(nv+11)] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]*swProd_MonProd_tree(swRunScenariosData[[sc]])[,3]
 					nv <- nv+12
+					
+					resMeans[nv:(nv+11)] <- swProd_MonProd_forb(swRunScenariosData[[sc]])[,1]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_forb(swRunScenariosData[[sc]])[,2]
+					nv <- nv+12
+					resMeans[nv:(nv+11)] <- swProd_MonProd_forb(swRunScenariosData[[sc]])[,2]*swProd_MonProd_forb(swRunScenariosData[[sc]])[,3]
+					nv <- nv+12
 				}
 			#3
 				if(aon$input_VegetationPeak) {
 					if(print.debug) print("Aggregation of input_VegetationPeak")
-					fracs <- swProd_Composition(swRunScenariosData[[sc]]) #get the fractional Composition of grasses, shrubs, and trees
-					tempdat <- matrix(data=NA, nrow=12, ncol=3)#matrix to hold biomass * percLive for grass,shrubs,trees
-					colnames(tempdat) <- c("grass", "shrubs", "tree")
+					fracs <- swProd_Composition(swRunScenariosData[[sc]])[1:4] #get the fractional Composition of grasses, shrubs, and trees
+					tempdat <- matrix(data=NA, nrow=12, ncol=4)#matrix to hold biomass * percLive for grass,shrubs,trees
+					colnames(tempdat) <- c("grass", "shrub", "tree", "forb")
 					tempdat[,1] <- swProd_MonProd_grass(swRunScenariosData[[sc]])[,2]*swProd_MonProd_grass(swRunScenariosData[[sc]])[,3]
 					tempdat[,2] <- swProd_MonProd_shrub(swRunScenariosData[[sc]])[,2]*swProd_MonProd_shrub(swRunScenariosData[[sc]])[,3]
 					tempdat[,3] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]*swProd_MonProd_tree(swRunScenariosData[[sc]])[,3]
+					tempdat[,4] <- swProd_MonProd_forb(swRunScenariosData[[sc]])[,2]*swProd_MonProd_forb(swRunScenariosData[[sc]])[,3]
 					
 					sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN=2, fracs, FUN="*"), MARGIN=1, function(x) sum(x)) #sweep out fractionals, and sum over rows
 					maxMonth <- which(sumWeightedLiveBiomassByMonth==max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
@@ -3161,7 +3226,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#5
 				if(aon$input_TranspirationCoeff){
 					if(print.debug) print("Aggregation of input_TranspirationCoeff")
-					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 6:8]
+					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 5:8]
 					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
 
 					TaggLs <- sapply(aggLs, FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
@@ -3172,12 +3237,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					}
 					
 					iinv <- inv <- nv
-					for(iv in 1:3){
+					for(iv in 1:4){
 						nv <- nv+SoilLayer_MaxNo #We don't know the max number of soil layers (aggLs_no) among all simulations, i.e., set to the maximum
 						resMeans[(inv+(iv-1)*SoilLayer_MaxNo):(nv-1)] <- c(TaggLs[iv, ], rep(NA, times=SoilLayer_MaxNo-aggLs_no))
 					}
 					inv <- nv
-					for(iv in 1:3){
+					for(iv in 1:4){
 						nv <- nv+2
 						resMeans[(inv+(iv-1)*2):(nv-1)] <- Ttb[iv, ]
 					}
