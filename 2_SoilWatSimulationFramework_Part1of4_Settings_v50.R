@@ -268,10 +268,12 @@ output_aggregates <- c(
 						"monthlyHydraulicRedistribution", 1,
 						"monthlyInfiltration", 1,
 						"monthlyDeepDrainage", 1,
-						"monthlySWP", 1,
-						"monthlyVWC", 1,
-						"monthlySWC", 1,
-						"monthlySWA", 0,
+						"monthlySWPmatric", 1,
+						"monthlyVWCbulk", 1,
+						"monthlyVWCmatric", 1,
+						"monthlySWCbulk", 1,
+						"monthlySWAbulk", 1,
+						"monthlySWAmatric", 1,
 						"monthlyTranspiration", 1,
 						"monthlySoilEvaporation", 1,
 						"monthlyAET", 1,
@@ -330,21 +332,21 @@ growing.season.threshold.tempC <- 4 # based on standard input of mean monthly bi
 
 
 #------SoilWat files
-sw <- "sw_v27"
+sw <- "sw_v31"
 sw.inputs <- "Input"	#must be string of length > 0; i.e. not compatible with SoilWat versions < 21
 sw.outputs <- "Output"	#sw_v20+: "Output", earlier versions ""
-swFilesIn <- "files_v27.in"
+swFilesIn <- "files_v30.in"
 
 if(any(actions == "create") || any(actions == "execute") || any(actions == "aggregate") ) {
 	#sw input file names
-	swOutSetupIn <- "outsetup_v27.in"
+	swOutSetupIn <- "outsetup_v20.in"
 	swcsetupin <- "swcsetup.in"
-	soilsin <- "soils_v23.in"
+	soilsin <- "soils_v30.in"
 	yearsin <- "years.in"
 	estabin <- "estab.in"
 	weatherin <- "weathsetup_v20.in"
 	cloudin <- "cloud_v20.in"
-	prodin <- "prod_v21.in"
+	prodin <- "sbe_prod_v31.in"
 	siteparamin <- "siteparam_v26.in"
 	filebasename.WeatherDataYear <- "weath"
 
