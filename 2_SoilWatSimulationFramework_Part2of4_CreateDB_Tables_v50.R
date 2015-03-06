@@ -469,11 +469,11 @@ if((length(Tables) == 0) || do.clean) {
 
 	#1. 
 		if(aon$input_FractionVegetationComposition) {
-			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
+			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
 		}
 	#2.
 		if(aon$input_VegetationBiomassMonthly) {
-			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
+			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forb",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", st_mo,"_gPERm2",sep=""))
 		}
 	#3. 
 		if(aon$input_VegetationPeak) {
@@ -510,7 +510,7 @@ if((length(Tables) == 0) || do.clean) {
 				ltemp <- paste("L", formatC(lmax, width=2, format="d", flag="0"), sep="")
 			}
 
-			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=3), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=3), "_fraction", sep="")))
+			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree","Forb"), each=SoilLayer_MaxNo), ".TranspirationCoefficients.", rep(ltemp, times=4), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=4), "_fraction", sep="")))
 
 		}
 	
@@ -788,23 +788,31 @@ if((length(Tables) == 0) || do.clean) {
 		}
 	
 	#52
-		if(any(simulation_timescales=="monthly") & aon$monthlySWP){
-			temp <- c(temp, paste("SWP.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
+		if(any(simulation_timescales=="monthly") & aon$monthlySWPmatric){
+			temp <- c(temp, paste("SWPmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
 		}
 	
-	#53
-		if(any(simulation_timescales=="monthly") & aon$monthlyVWC){
-			temp <- c(temp, paste("VWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
+	#53 a.)
+		if(any(simulation_timescales=="monthly") & aon$monthlyVWCbulk){
+			temp <- c(temp, paste("VWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
+		}
+	#53 b.)
+		if(any(simulation_timescales=="monthly") & aon$monthlyVWCmatric){
+			temp <- c(temp, paste("VWCmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
 		}
 	
 	#54
-		if(any(simulation_timescales=="monthly") & aon$monthlySWC){
-			temp <- c(temp, paste("SWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+		if(any(simulation_timescales=="monthly") & aon$monthlySWCbulk){
+			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#55
-		if(any(simulation_timescales=="monthly") & aon$monthlySWA){
-			temp <- c(temp, paste("AWC.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+	#55 a.)
+		if(any(simulation_timescales=="monthly") & aon$monthlySWAbulk){
+			temp <- c(temp, paste("AWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+		}
+	#55 b.)
+		if(any(simulation_timescales=="monthly") & aon$monthlySWAmatric){
+			temp <- c(temp, paste("AWCmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
 	#56
