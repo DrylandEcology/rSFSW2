@@ -464,7 +464,7 @@ if((length(Tables) == 0) || do.clean) {
 		temp <- character(0)
 	#0.
 		if(aon$input_SoilProfile){
-			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction"), sep="")
+			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction", "topLayers.Gravel_fraction", "bottomLayers.Gravel_fraction"), sep="")
 		}
 
 	#1. 
@@ -902,14 +902,14 @@ if((length(Tables) == 0) || do.clean) {
 		
 			if(any(simulation_timescales=="daily") && daily_no > 0) {
 				for(doi in 1:daily_no) {
-					if(regexpr("SWA", output_aggregate_daily[doi]) > 0){
-						agg.resp <- "SWA"
-						index.SWPcrit <- -as.numeric(sub("kPa", "", sub("SWAatSWPcrit", "", output_aggregate_daily[doi])))/1000
+					if(regexpr("SWAbulk", output_aggregate_daily[doi]) > 0){
+						agg.resp <- "SWAbulk"
+						#index.SWPcrit <- -as.numeric(sub("kPa", "", sub("SWAatSWPcrit", "", output_aggregate_daily[doi])))/1000
 					} else {
 						agg.resp <- output_aggregate_daily[doi]
 					}
-					agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-				
+					#"VWCbulk","VWCmatric", "SWCbulk", "SWPmatric","SWAbulk"
+					agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 					tableName <- paste("aggregation_doy_", output_aggregate_daily[doi], sep="")
 				
 					if(agg.analysis == 1){
@@ -965,7 +965,7 @@ if((length(Tables) == 0) || do.clean) {
 							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
 							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
 						} else {
-							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWC=2, SWC=2, SWP=2, SWA=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
+							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 							if(agg.analysis == 1){
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
 								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
@@ -986,7 +986,7 @@ if((length(Tables) == 0) || do.clean) {
 		return(dbOverallColumns)
 	}
 	
-	dbOverallColumns <- try(.local(), silent=TRUE)
+	dbOverallColumns <- try(.local(), silent=FALSE)
 	if(inherits(dbOverallColumns, "try-error")){
 		temp <- list.files(dir.out, pattern=".sqlite3", full.names=TRUE)
 		temp <- lapply(temp, unlink)
