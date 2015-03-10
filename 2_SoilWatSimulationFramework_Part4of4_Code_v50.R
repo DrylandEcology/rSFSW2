@@ -571,7 +571,9 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 		use_Annuals_Fraction,Annuals_Fraction,
 		use_C4_Fraction,C4_Fraction,
 		use_C3_Fraction,C3_Fraction,
-		use_Shrubs_Fraction,Shrubs_Fraction) {
+		use_Shrubs_Fraction,Shrubs_Fraction,
+		use_Forbs_Fraction, Forbs_Fraction,
+		use_BareGround_Fraction, BareGround_Fraction) {
 
 	cut0Inf <- function(x) {x[x < 0] <- NA; return(x)}
 	NAto0 <- function(x) {x[is.na(x)] <- 0; return(x)}
@@ -583,38 +585,49 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 	tree.fraction <- 0 #option 'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' doesn't estimate tree cover, i.e., assumed to be == 0
 	forb.fraction <- 0
 	bareGround.fraction <- 0
-	AnnC4C3ShrubFraction <- rep(NA, 4)
+	AnnC4C3ShrubForbBareGroundFraction <- rep(NA, 6)
 	if(use_Annuals_Fraction){
-		AnnC4C3ShrubFraction[1] <- finite01(Annuals_Fraction)
+		AnnC4C3ShrubForbBareGroundFraction[1] <- finite01(Annuals_Fraction)
 	} else {
-		AnnC4C3ShrubFraction[1] <- 0 #Annuals can not be NA
+		AnnC4C3ShrubForbBareGroundFraction[1] <- 0 #Annuals can not be NA
 	}
 	if(use_C4_Fraction)
-		AnnC4C3ShrubFraction[2] <- C4_Fraction
+		AnnC4C3ShrubForbBareGroundFraction[2] <- C4_Fraction
 	if(use_C3_Fraction)
-		AnnC4C3ShrubFraction[3] <- C3_Fraction
+		AnnC4C3ShrubForbBareGroundFraction[3] <- C3_Fraction
 	if(use_Shrubs_Fraction)
-		AnnC4C3ShrubFraction[4] <- Shrubs_Fraction
-	AnnC4C3ShrubFraction <- cut0Inf(AnnC4C3ShrubFraction) #treat negatives as if NA
-	TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
+		AnnC4C3ShrubForbBareGroundFraction[4] <- Shrubs_Fraction
+	
+	if(use_Forbs_Fraction) {
+		AnnC4C3ShrubForbBareGroundFraction[5] <- finite01(Forbs_Fraction)
+	} else {
+		AnnC4C3ShrubForbBareGroundFraction[5] <- forb.fraction
+	}
+	if(use_BareGround_Fraction) {
+		AnnC4C3ShrubForbBareGroundFraction[6] <- finite01(BareGround_Fraction)
+	} else {
+		AnnC4C3ShrubForbBareGroundFraction[6] <- bareGround.fraction
+	}
+	AnnC4C3ShrubForbBareGroundFraction <- cut0Inf(AnnC4C3ShrubForbBareGroundFraction) #treat negatives as if NA
+	TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm=TRUE)
 	
 	#Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
-	if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) == 0) {
+	if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
 		stop(print(paste(i, " run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))) #throw an error
 	}
 	
-	if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubFraction)) == 1){
+	if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1){
 		
-		if(sum(is.na(AnnC4C3ShrubFraction)) == 1){ #if only one is NA, then this can be calculated
-			AnnC4C3ShrubFraction[which(is.na(AnnC4C3ShrubFraction))] <- cut0Inf(1 - TotalFraction)
+		if(sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1){ #if only one is NA, then this can be calculated
+			AnnC4C3ShrubForbBareGroundFraction[which(is.na(AnnC4C3ShrubForbBareGroundFraction))] <- cut0Inf(1 - TotalFraction)
 		} else {					
-			AnnC4C3ShrubFraction <- finite01(AnnC4C3ShrubFraction) #the composition is >= 1, so set eventually remaining NA to 0
+			AnnC4C3ShrubForbBareGroundFraction <- finite01(AnnC4C3ShrubForbBareGroundFraction) #the composition is >= 1, so set eventually remaining NA to 0
 		}
 		
-		TotalFraction <- sum(AnnC4C3ShrubFraction, na.rm=TRUE)
-		AnnC4C3ShrubFraction <- AnnC4C3ShrubFraction / TotalFraction #Rescale, in case it is needed	
+		TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm=TRUE)
+		AnnC4C3ShrubForbBareGroundFraction <- AnnC4C3ShrubForbBareGroundFraction / TotalFraction #Rescale, in case it is needed	
 		
-	} else { #i.e., (TotalFraction < 1 && sum(is.na(AnnC4C3ShrubFraction)) > 1) is TRUE; thus, calculate some fractions based on climate variables
+	} else { #i.e., (TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) > 1) is TRUE; thus, calculate some fractions based on climate variables
 		if(isNorth){ #Northern hemisphere
 			Months_WinterTF <- c(12, 1:2)
 			Months_SummerTF <- c(6:8)
@@ -645,7 +658,7 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 		}
 		grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
 		
-		grass.Annual.fraction <- AnnC4C3ShrubFraction[1] #Ann will be 0 or something <= 1
+		grass.Annual.fraction <- AnnC4C3ShrubForbBareGroundFraction[1] #Ann will be 0 or something <= 1
 		
 		#2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 		#This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
@@ -677,29 +690,29 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
 		grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
 		grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * (1 - grass.Annual.fraction)
 		
-		calcAnnC4C3ShrubFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
-		naIndex <- which(is.na(AnnC4C3ShrubFraction))
+		calcAnnC4C3ShrubForbBareGroundFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
+		naIndex <- which(is.na(AnnC4C3ShrubForbBareGroundFraction))
 		#replace missing values
-		if(isTRUE(all.equal(sum(calcAnnC4C3ShrubFraction[naIndex]), 0)) && isTRUE(all.equal(temp <- sum(AnnC4C3ShrubFraction[!naIndex]), 0))){ #there would be no vegetation, so force vegetation > 0
-			AnnC4C3ShrubFraction[naIndex] <- (1 - temp) / length(naIndex)
+		if(isTRUE(all.equal(sum(calcAnnC4C3ShrubForbBareGroundFraction[naIndex]), 0)) && isTRUE(all.equal(temp <- sum(AnnC4C3ShrubForbBareGroundFraction[!naIndex]), 0))){ #there would be no vegetation, so force vegetation > 0
+			AnnC4C3ShrubForbBareGroundFraction[naIndex] <- (1 - temp) / length(naIndex)
 		} else {
-			AnnC4C3ShrubFraction[naIndex] <- calcAnnC4C3ShrubFraction[naIndex]
+			AnnC4C3ShrubForbBareGroundFraction[naIndex] <- calcAnnC4C3ShrubForbBareGroundFraction[naIndex]
 		}
 		#now we need to get the sum and scale the naIndex values accordingly
-		AnnC4C3ShrubFraction[naIndex] <- sapply(AnnC4C3ShrubFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubFraction[naIndex])) * (1-sum(AnnC4C3ShrubFraction[-naIndex])))
+		AnnC4C3ShrubForbBareGroundFraction[naIndex] <- sapply(AnnC4C3ShrubForbBareGroundFraction[naIndex], function(x) (x/sum(AnnC4C3ShrubForbBareGroundFraction[naIndex])) * (1-sum(AnnC4C3ShrubForbBareGroundFraction[-naIndex])))
 	}
 	
 	#Scale Grass components to one (or set to 0)
-	if(!isTRUE(all.equal(AnnC4C3ShrubFraction[4], 1))){
-		grass.c4.fractionG <- AnnC4C3ShrubFraction[2] / (1-AnnC4C3ShrubFraction[4])
-		grass.c3.fractionG <- AnnC4C3ShrubFraction[3] / (1-AnnC4C3ShrubFraction[4])
-		grass.Annual.fractionG <- AnnC4C3ShrubFraction[1] / (1-AnnC4C3ShrubFraction[4])
+	if(!isTRUE(all.equal(sum(AnnC4C3ShrubForbBareGroundFraction[4:6]), 1))){
+		grass.c4.fractionG <- AnnC4C3ShrubForbBareGroundFraction[2] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
+		grass.c3.fractionG <- AnnC4C3ShrubForbBareGroundFraction[3] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
+		grass.Annual.fractionG <- AnnC4C3ShrubForbBareGroundFraction[1] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
 	} else {
 		grass.c4.fractionG <- grass.c3.fractionG <- grass.Annual.fractionG <- 0
 	}
-	grass.fraction <- sum(AnnC4C3ShrubFraction[c(1:3)])
+	grass.fraction <- sum(AnnC4C3ShrubForbBareGroundFraction[c(1:3)])
 	
-	return(list("Composition"=c("Grasses"=grass.fraction, "Shrubs"=AnnC4C3ShrubFraction[4], "Trees"=tree.fraction, "Forbs"=forb.fraction, "BareGround"=bareGround.fraction),"grasses.c3c4ann.fractions"=c(grass.c3.fractionG,grass.c4.fractionG,grass.Annual.fractionG)))
+	return(list("Composition"=c("Grasses"=grass.fraction, "Shrubs"=AnnC4C3ShrubForbBareGroundFraction[4], "Trees"=tree.fraction, "Forbs"=AnnC4C3ShrubForbBareGroundFraction[5], "BareGround"=AnnC4C3ShrubForbBareGroundFraction[6]),"grasses.c3c4ann.fractions"=c(grass.c3.fractionG,grass.c4.fractionG,grass.Annual.fractionG)))
 }
 
 AdjMonthlyBioMass <- function(tr_VegetationComposition,AdjMonthlyBioMass_Temperature,AdjMonthlyBioMass_Precipitation,grasses.c3c4ann.fractions,growing.season.threshold.tempC,isNorth,MAP_mm,monthly.temp) {
@@ -2148,8 +2161,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			colnames(soildat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
 			for (l in ld){
 				soildat[l, ] <- c(	layers_depth.datafile[l],
-						ifelse(use_matricd[l], as.numeric(i_sw_input_soils[paste("Matricd_L", l, sep="")]), tempdat[l, "bulkd"]),
-						ifelse(use_gravelC[l], as.numeric(i_sw_input_soils[paste("GravelContent_L", l, sep="")]), tempdat[l, "fieldc"]),
+						ifelse(use_matricd[l], as.numeric(i_sw_input_soils[paste("Matricd_L", l, sep="")]), tempdat[l, "matricd"]),
+						ifelse(use_gravelC[l], as.numeric(i_sw_input_soils[paste("GravelContent_L", l, sep="")]), tempdat[l, "gravelContent"]),
 						ifelse(!is.na(temp <- ifelse(sum_use_evco, evco[l], tempdat[l, "evco"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_grass, trco_grass[l], tempdat[l, "trco_grass"])), temp, 0),
 						ifelse(!is.na(temp <- ifelse(sum_use_trco_shrub, trco_shrub[l], tempdat[l, "trco_shrub"])), temp, 0),
@@ -2199,7 +2212,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				} else {
 					#swLog_setLine(swRunScenariosData[[1]]) <- missingtext
 					print(missingtext)
-					this_soil <- c(soildat[l, "depth"], this_soil[2:4], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
+					this_soil <- c(soildat[l, "depth"], this_soil[2:3], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[l,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
 			}
@@ -2572,8 +2585,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				C3_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction
 				use_Shrubs_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction")
 				Shrubs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
-				use_bareGround_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction")
-				bareGround_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction
+				use_Forbs_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionForb_Fraction")
+				Forbs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionForb_Fraction
+				use_BareGround_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction")
+				BareGround_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction
 				
 				#TODO: Include forbs or bareground in PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
 				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(dir.sw.runs, paste("Rsoilwat_composition_",i,"_",sc,sep="")))
@@ -2581,7 +2596,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						use_Annuals_Fraction, Annuals_Fraction,
 						use_C4_Fraction, C4_Fraction,
 						use_C3_Fraction, C3_Fraction,
-						use_Shrubs_Fraction, Shrubs_Fraction), silent=TRUE)
+						use_Shrubs_Fraction, Shrubs_Fraction,
+						use_Forbs_Fraction, Forbs_Fraction,
+						use_BareGround_Fraction, BareGround_Fraction), silent=TRUE)
 				if(inherits(temp, "try-error")){
 					tasks$create <- 0
 				} else {
@@ -5680,41 +5697,41 @@ tryCatch({
 		
 	} else { #call the simulations in seriel
 		runs.completed <- 0
-#		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %do% {
-#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-#			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
-#		}
-		#Best for debugging
-		setwd(dir.prj)
-		exeEnv <- new.env()
-		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
-		
-		for(i_sim in seq.todo) {
+		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %do% {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
-			
-			assign(x="runs.completed", value=0, envir=exeEnv)
-			assign(x="i",value=i_sim,envir=exeEnv)
-			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
-			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
-			assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
-			
-			save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
-			rm(list=ls(all=TRUE))
-			load("test.Rdata")
-			
-			do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
-							i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
-							i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values)
-			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
+			do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
 		}
+		#Best for debugging
+#		setwd(dir.prj)
+#		exeEnv <- new.env()
+#		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
+#		
+#		for(i_sim in seq.todo) {
+#			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]
+#			
+#			assign(x="runs.completed", value=0, envir=exeEnv)
+#			assign(x="i",value=i_sim,envir=exeEnv)
+#			assign(x="i_labels",value=labels[i_tr],envir=exeEnv)
+#			assign(x="i_SWRunInformation",value=SWRunInformation[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_soillayers",value=sw_input_soillayers[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_treatments",value=sw_input_treatments[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_cloud",value=sw_input_cloud[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_prod",value=sw_input_prod[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_site",value=sw_input_site[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_soils",value=sw_input_soils[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_weather",value=sw_input_weather[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_climscen",value=sw_input_climscen[i_tr, ],envir=exeEnv)
+#			assign(x="i_sw_input_climscen_values",value=sw_input_climscen_values[i_tr, ],envir=exeEnv)
+#			
+#			save(list=ls(exeEnv),file="test.Rdata", envir=exeEnv)
+#			rm(list=ls(all=TRUE))
+#			load("test.Rdata")
+#			
+#			do_OneSite(i=i, i_labels=i_labels, i_SWRunInformation=i_SWRunInformation, i_sw_input_soillayers=i_sw_input_soillayers,
+#							i_sw_input_treatments=i_sw_input_treatments, i_sw_input_cloud=i_sw_input_cloud, i_sw_input_prod=i_sw_input_prod, i_sw_input_site=i_sw_input_site, i_sw_input_soils=i_sw_input_soils,
+#							i_sw_input_weather=i_sw_input_weather, i_sw_input_climscen=i_sw_input_climscen, i_sw_input_climscen_values=i_sw_input_climscen_values)
+#			runs.completed <- runs.completed + do_OneSite(i=i_sim, i_labels=labels[i_tr], i_SWRunInformation=SWRunInformation[i_tr, ], i_sw_input_soillayers=sw_input_soillayers[i_tr, ], i_sw_input_treatments=sw_input_treatments[i_tr, ], i_sw_input_cloud=sw_input_cloud[i_tr, ], i_sw_input_prod=sw_input_prod[i_tr, ], i_sw_input_site=sw_input_site[i_tr, ], i_sw_input_soils=sw_input_soils[i_tr, ], i_sw_input_weather=sw_input_weather[i_tr, ], i_sw_input_climscen=sw_input_climscen[i_tr, ], i_sw_input_climscen_values=sw_input_climscen_values[i_tr, ])
+#		}
 	}
 	#save(inputDataToSave,file=file.path(dir.out,paste("swInputData_",head(seq.todo,n=1),"_",head(seq.todo,n=1)+runs.completed,".R",sep="")),compress=TRUE)
 	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
