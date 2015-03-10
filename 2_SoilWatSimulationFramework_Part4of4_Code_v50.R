@@ -5926,7 +5926,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 				EnsembleFamilyLevelTables<-paste(ensemble.family,"_rank_",formatC(ensemble.levels, width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
 				LastPid <- integer(length=length(EnsembleFamilyLevelTables))
 				for(i in 1:length(LastPid)) {
-					SQL <- paste("SELECT MAX(P_id) FROM ",EnsembleFamilyLevelTables[i],";",sep="")
+					SQL <- paste("SELECT MAX(P_id) FROM '",EnsembleFamilyLevelTables[i],"';",sep="")
 					LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB,SQL))+(scenario_No-1)#Need to add all the scenarios because last P_id will always be Current
 				}
 				if(any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
