@@ -72,7 +72,7 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
+actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE

@@ -5989,9 +5989,11 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			} else {
 				dat <- cbind(headerInfo, dat)
 			}
-			#dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES(",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
-			#written<-1
-			written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
+			dbBegin(conn=conEnsembleDB)
+			dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES(",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
+			dbCommit(conn=conEnsembleDB)
+			written<-1
+			#written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
 			if(written)
 				return(1)
 			else
@@ -6002,14 +6004,14 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			columns<-dbListFields(con,Table)[-1]
 			if(Layers<-any(temp<-grepl(pattern = "Soil_Layer",x=columns))) columns<-columns[-temp]
 			columns<-paste("\"",columns,"\"", sep="",collapse = ", ")
-			sqlString <- paste("SELECT ",Table,".P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM ", Table, " INNER JOIN header ON ",Table,".P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
+			sqlString <- paste("SELECT '",Table,"'.P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM '", Table, "' INNER JOIN header ON '",Table,"'.P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
 			res <- dbSendQuery(con, sqlString)
 			dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
 			dbClearResult(res)
 			
 			columnCutoff <- match("Scenario", colnames(dataScen.Mean))
 			if(export.header) {
-				sqlString <- paste("SELECT ", Table,".P_id AS P_id ",if(Layers) ", Soil_Layer ","FROM ",Table,",header WHERE ",Table,".P_id=header.P_id AND header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current' ORDER BY P_id;",sep="")
+				sqlString <- paste("SELECT '", Table,"'.P_id AS P_id ",if(Layers) ", Soil_Layer ","FROM '",Table,"',header WHERE '",Table,"'.P_id=header.P_id AND header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current' ORDER BY P_id;",sep="")
 				res <- dbSendQuery(con, sqlString)
 				headerInfo <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
 				dbClearResult(res)
@@ -6034,7 +6036,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			
 			nfiles <- 0
 			#Grab x rows at a time
-			SQL <- paste("SELECT MAX(P_id) FROM ",Table,";",sep="")
+			SQL <- paste("SELECT MAX(P_id) FROM '",Table,"';",sep="")
 			maxP_id <- as.integer(dbGetQuery(con,SQL))
 			maxRun_id <- (maxP_id/scenario_No)
 			
@@ -6085,13 +6087,13 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 					ntemp <- 0
 					for(k in 1:length(ensemble.levels)){
 						outputs <- paste(ensemble.family,"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds","scenarioranks"),sep="")
-						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[1])
+						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[1],"'",sep=""))
 						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[2],"'",sep=""))
 						} else {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[2])
+							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[2],"'",sep=""))
 						}
-						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=outputs[3])
+						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[3],"'",sep=""))
 					}
 					if(i == 1) nfiles <- nfiles + ntemp
 					print(paste("          ",i,":",min(i+ensembleCollectSize-1,maxRun_id)," of ",maxRun_id," done.",sep=""))
