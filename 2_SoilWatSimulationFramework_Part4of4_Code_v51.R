@@ -434,7 +434,7 @@ drv <- dbDriver("SQLite")
 
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
-source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v50.R", echo=F, keep.source=F)
+source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v51.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
 
 if(getCurrentWeatherDataFromDatabase)
@@ -1311,7 +1311,7 @@ if(any(actions == "external") && any(exinfo > 0)){
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
 	stopifnot(file.exists(dir.external))
 	
-	source("2_SoilWatSimulationFramework_Part3of4_ExternalDataExtractions_v50.R", echo=FALSE, keep.source=FALSE)
+	source("2_SoilWatSimulationFramework_Part3of4_ExternalDataExtractions_v51.R", echo=FALSE, keep.source=FALSE)
 	
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 }
