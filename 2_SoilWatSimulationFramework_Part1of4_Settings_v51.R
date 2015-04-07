@@ -94,8 +94,8 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- "/media/ryan/Storage/WeatherData/dbWeatherData_GTD.sqlite"
-createWeatherDatabaseFromLookupWeatherFolder <- FALSE #Will create a database will data from LookupWeather Folder
+dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
+createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 <- FALSE #Will create a database will data from LookupWeather Folder or, if GriddedDailyWeatherFromMaurer2002_NorthAmerica, from dataset by Maurer et al. 2002
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(
@@ -161,29 +161,24 @@ deltaFutureToSimStart_yr <- c(50, 90)
 downscaling.method <- c("hybrid-delta")	#one or multiple of "raw", "delta" (Hay et al. 2002), or "hybrid-delta" (Hamlet et al. 2010)
 
 #Climate ensembles created across scenarios
-ensemble.families <- c("SRESA2", "SRESA1B","SRESB1") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
-ensemble.families <- c("RCP45", "RCP85")
+ensemble.families <- c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v11.csv"
 
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_withJacksonSoilDepth_v9.csv"	
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_ExtraTop5cm_withJacksonSoilDepth_v9.csv"	
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_DepthConstant100cm_v9.csv"	
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_WISE_v9.csv"	
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v04.csv"
 
 if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
-	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_SRESA2andSRESB1_v11.csv"
+	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
 	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_ExtraTop5cm_withJacksonSoilDepth_v10.csv"
-	datafile.soils <- "SWRuns_InputData_soils_FixedfromSoilsin_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_WISE_v10.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
 if (( any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
