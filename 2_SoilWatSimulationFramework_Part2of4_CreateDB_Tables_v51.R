@@ -43,13 +43,13 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 	}
 	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
-	Rsoilwat:::dbW_addSites(MetaData)
+	Rsoilwat31:::dbW_addSites(MetaData)
 	
 	SWRunInformation$site_id[seq.tr] <- dbW_getSiteTable()$Site_id
 	write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 
 	MetaData <- data.frame(Scenario=climate.conditions)
-	Rsoilwat:::dbW_addScenarios(MetaData)
+	Rsoilwat31:::dbW_addScenarios(MetaData)
 
 	Time <- Sys.time()
 	
@@ -68,7 +68,7 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 			StartYear <- head(years,n=1)
 			EndYear <- tail(years,n=1)
 			data_blob <- dbW_weatherData_to_blob(weatherData)
-			Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
+			Rsoilwat31:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
 			if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
 				temp2<-Sys.time() - Time
 				units(temp2) <- "secs"
@@ -84,7 +84,7 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 				years <- as.integer(names(weatherData))
 				StartYear <- head(years,n=1)
 				EndYear <- tail(years,n=1)
-				Rsoilwat:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
+				Rsoilwat31:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
 			} else {
 				print(paste("Moving daily weather data from Maurer et al. 2002 to database unsuccessful", i, Maurer[i]))
 			}
