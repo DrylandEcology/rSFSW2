@@ -27,7 +27,7 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
-if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
+if(createAndPopulateWeatherDatabase) {
 	if(file.exists(dbWeatherDataFile)) {
 		print("Removing old database")
 		file.remove(dbWeatherDataFile)
@@ -35,12 +35,6 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 	print("Creating New Weather database")
 	dbW_createDatabase(dbWeatherDataFile)
 	
-
-	if(GriddedDailyWeatherFromMaurer2002_NorthAmerica){#prepare: get weather from Maurer et al. 2002
-		Maurer <- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
-		SWRunInformation$WeatherFolder[seq.tr] <- paste0(SWRunInformation$Label[seq.tr], "_", Maurer)
-		#write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-	}
 	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
 	Rsoilwat31:::dbW_addSites(MetaData)
@@ -53,44 +47,34 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 
 	Time <- Sys.time()
 	
-	if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica){ #get weather data from LookupWeather
-		for(i in seq_along(seq.tr)) {#
-			WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder",SWRunInformation$WeatherFolder[seq.tr[i]])
-			weath <- list.files(WeatherFolder)
-			years <- as.numeric(sub(pattern="weath.",replacement="",weath))
-			weatherData <- list()
-			for(j in 1:length(weath)) {
-				year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
-				temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
-				weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
-			}
-			names(weatherData) <- years
-			StartYear <- head(years,n=1)
-			EndYear <- tail(years,n=1)
+	# Extract weather data and move to weather database
+	# Extract weather data per site
+	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica"))
+	if(!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
+	if(length(ids_single) > 0) for(i in seq_along(ids_single)){
+		if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
+		if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
+			weatherData <- ExtractLookupWeatherFolder(weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
+		} else if(sites_dailyweather_source[ids_single[i]] == "Maurer2002_NorthAmerica"){
+			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[ids_single[i]], startYear=simstartyr, endYear=endyr)
+		} else {
+			stop(paste(sites_dailyweather_source[ids_single[i]], "not implemented"))
+		}
+		if(!is.null(weatherData)){
+			years <- as.integer(names(weatherData))
 			data_blob <- dbW_weatherData_to_blob(weatherData)
-			Rsoilwat31:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
-			if(i %in% c(10,100,1000,5000,10000,15000,20000)) {
-				temp2<-Sys.time() - Time
-				units(temp2) <- "secs"
-				temp2 <- as.double(temp2)
-				print(paste(i,":",temp2))
-			}
+			Rsoilwat31:::dbW_addWeatherDataNoCheck(ids_single[i], 1, head(years, n=1), tail(years, n=1), data_blob)
+		} else {
+			print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[seq.tr[ids_single[i]]]))
 		}
-	} else {#get weather from Maurer et al. 2002	
-		for(i in seq_along(seq.tr)){
-			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[i],startYear=simstartyr, endYear=endyr)
-			if(!is.null(weatherData)){
-				data_blob <- dbW_weatherData_to_blob(weatherData)
-				years <- as.integer(names(weatherData))
-				StartYear <- head(years,n=1)
-				EndYear <- tail(years,n=1)
-				Rsoilwat31:::dbW_addWeatherDataNoCheck(i,1,StartYear,EndYear,data_blob)
-			} else {
-				print(paste("Moving daily weather data from Maurer et al. 2002 to database unsuccessful", i, Maurer[i]))
-			}
-		}
-		rm(Maurer)
 	}
+	rm(ids_single, Maurer, weatherData, years, data_blob)
+
+	# Extract weather data for all sites
+	ids_NRCan_extraction <- which(sites_dailyweather_source == "NRCan_10km_Canada")
+	if(length(ids_NRCan_extraction) > 0) ExtractGriddedDailyWeatherFromNRCan_10km_Canada(ids=ids_NRCan_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_NRCan_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
+	rm(ids_NRCan_extraction)
+	
 	dbW_disconnectConnection()
 }
 
@@ -106,8 +90,6 @@ if((length(Tables) == 0) || do.clean) {
 
 
 	#A. Header Tables
-		
-		if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica && any(is.na(SWRunInformation$WeatherFolder[seq.tr])) && !any(create_treatments=="LookupWeatherFolder")) stop("No WeatherData For Runs")
 	
 		####FUNCTIONS CONSIDER MOVING####
 		mapType <- function(type) {
@@ -145,7 +127,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
 			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=unique(SWRunInformation$WeatherFolder[seq.tr]),stringsAsFactors=FALSE))
 		} else {
-			if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
+			if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
 		}
 		dbCommit(con)
 	
@@ -188,6 +170,7 @@ if((length(Tables) == 0) || do.clean) {
 		################################
 	
 		#If LookupWeatherFolder is ON we need to make sure all of the weather folders are in weatherfolders table
+#TODO: WeatherFolder update
 		if(any(create_treatments=="LookupWeatherFolder")) {
 			#which ones are not in SWRunInformation$WeatherFolder
 		
@@ -451,10 +434,10 @@ if((length(Tables) == 0) || do.clean) {
 		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
 		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
 		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
-		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
+		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 		header_columns<-paste(header_columns,collapse = ", ")
 	
-		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
+		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
 		##################################################
 	
 	#B. Aggregation_Overall

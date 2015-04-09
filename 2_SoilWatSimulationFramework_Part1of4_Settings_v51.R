@@ -83,23 +83,29 @@ makeInputForExperimentalDesign <- FALSE
 checkCompleteness <- FALSE
 
 #------Define how aggregated output should be handled:
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #------Define type of simulations and source of input data
-#Daily weather data: must be one of database, Maurer2002, or WeatherFolder (in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv)
-GriddedDailyWeatherFromMaurer2002_NorthAmerica <- FALSE
+#Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
+# If a run has multiple sources for daily weather, then take the one in the first position of dailyweather_options if availble, if not then second etc.
+#	do not change/remove/add entries; only re-order to set different priorities
+dailyweather_options <- c("LookupWeatherFolder", "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global")
+#Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
-createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002 <- FALSE #Will create a database will data from LookupWeather Folder or, if GriddedDailyWeatherFromMaurer2002_NorthAmerica, from dataset by Maurer et al. 2002
+createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
 #indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 do.ExtractExternalDatasets <- c(
-		"ExtractGriddedDailyWeatherFromNCEPCFSR_Global", 0, #code not integrated yet
+		#Daily weather data for current conditions
+		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
+		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
+		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, #code not integrated yet
 		
 		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
 		#CMIP3
@@ -125,7 +131,6 @@ do.ExtractExternalDatasets <- c(
 do.PriorCalculations <- c(
 		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 0,
 		"EstimateInitialSoilTemperatureForEachSoilLayer", 0,
-		"CalculateFieldCapacityANDWiltingPointFromSoilTexture", 0,
 		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 0
 )
 
