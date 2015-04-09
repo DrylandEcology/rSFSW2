@@ -100,7 +100,8 @@ getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
-#indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
+#Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
+# - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
