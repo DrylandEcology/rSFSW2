@@ -1201,6 +1201,12 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 }
 
 
+#----------------------------#
+#------EXTRACT ELEVATION------
+if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
+	elevation_m <- rep(NA, times=length(seq.tr))
+}
+
 if(exinfo$ExtractElevation_NED_USA){
 	if(!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
 	#ned.usgs.gov
@@ -1211,14 +1217,12 @@ if(exinfo$ExtractElevation_NED_USA){
 	g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
 	
 	#locations of simulation runs
-	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
+	do_extract <- is.na(elevation_m)
+	locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 	#extract data for locations
-	SWRunInformation$ELEV_m <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
-	
-	#write data to datafile.SWRunInformation
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	elevation_m[do_extract] <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
 	
 	rm(g.elev, locations, locations.CoordG)
 	
@@ -1235,19 +1239,30 @@ if(exinfo$ExtractElevation_HWSD_Global){
 	g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
 	
 	#locations of simulation runs
-	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
+	do_extract <- is.na(elevation_m)
+	locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 	#extract data for locations
-	SWRunInformation$ELEV_m <- extract(g.elev, locations.CoordG)	# elevation in m a.s.l.
-	
-	#write data to datafile.SWRunInformation
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	elevation_m[do_extract] <- extract(g.elev, locations.CoordG)	# elevation in m a.s.l.
 	
 	rm(g.elev, locations, locations.CoordG)
 	
 	if(!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
 }
+
+if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
+	#write data to datafile.SWRunInformation
+	SWRunInformation$ELEV_m[seq.tr] <- elevation_m
+	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	
+	if(anyNA(elevation_m)) warning("Elevation wasn't found for ", sum(is.na(elevation_m)), " sites")
+	
+	rm(elevation_m)
+}
+
+#------END OF EXTRACT ELEVATION------
+#-----------------------------------#
 
 
 
