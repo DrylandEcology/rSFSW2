@@ -979,7 +979,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
 				for(j in 1:length(wdataOut)) {
 					for(l in 1:length(wdataOut[[j]])) {
-						res <- try(Rsoilwat:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
+						res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
 						if(inherits(res, "try-error")) break
 					}
 					if(inherits(res, "try-error")) break
@@ -1032,8 +1032,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 
 
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
-		exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
 	
 	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 	
@@ -1130,15 +1129,15 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	#extract data
 	g <- brick(file.path(dir.ex.dat, "bd.tif"))
 	locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-	bulkd <- extract(g, locations.CoordG) / 100
+	matricd <- extract(g, locations.CoordG) / 100 # TODO: unclear whether this is bulk or matric density, Miller et al. 1998 has labelled this as bulk, but it appears as if it is matric because eq. 20 (Saxton et al. 2006) would give otherwise negative values for matricd (bulkd <- matricd * (1 - rockvol) + rockvol * 2.65)
 	
 	g <- raster(file.path(dir.ex.dat, "rockdepm.tif"))
 	bedrock <- extract(g, locations.CoordG) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
 	lys <- 1:max(findInterval(bedrock, ldepth), na.rm=TRUE)
 
-	#TODO: v31: turn on rockvol
-#	g <- brick(file.path(dir.ex.dat, "rockvol.tif"))
-#	rockvol <- extract(g, locations.CoordG) / 100
+	#New with v31: rockvol -> gravel vol%
+	g <- brick(file.path(dir.ex.dat, "rockvol.tif"))
+	rockvol <- extract(g, locations.CoordG) / 100
 	
 	g <- brick(file.path(dir.ex.dat, "sand.tif"))
 	sand <- extract(g, locations.CoordG) / 100
@@ -1146,15 +1145,29 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	clay <- extract(g, locations.CoordG) / 100
 	g <- brick(file.path(dir.ex.dat, "silt.tif"))
 	silt <- extract(g, locations.CoordG) / 100
-	totals <- sand + clay + silt
-#	totals <- sand + clay + silt + rockvol
 
-	sand <- round(sand / totals, 2)
-	sand <- ifelse(is.nan(sand), NA, sand)
-	clay <- round(clay / totals, 2)
-	clay <- ifelse(is.nan(clay), NA, clay)
-#	rockvol <- round(rockvol / totals, 2)
-#	rockvol <- ifelse(is.nan(rockvol), NA, rockvol)
+	if(FALSE){#visualize in interactive sessions
+		temp <- rockvol
+		cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=11)))
+		cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
+		plot(locations, pch=15, cex=0.5, col=cols[cats])
+		legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
+		if(require("maps")) map("state", add=TRUE)
+	}
+
+	#Normalize to 0-1
+	total_matric <- sand + clay + silt
+	total_bulk <- total_matric + rockvol
+	sand <- round(sand / total_matric, 2) # mass fraction of matric component
+	sand <- ifelse(is.finite(sand), sand, NA)
+	clay <- round(clay / total_matric, 2) # mass fraction of matric component
+	clay <- ifelse(is.finite(clay), clay, NA)
+	rockvol <- round(rockvol / total_bulk, 2) # volume fraction of bulk=total soil
+	rockvol <- ifelse(is.finite(rockvol), rockvol, NA)
+
+	#Convert bulk density to matric density
+	#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
+	#matricd <- ifelse(abs(1 - rockvol) > sqrt(.Machine$double.eps), (bulkd - rockvol * 2.65) / (1 - rockvol), 0)
 	
 	#set and save soil layer structure
 	sw_input_soillayers$SoilDepth_cm <- bedrock
@@ -1163,13 +1176,16 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	
 	#set and save soil texture
 	#add data to sw_input_soils and set the use flags
-	i.temp <- grepl(pattern="BD_L", x=names(sw_input_soils_use))
-	sw_input_soils[, i.temp][lys] <- bulkd[, lys]
+	i.temp <- grepl(pattern="Matricd_L", x=names(sw_input_soils_use))
+	sw_input_soils[, i.temp][lys] <- matricd[, lys]
 	sw_input_soils_use[i.temp][lys] <- 1
-	i.temp <- grepl(pattern="Sand", x=names(sw_input_soils_use))
+	i.temp <- grepl(pattern="GravelContent_L", x=names(sw_input_soils_use))
+	sw_input_soils[, i.temp][lys] <- rockvol[, lys]
+	sw_input_soils_use[i.temp][lys] <- 1
+	i.temp <- grepl(pattern="Sand_L", x=names(sw_input_soils_use))
 	sw_input_soils[, i.temp][lys] <- sand[, lys]
 	sw_input_soils_use[i.temp][lys] <- 1
-	i.temp <- grepl(pattern="Clay", x=names(sw_input_soils_use))
+	i.temp <- grepl(pattern="Clay_L", x=names(sw_input_soils_use))
 	sw_input_soils[, i.temp][lys] <- clay[, lys]
 	sw_input_soils_use[i.temp][lys] <- 1
 	
@@ -1177,10 +1193,9 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 	tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 	write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 	
-	if(any(na.exclude(sand) == 0, na.exclude(clay) == 0)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+	if(anyNA(sand) || anyNA(clay)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 	
-	rm(tempdat, i.temp, lys, bedrock, bulkd, sand, clay, silt, g, locations)
-#	rm(rockvol)
+	rm(tempdat, i.temp, lys, total_bulk, total_matric, rockvol, bedrock, matricd, sand, clay, silt, g, locations)
 	
 	if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 }
