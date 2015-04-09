@@ -543,52 +543,63 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
 if(do_weather_source){
 	#Functions to determine sources of daily weather; they write to global 'sites_dailyweather_source' and 'sites_dailyweather_names', i.e., the last entry is the one that will be used
 	dw_LookupWeatherFolder <- function(){
-		# Check which requested lookup weather folders are available
-		pwd <- getwd()
-		setwd(dir.sw.in.tr)
-		if(sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0)
-			there <- sapply(seq.tr, FUN=function(ix) if(!is.na(sw_input_treatments$LookupWeatherFolder[ix])) file.exists(sw_input_treatments$LookupWeatherFolder[ix]) else FALSE)
-		if(sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0)
-			there <- there | sapply(seq.tr, FUN=function(ix) if(!is.na(SWRunInformation$WeatherFolder[ix])) file.exists(SWRunInformation$WeatherFolder[ix]) else FALSE)
-		if(sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0)
-			there <- there | rep(any(sapply(sw_input_experimentals$LookupWeatherFolder, FUN=function(ix) file.exists(sw_input_experimentals$LookupWeatherFolder))), times=length(seq.tr))
-		setwd(pwd)
-		sites_dailyweather_source[there] <<- "LookupWeatherFolder"
+		if(any(create_treatments == "LookupWeatherFolder")){
+			# Check which requested lookup weather folders are available
+			pwd <- getwd()
+			setwd(dir.sw.in.tr)
+			if(sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0)
+				there <- sapply(seq.tr, FUN=function(ix) if(!is.na(sw_input_treatments$LookupWeatherFolder[ix])) file.exists(sw_input_treatments$LookupWeatherFolder[ix]) else FALSE)
+			if(sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0)
+				there <- there | sapply(seq.tr, FUN=function(ix) if(!is.na(SWRunInformation$WeatherFolder[ix])) file.exists(SWRunInformation$WeatherFolder[ix]) else FALSE)
+			if(sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0)
+				there <- there | rep(any(sapply(sw_input_experimentals$LookupWeatherFolder, FUN=function(ix) file.exists(sw_input_experimentals$LookupWeatherFolder))), times=length(seq.tr))
+			setwd(pwd)
+			if(sum(there) > 0)
+				sites_dailyweather_source[there] <<- "LookupWeatherFolder"
 		
-		if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'LookupWeatherFolder'"))
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'LookupWeatherFolder'"))
+		}
 		invisible(0)
 	}
 
 	dw_Maurer2002_NorthAmerica <- function(){
-		# Check which requested Maurer weather data are available
-		Maurer <- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
-		there <- sapply(seq_along(seq.tr), FUN=function(ix) file.exists(file.path(dir.ex.maurer2002, Maurer[ix])))
-		sites_dailyweather_source[there] <<- "Maurer2002_NorthAmerica"
-		sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_", Maurer[there])
-		if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'Maurer2002_NorthAmerica'"))
+		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
+			# Check which requested Maurer weather data are available
+			Maurer <<- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
+			there <- sapply(Maurer, FUN=function(im) file.exists(file.path(dir.ex.maurer2002, im)))
+			if(sum(there) > 0){
+				sites_dailyweather_source[there] <<- "Maurer2002_NorthAmerica"
+				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_", Maurer[there])
+			}
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'Maurer2002_NorthAmerica'"))
+		}
 		invisible(0)
 	}
 
 	dw_NRCan_10km_Canada <- function(){
-		# Check which of the NRCan weather data are available
-		#	- Temperature: Celsius degrees
-		#	- Precipitation: mm
-		#	- Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
-		#	- Grids datum: geographic NAD83
-		#	- Columns: 1068, Rows: 510, Cells size: 0.083333333
-		nrc_test <- raster(file.path(dir.ex.NRCan, "1950", "max1950_1.asc"))
-		projection(nrc_test) <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0") #	see http://spatialreference.org/ref/epsg/4269/
-		sp_locs <- SpatialPoints(coords=SWRunInformation[seq.tr, c("X_WGS84", "Y_WGS84")], proj4string=CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
-		there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
-		sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
-		sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_NRCan", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE), "_", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE))
-		if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
-
-		rm(nrc_test, sp_locs, there)
+		if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
+			# Check which of the NRCan weather data are available
+			#	- Temperature: Celsius degrees
+			#	- Precipitation: mm
+			#	- Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
+			#	- Grids datum: geographic NAD83
+			#	- Columns: 1068, Rows: 510, Cells size: 0.083333333
+			nrc_test <- raster(file.path(dir.ex.NRCan, "1950", "max1950_1.asc"))
+			projection(nrc_test) <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0") #	see http://spatialreference.org/ref/epsg/4269/
+			sp_locs <- SpatialPoints(coords=SWRunInformation[seq.tr, c("X_WGS84", "Y_WGS84")], proj4string=CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+			there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
+			if(sum(there) > 0){
+				sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
+				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_NRCan", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE), "_", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE))
+			}
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
+		}
 		invisible(0)
 	}
 
 	dw_NCEPCFSR_Global <- function(){
+		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
+		}
 		invisible(0)
 	}
 	
@@ -597,16 +608,15 @@ if(do_weather_source){
 	dailyweather_priorities <- rev(paste("dw", dailyweather_options, sep="_"))
 	for(idw in dailyweather_priorities) get(idw)()
 	
-	SWRunInformation$WeatherFolder[seq.tr][!is.na(sites_dailyweather_names)] <- na.exclude(sites_dailyweather_names)
 
 	if(anyNA(sites_dailyweather_source)){
 		if(FALSE){# remove sites with no weather; code to run by hand
 			xy <- SpatialPoints(coords=t(sapply(strsplit(list.files(dir.ex.maurer2002), "_"), FUN=function(x) as.numeric(x[3:2]))), proj4string=CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
 			sp_locs2 <- spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))
 
-			plot(sp_locs2, pch=19, col=c("blue", "red", "green", "purple", "black")[ifelse(is.na(sites_dailyweather_source),5,sites_dailyweather_source)])
+			plot(sp_locs2, pch=19, cex=0.5, col=c("blue", "red", "green", "purple", "black")[ifelse(is.na(sites_dailyweather_source),5,sites_dailyweather_source)])
 			plot(nrc_test, col=adjustcolor("orange", alpha.f=0.5), add=TRUE)
-			map("state", add=TRUE)
+			if(require(maps)) map("state", add=TRUE)
 			plot(xy, col=adjustcolor("darkgray", alpha.f=0.5), lwd=1, add=TRUE)
 		
 			id_remove <- which(is.na(sites_dailyweather_source))
@@ -618,6 +628,7 @@ if(do_weather_source){
 	}
 
 	# Save information about weather source to disk file
+	SWRunInformation$WeatherFolder[seq.tr][!is.na(sites_dailyweather_names)] <- na.exclude(sites_dailyweather_names)
 	SWRunInformation$dailyweather_source[seq.tr] <- as.character(sites_dailyweather_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 }	
