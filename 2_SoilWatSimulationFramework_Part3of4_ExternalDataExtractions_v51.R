@@ -532,7 +532,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	getYears$second_dpm <- lapply(1:getYears$n_second, FUN=function(it) rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(getYears$second[it, 1], "-01-01")), to=as.POSIXlt(paste0(getYears$second[it, 2], "-12-31")), by="1 day"))$mon)$lengths)	
 
 	#Logical on how to select from getYears
-	assocYears <- vector("list", length=1 + length(reqRCPs) + length(deltaFutureToSimStart_yr))
+	assocYears <- vector("list", length=1 + length(reqRCPs) * length(deltaFutureToSimStart_yr))
 	names_assocYears <- c("historical", paste0(deltaFutureToSimStart_yr, "years.", rep(reqRCPs, each=length(deltaFutureToSimStart_yr))))
 	useSlices <- function(run, slice){
 		res <- rep(FALSE, length=nrow(getYears[[slice]]))
@@ -820,7 +820,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				}
 				
 				#Observed historic daily weather from weather database
-				obs.hist.daily <- Rsoilwat::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
+				obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
 				obs.hist.monthly <- get_monthlyTimeSeriesFromDaily(dailySW=obs.hist.daily)
 				
 				wdataOut <- list()
@@ -927,12 +927,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					mpi.bcast.cmd(library(RCurl, quietly=TRUE))
 				if(exinfo$GDODCPUCLLNL)
 					mpi.bcast.cmd(library(ncdf4, quietly=TRUE))
-				mpi.bcast.cmd(library(Rsoilwat, quietly=TRUE))
-				mpi.bcast.cmd(Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+				mpi.bcast.cmd(library(Rsoilwat31, quietly=TRUE))
+				mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 				
 				i_Done <- mpi.applyLB(x=is_ToDo, fun=calc.ScenarioWeather)
 				
-				mpi.bcast.cmd(Rsoilwat::dbW_disconnectConnection())
+				mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
 				mpi.bcast.cmd(rm(list=ls()))
 				mpi.bcast.cmd(gc())
 			} else if(identical(parallel_backend, "snow")) {
@@ -941,38 +941,38 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					snow::clusterEvalQ(cl, library(RCurl, quietly = TRUE))
 				if(exinfo$GDODCPUCLLNL)
 					snow::clusterEvalQ(cl, library(ncdf4, quietly=TRUE))
-				snow::clusterEvalQ(cl, library(Rsoilwat, quietly=TRUE))
-				snow::clusterEvalQ(cl, Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+				snow::clusterEvalQ(cl, library(Rsoilwat31, quietly=TRUE))
+				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 				
 				i_Done <- snow::clusterApplyLB(cl, x=is_ToDo, fun=calc.ScenarioWeather)
 				
-				snow::clusterEvalQ(cl, Rsoilwat::dbW_disconnectConnection())
+				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
 				snow::clusterEvalQ(cl, rm(list=ls()))
 				snow::clusterEvalQ(cl, gc())
 			} else if(identical(parallel_backend, "multicore")) {
-				packages.export <- "Rsoilwat"
+				packages.export <- "Rsoilwat31"
 				if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA && useRCurl && !saveNEXtempfiles)
 					packages.export <- c(packages.export, "RCurl")
 				if(exinfo$GDODCPUCLLNL)
 					packages.export <- c(packages.export, "ncdf4")
 				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
-					Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 					temp <- calc.ScenarioWeather(i)
-					Rsoilwat::dbW_disconnectConnection()
+					Rsoilwat31::dbW_disconnectConnection()
 					return(temp)
 				}
 			} else {
 				i_Done <- NULL
 			}
 		} else {
-			Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% calc.ScenarioWeather(i)
-			Rsoilwat::dbW_disconnectConnection()
+			Rsoilwat31::dbW_disconnectConnection()
 		}
 		
 
 		if(!be.quiet) print(paste("Started adding temporary files into database '", tagDB, "' at", Sys.time()))
-		Rsoilwat::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+		Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 		temp.files <- list.files(path=dir.out.temp, pattern=tagDB, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if(length(temp.files) > 0) {
 			for (k in 1:length(temp.files)) {
@@ -987,7 +987,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				if(!inherits(res, "try-error")) unlink(ftemp)
 			}
 		}
-		Rsoilwat::dbW_disconnectConnection()
+		Rsoilwat31::dbW_disconnectConnection()
 		
 		return(sort(unlist(i_Done)))
 	}
