@@ -93,11 +93,11 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
 # If a run has multiple sources for daily weather, then take the one in the first position of dailyweather_options if availble, if not then second etc.
 #	do not change/remove/add entries; only re-order to set different priorities
-dailyweather_options <- c("LookupWeatherFolder", "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global")
+dailyweather_options <- c("LookupWeatherFolder", "NRCan_10km_Canada", "Maurer2002_NorthAmerica", "NCEPCFSR_Global")
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite")
+dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
@@ -182,9 +182,9 @@ if ((any(actions == "external") || any(actions == "create") || any(actions == "e
 	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
 	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
 	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
-	datafile.prod <- "SWRuns_InputData_prod_v9.csv"
+	datafile.prod <- "SWRuns_InputData_prod_v10.csv"
 	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_WISE_v10.csv"
+	datafile.soils <- "SWRuns_InputData_soils_v11.csv"
 	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 }
 if (( any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
