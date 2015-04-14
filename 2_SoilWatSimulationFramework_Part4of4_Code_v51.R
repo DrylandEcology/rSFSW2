@@ -387,6 +387,7 @@ if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
 	do_weather_source <- TRUE
 }
 
+weather.digits <- 2
 
 if(any(create_treatments == "LookupWeatherFolder")){
 	#function to be executed for each SoilWat-run
@@ -397,7 +398,8 @@ if(any(create_treatments == "LookupWeatherFolder")){
 		weatherData <- list()
 		for(j in 1:length(weath)) {
 			year <- as.numeric(sub(pattern="weath.", replacement="", weath[j]))
-			temp <-as.matrix(read.csv(file.path(WeatherFolder, weath[j]), header=FALSE, skip=2, sep="\t"))
+			temp <- as.matrix(read.csv(file.path(WeatherFolder, weath[j]), header=FALSE, skip=2, sep="\t"))
+			temp[, -1] <- round(temp[, -1], 2) #weather.digits
 			weatherData[[j]] <- new("swWeatherData", year=year, data=temp)
 		}
 		names(weatherData) <- years
@@ -411,6 +413,11 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	
 	dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
 	stopifnot(file.exists(dir.ex.maurer2002))
+
+	create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
+		paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_")
+	}
+
 
 	#function to be executed for each SoilWat-run
 	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname, startYear=simstartyr, endYear=endyr){
@@ -432,7 +439,8 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			weathDataList <- list()
 			for(y in 1:n_years) {
 				data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
-				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw),year=years[y])
+				data.sw[, -1] <- round(data.sw[, -1], 2) #weather.digits
+				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw, rownames.force=FALSE),year=years[y]) #strip row.names, otherwise they consume about 60% of file size
 			}
 			names(weathDataList) <- as.character(years)
 			return(weathDataList)
@@ -448,7 +456,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
 	#	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
 	#	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
 	dir.ex.NRCan <- file.path(dir.external, "ExtractGriddedDailyWeatherFromNRCan_10km_Canada/DAILY_GRIDS")
-	stopifnot(file.exists(dir.ex.NRCan), require(raster))
+	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
 
 	# Function to be executed for all SoilWat-sites together
 	ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(ids, coords_WGS84, start_year, end_year){
@@ -460,10 +468,10 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
 		
 		vars <- c("max", "min", "pcp")
 		prj_geographicWGS84 <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
-		prj_geographicNAG83 <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
+		prj_geographicNAD83 <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
 		
 		sp_locs <- SpatialPoints(coords=coords_WGS84, proj4string=prj_geographicWGS84)
-		sp_locs <- spTransform(sp_locs, CRSobj=prj_geographicNAG83)
+		sp_locs <- spTransform(sp_locs, CRSobj=prj_geographicNAD83)
 	
 		#TODO: re-write for parallel processing with other backends
 		if(parallel_runs && identical(parallel_backend, "snow")) beginCluster(n=num_cores, type="SOCK")
@@ -493,9 +501,9 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
 			
 			# Stack rasters for each day and extract data			
 			NRC_stack <- stack(NRC_days, RAT=FALSE, quick=TRUE)
-			projection(NRC_stack) <- prj_geographicNAG83
-			temp <- round(extract(NRC_stack, sp_locs)) # [sp_locs, NRC_days x vars]
-			
+			projection(NRC_stack) <- prj_geographicNAD83
+			temp <- round(extract(NRC_stack, sp_locs), 2) #weather.digits; [sp_locs, NRC_days x vars]
+
 			# Convert extraction information to array
 			ivars <- substr(NRC_days, 1, 3) # sapply(vars, nchar) == 3
 			for(iv in seq_along(vars)){
@@ -515,7 +523,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
 			for(iy in seq_along(NRC_target_years)){
 				doys <- if(isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
 				data.sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm)
-				weatherData[[iy]] <- new("swWeatherData", data=data.matrix(data.sw), year=NRC_target_years[iy])
+				weatherData[[iy]] <- new("swWeatherData", data=data.matrix(data.sw, rownames.force=FALSE), year=NRC_target_years[iy])
 			}
 			names(weatherData) <- as.character(NRC_target_years)
 			
@@ -565,7 +573,7 @@ if(do_weather_source){
 	dw_Maurer2002_NorthAmerica <- function(){
 		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			# Check which requested Maurer weather data are available
-			Maurer <<- with(SWRunInformation[seq.tr, ], paste("data", format(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), format(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4, trim=T), sep="_"))
+			Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 			there <- sapply(Maurer, FUN=function(im) file.exists(file.path(dir.ex.maurer2002, im)))
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "Maurer2002_NorthAmerica"
@@ -590,7 +598,7 @@ if(do_weather_source){
 			there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
-				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_NRCan", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE), "_", format(SWRunInformation$X_WGS84[seq.tr][there], nsmall=4, trim=TRUE))
+				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_NRCan", formatC(SWRunInformation$X_WGS84[seq.tr][there], digits=4, format="f"), "_", format(SWRunInformation$X_WGS84[seq.tr][there], digits=4, format="f"))
 			}
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
@@ -668,7 +676,6 @@ if(getCurrentWeatherDataFromDatabase)
 	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
-
 
 #------simulation timing
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
@@ -2496,9 +2503,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#############Get Weather Data################
 		i_sw_weatherList <- list()
 		if(!getCurrentWeatherDataFromDatabase && i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica"){
-				dirname.sw.runs.weather <- paste("data", format(28.8125+round((i_SWRunInformation$Y_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), format(28.8125+round((i_SWRunInformation$X_WGS84-28.8125)/0.125,0)*0.125, nsmall=4), sep="_")
-				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
-			}
+			dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
 		} else {
 			#Get name of weather file
 			.local <- function(i){
@@ -5812,7 +5818,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","create_filename_for_Maurer2002_NorthAmerica", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation

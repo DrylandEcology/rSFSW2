@@ -34,6 +34,7 @@ if(createAndPopulateWeatherDatabase) {
 	}
 	print("Creating New Weather database")
 	dbW_createDatabase(dbWeatherDataFile)
+	#dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
 	
 	
 	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
@@ -51,6 +52,8 @@ if(createAndPopulateWeatherDatabase) {
 	# Extract weather data per site
 	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica"))
 	if(!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
+	if(any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
+		Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 	if(length(ids_single) > 0) for(i in seq_along(ids_single)){
 		if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
 		if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
