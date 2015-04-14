@@ -61,7 +61,7 @@ if(createWeatherDatabaseFromLookupWeatherFolderOrMaurer2002) {
 			weatherData <- list()
 			for(j in 1:length(weath)) {
 				year <- as.numeric(sub(pattern="weath.",replacement="",weath[j]))
-				temp <-as.matrix(read.csv(file.path(WeatherFolder,weath[j]),header=FALSE,skip=2,sep="\t"))
+				temp <-as.matrix(read.table(file.path(WeatherFolder,weath[j]),header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
 				weatherData[[j]] <- new("swWeatherData",year=year,data=temp)
 			}
 			names(weatherData) <- years
