@@ -398,7 +398,7 @@ if(any(create_treatments == "LookupWeatherFolder")){
 		weatherData <- list()
 		for(j in 1:length(weath)) {
 			year <- as.numeric(sub(pattern="weath.", replacement="", weath[j]))
-			temp <- as.matrix(read.csv(file.path(WeatherFolder, weath[j]), header=FALSE, skip=2, sep="\t"))
+			temp <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
 			temp[, -1] <- round(temp[, -1], 2) #weather.digits
 			weatherData[[j]] <- new("swWeatherData", year=year, data=temp)
 		}
