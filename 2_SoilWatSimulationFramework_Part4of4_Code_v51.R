@@ -389,7 +389,11 @@ if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
 
 weather.digits <- 2
 
-if(any(create_treatments == "LookupWeatherFolder")){
+lwf_cond1 <- sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0
+lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0) && !any(as.logical(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global))
+lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
+lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
+if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
 	#function to be executed for each SoilWat-run
 	ExtractLookupWeatherFolder <- function(weatherfoldername){
 		WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder", weatherfoldername)
@@ -551,15 +555,16 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
 if(do_weather_source){
 	#Functions to determine sources of daily weather; they write to global 'sites_dailyweather_source' and 'sites_dailyweather_names', i.e., the last entry is the one that will be used
 	dw_LookupWeatherFolder <- function(){
-		if(any(create_treatments == "LookupWeatherFolder")){
+		if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
 			# Check which requested lookup weather folders are available
 			pwd <- getwd()
-			setwd(dir.sw.in.tr)
-			if(sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0)
-				there <- sapply(seq.tr, FUN=function(ix) if(!is.na(sw_input_treatments$LookupWeatherFolder[ix])) file.exists(sw_input_treatments$LookupWeatherFolder[ix]) else FALSE)
-			if(sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0)
+			setwd(file.path(dir.sw.in.tr, "LookupWeatherFolder"))
+			there <- rep(FALSE, times=length(seq.tr))
+			if(lwf_cond1)
+				there <- there | sapply(seq.tr, FUN=function(ix) if(!is.na(sw_input_treatments$LookupWeatherFolder[ix])) file.exists(sw_input_treatments$LookupWeatherFolder[ix]) else FALSE)
+			if(lwf_cond2)
 				there <- there | sapply(seq.tr, FUN=function(ix) if(!is.na(SWRunInformation$WeatherFolder[ix])) file.exists(SWRunInformation$WeatherFolder[ix]) else FALSE)
-			if(sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0)
+			if(lwf_cond3)
 				there <- there | rep(any(sapply(sw_input_experimentals$LookupWeatherFolder, FUN=function(ix) file.exists(sw_input_experimentals$LookupWeatherFolder))), times=length(seq.tr))
 			setwd(pwd)
 			if(sum(there) > 0)
