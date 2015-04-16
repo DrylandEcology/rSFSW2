@@ -2441,12 +2441,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 			this_soil <- soildat[1, ]
 			for (l in ld){
-				missingtext <- ifelse(soildat[l, "matricd"] > 0 & soildat[l, "gravelContent"] >= 0 & soildat[l, "sand"] > 0 & soildat[l, "clay"] > 0,"", paste("Layer ",l,": soil data missing for this layer -> data used from previous layer */",sep=""))
-				if(nchar(missingtext)==0){
+				if(all(soildat[l, c("matricd", "sand", "clay")] > 0, soildat[l, "gravelContent"] >= 0, !is.na(soildat[l, ]))){
 					this_soil <- soildat[l, ]
 				} else {
 					#swLog_setLine(swRunScenariosData[[1]]) <- missingtext
-					print(missingtext)
+					print(paste("Site", i, i_labels, ": Layer ",l,": soil data missing for this layer -> data used from previous layer */"))
 					this_soil <- c(soildat[l, "depth"], this_soil[2:3], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[l,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
