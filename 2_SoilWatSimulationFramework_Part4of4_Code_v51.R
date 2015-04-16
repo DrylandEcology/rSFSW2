@@ -1293,8 +1293,8 @@ endDoyAfterDuration <- function(x, duration=10) {
 	}
 }
 
-#convert SWP to VWC, e.g., to calculate field capacity and wilting point
-SWPtoVWC <- function(swp, gravel, sand, clay) {
+#convert SWP(matric) to VWC(matric), e.g., to calculate field capacity and wilting point
+SWPtoVWC <- function(swp, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
 	
 	#1. SWP in MPa [single value] + sand and clay in fraction [single values] --> VWC in fraction [single value]
@@ -1303,20 +1303,19 @@ SWPtoVWC <- function(swp, gravel, sand, clay) {
 	#4. SWP in MPa [vector of length l] + sand and clay in fraction [vectors of length d] --> VWC in fraction [matrix with nrow=l and ncol=d, SWP vector repeated for each column]: probably not used
 	#5. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values] --> VWC in fraction [matrix with nrow=l and ncol=d]
 	#6. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d] --> VWC in fraction [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
+
+#input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
 	
-	stopifnot(length(gravel) == length(sand) && length(sand) == length(clay))
-	na.act <- na.action(na.exclude(apply(data.frame(gravel, sand, clay), MARGIN=1, FUN=sum)))
+	stopifnot(length(sand) && length(sand) == length(clay))
+	na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
 	
 	if(length(sand) > length(na.act)){
 		na.index <- as.vector(na.act)
 		
 		if(length(na.index) > 0){
-			gravel <- gravel[-na.index]
 			sand <- sand[-na.index]
 			clay <- clay[-na.index]
 		}
-		sand <- sand / (1-gravel)
-		clay <- clay / (1-gravel)
 		
 		thetas <- -14.2 * sand - 3.7 * clay + 50.5
 		psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
@@ -1359,8 +1358,8 @@ SWPtoVWC <- function(swp, gravel, sand, clay) {
 	}
 	return(vwc) #fraction m3/m3 [0, 1]
 }
-#convert VWC to SWP
-VWCtoSWP <- function(vwc, gravel, sand, clay) {
+#convert VWC(matric) to SWP(matric)
+VWCtoSWP <- function(vwc, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
 	
 	#1. VWC in fraction [single value] + sand and clay in fraction [single values] --> SWP in MPa [single value]
@@ -1369,21 +1368,19 @@ VWCtoSWP <- function(vwc, gravel, sand, clay) {
 	#4. VWC in fraction [vector of length l] + sand and clay in fraction [vectors of length d] --> SWP in MPa [matrix with nrow=l and ncol=d, VWC vector repeated for each column]: probably not used
 	#5. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values] --> SWP in MPa [matrix with nrow=l and ncol=d]
 	#6. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d] --> SWP in MPa [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
+
+#input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
 	
-	stopifnot(length(gravel) == length(sand) && length(sand) == length(clay))
-	na.act <- na.action(na.exclude(apply(data.frame(gravel, sand, clay), MARGIN=1, FUN=sum)))
+	stopifnot(length(sand) && length(sand) == length(clay))
+	na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
 	
 	if(length(sand) > length(na.act)){
 		na.index <- as.vector(na.act)
 		
 		if(length(na.index) > 0){
-			gravel <- gravel[-na.index]
 			sand <- sand[-na.index]
 			clay <- clay[-na.index]
 		}
-		sand <- sand / (1-gravel)
-		clay <- clay / (1-gravel)
-		
 		
 		thetas <- -14.2 * sand - 3.7 * clay + 50.5
 		psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
@@ -1662,7 +1659,7 @@ if(any(actions == "create")){
 			trco.code <- as.character(tr_input_TranspCoeff_Code[, which(colnames(tr_input_TranspCoeff_Code) == trco_type)])
 			trco <- rep(0, times=soillayer_no)
 			trco.raw <- na.omit(tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])
-			
+
 			if(trco.code == "DepthCM"){
 				trco_sum <- ifelse((temp <- sum(trco.raw, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
 				lup <- 1
@@ -2340,7 +2337,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(sum(sw_input_soils_use[-1] + ifelse(done.Imperm_L1, -1, 0)) - sum(use_transpregion <- as.numeric(sw_input_soils_use[paste("TranspRegion_L", ld, sep="")])) > 0){
 			tempdat <- matrix(data=NA, nrow=SoilLayer_MaxNo, ncol=12)
 			colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
-			
+
 			#recalculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
 			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
 			layers_depth.soilsin <- swSoils_Layers(swRunScenariosData[[1]])[,1]
@@ -3238,11 +3235,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		get_SWPmatric_aggL <- function(vwcmatric){
-			val.top <- VWCtoSWP(vwcmatric$top, texture$gravel.top, texture$sand.top, texture$clay.top)
-			val.bottom <- VWCtoSWP(vwcmatric$bottom, texture$gravel.bottom, texture$sand.bottom, texture$clay.bottom)				
+			val.top <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
+			val.bottom <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom, texture$clay.bottom)				
 			if(!is.null(vwcmatric$aggMean.top)){
-				aggMean.top <- VWCtoSWP(vwcmatric$aggMean.top, texture$gravel.top, texture$sand.top, texture$clay.top)
-				aggMean.bottom <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$gravel.bottom, texture$sand.bottom, texture$clay.bottom)
+				aggMean.top <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top, texture$clay.top)
+				aggMean.bottom <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
 				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
 			}
 			if(!is.null(vwcmatric$val)){
@@ -3251,7 +3248,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				} else {
 					index.header <- 1
 				}
-				val <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], gravel, sand, clay))
+				val <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
 				return(list(val=val, top=val.top, bottom=val.bottom))
 			} else {
 				return(list(top=val.top, bottom=val.bottom))
@@ -4443,10 +4440,10 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, FUN=sum)
 					
 					recharge.dy <- NULL
-					recharge.dy$top <- swcbulk.dy$top / (SWPtoVWC(-0.033, texture$gravel.top, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
+					recharge.dy$top <- swcbulk.dy$top / (SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
 					
 					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
-						recharge.dy$bottom <- swcbulk.dy$bottom / (SWPtoVWC(-0.033, texture$gravel.bottom, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])) 
+						recharge.dy$bottom <- swcbulk.dy$bottom / (SWPtoVWC(-0.033, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])) 
 						extremes <- as.matrix(aggregate(cbind(recharge.dy$top, recharge.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
 					} else {
 						extremes <- cbind(temp <- as.matrix(aggregate(recharge.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
@@ -4647,11 +4644,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					cut0 <- function(x) {x[x < 0] <- 0; return(x)}
 					for(icrit in seq(along=SWPcrit_MPa)){
-						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$gravel.top, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
+						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
 						swa.top <- ifelse(suitable, cut0(swcbulk.dy$top - SWCcritT), 0)
 						
 						if(length(bottomL) > 0 && !identical(bottomL, 0)){
-							SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$gravel.bottom, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
+							SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
 							swa.bottom <- ifelse(suitable, cut0(swcbulk.dy$bottom - SWCcritB), 0)
 						} else {
 							swa.bottom <- rep(0, length(swa.top))
@@ -4807,14 +4804,14 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					
 					for(icrit in seq(along=SWPcrit_MPa)){
 						#amount of SWC required so that layer wouldn't be dry
-						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$gravel.top, texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10							
+						SWCcritT <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10							
 						missingSWCtop <- cut0(SWCcritT - SWCtop) 
 						IntensitySum_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCtop[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
 						IntensityMean_top <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCtop[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp, na.rm=TRUE))
 						IntensityDurationAndNumber_top <- c(apply(temp <- sapply(simTime$useyrs, FUN=function(y) c(mean(temp <- (temp <- rle(missingSWCtop[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, sd))[c(1, 3, 2, 4)]
 						
 						if(length(bottomL) > 0 && !identical(bottomL, 0)) {
-							SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$gravel.bottom, texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
+							SWCcritB <- SWPtoVWC(SWPcrit_MPa[icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
 							missingSWCbottom <- cut0(SWCcritB - SWCbottom)
 							IntensitySum_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) sum(missingSWCbottom[simTime2$year_ForEachUsedDay == y])), na.rm=TRUE), sd(temp, na.rm=TRUE))
 							IntensityMean_bottom <- c(mean(temp <- sapply(simTime$useyrs, FUN=function(y) mean((temp <- missingSWCbottom[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm=TRUE)), na.rm=TRUE), sd(temp, na.rm=TRUE))
@@ -5705,7 +5702,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								ir <- (al - 1) * 366 + 1:366
 								res.dailyMean[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=mean)[, 2]
 								if(agg.resp == "SWPmatric"){ ##post-aggregate calculation of SWP: convert VWC to SWP
-									res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$gravel[al], textureDAgg$sand[al], textureDAgg$clay[al])
+									res.dailyMean[ir] <- VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
 									res.dailySD[ir] <- 0 #was NA now 0
 								} else {
 									res.dailySD[ir] <- aggregate(scaler * agg.dat[[al]], by=list(simTime2$doy_ForEachUsedDay), FUN=sd)[, 2]
@@ -5714,7 +5711,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							
 							#post-aggregate calculation of SWA based on SWC for each SWPcrit
 							if(agg.resp == "SWAbulk"){								
-								swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, gravel, sand, clay)
+								swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
 								
 								for(al in 1:agg.no){
 									ir <- (al - 1) * 366 + 1:366
