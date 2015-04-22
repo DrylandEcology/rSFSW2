@@ -102,6 +102,10 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
+# - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over 'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested and data is available for both
+#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global"
+extract_gridcell_or_point <- "point" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
+gridcell_resolution <- 1/8
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
@@ -123,10 +127,13 @@ do.ExtractExternalDatasets <- c(
 		"ExtractSkyDataFromNCEPCFSR_Global", 0, #code not integrated yet
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		
-		#Soil texture and topography
+		#Topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
 		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database 
-		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0
+
+		#Soil texture
+		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,	
+		"ExtractSoilDataFromISRICWISEv12_Global", 0	
 )
 
 do.PriorCalculations <- c(
