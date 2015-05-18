@@ -674,6 +674,7 @@ drv <- dbDriver("SQLite")
 
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
+setwd(dir.prj)
 source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v51.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
 
@@ -3277,7 +3278,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 4], snowmelt=10 * slot(slot(runData[[sc]],"PRECIP"),"Month")[simTime$index.usemo, 6]))
 		}
 		get_PPT_dy <- function(sc){
-			return(list(ppt=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 3], rain=10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 4]))
+			ppt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 3]
+			rain <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 4]
+			snowfall <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 5]
+			snowmelt <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 6]
+			snowloss <- 10 * slot(slot(runData[[sc]],"PRECIP"),"Day")[simTime$index.usedy, 7]
+			return(list(ppt=ppt, rain=rain, snowfall=snowfall, snowmelt=snowmelt, snowloss=snowloss))
 		}
 		
 		get_PET_yr <- function(sc){
@@ -3401,8 +3407,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 								vwcbulk.yr,vwcbulk.mo,vwcbulk.dy,vwcbulk.dy.all,
 								vwcmatric.yr,vwcmatric.mo,vwcmatric.dy,vwcmatric.dy.all,
 								swpmatric.yr,swpmatric.mo,swpmatric.dy,swpmatric.dy.all, 
-								transp.yr, transp.mo, transp.dy,
-								Esoil.yr, Esoil.mo, Esoil.dy,
+								transp.yr, transp.mo, transp.dy, transp.dy.all,
+								Esoil.yr, Esoil.mo, Esoil.dy, Esoil.dy.all,
 								Esurface.yr, Esurface.mo, Esurface.dy,
 								hydred.yr, hydred.mo, hydred.dy,
 								inf.yr, inf.mo, inf.dy, 
@@ -4323,6 +4329,73 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
 				}			
 				
+			#27.2
+				if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
+					if(print.debug) print("Aggregation of dailySoilWaterPulseVsStorage")
+					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
+					if(!exists("transp.dy.all")) transp.dy.all <- get_Response_aggL(sc, sw_transp, "dyAll", 10, sum)
+					if(!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(sc, sw_evsoil, "dyAll", 10, sum)
+					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
+
+					percolation <- 10 * slot(slot(runData[[sc]],sw_percolation), "Day")[simTime$index.usedy, 2 + head(ld, n=-1)]
+					hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
+					
+					# Water balance
+					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow=length(simTime$index.usedy), ncol=length(ld))
+					# Inputs: infiltration + received hydraulic redistribution + received percolation
+					inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
+					inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
+					inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
+					
+					# Outputs: soil evaporation + transpiration + deep drainage + hydraulic redistribution donor + percolation donor
+					itemp <- 1:(ncol(Esoil.dy.all$val) - 2)
+					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + Esoil.dy.all$val[simTime$index.usedy, -(1:2)]
+					itemp <- grepl("transp_total", colnames(transp.dy.all$val))
+					outputs_by_layer[, 1:sum(itemp)] <- outputs_by_layer[, 1:sum(itemp)] + transp.dy.all$val[simTime$index.usedy, itemp]
+					itemp <- ncol(outputs_by_layer)
+					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + deepDrain.dy$val
+					outputs_by_layer[, -itemp] <- outputs_by_layer[, -itemp] + ifelse(percolation < 0, -percolation, 0)
+					outputs_by_layer <- outputs_by_layer + ifelse(hydred < 0, -hydred, 0)
+					
+					# balance
+					balance <- inputs_by_layer - outputs_by_layer
+					extraction <- balance < 0
+					storage_use <- by(cbind(extraction, outputs_by_layer), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=function(x) {
+						res1 <- apply(x[, ld], MARGIN=2, FUN=rle)
+						res2 <- apply(x[, max(ld) + ld], MARGIN=2, FUN=function(y) list(out=y))
+						return(modifyList(res1, res2))})
+					
+					# median duration among extracting spells for each layer and each year
+					extraction_duration_days <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) mean(dat$lengths[as.logical(dat$values)])))
+					
+					# median annual sum of all extracted water during extracting spells for each layer and each year
+					extraction_summed_mm <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) {
+							dat$values <- as.logical(dat$values)
+							temp <- dat
+							if(any(dat$values)) temp$values[dat$values] <- 1:sum(dat$values) # give unique ID to each extraction spell
+							if(any(!dat$values)){
+								temp$values[!dat$values] <- 0 # we are not interested in positive spells
+								has_zero <- TRUE
+							} else {
+								has_zero <- FALSE
+							}
+							storage_ids <- inverse.rle(temp)
+							x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
+							if(has_zero && length(x) > 0) x <- x[-1] # remove first element because this represents the positive spells (id = 0)
+							return(sum(x))
+						}))
+					
+					# aggregate across years for each soil layer
+					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
+					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
+					nv <- nv+SoilLayer_MaxNo	
+					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
+					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
+					nv <- nv+SoilLayer_MaxNo	
+					
+					rm(percolation, hydred, inputs_by_layer, outputs_by_layer, balance, extraction, storage_use, extraction_duration_days, extraction_summed_mm)
+				}
+
 				
 				#---Aggregation: Daily extreme values
 			#28
