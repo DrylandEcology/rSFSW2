@@ -630,6 +630,13 @@ if((length(Tables) == 0) || do.clean) {
 									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
 		}
 
+
+	#27.2
+		if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
+			temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", lmax, "_days_mean"),
+							paste0("WaterExtractionSpell_AnnualSummedExtraction_L", lmax, "_mm_mean"))
+		}
+
 		##############################################################---Aggregation: Daily extreme values---##############################################################
 	#28
 		if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {

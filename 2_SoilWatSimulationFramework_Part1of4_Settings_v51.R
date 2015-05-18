@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.07"
+minVersionRsoilwat <- "0.31.08"
 num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
@@ -249,6 +249,7 @@ output_aggregates <- c(
 						"dailyNRCS_Chambers2014_ResilienceResistance", 1, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#---Aggregation: Yearly water balance
 						"yearlyWaterBalanceFluxes", 1,
+						"dailySoilWaterPulseVsStorage", 1,
 					#---Aggregation: Daily extreme values
 						"dailyTranspirationExtremes", 1,
 						"dailyTotalEvaporationExtremes", 1,
@@ -295,8 +296,8 @@ output_aggregates <- c(
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
 
-#options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWC", "SWC", "SWP", "Snowpack", "SWA", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
-output_aggregate_daily <- c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk","VWCmatric", "SWCbulk", "SWPmatric", "SWAbulk", "Snowpack", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax")
+#options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
+output_aggregate_daily <- c("SWPmatric") #c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax")
 #select variables to output as aggregated yearly time series
 ouput_aggregated_ts <- NULL #c("Regeneration")
 
