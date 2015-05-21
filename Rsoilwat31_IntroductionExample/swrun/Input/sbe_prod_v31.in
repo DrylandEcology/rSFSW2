@@ -8,21 +8,21 @@
 
 # ---- Albedo
 # Grasses	Shrubs		Trees		Forbs		Bare Ground
-0.167		0.143		0.106		0.167		0.15		# albedo:	(Houldcroft et al. 2009) MODIS snowfree 'grassland' (10), 'open shrub'(7), ‘evergreen needle forest’ (1), 'barren' (16) with MODIS albedo aggregated over pure IGBP cells where NDVI is greater than the 98th percentile NDVI
+0.167		0.143		0.106		0.167		0.15	# albedo:	(Houldcroft et al. 2009) MODIS snowfree 'grassland', 'open shrub', ‘evergreen needle forest’ with MODIS albedo aggregated over pure IGBP cells where NDVI is greater than the 98th percentile NDVI
 
 
 # ---- % Cover: divide standing LAI by this to get % cover
 # Grasses	Shrubs		Trees		Forbs
-3.0			1.7			5.0			3.0
+3.0			2.22		5.			3.0
 
 
 # -- Canopy height (cm) parameters either constant through season or as tanfunc with respect to biomass (g/m^2)
 # Grasses	Shrubs		Trees		Forbs
-300.0		0.0			0.0     	0.0		# xinflec
-29.5		5.0			5.0     	5.0		# yinflec
-85.			100.		3000.		100		# range
-0.002		0.003		0.00008 	0.003	# slope
-0.			50.			1200.		50.		# if > 0 then constant canopy height (cm)		
+300.0		0.0			0.0     	300.0	# xinflec
+29.5		5.0			5.0     	29.5	# yinflec
+85.			100.		3000.		85.		# range
+0.002		0.003		0.00008 	0.002	# slope
+0.			50.			1200.		0.		# if > 0 then constant canopy height (cm)		
 
 
 # --- Vegetation interception parameters for equation: intercepted rain = (a + b*veg) + (c+d*veg) * ppt; Grasses+Shrubs: veg=vegcov, Trees: veg=LAI
@@ -34,16 +34,16 @@
 
 
 # --- Litter interception parameters for equation: intercepted rain = (a + b*litter) + (c+d*litter) * ppt
-# Grass		Shrub		Tree		Forbs
-0.0151		0.0151		0.0151		0.0151	# a
-0.00005		0.00005		0.00005		0.00005	# b
-0.0116		0.0116		0.0116		0.0116	# c
-0.00002		0.00002		0.00002		0.00002	# d
+# Grass-Litter	Shrub-Litter	Tree-Litter	Forbs-Litter
+0.0151			0.0151			0.0151		0.0151	# a
+0.00005			0.00005			0.00005		0.00005	# b
+0.0116			0.0116			0.0116		0.0116	# c
+0.00002			0.00002			0.00002		0.00002	# d
 
 
 # ---- Parameter for partitioning of bare-soil evaporation and transpiration as in Es = exp(-param*LAI)
 # Grasses	Shrubs		Trees		Forbs
-1.			1.			0.41		1.		# Trees: According to a regression based on a review by Daikoku, K., S. Hattori, A. Deguchi, Y. Aoki, M. Miyashita, K. Matsumoto, J. Akiyama, S. Iida, T. Toba, Y. Fujita, and T. Ohta. 2008. Influence of evaporation from the forest floor on evapotranspiration from the dry canopy. Hydrological Processes 22:4083-4096.
+1.			1.			0.41		1.	# Trees: According to a regression based on a review by Daikoku, K., S. Hattori, A. Deguchi, Y. Aoki, M. Miyashita, K. Matsumoto, J. Akiyama, S. Iida, T. Toba, Y. Fujita, and T. Ohta. 2008. Influence of evaporation from the forest floor on evapotranspiration from the dry canopy. Hydrological Processes 22:4083-4096.
 
 
 # ---- Parameter for scaling and limiting bare soil evaporation rate: if totagb (g/m2) > param then no bare-soil evaporation
@@ -63,7 +63,7 @@
 
 # ---- Hydraulic redistribution: Ryel, Ryel R, Caldwell, Caldwell M, Yoder, Yoder C, Or, Or D, Leffler, Leffler A. 2002. Hydraulic redistribution in a stand of Artemisia tridentata: evaluation of benefits to transpiration assessed with a simulation model. Oecologia 130: 173-184.
 # Grasses	Shrubs		Trees		Forbs
-1		1		1		1		# flag to turn on/off (1/0) hydraulic redistribution
+1			1			1			1		# flag to turn on/off (1/0) hydraulic redistribution
 -0.2328		-0.2328		-0.2328		-0.2328	# maxCondroot - maximum radial soil-root conductance of the entire active root system for water (cm/-bar/day) = 0.097 cm/MPa/h
 10.			10.			10.			10.		# swp50 - soil water potential (-bar) where conductance is reduced by 50% = -1. MPa
 3.22		3.22		3.22		3.22	# shapeCond - shaping parameter for the empirical relationship from van Genuchten to model relative soil-root conductance for water
@@ -85,15 +85,15 @@
 #Litter  Biomass  %Live LAI_conv
  75.0    150.0    0.00  300.     # January
  80.0    150.0    0.00  300.     # February
- 85.0    150.0    0.15  300.     # March
- 90.0    170.0    0.30  300.     # April
- 50.0    190.0    0.60  300.     # May
- 50.0    220.0    0.90  300.     # June
- 50.0    250.0    0.90  300.     # July
- 55.0    220.0    0.90  300.     # August
- 60.0    190.0    0.60  300.     # September
- 65.0    180.0    0.30  300.     # October
- 70.0    170.0    0.15  300.     # November
+ 85.0    150.0    0.10  300.     # March
+ 90.0    170.0    0.20  300.     # April
+ 50.0    190.0    0.40  300.     # May
+ 50.0    220.0    0.60  300.     # June
+ 50.0    250.0    0.40  300.     # July
+ 55.0    220.0    0.60  300.     # August
+ 60.0    190.0    0.40  300.     # September
+ 65.0    180.0    0.20  300.     # October
+ 70.0    170.0    0.10  300.     # November
  75.0    160.0    0.00  300.     # December
 
 # Shrublands component:
@@ -130,13 +130,14 @@
 #Litter  Biomass  %Live LAI_conv
  75.0    150.0    0.00  300.     # January
  80.0    150.0    0.00  300.     # February
- 85.0    150.0    0.15  300.     # March
- 90.0    170.0    0.30  300.     # April
- 50.0    190.0    0.60  300.     # May
- 50.0    220.0    0.90  300.     # June
- 50.0    250.0    0.90  300.     # July
- 55.0    220.0    0.90  300.     # August
- 60.0    190.0    0.60  300.     # September
- 65.0    180.0    0.30  300.     # October
- 70.0    170.0    0.15  300.     # November
+ 85.0    150.0    0.10  300.     # March
+ 90.0    170.0    0.20  300.     # April
+ 50.0    190.0    0.40  300.     # May
+ 50.0    220.0    0.60  300.     # June
+ 50.0    250.0    0.40  300.     # July
+ 55.0    220.0    0.60  300.     # August
+ 60.0    190.0    0.40  300.     # September
+ 65.0    180.0    0.20  300.     # October
+ 70.0    170.0    0.10  300.     # November
  75.0    160.0    0.00  300.     # December
+
