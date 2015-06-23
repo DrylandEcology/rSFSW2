@@ -1,4 +1,4 @@
-# Output setup file for SOILWAT v4 compiled on Mac OS X (20100202)
+# Output setup file for SOILWAT
 #
 # Notes:
 # Time periods available:  DY,WK,MO,YR 
@@ -42,12 +42,10 @@ OUTSEP t
 TIMESTEP dy yr
 
 # key			SUMTYPE		PERIOD		start	end		filename_prefix
-
-TEMP			avg		WK		1		end		temp_air		/* max., min, average temperature (C) */
+TEMP			avg		WK		1		end		temp_air		/* max., min, average air temperature, soil-surface temperature (C) */
 PRECIP			sum		MO		1		end		precip			/* total precip = sum(rain, snow), rain, snow-fall, snowmelt, and snowloss (cm)     */
 SOILINFILT		sum		YR		1		end		infiltration	/* water to infiltrate in top soil layer (cm), runoff (cm); (not-intercepted rain)+(snowmelt-runoff) */
 RUNOFF 			sum 	 	WK		1 		end 		runoff			/* runoff (cm): total runoff, runoff from ponded water, runoff from snowmelt */
-
 VWCBULK			avg		MO		1		end		vwc_bulk		/* bulk volumetric soilwater (cm / layer)
 VWCMATRIC		avg		YR		1		end		vwc_matric		/* matric volumetric soilwater (cm / layer)
 SWCBULK			avg		DY		1		end		swc_bulk		/* bulk soilwater content (cm / cm layer); swc.l1(today) = swc.l1(yesterday)+inf_soil-lyrdrain.l1-transp.l1-evap_soil.l1; swc.li(today) = swc.li(yesterday)+lyrdrain.l(i-1)-lyrdrain.li-transp.li-evap_soil.li; swc.llast(today) = swc.llast(yesterday)+lyrdrain.l(last-1)-deepswc-transp.llast-evap_soil.llast  */
@@ -68,5 +66,4 @@ WETDAY			sum		DY		1		end		wetdays			/* days above swc_wet            */
 SNOWPACK		avg		WK		1		end		snowpack		/* snowpack water equivalent (cm), snowdepth (cm); since snowpack is already summed, use avg - sum sums the sums = nonsense   */
 DEEPSWC			sum		MO		1		end		deep_drain		/* deep drainage into lowest layer (cm) */
 SOILTEMP		avg		MO		1		end		temp_soil		/* soil temperature from each soil layer (in celsius)
-
 ESTABL			off		YR		1		end		estabs			/* yearly establishment results */
