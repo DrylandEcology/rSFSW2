@@ -13,7 +13,7 @@
 currentSc <- "Current"
 
 #---R packages
-libraries <- c("RSQLite")
+libraries <- c("RSQLite", "stringr")
 l <- lapply(libraries, FUN=function(lib) stopifnot(require(lib, character.only=TRUE, quietly=TRUE)))
 
 
@@ -26,7 +26,7 @@ maker.climateScenarios <- function(currentScenario=currentSc, ensembleScenarios=
 	climCat[1, 1] <- currentScenario
 	climCat[-1, 1] <- rep(ensembleScenarios, each=length(ensembleLevels))
 	climCat[-1, 2] <- rep(ensembleLevels, times=length(ensembleScenarios))
-	rownames(climCat) <- apply(climCat, 1, FUN=function(r) paste0(trim(na.exclude(r)), collapse="_rank"))
+	rownames(climCat) <- apply(climCat, 1, FUN=function(r) paste0(str_trim(na.exclude(r)), collapse="_rank"))
 	return(climCat)
 }
 
