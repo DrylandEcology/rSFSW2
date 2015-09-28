@@ -96,7 +96,7 @@ if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) &&
 		installed <- is.null(installed)
 	}
 	if(!installed) stop("Could not install package Rsoilwat please contact admin.")
-	stopifnot(require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat") >= minVersionRsoilwat)
+	stopifnot(require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat31") >= minVersionRsoilwat)
 }
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
@@ -5984,7 +5984,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
 			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
 			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(Rsoilwat,quietly=TRUE))
+			snow::clusterEvalQ(cl, library(Rsoilwat31,quietly=TRUE))
 
 			snow::clusterExport(cl, list.export)
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
