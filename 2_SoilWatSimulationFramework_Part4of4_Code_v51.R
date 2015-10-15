@@ -55,6 +55,7 @@ if(!file.exists(temp)){
 } else {
 	ttemp <- read.csv(file=temp, header=FALSE)
 	if(nrow(ttemp) > 1) todo.done <- sort(ttemp[-1, 1])
+	rm(ttemp)
 }
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
@@ -390,7 +391,7 @@ if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
 weather.digits <- 2
 
 lwf_cond1 <- sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0
-lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0) && !any(as.logical(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global))
+lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0) && !any(as.logical(c(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)))
 lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
 lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
 if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){

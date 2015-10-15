@@ -124,8 +124,8 @@ do.ExtractExternalDatasets <- c(
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
 		
 		#Mean monthly wind, relative humidity, and 100% - sunshine 
-		"ExtractSkyDataFromNCEPCFSR_Global", 0, #code not integrated yet
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
+		"ExtractSkyDataFromNCEPCFSR_Global", 0, #code not integrated yet
 		
 		#Topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
