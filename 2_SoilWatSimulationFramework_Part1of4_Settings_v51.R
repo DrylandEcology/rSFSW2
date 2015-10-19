@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.08"
+minVersionRsoilwat <- "0.31.09"
 num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- TRUE
@@ -110,7 +110,7 @@ do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
-		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, #code not integrated yet
+		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
 		
 		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
 		#CMIP3
@@ -125,7 +125,7 @@ do.ExtractExternalDatasets <- c(
 		
 		#Mean monthly wind, relative humidity, and 100% - sunshine 
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-		"ExtractSkyDataFromNCEPCFSR_Global", 0, #code not integrated yet
+		"ExtractSkyDataFromNCEPCFSR_Global", 0,
 		
 		#Topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US

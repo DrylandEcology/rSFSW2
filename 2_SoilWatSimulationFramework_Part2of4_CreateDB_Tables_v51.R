@@ -57,7 +57,7 @@ if(createAndPopulateWeatherDatabase) {
 	if(length(ids_single) > 0) for(i in seq_along(ids_single)){
 		if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
 		if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
-			weatherData <- ExtractLookupWeatherFolder(weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
+			weatherData <- ExtractLookupWeatherFolder(dir.weather=file.path(dir.sw.in.tr, "LookupWeatherFolder"), weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
 		} else if(sites_dailyweather_source[ids_single[i]] == "Maurer2002_NorthAmerica"){
 			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[ids_single[i]], startYear=simstartyr, endYear=endyr)
 		} else {
@@ -77,6 +77,10 @@ if(createAndPopulateWeatherDatabase) {
 	ids_NRCan_extraction <- which(sites_dailyweather_source == "NRCan_10km_Canada")
 	if(length(ids_NRCan_extraction) > 0) ExtractGriddedDailyWeatherFromNRCan_10km_Canada(ids=ids_NRCan_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_NRCan_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
 	rm(ids_NRCan_extraction)
+
+	ids_NCEPCFSR_extraction <- which(sites_dailyweather_source == "NCEPCFSR_Global")
+	if(length(ids_NCEPCFSR_extraction) > 0) GriddedDailyWeatherFromNCEPCFSR_Global(ids=ids_NCEPCFSR_extraction, dat_sites=SWRunInformation[seq.tr[ids_NCEPCFSR_extraction], c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr, rm_temp=TRUE)
+	rm(ids_NCEPCFSR_extraction)
 	
 	dbW_disconnectConnection()
 }

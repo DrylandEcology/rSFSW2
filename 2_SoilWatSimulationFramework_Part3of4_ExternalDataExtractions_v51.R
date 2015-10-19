@@ -1614,66 +1614,140 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 #--------------------------------------------------------------------------------------------------#
 
 
+if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCEPCFSR_Global){
+	#allow for multiple sources
+	sites_monthlyclim_source <- rep(NA, times=length(seq.tr))
+	monthlyclim <- array(NA, dim=c(length(seq.tr), 3, 12), dimnames=list(NULL, c("rh", "cover", "wind"), NULL))
+	get_NA_byrow <- function(dat) apply(dat, 1, anyNA)
+	
+	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
+		if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+	
+		reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
+	
+		#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
+		dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNOAAClimateAtlasUS")
+		stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 
-if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
-	if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+		dir.ex.dat.RH <- file.path(dir.ex.dat, "HumidityRelative_Percent")
+		dir.ex.dat.cover <- file.path(dir.ex.dat, "Sunshine_Percent")
+	#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
+		dir.ex.dat.wind <- file.path(dir.ex.dat, "WindSpeed_mph")
 	
-	reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
+		datafile.RH <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+		datafile.cover <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+	#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+		datafile.wind <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
 	
-	#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
-	dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNOAAClimateAtlasUS")
-	dir.ex.dat.RH <- file.path(dir.ex.dat, "HumidityRelative_Percent")
-	dir.ex.dat.cover <- file.path(dir.ex.dat, "Sunshine_Percent")
-#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
-	dir.ex.dat.wind <- file.path(dir.ex.dat, "WindSpeed_mph")
+		code.RH <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
+		code.cover <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
+	#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
+		code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
 	
-	datafile.RH <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-	datafile.cover <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-	datafile.wind <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+		#locations of simulation runs
+		do_extract <- get_NA_byrow(monthlyclim)
+		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
+		projStringWGS84 <- proj4string(locations)
 	
-	code.RH <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
-	code.cover <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
-#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
-	code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+		#extract data for locations
+		get.month <- function(path, shp, month){
+			s <- readOGR(dsn=path, layer=shp[month], verbose=FALSE)
+			s.wgs84 <- spTransform(s, CRS=CRS(projStringWGS84))	#transform to wgs84
+			val <- sp::over(x=locations, y=s.wgs84)$GRIDCODE
+		}
+		monthlyclim[do_extract, "rh", ] <- sapply(st_mo, FUN=function(m) code.RH[get.month(path=dir.ex.dat.RH, shp=datafile.RH, month=m)])
+		monthlyclim[do_extract, "cover", ] <- sapply(st_mo, FUN=function(m) 100 - code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)]) #subtract from 100% as we want cover not no-cover
+	#		cover <- sapply(st_mo, FUN=function(m) code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)])
+		monthlyclim[do_extract, "wind", ] <- sapply(st_mo, FUN=function(m) code.wind[get.month(path=dir.ex.dat.wind, shp=datafile.wind, month=m)])
 	
-	#locations of simulation runs
-	locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-	projStringWGS84 <- proj4string(locations)
+		# Save extracted data to disk
+		i_Done <- do_extract & !get_NA_byrow(monthlyclim)
+		if(sum(i_Done) > 0){
+			sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
 	
-	#extract data
-	get.month <- function(path, shp, month){
-		s <- readOGR(dsn=path, layer=shp[month], verbose=FALSE)
-		s.wgs84 <- spTransform(s, CRS=CRS(projStringWGS84))	#transform to wgs84
-		val <- sp::over(x=locations, y=s.wgs84)$GRIDCODE
+			#add data to sw_input_cloud and set the use flags
+			sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "rh", ], 2)
+			sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "cover", ], 2)
+			sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "wind", ], 2)
+	
+			#write data to datafile.cloud
+			write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+			
+			rm(i.temp)
+		}
+	
+		rm(locations, reference)
+	
+		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 	}
-	rh <- sapply(st_mo, FUN=function(m) code.RH[get.month(path=dir.ex.dat.RH, shp=datafile.RH, month=m)])
-	cover <- sapply(st_mo, FUN=function(m) 100 - code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)]) #subtract from 100% as we want cover not no-cover
-#		cover <- sapply(st_mo, FUN=function(m) code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)])
-	wind <- sapply(st_mo, FUN=function(m) code.wind[get.month(path=dir.ex.dat.wind, shp=datafile.wind, month=m)])
 	
-	if(sum(c(is.na(rh), is.na(cover), is.na(wind))) > 0) warning(paste("Missing data in 'ExtractSkyDataFromNOAAClimateAtlas_USA'"))
+	if(exinfo$ExtractSkyDataFromNCEPCFSR_Global){
+		#Citations: Environmental Modeling Center/National Centers for Environmental Prediction/National Weather Service/NOAA/U.S. Department of Commerce. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory.
+		# http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
+		
+		if(!be.quiet) writeLines(c(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()), "NOTE: Do not interrupt - this process cannot resume."))
+		
+		# preparations
+		dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNCEPCFSR_Global", "CFSR_weather_prog08032012")
+		stopifnot(file.exists(dir.ex.dat))
+		
+		prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.dat)
+		stopifnot(!inherits(prepd_CFSR, "try-error"))
+
+		#locations of simulation runs
+		do_extract <- is.na(sites_monthlyclim_source)
+		if(sum(do_extract) > 0){
+			locations <- SWRunInformation[seq.tr[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
+			# do the extractions
+			temp <- try(get_NCEPCFSR_data(dat_sites=locations, daily=FALSE, monthly=TRUE, yearLow=simstartyr, yearHigh=endyr, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE), silent=TRUE)
+#TODO test
+#save(locations, temp, file=file.path(dir.prj, paste0(Sys.time(), "_temp_mult.RData")))
+			stopifnot(!inherits(temp, "try-error"))
+
+			#match weather folder names in case of missing extractions
+			res <- as.matrix(temp[["res_clim"]][, -1])
+			irow <- match(temp[["res_clim"]][, "WeatherFolder"], table=locations[, "WeatherFolder"], nomatch=0)
+			irowL <- (irow > 0)
+			monthlyclim[do_extract, "rh", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
+			monthlyclim[do_extract, "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
+			monthlyclim[do_extract, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
+			
+			# Save extracted data to disk
+			i_Done <- do_extract & !get_NA_byrow(monthlyclim)
+			if(sum(i_Done) > 0){
+				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
 	
-	#add data to sw_input_cloud and set the use flags
-	sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-	sw_input_cloud[, i.temp][st_mo] <- round(rh, 2)
-	sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-	sw_input_cloud[, i.temp][st_mo] <- round(cover, 2)
-	sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-	sw_input_cloud[, i.temp][st_mo] <- round(wind, 2)
+				#add data to sw_input_cloud and set the use flags
+				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "rh", ], 2)
+				sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "cover", ], 2)
+				sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "wind", ], 2)
 	
-	sw_input_cloud[, grepl(pattern="RH_Source", x=names(sw_input_cloud))] <- paste("Variable RH23 from", reference)
-	sw_input_cloud[, grepl(pattern="SkyC_Source", x=names(sw_input_cloud))] <- paste("'100% - Variable SUN52' from", reference)
-	sw_input_cloud[, grepl(pattern="Wind_Source", x=names(sw_input_cloud))] <- paste("Variable WND60B from", reference)
+				#write data to datafile.cloud
+				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+			
+				rm(i_Done, i.temp)
+			}
+			rm(locations, temp)
+		}
 	
+		rm(do_extract)
 	
-	#write data to datafile.cloud
-	tempdat <- rbind(sw_input_cloud_use, sw_input_cloud)
-	write.csv(tempdat, file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
+	}
+
+	#write data to datafile.SWRunInformation
+	SWRunInformation$ClimateNormals_source[seq.tr] <- as.character(sites_monthlyclim_source)
+	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	
-	rm(tempdat, i.temp, rh, cover, wind, locations, reference)
-	
-	if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+	if(anyNA(sites_monthlyclim_source)) warning("Climate normals weren't found for ", sum(is.na(sites_monthlyclim_source)), " sites")
+
+	rm(monthlyclim, sites_monthlyclim_source)
 }
 
 #--------------------------------------------------------------------------------------------------#

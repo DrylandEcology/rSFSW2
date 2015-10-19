@@ -18,11 +18,87 @@ if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregat
 #------
 ow <- options("warn", "error")
 if(print.debug){
-	options(warn=2, error=quote({dump.frames(to.file=TRUE); q()}))	#turns all warnings into errors, dumps all to a file, and quits
+	options(warn=2, error=quote({dump.frames(to.file=TRUE); q("no")}))	#turns all warnings into errors, dumps all to a file, and quits
 } else {
 	options(warn=0, error=traceback)	#catches all warnings and on error returns a traceback()
 }
 
+#custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
+#note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
+list.dirs2 <- function(path, full.names=TRUE, recursive=TRUE) {
+	dir.list <- list.dirs(path, full.names)
+	
+	if(is.null(dir.list)) 
+		return (dir.list)
+	if(length(dir.list) == 0) 
+		return (dir.list)
+	if(recursive == TRUE)
+		return (dir.list)
+	
+	nSlash = length(strsplit(dir.list[1], .Platform$file.sep)[[1]]) + 1
+	if(nSlash == 1) 
+		return(dir.list[-1])
+	
+	n = length(dir.list)
+	for(i in n:1) 
+		if(length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
+			dir.list <- dir.list[-i]
+	
+	return (dir.list)
+}
+#custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
+file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
+	file.copy(from, to, overwrite, FALSE, copy.mode)
+	if(times < 24)
+		if(file.exists(from))
+			if(!file.exists(to)) {
+				print("trying to copy the file again")
+				file.copy2(from, to, overwrite, copy.mode, (times+1))	#recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
+			}
+	#else { #this commented out part copies the file via the system command cp
+	#	if(any(grepl("/", to, fixed=TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
+	#		y <- to
+	#		while(substr(y, nchar(y), nchar(y)) != '/')
+	#			y <- substr(y, 1, nchar(y)-1)
+	#		y <- substr(y, 1, nchar(y)-1)
+	#		if(y != "")
+	#			system(paste("mkdir -p", y), ignore.stdout=FALSE, ignore.stderr=FALSE)
+	#	}
+	#	command <- "cp" #this just calls the system command cp...
+	#	if(overwrite == TRUE) command <- paste(command, "-f")
+	#	if(copy.mode == TRUE) command <- paste(command, "-p")
+	#	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
+	#}
+}
+#copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
+dir.copy <- function(dir.from, dir.to, overwrite=FALSE){
+	dir.create2(dir.to, recursive=TRUE)
+	dir.list <- basename(list.dirs2(dir.from, full.names=FALSE, recursive=FALSE))
+	file.list <- list.files(dir.from)
+	if(length(dir.list) > 0) {
+		sapply(dir.list, function(x) {dir.copy(dir.from=file.path(dir.from, x), dir.to=file.path(dir.to, x), overwrite=overwrite)})
+		#file.list <- file.list[-match(dir.list, table=file.list)] #this line gives an error when run in R v. 2.13
+		file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error	
+	}
+	if(length(file.list) > 0) {
+		sapply(file.list, function(x) {file.copy2(from=file.path(dir.from, x), to=file.path(dir.to, x), overwrite=overwrite, copy.mode=TRUE)})
+	}
+	invisible(1)
+}
+#remove directory and content
+dir.remove <- function(dir){
+	file.list <- try(list.files(dir, all.files=TRUE))
+	file.list <- file.list[-which(file.list %in% c(".", ".."))]
+	dir.list <- basename(list.dirs2(dir, full.names=FALSE, recursive=FALSE))
+	if(length(dir.list) > 0) {
+		sapply(dir.list, function(x) {dir.remove(dir=file.path(dir, x))})
+		file.list <- file.list[-match(dir.list, table=file.list)]
+	}
+	if(length(file.list) > 0) {
+		sapply(file.list, function(x) {file.remove(file.path(dir, x))})
+	}
+	return(file.remove(dir))
+}
 #made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
 dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) { 
 	dir.create(path, showWarnings, recursive, mode)
@@ -36,6 +112,7 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 	#else
 	#	system(paste("mkdir", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
 }
+
 
 #create simulation directory structure
 dir.sw.in <- normalizePath(dir.sw.in)
@@ -379,6 +456,338 @@ exinfo <- data.frame(t(as.numeric(temp[,-1])))
 names(exinfo) <- temp[,1]
 
 
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------SET UP PARALLELIZATION
+#used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
+
+workersN <- 1
+parallel_init <- FALSE
+if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ensembles){
+	if(parallel_runs){
+		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+		if(identical(parallel_backend, "mpi")) {
+			mpi.spawn.Rslaves(nslaves=num_cores)
+		
+			exportObjects <- function(allObjects) {
+				print("exporting objects from master node to slave nodes")
+				t.bcast <- Sys.time()
+				for(obj in 1:length(allObjects)) {
+					bcast.tempString <- allObjects[obj]
+					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
+					if(!inherits(bcast.tempValue, "try-error")){
+						mpi.bcast.Robj2slave(bcast.tempString)
+						mpi.bcast.Robj2slave(bcast.tempValue)
+						mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+					} else {
+						print(paste(obj, bcast.tempString, "not successful"))
+					}
+				}
+				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
+			}
+		}
+	
+		if(identical(parallel_backend, "snow")){
+			if(!be.quiet) setDefaultClusterOptions(outfile="")
+			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
+			cl <- snow::makeSOCKcluster(num_cores)
+			clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
+			#snow::clusterSetupRNG(cl) #random numbers setup
+			doSNOW::registerDoSNOW(cl) 	# register foreach backend
+		}
+	
+		if(identical(parallel_backend, "multicore")) {
+			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
+			registerDoMC(num_cores)
+		}
+	
+		if(identical(parallel_backend, "mpi")){
+			workersN <- (mpi.comm.size() - 1)
+		} else {
+			workersN <- foreach::getDoParWorkers()
+		}
+		
+		parallel_init <- TRUE
+		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	}
+}
+#--------------------------------------------------------------------------------------------------#
+
+
+#------------------------FUNCTIONS FOR NCEP/CFSR DATA
+if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCEPCFSR_Global){
+	# MAKE SURE THE FOLLOWING CONDITIONS ARE MET BEFORE RUNNING: 
+	# 	1) dynamically link cfsr_convert to do this call: "make linkr"
+	#	2) compile wGrib2 program beforehand & have it located in the same directory as cfsr_convert.  Instructions for how to compile wGrib2 are in cfsr_convert.c header.
+	#	3) have appropriate grib files located in the gribfiles folder in the same directory as cfsr_convert.  Info about the gribfiles needed is in cfsr_convert.c
+	#
+	#	for further reference, check in cfsr_convert.c
+
+	#daily data (http://rda.ucar.edu/datasets/ds093.1/): ds093.1 NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010, 0.313-deg: 6-hourly
+	#- maximum temperature: 2m above ground (Kelvin): 6-hour period
+	#	-> tmax.gdas.yyyymm.grb2 --> max of 4 values per day
+	#- minimum temperature: 2m above ground (Kelvin): 6-hour period
+	#	-> tmin.gdas.yyyymm.grb2 --> max of 4 values per day
+	#- precipitation rate: ground or water surface (kg m-2 s-1): 6-hour average
+	#	-> prate.gdas.yyyymm.grb2 --> sum of 4 values per day which are converted to cm/6-hour
+
+
+	#monthly data (http://rda.ucar.edu/datasets/ds093.2/): ds093.2 - NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December 2010, 0.313-deg: monthly mean (4 per day) of forecasts of 6-hour average
+	#- relative humidity (%): entire atmosphere --> 2m above ground
+	#	-> [0.5-deg] pgbh06.gdas.R_H.2m.grb2 --> means for Jan-Dec
+	#- wind (m s-1): u- and v-component at 10m above ground
+	#	-> flxf06.gdas.WND.10m.grb2 (u- and v-component) --> means for Jan-Dec
+	#- total cloud cover (%): entire atmosphere as a single layer
+	#	-> flxf06.gdas.T_CDC.EATM.grb2 --> means for Jan-Dec
+
+	load_NCEPCFSR_shlib <- function(cfsr_so){
+		if(!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
+		invisible(0)
+	}
+
+	prepare_NCEPCFSR_extraction <- function(dir.cfsr){
+		dir.create(dir.in.cfsr <- file.path(dir.in, "ncepcfsr"), showWarnings=FALSE)
+		fname_cfsr <- file.path(dir.in.cfsr, "cfsr_convert.so")
+		
+		.local <- function(){
+			#Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
+			if(!file.exists(fname_cfsr)){ # compile
+				dtemp <- getwd()
+				setwd(dir.cfsr)
+				stopifnot(file.exists("cfsr_convert.c", "generic2.c", "generic2.h", "filefuncs2.c", "filefuncs2.h", "mymemory2.c", "mymemory2.h"))
+				unlink(c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o"))
+				stopifnot(system2(command=file.path(Sys.getenv()[["R_HOME"]], "R"), args=paste("CMD SHLIB -o", fname_cfsr, "cfsr_convert.c generic2.c filefuncs2.c mymemory2.c"), wait=TRUE) == 0)
+				setwd(dtemp)
+			}
+			load_NCEPCFSR_shlib(fname_cfsr)
+
+			#Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
+			if(!file.exists(wgrib2 <- file.path(dir.in.cfsr, "wgrib2"))){
+				temp2 <- if(nchar(temp <- Sys.which("wgrib2")) > 0) temp else if(file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
+				stopifnot(nchar(temp2) > 0)
+				file.rename(temp2, wgrib2)
+			}
+
+			#Soft link to gribbed data
+			fname_gribDir <- "griblargeC2"
+			if(!file.exists(dir.grib <- file.path(dir.in.cfsr, fname_gribDir))){ # value of gribDir defined in cfsr_convert.c
+				stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr, fname_gribDir), dir.grib)) == 0)
+			}
+
+			#Set up temporary directory for C code to store objects
+			if(file.exists(ftemp <- file.path(dir.in.cfsr, "temporary_dy"))) unlink(ftemp, recursive=TRUE)
+			temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN=function(x) file.path(ftemp, x)), FUN=function(x) dir.create(x, recursive=TRUE, showWarnings=FALSE))
+
+			return(0)
+		}
+
+		temp <- .local()
+		res <- if(!inherits(temp, "try-error")) list(dir.in.cfsr=dir.in.cfsr, cfsr_so=fname_cfsr)  else temp
+
+		return(res)
+	}
+
+	# Wrapper functions for C code to access NCEP/CFSR data and write out to temporary files
+	gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
+		if(id %% 36 == 1) print(paste(Sys.time(), ": NCEP/CFSR extraction: year=", do_daily[id, "years"]))
+
+		gribData <- .C("dailyWeather2_R", n_sites=as.integer(nSites), latis=as.double(latitudes), longis=as.double(longitudes), yr=as.integer(do_daily[id, "years"]), mo=as.integer(do_daily[id, "months"]), type=as.integer(do_daily[id, "types"]))
+		return(1)
+	}
+
+	writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
+		dataWrite <- .C("dailyWeather2Write_R", n_sites=as.integer(nSites), sites=as.character(siteNames), dirs=as.character(siteDirsC), yr=as.integer(year))
+		return(1)
+	}
+
+	gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, yearLow, yearHigh) {
+		gribData <- .C("monthlyClimate2_R", n_sites=as.integer(nSites), latis=as.double(latitudes), longis=as.double(longitudes), dirs=as.character(siteDirsC), yrLow=as.integer(yearLow), yrHigh=as.integer(yearHigh), type=as.integer(type))
+		return(1)
+	}
+
+	writeMonthlyClimate <- function(id, siteDirsC) {
+		dataWrite <- .C("writeMonthlyClimate2_R", dir=as.character(siteDirsC[id]))
+		return(1)
+	}
+
+	get_NCEPCFSR_data <- function(dat_sites, daily=FALSE, monthly=FALSE, yearLow=1979, yearHigh=2010, n_site_per_core=100, cfsr_so, dir.in.cfsr, dir.temp, rm_mc_files=FALSE){
+	#str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
+	# $ WeatherFolder: chr  ...
+	# $ X_WGS84      : num  -117 -117 -117 -117 -120 ...
+	# $ Y_WGS84      : num  32.8 32.8 32.8 32.8 38.9 ...
+
+		# directory paths
+		dir.create(dir.temp.cfsr <- file.path(dir.temp, "temp_NCEFCFSR"), showWarnings=FALSE)
+		dir.temp.sites <- file.path(dir.temp.cfsr, dat_sites[, "WeatherFolder"])
+		temp <- lapply(dir.temp.sites, FUN=function(x) dir.create(x, showWarnings=FALSE))
+		dir.temp.sitesC <- gsub("/", "//", dir.temp.sites) # C-style paths
+
+		# prepare tasks
+		n_years <- (yearHigh - yearLow + 1)
+		n_sites <- nrow(dat_sites)
+		do_sites <- split(1:n_sites, f=rep(1:ceiling(n_sites / n_site_per_core), each=n_site_per_core))
+		n_climvars <- n_dailyvars <- 3
+		do_daily <- expand.grid(types=(1:n_dailyvars) - 1, months=st_mo, years=yearLow:yearHigh)
+
+		# do the extractions, loop over chunks of sites
+		if(n_sites > 0){
+			dtemp <- getwd()
+			setwd(dir.in.cfsr)
+
+			# set up parallel
+			if(parallel_runs && parallel_init){
+				list.export <- c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr") #objects that need exporting to slaves
+				if(identical(parallel_backend, "mpi")){
+					exportObjects(list.export)
+					mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
+					mpi.bcast.cmd(setwd(dir.in.cfsr))
+				}
+				if(identical(parallel_backend, "snow")){
+					export_obj_local <- list.export[list.export %in% ls(name=environment())]
+					export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
+					export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
+					export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
+					export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
+					stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
+					
+					if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
+					if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
+					if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+					snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
+					snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
+				}
+			}
+
+			for(k in seq_along(do_sites)){
+				if(!be.quiet) print(paste(Sys.time(), ": NCEP/CFSR extraction of", if(daily) "daily", if(daily && monthly) "and", if(monthly) "monthly", "data: chunk", k, "of", length(do_sites)))
+	
+				nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
+				ntemp <- length(do_sites[[k]])
+				irows <- do_sites[[k]]
+				longs <- dat_sites[irows, "X_WGS84"]
+				lats <- dat_sites[irows, "Y_WGS84"]
+				dtemp <- dir.temp.sitesC[irows]
+
+				if(print.debug) print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command="lsof", args="-c R | wc -l", stdout=T)))
+				
+				if(parallel_runs && parallel_init){
+					if(identical(parallel_backend, "mpi")) {
+						if(daily){
+							nDailyReads <- mpi.applyLB(x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+							nDailyReads <- do.call(sum, nDailyReads)
+
+							nDailyWrites <- mpi.applyLB(x=yearLow:yearHigh, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+							nDailyWrites <- do.call(sum, nDailyWrites)
+						}
+						if(monthly){
+							nMonthlyReads <- mpi.applyLB(x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+							nMonthlyReads <- do.call(sum, nMonthlyReads)
+						}
+						if(monthly && k == length(do_sites)){ # only do at the end
+							nMonthlyWrites <- mpi.applyLB(x=1:n_sites, fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
+							nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+						}
+					} else if(identical(parallel_backend, "snow")) {			
+						if(daily){
+							nDailyReads <- snow::clusterApplyLB(cl, x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+							nDailyReads <- do.call(sum, nDailyReads)
+
+							nDailyWrites <- snow::clusterApplyLB(cl, x=yearLow:yearHigh, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+							nDailyWrites <- do.call(sum, nDailyWrites)
+						}
+						if(monthly){
+							nMonthlyReads <- snow::clusterApplyLB(cl, x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+							nMonthlyReads <- do.call(sum, nMonthlyReads)
+						}
+						if(monthly && k == length(do_sites)){ # only do at the end
+							nMonthlyWrites <- snow::clusterApplyLB(cl, x=1:n_sites, fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
+							nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+						}
+					} else if(identical(parallel_backend, "multicore")) {
+						if(daily){
+							nDailyReads <- foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+								gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+							nDailyWrites <- foreach(y = yearLow:yearHigh, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+								writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+						}
+						if(monthly){
+							nMonthlyReads <- foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+								gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+						}
+						if(monthly && k == length(do_sites)){ # only do at the end
+							nMonthlyWrites <- foreach(ic = 1:n_sites, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+								writeMonthlyClimate(ic, siteDirsC=dir.temp.sitesC)
+						}
+					}
+				} else {
+					if(daily){
+						nDailyReads <- foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+							gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+						nDailyWrites <- foreach(y = yearLow:yearHigh, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+							writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+					}
+					if(monthly){
+						nMonthlyReads <- foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+							gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+					}
+					if(monthly && k == length(do_sites)){ # only do at the end
+						nMonthlyWrites <- foreach(ic = 1:n_sites, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+							writeMonthlyClimate(ic, siteDirsC=dir.temp.sitesC)
+					}
+				}
+	
+				# check that all was done
+				if(daily) stopifnot(nDailyReads == nrow(do_daily), nDailyWrites == n_years)
+				if(monthly) stopifnot(nMonthlyReads == n_climvars)
+			}
+
+			# check that all was done
+			if(monthly) stopifnot(nMonthlyWrites == n_sites)
+
+			# clean up parallel
+			if(parallel_runs && parallel_init){
+				if(identical(parallel_backend, "mpi")){
+					mpi.bcast.cmd(rm(list=ls()))
+					mpi.bcast.cmd(gc())
+				}
+				if(identical(parallel_backend, "snow")){
+					snow::clusterEvalQ(cl, rm(list=ls()))
+					snow::clusterEvalQ(cl, gc())
+				}
+			}
+
+			setwd(dtemp)
+		}
+
+
+		# concatenating the monthlyClimate csv files
+		if(monthly){
+			res_clim <- data.frame(matrix(NA, nrow=n_sites, ncol=1 + n_climvars * 12))
+			colnames(res_clim) <- c("WeatherFolder", paste0("Cloud_m", st_mo), paste0("Wind_m", st_mo), paste0("RH_m", st_mo))
+			res_clim[, "WeatherFolder"] <- dat_sites[, "WeatherFolder"]
+
+			for(i in 1:n_sites){
+				ftemp <- file.path(dir.temp.sites[i], "mc.csv")
+				if(file.exists(ftemp)){
+					table.mc <- read.csv(file=ftemp, comment="", stringsAsFactors=FALSE)
+					res_clim[i, 1 + st_mo] <- table.mc[, "Cloud_Cover"]
+					res_clim[i, 1 + 12 + st_mo] <- table.mc[, "Surface_Wind"]
+					res_clim[i, 1 + 24 + st_mo] <- table.mc[, "Rel_Humidity"]
+		
+					if(rm_mc_files == TRUE) unlink(ftemp)
+				}
+			}
+		} else {
+			res_clim <- NULL	
+		}
+
+		return(list(dir.temp.cfsr=dir.temp.cfsr, res_clim=res_clim))
+	}
+
+}
+
+
 #------------------------DAILY WEATHER
 if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
 	sites_dailyweather_source <- factor(SWRunInformation$dailyweather_source[seq.tr], levels=dailyweather_options)
@@ -396,16 +805,17 @@ lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_inpu
 lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
 if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
 	#function to be executed for each SoilWat-run
-	ExtractLookupWeatherFolder <- function(weatherfoldername){
-		WeatherFolder <- file.path(dir.sw.in.tr, "LookupWeatherFolder", weatherfoldername)
-		weath <- list.files(WeatherFolder)
-		years <- as.numeric(sub(pattern="weath.", replacement="", weath))
+	#TODO replace with Rsoilwat31::getWeatherData_folders
+	ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername){
+		WeatherFolder <- file.path(dir.weather, weatherfoldername)
+		weath <- list.files(WeatherFolder, pattern="weath.")
+		stopifnot(!anyNA(years <- as.numeric(sub(pattern="weath.", replacement="", weath))))
+
 		weatherData <- list()
-		for(j in 1:length(weath)) {
-			year <- as.numeric(sub(pattern="weath.", replacement="", weath[j]))
+		for(j in seq_along(weath)) {
 			temp <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
 			temp[, -1] <- round(temp[, -1], 2) #weather.digits
-			weatherData[[j]] <- new("swWeatherData", year=year, data=temp)
+			weatherData[[j]] <- new("swWeatherData", year=years[j], data=temp)
 		}
 		names(weatherData) <- years
 		return(weatherData)
@@ -455,7 +865,7 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	}
 }
 
-if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
+if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDatabase){
 	#Citations:
 	#	- Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson, P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of Applied Meteorology and Climatology 50:1654-1665.
 	#	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
@@ -547,8 +957,40 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
 	}
 }
 
-if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
-	stop("ExtractGriddedDailyWeatherFromNCEPCFSR_Global daily weather extraction is not yet implemented")
+if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherDatabase){
+	#Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
+	# http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
+
+	dir.ex.CFSR <- file.path(dir.external, "ExtractSkyDataFromNCEPCFSR_Global", "CFSR_weather_prog08032012")
+	stopifnot(file.exists(dir.ex.CFSR))
+	
+	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.CFSR)
+	stopifnot(!inherits(prepd_CFSR, "try-error"))
+
+	# Function to be executed for all SoilWat-sites together
+	GriddedDailyWeatherFromNCEPCFSR_Global <- function(ids, dat_sites, start_year, end_year, rm_temp=TRUE){
+		# do the extractions
+		etemp <- get_NCEPCFSR_data(dat_sites=dat_sites, daily=TRUE, monthly=FALSE, yearLow=start_year, yearHigh=end_year, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE)
+		
+		# move the weather data into the database
+		for(i in seq_along(ids)){
+			weatherData <- getWeatherData_folders(LookupWeatherFolder=etemp$dir.temp.cfsr, weatherDirName=dat_sites[i, "WeatherFolder"], filebasename="weath", startYear=start_year, endYear=end_year)
+			
+			# Store site weather data in weather database
+			data_blob <- dbW_weatherData_to_blob(weatherData)
+			Rsoilwat31:::dbW_addWeatherDataNoCheck(ids[i], 1, start_year, end_year, data_blob)
+		}
+		
+		if(rm_temp){
+			dir.remove(etemp$dir.temp.cfsr)
+			temp <- lapply(c("ppt", "tmax", "tmin"), FUN=function(x) dir.remove(file.path(prepd_CFSR$dir.in.cfsr, "temporary_dy", x)))
+		}
+			
+		if(!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
+		
+		invisible(0)
+	}
+
 }
 
 
@@ -577,7 +1019,7 @@ if(do_weather_source){
 	}
 
 	dw_Maurer2002_NorthAmerica <- function(){
-		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
+		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && (simstartyr >= 1949 && endyr <= 2010)){			
 			# Check which requested Maurer weather data are available
 			Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 			there <- sapply(Maurer, FUN=function(im) file.exists(file.path(dir.ex.maurer2002, im)))
@@ -591,7 +1033,7 @@ if(do_weather_source){
 	}
 
 	dw_NRCan_10km_Canada <- function(){
-		if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada){
+		if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && (simstartyr >= 1950 && endyr <= 2013)){
 			# Check which of the NRCan weather data are available
 			#	- Temperature: Celsius degrees
 			#	- Precipitation: mm
@@ -604,7 +1046,7 @@ if(do_weather_source){
 			there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
-				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[seq.tr][there], "_NRCan", formatC(SWRunInformation$X_WGS84[seq.tr][there], digits=4, format="f"), "_", format(SWRunInformation$X_WGS84[seq.tr][there], digits=4, format="f"))
+				sites_dailyweather_names[there] <<- with(SWRunInformation[seq.tr[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
 			}
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
@@ -612,7 +1054,15 @@ if(do_weather_source){
 	}
 
 	dw_NCEPCFSR_Global <- function(){
-		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
+		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && (simstartyr >= 1979 && endyr <= 2010)){
+			# Check which of the NRCan weather data are available
+			#	- Grids domain: 0E to 359.688E and 89.761N to 89.761S
+			there <- (SWRunInformation[seq.tr, "X_WGS84"] >= 0 - 180 & SWRunInformation[seq.tr, "X_WGS84"] <= 360 - 180) & (SWRunInformation[seq.tr, "Y_WGS84"] >= -89.761 & SWRunInformation[seq.tr, "Y_WGS84"] <= 89.761)
+			if(sum(there) > 0){
+				sites_dailyweather_source[there] <<- "NCEPCFSR_Global"
+				sites_dailyweather_names[there] <<- with(SWRunInformation[seq.tr[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
+			}
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
 		invisible(0)
 	}
@@ -1126,82 +1576,6 @@ AdjMonthlyBioMass <- function(tr_VegetationComposition,AdjMonthlyBioMass_Tempera
 	return(list("grass"=as.matrix(Grass_Composition),"shrub"=as.matrix(shrubs_Composition)))
 }
 
-#custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
-#note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
-list.dirs2 <- function(path, full.names=TRUE, recursive=TRUE) {
-	dir.list <- list.dirs(path, full.names)
-	
-	if(is.null(dir.list)) 
-		return (dir.list)
-	if(length(dir.list) == 0) 
-		return (dir.list)
-	if(recursive == TRUE)
-		return (dir.list)
-	
-	nSlash = length(strsplit(dir.list[1], .Platform$file.sep)[[1]]) + 1
-	if(nSlash == 1) 
-		return(dir.list[-1])
-	
-	n = length(dir.list)
-	for(i in n:1) 
-		if(length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
-			dir.list <- dir.list[-i]
-	
-	return (dir.list)
-}
-#custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
-file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
-	file.copy(from, to, overwrite, FALSE, copy.mode)
-	if(times < 24)
-		if(file.exists(from))
-			if(!file.exists(to)) {
-				print("trying to copy the file again")
-				file.copy2(from, to, overwrite, copy.mode, (times+1))	#recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
-			}
-	#else { #this commented out part copies the file via the system command cp
-	#	if(any(grepl("/", to, fixed=TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
-	#		y <- to
-	#		while(substr(y, nchar(y), nchar(y)) != '/')
-	#			y <- substr(y, 1, nchar(y)-1)
-	#		y <- substr(y, 1, nchar(y)-1)
-	#		if(y != "")
-	#			system(paste("mkdir -p", y), ignore.stdout=FALSE, ignore.stderr=FALSE)
-	#	}
-	#	command <- "cp" #this just calls the system command cp...
-	#	if(overwrite == TRUE) command <- paste(command, "-f")
-	#	if(copy.mode == TRUE) command <- paste(command, "-p")
-	#	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
-	#}
-}
-#copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
-dir.copy <- function(dir.from, dir.to, overwrite=FALSE){
-	dir.create2(dir.to, recursive=TRUE)
-	dir.list <- basename(list.dirs2(dir.from, full.names=FALSE, recursive=FALSE))
-	file.list <- list.files(dir.from)
-	if(length(dir.list) > 0) {
-		sapply(dir.list, function(x) {dir.copy(dir.from=file.path(dir.from, x), dir.to=file.path(dir.to, x), overwrite=overwrite)})
-		#file.list <- file.list[-match(dir.list, table=file.list)] #this line gives an error when run in R v. 2.13
-		file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error	
-	}
-	if(length(file.list) > 0) {
-		sapply(file.list, function(x) {file.copy2(from=file.path(dir.from, x), to=file.path(dir.to, x), overwrite=overwrite, copy.mode=TRUE)})
-	}
-	invisible(1)
-}
-#remove directory and content
-dir.remove <- function(dir){
-	file.list <- try(list.files(dir, all.files=TRUE))
-	file.list <- file.list[-which(file.list %in% c(".", ".."))]
-	dir.list <- basename(list.dirs2(dir, full.names=FALSE, recursive=FALSE))
-	if(length(dir.list) > 0) {
-		sapply(dir.list, function(x) {dir.remove(dir=file.path(dir, x))})
-		file.list <- file.list[-match(dir.list, table=file.list)]
-	}
-	if(length(file.list) > 0) {
-		sapply(file.list, function(x) {file.remove(file.path(dir, x))})
-	}
-	return(file.remove(dir))
-}
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
 circ.mean <- function(x, int, na.rm=FALSE){
@@ -1360,6 +1734,7 @@ SWPtoVWC <- function(swp, sand, clay) {
 	}
 	return(vwc) #fraction m3/m3 [0, 1]
 }
+
 #convert VWC(matric) to SWP(matric)
 VWCtoSWP <- function(vwc, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
@@ -1426,7 +1801,6 @@ VWCtoSWP <- function(vwc, sand, clay) {
 	return(swp) #MPa [-Inf, 0]
 }
 
-
 #two, three, or four layer aggregation for average daily aggregation output
 setAggSoilLayerForAggDailyResponses <- function(layers_depth){
 	d <- length(layers_depth)
@@ -1486,64 +1860,10 @@ adjust.WindspeedHeight <- function(uz, height){
 
 
 #--------------------------------------------------------------------------------------------------#
-#------------------------SET UP PARALLELIZATION
-#used in: external dataset extractions, loop calling do_OneSite, and ensembles
-
-workersN <- 1
-parallel_init <- FALSE
-if(any(actions == "external") || (actionWithSoilWat && runsN.todo > 0) || do.ensembles){
-	if(parallel_runs){
-		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
-		if(identical(parallel_backend, "mpi")) {
-			mpi.spawn.Rslaves(nslaves=num_cores)
-		
-			exportObjects <- function(allObjects) {
-				print("exporting objects from master node to slave nodes")
-				t.bcast <- Sys.time()
-				for(obj in 1:length(allObjects)) {
-					bcast.tempString <- allObjects[obj]
-					bcast.tempValue <- try(eval(as.name(allObjects[obj])))
-					if(!inherits(bcast.tempValue, "try-error")){
-						mpi.bcast.Robj2slave(bcast.tempString)
-						mpi.bcast.Robj2slave(bcast.tempValue)
-						mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
-					} else {
-						print(paste(obj, bcast.tempString, "not successful"))
-					}
-				}
-				print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
-			}
-		}
-	
-		if(identical(parallel_backend, "snow")){
-			if(!be.quiet) setDefaultClusterOptions(outfile="")
-			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
-			cl <- snow::makeSOCKcluster(num_cores)
-			clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
-			#snow::clusterSetupRNG(cl) #random numbers setup
-			doSNOW::registerDoSNOW(cl) 	# register foreach backend
-		}
-	
-		if(identical(parallel_backend, "multicore")) {
-			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
-			registerDoMC(num_cores)
-		}
-	
-		if(identical(parallel_backend, "mpi")){
-			workersN <- (mpi.comm.size() - 1)
-		} else {
-			workersN <- foreach::getDoParWorkers()
-		}
-		
-		parallel_init <- TRUE
-		if(!be.quiet) print(paste("SWSF prepares parallelization: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
-	}
-}
-
-
-#--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(exinfo))] > 0)){
+	setwd(dir.prj)
+
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
 	stopifnot(file.exists(dir.external))
 	
