@@ -1702,9 +1702,7 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		if(sum(do_extract) > 0){
 			locations <- SWRunInformation[seq.tr[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
 			# do the extractions
-			temp <- try(get_NCEPCFSR_data(dat_sites=locations, daily=FALSE, monthly=TRUE, yearLow=simstartyr, yearHigh=endyr, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE), silent=TRUE)
-#TODO test
-#save(locations, temp, file=file.path(dir.prj, paste0(Sys.time(), "_temp_mult.RData")))
+			temp <- try(get_NCEPCFSR_data(dat_sites=locations, daily=FALSE, monthly=TRUE, yearLow=startyr, yearHigh=endyr, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE), silent=TRUE)
 			stopifnot(!inherits(temp, "try-error"))
 
 			#match weather folder names in case of missing extractions
