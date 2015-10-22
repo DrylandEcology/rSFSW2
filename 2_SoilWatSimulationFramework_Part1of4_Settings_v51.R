@@ -32,13 +32,13 @@ rm(list=ls(all=TRUE))
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
-print.debug <- FALSE
+print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
 minVersionRsoilwat <- "0.31.09"
 num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
-parallel_runs <- TRUE
+parallel_runs <- if(interactive()) FALSE else TRUE
 
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
@@ -55,6 +55,7 @@ url.Rrepos <- "http://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 dir.prj <- "~/Documents/drschlaepfer/2_Research/200907_UofWyoming_PostDoc/Projects_My/Product_PowellCenter/6_Projects_Year1/Prj01_Texture/1_PC_TempDry_Simulations_Prj01_r2mini"
+if(interactive()) setwd(dir.prj)
 dir.prj <- dir.runs <- getwd()
 	
 #parent folder containing external data
@@ -297,7 +298,7 @@ output_aggregates <- c(
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
 
 #options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
-output_aggregate_daily <- c("SWPmatric") #c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax")
+output_aggregate_daily <- c("SWPmatric")
 #select variables to output as aggregated yearly time series
 ouput_aggregated_ts <- NULL #c("Regeneration")
 
@@ -392,5 +393,5 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-source("2_SoilWatSimulationFramework_Part4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
+if(!interactive()) source("2_SoilWatSimulationFramework_Part4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
 
