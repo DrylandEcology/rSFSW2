@@ -3720,28 +3720,29 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
 			if(!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient){
 				
-				#delete data so that they are read if anew for each scenario; each variable is checked that datafile is read in only once per scenario			
-				try(rm(			temp.yr, temp.mo, temp.dy, 
-								prcp.yr, prcp.mo, prcp.dy, 
-								PET.yr, PET.mo, PET.dy,
-								AET.yr, AET.mo, AET.dy,
-								soiltemp.yr, soiltemp.mo, soiltemp.dy,
-								swcbulk.yr,swcbulk.mo,swcbulk.dy,
-								swabulk.yr,swabulk.mo, swabulk.dy,
-								swamatric.yr,swamatric.mo,swamatric.dy,
-								vwcbulk.yr,vwcbulk.mo,vwcbulk.dy,vwcbulk.dy.all,
-								vwcmatric.yr,vwcmatric.mo,vwcmatric.dy,vwcmatric.dy.all,
-								swpmatric.yr,swpmatric.mo,swpmatric.dy,swpmatric.dy.all, 
-								transp.yr, transp.mo, transp.dy, transp.dy.all,
-								Esoil.yr, Esoil.mo, Esoil.dy, Esoil.dy.all,
-								Esurface.yr, Esurface.mo, Esurface.dy,
-								hydred.yr, hydred.mo, hydred.dy,
-								inf.yr, inf.mo, inf.dy, 
-								runoff.yr, runoff.mo, runoff.dy,
-								intercept.yr, intercept.mo, intercept.dy,
-								deepDrain.yr, deepDrain.mo, deepDrain.dy
-						), silent=TRUE)
-				
+				#delete data so that they are read anew for each scenario; each variable is checked that datafile is read in only once per scenario			
+				to_del <- c("temp.yr", "temp.mo", "temp.dy",
+							"prcp.yr", "prcp.mo", "prcp.dy",
+							"PET.yr", "PET.mo", "PET.dy",
+							"AET.yr", "AET.mo", "AET.dy",
+							"soiltemp.yr", "soiltemp.mo", "soiltemp.dy",
+							"swcbulk.yr", "swcbulk.mo", "swcbulk.dy",
+							"swabulk.yr", "swabulk.mo", "swabulk.dy",
+							"swamatric.yr", "swamatric.mo", "swamatric.dy",
+							"vwcbulk.yr", "vwcbulk.mo", "vwcbulk.dy", "vwcbulk.dy.all",
+							"vwcmatric.yr", "vwcmatric.mo", "vwcmatric.dy", "vwcmatric.dy.all",
+							"swpmatric.yr", "swpmatric.mo", "swpmatric.dy", "swpmatric.dy.all",
+							"transp.yr", "transp.mo", "transp.dy", "transp.dy.all",
+							"Esoil.yr", "Esoil.mo", "Esoil.dy", "Esoil.dy.all",
+							"Esurface.yr", "Esurface.mo", "Esurface.dy",
+							"hydred.yr", "hydred.mo", "hydred.dy",
+							"inf.yr", "inf.mo", "inf.dy",
+							"runoff.yr", "runoff.mo", "runoff.dy",
+							"intercept.yr", "intercept.mo", "intercept.dy",
+							"deepDrain.yr", "deepDrain.mo", "deepDrain.dy")
+				to_del <- to_del[to_del %in% ls()]
+				if(length(to_del) > 0) try(rm(list=to_del), silent=TRUE)
+									
 				#result vector column index indicating variable within set of n_variables per scenario
 				resMeans <- resSDs <- rep(NA, length=dbOverallColumns)
 #check that db still works:
