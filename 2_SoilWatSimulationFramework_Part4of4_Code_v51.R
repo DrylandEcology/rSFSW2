@@ -18,7 +18,11 @@ if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregat
 #------
 ow <- options("warn", "error")
 if(print.debug){
-	options(warn=2, error=quote({dump.frames(to.file=TRUE); q("no")}))	#turns all warnings into errors, dumps all to a file, and quits
+	if(interactive()){
+		options(warn=1, error=quote({dump.frames(to.file=TRUE)}))
+	} else {
+		options(warn=2, error=quote({dump.frames(to.file=TRUE); q("no")}))	#turns all warnings into errors, dumps all to a file, and quits
+	}
 } else {
 	options(warn=0, error=traceback)	#catches all warnings and on error returns a traceback()
 }
@@ -6307,7 +6311,17 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
 			snow::clusterEvalQ(cl, library(Rsoilwat31,quietly=TRUE))
 
-			snow::clusterExport(cl, list.export)
+			export_obj_local <- list.export[list.export %in% ls(name=environment())]
+			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
+			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
+			export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
+			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
+			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
+			
+			if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
+			if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
+			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
 
 			runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %dopar% {				
@@ -6764,7 +6778,17 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
 			ensembles.completed <- sum(unlist(ensembles.completed))
 		} else if(identical(parallel_backend, "snow")) {
-			snow::clusterExport(cl, list.export)
+			export_obj_local <- list.export[list.export %in% ls(name=environment())]
+			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
+			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
+			export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
+			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
+			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
+			
+			if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
+			if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
+			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+
 			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
 			snow::clusterEvalQ(cl, drv<-dbDriver("SQLite"))
 			
