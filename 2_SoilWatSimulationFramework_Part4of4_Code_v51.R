@@ -2497,24 +2497,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		if(any(create_treatments=="LookupShiftedPPTScenarios")){
 			ppt_scShift <- tr_input_shiftedPPT[which(rownames(tr_input_shiftedPPT) == i_sw_input_treatments[1,"LookupShiftedPPTCategory"]),(ts <- which(colnames(tr_input_shiftedPPT) == paste(i_sw_input_treatments$LookupShiftedPPTScenarios, "_m1", sep=""))):(ts+11)][st_mo]
 		}
-		if(any(create_treatments=="LookupClimatePPTScenarios") ) {
-			ppt_sc <- tr_input_climPPT[st_mo, which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPTScenarios)]
-		} else {
-			ppt_sc <- rep(NA, times=12)
-		}
-		#Treatment chunk = climate scenarios
-		if(any(create_treatments=="LookupClimateTempScenarios") ) {
-			t_sc <- tr_input_climTemp[st_mo, which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTempScenarios)]
-		} else {
-			t_sc <- rep(NA, times=12)
-		}
-		if(any(create_treatments=="LookupClimatePPTScenarios") | any(create_treatments=="LookupClimateTempScenarios") ) {
-			ppt_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,1]
-			t1_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,2]
-			t2_old <- swWeather_MonScalingParams(swRunScenariosData[[1]])[,3]
+		
+		if(any(create_treatments=="LookupClimatePPTScenarios") | any(create_treatments=="LookupClimateTempScenarios")){
+			clim_scale <- swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3]
 			
-			for (m in st_mo)
-				swWeather_MonScalingParams(swRunScenariosData[[1]])[m,] <- c(ifelse(!is.na(ppt_sc[m]), ppt_sc[m], ppt_old[m]), ifelse(!is.na(t_sc[m]), t_sc[m], t1_old[m]), ifelse(!is.na(t_sc[m]), t_sc[m], t2_old[m]))
+			#Treatment chunk = climate precipitation scenarios
+			if(any(create_treatments=="LookupClimatePPTScenarios") ) {
+				clim_scale[, 1] <- tr_input_climPPT[st_mo, which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPTScenarios)]
+			}
+			#Treatment chunk = climate temperature scenarios
+			if(any(create_treatments=="LookupClimateTempScenarios") ) {
+				clim_scale[, 2] <- clim_scale[, 3] <- tr_input_climTemp[st_mo, which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTempScenarios)]
+			}			
+			
+			swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3] <- clim_scale
+			
+			rm(clim_scale)
 		}
 		
 
@@ -4531,7 +4529,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 																							Tregime, Sregime)
 					nv <- nv+6+14+length(Tregime_names)+length(Sregime_names)
 					
-					rm(SWP_dry, SWP_sat, impermeability, Tregime_names, Sregime_names, stemp, sand_temp, clay_temp, imp_depth, MCS_depth, Fifty_depth, Lanh_depth, permafrost, MAT50, T50jja, T50djf, CSPartSummer, T50_at5C, PDHalfHalf_at0C, PDAll_at5C, PWPart_at5C, DDPart, DWPart, CWPart, CWPart_at8C, CWAllWinter, CDAllSummer)
+					to_del <- c("SWP_dry", "SWP_sat", "impermeability", "Tregime_names", "Sregime_names", "stemp", "sand_temp", "clay_temp", "imp_depth", "MCS_depth", "Fifty_depth", "Lanh_depth", "permafrost", "MAT50", "T50jja", "T50djf", "CSPartSummer", "T50_at5C", "PDHalfHalf_at0C", "PDAll_at5C", "PWPart_at5C", "DDPart", "DWPart", "CWPart", "CWPart_at8C", "CWAllWinter", "CDAllSummer")
+					to_del <- to_del[to_del %in% ls()]
+					if(length(to_del) > 0) try(rm(list=to_del), silent=TRUE)
 					
 				}
 
