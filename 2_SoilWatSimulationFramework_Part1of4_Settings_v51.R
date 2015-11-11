@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.09"
+minVersionRsoilwat <- "0.31.10"
 num_cores <- 2
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
