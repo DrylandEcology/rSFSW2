@@ -1066,7 +1066,7 @@ if(do_weather_source){
 				sites_dailyweather_source[there] <<- "NCEPCFSR_Global"
 				sites_dailyweather_names[there] <<- with(SWRunInformation[seq.tr[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
 			}
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
 		}
 		invisible(0)
 	}

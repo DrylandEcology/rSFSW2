@@ -1187,7 +1187,13 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 #------EXTRACT SOIL CHARACTERISTICS------
 if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataFromISRICWISEv12_Global){
 	#allow for multiple sources
-	sites_externalsoils_source <- rep(NA, times=length(seq.tr))
+	if(extract_determine_database == "order"){
+		sites_externalsoils_source <- rep(NA, times=length(seq.tr))
+	} else if(extract_determine_database == "SWRunInformation"){
+		sites_externalsoils_source <- SWRunInformation$SoilTexture_source[seq.tr]
+	} else {
+		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
+	}
 	
 	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
 		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
@@ -1198,7 +1204,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil", "output", "albers")
 	
 		#locations of simulation runs
-		do_extract <- is.na(sites_externalsoils_source)
+		do_extract <- is.na(sites_externalsoils_source) | (sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA")
 		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 	
 		#extract data
@@ -1245,30 +1251,37 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
 # TODO: unclear whether this is bulk or matric density, Miller et al. 1998 has labelled this as bulk, but it appears as if it is matric because eq. 20 (Saxton et al. 2006) would give otherwise negative values for matricd (bulkd <- matricd * (1 - rockvol) + rockvol * 2.65)
 		#matricd <- ifelse(abs(1 - rockvol) > sqrt(.Machine$double.eps), (bulkd - rockvol * 2.65) / (1 - rockvol), 0)
-	
-		i_Done <- do_extract & complete.cases(soil_data[, 1, ])
 		
-		if(sum(i_Done) > 0){
-			sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
-			
+		i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract)
+		
+		if(sum(i_good) > 0){
+			i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+			i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+			if(extract_determine_database == "order"){
+				sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
+			} else if(extract_determine_database == "SWRunInformation"){
+				sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
+			}
+						
 			#set and save soil layer structure
-			sw_input_soillayers[seq.tr[i_Done], "SoilDepth_cm"] <- soil_data[i_Done, 1, "bedrock"]
-			sw_input_soillayers[seq.tr[i_Done], 2+lys] <- matrix(data=rep(ldepth[lys], times=sum(i_Done)), ncol=length(lys), byrow=TRUE)
+			sw_input_soillayers[seq.tr[i_Done], "SoilDepth_cm"] <- soil_data[i_good, 1, "bedrock"]
+			sw_input_soillayers[seq.tr[i_Done], 2+lys] <- matrix(data=rep(ldepth[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 			write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
 
 			#set and save soil texture
 			#add data to sw_input_soils and set the use flags
 			i.temp <- grepl(pattern="Matricd_L", x=names(sw_input_soils_use))
-			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_Done, lys, "matricd"]
+			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "matricd"]
 			sw_input_soils_use[i.temp][lys] <- 1
 			i.temp <- grepl(pattern="GravelContent_L", x=names(sw_input_soils_use))
-			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_Done, lys, "rockvol"]
+			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "rockvol"]
 			sw_input_soils_use[i.temp][lys] <- 1
 			i.temp <- grepl(pattern="Sand_L", x=names(sw_input_soils_use))
-			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_Done, lys, "sand"]
+			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "sand"]
 			sw_input_soils_use[i.temp][lys] <- 1
 			i.temp <- grepl(pattern="Clay_L", x=names(sw_input_soils_use))
-			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_Done, lys, "clay"]
+			sw_input_soils[seq.tr[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "clay"]
 			sw_input_soils_use[i.temp][lys] <- 1
 
 			#write data to datafile.soils
@@ -1298,7 +1311,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 	
 		#locations of simulation runs
-		do_extract <- is.na(sites_externalsoils_source)
+		do_extract <- is.na(sites_externalsoils_source) | (sites_externalsoils_source == "ISRICWISEv12_Global")
 		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 		is_ToDo <- seq_along(locations)
 		
@@ -1490,12 +1503,17 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 #TODO: why so many negative values?
 		#matricd <- (sim_cells_soils[, grep("bulk", colnames(sim_cells_soils))] - 2.65 * sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))]) / (1 - sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))])
 	
-
-		i_good <- complete.cases(sim_cells_soils)
+		i_good <- complete.cases(sim_cells_soils) #length(i_good) == sum(do_extract)
+		
 		if(sum(i_good) > 0){
-			i_Done <- do_extract
-			i_Done[i_Done] <- i_good
-			sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
+			i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+			i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+			if(extract_determine_database == "order"){
+				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
+			} else if(extract_determine_database == "SWRunInformation"){
+				sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
+			}
 		
 			#set and save soil layer structure
 			lys <- 1:layer_Nsim
@@ -1550,7 +1568,14 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 #------EXTRACT ELEVATION------
 if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 	#allow for multiple sources
-	elevation_m <- sites_elevation_source <- rep(NA, times=length(seq.tr))
+	if(extract_determine_database == "order"){
+		sites_elevation_source <- rep(NA, times=length(seq.tr))
+	} else if(extract_determine_database == "SWRunInformation"){
+		sites_elevation_source <- SWRunInformation$Elevation_source[seq.tr]
+	} else {
+		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
+	}
+	elevation_m <- rep(NA, times=length(seq.tr))
 	
 	#	- extract NED data where available
 	if(exinfo$ExtractElevation_NED_USA){
@@ -1563,13 +1588,24 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 		g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
 	
 		#locations of simulation runs
-		do_extract <- is.na(elevation_m)
+		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
 		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 		locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 		#extract data for locations
 		elevation_m[do_extract] <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
-		sites_elevation_source[do_extract & !is.na(elevation_m)] <- "Elevation_NED_USA"
+
+		i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
+		if(sum(i_good) > 0){
+			i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+			i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+			if(extract_determine_database == "order"){
+				sites_elevation_source[i_Done] <- "Elevation_NED_USA"
+			} else if(extract_determine_database == "SWRunInformation"){
+				sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			}
+		}
 	
 		rm(g.elev, locations, locations.CoordG)
 	
@@ -1586,13 +1622,24 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 		g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
 	
 		#locations of simulation runs
-		do_extract <- is.na(elevation_m)
+		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
 		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 		locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
 	
 		#extract data for locations
 		elevation_m[do_extract] <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
-		sites_elevation_source[do_extract & !is.na(elevation_m)] <- "Elevation_HWSD_Global"
+
+		i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
+		if(sum(i_good) > 0){
+			i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+			i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+			if(extract_determine_database == "order"){
+				sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
+			} else if(extract_determine_database == "SWRunInformation"){
+				sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			}
+		}
 	
 		rm(g.elev, locations, locations.CoordG)
 	
@@ -1616,7 +1663,14 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 
 if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCEPCFSR_Global){
 	#allow for multiple sources
-	sites_monthlyclim_source <- rep(NA, times=length(seq.tr))
+	if(extract_determine_database == "order"){
+		sites_monthlyclim_source <- rep(NA, times=length(seq.tr))
+	} else if(extract_determine_database == "SWRunInformation"){
+		sites_monthlyclim_source <- SWRunInformation$ClimateNormals_source[seq.tr]
+	} else {
+		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
+	}
+
 	monthlyclim <- array(NA, dim=c(length(seq.tr), 3, 12), dimnames=list(NULL, c("rh", "cover", "wind"), NULL))
 	get_NA_byrow <- function(dat) apply(dat, 1, anyNA)
 	
@@ -1645,7 +1699,7 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
 	
 		#locations of simulation runs
-		do_extract <- get_NA_byrow(monthlyclim)
+		do_extract <- get_NA_byrow(monthlyclim) | is.na(sites_monthlyclim_source) | (sites_monthlyclim_source == "ClimateNormals_NCDC2005_USA")
 		locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 		projStringWGS84 <- proj4string(locations)
 	
@@ -1661,17 +1715,24 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		monthlyclim[do_extract, "wind", ] <- sapply(st_mo, FUN=function(m) code.wind[get.month(path=dir.ex.dat.wind, shp=datafile.wind, month=m)])
 	
 		# Save extracted data to disk
-		i_Done <- do_extract & !get_NA_byrow(monthlyclim)
-		if(sum(i_Done) > 0){
-			sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
+		i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
+		if(sum(i_good) > 0){
+			i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+			i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+			if(extract_determine_database == "order"){
+				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
+			} else if(extract_determine_database == "SWRunInformation"){
+				sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
+			}
 	
 			#add data to sw_input_cloud and set the use flags
 			sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "rh", ], 2)
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "rh", ], 2)
 			sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "cover", ], 2)
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
 			sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "wind", ], 2)
+			sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
 	
 			#write data to datafile.cloud
 			write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
@@ -1698,7 +1759,7 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 		#locations of simulation runs
-		do_extract <- is.na(sites_monthlyclim_source)
+		do_extract <- get_NA_byrow(monthlyclim) | is.na(sites_monthlyclim_source) | (sites_monthlyclim_source == "ClimateNormals_NCEPCFSR_Global")
 		if(sum(do_extract) > 0){
 			locations <- SWRunInformation[seq.tr[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
 			# do the extractions
@@ -1714,17 +1775,24 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 			monthlyclim[do_extract, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
 			
 			# Save extracted data to disk
-			i_Done <- do_extract & !get_NA_byrow(monthlyclim)
-			if(sum(i_Done) > 0){
-				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
+			i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
+			if(sum(i_good) > 0){
+				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
+				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+
+				if(extract_determine_database == "order"){
+					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
+				} else if(extract_determine_database == "SWRunInformation"){
+					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
+				}
 	
 				#add data to sw_input_cloud and set the use flags
 				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "rh", ], 2)
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "rh", ], 2)
 				sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "cover", ], 2)
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
 				sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_Done, "wind", ], 2)
+				sw_input_cloud[seq.tr[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
 	
 				#write data to datafile.cloud
 				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)

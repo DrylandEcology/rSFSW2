@@ -54,12 +54,12 @@ url.Rrepos <- "http://cran.us.r-project.org"
 
 #------Set paths to simulation framework folders
 #parent folder of simulation project
-dir.prj <- "~YOURPROJECT"
+dir.prj <- "~/YOURPROJECT"
 if(interactive()) setwd(dir.prj)
 dir.prj <- dir.runs <- getwd()
 	
 #parent folder containing external data
-dir.external <- "Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
+dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
 
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
@@ -102,8 +102,12 @@ dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
+# if extract_determine_database == "order", then
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
 # - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over 'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested and data is available for both
+# - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
+# if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation'
+extract_determine_database <- "order" # one of c("order", "SWRunInformation")
 #extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global"
 extract_gridcell_or_point <- "point" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
 gridcell_resolution <- 1/8
@@ -181,7 +185,7 @@ ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
 #------Names of files that contain input data or treatment codes
-datafile.SWRunInformation <- "SWRuns_InputMaster_TemperateArid_v11.csv"
+datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
 
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"	
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
