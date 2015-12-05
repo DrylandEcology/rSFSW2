@@ -570,7 +570,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 			if(!file.exists(wgrib2 <- file.path(dir.in.cfsr, "wgrib2"))){
 				temp2 <- if(nchar(temp <- Sys.which("wgrib2")) > 0) temp else if(file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
 				stopifnot(nchar(temp2) > 0)
-				file.rename(temp2, wgrib2)
+				file.copy(from=temp2, to=wgrib2)
 			}
 
 			#Soft link to gribbed data
@@ -2163,7 +2163,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	time.sys <- Sys.time()
 	
-	if(!be.quiet) print(paste(i, ":", i_labels, "started at ", time.sys))
 	flag.icounter <- formatC(i, width=counter.digitsN, format = "d", flag="0")
 	
 #-----------------------Check for experimentals
@@ -2189,6 +2188,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 	
 	
 #------------------------Preparations for simulation run
+	if(!be.quiet) print(paste(i, ":", i_labels, "started at ", time.sys))
+
 	
 	#Check what needs to be done
 	#TODO this currently doesn't work in the database setup
@@ -5424,7 +5425,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#62
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_bySWPSnow) {
 					if(print.debug) print("Aggregation of dailyRegeneration_bySWPSnow")
-					if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runData[[sc]],sw_swpmatric),"Day"))	#no vwcdy available!
+					if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runData[[sc]],sw_swp),"Day"))	#no vwcdy available!
 					swp.surface <- swpmatric.dy.all$val[simTime$index.usedy, 3]
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc)
 					
@@ -5495,7 +5496,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(print.debug) print("Aggregation of dailyRegeneration_GISSM")
 					#---Access daily data, which do not depend on specific species parameters, i.e., start of season
 	
-					if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runData[[sc]],sw_swpmatric),"Day"))	#no vwcdy available!
+					if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runData[[sc]],sw_swp),"Day"))	#no vwcdy available!
 					temp.snow <- slot(slot(runData[[sc]],sw_snow),"Day")
 					temp.temp <- slot(slot(runData[[sc]],sw_temp),"Day")
 					TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
