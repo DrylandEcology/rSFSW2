@@ -2353,6 +2353,16 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		#adjust simulation years
 		swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(simstartyr)
 		swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(endyr)
+
+			##adjust soil temp equation parameters
+		if(any(create_treatments=="cs_constant_SoilThermCondct"))
+		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[5]] <- i_sw_input_treatments$cs_constant_SoilThermCondct
+    	if(any(create_treatments=="cs_constant"))
+      	  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[6]] <- i_sw_input_treatments$cs_constant
+    	if(any(create_treatments=="sh_constant_SpecificHeatCapacity"))
+          swRunScenariosData[[1]]@site@SoilTemperatureConstants[[7]] <- i_sw_input_treatments$sh_constant_SpecificHeatCapacity
+		if(any(create_treatments=="MaxTempDepth"))
+		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[10]] <- i_sw_input_treatments$MaxTempDepth
 		
 		#------2. Step: a) Information for this SoilWat-run from treatment SoilWat input files stored in dir.sw.in.tr
 		if(any(create_treatments=="sw"))
@@ -3102,7 +3112,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])[8] <- soilTlower
 			}
 			if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
-				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=180, soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
+				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
 				#out.temp <- data.frame(i, i_labels, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
 				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv", sep=""), quote=FALSE, row.names=FALSE)
