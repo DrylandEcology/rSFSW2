@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.11"
+minVersionRsoilwat <- "0.31.13"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
@@ -47,7 +47,7 @@ MinTimeConcat <- 10 * 60 * 60 #This is the minimum time remaining after executio
 MaxConcatTime <- 35 * 60 #This will stop any new sql file concat job at 'x' seconds before MaxRunDuration expires.
 
 #------Repository in case installation of additional R packages is required
-url.Rrepos <- "http://cran.us.r-project.org"
+url.Rrepos <- "https://cran.us.r-project.org"
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------USER INPUT
@@ -94,7 +94,7 @@ ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' fr
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
 # If a run has multiple sources for daily weather, then take the one in the first position of dailyweather_options if availble, if not then second etc.
 #	do not change/remove/add entries; only re-order to set different priorities
-dailyweather_options <- c("LookupWeatherFolder", "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global")
+dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global")
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
@@ -114,6 +114,7 @@ gridcell_resolution <- 1/8
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
+		"GriddedDailyWeatherFromDayMet_NorthAmerica", 0,	#1-km resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
 		
