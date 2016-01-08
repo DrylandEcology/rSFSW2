@@ -804,7 +804,7 @@ if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
 weather.digits <- 2
 
 lwf_cond1 <- sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[seq.tr])) == 0
-lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0) && !any(as.logical(c(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)))
+lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[seq.tr])) == 0) && !any(as.logical(c(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)))
 lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
 lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
 if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
@@ -849,15 +849,16 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
 					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
 					by="1 day")
-			doy <- 1 + as.POSIXlt(date)$yday
+			
+			data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
 			
 			years <- startYear:endYear
 			n_years <- length(years)
 			if(!all(years %in% unique(weath.data$year)))
 				stop("simstartyr or endyr out of weather data range")
 			weathDataList <- list()
-			for(y in 1:n_years) {
-				data.sw <- data.frame(doy, weath.data$Tmax_C, weath.data$Tmin_C, weath.data$prcp_mm/10)[weath.data$year == years[y], ]
+			for(y in seq_along(years)) {
+				data.sw <- data_all[weath.data$year == years[y], ]
 				data.sw[, -1] <- round(data.sw[, -1], 2) #weather.digits
 				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw, rownames.force=FALSE),year=years[y]) #strip row.names, otherwise they consume about 60% of file size
 			}
@@ -865,6 +866,122 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			return(weathDataList)
 		} else {
 			return(weath.data)
+		}
+	}
+}
+
+if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
+	# https://daymet.ornl.gov/
+	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
+	#Citation
+	#	- article: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
+	#	- dataset: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
+	
+	dir.create(dir.temp.daymet <- file.path(dir.out.temp, "GriddedDailyWeatherFromDayMet_NorthAmerica"), showWarnings=FALSE)
+	stopifnot(require(DaymetR)) #https://bitbucket.org/khufkens/daymetr
+
+	get_DayMet_NorthAmerica <- function(id, X_WGS84, Y_WGS84, start_year=simstartyr, end_year=endyr){
+		icell <- paste0("daymet_", formatC(X_WGS84, digits=6, format="f"), "_", formatC(Y_WGS84, digits=6, format="f"))
+		ftemp <- file.path(dir.temp.daymet, paste0(icell, "_", start_year, "_", end_year, ".csv"))
+		
+		pwd <- getwd()
+		setwd(dir.temp.daymet)
+		
+		get_from_ornl <- TRUE
+		
+		if(file.exists(ftemp)){
+			dm_temp <- try(read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
+			if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
+		}
+		if(get_from_ornl){
+			##TODO: only download required variables
+			dm_temp <- try(download.daymet(site=icell, lat=Y_WGS84, lon=X_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
+		}
+		
+		if(!inherits(dm_temp, "try-error")){
+			if(exists(icell, envir=.GlobalEnv)){
+				temp <- get(icell, envir=.GlobalEnv)$data
+			} else if(!get_from_ornl && inherits(dm_temp, "data.frame")){
+				temp <- dm_temp
+			} else stop(paste("Daymet data not successful", id, icell))
+			
+			data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
+			template_sw <- data.frame(matrix(NA, nrow=366, ncol=4, dimnames=list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
+			
+			years <- start_year:end_year
+			weathDataList <- list()
+			for(y in seq_along(years)){
+				data_sw <- template_sw
+				# All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
+				data_sw[1:365, ] <- data_all[data_all$year == years[y], -1]
+				if(isLeapYear(years[y])){
+					data_sw[366, ] <- c(366, data_sw[365, -1])
+				} 
+				data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+				weathDataList[[y]] <- new("swWeatherData", data=data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE), year=years[y]) #strip row.names, otherwise they consume about 60% of file size
+			}
+			names(weathDataList) <- as.character(years)
+		} else {
+			weathDataList <- dm_temp
+		}
+		
+		# Clean up
+		if(exists(icell, envir=.GlobalEnv)) rm(list=icell, envir=.GlobalEnv)
+		#if(deleteTmpSQLFiles) unlink(ftemp)
+					
+		setwd(pwd)
+		
+		return(weathDataList)
+	}
+
+	
+	if(getCurrentWeatherDataFromDatabase && createAndPopulateWeatherDatabase){
+		# Function to be executed for all SoilWat-sites together
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(ids, coords_WGS84, start_year, end_year){
+			if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+
+			# Check if weather data was previously partially extracted
+			wtemp_file <- file.path(dir.out.temp, "DayMet_weather_temp.RData")
+			if(file.exists(wtemp_file)){
+				load(wtemp_file) # ids_done
+			} else {
+				ids_done <- NULL
+			}
+			iuse <- !(ids %in% ids_done)
+			
+			if(sum(iuse) > 0){
+				ids_todo <- ids[iuse]
+				coords_WGS84 <- coords_WGS84[iuse, ]
+
+				#TODO: re-write for parallel processing (does it make sense to download in parallel?)
+				# Extract weather data sequentially for requested locations	
+				for(idm in seq_along(ids_todo)){
+					if(!be.quiet) print(paste(Sys.time(), "DayMet data extraction of site", ids_todo[idm]))
+				
+					weatherData <- get_DayMet_NorthAmerica(id=ids_todo[idm], X_WGS84=coords_WGS84[idm, 1], Y_WGS84=coords_WGS84[idm, 2], start_year, end_year)
+			
+					if(!inherits(weatherData, "try-error")){
+						# Store site weather data in weather database
+						data_blob <- dbW_weatherData_to_blob(weatherData)
+						Rsoilwat31:::dbW_addWeatherDataNoCheck(ids_todo[idm], 1, start_year, end_year, data_blob)
+						
+						ids_done <- c(ids_done, ids_todo[idm])
+						save(ids_done, file=wtemp_file)
+					} else {
+						warning(paste(Sys.time(), "DayMet data extraction NOT successful for site", ids_todo[idm]))
+					}
+				}				
+				rm(weatherData, data_blob)
+			}
+		
+			if(!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+
+			invisible(0)
+		}
+	} else {
+		# Function to be executed for each SoilWat-run
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(ids, coords_WGS84, start_year, end_year){
+			get_DayMet_NorthAmerica(id=ids, X_WGS84=coords_WGS84[1], Y_WGS84=coords_WGS84[2], start_year, end_year)
 		}
 	}
 }
@@ -1036,6 +1153,25 @@ if(do_weather_source){
 		invisible(0)
 	}
 
+	dw_DayMet_NorthAmerica <- function(){
+		if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica && (simstartyr >= 1980 && endyr <= as.POSIXlt(Sys.time())$year+1900 - 1)){
+			# Check which of the DayMet weather data are available
+			#	- Temperature: 2-meter air temperature in Celsius degrees
+			#	- Precipitation: mm/day; Daily total precipitation in millimeters per day, sum of all forms converted to water-equivalent. Precipitation occurrence on any given day may be ascertained.
+			#	- Grids domain: -131.104 	-52.95 	52.000 	14.53
+			#	- Grids: Geographic Coordinate Reference: WGS_1984; Projection: Lambert Conformal Conic 
+			#	- Cells size: 1000 x 1000 m
+			#	- All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
+			there <- (SWRunInformation[seq.tr, "X_WGS84"] >= -131.104 & SWRunInformation[seq.tr, "X_WGS84"] <= -52.95) & (SWRunInformation[seq.tr, "Y_WGS84"] >= 14.53 & SWRunInformation[seq.tr, "Y_WGS84"] <= 52)
+			if(sum(there) > 0){
+				sites_dailyweather_source[there] <<- "DayMet_NorthAmerica"
+				sites_dailyweather_names[there] <<- with(SWRunInformation[seq.tr[there], ], paste0(Label, "_DayMet", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
+			}
+			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'DayMet_NorthAmerica'"))
+		}
+		invisible(0)
+	}
+
 	dw_NRCan_10km_Canada <- function(){
 		if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && (simstartyr >= 1950 && endyr <= 2013)){
 			# Check which of the NRCan weather data are available
@@ -1118,8 +1254,8 @@ if(getCurrentWeatherDataFromDatabase){
 	if(!(createAndPopulateWeatherDatabase || file.exists(dbWeatherDataFile)))
 		stop("Create or use existing Weather database with Scenario data inside.")
 } else {
-	if(!(any(create_treatments == "LookupWeatherFolder") || exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica))
-		stop("Daily weather data must be provided through 'LookupWeatherFolder' or via  'Maurer2002_NorthAmerica' since no weather database is used")
+	if(!any(create_treatments == "LookupWeatherFolder", as.logical(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica), as.logical(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica)))
+		stop("Daily weather data must be provided through 'LookupWeatherFolder', 'Maurer2002_NorthAmerica', or 'DayMet_NorthAmerica' since no weather database is used")
 }
 
 
@@ -2837,10 +2973,15 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		swOUT_TimeStep(swRunScenariosData[[1]]) <- sapply(simulation_timescales, function(x) ifelse(x=="daily", 1, ifelse(x=="weekly", 2, ifelse(x=="monthly", 3, ifelse(x=="yearly",4,5)))) )-1
 
 		#############Get Weather Data################
+		if(print.debug) print("Start of daily weather")
 		i_sw_weatherList <- list()
-		if(!getCurrentWeatherDataFromDatabase && i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica"){
-			dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-			i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
+		if(!getCurrentWeatherDataFromDatabase){
+			if(i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica"){
+				dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
+			} else if(i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica"){
+				i_sw_weatherList[[1]] <- with(i_SWRunInformation, ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(id=WeatherFolder, coords_WGS84=c(X_WGS84, Y_WGS84), start_year=simstartyr, end_year=endyr))
+			}
 		} else {
 			#Get name of weather file
 			.local <- function(i){
@@ -2872,7 +3013,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			}
 		}
 		#Check that extraction of weather data was successful
-		if(inherits(i_sw_weatherList, "try-error")) {
+		if(inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
 			if(!be.quiet) print(paste(i, "i_sw_weatherList ERROR"))
 			tasks$create <- 0
 		}
@@ -6229,7 +6370,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica","create_filename_for_Maurer2002_NorthAmerica", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.temp.daymet", "get_DayMet_NorthAmerica", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
@@ -6286,9 +6427,9 @@ tryCatch({
 						i_sw_input_climscen <- sw_input_climscen[i_tr, ]
 						i_sw_input_climscen_values <- sw_input_climscen_values[i_tr, ]
 						
-						dataForRun <- list(do_OneSite=TRUE, i=(seq.todo[runs.completed]), labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
+						dataForRun <- list(do_OneSite=TRUE, i=seq.todo[runs.completed], labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
 						mpi.send.Robj(dataForRun, slave_id, 1);
-						print(paste("Slave:", slave_id, "Run:", (seq.todo[runs.completed]), "started at", Sys.time()))
+						print(paste("Slave:", slave_id, "Run:", seq.todo[runs.completed], "started at", Sys.time()))
 						runs.completed <- runs.completed + 1
 					} else {
 						mpi.send.Robj(junk, slave_id, 2)
@@ -6351,7 +6492,7 @@ tryCatch({
 			}
 		}
 		
-	} else { #call the simulations in seriel
+	} else { #call the simulations in serial
 		runs.completed <- 0
 		runs.completed <- foreach(i_sim=seq.todo, .combine="+", .inorder=FALSE) %do% {
 			i_tr <- seq.tr[(i_sim - 1) %% runs + 1]

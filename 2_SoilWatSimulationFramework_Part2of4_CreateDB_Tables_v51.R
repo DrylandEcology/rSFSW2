@@ -52,28 +52,34 @@ if(createAndPopulateWeatherDatabase) {
 	# Extract weather data per site
 	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica"))
 	if(!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
-	if(any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
-		Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-	if(length(ids_single) > 0) for(i in seq_along(ids_single)){
-		if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
-		if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
-			weatherData <- ExtractLookupWeatherFolder(dir.weather=file.path(dir.sw.in.tr, "LookupWeatherFolder"), weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
-		} else if(sites_dailyweather_source[ids_single[i]] == "Maurer2002_NorthAmerica"){
-			weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[ids_single[i]], startYear=simstartyr, endYear=endyr)
-		} else {
-			stop(paste(sites_dailyweather_source[ids_single[i]], "not implemented"))
+	if(length(ids_single) > 0){
+		if(any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
+			Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+		for(i in seq_along(ids_single)){
+			if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
+			if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
+				weatherData <- ExtractLookupWeatherFolder(dir.weather=file.path(dir.sw.in.tr, "LookupWeatherFolder"), weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
+			} else if(sites_dailyweather_source[ids_single[i]] == "Maurer2002_NorthAmerica"){
+				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[ids_single[i]], startYear=simstartyr, endYear=endyr)
+			} else {
+				stop(paste(sites_dailyweather_source[ids_single[i]], "not implemented"))
+			}
+			if(!is.null(weatherData)){
+				years <- as.integer(names(weatherData))
+				data_blob <- dbW_weatherData_to_blob(weatherData)
+				Rsoilwat31:::dbW_addWeatherDataNoCheck(ids_single[i], 1, head(years, n=1), tail(years, n=1), data_blob)
+			} else {
+				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[seq.tr[ids_single[i]]]))
+			}
 		}
-		if(!is.null(weatherData)){
-			years <- as.integer(names(weatherData))
-			data_blob <- dbW_weatherData_to_blob(weatherData)
-			Rsoilwat31:::dbW_addWeatherDataNoCheck(ids_single[i], 1, head(years, n=1), tail(years, n=1), data_blob)
-		} else {
-			print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[seq.tr[ids_single[i]]]))
-		}
+		rm(ids_single, Maurer, weatherData, years, data_blob)
 	}
-	rm(ids_single, Maurer, weatherData, years, data_blob)
 
 	# Extract weather data for all sites
+	ids_DayMet_extraction <- which(sites_dailyweather_source == "DayMet_NorthAmerica") ## position in 'seq.tr'
+	if(length(ids_DayMet_extraction) > 0) ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(ids=ids_DayMet_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_DayMet_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
+	rm(ids_DayMet_extraction)
+
 	ids_NRCan_extraction <- which(sites_dailyweather_source == "NRCan_10km_Canada")
 	if(length(ids_NRCan_extraction) > 0) ExtractGriddedDailyWeatherFromNRCan_10km_Canada(ids=ids_NRCan_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_NRCan_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
 	rm(ids_NRCan_extraction)
