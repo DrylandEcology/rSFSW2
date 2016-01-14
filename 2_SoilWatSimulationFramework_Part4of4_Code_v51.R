@@ -877,35 +877,59 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 	#	- article: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
 	#	- dataset: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
 	
-	dir.create(dir.temp.daymet <- file.path(dir.out.temp, "GriddedDailyWeatherFromDayMet_NorthAmerica"), showWarnings=FALSE)
+	stopifnot(file.exists(dir.ex.daymet <- file.path(dir.external, "GriddedDailyWeatherFromDayMet_NorthAmerica", "DownloadedData_DayMet")))
 	stopifnot(require(DaymetR)) #https://bitbucket.org/khufkens/daymetr
+	stopifnot(require(raster)) 
+	stopifnot(require(rgdal)) 
 
-	get_DayMet_NorthAmerica <- function(id, X_WGS84, Y_WGS84, start_year=simstartyr, end_year=endyr){
-		icell <- paste0("daymet_", formatC(X_WGS84, digits=6, format="f"), "_", formatC(Y_WGS84, digits=6, format="f"))
-		ftemp <- file.path(dir.temp.daymet, paste0(icell, "_", start_year, "_", end_year, ".csv"))
+	get_DayMet_cellID <- function(coords_WGS84){
+		# Determine 1-km cell that contains requested location
+		res_DayMet <- 1000L
 		
+		proj_LCC <- CRS("+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5 +lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+		proj_WGS84 <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+		
+		xy_LCC <- coordinates(spTransform(SpatialPoints(coords = coords_WGS84, proj4string = proj_WGS84), proj_LCC))
+		dm_LCC <- floor(xy_LCC / res_DayMet) # Origin at lower-lef corner (-2015000, -3037000)
+			## ==> (0, 0)- cell includes xlim = [0, 1000[ and ylim = [0, 1000[
+			## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
+
+		cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
+													if(chr[1] < 0) "-" else "+", formatC(abs(chr[1]), width=6, flag="0", format="d"), "_",
+													if(chr[2] < 0) "-" else "+", formatC(abs(chr[2]), width=6, flag="0", format="d")))
+
+		dm_LCC <- res_DayMet * dm_LCC + 500 # center of 1-km cells to avoid projection errors at cell margins
+		dm_WGS84 <- coordinates(spTransform(SpatialPoints(coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
+
+		return(list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84))
+	}
+	
+	get_DayMet_NorthAmerica <- function(cellID, Xdm_WGS84, Ydm_WGS84, start_year=simstartyr, end_year=endyr){
+		# Filename for data of this 1-km cell
+		ftemp <- file.path(dir.ex.daymet, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
+		
+		# Get data
 		pwd <- getwd()
-		setwd(dir.temp.daymet)
-		
 		get_from_ornl <- TRUE
-		
 		if(file.exists(ftemp)){
 			dm_temp <- try(read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
 			if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
 		}
 		if(get_from_ornl){
-			##TODO: only download required variables
-			dm_temp <- try(download.daymet(site=icell, lat=Y_WGS84, lon=X_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
+			setwd(dir.ex.daymet)
+			dm_temp <- try(DaymetR::download.daymet(site=cellID, lat=Ydm_WGS84, lon=Xdm_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
 		}
 		
+		# Convert to Rsoilwat format
 		if(!inherits(dm_temp, "try-error")){
-			if(exists(icell, envir=.GlobalEnv)){
-				temp <- get(icell, envir=.GlobalEnv)$data
+			if(exists(cellID, envir=.GlobalEnv)){
+				temp <- get(cellID, envir=.GlobalEnv)$data
 			} else if(!get_from_ornl && inherits(dm_temp, "data.frame")){
 				temp <- dm_temp
-			} else stop(paste("Daymet data not successful", id, icell))
+			} else stop(paste("Daymet data not successful", cellID))
 			
 			data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
+			stopifnot(!anyNA(data_all), sum(data_all == -9999L) == 0)
 			template_sw <- data.frame(matrix(NA, nrow=366, ncol=4, dimnames=list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
 			
 			years <- start_year:end_year
@@ -926,9 +950,7 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 		}
 		
 		# Clean up
-		if(exists(icell, envir=.GlobalEnv)) rm(list=icell, envir=.GlobalEnv)
-		#if(deleteTmpSQLFiles) unlink(ftemp)
-					
+		if(exists(cellID, envir=.GlobalEnv)) rm(list=cellID, envir=.GlobalEnv)
 		setwd(pwd)
 		
 		return(weathDataList)
@@ -951,14 +973,15 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 			
 			if(sum(iuse) > 0){
 				ids_todo <- ids[iuse]
-				coords_WGS84 <- coords_WGS84[iuse, ]
-
+				xy_WGS84 <- coords_WGS84[iuse, , drop=FALSE]
+				dm <- get_DayMet_cellID(xy_WGS84)
+				
 				#TODO: re-write for parallel processing (does it make sense to download in parallel?)
 				# Extract weather data sequentially for requested locations	
 				for(idm in seq_along(ids_todo)){
-					if(!be.quiet) print(paste(Sys.time(), "DayMet data extraction of site", ids_todo[idm]))
+					if(!be.quiet) print(paste(Sys.time(), "DayMet data extraction of site", ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
 				
-					weatherData <- get_DayMet_NorthAmerica(id=ids_todo[idm], X_WGS84=coords_WGS84[idm, 1], Y_WGS84=coords_WGS84[idm, 2], start_year, end_year)
+					weatherData <- get_DayMet_NorthAmerica(cellID=dm$cellID[idm], Xdm_WGS84=dm$dm_WGS84[idm, 1], Ydm_WGS84=dm$dm_WGS84[idm, 2], start_year, end_year)
 			
 					if(!inherits(weatherData, "try-error")){
 						# Store site weather data in weather database
@@ -971,7 +994,6 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 						warning(paste(Sys.time(), "DayMet data extraction NOT successful for site", ids_todo[idm]))
 					}
 				}				
-				rm(weatherData, data_blob)
 			}
 		
 			if(!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
@@ -981,7 +1003,10 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 	} else {
 		# Function to be executed for each SoilWat-run
 		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(ids, coords_WGS84, start_year, end_year){
-			get_DayMet_NorthAmerica(id=ids, X_WGS84=coords_WGS84[1], Y_WGS84=coords_WGS84[2], start_year, end_year)
+			xy_WGS84 <- matrix(unlist(coords_WGS84), ncol=2)[1, , drop=FALSE]
+			dm <- get_DayMet_cellID(xy_WGS84)
+			
+			get_DayMet_NorthAmerica(cellID=dm$cellID[1], Xdm_WGS84=dm$dm_WGS84[1, 1], Ydm_WGS84=dm$dm_WGS84[1, 2], start_year, end_year)
 		}
 	}
 }
@@ -6370,7 +6395,7 @@ if(actionWithSoilWat && runsN.todo > 0){
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.temp.daymet", "get_DayMet_NorthAmerica", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
