@@ -6397,6 +6397,24 @@ lapack <- sub("-L/", "/", (strsplit(lapack, split=" ")[[1]][1]))
 get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
 temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
+if(print.debug){
+	print("Test linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/
+	print(system.time({ x <- replicate(5e3, rnorm(5e3)); tcrossprod(x) }))
+	
+	# Example values:
+	# Apple's Accelerate framework:
+	#   user  system elapsed 
+	# 14.755   0.268   3.423 
+
+	# ATLAS 3.10.2_2:
+	#   user  system elapsed 
+	# 22.218   0.647   3.340 
+
+	# Built-in reference BLAS:
+	#   user  system elapsed 
+	# 59.289   0.465  59.173 
+}
+
 
 # run the simulation experiment
 if(actionWithSoilWat && runsN.todo > 0){
