@@ -6388,7 +6388,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #--------------------------------------------------------------------------------------------------#
 #------------------------RUN RSOILWAT
 
+# print system information
+print(sessionInfo())
+blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "R CMD config BLAS_LIBS", stdout = TRUE)
+blas <- sub("-L/", "/", (strsplit(blas, split=" ")[[1]][1]))
+lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "R CMD config LAPACK_LIBS", stdout = TRUE)
+lapack <- sub("-L/", "/", (strsplit(lapack, split=" ")[[1]][1]))
+get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
+temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
+
+# run the simulation experiment
 if(actionWithSoilWat && runsN.todo > 0){
 		
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,files.in=swFilesIn) #This acts for the basis for all runs.
