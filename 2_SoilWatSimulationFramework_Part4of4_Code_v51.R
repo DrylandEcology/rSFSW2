@@ -3139,7 +3139,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				colnames(MonthlyScalingParams)<-c("PPT","MaxT","MinT")
 				rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 				
-				swWeather_MonScalingParams(swRunScenariosData[[sc]]) <- MonthlyScalingParams
+				swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1:3] <- MonthlyScalingParams
 				ClimatePerturbationsVals[sc,1:12] <- MonthlyScalingParams[,1]
 				ClimatePerturbationsVals[sc,13:24] <- MonthlyScalingParams[,2]
 				ClimatePerturbationsVals[sc,25:36] <- MonthlyScalingParams[,3]
