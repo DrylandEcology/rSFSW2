@@ -6420,7 +6420,8 @@ if(print.debug){
 if(actionWithSoilWat && runsN.todo > 0){
 		
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,files.in=swFilesIn) #This acts for the basis for all runs.
-	swClear(swDataFromFiles@weatherHistory) # we don't need the example weather data; the code will get weather data separately
+	if (length(weatherHistory) > 0)
+		swDataFromFiles@weatherHistory <- list(swClear(swDataFromFiles@weatherHistory[[1]])) # we don't need the example weather data; the code will get weather data separately
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
