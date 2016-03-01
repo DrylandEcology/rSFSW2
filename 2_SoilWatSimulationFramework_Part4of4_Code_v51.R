@@ -6630,12 +6630,30 @@ if(any(actions=="concatenate")) {
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
+			colNames<-dbListFields(con,"aggregation_overall_mean")
+			file<-read.csv(paste(file.path(dir.out.temp,theFileList[j]),sep=""),header=FALSE)
+			colnames(file)<-colNames
+			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),2)),])
+			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
+			aggregation_overall_sd<-file[(seq(2,nrow(file),2)),]
+			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
 			
-			command<-paste(paste(settings,collapse="\n"),"BEGIN;",paste(".read ",file.path(dir.out.temp,theFileList[j]),sep=""),"COMMIT;",sep="\n")
-			system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDB)))
+			dbBegin(con)
+			dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
+			dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
+			dbCommit(con)
+			
 			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
-				system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDBCurrent)))
+			  dbDisconnect(con)
+			  con<-dbConnect(drv, dbname = name.OutputDBCurrent)
+			  dbBegin(con)
+			  dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
+			  dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
+			  dbCommit(con)
+			  dbDisconnect(con)
+			  con<-dbConnect(drv, dbname = name.OutputDB)
 			}
+			
 			
 			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
 			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
