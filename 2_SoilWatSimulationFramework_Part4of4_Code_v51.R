@@ -4325,7 +4325,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
 					if(print.debug) print("Aggregation of monthlySPEIEvents")
 					require(SPEI)
-					#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer√≠a, S., Lorenzo-Lacruz, J., Camarero, J.s.J., L√≥pez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Mor√°n-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
+					#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer, S., Lorenzo-Lacruz, J., Camarero, J.s.J., Lopez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Morn-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
 					if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc)
 					
@@ -6387,6 +6387,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 # print system information
 print(sessionInfo())
+if(.Platform$OS.type == "unix") {
 blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "R CMD config BLAS_LIBS", stdout = TRUE)
 blas <- sub("-L/", "/", (strsplit(blas, split=" ")[[1]][1]))
 lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "R CMD config LAPACK_LIBS", stdout = TRUE)
@@ -6411,13 +6412,13 @@ if(print.debug){
 	#   user  system elapsed 
 	# 59.289   0.465  59.173 
 }
-
+}
 
 # run the simulation experiment
 if(actionWithSoilWat && runsN.todo > 0){
 		
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,files.in=swFilesIn) #This acts for the basis for all runs.
-	if (length(weatherHistory) > 0)
+	if (length(swDataFromFiles@weatherHistory) > 0)
 		swDataFromFiles@weatherHistory <- list(swClear(swDataFromFiles@weatherHistory[[1]])) # we don't need the example weather data; the code will get weather data separately
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
