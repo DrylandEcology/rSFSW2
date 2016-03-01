@@ -878,7 +878,10 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				
 					#Observed historic daily weather from weather database
 					obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
+					hist_dim<-length(obs.hist.daily)
+					if(hist_dim>=64)  obs.hist.daily <- obs.hist.daily[(hist_dim-64):hist_dim]
 					obs.hist.monthly <- get_monthlyTimeSeriesFromDaily(dailySW=obs.hist.daily)
+
 				
 					wdataOut <- list()
 					for(ir in seq_along(rcps)){ #Apply downscaling for each RCP
@@ -1036,7 +1039,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
 					for(j in 1:length(wdataOut)) {
 						for(l in 1:length(wdataOut[[j]])) {
-							res <- try(Rsoilwat3131:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
+							res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
 							if(inherits(res, "try-error")) break
 						}
 						if(inherits(res, "try-error")) break
