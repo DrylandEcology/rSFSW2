@@ -3604,6 +3604,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 			runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
 
+			tempError <- function() {.Call("tempError")}
 
 			## Experimental - Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
 			## Only exeutes if the SoilTemp_Flag has been
@@ -3615,14 +3616,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
 				i_soil_rep <- 0
-				incrementer <- 5
+				incrementer <- 15
 				while (!inherits(runData[[sc]], "try-error") && i_soil_rep < 10 && TEST_FOR_SOILTEMP_STABLITY)
 				{
+					## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
+					if (tempError())
+					{
+						TEST_FOR_SOILTEMP_STABLITY <- TRUE
+					}
+					else
+					{
+						TEST_FOR_SOILTEMP_STABLITY <- FALSE
+					}
+
 					print(paste("Site", i, i_labels, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "because soil temperature estability criterion was not met." ))
 
-					## TODO Implement a test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-					
-					## Make sure that the increment for the soil layers is a multiple of 180, modulus of 0 means no remainder
+					## Make sure that the increment for the soil layers is a multiple of 180, modulus of 0 means no remainder and thus a multiple of 180
 					if (180 %% min(incrementer + swSite_SoilTemperatureConsts(swRunScenariosData[[sc]]), swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]) != 0)
 					{
 						while (180 %% min(incrementer + swSite_SoilTemperatureConsts(swRunScenariosData[[sc]]), swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]) != 0)
