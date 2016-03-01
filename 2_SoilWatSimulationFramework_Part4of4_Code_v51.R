@@ -2516,12 +2516,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(endyr)
 		
 		##adjust soil temp equation parameters
-		if(any(create_treatments=="cs_constant_SoilThermCondct"))
-		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[5]] <- i_sw_input_treatments$cs_constant_SoilThermCondct
-    	if(any(create_treatments=="cs_constant"))
-     	  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[6]] <- i_sw_input_treatments$cs_constant
-    	if(any(create_treatments=="sh_constant_SpecificHeatCapacity"))
-      	  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[7]] <- i_sw_input_treatments$sh_constant_SpecificHeatCapacity
 		if(any(create_treatments=="MaxTempDepth"))
 		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[10]] <- i_sw_input_treatments$MaxTempDepth
 		  
