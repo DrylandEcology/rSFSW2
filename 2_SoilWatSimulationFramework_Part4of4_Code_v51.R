@@ -2720,7 +2720,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#composition
 			if(sum(use_comp <- unlist(sw_input_prod_use[grepl(pattern="Composition", x=names(sw_input_prod_use))])) > 0) {
 				comp.datfile <- with(i_sw_input_prod, data.frame(Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction, Composition_ForbFraction, Composition_BareGround))
-				swProd_Composition(swRunScenariosData[[1]])[use_comp] <- comp.datfile[use_comp]
+				comp.datfile[is.na(comp.datfile)]<-0
+				swRunScenariosData[[1]]@prod@Composition[1:5]<- as.numeric(comp.datfile[1:length(use_comp)])
 			}
 			#albedo
 			if(sum(use_albedo <- unlist(sw_input_prod_use[grepl(pattern="Albedo", x=names(sw_input_prod_use))])) > 0) {
@@ -2730,7 +2731,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#constant canopy height
 			if(sum(use_height <- unlist(sw_input_prod_use[grepl(pattern="CanopyHeight_Constant", x=names(sw_input_prod_use))])) > 0) {
 				height.datfile <- with(i_sw_input_prod, data.frame(Grass_CanopyHeight_Constant_cm, Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,Forb_CanopyHeight_Constant_cm))
-				swProd_CanopyHeight(swRunScenariosData[[1]])[5,][use_height] <- height.datfile[use_height]
+				height.datfile[is.na(height.datfile)]<-0
+				swRunScenariosData[[1]]@prod@CanopyHeight[5,] <- as.numeric(height.datfile[1:length(use_height)])
 			}
 			#flag for hydraulic redistribution
 			if(sum(use_HD <- unlist(sw_input_prod_use[grepl(pattern="HydRed", x=names(sw_input_prod_use))])) > 0) {
@@ -2745,18 +2747,19 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						sum(laiconv <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_LAIconv", sep=""), x=names(sw_input_prod_use))])			> 0) {
 					
 					for (m in st_mo){
-						mo.dat <- with(i_sw_input_prod, c(	ifelse(litt[m], eval(parse(text=paste(FunctGroup, "_Litter_m", m, sep=""))), NA),
-										ifelse(biom[m], eval(parse(text=paste(FunctGroup, "_Biomass_m", m, sep=""))), NA),
-										ifelse(live[m], eval(parse(text=paste(FunctGroup, "_FractionLive_m", m, sep=""))), NA),
-										ifelse(laiconv[m], eval(parse(text=paste(FunctGroup, "_LAIconv_m", m, sep=""))), NA)))
+					  input_in_veg<-with(i_sw_input_prod,eval(parse(text=paste0("swRunScenariosData[[1]]@prod@MonthlyProductionValues_",tolower(FunctGroup),"[m,]"))))
+						mo.dat <- with(i_sw_input_prod, c(	ifelse(litt[m], eval(parse(text=paste(FunctGroup, "_Litter_m", m, sep=""))),input_in_veg[1]),
+						        ifelse(biom[m], eval(parse(text=paste(FunctGroup, "_Biomass_m", m, sep=""))), input_in_veg[2]),
+										ifelse(live[m], eval(parse(text=paste(FunctGroup, "_FractionLive_m", m, sep=""))), input_in_veg[3]),
+										ifelse(laiconv[m], eval(parse(text=paste(FunctGroup, "_LAIconv_m", m, sep=""))), input_in_veg[4])))
 						if(FunctGroup=="Grass")
-							swProd_MonProd_grass(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						swRunScenariosData[[1]]@prod@MonthlyProductionValues_grass[m,]  <- mo.dat
 						if(FunctGroup=="Shrub")
-							swProd_MonProd_shrub(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_shrub[m,]  <- mo.dat
 						if(FunctGroup=="Tree")
-							swProd_MonProd_tree(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_tree[m,]  <- mo.dat
 						if(FunctGroup=="Forb")
-							swProd_MonProd_forb(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_forb[m,]  <- mo.dat
 					}
 				}
 				if(FunctGroup=="Grass")
