@@ -72,7 +72,7 @@ if(createAndPopulateWeatherDatabase) {
 				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[seq.tr[ids_single[i]]]))
 			}
 		}
-		rm(ids_single, Maurer, weatherData, years, data_blob)
+		rm(ids_single, weatherData, years, data_blob)
 	}
 
 	# Extract weather data for all sites
@@ -359,8 +359,9 @@ if((length(Tables) == 0) || do.clean) {
 			unique_simulation_years <- unique(simulation_years)
 			#each row is unique so add id to db_combined
 			if(nrow(unique_simulation_years)==nrow(simulation_years)) {
-				unique_simulation_years$id <- 1:nrow(unique_simulation_years)
-				db_combined_exp_treatments$simulation_years_id <- unique_simulation_years$id
+				id<-1:nrow(unique_simulation_years)
+			  	unique_simulation_years<-cbind(id,unique_simulation_years[,2:4])
+				db_combined_exp_treatments$simulation_years_id <- unique_simulation_years[,1]
 			} else {#treatment table has a map to reduced rows in simulation_years
 				temp<-duplicated(simulation_years)
 				sim_years_unique_map<-rep(NA,nrow(simulation_years))
