@@ -3607,40 +3607,39 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 			tempError <- function() {.Call("tempError")}
 
-
+      ##TAG
 			## Experimental - Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
 			## Only exeutes if the SoilTemp_Flag has been
-			if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) && all(swSoils_Layers(swRunScenariosData[[sc]])[,2] > 0.1 )))
+			if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) && all(swSoils_Layers(swRunScenariosData[[sc]])[,2] > 0.1 ))
 			{
-				## Checking if any layers have a density less 0.9
-				if (any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] < 0.9)) print(paste("Site", i, i_labels, "SOILWAT was not developed for soils with a matric density below 0.9 g / cm3"))
-
+  			## Checking if any layers have a density less 0.9
+			  if (any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] < 0.9)) print(paste("Site", i, i_labels, "SOILWAT was not developed for soils with a matric density below 0.9 g / cm3"))
 
 				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
-				i_soil_rep <- 0
-				incrementer <- 15
+				i_soil_rep = 0
+				incrementer = 15
 				TEST_FOR_SOILTEMP_STABILITY <- tempError() # Initialize so that we can enter the loop
 
-				while (!inherits(runData[[sc]], "try-error") && i_soil_rep < 10 && TEST_FOR_SOILTEMP_STABILITY)
+				while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY && incrementer <= 90)
 				{
 					## Make sure that the increment for the soil layers is a multiple of 180, modulus of 0 means no remainder and thus a multiple of 180
-					if (180 %% min(incrementer + swSite_SoilTemperatureConsts(swRunScenariosData[[sc]]), swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]) != 0)
+					if (180 %% incrementer != 0)
 					{
-						while (180 %% min(incrementer + swSite_SoilTemperatureConsts(swRunScenariosData[[sc]]), swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]) != 0)
+						while (180 %% incrementer != 0)
 						{
 							incrementer = incrementer + 5
 						}
 					}
-					print(paste("Site", i, i_labels, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "because soil temperature estability criterion was not met." ))
+
+				  print(paste("Site", i, i_labels, "SOILWAT called again with deltaX = ", min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]), " because soil temperature estability criterion was not met." ))
 
 					## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-					swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(incrementer + swSite_SoilTemperatureConsts(swRunScenariosData[[sc]]), swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
+					swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
 					runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
 
 					## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
 					TEST_FOR_SOILTEMP_STABILITY <- tempError()
-
-					i_soil_rep <- i_soil_rep + 1
+          incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
 				}
 			}
 
