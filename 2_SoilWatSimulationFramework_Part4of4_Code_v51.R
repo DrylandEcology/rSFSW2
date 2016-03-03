@@ -3610,10 +3610,9 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
       ##TAG
 			## Experimental - Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
 			## Only exeutes if the SoilTemp_Flag has been
-			if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) && all(swSoils_Layers(swRunScenariosData[[sc]])[,2] > 0.1 ))
+			if (any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] > 2.0 | any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] < 0.9)))
 			{
-  			## Checking if any layers have a density less 0.9
-			  if (any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] < 0.9)) print(paste("Site", i, i_labels, "SOILWAT was not developed for soils with a matric density below 0.9 g / cm3"))
+        print(paste("Site", i, i_labels, "SOILWAT was not developed for soils with a matric density below 0.9 g / cm3 or greater than 2.0 g / cm3"))
 
 				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
 				i_soil_rep = 0
