@@ -2516,12 +2516,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 		swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(endyr)
 
 		##adjust soil temp equation parameters
-		if(any(create_treatments=="cs_constant_SoilThermCondct"))
-		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[5]] <- i_sw_input_treatments$cs_constant_SoilThermCondct
-    	if(any(create_treatments=="cs_constant"))
-     	  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[6]] <- i_sw_input_treatments$cs_constant
-    	if(any(create_treatments=="sh_constant_SpecificHeatCapacity"))
-      	  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[7]] <- i_sw_input_treatments$sh_constant_SpecificHeatCapacity
 		if(any(create_treatments=="MaxTempDepth"))
 		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[10]] <- i_sw_input_treatments$MaxTempDepth
 
@@ -2726,7 +2720,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#composition
 			if(sum(use_comp <- unlist(sw_input_prod_use[grepl(pattern="Composition", x=names(sw_input_prod_use))])) > 0) {
 				comp.datfile <- with(i_sw_input_prod, data.frame(Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction, Composition_ForbFraction, Composition_BareGround))
-				swProd_Composition(swRunScenariosData[[1]])[use_comp] <- comp.datfile[use_comp]
+				comp.datfile[is.na(comp.datfile)]<-0
+				swRunScenariosData[[1]]@prod@Composition[1:5]<- as.numeric(comp.datfile[1:length(use_comp)])
 			}
 			#albedo
 			if(sum(use_albedo <- unlist(sw_input_prod_use[grepl(pattern="Albedo", x=names(sw_input_prod_use))])) > 0) {
@@ -2736,7 +2731,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			#constant canopy height
 			if(sum(use_height <- unlist(sw_input_prod_use[grepl(pattern="CanopyHeight_Constant", x=names(sw_input_prod_use))])) > 0) {
 				height.datfile <- with(i_sw_input_prod, data.frame(Grass_CanopyHeight_Constant_cm, Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,Forb_CanopyHeight_Constant_cm))
-				swProd_CanopyHeight(swRunScenariosData[[1]])[5,][use_height] <- height.datfile[use_height]
+				height.datfile[is.na(height.datfile)]<-0
+				swRunScenariosData[[1]]@prod@CanopyHeight[5,] <- as.numeric(height.datfile[1:length(use_height)])
 			}
 			#flag for hydraulic redistribution
 			if(sum(use_HD <- unlist(sw_input_prod_use[grepl(pattern="HydRed", x=names(sw_input_prod_use))])) > 0) {
@@ -2751,18 +2747,19 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						sum(laiconv <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_LAIconv", sep=""), x=names(sw_input_prod_use))])			> 0) {
 
 					for (m in st_mo){
-						mo.dat <- with(i_sw_input_prod, c(	ifelse(litt[m], eval(parse(text=paste(FunctGroup, "_Litter_m", m, sep=""))), NA),
-										ifelse(biom[m], eval(parse(text=paste(FunctGroup, "_Biomass_m", m, sep=""))), NA),
-										ifelse(live[m], eval(parse(text=paste(FunctGroup, "_FractionLive_m", m, sep=""))), NA),
-										ifelse(laiconv[m], eval(parse(text=paste(FunctGroup, "_LAIconv_m", m, sep=""))), NA)))
+					  input_in_veg<-with(i_sw_input_prod,eval(parse(text=paste0("swRunScenariosData[[1]]@prod@MonthlyProductionValues_",tolower(FunctGroup),"[m,]"))))
+						mo.dat <- with(i_sw_input_prod, c(	ifelse(litt[m], eval(parse(text=paste(FunctGroup, "_Litter_m", m, sep=""))),input_in_veg[1]),
+						        ifelse(biom[m], eval(parse(text=paste(FunctGroup, "_Biomass_m", m, sep=""))), input_in_veg[2]),
+										ifelse(live[m], eval(parse(text=paste(FunctGroup, "_FractionLive_m", m, sep=""))), input_in_veg[3]),
+										ifelse(laiconv[m], eval(parse(text=paste(FunctGroup, "_LAIconv_m", m, sep=""))), input_in_veg[4])))
 						if(FunctGroup=="Grass")
-							swProd_MonProd_grass(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						swRunScenariosData[[1]]@prod@MonthlyProductionValues_grass[m,]  <- mo.dat
 						if(FunctGroup=="Shrub")
-							swProd_MonProd_shrub(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_shrub[m,]  <- mo.dat
 						if(FunctGroup=="Tree")
-							swProd_MonProd_tree(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_tree[m,]  <- mo.dat
 						if(FunctGroup=="Forb")
-							swProd_MonProd_forb(swRunScenariosData[[1]])[m,c(litt[m],biom[m],live[m],laiconv[m])]  <- mo.dat[!is.na(mo.dat)]
+						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_forb[m,]  <- mo.dat
 					}
 				}
 				if(FunctGroup=="Grass")
@@ -3139,7 +3136,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				colnames(MonthlyScalingParams)<-c("PPT","MaxT","MinT")
 				rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 
-				swWeather_MonScalingParams(swRunScenariosData[[sc]]) <- MonthlyScalingParams
+				swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1:3] <- MonthlyScalingParams
 				ClimatePerturbationsVals[sc,1:12] <- MonthlyScalingParams[,1]
 				ClimatePerturbationsVals[sc,13:24] <- MonthlyScalingParams[,2]
 				ClimatePerturbationsVals[sc,25:36] <- MonthlyScalingParams[,3]
@@ -3601,10 +3598,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				todo$execute <- todo$aggregate <- FALSE
 #				break
 #			}
-
 			runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-
-
+			
 			tempError <- function() {.Call("tempError")}
 
       ##TAG
@@ -3641,13 +3636,11 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
           incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
 				}
 			}
-
-
 			if(inherits(runData[[sc]], "try-error")){
 				tasks$execute <- 0
 				break
 			}
-		 }
+		}
 		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
 		if(tasks$execute > 0){
 			tasks$execute <- 2
@@ -4369,7 +4362,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
 					if(print.debug) print("Aggregation of monthlySPEIEvents")
 					require(SPEI)
-					#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer√≠a, S., Lorenzo-Lacruz, J., Camarero, J.s.J., L√≥pez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Mor√°n-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
+					#standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer, S., Lorenzo-Lacruz, J., Camarero, J.s.J., Lopez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Morn-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc)
 					if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc)
 
@@ -6429,12 +6422,42 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #--------------------------------------------------------------------------------------------------#
 #------------------------RUN RSOILWAT
 
+# print system information
+print(temp <- sessionInfo())
+if (print.debug && grepl("darwin", temp$platform)) { # apparently this works only on Mac OS X
+	blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
+	blas <- sub("-L/", "/", (strsplit(blas, split=" ")[[1]][1]))
+	lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
+	lapack <- sub("-L/", "/", (strsplit(lapack, split=" ")[[1]][1]))
+	get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
+	temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
+	print("Test linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
+	print(system.time({ x <- replicate(5e3, rnorm(5e3)); tcrossprod(x) }))
+
+	# Example values:
+	# Apple's Accelerate framework:
+	#   user  system elapsed
+	# 14.755   0.268   3.423
+
+	# ATLAS 3.10.2_2:
+	#   user  system elapsed
+	# 22.218   0.647   3.340
+
+	# Built-in reference BLAS:
+	#   user  system elapsed
+	# 59.289   0.465  59.173
+}
+
+# run the simulation experiment
 if(actionWithSoilWat && runsN.todo > 0){
 
 	swDataFromFiles <- sw_inputDataFromFiles(dir=dir.sw.in,files.in=swFilesIn) #This acts for the basis for all runs.
+	if (length(swDataFromFiles@weatherHistory) > 0)
+		swDataFromFiles@weatherHistory <- list(swClear(swDataFromFiles@weatherHistory[[1]])) # we don't need the example weather data; the code will get weather data separately
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
+
 	#objects to export
 	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runs","runsN.todo","runsN.total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","trowExperimentals","workersN")
@@ -6643,12 +6666,30 @@ if(any(actions=="concatenate")) {
 				break
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
+			colNames<-dbListFields(con,"aggregation_overall_mean")
+			file<-read.csv(paste(file.path(dir.out.temp,theFileList[j]),sep=""),header=FALSE)
+			colnames(file)<-colNames
+			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),2)),])
+			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
+			aggregation_overall_sd<-file[(seq(2,nrow(file),2)),]
+			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
 
-			command<-paste(paste(settings,collapse="\n"),"BEGIN;",paste(".read ",file.path(dir.out.temp,theFileList[j]),sep=""),"COMMIT;",sep="\n")
-			system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDB)))
+			dbBegin(con)
+			dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
+			dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
+			dbCommit(con)
+
 			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
-				system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDBCurrent)))
+			  dbDisconnect(con)
+			  con<-dbConnect(drv, dbname = name.OutputDBCurrent)
+			  dbBegin(con)
+			  dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
+			  dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
+			  dbCommit(con)
+			  dbDisconnect(con)
+			  con<-dbConnect(drv, dbname = name.OutputDB)
 			}
+
 
 			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
 			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
