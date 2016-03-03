@@ -3599,27 +3599,25 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				break
 #			}
 			runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-			
+
 			tempError <- function() {.Call("tempError")}
 
       ##TAG
 			## Experimental - Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-			## Only exeutes if the SoilTemp_Flag has been
-			if (any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] > 2.0 | any(swSoils_Layers(swRunScenariosData[[sc]])[, 2] < 0.9)))
+			if (tempError() == TRUE)
 			{
-        print(paste("Site", i, i_labels, "SOILWAT was not developed for soils with a matric density below 0.9 g / cm3 or greater than 2.0 g / cm3"))
-
 				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
 				i_soil_rep = 0
 				incrementer = 15
 				TEST_FOR_SOILTEMP_STABILITY <- tempError() # Initialize so that we can enter the loop
 
-				while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY && incrementer <= 90)
+				while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY == TRUE && incrementer <= 90)
 				{
 					## Make sure that the increment for the soil layers is a multiple of 180, modulus of 0 means no remainder and thus a multiple of 180
-					if (180 %% incrementer != 0)
+					mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
+					if (mDepth %% incrementer != 0)
 					{
-						while (180 %% incrementer != 0)
+						while (mDepth %% incrementer != 0)
 						{
 							incrementer = incrementer + 5
 						}
