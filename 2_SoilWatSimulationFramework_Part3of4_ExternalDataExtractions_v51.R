@@ -173,13 +173,13 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		res <- try(lapply(obs.hist.daily, FUN=function(obs) {
 					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
 					ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
-				
 					tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
+
 					if(do_checks) test_sigmaNormal(data=tmax)
 
 					tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
 					if(do_checks) test_sigmaNormal(data=tmin)
-					
+
 					ppt_data <- unlist(lapply(1:12, FUN=function(m) {
 														im_month <- month == m
 														m_ydelta <- ydelta[m, 3]
@@ -218,6 +218,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 														}
 														return(res)
 													}))
+					
 					ppt <- controlExtremePPTevents(data=ppt_data, dailyPPTceiling, do_checks=do_checks)			
 					if(do_checks) test_sigmaGamma(data=ppt)
 
@@ -269,7 +270,6 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		scen.fut.mean <- aggregate(scen.fut.monthly[, 2+1:3], by=list(temp), FUN=function(x) mean(x, na.rm=TRUE))[, 2:4]
 		temp <- rep(1:12, times=nrow(scen.hist.monthly) / 12)
 		scen.hist.mean <- aggregate(scen.hist.monthly[, 2+1:3], by=list(temp), FUN=function(x) mean(x, na.rm=TRUE))[, 2:4]
-		
 		# 2. Calculate deltas between historic and future mean scenario values
 				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
@@ -298,7 +298,6 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 		#Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 		#Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
-		
 		#Functions
 		eCDF.Cunnane <- function(x){
 			na_N <- sum(is.na(x))
@@ -456,7 +455,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#Specific flags
 		if(grepl("BCSD_GDODCPUCLLNL", GCM_source)){
 			##gdo-dcp.ucllnl.org/downscaled_cmip_projections
-			dir.ex.dat <- file.path(dir.external, "GDO_DCP_UCLLNL_DownscaledClimateData")
+			dir.ex.dat <- file.path(dir.ex.fut, "GDO_DCP_UCLLNL_DownscaledClimateData")
 			if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
 			if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
 			if(GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
@@ -544,7 +543,6 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			tbox$first <- c(1950, 1999)
 			tbox$second <- c(2000, 2099)
 		}
-
 		#timing: time slices: data is organized into 'historical' runs 1950-2005 (="first") and future 'rcp' runs 2006-2099 (="second")
 		timeSlices <- data.frame(matrix(NA, ncol=4, nrow=4 + 4*length(deltaFutureToSimStart_yr), dimnames=list(NULL, c("Run", "Slice", "Time", "Year"))))
 		timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", paste0(deltaFutureToSimStart_yr, "years")))[, 3:1]
@@ -558,7 +556,10 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#loop through deltaFutureToSimStart_yr
 		for(it in seq_along(deltaFutureToSimStart_yr)){
 			timeSlices[3 + 4*it, 4] <- max(tbox$second[1], deltaFutureToSimStart_yr[it] + simstartyr)
-			timeSlices[4 + 4*it, 4] <- min(tbox$second[2], deltaFutureToSimStart_yr[it] + endyr)
+			timeSlices[4 + 4*it, 4] <- min(tbox$second[2], deltaFutureToSimStart_yr[it] + endyr)#limits timeSlices to 2099
+			if (simstartyr < 1950){
+			  timeSlices[4 + 4*it, 4] <- min(timeSlices[4 + 4*it, 4], timeSlices[4 + 3*it, 4]+(timeSlices[4,4]-timeSlices[1,4]))
+			}
 			if(deltaFutureToSimStart_yr[it] + simstartyr < tbox$second[1]){
 				timeSlices[1 + 4*it, 4] <- max(tbox$first[1], deltaFutureToSimStart_yr[it] + simstartyr)
 				timeSlices[2 + 4*it, 4] <- tbox$second[1]
@@ -607,6 +608,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		names(assocYears) <- names_assocYears
 		
+		print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(na.omit(timeSlices[,4]))))
 		#Variable tags
 		if(GCM_source == "CMIP5_BCSD_NEX_USA"){
 			varTags <- c("pr", "tasmin", "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
@@ -850,8 +852,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				lat <- locations[il, 2]
 				site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
 				ncFiles_gcm <- if(grepl("BCSD_GDODCPUCLLNL", GCM_source)) gcmFiles[grepl(paste0("_", as.character(gcm), "_"), gcmFiles)] else NULL
-
-				if(!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
+				if(!be.quiet) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
+	#			if(!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", tagDB, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
 	#			if(!be.quiet && (i-1) %% 10000 == 0) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
 			
 				if(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2]){#Data Bounding Box
@@ -878,8 +880,10 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				
 					#Observed historic daily weather from weather database
 					obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
-					hist_dim<-length(obs.hist.daily)
-					if(hist_dim>=64)  obs.hist.daily <- obs.hist.daily[(hist_dim-64):hist_dim]
+					if (obs.hist.daily[[1]]@year < 1950){
+					 start_yr <- obs.hist.daily[[length(obs.hist.daily)]]@year - 1950
+					 obs.hist.daily <- obs.hist.daily[(length(obs.hist.daily)-start_yr):length(obs.hist.daily)]
+					}
 					obs.hist.monthly <- get_monthlyTimeSeriesFromDaily(dailySW=obs.hist.daily)
 
 				
@@ -1206,7 +1210,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		if(sum(do_extract) > 0){
 			ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
 	
-			dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromCONUSSOILFromSTATSGO", "CONUSSoil", "output", "albers")
+			dir.ex.dat <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
 	
 			#locations of simulation runs
 			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
@@ -1313,7 +1317,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 			layer_TopDep <- c(0, 10, 20, 40, 60, 80)	#in cm
 			layer_BotDep <- c(10, 20, 40, 60, 80)	#in cm
 	
-			dir.ex.dat <- file.path(dir.external, "ExtractSoilDataFromISRICWISEv12_Global", "wise5by5min_v1b")
+			dir.ex.dat <- file.path(dir.ex.soil, "wise5by5min_v1b")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 	
 			#locations of simulation runs
@@ -1590,7 +1594,7 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
 		if(sum(do_extract) > 0){
-			dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "NED_1arcsec")
+			dir.ex.dat <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
 	
 			#read raster data
 			g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
@@ -1626,7 +1630,7 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
 		if(sum(do_extract) > 0){
-			dir.ex.dat <- file.path(dir.external, "ExtractTopographyANDElevation", "HWSD")
+			dir.ex.dat <- file.path(dir.ex.dem, "HWSD")
 	
 			#read raster data
 			g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
@@ -1691,7 +1695,7 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 			reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
 	
 			#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
-			dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNOAAClimateAtlasUS")
+			dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 
 			dir.ex.dat.RH <- file.path(dir.ex.dat, "HumidityRelative_Percent")
@@ -1764,7 +1768,7 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		do_extract <- get_NA_byrow(monthlyclim) | is.na(sites_monthlyclim_source) | (sites_monthlyclim_source == "ClimateNormals_NCEPCFSR_Global")
 		if(sum(do_extract) > 0){		
 			# preparations
-			dir.ex.dat <- file.path(dir.external, "ExtractSkyDataFromNCEPCFSR_Global", "CFSR_weather_prog08032012")
+			dir.ex.dat <- file.path(dir.ex.weather, "NCEPCFSR", "CFSR_weather_prog08032012")
 			stopifnot(file.exists(dir.ex.dat))
 		
 			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.dat)
