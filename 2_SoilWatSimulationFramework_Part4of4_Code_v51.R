@@ -3633,6 +3633,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					TEST_FOR_SOILTEMP_STABILITY <- tempError()
           incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
 				}
+				if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 			}
 			if(inherits(runData[[sc]], "try-error")){
 				tasks$execute <- 0
