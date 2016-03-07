@@ -3677,6 +3677,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						gravel.top=weighted.mean(gravel[topL], layers_width[topL]),
 						gravel.bottom=weighted.mean(gravel[bottomL], layers_width[bottomL])
 					)
+		
+		
 
 		if(any(simulation_timescales=="daily") && daily_no > 0){
 			textureDAgg <- list(	gravel=sapply(1:aggLs_no, FUN=function(x) weighted.mean(gravel[aggLs[[x]]], layers_width[aggLs[[x]]])),
@@ -3965,6 +3967,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					if(print.debug) print("Aggregation of input_SoilProfile")
 					resMeans[nv:(nv+7)] <- c(soilDepth_cm, soilLayers_N, unlist(texture))
 					nv <- nv+8
+					resMeans[nv]<-swRunScenariosData[[1]]@site@SoilTemperatureConstants[9]
+					nv <- nv+1
 				}
 			#1
 				if(aon$input_FractionVegetationComposition) {
