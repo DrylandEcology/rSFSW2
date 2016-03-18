@@ -1400,6 +1400,9 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars=
 				dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
 			}
 			month_forEachDoy <- as.POSIXlt(seq(from=as.POSIXlt(paste(years[y], "-01-01", sep="")), to=as.POSIXlt(paste(years[y], "-12-31", sep="")), by="1 day"))$mon + 1
+			if (years[y] == 1942 ){
+			  month_forEachDoy<-c(month_forEachDoy,12)
+			}
 			tempMean <- tempMean + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
 			tempMin <- tempMin + aggregate(temp.dailyTempMin, by=list(month_forEachDoy), FUN=mean)[, 2]
 			tempMax <- tempMax + aggregate(temp.dailyTempMax, by=list(month_forEachDoy), FUN=mean)[, 2]
@@ -3052,9 +3055,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || aon$dailyC4_TempVar
 					#redo SiteClimate_Ambient
 					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[1]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
-				}
+					}
 			}
-
 			if(!getScenarioWeatherDataFromDatabase) {
 				#get climate change information
 				use_pptValscen <- sw_input_climscen_values_use[, pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
