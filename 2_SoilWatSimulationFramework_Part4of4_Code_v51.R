@@ -4359,6 +4359,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 
 					#duration of prcp-free days in bins
 					durations <- lapply(simTime$useyrs, FUN=function(y) floor(((temp <- rle(prcp.dy$ppt[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]-1)/bin.prcpfreeDurations)*bin.prcpfreeDurations )
+					if(length(unlist(durations))==0) {if(!be.quiet) print("Unable to complete aggregation of dailyPrecipitationFreeEventDistribution")
+						}else{
 					bins.summary <- (0:3) * bin.prcpfreeDurations	#aggregate to maximal 4 bins
 					bins.available <- sort(unique(unlist(durations)))	#bins present
 					counts.available <- as.matrix(sapply(simTime$useyrs - startyr + 1, FUN=function(y) sapply(bins.available, FUN=function(b) sum(durations[[y]] == b))))
@@ -4381,6 +4383,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					nv <- nv+5
 
 					rm(durations, counts.available, counts.summary, freq.summary, eventsPerYear)
+				}
 				}
 			#21
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
