@@ -10,17 +10,6 @@ if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "a
 	}
 }
 
-##TAG - Testing a deltaX container
-inputMaster <- read.csv("/media/SOILWAT_DATA/VALIDATION/Petrie_Soilwat_Validation_Project_v4_NewTempTEmp/1_DATA_SWInput/SWRuns_InputMaster_Validation_v11.csv")
-IDS <- vector(mode="list", length=35)
-names(IDS) <- inputMaster$Label
-
-for (i in 1:35)
-{
-  IDS[[i]] <- 15
-}
-
-
 #------
 actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
 actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")
@@ -3610,17 +3599,12 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				break
 #			}
 
-			#TODO Add a check to find the site ID based on which iteration of the run
-			#TODO If there is a modified deltaX in the ID list change the SoilTemperatureConsts DeltaX Parameter before the call to runData
-			#TODO Add a check to match a future site to the list of IDS ##TODO If this is not possible then find a way to add an ID to the list
-
 			runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
 
 			tempError <- function() {.Call("tempError")}
 
-      ##TAG
-			## Experimental - Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-			if (tempError() == TRUE)  #TODO Add a check to see if the ID has a deltaX from a previous run
+			## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
+			if (tempError() == TRUE)
 			{
 				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
 				i_soil_rep = 0
@@ -3650,8 +3634,6 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 					TEST_FOR_SOILTEMP_STABILITY <- tempError()
           incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
 				}
-				k <- k + 1
-				IDS[[k]] <- dx
 				if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 			}
 			if(inherits(runData[[sc]], "try-error")){
@@ -3696,8 +3678,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						gravel.top=weighted.mean(gravel[topL], layers_width[topL]),
 						gravel.bottom=weighted.mean(gravel[bottomL], layers_width[bottomL])
 					)
-		
-		
+
+
 
 		if(any(simulation_timescales=="daily") && daily_no > 0){
 			textureDAgg <- list(	gravel=sapply(1:aggLs_no, FUN=function(x) weighted.mean(gravel[aggLs[[x]]], layers_width[aggLs[[x]]])),
