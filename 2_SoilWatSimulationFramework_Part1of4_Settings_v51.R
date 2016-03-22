@@ -57,7 +57,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 dir.prj <- "~/YOURPROJECT"
 if(interactive()) setwd(dir.prj)
 dir.prj <- dir.runs <- getwd()
-	
+
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
 
@@ -73,7 +73,7 @@ dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add infor
 dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
 dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
-dir.sw.runs <- file.path(dir.runs, "3_Runs")	#path to SoilWat-runs 
+dir.sw.runs <- file.path(dir.runs, "3_Runs")	#path to SoilWat-runs
 dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated output
 
 
@@ -123,7 +123,7 @@ do.ExtractExternalDatasets <- c(
 		"GriddedDailyWeatherFromDayMet_NorthAmerica", 0,	#1-km resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
-		
+
 		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
 		#CMIP3
 		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 0, #50-km resolution for mean of 2070-2099
@@ -134,18 +134,18 @@ do.ExtractExternalDatasets <- c(
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
-		
-		#Mean monthly wind, relative humidity, and 100% - sunshine 
+
+		#Mean monthly wind, relative humidity, and 100% - sunshine
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		"ExtractSkyDataFromNCEPCFSR_Global", 0,
-		
+
 		#Topography
 		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
-		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database 
+		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database
 
 		#Soil texture
-		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,	
-		"ExtractSoilDataFromISRICWISEv12_Global", 0	
+		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
+		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
 do.PriorCalculations <- c(
@@ -194,7 +194,7 @@ save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is sav
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
 
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"	
+datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
 datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v04.csv"
 
@@ -251,15 +251,15 @@ output_aggregates <- c(
 					#---Aggregation: Climatic dryness
 						"yearlymonthlyTemperateDrylandIndices", 1,
 						"yearlyDryWetPeriods", 1,
-						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about 
+						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about
 						"dailyPrecipitationFreeEventDistribution", 1,
 						"monthlySPEIEvents", 1,
 					#---Aggregation: Climatic control
 						"monthlyPlantGrowthControls", 1,
 						"dailyC4_TempVar", 1,
 						"dailyDegreeDays", 1,
-						"dailyNRCS_SoilMoistureTemperatureRegimes", 1, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
-						"dailyNRCS_Chambers2014_ResilienceResistance", 1, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#---Aggregation: Yearly water balance
 						"yearlyWaterBalanceFluxes", 1,
 						"dailySoilWaterPulseVsStorage", 1,
@@ -307,7 +307,7 @@ output_aggregates <- c(
 						"dailyRegeneration_GISSM", 0
 )
 
-#select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales 
+#select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
 
 #options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
 output_aggregate_daily <- NULL
@@ -374,7 +374,7 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 
 	#characteristics of sw input files
 	soilsin.firstDataLine <- 18	# 18, if soilsin >= v23; 17, if soilsin < v23
-	
+
 	sw_aet			<- "AET"
 	sw_deepdrain	<- "DEEPSWC"
 	sw_estabs		<- "ESTABL"
@@ -406,4 +406,3 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ########################Source of the code base###############################
 
 if(!interactive()) source("2_SoilWatSimulationFramework_Part4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
-
