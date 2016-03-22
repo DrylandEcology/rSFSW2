@@ -6682,7 +6682,7 @@ if(any(actions=="concatenate")) {
 			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
 			aggregation_overall_sd<-file[(seq(2,nrow(file),2)),]
 			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
-
+			
 			dbBegin(con)
 			dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
 			dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
@@ -6698,6 +6698,7 @@ if(any(actions=="concatenate")) {
 			  dbDisconnect(con)
 			  con<-dbConnect(drv, dbname = name.OutputDB)
 			}
+			
 
 
 			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)

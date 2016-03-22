@@ -61,6 +61,12 @@ dir.prj <- dir.runs <- getwd()
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
 
+#paths to external subfolder
+dir.ex.weather <- file.path(dir.external,"Weather_Past")#historic weather data. Used with Livneh and Maurer Data and ClimateAtlas and NCEPCFSR data.
+dir.ex.fut <- file.path(dir.external,"Weather_Future")#future scenario data.
+dir.ex.soil <- file.path(dir.external,"Soils")
+dir.ex.dem <- file.path(dir.external,"Topography")
+
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
 dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add information to SoilWat input files
