@@ -375,6 +375,494 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 		return(scen.fut.daily)
 	}
+   
+	#------------------------
+	# TODO
+	# Added from original file, move to better location
+	expand_Textremes <- function(x, lambda){
+	  return((1 + lambda) * x - lambda * mean(x))
+	}
+
+	count_extrapolations <- function(x, fobj){
+	  val_max <- max(fobj$par$modq[, 1]) + sqrt(.Machine$double.eps)
+	  n_ex_high <- sum(x > val_max) # max is the last entry of fobj$par$modq[, 1]
+	  val_min <- fobj$par$modq[1, 1] - sqrt(.Machine$double.eps)
+	  n_ex_low <- sum(x < val_min)
+	  return(list(counts=c(n_ex_low, n_ex_high), vals=c(val_min, val_max)))
+	}
+	
+	doQmapQUANT.default_drs <- function(x, fobj, type = c("linear", "tricub"), linear_extrapolation=c("Boe", "Thermessl2012CC.QMv1b", "none"), spline_method=c("monoH.FC", "fmm", "natural"), monthly_extremes=NULL, correctSplineFun_type=c("fail", "none", "attempt"), ...) {
+	  # Note: differs from call to call if jitter correction is used
+	  
+	  type <- match.arg(type)
+	  linear_extrapolation <- match.arg(linear_extrapolation)
+	  spline_method <- match.arg(spline_method)
+	  correctSplineFun_type <- match.arg(correctSplineFun_type)
+	  
+	  wet <- if (!is.null(fobj$wet.day)) {
+	    x >= fobj$wet.day
+	  } else {
+	    rep(TRUE, length(x))
+	  }
+	  out <- rep(NA, length.out = length(x))
+	  n_adjustments <- 0
+	  
+	  if (type == "linear") {
+	    out[wet] <- approx(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], xout = x[wet], method = "linear", rule = 2, ties = mean)$y
+	    if(!(linear_extrapolation == "none")){
+	      # ???same extrapolation as Bo?? et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
+	      qid <- switch(linear_extrapolation, Boe=0, Thermessl2012CC.QMv1b=3)
+	      nq <- nrow(fobj$par$modq)
+	      largex <- x > fobj$par$modq[nq, 1] + sqrt(.Machine$double.eps)
+	      if (any(largex)) {
+	        max.delta <- fobj$par$modq[nq - qid, 1] - fobj$par$fitq[nq - qid, 1]
+	        out[largex] <- x[largex] - max.delta
+	      }
+	      smallx <- x < fobj$par$modq[1, 1] - sqrt(.Machine$double.eps)
+	      if (any(smallx)) {
+	        min.delta <- fobj$par$modq[1 + qid, 1] - fobj$par$fitq[1 + qid, 1]
+	        out[smallx] <- x[smallx] - min.delta
+	      }
+	    }
+	  } else if (type == "tricub") {
+	    sfun <- splinefun(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], method = spline_method) #only "monoH.FC" would be appropriate here because we would want a monotone function if possible
+	    temp <- sfun(x[wet])
+	    
+	    if(FALSE){
+	      sfun <- splinefun(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], method = "fmm") #only "monoH.FC" would be appropriate here because we would want a monotone function if possible
+	      sx <- sort(x[wet])
+	      temp <- sfun(sx)
+	      xlim <- c(0, max(sx, min(max(monthly_extremes), max(temp)), fobj$par$modq[, 1], fobj$par$fitq[, 1], na.rm=T))
+	      plot(fobj$par$modq[, 1], fobj$par$fitq[, 1], pch=3, type="b", xlim=xlim, ylim=xlim)
+	      abline(a=0, b=1)
+	      lines(sx, temp, type="l", col="red")
+	      points(sx, temp, pch=16, col="orange")
+	      points(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], pch=3)
+	      
+	      lines(sx, splinefun(x = jitter(fobj$par$modq[, 1]), y = jitter(fobj$par$fitq[, 1]), method = "fmm")(sort(x[wet])), col="green")
+	    }
+	    
+	    #There seem to be at least two causes for abnormally high values from sfun()
+	    #	1) extrapolation error, e.g., ix=58662     292 RCP85 CESM1-CAM5    tricub_fmm                    1.5
+	    #	2) huge oscillations
+	    #		2a) arising from non-monotone splines ('fmm' and 'natural')
+	    #		2b) arising from numerical instabilities in the exact monotonicity for 'monoH.FC', e.g., ix=82529     811 RCP85 CSIRO-Mk3-6-0 tricub_monoH.FC                    1.5
+	    
+	    
+	    if(!is.null(monthly_extremes) && !(correctSplineFun_type == "none")){
+	      if(FALSE){ # version previous to 20150705 didn't catch several bad cases, e.g., ix = 180099
+	        # to prevent huge oscillation in 'fmm' and 'natural', we need to bound values between some small and some not-too large number
+	        # apparently 'monoH.FC' does also show huge oscillations, e.g., ix=82529 because of numerical instabilities in the exact monotonicity in fobj$par$modq[, 1]
+	        n_adjustments <- n_adjustments + sum(itemp <- (temp < monthly_extremes[1]))
+	        temp[itemp] <- monthly_extremes[1]
+	        n_adjustments <- n_adjustments + sum(itemp <- (temp > monthly_extremes[2]))
+	        temp[itemp] <- monthly_extremes[2]
+	      } else {
+	        icount <- 1
+	        while((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 && icount < 10){
+	          if(correctSplineFun_type == "fail") stop("Out-of-range splinefun values and 'correctSplineFun_type' set to fail")
+	          n_adjustments <- n_adjustments + itemp
+	          sfun <- splinefun(x=jitter(fobj$par$modq[, 1]), y=jitter(fobj$par$fitq[, 1]), method=spline_method)
+	          temp <- sfun(x[wet])
+	          icount <- icount + 1
+	        }
+	        if(itemp > 0) stop("Jitter failed to fix out-of-range splinefun values")
+	      }
+	    }
+	    
+	    out[wet] <- temp
+	  }
+	  out[!wet] <- 0
+	  if (!is.null(fobj$wet.day))  out[out < 0] <- 0
+	  
+	  return(list(out=out, n_adjustments=n_adjustments))
+	}
+	
+	doQmapQUANT_drs <- function(x, fobj, type=c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"), montly_obs_base=NULL, monthly_extremes=NULL, correctSplineFun_type=c("fail", "none", "attempt"), ...){
+	  correctSplineFun_type <- match.arg(correctSplineFun_type)
+	  type <- match.arg(type)
+	  temp <- strsplit(type, "_", fixed=TRUE)[[1]]
+	  type <- temp[1]
+	  type_mod <- temp[2]
+	  
+	  if(type == "linear"){
+	    out <- try(doQmapQUANT.default_drs(x, fobj, type="linear", linear_extrapolation=type_mod, monthly_extremes=monthly_extremes, correctSplineFun_type=correctSplineFun_type, ...), silent=TRUE)
+	  } else if(type == "tricub"){
+	    out <- try(doQmapQUANT.default_drs(x, fobj, type="tricub", spline_method=type_mod, monthly_extremes=monthly_extremes, correctSplineFun_type=correctSplineFun_type, ...), silent=TRUE)
+	  } else if(type == "normal"){
+	    # Tohver, I. M., A. F. Hamlet, and S.-Y. Lee. 2014. Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association 50:1461-1476.
+	    # Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+	    
+	    out <- try(doQmapQUANT.default_drs(x, fobj, type="linear", linear_extrapolation="Boe", monthly_extremes=monthly_extremes, correctSplineFun_type=correctSplineFun_type, ...), silent=TRUE)
+	    
+	    if(!inherits(out, "try-error")){
+	      target_range <- c(-Inf, fobj$par$modq[1, 1] -  sqrt(.Machine$double.eps), max(fobj$par$modq[, 1]) + sqrt(.Machine$double.eps), Inf) # -Inf, smallest observed value, largest observed value, Inf
+	      out_of_range <- !(findInterval(x, target_range) == 2)
+	      
+	      if(any(out_of_range)){
+	        tscore_x <- (x[out_of_range] - mean(montly_obs_base)) / sd(montly_obs_base)
+	        out$out[out_of_range] <- mean(out$out[!out_of_range]) + sd(out$out[!out_of_range]) * tscore_x 
+	      }
+	    }
+	  }
+	  
+	  return(out)
+	}
+	
+	#Add/multiply deltas to historic daily precipitation to generate future daily precipitation
+	applyPPTdelta <- function(m, m_data, m_ydelta, m_fun, daily, monthly, daily_months){
+
+	  if(m_fun == "*"){# multiply ppt
+	    res <- m_data * m_ydelta
+	  } else if(m_ydelta == 0){ #add ppt here and below: nothing to add
+	    res <- m_data
+	  } else if(any(i_rainyDays <- m_data > 0)){ #there are rainy days in the historic record: add to those
+	    res <- do_PPTAdjustment(data=m_data, rainyElems=i_rainyDays, addDelta=m_ydelta)
+	  } else { #there are no rainy days in the historic record
+	    if(m_ydelta > 0){ #we need rainy days in the historic record to add precipitation
+	      if(any(i_rainyMYears <- monthly[monthly[, "Month"] == m, "PPT_cm"] > 0)){ #sample from the same historic month in an other with rainy days instead
+	        #Locate data of same month in other year with most similar monthly PPT
+	        i_newYear <- monthly[monthly[, "Month"] == m, "Year"][i_rainyMYears][which.min(abs(monthly[monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
+
+	        dm_start <- 0
+	        dm_end <- 0
+	        for (idx in seq_along(daily)) {
+	          if (daily[[idx]]@year == i_newYear) {
+	            dm_end <- dm_start + length(daily[[idx]]@data[, "DOY"])
+	            dm_start <- dm_start + 1
+	            break
+	          }
+	          dm_start <- dm_start + length(daily[[idx]]@data[, "DOY"])
+	        }
+	        
+	        dm_idx <-   unlist(sapply(seq_along(daily), FUN=function(fun_idx) if(daily[[fun_idx]]@year == i_newYear) fun_idx))
+	        year_idx <- unlist(sapply(seq_along(daily), FUN=function(fun_idx) if(daily[[fun_idx]]@year == i_newYear) fun_idx))
+
+		      newMonthData <- daily[[year_idx]]@data[ daily_months[dm_start:dm_end] == m, "PPT_cm"]
+		      
+	      } else if(any(i_rainyMonth <- monthly[, "PPT_cm"] > 0)){ #no rainy day for this month in historic record: locate rainy days in any months from other years
+	        #Locate data of any month in any year
+	        i_newMYear <- which(i_rainyMonth)[which.min(abs(monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
+	        i_newYear <- monthly[i_newMYear, "Year"]
+	        
+	        dm_start <- 0
+	        dm_end <- 0
+	        
+	        for (idx in seq_along(daily)) {
+	          if (daily[[idx]]@year == i_newYear) {
+	            dm_end <- dm_start + length(daily[[idx]]@data[, "DOY"])
+	            dm_start <- dm_start + 1
+	            break
+	          }
+	          dm_start <- dm_start + length(daily[[idx]]@data[, "DOY"])
+	        }
+	        
+	        dm_idx <-   unlist(sapply(seq_along(daily), FUN=function(fun_idx) if(daily[[fun_idx]]@year == i_newYear) fun_idx))
+	        year_idx <- unlist(sapply(seq_along(daily), FUN=function(fun_idx) if(daily[[fun_idx]]@year == i_newYear) fun_idx))
+	        
+	        newMonthData <- daily[[year_idx]]@data[ daily_months[dm_start:dm_end] == monthly[i_newMYear, "Month"], "PPT_cm"]
+	        #newMonthData <- daily[daily[, "Year"] == i_newYear & daily_months == monthly[i_newMYear, "Month"], "PPT_cm"]
+	      } else {
+	        stop(paste("no rainy day in historic record, but requested for the future prediction"))
+	      }
+	      #Adjust data
+	      newMonthData <- adjustLength(data=newMonthData, targetLength=length(m_data)) #adjust number of days in case we got a leap year February issue
+	      res <- do_PPTAdjustment(newMonthData, newMonthData > 0, m_ydelta)
+	    } else {#there is no rain in the historic record, so we cannot remove any
+	      res <- rep(0, length(m_data))
+	    }
+	  }
+	  return(res)
+	}
+	
+	applyDeltas_h3mod <- function(daily, monthly, delta_ts, ppt_fun, ppt_type=c("simple", "detailed"), dailyPPTceiling, do_checks=FALSE){
+
+	  ppt_type <- match.arg(ppt_type)
+	  n_adjustments <- 0
+	  cnt_a <- 1
+	  years <- lapply(daily, FUN=function(daily) daily@year)
+
+    if (nrow(delta_ts)/12 < length(years)) years <- years[1:(nrow(delta_ts)/12)] 
+
+	  for (year_cnt in seq_along( years) ) { 
+	    if(cnt_a == 1) {
+	      cnt_a <- 2
+	      days_year <- length(daily[[year_cnt]]@data[, "DOY"])
+	      daily_months <- paste(daily[[year_cnt]]@year, daily[[year_cnt]]@data[, "DOY"], sep = "-" ) 
+	    } else {
+	      daily_months <- append(daily_months, paste(daily[[year_cnt]]@year, daily[[year_cnt]]@data[, "DOY"], sep = "-" ) )
+	      days_year <- append(days_year, length(daily[[year_cnt]]@data[, "DOY"]))
+	    }
+	  }
+
+	  daily_months <- as.POSIXlt(daily_months, format="%Y-%j", tz="GMT")$mon + 1
+	  
+	  start_idx <- 1
+	  for(no_of_days in days_year) {
+	    if (start_idx == 1) {
+	      yearly_months <- list(daily_months[start_idx:no_of_days])
+	      start_idx <- no_of_days + 1
+	    }
+	    else {
+	      yearly_months <- append(yearly_months,list(daily_months[start_idx:(start_idx +no_of_days-1)]))
+	      start_idx <- start_idx + no_of_days
+	    }
+	  }
+
+	  days_per_month <- rle(daily_months)$length
+
+	  all_days_Tmax <- rep(delta_ts[, "Tmax_C"], times=days_per_month)
+
+	  res <- daily[1:length(years)]
+	  daycnt <- 1
+	  for (cnt_b in seq_along(res)) {
+	    res[[cnt_b]]@data[, "Tmax_C"] <- res[[cnt_b]]@data[, "Tmax_C"]  + all_days_Tmax[daycnt:(daycnt+length(res[[cnt_b]]@data[, "Tmax_C"] )-1)]
+	    daycnt <- daycnt + days_year[cnt_b] 
+
+	  }
+	  
+	  if(do_checks) test_sigmaNormal(data=unlist(lapply(res, FUN=function(res) res@data[, "Tmax_C"] )))
+
+	  all_days_Tmin <- rep(delta_ts[, "Tmin_C"], times=days_per_month)
+	  daycnt <- 1
+	  for (cnt_b in seq_along(res)) {
+	    res[[cnt_b]]@data[, "Tmin_C"] <- res[[cnt_b]]@data[, "Tmin_C"] + all_days_Tmin[daycnt:(daycnt+length(res[[cnt_b]]@data[, "Tmin_C"] )-1)]
+	    daycnt <- daycnt + days_year[cnt_b] 
+	  }
+	  if(do_checks) test_sigmaNormal(data=unlist(lapply(res, FUN=function(res) res@data[, "Tmin_C"] )))
+
+	  res <- try(lapply(seq_along(res), FUN=function(i) {
+	    
+	    curr_dts <- subset(delta_ts,delta_ts[,"Year"]==res[[i]]@year)
+   
+	    for(j in 1:nrow(curr_dts)){
+
+	      idx <- ((i-1)*12)+j
+	      iyear <- res[[i]]@year
+
+	      imonth <- curr_dts[j, "Month"]
+	      
+	      ires <- res[[i]]@year == iyear & unlist(yearly_months[i]) == imonth 
+
+	      if(ppt_type == "simple"){
+
+	        i_RainyDays <- res[[i]]@data[ ires, "PPT_cm"] > 0
+
+	        delta <- rep(curr_dts[j, "PPT_cm"], times=days_per_month[idx])[i_RainyDays] 
+	        if(ppt_fun[imonth] == "+" && sum(i_RainyDays) > 0) delta <- delta / sum(i_RainyDays)
+  
+	        res[[i]]@data[ ires, "PPT_cm"][i_RainyDays] <- match.fun(ppt_fun[imonth])(res[[i]]@data[ ires, "PPT_cm"][i_RainyDays], delta)
+	       
+	        if (any(res[[i]]@data[,"PPT_cm"] < 0))  res[[i]]@data[res[[i]]@data[,"PPT_cm"] < 0,"PPT_cm"] <- 0
+ 
+	      } else if(ppt_type == "detailed"){
+	        res[[i]]@data[ires, "PPT_cm"] <- applyPPTdelta(m=imonth,
+	                                                  m_data=res[[i]]@data[ires, "PPT_cm"],
+	                                                  m_ydelta=curr_dts[j, "PPT_cm"],
+	                                                  m_fun=ppt_fun[imonth],
+	                                                  daily=res, monthly=monthly, daily_months=daily_months) 
+	      }
+	    }
+	    
+	  if(dailyPPTceiling > 0){
+	    temp <- controlExtremePPTevents(data=res[[i]]@data[, "PPT_cm"], dailyPPTceiling, do_checks=do_checks)
+	    res[[i]]@data[, "PPT_cm"] <- temp
+
+	  }
+	  if(do_checks) test_sigmaGamma(data=res[[i]]@data[, "PPT_cm"])
+
+	  new("swWeatherData", data=round(data.matrix(cbind(res[[i]]@data[, "DOY"], res[[i]]@data[, "Tmax_C"], res[[i]]@data[, "Tmin_C"], temp), rownames.force=FALSE), 2), year=res[[i]]@year) 
+
+	  }), silent = FALSE)
+	  return(res)
+	}
+
+	
+	#------------------------
+	
+	downscale.deltahybrid3mod <- function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+	                                      extrapol_type=c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"),
+	                                      applyPPT_type=c("simple", "detailed"),
+	                                      dailyPPTlimit_expander=1.5,
+	                                      correctSplineFun_type=c("fail", "none", "attempt"),
+	                                      do_checks=TRUE,
+	                                      training_startyear=1950, training_endyear=2010, future_startyear=2069, future_endyear=2099, deltaFuture_yr=90,  #2029 - 2060 
+	                                      #training_startyear=1950, training_endyear=2010, future_startyear=2069, future_endyear=2100, deltaFuture_yr=90,
+	                                      do_plot=FALSE, ftag=NULL){
+	  #Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
+	  #Hamlet, A. F., E. P. Salath??, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+	  #Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+	  #Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
+	  #Tohver, I. M., A. F. Hamlet, and S.-Y. Lee. 2014. Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association 50:1461-1476.
+	  #Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012). Technical Note: Downscaling RCM precipitation to the station scale using statistical transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+	  
+	  require(qmap)
+	  qstep <- 0.01
+	  nboot <- 1
+	  extrapol_type <- match.arg(extrapol_type)
+	  #	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
+	  #	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+	  #	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
+	  # 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+	  
+	  correctSplineFun_type <- match.arg(correctSplineFun_type)
+	  #	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
+	  #	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
+	  #	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
+	  
+	  #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by ???spreading out??? very large daily precipitation values into one or more adjacent days"
+	  
+	  dailyPPTceiling <- dailyPPTlimit_expander * max(unlist(lapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))))
+
+	  #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by ???spreading out??? very large daily precipitation values into one or more adjacent days"
+	  #original: dailyPPTceiling <- dailyPPTlimit_expander * max(obs.hist.daily[, "PPT_cm"])
+	  
+	  #Monthly extremes are used to cut the most extreme spline oscillations; these limits are ad hoc; monthly temperature extremes based on expanded daily extremes
+	  monthlyTlimit_expander <- downscaling.monthly_ti_limit
+	  monthlyPPTlimit_expander <- monthlyTlimit_expander
+
+	  monthly_extremes <- list(Tmax=temp <- expand_Textremes(x=range(sapply(obs.hist.daily, FUN=function(obs) obs@data[, c("Tmax_C", "Tmin_C")])), lambda=monthlyTlimit_expander),
+	                           Tmin=temp,
+	                           PPT=c(0, monthlyPPTlimit_expander * max(aggregate(obs.hist.monthly[, 5], by=list(obs.hist.monthly[, 1]), FUN=sum)$x)))
+	  
+	  n_extrapols <- array(0, dim=c(2, 3, 3, 2), dimnames=list(c("counts", "limits"), colnames(obs.hist.monthly)[3:5], c("step1_historic", "step2_future", "step3_remap"), c("low", "high")))
+	  n_adjustments <- array(0, dim=c(3, 3, 4), dimnames=list(c("counts", "limit_low", "limit_high"), colnames(obs.hist.monthly)[3:5], c("step1_historic", "step2_future", "step3_remap", "step4_applyDeltas")))
+	  
+	  # Training period: historic time period: training_startyear-training_endyear
+	  id_temp <- (obs.hist.monthly[, 1] >= training_startyear) & (obs.hist.monthly[, 1] <= training_endyear)
+	  ids_scen.hist <- match(obs.hist.monthly[id_temp, 1]*100+obs.hist.monthly[id_temp, 2], scen.hist.monthly[id_temp, 1]*100+scen.hist.monthly[id_temp, 2], nomatch=0)
+	  id_temp <- (scen.hist.monthly[, 1] >= training_startyear) & (scen.hist.monthly[, 1] <= training_endyear)
+	  ids_obs.hist <- match(scen.hist.monthly[id_temp, 1]*100+scen.hist.monthly[id_temp, 2], obs.hist.monthly[id_temp, 1]*100+obs.hist.monthly[id_temp, 2], nomatch=0)
+
+	  my_f_startyear <- scen.fut.monthly[1,1] 
+    my_f_endyear <- scen.fut.monthly[nrow(scen.fut.monthly),1]
+    my_delta = my_f_startyear - obs.hist.monthly[1,1]
+    future_startyear <- scen.fut.monthly[1,1] 
+    future_endyear <- scen.fut.monthly[nrow(scen.fut.monthly),1]
+    deltaFuture_yr <- future_startyear - obs.hist.monthly[1,1]
+
+	  # Future period
+	  # simstartyr == future_startyear - deltaFuture_yr; endyr == future_endyear - deltaFuture_yr
+	  ids_obs_m <- (obs.hist.monthly[, 1] >= future_startyear - deltaFuture_yr) & (obs.hist.monthly[, 1] <= future_endyear - deltaFuture_yr)
+	  	  
+	  stopifnot(sum(ids_obs_m) == (future_endyear - future_startyear + 1) * 12)
+	  
+	  temp <- sapply(obs.hist.daily, FUN=function(obs) obs@year)
+	  ids_obs_d <- (temp >= future_startyear - deltaFuture_yr) & (temp <= future_endyear - deltaFuture_yr)
+	  ids_fut_m <- (scen.fut.monthly[, 1] >= future_startyear) & (scen.fut.monthly[, 1] <= future_endyear)
+	  
+	  stopifnot(sum(ids_fut_m) == (future_endyear - future_startyear + 1) * 12)
+	  
+	  # Data objects
+	  sbc.hist.monthly <- matrix(NA, ncol=5, nrow=nrow(scen.hist.monthly), dimnames=list(NULL, colnames(obs.hist.monthly)))
+	  sbc.hist.monthly[, 1:2] <- scen.hist.monthly[, 1:2]
+	  sbc.fut.monthly <- matrix(NA, ncol=5, nrow=nrow(scen.fut.monthly), dimnames=list(NULL, colnames(obs.hist.monthly)))
+	  sbc.fut.monthly[, 1:2] <- scen.fut.monthly[, 1:2]
+	  hd.fut.monthly <- delta_ts <- matrix(NA, ncol=5, nrow=sum(ids_obs_m), dimnames=list(NULL, colnames(obs.hist.monthly)))
+	  hd.fut.monthly[, 1:2] <- scen.fut.monthly[ids_fut_m, 1:2]
+	  delta_ts[, 1:2] <- obs.hist.monthly[ids_obs_m, 1:2]
+
+	  ppt_fun <- rep("*", 12)
+	  if(do_plot) qm_fit_plot <- NULL
+	  
+
+	  #------STEPS 1-4 based on the appendix of Tohver et al. 2014
+	  has_error <- FALSE
+	  for(iv in 1:3){	# for each variable separately: Tmax, Tmin, PPT
+	    # NAs in scenario data: add them in the middle assuming missing values represent median conditions
+	    if(sum(id_nas <- is.na(scen.hist.monthly[, 2 + iv])) > 0) scen.hist.monthly[id_nas, 2 + iv] <- median(scen.hist.monthly[, 2 + iv], na.rm=TRUE)
+	    if(sum(id_nas <- is.na(scen.fut.monthly[, 2 + iv])) > 0) scen.fut.monthly[id_nas, 2 + iv] <- median(scen.fut.monthly[, 2 + iv], na.rm=TRUE)
+	    
+	    #---STEP 1: Statistical bias correction of GCM data
+	    # 1st part of this step is NOT carried out here because our GCM data is already BCSD downscaled: "first aggregating the gridded T and P observations to the GCM grid scale (at the time of this writing typically about 200km resolution)"
+
+	    # fit quantile map based on training data of same historic time period
+	    qm_fit <- fitQmapQUANT(obs=obs.hist.monthly[ids_obs.hist, 2 + iv], mod=scen.hist.monthly[ids_scen.hist, 2 + iv], qstep=qstep, nboot=nboot, wet.day=FALSE)
+	    if(do_plot) qm_fit_plot[[iv]] <- qm_fit
+	    
+	    # 2nd part: bias correcting historic data ("then using quantile mapping techniques to remove the systematic bias in the GCM simulations relative to the observed probability distributions")
+	    temp <- doQmapQUANT_drs(x=scen.hist.monthly[, 2 + iv], fobj=qm_fit, type=extrapol_type, montly_obs_base=obs.hist.monthly[ids_obs.hist, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=correctSplineFun_type)
+	    if(inherits(temp, "try-error")){
+	      has_error <- TRUE
+	      break
+	    }
+	    sbc.hist.monthly[, 2 + iv] <- temp$out
+	    n_adjustments["counts", iv, 1] <- temp$n_adjustments
+	    temp <- count_extrapolations(x=scen.hist.monthly[, 2 + iv], fobj=qm_fit)
+	    n_extrapols["counts", iv, 1, ] <- temp$counts
+	    n_extrapols["limits", iv, 1, ] <- temp$vals
+	    
+	    # 3rd part: bias correcting future data ("the same quantile map between simulations and observations is used to transform the future simulations from the GCM")
+	    temp <- doQmapQUANT_drs(x=scen.fut.monthly[, 2 + iv], fobj=qm_fit, type=extrapol_type, montly_obs_base=obs.hist.monthly[ids_obs.hist, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=correctSplineFun_type)
+	    if(inherits(temp, "try-error")){
+	      has_error <- TRUE
+	      break
+	    }
+	    sbc.fut.monthly[, 2 + iv] <- temp$out
+	    n_adjustments["counts", iv, 2] <- temp$n_adjustments
+	    temp <- count_extrapolations(x=scen.fut.monthly[, 2 + iv], fobj=qm_fit)
+	    n_extrapols["counts", iv, 2, ] <- temp$counts
+	    n_extrapols["limits", iv, 2, ] <- temp$vals
+	    
+	    
+	    #---STEP 2: Spatial downscaling
+	    # 	- "the monthly T and P values at the GCM grid scale are interpolated to the fine scale grid"
+	    # 	-> not done here because spatial aggregation (step 1, 1st part) not carried out
+	    
+
+	    for(im in 1:12){ # for each month separately
+
+	      #---STEP 3: Remapping the Historical Record to Interpolated GCM data
+	      if(!has_error){
+       
+	        id_obs_months <- (obs.hist.monthly[, 2] == im) & ids_obs_m
+	        id_fut_months <- (sbc.fut.monthly[, 2] == im) & ids_fut_m
+      
+	        qm_fitm <- fitQmapQUANT(obs=sbc.fut.monthly[id_fut_months, 2 + iv], mod=obs.hist.monthly[id_obs_months, 2 + iv], qstep=qstep, nboot=nboot, wet.day=FALSE)
+	        temp <- doQmapQUANT_drs(x=obs.hist.monthly[id_obs_months, 2 + iv], fobj=qm_fitm, type=extrapol_type, montly_obs_base=obs.hist.monthly[ids_obs.hist, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=correctSplineFun_type)
+	        if(inherits(temp, "try-error")){
+	          has_error <- TRUE
+	          break
+	        }
+	        hd.fut.monthly[(hd.fut.monthly[, 2] == im), 2 + iv] <- temp$out
+	        n_adjustments["counts", iv, 3] <- n_adjustments["counts", iv, 3] + temp$n_adjustments
+	        n_extrapols["counts", iv, 3, ] <- n_extrapols["counts", iv, 3, ] + count_extrapolations(x=obs.hist.monthly[id_obs_months, 2 + iv], fobj=qm_fitm)$counts
+	      }
+	    }
+	    n_extrapols["limits", iv, 3, ] <- count_extrapolations(x=obs.hist.monthly[ids_obs_m, 2 + iv], fobj=qm_fitm)$vals
+	    
+	    n_adjustments[c("limit_low", "limit_high"), iv, 1:3] <- monthly_extremes[[iv]]
+	  }
+
+	  #---STEP 4: Daily Time Step Disaggregation of Monthly Data
+	  if(!has_error && !inherits(temp, "try-error")){
+
+	    delta_ppts <- hd.fut.monthly[, "PPT_cm"] / obs.hist.monthly[ids_obs_m, "PPT_cm"] # equation 7
+	    delta_temps <- hd.fut.monthly[, 2 + (1:2)] - obs.hist.monthly[ids_obs_m, 2 + (1:2)] # equation 8
+
+	    if(any(temp_add <- (is.infinite(delta_ppts) | is.nan(delta_ppts) | delta_ppts > PPTratioCutoff | delta_ppts < 1/PPTratioCutoff))){
+	      ids_m <- unique(delta_ts[temp_add, 2])
+	      ppt_fun[ids_m] <- "+"
+	      temp_m <- delta_ts[, 2] %in% ids_m # all calendar month for which at least one instance qualifies for additive PPT
+	      delta_ppts[temp_m] <- hd.fut.monthly[temp_m, 2 + 3] - obs.hist.monthly[ids_obs_m, 2 + 3][temp_m]
+	    }
+
+	    delta_ts[, -(1:2)] <- as.matrix(cbind(delta_temps, delta_ppts))
+      
+	    # Apply deltas to historic daily weather
+	    # Note: PPT differs from call to call to applyDeltas() because of controlExtremePPTevents (if dailyPPTceiling > 0)
+	    temp <- try(applyDeltas_h3mod(daily=obs.hist.daily, monthly=obs.hist.monthly, delta_ts, ppt_fun, ppt_type=applyPPT_type, dailyPPTceiling, do_checks=do_checks), silent=FALSE)
+	    if(!inherits(temp, "try-error")){
+	      scen.fut.daily <- temp
+	    } else {
+	      scen.fut.daily <- temp
+	    }
+	  } else {
+	    ### TODO ??????
+	    scen.fut.daily <- if(inherits(temp, "try-error")) temp else try(stop("unidentified error"))
+	  }
+	  return(scen.fut.daily)
+	}
 	
 	get_monthlyTimeSeriesFromDaily <- function(dailySW){
 		monthly <- matrix(NA, nrow=length(dailySW) * 12, ncol=5, dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
@@ -942,6 +1430,26 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
 								years <- as.integer(names(scen.fut.daily))
 								types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=head(years,n=1), EndYear=tail(years,n=1), weatherData=data_blob)
+							}
+							if("hybrid-delta-3mod" %in% downs){
+
+							  scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", tag, gcm, sep=".")), "id"]                          
+							  
+							    scen.fut.daily <- downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+							                                                                extrapol_type=downscaling.extrapol_type,
+							                                                                applyPPT_type=downscaling.ppt_type,
+							                                                                dailyPPTlimit_expander=downscaling.daily_ppt_limit,
+							                                                                correctSplineFun_type=downscaling.correct_spline,							                                                                
+							                                                                do_checks=TRUE)
+							   							  
+							  if(inherits(scen.fut.daily, "try-error")){#delta-hybrid-3mod unsuccessful, replace with delta method
+							    scen.fut.daily <- downscale.delta(obs.hist.daily, downscale.delta, scen.hist.monthly, scen.fut.monthly, do_checks=FALSE)
+							    stopifnot(!inherits(scen.fut.daily, "try-error"))
+							    print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", deltaFutureToSimStart_yr[it], ": delta-hybrid-3mod replaced by delta method for monthly->daily"))
+							  }
+							  data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+							  years <- as.integer(names(scen.fut.daily))
+							  types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=head(years,n=1), EndYear=tail(years,n=1), weatherData=data_blob)
 							}
 						}
 						wdataOut[[ir]] <- types

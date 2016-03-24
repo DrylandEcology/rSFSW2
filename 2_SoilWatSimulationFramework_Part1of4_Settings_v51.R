@@ -184,7 +184,13 @@ deltaFutureToSimStart_yr <- c(50, 90)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
-downscaling.method <- c("hybrid-delta")	#one or multiple of "raw", "delta" (Hay et al. 2002), or "hybrid-delta" (Hamlet et al. 2010)
+downscaling.method           <- c("hybrid-delta-3mod")                #one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
+
+downscaling.daily_ppt_limit  <- 1.5                                   #valid values are 0, 1.5 or 10
+downscaling.monthly_ti_limit <- 1.5                                   #valid values are 0, 1.5 or 10 ???
+downscaling.ppt_type         <- "detailed"                            #either "detailed" or "simple"
+downscaling.correct_spline   <- "attempt"                             #one of "fail", "none" or "attempt" 
+downscaling.extrapol_type    <- "linear_Thermessl2012CC.QMv1b"        #set to "Boe", "Thermessl2012CC.QMv1b" or "none"
 
 #Climate ensembles created across scenarios
 ensemble.families <- c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
