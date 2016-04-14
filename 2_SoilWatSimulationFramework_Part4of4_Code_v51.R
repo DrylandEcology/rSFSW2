@@ -3579,6 +3579,7 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 			Exclude_ClimateAmbient <- 1
 		}
 
+		DeltaX <- c(15, 0)
 		for (sc in Exclude_ClimateAmbient:scenario_No){
 			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
 #			runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
@@ -3600,43 +3601,57 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 #				todo$execute <- todo$aggregate <- FALSE
 #				break
 #			}
-
-			runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-
-			tempError <- function() {.Call("tempError")}
-
-			## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-			if (tempError() == TRUE)
+			if (DeltaX[2] == 1)
 			{
-				## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
-				i_soil_rep = 0
-				incrementer = 15
-				TEST_FOR_SOILTEMP_STABILITY <- tempError() # Initialize so that we can enter the loop
+			  print("Using pre-determined DeltaX.")
+			  print(DeltaX)
+				swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
+				runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
+			}
+			else
+			{
+				runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
 
-				while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY == TRUE && incrementer <= 90)
+				tempError <- function() {.Call("tempError")}
+
+				## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
+				if (tempError() == TRUE)
 				{
-					## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
-					mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
-					if (mDepth %% incrementer != 0)
+					## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
+					i_soil_rep = 0
+					incrementer = 15
+					TEST_FOR_SOILTEMP_STABILITY <- tempError() # Initialize so that we can enter the loop
+
+					while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY == TRUE && incrementer <= 90)
 					{
-						while (mDepth %% incrementer != 0)
+						## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
+						mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
+						if (mDepth %% incrementer != 0)
 						{
-							incrementer = incrementer + 5
+							while (mDepth %% incrementer != 0)
+							{
+								incrementer = incrementer + 5
+							}
 						}
+
+					  print(paste("Site", i, i_labels, "SOILWAT called again with deltaX = ", min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]), " because soil temperature estability criterion was not met." ))
+
+						## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
+						swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
+						runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
+
+						## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
+						dx <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
+						TEST_FOR_SOILTEMP_STABILITY <- tempError()
+	          incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
 					}
-
-				  print(paste("Site", i, i_labels, "SOILWAT called again with deltaX = ", min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]), " because soil temperature estability criterion was not met." ))
-
-					## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-					swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
-					runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-
-					## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-					dx <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
-					TEST_FOR_SOILTEMP_STABILITY <- tempError()
-          incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
+					DeltaX <- c(dx, 1)
+					if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
 				}
-				if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+				else
+				{
+				  DeltaX <- c(15, 1)
+				}
 			}
 			if(inherits(runData[[sc]], "try-error")){
 				tasks$execute <- 0
@@ -6682,7 +6697,7 @@ if(any(actions=="concatenate")) {
 			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
 			aggregation_overall_sd<-file[(seq(2,nrow(file),2)),]
 			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
-			
+
 			dbBegin(con)
 			dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
 			dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
@@ -6698,7 +6713,7 @@ if(any(actions=="concatenate")) {
 			  dbDisconnect(con)
 			  con<-dbConnect(drv, dbname = name.OutputDB)
 			}
-			
+
 
 
 			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
