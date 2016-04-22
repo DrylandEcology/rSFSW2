@@ -621,8 +621,8 @@ if((length(Tables) == 0) || do.clean) {
 	#25
 		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
 			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "MoistureControlSection_Lower_cm", "AnhydrousControlSection_Upper_cm", "AnhydrousControlSection_Lower_cm", "Permafrost_TF"),
-							paste0(c(c("SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
-							c("T50Above5C_AtLeast1DayIn1NormalYear_TF", "ACS_HalfDry_HalfTime_Above0C_proportion", "MCS_AllDry_T50Above5C_proportion", "MCS_PartWet_T50Above5C_proportion", "MCS_PartDry_days", "MCS_PartMoist_days", "MCS_PartMoist_ConsecutiveMaxDuration_days", "MCS_PartMoist_T50Above8C_ConsecutiveMaxDuration_days", "MCS_AllMoist_ConsecutiveMaxDuration_Dec21Apr21_days", "MCS_AllDry_ConsecutiveMaxDuration_Jun21Oct21_days")), "_mean"),
+							paste0(c(c("SoilTemp_AnhydrousDepth_C","SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
+							c("Cumlative_Days_Above_0C", "Cumlative_Days_Above_5C", "Cumlative_DryDays_whenT50Above5C", "Consecutive_MoistDays_whenT50Above8C","Consecutive_DryDays_Summer", "Consecutive_MoistDays_AllYear_AnyLayer", "Cumlative_MoistDays_AllYear_AnyLayer", "Cumlative_DryDays_AllYear_AnyLayer","Consecutive_MoistDays_Winter")), "_mean"),
 							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
 							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
 		}	
