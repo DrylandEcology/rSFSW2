@@ -830,7 +830,7 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
 	#Citation: Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
 
-	dir.ex.maurer2002 <- file.path(dir.external, "ExtractGriddedDailyWeatherFromMaurer2002/DAILY_FORCINGS")
+	dir.ex.maurer2002 <- file.path(dir.ex.weather,"Maurer+_2002updated","DAILY_FORCINGS")
 	stopifnot(file.exists(dir.ex.maurer2002))
 
 	create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
