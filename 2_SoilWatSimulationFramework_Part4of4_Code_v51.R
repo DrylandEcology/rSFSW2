@@ -225,29 +225,6 @@ aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates
 aon <- data.frame(t(as.numeric(aon.help[,-1])))
 names(aon) <- aon.help[,1]
 
-#------import regeneration data
-if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
-
-if(any(simulation_timescales=="daily") & aon$dailyRegeneration_GISSM) {
-	list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
-	no.species_regeneration <- length(list.species_regeneration)
-	if(no.species_regeneration > 0){
-		f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[1]))
-		param.species_regeneration <- matrix(NA, ncol=no.species_regeneration, nrow=nrow(f.temp))
-		colnames(param.species_regeneration) <- sub(".csv", "", list.species_regeneration)
-		rownames(param.species_regeneration) <- f.temp[, 1]
-		param.species_regeneration[, 1] <- f.temp[, 2]
-		if(no.species_regeneration > 1) for(f in 2:no.species_regeneration){
-				f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[f]))
-				param.species_regeneration[, f] <- f.temp[, 2]
-			}
-		rm(f.temp)
-	}
-} else {
-	no.species_regeneration <- 0
-}
-
-
 #------constants
 output_timescales_maxNo <- 4
 SoilLayer_MaxNo <- 20
@@ -260,119 +237,158 @@ isLeapYear <- function(y) y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)	#from pa
 
 
 #------import data
-SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
-include_YN <- SWRunInformation$Include_YN
-labels <- SWRunInformation$Label
+if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
-sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
+if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_preprocessed))) {
+	load(file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
+		envir = .GlobalEnv) # This however annihilates all objects in .GlobalEnv with the same names !
 
-sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
-sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
-colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
+} else {
+	# Read data from files
+	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
+	include_YN <- SWRunInformation$Include_YN
+	labels <- SWRunInformation$Label
 
-sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
-sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
-colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
-create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
+	sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
 
-#update treatment specifications based on experimental design
-sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
-temp<-which(!(create_experimentals %in% names(sw_input_treatments_use[-1])))
-if(length(temp) != 0) sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined, matrix(data=1,nrow=1,ncol=length(temp),dimnames=list(NA, c(create_experimentals[temp]))))
-create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
+	sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
+	sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
+	colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
 
-if(dim(SWRunInformation)[2] == 1) stop("SWRunInformation might be tab separated instead of comma.")
-if(dim(sw_input_soillayers)[2] == 1) stop("SoilLayers might be tab separated instead of comma.")
-if(dim(sw_input_treatments_use)[2] == 1) stop("Treatments might be tab separated instead of comma.")
-if(dim(sw_input_experimentals_use)[2] == 1) stop("Experimentals might be tab separated instead of comma.")
+	sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
+	sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
+	colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
+	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
 
-if (actionWithSoilWat || any(actions == "external")) {
-	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
-	sw_input_cloud <- read.csv(temp, skip=1)
-	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
+	#update treatment specifications based on experimental design
+	sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
+	temp<-which(!(create_experimentals %in% names(sw_input_treatments_use[-1])))
+	if(length(temp) != 0) sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined, matrix(data=1,nrow=1,ncol=length(temp),dimnames=list(NA, c(create_experimentals[temp]))))
+	create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
 
-	sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
-	sw_input_prod <- read.csv(temp, skip=1)
-	colnames(sw_input_prod) <- colnames(sw_input_prod_use)
-	sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	if(dim(SWRunInformation)[2] == 1) stop("SWRunInformation might be tab separated instead of comma.")
+	if(dim(sw_input_soillayers)[2] == 1) stop("SoilLayers might be tab separated instead of comma.")
+	if(dim(sw_input_treatments_use)[2] == 1) stop("Treatments might be tab separated instead of comma.")
+	if(dim(sw_input_experimentals_use)[2] == 1) stop("Experimentals might be tab separated instead of comma.")
 
-	sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
-	sw_input_site <- read.csv(temp, skip=1)
-	colnames(sw_input_site) <- colnames(sw_input_site_use)
-	sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	sw_input_cloud_use <- sw_input_cloud <- list()
+	sw_input_prod_use <- sw_input_prod <- list()
+	sw_input_site_use <- sw_input_site <- list()
+	sw_input_soils_use <- sw_input_soils <- list()
+	sw_input_weather_use <- sw_input_weather <- list()
+	sw_input_climscen_use <- sw_input_climscen <- list()
+	sw_input_climscen_values_use <- sw_input_climscen_values <- list()
+	tr_files <- tr_prod <- tr_site <- tr_soil <- tr_weather <- tr_cloud <- list()
+	tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
-	sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
-	sw_input_soils <- read.csv(temp, skip=1)
-	colnames(sw_input_soils) <- colnames(sw_input_soils_use)
-	sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	if (actionWithSoilWat || any(actions == "external")) {
+		sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
+		sw_input_cloud <- read.csv(temp, skip=1)
+		colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
 
-	sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
-	sw_input_weather <- read.csv(temp, skip=1)
-	colnames(sw_input_weather) <- colnames(sw_input_weather_use)
+		sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
+		sw_input_prod <- read.csv(temp, skip=1)
+		colnames(sw_input_prod) <- colnames(sw_input_prod_use)
+		sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-	sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
-	sw_input_climscen <- read.csv(temp, skip=1)
-	colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
+		sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
+		sw_input_site <- read.csv(temp, skip=1)
+		colnames(sw_input_site) <- colnames(sw_input_site_use)
+		sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-	sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
-	sw_input_climscen_values <- read.csv(temp, skip=1)
-	colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
+		sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
+		sw_input_soils <- read.csv(temp, skip=1)
+		colnames(sw_input_soils) <- colnames(sw_input_soils_use)
+		sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-	if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
-	if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
-	if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
-	if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
-	if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
-	if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
-	if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
+		sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
+		sw_input_weather <- read.csv(temp, skip=1)
+		colnames(sw_input_weather) <- colnames(sw_input_weather_use)
 
-	#Create a list of possible treatment files with data.
-	if(any(create_treatments=="sw"))
-		print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
-	if(any(create_treatments=="filesin")) {
-		tr_files <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
+		sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
+		sw_input_climscen <- read.csv(temp, skip=1)
+		colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
+
+		sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
+		sw_input_climscen_values <- read.csv(temp, skip=1)
+		colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
+
+		if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
+		if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
+		if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
+		if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
+		if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
+		if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
+		if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
+
+		#Create a list of possible treatment files with data.
+		if(any(create_treatments=="sw"))
+			print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
+		if(any(create_treatments=="filesin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
+		}
+		if(any(create_treatments=="prodin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
+		}
+		if(any(create_treatments=="siteparamin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
+		}
+		if(any(create_treatments=="soilsin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
+		}
+		if(any(create_treatments=="weathersetupin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
+		}
+		if(any(create_treatments=="cloudin")) {
+			temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+			tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
+		}
+
+		if(any(create_treatments == "LookupClimatePPTScenarios")) tr_input_climPPT <- read.csv( file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
+		if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
+		if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
+		if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
+		if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
+			tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
+			tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
+			tr_input_TranspCoeff <- read.csv(temp, skip=2)
+			colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+		}
+		if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
+		if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
+		if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
 	}
-	if(any(create_treatments=="prodin")) {
-		tr_prod <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
-	}
-	if(any(create_treatments=="siteparamin")) {
-		tr_site <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
-	}
-	if(any(create_treatments=="soilsin")) {
-		tr_soil <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
-	}
-	if(any(create_treatments=="weathersetupin")) {
-		tr_weather <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
-	}
-	if(any(create_treatments=="cloudin")) {
-		tr_cloud <- list()
-		temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
+
+	#-import regeneration data
+	param.species_regeneration <- list()
+	if(any(simulation_timescales=="daily") & aon$dailyRegeneration_GISSM) {
+		list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
+		no.species_regeneration <- length(list.species_regeneration)
+		if(no.species_regeneration > 0){
+			f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[1]))
+			param.species_regeneration <- matrix(NA, ncol=no.species_regeneration, nrow=nrow(f.temp))
+			colnames(param.species_regeneration) <- sub(".csv", "", list.species_regeneration)
+			rownames(param.species_regeneration) <- f.temp[, 1]
+			param.species_regeneration[, 1] <- f.temp[, 2]
+			if(no.species_regeneration > 1) for(f in 2:no.species_regeneration){
+					f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[f]))
+					param.species_regeneration[, f] <- f.temp[, 2]
+				}
+			rm(f.temp)
+		}
+	} else {
+		no.species_regeneration <- 0
 	}
 
-	if(any(create_treatments == "LookupClimatePPTScenarios")) tr_input_climPPT <- read.csv( file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
-	if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
-	if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
-	if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
-		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
-		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
-		tr_input_TranspCoeff <- read.csv(temp, skip=2)
-		colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
-	}
-	if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
-	if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
-	if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
+
+	save(SWRunInformation, include_YN, labels, sw_input_soillayers, sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, create_experimentals, sw_input_treatments_use_combined, create_treatments, sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use, sw_input_climscen_values, tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT, tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code, tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD, tr_VegetationComposition, param.species_regeneration, no.species_regeneration, 
+		file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
+		compress = FALSE) # No compression for fast access; RDS may be slightly faster, but would require loop over assign(, envir = .GlobalEnv)
 }
 
 if(!be.quiet) print(paste("SWSF reads input data: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))

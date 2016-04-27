@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.13"
+minVersionRsoilwat <- "0.31.16"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
@@ -82,6 +82,8 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
+#use preprocessed input data if available
+usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
 saveSoilWatInputOutput <- FALSE
 #store data in big input files for experimental design x treatment design
@@ -223,6 +225,8 @@ if (( any(actions == "external") || any(actions == "create") || any(actions == "
 	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
 	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 }
+
+datafile.SWRWinputs_preprocessed <- "SWRuns_InputAll_PreProcessed.RData" # Storage file of input data for repeated access (faster) instead of re-reading from (slower) csv files if flag 'usePreProcessedInput' is TRUE
 
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)
