@@ -1483,7 +1483,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				#objects that need exporting to slaves
 				list.export <- c("dir.out.temp", "dir.ex.dat", "GCM_source", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "deltaFutureToSimStart_yr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "tagDB", "print_int",
 						"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
-						"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid", "sigmaN", "PPTratioCutoff", "erf", "do_PPTAdjustment", "adjustLength", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "applyDeltas")
+						"get_monthlyTimeSeriesFromDaily", "downscale.raw", "downscale.delta", "downscale.deltahybrid", "downscale.deltahybrid3mod",
+						"sigmaN", "PPTratioCutoff", "erf", "do_PPTAdjustment", "adjustLength", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "applyDeltas",
+						"expand_Textremes", "count_extrapolations", "doQmapQUANT.default_drs", "doQmapQUANT_drs", "applyPPTdelta", "applyDeltas_h3mod", "downscaling.extrapol_type", "downscaling.correct_spline", "downscaling.ppt_type", "downscaling.monthly_ti_limit", "downscaling.daily_ppt_limit")
 				if(GCM_source == "CMIP5_BCSD_NEX_USA"){
 					list.export <- c(list.export, "nasa.dataserver", "saveNEXtempfiles", "useRCurl",  
 						"mmPerSecond_to_cmPerMonth")
