@@ -833,9 +833,10 @@ if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
 
 		weatherData <- list()
 		for(j in seq_along(weath)) {
-			temp <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
-			temp[, -1] <- round(temp[, -1], 2) #weather.digits
-			weatherData[[j]] <- new("swWeatherData", year=years[j], data=temp)
+			data_sw <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
+			data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+			colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+			weatherData[[j]] <- new("swWeatherData", year=years[j], data = data.matrix(data_sw, rownames.force = FALSE))
 		}
 		names(weatherData) <- years
 		return(weatherData)
@@ -855,9 +856,12 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 
 
 	#function to be executed for each SoilWat-run
+	#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
+	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname, startYear=simstartyr, endYear=endyr){
 		#read data from Maurer et al. 2002
 		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
+		
 		if(!inherits(weath.data, "try-error")){
 			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 
@@ -865,8 +869,10 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
 					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
 					by="1 day")
-
+			
+			# conversion precipitation: mm/day -> cm/day
 			data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
+			colnames(data_all) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
 
 			years <- startYear:endYear
 			n_years <- length(years)
@@ -874,15 +880,15 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 				stop("simstartyr or endyr out of weather data range")
 			weathDataList <- list()
 			for(y in seq_along(years)) {
-				data.sw <- data_all[weath.data$year == years[y], ]
-				data.sw[, -1] <- round(data.sw[, -1], 2) #weather.digits
-				weathDataList[[y]]<-new("swWeatherData", data=data.matrix(data.sw, rownames.force=FALSE),year=years[y]) #strip row.names, otherwise they consume about 60% of file size
+				data_sw <- data_all[weath.data$year == years[y], ]
+				data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+				weathDataList[[y]]<-new("swWeatherData", data = data.matrix(data_sw, rownames.force = FALSE), year = years[y]) #strip row.names, otherwise they consume about 60% of file size
 			}
 			names(weathDataList) <- as.character(years)
-			return(weathDataList)
-		} else {
-			return(weath.data)
+			weath.data <- weathDataList
 		}
+		
+		weathDataList
 	}
 }
 
@@ -893,7 +899,7 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 	#	- article: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
 	#	- dataset: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
 
-	stopifnot(file.exists(dir.ex.daymet <- file.path(dir.external, "GriddedDailyWeatherFromDayMet_NorthAmerica", "DownloadedData_DayMet")))
+	stopifnot(file.exists(dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMet_NorthAmerica")))
 	stopifnot(require(DaymetR)) #https://bitbucket.org/khufkens/daymetr
 	stopifnot(require(raster))
 	stopifnot(require(rgdal))
@@ -920,6 +926,8 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 		return(list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84))
 	}
 
+	#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
+	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 	get_DayMet_NorthAmerica <- function(cellID, Xdm_WGS84, Ydm_WGS84, start_year=simstartyr, end_year=endyr){
 		# Filename for data of this 1-km cell
 		ftemp <- file.path(dir.ex.daymet, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
@@ -969,12 +977,14 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 		if(exists(cellID, envir=.GlobalEnv)) rm(list=cellID, envir=.GlobalEnv)
 		setwd(pwd)
 
-		return(weathDataList)
+		weathDataList
 	}
 
 
 	if(getCurrentWeatherDataFromDatabase && createAndPopulateWeatherDatabase){
 		# Function to be executed for all SoilWat-sites together
+		#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
+		#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(ids, coords_WGS84, start_year, end_year){
 			if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
 
@@ -998,7 +1008,7 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 					if(!be.quiet) print(paste(Sys.time(), "DayMet data extraction of site", ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
 
 					weatherData <- get_DayMet_NorthAmerica(cellID=dm$cellID[idm], Xdm_WGS84=dm$dm_WGS84[idm, 1], Ydm_WGS84=dm$dm_WGS84[idm, 2], start_year, end_year)
-
+					
 					if(!inherits(weatherData, "try-error")){
 						# Store site weather data in weather database
 						data_blob <- dbW_weatherData_to_blob(weatherData)
@@ -1032,10 +1042,12 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 	#	- Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson, P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of Applied Meteorology and Climatology 50:1654-1665.
 	#	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
 	#	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
-	dir.ex.NRCan <- file.path(dir.external, "ExtractGriddedDailyWeatherFromNRCan_10km_Canada/DAILY_GRIDS")
+	dir.ex.NRCan <- file.path(dir.ex.weather, "NRCan_10km_Canada", "DAILY_GRIDS")
 	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
 
 	# Function to be executed for all SoilWat-sites together
+	#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
+	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 	ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(ids, coords_WGS84, start_year, end_year){
 		if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
@@ -1043,7 +1055,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 		NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
 		stopifnot(start_year:end_year %in% NRC_target_years)
 
-		vars <- c("max", "min", "pcp")
+		vars <- c("max", "min", "pcp") # units = C, C, mm/day
 		prj_geographicWGS84 <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
 		prj_geographicNAD83 <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
 
@@ -1062,7 +1074,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 			yr_offset <- iy
 			NRC_use_years <- NRC_target_years[-(1:iy)]
 		} else {
-			NRC_weather <- array(NA, dim=c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames=list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(cm)")))
+			NRC_weather <- array(NA, dim=c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames=list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(mm)")))
 			NRC_use_years <- NRC_target_years
 			yr_offset <- 0
 		}
@@ -1094,13 +1106,16 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 
 
 		# Convert weather array to SoilWat weather objects for each sites
+		NRC_weather[, "PPT(mm)"] <- NRC_weather[, "PPT(mm)"] / 10	# convert from mm/day to cm/day
+		
 		for(i in 1:length(sp_locs)){
 			if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing NRC weather data of site", SWRunInformation$Label[seq.tr[ids[i]]], i, "of", length(sp_locs), "sites in database"))
 			weatherData <- list()
 			for(iy in seq_along(NRC_target_years)){
 				doys <- if(isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
-				data.sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm)
-				weatherData[[iy]] <- new("swWeatherData", data=data.matrix(data.sw, rownames.force=FALSE), year=NRC_target_years[iy])
+				data_sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm) [ppt was converted from mm to cm]
+				colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+				weatherData[[iy]] <- new("swWeatherData", data = data.matrix(data_sw, rownames.force = FALSE), year = NRC_target_years[iy])
 			}
 			names(weatherData) <- as.character(NRC_target_years)
 
@@ -1123,7 +1138,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherData
 	#Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
 	# http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
 
-	dir.ex.CFSR <- file.path(dir.external, "ExtractSkyDataFromNCEPCFSR_Global", "CFSR_weather_prog08032012")
+	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
 	stopifnot(file.exists(dir.ex.CFSR))
 
 	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.CFSR)
@@ -1236,7 +1251,7 @@ if(do_weather_source){
 
 	dw_NCEPCFSR_Global <- function(){
 		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && (simstartyr >= 1979 && endyr <= 2010)){
-			# Check which of the NRCan weather data are available
+			# Check which of the NCEPCFSR_Global weather data are available
 			#	- Grids domain: 0E to 359.688E and 89.761N to 89.761S
 			there <- (SWRunInformation[seq.tr, "X_WGS84"] >= 0 - 180 & SWRunInformation[seq.tr, "X_WGS84"] <= 360 - 180) & (SWRunInformation[seq.tr, "Y_WGS84"] >= -89.761 & SWRunInformation[seq.tr, "Y_WGS84"] <= 89.761)
 			if(sum(there) > 0){
