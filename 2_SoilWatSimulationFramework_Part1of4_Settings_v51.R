@@ -156,16 +156,29 @@ do.PriorCalculations <- c(
 		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
 )
 
-#------Time frame of simulation: if not specified in the treatment datafile
-#year when SoilWat starts the simulation
+#------Time frames of simulation (if not specified in the treatment datafile)
+#	current simulation years = simstartyr:endyr
+#	years used for results = startyr:endyr
 simstartyr  <- 1979
-#first year that is used for output aggregation, e.g., simstartyr + 1
-getStartYear <- function(simstartyr){
-	return(simstartyr + 1)
-}
+getStartYear <- function(simstartyr) simstartyr + 1
 startyr <- getStartYear(simstartyr)
-#year when SoilWat ends the simulation
 endyr <- 2010
+
+#Future time period(s):
+#	future simulation years = delta + simstartyr:endyr
+#	future simulation years downscaled based on
+#		- current conditions = DScur_startyr:DScur_endyr
+#		- future conditions = DSfut_startyr:DSfut_endyr
+# NOTE: Multiple time periods doesn't work with external type 'ClimateWizardEnsembles'
+# Each row of 'future_yrs' will be applied to every climate.conditions
+DScur_startyr <- startyr
+DScur_endyr <- endyr
+
+ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
+future_yrs <- matrix(c(c(d <- 40, startyr + d, endyr + d),
+						c(d <- 90, startyr + d, endyr + d - 1)), # most GCMs don't have data for 2100
+					ncol = length(ctemp), byrow = TRUE, dimnames = list(NULL, ctemp))
+rownames(future_yrs) <- make.names(paste0("d", future_yrs[, "delta"], "yrs"), unique = TRUE)
 
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
@@ -179,23 +192,30 @@ climate.ambient <- "Current"	#Name of climatic conditions of the daily weather i
 climate.conditions <- c(climate.ambient,	"RCP45.ACCESS1-0", "RCP45.ACCESS1-3", "RCP45.bcc-csm1-1", "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM", "RCP45.CanESM2", "RCP45.CCSM4", "RCP45.CESM1-BGC", "RCP45.CESM1-CAM5", "RCP45.CMCC-CM", "RCP45.CNRM-CM5", "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2", "RCP45.FGOALS-s2", "RCP45.FIO-ESM", "RCP45.GFDL-CM3", "RCP45.GFDL-ESM2G", "RCP45.GFDL-ESM2M", "RCP45.GISS-E2-H-CC",	"RCP45.GISS-E2-R", "RCP45.GISS-E2-R-CC",	"RCP45.HadGEM2-AO", "RCP45.HadGEM2-CC", "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR", "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR", "RCP45.MIROC-ESM", "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5", "RCP45.MPI-ESM-LR", "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3", "RCP45.NorESM1-M", "RCP45.NorESM1-ME",
 											"RCP85.ACCESS1-0", "RCP85.ACCESS1-3", "RCP85.bcc-csm1-1", "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM", "RCP85.CanESM2", "RCP85.CCSM4", "RCP85.CESM1-BGC", "RCP85.CESM1-CAM5", "RCP85.CMCC-CM", "RCP85.CNRM-CM5", "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2", "RCP85.FGOALS-s2", "RCP85.FIO-ESM", "RCP85.GFDL-CM3", "RCP85.GFDL-ESM2G", "RCP85.GFDL-ESM2M", 						"RCP85.GISS-E2-R", 							"RCP85.HadGEM2-AO", "RCP85.HadGEM2-CC", "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR", "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR", "RCP85.MIROC-ESM", "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5", "RCP85.MPI-ESM-LR", "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3", "RCP85.NorESM1-M", "RCP85.NorESM1-ME")
 climate.conditions <- c(climate.ambient)
-#Future time period(s) simulated = delta + simstartyr:endyr; also used to extract external climate conditions
-#Will be applied to each climate.conditions
-#Multiple time periods doesn't work with external type 'ClimateWizardEnsembles'
-deltaFutureToSimStart_yr <- c(50, 90)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
-downscaling.method           <- c("hybrid-delta-3mod")                #one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
+downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
 
-downscaling.daily_ppt_limit  <- 1.5                                   #valid values are 0, 1.5 or 10
-downscaling.monthly_ti_limit <- 1.5                                   #valid values are 0, 1.5 or 10 ???
-downscaling.ppt_type         <- "detailed"                            #either "detailed" or "simple"
-downscaling.correct_spline   <- "attempt"                             #one of "fail", "none" or "attempt" 
-downscaling.extrapol_type    <- "linear_Thermessl2012CC.QMv1b"        #set to "Boe", "Thermessl2012CC.QMv1b" or "none"
+downscaling.options <- list(
+	daily_ppt_limit = 1.5,							#
+	monthly_limit = 1.5,							#
+	ppt_type = "detailed",							# either "detailed" or "simple"
+	correct_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
+		#	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
+		#	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
+		#	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
+	extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
+		#	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
+		#	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+		#	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
+		# 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+	sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
+	PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
+)
 
 #Climate ensembles created across scenarios
-ensemble.families <- c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
+ensemble.families <- NULL #c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
