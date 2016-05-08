@@ -413,7 +413,7 @@ runsN.todo <- length(seq.todo)
 #------create scenario names
 temp <- climate.conditions[!grepl(climate.ambient, climate.conditions)] #make sure 'climate.ambient' is first entry
 if(length(temp) > 0){
-	temp <- paste0(deltaFutureToSimStart_yr, "years.", rep(temp, each=length(deltaFutureToSimStart_yr)))	#add (multiple) deltaFutureToSimStart_yr
+	temp <- paste0(rownames(future_yrs), ".", rep(temp, each = nrow(future_yrs)))	#add (multiple) future_yrs
 	temp <- paste0(downscaling.method, ".", rep(temp, each=length(downscaling.method))) #add (multiple) downscaling.method
 }
 climate.conditions <- c(climate.ambient, temp)
@@ -425,7 +425,7 @@ if(length(ensemble.levels) > 0) ensemble.levels <- sort(ensemble.levels)
 do.ensembles <- any(actions=="ensemble") && !is.null(ensemble.families) && length(ensemble.levels) > 0 && is.numeric(ensemble.levels) && scenario_No > 1
 
 if(do.ensembles){
-	ensemble.families <- paste0(deltaFutureToSimStart_yr, "years.", rep(ensemble.families, each=length(deltaFutureToSimStart_yr)))	#add (multiple) deltaFutureToSimStart_yr
+	ensemble.families <- paste0(rownames(future_yrs), ".", rep(ensemble.families, each = nrow(future_yrs)))	#add (multiple) future_yrs
 	scenarios.ineach.ensemble <- sapply(ensemble.families, function(x) grepl(pattern=x, climate.conditions, ignore.case=TRUE), simplify=TRUE)
 	ensemble.families <- ensemble.families[temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=any)]
 	scenarios.ineach.ensemble <- scenarios.ineach.ensemble[, temp]
@@ -1106,7 +1106,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 
 
 		# Convert weather array to SoilWat weather objects for each sites
-		NRC_weather[, "PPT(mm)"] <- NRC_weather[, "PPT(mm)"] / 10	# convert from mm/day to cm/day
+		NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
 		
 		for(i in 1:length(sp_locs)){
 			if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing NRC weather data of site", SWRunInformation$Label[seq.tr[ids[i]]], i, "of", length(sp_locs), "sites in database"))
