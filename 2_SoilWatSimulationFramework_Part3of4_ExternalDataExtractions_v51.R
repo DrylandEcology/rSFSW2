@@ -7,32 +7,32 @@ exinfo$GDODCPUCLLNL <-  exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUC
 		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global
 
 #------Load required packages
-if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
-	if(!require(rgdal, quietly=TRUE)) {
+if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
+	if (!require(rgdal, quietly=TRUE)) {
 		tryCatch(install.packages("rgdal", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("rgdal failed to install"); stop("Stopping") })
 		stopifnot(require(rgdal, quietly=TRUE))
 	}
 }
 
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
+if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 		exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA ||
 		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
 		exinfo$ExtractElevation_NED_USA ||
-		exinfo$ExtractElevation_HWSD_Global){
+		exinfo$ExtractElevation_HWSD_Global) {
 	
-	if(!require(raster, quietly=TRUE)) {
+	if (!require(raster, quietly=TRUE)) {
 		tryCatch(install.packages("raster", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("raster failed to install"); stop("Stopping") })
 		stopifnot(require(raster, quietly=TRUE))
 	}
 }
 
-if(exinfo$GDODCPUCLLNL){
-	if(!require(ncdf4, quietly=TRUE)) {
+if (exinfo$GDODCPUCLLNL) {
+	if (!require(ncdf4, quietly=TRUE)) {
 		tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
 		stopifnot(require(ncdf4, quietly=TRUE))
 	}
 
-	if(!require("compiler", quietly=TRUE)) {
+	if (!require("compiler", quietly=TRUE)) {
 		tryCatch(install.packages("compiler", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("'compiler' failed to install"); stop("Stopping") })
 		stopifnot(require("compiler", quietly=TRUE))
 	}
@@ -40,7 +40,7 @@ if(exinfo$GDODCPUCLLNL){
 	useRCurl <- FALSE
 }
 
-if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 	useRCurl <- FALSE
 	if (!require(RCurl, quietly=TRUE)) {
 		tryCatch(install.packages("RCurl", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("RCurl failed to install, using 'download.files' instead") })
@@ -49,11 +49,65 @@ if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
 }
 
 
+if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
+	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
+		stop("The packages 'rgdal', 'sp', and 'raster' are required, but one or multiple of them are not installed.")
+	}
+	
+	if (extract_gridcell_or_point == "gridcell") {
+		if (file.exists(gridcell_raster)) {
+			cell_raster <- raster::raster(gridcell_raster)
+			if (is.finite(cell_res) && !all(raster::res(cell_raster) == cell_res)) {
+				cell_res <- raster::res(cell_raster)
+			}	
+
+			crs_sites <- sp::CRS("+proj=longlat +datum=WGS84")
+			run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[seq.tr,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)	
+		}
+	}
+	
+	stopifnot(is.finite(cell_res), length(cell_res) == 2L)
+
+	if (extract_gridcell_or_point == "point") {
+		#' function to extract data for sites
+		#'
+		#' @param x Points represented by a two-column matrix or data.frame, or SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector representing cell numbers.
+		#' @param data A raster* object from which data is extracted.
+		#' @return A vector or matrix with length/rows corresponding to the elements of \code{x} and columns to layers of \code{data}.
+		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
+			raster::extract(data, x)
+		})
+	} else if (extract_gridcell_or_point == "gridcell") {
+		#' function to extract data for raster cells
+		#'
+		#' @param x A RasterLayer object for which !NA cells values of 'data' are resampled and extracted
+		#' @param data A raster* object from which data is extracted
+		#' @param ...
+		#'	\describe{
+		#'		\item{method}{A character string. The method used to resample values for the new RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using the nearest neighbor.}
+		#'		\item{coords}{Points represented by a two-column matrix or data.frame, or SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector representing cell numbers.}
+		#'		\item{crit_v_exclude}{A character string representing a logical expression based on a variable named 'v'. If present, then the condition(s) are applied to 'data' before resampling.}
+		#'	}
+		#' @return A vector or matrix with length/rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
+		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
+			dots <- list(...)	# coords, method
+			if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
+			if ("crit_v_exclude" %in% names(dots)) {
+				vexpr <- parse(text = dots[["crit_v_exclude"]])
+				fun_crit <- compiler::cmpfun(function(v) {ifelse(is.na(v) | eval(vexpr), NA, v)})
+				data <- raster::calc(data, fun = fun_crit)
+			}
+		
+			data2 <- raster::resample(x = data, y = x, method = dots[["method"]])
+			raster::extract(x = data2, y = dots[["coords"]])	# extract by coords == run_sites[do_extract, ] to get the correct order
+		})
+	}	
+}
 
 #--------------------------------------------------------------------------------------------------#
 #------Load additional parameters and functions for data from the Lawrence Livermore National Lab and from USGS NEX
 
-if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 	
 	dbW_setConnection(dbFilePath=dbWeatherDataFile)
@@ -68,7 +122,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	reqRCPsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 3]))
 	reqDownscalingsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 1]))
 	
-	for(i in seq_along(reqGCMs)) {
+	for (i in seq_along(reqGCMs)) {
 		dir.create2(file.path(dir.out.temp, reqGCMs[i]), showWarnings=FALSE, recursive=TRUE)
 	}
 
@@ -141,7 +195,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		
 		if (is.null(ind_events)) ind_events <- data > 0
 		if (!is.null(addDelta)) {
-			elems_N <- if(is.logical(ind_events)) sum(ind_events) else length(ind_events)
+			elems_N <- if (is.logical(ind_events)) sum(ind_events) else length(ind_events)
 			deltaPerEvent <- rep(addDelta[1] / elems_N, elems_N)
 		}
 		StillToSubtract <- 0
@@ -241,7 +295,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#'
 	#' @param data A numeric vector. Daily values of temperature.
 	#' @param sigmaN An integer value. A multiplicator of \code{sd}.
-	test_sigmaNormal <- compiler::cmpfun(function(data, sigmaN = 6){
+	test_sigmaNormal <- compiler::cmpfun(function(data, sigmaN = 6) {
 		md <- mean(data)
 		sdd <- sd(data) * sigmaN
 		stopifnot(data < md + sdd, data > md - sdd)
@@ -254,7 +308,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#' @param sigmaN An integer value. A multiplicator of \code{sd}.
 	#' @references Choi, S. C., and R. Wette. 1969. Maximum Likelihood Estimation of the Parameters of the Gamma Distribution and Their Bias. Technometrics 11:683-690.
 	#' @references http://en.wikipedia.org/wiki/Gamma_distribution#Maximum_likelihood_estimation
-	test_sigmaGamma <- compiler::cmpfun(function(data, sigmaN = 6){
+	test_sigmaGamma <- compiler::cmpfun(function(data, sigmaN = 6) {
 		tempD <- data[data > 0]
 		
 		if (length(tempD) >= 2 && sd(tempD) > 0) {
@@ -309,7 +363,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	#' Add/multiply deltas to historic daily data to generate future daily SoilWat-formatted weather.
 	#' Used by \code{downscale.raw}, \code{downscale.delta}, and \code{downscale.deltahybrid}
-	applyDeltas <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks=FALSE){
+	applyDeltas <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks=FALSE) {
 		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
 
 		res <- try(lapply(obs.hist.daily, FUN=function(obs) {
@@ -317,24 +371,24 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
 					tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
 
-					if(do_checks) test_sigmaNormal(data=tmax, sigmaN)
+					if (do_checks) test_sigmaNormal(data=tmax, sigmaN)
 
 					tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
-					if(do_checks) test_sigmaNormal(data=tmin, sigmaN)
+					if (do_checks) test_sigmaNormal(data=tmin, sigmaN)
 
 					ppt_data <- unlist(lapply(1:12, FUN=function(m) {
 														im_month <- month == m
 														m_ydelta <- ydelta[m, 3]
 														m_data <- obs@data[im_month, "PPT_cm"]
-														if(ppt_fun[m] == "*"){# multiply ppt
+														if (ppt_fun[m] == "*") {# multiply ppt
 															res <- m_data * m_ydelta
-														} else if(m_ydelta == 0){ #add ppt here and below: nothing to add
+														} else if (m_ydelta == 0) { #add ppt here and below: nothing to add
 															res <- m_data
-														} else if(any(i_rainyDays <- m_data > 0)){ #there are rainy days in the historic record: add to those
+														} else if (any(i_rainyDays <- m_data > 0)) { #there are rainy days in the historic record: add to those
 															res <- add_delta_to_PPT(data=m_data, ind_events=i_rainyDays, addDelta=m_ydelta)$data
 														} else { #there are no rainy days in the historic record
-															if(m_ydelta > 0){ #we need rainy days in the historic record to add precipitation
-																if(any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)){ #sample from the same historic month in an other with rainy days instead
+															if (m_ydelta > 0) { #we need rainy days in the historic record to add precipitation
+																if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) { #sample from the same historic month in an other with rainy days instead
 																	#Locate data of same month in other year
 																	i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
 																	newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
@@ -342,7 +396,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 																	#Adjust data
 																	newMonthData <- fix_PPTdata_length(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a leap year February issue
 																	res <- add_delta_to_PPT(newMonthData, newMonthData > 0, addDelta = m_ydelta)$data
-																} else if(any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)){ #no rainy day for this month in historic record: locate rainy days in any months from other years
+																} else if (any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)) { #no rainy day for this month in historic record: locate rainy days in any months from other years
 																	#Locate data of any month in any year
 																	i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
 																	i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
@@ -510,10 +564,10 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		PPT_to_remove <- 0
 		
 		tmax <- obs@data[, "Tmax_C"] + ydeltas[month, "Tmax_C"]
-		if(do_checks) test_sigmaNormal(data=tmax, sigmaN)
+		if (do_checks) test_sigmaNormal(data=tmax, sigmaN)
 
 		tmin <- obs@data[, "Tmin_C"] + ydeltas[month, "Tmin_C"]
-		if(do_checks) test_sigmaNormal(data=tmin, sigmaN)
+		if (do_checks) test_sigmaNormal(data=tmin, sigmaN)
 		
 		if (ppt_type == "simple") {
 			ppt <- applyPPTdelta_simple(m = month,
@@ -530,7 +584,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			ppt <- temp[["data"]]
 			PPT_to_remove <- temp[["PPT_to_remove"]]
 			
-			if(dailyPPTceiling > 0)
+			if (dailyPPTceiling > 0)
 				ppt <- controlExtremePPTevents(data = ppt, 
 							do_checks = do_checks,
 							dailyPPTceiling = dailyPPTceiling,
@@ -759,12 +813,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 	#' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
 	#' @export
-	downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(sigmaN = 6, PPTratioCutoff = 10), do_checks=TRUE){
+	downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(sigmaN = 6, PPTratioCutoff = 10), do_checks=TRUE) {
 		#Functions
-		eCDF.Cunnane <- function(x){
+		eCDF.Cunnane <- function(x) {
 			na_N <- sum(is.na(x))
 			x <- sort(x, na.last=NA)
-			if(na_N > 0){#if there are NAs in the data, add them in the middle assuming missing values represent median conditions
+			if (na_N > 0) {#if there are NAs in the data, add them in the middle assuming missing values represent median conditions
 				i_center <- ceiling(length(x)/2)
 				x <- c(x[1:i_center], rep(NA, na_N), x[(i_center+1):length(x)])
 			}
@@ -785,8 +839,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 		ppt_fun <- rep("*", 12)
-		for(iv in 1:3){
-			for(m in 1:12){
+		for (iv in 1:3) {
+			for (m in 1:12) {
 				# 1. Calculate eCDF of historic weather and of scenario using Cunnane plotting position (Cunnane 1978) following Hamlet et al. 2010
 				#		- interpolation and extrapolation by splines (Dickerson-Lange et al. 2014) instead of standard anomalies (Hamlet et al. 2010)
 				obs.hist.x <- obs.hist.monthly[rep(1:12, times=nrow(obs.hist.monthly) / 12) == m, 2 + iv]
@@ -794,9 +848,9 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				scen.fut.x <- scen.fut.monthly[rep(1:12, times=nrow(scen.fut.monthly) / 12) == m, 2 + iv]
 				
 				#NA values are assumed to represent median conditions
-				if(any(i_na <- is.na(obs.hist.x))) obs.hist.x[i_na] <- median(obs.hist.x, na.rm=TRUE)
-				if(any(i_na <- is.na(scen.hist.x))) scen.hist.x[i_na] <- median(scen.hist.x, na.rm=TRUE)
-				if(any(i_na <- is.na(scen.fut.x))) scen.fut.x[i_na] <- median(scen.fut.x, na.rm=TRUE)
+				if (any(i_na <- is.na(obs.hist.x))) obs.hist.x[i_na] <- median(obs.hist.x, na.rm=TRUE)
+				if (any(i_na <- is.na(scen.hist.x))) scen.hist.x[i_na] <- median(scen.hist.x, na.rm=TRUE)
+				if (any(i_na <- is.na(scen.fut.x))) scen.fut.x[i_na] <- median(scen.fut.x, na.rm=TRUE)
 				
 				#eCDFs
 				obs.hist.ecdf <- eCDF.Cunnane(obs.hist.x)
@@ -808,16 +862,16 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 				scHistToFut <- scen.hist.ecdf$fun(scen.fut.ecdf$q, extrapol="linear")
 				scHistToFutRatio <- obs.hist.ecdf$fun(scen.fut.ecdf$q, extrapol="linear") / scHistToFut
-				if(any(iv <= 2, any(scHistToFut < 1/(10*downscaling.options[["PPTratioCutoff"]])), any(scHistToFutRatio > downscaling.options[["PPTratioCutoff"]]), any(scHistToFutRatio < 1/downscaling.options[["PPTratioCutoff"]]))){
+				if (any(iv <= 2, any(scHistToFut < 1/(10*downscaling.options[["PPTratioCutoff"]])), any(scHistToFutRatio > downscaling.options[["PPTratioCutoff"]]), any(scHistToFutRatio < 1/downscaling.options[["PPTratioCutoff"]]))) {
 					scen.fut.xadj <- scen.fut.x + obs.hist.ecdf$fun(scen.fut.ecdf$q, extrapol="linear") - scHistToFut
-					if(all(iv == 3, sum(temp0 <- (scen.fut.xadj < 0)) > 0)) scen.fut.xadj[temp0] <- 0
+					if (all(iv == 3, sum(temp0 <- (scen.fut.xadj < 0)) > 0)) scen.fut.xadj[temp0] <- 0
 				} else {
 					scen.fut.xadj <- scen.fut.x * scHistToFutRatio
 				}
 				stopifnot(is.finite(scen.fut.xadj))
-				if(do_checks){
-					if(iv <= 2) test_sigmaNormal(data=scen.fut.xadj, downscaling.options[["sigmaN"]])
-					if(iv == 3) test_sigmaGamma(data=scen.fut.xadj, downscaling.options[["sigmaN"]])
+				if (do_checks) {
+					if (iv <= 2) test_sigmaNormal(data=scen.fut.xadj, downscaling.options[["sigmaN"]])
+					if (iv == 3) test_sigmaGamma(data=scen.fut.xadj, downscaling.options[["sigmaN"]])
 				}
 
 				# 3. Calculate eCDF of future adjusted scenario
@@ -828,12 +882,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 				scHistToHist <- obs.hist.ecdf$fun(obs.hist.ecdf$q, extrapol="linear")
 				scHistToFutRatio <- scen.fut2.ecdf$fun(obs.hist.ecdf$q, extrapol="linear") / scHistToHist
-				if(any(iv <= 2, any(scHistToHist < 1/(10*downscaling.options[["PPTratioCutoff"]])), any(scHistToFutRatio > downscaling.options[["PPTratioCutoff"]]), any(scHistToFutRatio < 1/downscaling.options[["PPTratioCutoff"]]))){
+				if (any(iv <= 2, any(scHistToHist < 1/(10*downscaling.options[["PPTratioCutoff"]])), any(scHistToFutRatio > downscaling.options[["PPTratioCutoff"]]), any(scHistToFutRatio < 1/downscaling.options[["PPTratioCutoff"]]))) {
 					mapFut <- scen.fut2.ecdf$fun(obs.hist.ecdf$q, extrapol="linear") - scHistToHist
-					if(iv == 3) ppt_fun[m] <- "+"
+					if (iv == 3) ppt_fun[m] <- "+"
 				} else {
 					mapFut <- scHistToFutRatio
-					stopifnot(all(!is.infinite(mapFut)), all(!is.nan(mapFut))) #if(sum(temp <- is.nan(mapFut)) > 0) mapFut[temp] <- 0
+					stopifnot(all(!is.infinite(mapFut)), all(!is.nan(mapFut))) #if (sum(temp <- is.nan(mapFut)) > 0) mapFut[temp] <- 0
 				}
 				delta_ts[delta_ts[, "Month"] == m, 2 + iv] <- mapFut[rank(obs.hist.x, ties.method="random")]
 			}
@@ -861,7 +915,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	  
 	  if (type == "linear") {
 	    out[wet] <- approx(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], xout = x[wet], method = "linear", rule = 2, ties = mean)$y
-	    if(!(linear_extrapolation == "none")){
+	    if (!(linear_extrapolation == "none")) {
 	      # "same extrapolation as Boe et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
 	      qid <- switch(linear_extrapolation, Boe=0, Thermessl2012CC.QMv1b=3)
 	      nq <- nrow(fobj$par$modq)
@@ -886,18 +940,18 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	    #		2a) arising from non-monotone splines ('fmm' and 'natural')
 	    #		2b) arising from numerical instabilities in the exact monotonicity for 'monoH.FC'
 	    
-	    if(!is.null(monthly_extremes) && !(correctSplineFun_type == "none")){
+	    if (!is.null(monthly_extremes) && !(correctSplineFun_type == "none")) {
 	      # version previous to 20150705 didn't catch several bad cases, e.g., ix = 180099
 	      # to prevent huge oscillation in 'fmm' and 'natural', we need to bound values between some small and some not-too large number
 	      # apparently 'monoH.FC' does also show huge oscillations, e.g., ix=82529 because of numerical instabilities in the exact monotonicity in fobj$par$modq[, 1]
 			icount <- 1
-			while((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 && icount < 10){
-			  if(correctSplineFun_type == "fail") stop("Out-of-range splinefun values and 'correctSplineFun_type' set to fail")
+			while ((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 && icount < 10) {
+			  if (correctSplineFun_type == "fail") stop("Out-of-range splinefun values and 'correctSplineFun_type' set to fail")
 			  sfun <- splinefun(x=jitter(fobj$par$modq[, 1]), y=jitter(fobj$par$fitq[, 1]), method=spline_method)
 			  temp <- sfun(x[wet])
 			  icount <- icount + 1
 			}
-			if(itemp > 0) stop("Jitter failed to fix out-of-range splinefun values")
+			if (itemp > 0) stop("Jitter failed to fix out-of-range splinefun values")
 	    }
 	    
 	    out[wet] <- temp
@@ -908,7 +962,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	  out
 	})
 	
-	doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type=c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"), montly_obs_base=NULL, monthly_extremes=NULL, correctSplineFun_type=c("fail", "none", "attempt"), ...){
+	doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type=c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"), montly_obs_base=NULL, monthly_extremes=NULL, correctSplineFun_type=c("fail", "none", "attempt"), ...) {
 		correctSplineFun_type <- match.arg(correctSplineFun_type)
 		type <- match.arg(type)
 		temp <- strsplit(type, "_", fixed=TRUE)[[1]]
@@ -1085,7 +1139,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 			yearsN <- endyear - startyear + 1
 			dat <- rep(NA, times=12*yearsN)
-			if (!inherits(success, "try-error") && success == 0){
+			if (!inherits(success, "try-error") && success == 0) {
 				if (service == "ncss") {
 					temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
 					vtemp <- temp[, 2]
@@ -1118,11 +1172,11 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 								"&accept=csv")
 			dat <- get.request(service="ncss", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp, useRCurl, saveNEXtempfiles)
-			if(inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5, na.rm=TRUE)){ #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
+			if (inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5, na.rm=TRUE)) { #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
 				#2nd attempt: TRHEDDS opendap/dodsC
 				lat.index <- round((lat - bbox$lat[1]) / 0.0083333333, 0)
 				lon.index <- round((lon - bbox$lon[1]) / 0.0083333333, 0)
-				if(startyear < 2006 && scen == "historical"){
+				if (startyear < 2006 && scen == "historical") {
 					index.time.start <- (startyear - 1950) * 12
 					index.time.end <- (endyear + 1 - 1950) * 12 - 1
 				} else {
@@ -1230,12 +1284,12 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				addMissingMonthAtEnd = addMissingMonthAtEnd)
 		})
 	
-		do_ncvar_get <- compiler::cmpfun(function(nc, nc_perm, variable, ncg, nct){
+		do_ncvar_get <- compiler::cmpfun(function(nc, nc_perm, variable, ncg, nct) {
 			index <- which("time" == nc_perm)
 
 			if (index == 3L) { #if file is in order of (lat, lon, time)
 				ncvar_get(nc, variable, start=c(ncg$ix, ncg$iy, nct$timeStartIndex), count=c(1, 1, nct$timeCount))
-			} else if (index == 1L){ #if file is optimized for time series extraction and permutated to order (time, lat, lon)
+			} else if (index == 1L) { #if file is optimized for time series extraction and permutated to order (time, lat, lon)
 				ncvar_get(nc, variable, start=c(nct$timeStartIndex, ncg$ix, ncg$iy), count=c(nct$timeCount, 1, 1))
 			} else {
 				stop("do_ncvar_get: dimension 'time' must be either in first or third place, but is instead at ", index)
@@ -1318,8 +1372,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
 		ncFiles_gcm <- if (is_GDODCPUCLLNL) gcmFiles[grepl(paste0("_", as.character(gcm), "_"), gcmFiles)] else NULL
 		if (!be.quiet) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#			if(!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#			if(!be.quiet && (i-1) %% 10000 == 0) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
+#			if (!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
+#			if (!be.quiet && (i-1) %% 10000 == 0) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
 		
 		# Data Bounding Box
 		if (!(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2])) {
@@ -1376,7 +1430,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 		#Observed historic daily weather from weather database
 		obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
-		if (obs.hist.daily[[1]]@year < 1950){ #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
+		if (obs.hist.daily[[1]]@year < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
 			print("Note: subsetting years 'obs.hist.daily' because 'simstartyr < 1950'")
 			start_yr <- obs.hist.daily[[length(obs.hist.daily)]]@year - 1950
 			obs.hist.daily <- obs.hist.daily[(length(obs.hist.daily)-start_yr):length(obs.hist.daily)]
@@ -1398,8 +1452,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs because some GCMs do not provide data for the last month of a time slice (e.g. December 2005 may be NA)
 			if (!all(downs == "raw")) {
 				scen.hist.monthly <- NULL
-				for(itt in which(assocYears[["historical"]]$first)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
-				for(itt in which(assocYears[["historical"]]$second)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+				for (itt in which(assocYears[["historical"]]$first)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
+				for (itt in which(assocYears[["historical"]]$second)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 			}
 		
 			types <- list()
@@ -1408,8 +1462,8 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			
 				#Put future data together
 				scen.fut.monthly <- NULL
-				for(itt in which(assocYears[[tag]]$first)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
-				for(itt in which(assocYears[[tag]]$second)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+				for (itt in which(assocYears[[tag]]$first)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
+				for (itt in which(assocYears[[tag]]$second)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 				
 				# Comment: The variables are expected to cover the following time periods
 				# 'obs.hist.daily' = simstartyr:endyr
@@ -1479,7 +1533,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 											DSfut_startyear = future_yrs[it, "DSfut_startyr"], DSfut_endyear = future_yrs[it, "DSfut_endyr"],
 											downscaling.options = downscaling.options,
 											do_checks = TRUE)
-					if(inherits(scen.fut.daily, "try-error")){#delta-hybrid unsuccessful, replace with delta method
+					if (inherits(scen.fut.daily, "try-error")) {#delta-hybrid unsuccessful, replace with delta method
 						scen.fut.daily <- downscale.delta(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
 												years = sim_years,
 												DScur_startyear = DScur_startyr, DScur_endyear = DScur_endyr,
@@ -1541,7 +1595,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 #	- among sites but not multiple sources per site (for that you need a new row in the MasterInput spreadsheet)
 #	- NEX USA data has highest priority, then LLNL USA products, then global LLNL products
 
-if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 
 	sites_GCM_source <- rep(NA, times=length(seq.tr))
 	xy <- with(SWRunInformation[seq.tr,], data.frame(X_WGS84, Y_WGS84))
@@ -1549,23 +1603,23 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	i_use <- rep(FALSE, times=length(seq.tr))
 
 	# determine which data product to use for each site based on bounding boxes of datasets
-	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA){
+	if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 		i_use <- in_GMC_box(xy = xy, lats=c(24.0625, 49.9375), longs=c(-125.02083333, -66.47916667), i_use=i_use)
 		sites_GCM_source[i_use] <- "CMIP5_BCSD_NEX_USA"
 	}
-	if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA){
+	if (exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA) {
 		i_use <- in_GMC_box(xy = xy, lats=c(25.125, 52.875), longs=c(-124.625, -67), i_use=i_use)
 		sites_GCM_source[i_use] <- "CMIP3_BCSD_GDODCPUCLLNL_USA"
 	}
-	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA){
+	if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA) {
 		i_use <- in_GMC_box(xy = xy, lats=c(25.125, 52.875), longs=c(-124.625, -67), i_use=i_use)
 		sites_GCM_source[i_use] <- "CMIP5_BCSD_GDODCPUCLLNL_USA"
 	}
-	if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global){
+	if (exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global) {
 		i_use <- in_GMC_box(xy = xy, lats=c(-55.25-0.25, 83.25+0.25), longs=c(-179.75-0.25, 179.75+0.25), i_use=i_use)
 		sites_GCM_source[i_use] <- "CMIP3_BCSD_GDODCPUCLLNL_Global"
 	}
-	if(exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global){
+	if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global) {
 		i_use <- in_GMC_box(xy = xy, lats=c(-55.25-0.25, 83.25+0.25), longs=c(-179.75-0.25, 179.75+0.25), i_use=i_use)
 		sites_GCM_source[i_use] <- "CMIP5_BCSD_GDODCPUCLLNL_Global"
 	}
@@ -1574,20 +1628,20 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	SWRunInformation$GCM_sources[seq.tr] <- as.character(sites_GCM_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 
-	if(anyNA(sites_GCM_source)) warning("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
+	if (anyNA(sites_GCM_source)) warning("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
 
 	#access climate change data
 	get_climatechange_data <- compiler::cmpfun(function(GCM_source, is_GDODCPUCLLNL, is_NEX, do_SWRun_sites) {
-	#	GCM_source <- if(GCM_source == "CMIP5_BCSD_NEX_USA"){
+	#	GCM_source <- if (GCM_source == "CMIP5_BCSD_NEX_USA") {
 	#					"CMIP5-BCSD-NEX-USA"
-	#				} else if(grepl("CMIP3_BCSD_GDODCPUCLLNL", GCM_source)){
+	#				} else if (grepl("CMIP3_BCSD_GDODCPUCLLNL", GCM_source)) {
 	#					"CMIP3-BCSD-GDO-DCP-UC-LLNL"
-	#				} else if(grepl("CMIP5_BCSD_GDODCPUCLLNL", GCM_source)){
+	#				} else if (grepl("CMIP5_BCSD_GDODCPUCLLNL", GCM_source)) {
 	#					"CMIP5-BCSD-GDO-DCP-UC-LLNL"
 	#				} else {
 	#					stop("No dataset for climate change conditions set")
 	#				}
-		if(!be.quiet) print(paste0("Started '", GCM_source, "' at ", Sys.time()))
+		if (!be.quiet) print(paste0("Started '", GCM_source, "' at ", Sys.time()))
 	
 		#Global flags
 		repeatExtractionLoops_maxN <- 3
@@ -1595,10 +1649,10 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		if (is_GDODCPUCLLNL) {
 			##gdo-dcp.ucllnl.org/downscaled_cmip_projections
 			dir.ex.dat <- file.path(dir.ex.fut, "GDO_DCP_UCLLNL_DownscaledClimateData")
-			if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
-			if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
-			if(GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
-			if(GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
+			if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
+			if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
+			if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
+			if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
 		
 			#CMIP3 Global and USA
 			#	- obs: 1950 Jan to 1999 Dec
@@ -1616,7 +1670,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#	- all same spatial coordinates
 		
 			scenariosDB <- list.dirs(dir.ex.dat, full.names=FALSE, recursive=FALSE)
-			if(any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
+			if (any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
 		
 			gcmsDB <- unique(unlist(sapply(scenariosDB, FUN=function(x) sapply(strsplit(list.files(file.path(dir.ex.dat, x)), split="_", fixed=TRUE), FUN=function(x) x[5]))))	
 			gcmFiles <- list.files(dir.ex.dat, recursive=TRUE, full.names=TRUE)
@@ -1624,7 +1678,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			print_int <- 100
 			saveNEXtempfiles <- FALSE
 		}
-		if(is_NEX){
+		if (is_NEX) {
 			##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
 			opt <- options("timeout")
 			options(timeout=5*60)
@@ -1656,30 +1710,30 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#put requests together
 		locations <- with(SWRunInformation[do_SWRun_sites, ], data.frame(X_WGS84, Y_WGS84, WeatherFolder))	#locations of simulation runs
 		requestN <- length(reqGCMs) * nrow(locations)
-		if(!be.quiet) print(paste("'", GCM_source, "' will run", requestN, "times"))
+		if (!be.quiet) print(paste("'", GCM_source, "' will run", requestN, "times"))
 	
 		#bounding box
 		bbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(NULL, c("lat", "lon"))))
-		if(is_NEX){
+		if (is_NEX) {
 			bbox$lat <- c(24.0625, 49.9375)
 			bbox$lon <- c(-125.02083333, -66.47916667)
 		}
-		if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA"){
+		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") {
 			bbox$lat <- c(25.125, 52.875)
 			bbox$lon <- c(-124.625, -67)
 		}
-		if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global"){
+		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
 			bbox$lat <- c(-55.25-0.25, 83.25+0.25)
 			bbox$lon <- c(-179.75-0.25, 179.75+0.25)
 		}
 	
 		#time box
 		tbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(c("start", "end"), c("first", "second"))))
-		if(is_NEX || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global"){
+		if (is_NEX || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
 			tbox$first <- c(1950, 2005)
 			tbox$second <- c(2006, 2099)
 		}
-		if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global"){
+		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") {
 			tbox$first <- c(1950, 1999)
 			tbox$second <- c(2000, 2099)
 		}
@@ -1689,19 +1743,19 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#historic conditions for downscaling
 		timeSlices[1, 4] <- max(tbox$first[1], DScur_startyr)
 		timeSlices[2, 4] <- min(tbox$first[2], DScur_endyr)
-		if(DScur_endyr > tbox$first[2]){
+		if (DScur_endyr > tbox$first[2]) {
 			timeSlices[3, 4] <- tbox$second[1]
 			timeSlices[4, 4] <- min(tbox$second[2], DScur_endyr)
 		}
 		#future conditions for downscaling
-		for(it in 1:nrow(future_yrs)){
+		for (it in 1:nrow(future_yrs)) {
 			timeSlices[3 + 4*it, 4] <- max(tbox$second[1], future_yrs[it, "DSfut_startyr"])
 			timeSlices[4 + 4*it, 4] <- min(tbox$second[2], future_yrs[it, "DSfut_endyr"])	#limits timeSlices to 2099
-			if (DScur_startyr < 1950){ #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
+			if (DScur_startyr < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
 			  print("Note: adjustment to 'timeSlices' because 'DScur_startyr < 1950'")
 			  timeSlices[4 + 4*it, 4] <- min(timeSlices[4 + 4*it, 4], timeSlices[4 + 3*it, 4]+(timeSlices[4,4]-timeSlices[1,4]))
 			}
-			if(future_yrs[it, "DSfut_startyr"] < tbox$second[1]){
+			if (future_yrs[it, "DSfut_startyr"] < tbox$second[1]) {
 				timeSlices[1 + 4*it, 4] <- max(tbox$first[1], future_yrs[it, "DSfut_startyr"])
 				timeSlices[2 + 4*it, 4] <- tbox$second[1]
 			}
@@ -1721,7 +1775,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#Logical on how to select from getYears
 		assocYears <- vector("list", length = 1 + length(reqRCPs) * nrow(future_yrs))
 		names_assocYears <- c("historical", paste0(rownames(future_yrs), ".", rep(reqRCPs, each = nrow(future_yrs))))
-		for(it in seq_along(assocYears)){
+		for (it in seq_along(assocYears)) {
 			temp <- strsplit(names_assocYears[it], ".", fixed=TRUE)[[1]][[1]]
 			assocYears[[it]] <- list(first = useSlices(getYears, timeSlices, run = temp, slice = "first"),
 									second = useSlices(getYears, timeSlices, run = temp, slice = "second"))
@@ -1730,16 +1784,16 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		
 		print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(na.omit(timeSlices[,4]))))
 		#Variable tags
-		if(is_NEX){
+		if (is_NEX) {
 			varTags <- c(prcp = "pr", tmin = "tasmin", tmax = "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
 			fileVarTags <- NULL
 		}
-		if(GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global"){
+		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") {
 			varTags <- c(prcp = "Prcp", tmean = "Tavg", tmin = "Tmin", tmax = "Tmax")
 			fileVarTags <- paste("monthly", varTags, sep=".")
 			names(fileVarTags) <- names(varTags)
 		}
-		if(GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global"){
+		if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
 			varTags <- c(prcp = "pr", tmean = "tas", tmin = "tasmin", tmax = "tasmax")
 			fileVarTags <- paste0("_", varTags, "_")
 			names(fileVarTags) <- names(varTags)
@@ -1798,15 +1852,15 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
 			#TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 	
-			if(parallel_runs && parallel_init){
+			if (parallel_runs && parallel_init) {
 				is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
 				# extract the GCM data depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
-					if(is_NEX && useRCurl && !saveNEXtempfiles)
+					if (is_NEX && useRCurl && !saveNEXtempfiles)
 						mpi.bcast.cmd(library("RCurl", quietly=TRUE))
-					if(is_GDODCPUCLLNL)
+					if (is_GDODCPUCLLNL)
 						mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
 					mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
 					mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
@@ -1817,11 +1871,11 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					mpi.bcast.cmd(rm(list=ls()))
 					mpi.bcast.cmd(gc())
 					
-				} else if(identical(parallel_backend, "snow")) {
+				} else if (identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export, envir=parent.frame())
-					if(is_NEX && useRCurl && !saveNEXtempfiles)
+					if (is_NEX && useRCurl && !saveNEXtempfiles)
 						snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
-					if(is_GDODCPUCLLNL)
+					if (is_GDODCPUCLLNL)
 						snow::clusterEvalQ(cl, library("ncdf4", quietly=TRUE))
 					snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
 					snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
@@ -1832,11 +1886,11 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					snow::clusterEvalQ(cl, rm(list=ls()))
 					snow::clusterEvalQ(cl, gc())
 					
-				} else if(identical(parallel_backend, "multicore")) {
+				} else if (identical(parallel_backend, "multicore")) {
 					packages.export <- "Rsoilwat31"
-					if(is_NEX && useRCurl && !saveNEXtempfiles)
+					if (is_NEX && useRCurl && !saveNEXtempfiles)
 						packages.export <- c(packages.export, "RCurl")
-					if(is_GDODCPUCLLNL)
+					if (is_GDODCPUCLLNL)
 						packages.export <- c(packages.export, "ncdf4")
 					i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
 						Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
@@ -1855,7 +1909,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			}
 		
 
-			if(!be.quiet) print(paste("Started adding temporary files into database '", GCM_source, "' at", Sys.time()))
+			if (!be.quiet) print(paste("Started adding temporary files into database '", GCM_source, "' at", Sys.time()))
 			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 			temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 			if (length(temp.files) > 0) {
@@ -1864,11 +1918,11 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					for (j in seq_along(wdataOut)) {
 						for (l in seq_along(wdataOut[[j]])) {
 							res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
-							if(inherits(res, "try-error")) break
+							if (inherits(res, "try-error")) break
 						}
-						if(inherits(res, "try-error")) break
+						if (inherits(res, "try-error")) break
 					}
-					if(!inherits(res, "try-error")) unlink(ftemp)
+					if (!inherits(res, "try-error")) unlink(ftemp)
 				}
 			}
 			Rsoilwat31::dbW_disconnectConnection()
@@ -1882,23 +1936,23 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		i_Done <- NULL
 	
 		logFile <- file.path(dir.out, paste0("extractionsDone_", GCM_source, ".rds"))
-		if(file.exists(logFile)){
+		if (file.exists(logFile)) {
 			i_Done <- sort(unique(c(i_Done, readRDS(file=logFile))))
 		}
 		temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
-		if(length(temp.files) > 0){
+		if (length(temp.files) > 0) {
 			i_Done <- sort(unique(c(i_Done, as.integer(unlist(strsplit(unlist(strsplit(temp.files, split="_", fixed=TRUE))[c(FALSE, TRUE)], split=".", fixed=TRUE))[c(TRUE, FALSE)]))))
 		}
-		while(repeatExtractionLoops_maxN > repeatN && length(i_ToDo <- if(length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0){
+		while (repeatExtractionLoops_maxN > repeatN && length(i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0) {
 			repeatN <- repeatN + 1
-			if(!be.quiet) print(paste("'", GCM_source, "' will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
+			if (!be.quiet) print(paste("'", GCM_source, "' will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
 			i_Done <- sort(unique(c(i_Done, tryToGet_ClimDB(is_ToDo=i_ToDo))))
 			saveRDS(i_Done, file=logFile)
 		}
 		rm(i_ToDo, logFile)
 
 		#Clean up: report unfinished locations, etc.
-		if(length(i_ToDo <- if(length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0){
+		if (length(i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0) {
 			warning(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", GCM_source, "'"))
 			failedLocations_DB <- locations[temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1), ]
 			include_YN_updateFailed <- include_YN
@@ -1909,7 +1963,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			rm(failedLocations_DB, include_YN_updateFailed, SWRunInformation_updateFailed)
 		}
 	
-		if(!be.quiet) print(paste("Finished '", GCM_source, "' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished '", GCM_source, "' at", Sys.time()))
 	
 		rm(locations, requestN, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, getYears, assocYears, gcmsDB, scenariosDB)
 
@@ -1928,19 +1982,19 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 
 #-CMIP3_ClimateWizardEnsembles does not allow for multiple sources
-if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
 	
-	if(!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
+	if (!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 	
 	list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
-	if(length(list.scenarios.datafile) > 0){ #extracts only information requested in the 'datafile.SWRunInformation'
+	if (length(list.scenarios.datafile) > 0) { #extracts only information requested in the 'datafile.SWRunInformation'
 		
-		if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+		if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
 			#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
 			#accessed via climatewizard.org on July 10, 2012
 			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
 		}
-		if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+		if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
 			#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
 			#accessed via climatewizard.org
 			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
@@ -1948,18 +2002,18 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 		
 		list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
 		
-		if(all(list.scenarios.datafile %in% list.scenarios.external)){
+		if (all(list.scenarios.datafile %in% list.scenarios.external)) {
 			#locations of simulation runs
 			locations <- SpatialPoints(coords=with(SWRunInformation, data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
 			
-			for(sc in seq_along(list.scenarios.datafile)){
+			for (sc in seq_along(list.scenarios.datafile)) {
 				dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
 				temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
 					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Value", x=temp)])
 					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Value", x=temp)])
 				}		
-				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
 					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Change", x=temp)])
 					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Change", x=temp)])
 				}		
@@ -1967,7 +2021,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 				list.ppt.asc <- list.files(dir.ex.dat.sc.ppt, pattern=".asc")
 				
 				#extract data
-				get.month <- function(path, grid){
+				get.month <- function(path, grid) {
 					g <- raster(file.path(path, grid))
 					locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
 					vals <- extract(g, locations.CoordG)
@@ -1975,7 +2029,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 				sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
 				sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
 				
-				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global){
+				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
 					#temp value in C
 					#ppt value in mm
 					#add data to sw_input_climscen and set the use flags
@@ -1984,7 +2038,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 					sw_input_climscen_values_use[i.temp <- match(paste("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
 					sw_input_climscen_values[, i.temp] <- sc.temp
 				}
-				if(exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA){
+				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
 					sc.temp <- sc.temp * 5/9	#temp addand in C
 					sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
 					#add data to sw_input_climscen and set the use flags
@@ -1996,7 +2050,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 			}
 			
 			res <- nrow(sw_input_climscen_values[, i.temp]) - sum(complete.cases(sw_input_climscen_values[, i.temp]))
-			if(res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'"))
+			if (res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'"))
 			
 			#write data to datafile.climatescenarios_values
 			tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
@@ -2007,7 +2061,7 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 			warning("Not all scenarios requested in 'datafile.SWRunInformation' are available in with 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'")
 		}
 	}
-	if(!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
+	if (!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 }
 
 #------END CLIMATE CHANGE DATA------
@@ -2015,57 +2069,99 @@ if(	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || 
 
 #--------------------------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
-if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataFromISRICWISEv12_Global){
+if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
 	#allow for multiple sources
-	if(extract_determine_database == "order"){
+	if (extract_determine_database == "order") {
 		sites_externalsoils_source <- rep(NA, times=length(seq.tr))
-	} else if(extract_determine_database == "SWRunInformation"){
+	} else if (extract_determine_database == "SWRunInformation") {
 		sites_externalsoils_source <- SWRunInformation$SoilTexture_source[seq.tr]
 	} else {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
 	
-	if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA){
-		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+	if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
+		if (!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
 		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
-		do_extract <- is.na(sites_externalsoils_source) | (sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA")
-		if(sum(do_extract) > 0){
+		# Note(drs): it appears that NODATA values are recorded as 0
+		
+		do_extract <- is.na(sites_externalsoils_source) | sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA"
+
+		if (any(do_extract)) {
+			dir.ex.conus <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
+			stopifnot(file.exists(dir.ex.conus))
+			
 			ldepth <- c(5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)	#in cm
-	
-			dir.ex.dat <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
-	
+			nl <- length(ldepth)
+
+			# output container
+			soil_data <- array(NA, dim=c(sum(do_extract), nl, 5), dimnames=list(NULL, paste0("L", seq_len(nl)), c("bedrock", "matricd", "rockvol", "sand", "clay")))
+			g <- raster::brick(file.path(dir.ex.conus, "bd.tif"))
+			crs_data <- raster::crs(g)
+			res_data <- raster::res(g)
+
 			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
+			sites_conus <- run_sites[do_extract, ]
+			# Align with data crs
+			if (!raster::compareCRS(crs_sites, crs_data)) {
+				sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)	#transform points to grid-coords
+			}
+
+			if (extract_gridcell_or_point == "point") {
+				x_conus <- sites_conus
+				args_template <- list(x = x_conus)
+				
+			} else if (extract_gridcell_or_point == "gridcell") {
+				# Align with data crs
+				if (raster::compareCRS(crs_data, raster::crs(cell_raster))) {
+					x_conus <- cell_raster
+				} else {
+					to_ext <- raster::projectExtent(cell_raster, g)
+					raster::res(to_ext) <- raster::res(cell_raster)
+					raster::origin(to_ext) <- raster::origin(g)
+					x_conus <- raster::projectRaster(cell_raster, to = to_ext, method = "ngb")
+				}
+				# locations of simulation runs
+				x_conus[] <- NA
+				x_conus[raster::cellFromXY(x_conus, sites_conus)] <- 1
+								
+				args_template <- list(x = x_conus, coords = sites_conus, method = "bilinear")
+			
+			} else {
+				stop("Flag 'extract_gridcell_or_point' has no accepted value; it should be 'point' or 'gridcell'")
+			}
 	
 			#extract data
-			soil_data <- array(NA, dim=c(sum(do_extract), 11, 5), dimnames=list(NULL, paste0("L", 1:11), c("bedrock", "matricd", "rockvol", "sand", "clay")))
-			g <- brick(file.path(dir.ex.dat, "bd.tif"))
-			locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g)))	#transform points to grid-coords
-			soil_data[, , "matricd"] <- extract(g, locations.CoordG) / 100
-	
-			g <- raster(file.path(dir.ex.dat, "rockdepm.tif"))
-			soil_data[, 1, "bedrock"] <- extract(g, locations.CoordG) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
+			cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
+			g <- raster::calc(g, fun = cond30) # bulk density of less than 0.3 g / cm3 should be treated as no soil
+			soil_data[, , "matricd"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100	
+
+			g <- raster::raster(file.path(dir.ex.conus, "rockdepm.tif"))
+			cond0 <- compiler::cmpfun(function(v) ifelse(!is.na(v) & v > 0, v, NA))
+			g <- raster::calc(g, fun = cond0) # rockdepth of 0 cm should be treated as no soil
+			soil_data[, 1, "bedrock"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
 			lys <- 1:max(findInterval(soil_data[, 1, "bedrock"], ldepth), na.rm=TRUE)
 
-			#New with v31: rockvol -> gravel vol%
-			g <- brick(file.path(dir.ex.dat, "rockvol.tif"))
-			rockvol <- extract(g, locations.CoordG) / 100
+			g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
+			rockvol <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
 	
-			g <- brick(file.path(dir.ex.dat, "sand.tif"))
-			sand <- extract(g, locations.CoordG) / 100
-			g <- brick(file.path(dir.ex.dat, "clay.tif"))
-			clay <- extract(g, locations.CoordG) / 100
-			g <- brick(file.path(dir.ex.dat, "silt.tif"))
-			silt <- extract(g, locations.CoordG) / 100
+			g <- raster::brick(file.path(dir.ex.conus, "sand.tif"))
+			g <- raster::calc(g, fun = cond0) # sand of 0 % should be treated as no soil
+			sand <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
+			g <- raster::brick(file.path(dir.ex.conus, "clay.tif"))
+			g <- raster::calc(g, fun = cond0) # clay of 0 % should be treated as no soil
+			clay <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
+			g <- raster::brick(file.path(dir.ex.conus, "silt.tif"))
+			g <- raster::calc(g, fun = cond0) # silt of 0 % should be treated as no soil
+			silt <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
 
-			if(FALSE){#visualize in interactive sessions
+			if (FALSE) {#visualize in interactive sessions
 				temp <- sand
-				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=11)))
+				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=nl)))
 				cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
-				plot(locations, pch=15, cex=0.5, col=cols[cats])
+				plot(run_sites, pch=15, cex=0.5, col=cols[cats])
 				legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
-				if(require("maps")) map("state", add=TRUE)
+				if (require("maps")) map("state", add=TRUE)
 			}
 
 			#Normalize to 0-1
@@ -2085,13 +2181,14 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		
 			i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract)
 		
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
-				} else if(extract_determine_database == "SWRunInformation"){
+					
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
 				}
 						
@@ -2121,19 +2218,19 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		
 				rm(tempdat, i.temp)
 			}
-			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, locations, soil_data)
+			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, x_conus, soil_data, cond0, cond30)
 		}
 		
-		if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 	}
 
-	if(exinfo$ExtractSoilDataFromISRICWISEv12_Global){
-		if(!be.quiet) print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
+	if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
+		if (!be.quiet) print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
 		#Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5 arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
 		#http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
 		#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-		do_extract <- is.na(sites_externalsoils_source) | (sites_externalsoils_source == "ISRICWISEv12_Global")
-		if(sum(do_extract) > 0){
+		do_extract <- is.na(sites_externalsoils_source) | sites_externalsoils_source == "ISRICWISEv12_Global"
+		if (any(do_extract)) {
 		
 			layer_N <- 5	#WISE contains five soil layers for each prid
 			layer_Nsim <- 6	#WISE contains five soil layers for each prid; I added one layer to account for lithosols (Ix), which have a soildepth of 10 cm; for all other soil types, my layers 0-10 cm and 10-20 cm contain the same wise information
@@ -2143,28 +2240,29 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 			dir.ex.dat <- file.path(dir.ex.soil, "wise5by5min_v1b")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 	
-			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-			is_ToDo <- seq_along(locations)
+			#run_sites_wise of simulation runs
+			run_sites_wise <- run_sites[do_extract, ]
+			is_ToDo <- seq_along(run_sites_wise)
 		
 			#---extract data
 			grid_wise <- raster(x=file.path(dir.ex.dat, "Grid", "smw5by5min"))
 
 			#- List all the wise cells that are covered by the grid cell or point location
-			if(extract_gridcell_or_point == "point"){
-				suids <- extract(grid_wise, locations)
+			if (extract_gridcell_or_point == "point") {
+				suids <- extract(grid_wise, run_sites_wise)
 				sim_cells_SUIDs <- data.frame(i=is_ToDo, SUIDs_N=1, SUID=suids, fraction=1)
 			
-			} else if(extract_gridcell_or_point == "gridcell"){
-				extract_SUIDs <- function(i, res=0){
+			} else if (extract_gridcell_or_point == "gridcell") {
+			
+				extract_SUIDs <- function(i, res = c(0, 0)) {
 					# coord: X, Y coordinates of point or cell center
 					# res: grid cell resolution
-					.local <- function(i){
-						coord <- coordinates(locations[i, ])
+					.local <- function(i) {
+						coord <- coordinates(run_sites_wise[i, ])
 						resp <- list(i=i, SUIDs_N=0, SUID=NULL, fraction=NULL)
 
-						cells_wise <- cellsFromExtent(object=grid_wise, extent=extent(coord[1] - res/2, coord[1] + res/2, coord[2] - res/2, coord[2] + res/2), expand=FALSE)
-						if(!is.null(cells_wise)){
+						cells_wise <- cellsFromExtent(object=grid_wise, extent=extent(coord[1] - res[1]/2, coord[1] + res[1]/2, coord[2] - res[2]/2, coord[2] + res[2]/2), expand=FALSE)
+						if (!is.null(cells_wise)) {
 							minmax_cells_wise <- range(cells_wise, na.rm=TRUE)
 							xy_minmax_cells_wise <- xyFromCell(object=grid_wise, cell=minmax_cells_wise)
 
@@ -2173,7 +2271,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 		
 							#extract values
 							sval <- sort(getValuesBlock(x=grid_wise, row=irow[1], nrow=1 + diff(irow), col=icol[1], ncol=1 + diff(icol))) #getValuesBlock() faster than extract() for one location
-							if(length(sval) != length(cells_wise)) sval <- sval[sample(x=length(sval), size=length(cells_wise))]
+							if (length(sval) != length(cells_wise)) sval <- sval[sample(x=length(sval), size=length(cells_wise))]
 
 							#calculate proportions of each value
 							temp <- rle(sval)
@@ -2187,42 +2285,42 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 					}
 			
 					temp <- try(.local(i), silent=TRUE)
-					return(if(!inherits(temp, "try-error")) temp else list(i=i, SUIDs_N=-1, SUID=NULL, fraction=NULL))
+					return(if (!inherits(temp, "try-error")) temp else list(i=i, SUIDs_N=-1, SUID=NULL, fraction=NULL))
 				}
 
-				if(parallel_runs && parallel_init){
+				if (parallel_runs && parallel_init) {
 					#objects that need exporting to slaves
-					list.export <- c("grid_wise", "locations")
+					list.export <- c("grid_wise", "run_sites_wise")
 					#call the simulations depending on parallel backend
-					if(identical(parallel_backend, "mpi")) {
+					if (identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
 						mpi.bcast.cmd(library(raster, quietly=TRUE))
 				
-						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res=gridcell_resolution)
+						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res=cell_res)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						mpi.bcast.cmd(rm(list=ls()))
 						mpi.bcast.cmd(gc())
-					} else if(identical(parallel_backend, "snow")) {
+					} else if (identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export, envir=parent.frame())
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
 				
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res=gridcell_resolution)
+						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res=cell_res)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						snow::clusterEvalQ(cl, rm(list=ls()))
 						snow::clusterEvalQ(cl, gc())
-					} else if(identical(parallel_backend, "multicore")) {
+					} else if (identical(parallel_backend, "multicore")) {
 						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i, res=gridcell_resolution)
+						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i, res=cell_res)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
 				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% extract_SUIDs(i, res=gridcell_resolution)
+					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% extract_SUIDs(i, res=cell_res)
 				}
 			} else {
-				stop("Flag 'extract_gridcell_or_point' has no accepted value, i.e., 'point' or 'gridcell'")
+				stop("Flag 'extract_gridcell_or_point' has no accepted value; it should be 'point' or 'gridcell'")
 			}
 			rm(grid_wise)
 
@@ -2231,14 +2329,14 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 			#- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
 			dat_wise <- read.csv(file=file.path(dir.ex.dat, "WISEsummaryFile.csv"))
 		
-			get_prids <- function(suid){
+			get_prids <- function(suid) {
 				soils <- dat_wise[dat_wise$SUID == suid, ]
 				frac <- unique(soils[, c("PROP", "PRID")])
 				depth <- aggregate(soils$BotDep, by=list(soils$PRID), FUN=max)
 				return(list(PRIDs_N=nrow(soils)/layer_N, PRID=frac$PRID, fraction=frac$PROP/100, soildepth=ifelse((temp <- depth[match(frac$PRID, depth[, 1]), 2]) > 0, temp, NA), soildat=soils))
 			}
 
-			get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac){
+			get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
 				return(sum(soildat_rows * frac, dat, na.rm=TRUE)) #weighted mean = sum of values x weights
 			}
 
@@ -2247,8 +2345,8 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 			template_simulationSoils["soildepth"] <- 0
 		
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- function(i){
-				.local <- function(i){
+			calc_weightedMeanForSimulationCell <- function(i) {
+				.local <- function(i) {
 					#Init
 					simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
 					simulation_layer_frac <- rep(0, times=layer_Nsim) #fraction of each soil layer covering this simulation cell
@@ -2257,19 +2355,19 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 					PRIDs_N <- 0
 					PRIDs <- PRIDs_frac <- NULL
 					#Do calculations if any soils in this simulation cell
-					if(sim_cells_SUIDs[i, ]$SUIDs_N > 0){
+					if (sim_cells_SUIDs[i, ]$SUIDs_N > 0) {
 						this_simCell <- c(sim_cells_SUIDs[i, ], soils=list(t(sapply(sim_cells_SUIDs[i, ]$SUID, FUN=get_prids))))
-						for(is in 1:this_simCell$SUIDs_N){	#loop through the suids within this simulation cell; each suid may be composed of several prids
+						for (is in 1:this_simCell$SUIDs_N) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
 							prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
 							PRIDs_frac <- c(PRIDs_frac, prids_frac)
 							simulation_frac <- simulation_frac + sum(ifelse(!is.na(this_simCell$soils[is,]$soildepth), prids_frac, 0))
 							simulationSoils["soildepth"] <- simulationSoils["soildepth"] + sum(this_simCell$soils[is,]$soildepth * prids_frac, na.rm=TRUE)
-							if(!all(is.na(this_simCell$soils[is,]$soildepth))) for(ils in 1:layer_Nsim){
-								lwise <- if(ils == 1) 1 else ils - 1	# I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
+							if (!all(is.na(this_simCell$soils[is,]$soildepth))) for (ils in 1:layer_Nsim) {
+								lwise <- if (ils == 1) 1 else ils - 1	# I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
 								layer.there <- this_simCell$soils[is,]$soildepth > layer_TopDep[ils]	#checks if for each prid, there soils are deeper than this layer. It also accounts that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as water and glaciers. Lithosols (Ix) have soildepth of 10 cm.
 								pfracl <- prids_frac[layer.there]
 								simulation_layer_frac[ils] <- simulation_layer_frac[ils] + sum(pfracl, na.rm=TRUE)
-								if(sum(layer.there, na.rm=TRUE) > 0){
+								if (sum(layer.there, na.rm=TRUE) > 0) {
 									irow <- lwise + ((0:(this_simCell$soils[is,]$PRIDs_N-1))*layer_N)[layer.there]
 									simulationSoils[paste0("bulk_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("bulk_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "BULK"], frac=pfracl)	# bulk density (kg/dm3)
 									simulationSoils[paste0("sand_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("sand_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "SDTO"], frac=pfracl)	# Sand mass (%)
@@ -2285,17 +2383,17 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 					return(simulationSoils)
 				}
 		
-				if(i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
+				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
 				temp <- .local(i)
-				return(if(!inherits(temp, "try-error")) temp else template_simulationSoils)
+				return(if (!inherits(temp, "try-error")) temp else template_simulationSoils)
 			}
 	
-			if(parallel_runs && parallel_init){
+			if (parallel_runs && parallel_init) {
 				#objects that need exporting to slaves
 				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
 				#call the simulations depending on parallel backend
-				if(identical(parallel_backend, "mpi")) {
+				if (identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 			
 					sim_cells_soils <- mpi.applyLB(x=is_ToDo, fun=calc_weightedMeanForSimulationCell)
@@ -2303,7 +2401,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 			
 					mpi.bcast.cmd(rm(list=ls()))
 					mpi.bcast.cmd(gc())
-				} else if(identical(parallel_backend, "snow")) {
+				} else if (identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export, envir=parent.frame())
 			
 					sim_cells_soils <- snow::clusterApplyLB(cl, x=is_ToDo, fun=calc_weightedMeanForSimulationCell)
@@ -2311,7 +2409,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 				
 					snow::clusterEvalQ(cl, rm(list=ls()))
 					snow::clusterEvalQ(cl, gc())
-				} else if(identical(parallel_backend, "multicore")) {
+				} else if (identical(parallel_backend, "multicore")) {
 					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar% calc_weightedMeanForSimulationCell(i)
 				}
 			} else {
@@ -2321,13 +2419,13 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 
 			sim_cells_soils <- round(sim_cells_soils[order(sim_cells_soils[, "i"]), ], 2)
 
-			if(FALSE){#visualize in interactive sessions
+			if (FALSE) {#visualize in interactive sessions
 				temp <- sim_cells_soils[, grep("sand", colnames(sim_cells_soils))]
-				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=11)))
+				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=nl)))
 				cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
-				plot(locations, pch=15, cex=0.5, col=cols[cats])
+				plot(run_sites_wise, pch=15, cex=0.5, col=cols[cats])
 				legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
-				if(require("maps")) map("state", add=TRUE)
+				if (require("maps")) map("state", add=TRUE)
 			}
 
 			#Convert bulk density to matric density
@@ -2337,13 +2435,13 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 	
 			i_good <- complete.cases(sim_cells_soils) #length(i_good) == sum(do_extract)
 		
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
-				} else if(extract_determine_database == "SWRunInformation"){
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
 				}
 		
@@ -2374,10 +2472,10 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 			}
 		
-			rm(sim_cells_soils, tempdat, i.temp, lys, locations)
+			rm(sim_cells_soils, tempdat, i.temp, lys, run_sites_wise)
 		}
 		
-		if(!be.quiet) print(paste("Finished 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
 	}
 
 	
@@ -2388,7 +2486,7 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 	SWRunInformation$Include_YN[seq.tr[notDone]] <- 0
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 
-	if(sum(notDone) > 0) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+	if (any(notDone)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 }
 
 #------END OF SOIL CHARACTERISTICS------
@@ -2399,11 +2497,11 @@ if(exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilDataF
 
 #--------------------------------------------------------------------------------------------------#
 #------EXTRACT ELEVATION------
-if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
+if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	#allow for multiple sources
-	if(extract_determine_database == "order"){
+	if (extract_determine_database == "order") {
 		sites_elevation_source <- rep(NA, times=length(seq.tr))
-	} else if(extract_determine_database == "SWRunInformation"){
+	} else if (extract_determine_database == "SWRunInformation") {
 		sites_elevation_source <- SWRunInformation$Elevation_source[seq.tr]
 	} else {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
@@ -2411,75 +2509,83 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 	elevation_m <- rep(NA, times=length(seq.tr))
 	
 	#	- extract NED data where available
-	if(exinfo$ExtractElevation_NED_USA){
-		if(!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
+	if (exinfo$ExtractElevation_NED_USA) {
+		if (!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
 		#ned.usgs.gov
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
-		if(sum(do_extract) > 0){
+		if (any(do_extract)) {
 			dir.ex.dat <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
 	
 			#read raster data
 			g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
+			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-			locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
+			run_sites_ned <- run_sites[do_extract, ]
+			# Align with data crs
+			if (!raster::compareCRS(crs_sites, crs_data)) {
+				run_sites_ned <- sp::spTransform(run_sites_ned, CRS = crs_data)	#transform points to grid-coords
+			}
 	
 			#extract data for locations
-			elevation_m[do_extract] <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
+			elevation_m[do_extract] <- round(extract(g.elev, run_sites_ned))	# elevation in m a.s.l.
 
 			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_elevation_source[i_Done] <- "Elevation_NED_USA"
-				} else if(extract_determine_database == "SWRunInformation"){
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_elevation_source[which(do_extract)[!i_good]] <- NA
 				}
 			}
 	
-			rm(g.elev, locations, locations.CoordG)
+			rm(g.elev, run_sites_ned)
 		}
 		
-		if(!be.quiet) print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
 	}
 
 	#	- extract HWSD elevation data for sites with no elevation data
-	if(exinfo$ExtractElevation_HWSD_Global){
-		if(!be.quiet) print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
+	if (exinfo$ExtractElevation_HWSD_Global) {
+		if (!be.quiet) print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
-		if(sum(do_extract) > 0){
+		if (any(do_extract)) {
 			dir.ex.dat <- file.path(dir.ex.dem, "HWSD")
 	
 			#read raster data
 			g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
+			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-			locations.CoordG <- spTransform(locations, CRS=CRS(proj4string(g.elev)))	#transform points to grid-coords
+			run_sites_hwsd <- run_sites[do_extract, ]
+			# Align with data crs
+			if (!raster::compareCRS(crs_sites, crs_data)) {
+				run_sites_hwsd <- sp::spTransform(run_sites_hwsd, CRS = crs_data)	#transform points to grid-coords
+			}
 	
 			#extract data for locations
-			elevation_m[do_extract] <- round(extract(g.elev, locations.CoordG))	# elevation in m a.s.l.
+			elevation_m[do_extract] <- round(extract(g.elev, run_sites_hwsd))	# elevation in m a.s.l.
 
 			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
-				} else if(extract_determine_database == "SWRunInformation"){
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_elevation_source[which(do_extract)[!i_good]] <- NA
 				}
 			}
-			rm(g.elev, locations, locations.CoordG)
+			rm(g.elev, run_sites_hwsd)
 		}
 		
-		if(!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
 	}
 
 
@@ -2488,7 +2594,7 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 	SWRunInformation$Elevation_source[seq.tr] <- as.character(sites_elevation_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	
-	if(anyNA(elevation_m)) warning("Elevation wasn't found for ", sum(is.na(elevation_m)), " sites")
+	if (anyNA(elevation_m)) warning("Elevation wasn't found for ", sum(is.na(elevation_m)), " sites")
 	
 	rm(elevation_m, sites_elevation_source)
 }
@@ -2497,11 +2603,11 @@ if(exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global){
 #--------------------------------------------------------------------------------------------------#
 
 
-if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCEPCFSR_Global){
+if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
 	#allow for multiple sources
-	if(extract_determine_database == "order"){
+	if (extract_determine_database == "order") {
 		sites_monthlyclim_source <- rep(NA, times=length(seq.tr))
-	} else if(extract_determine_database == "SWRunInformation"){
+	} else if (extract_determine_database == "SWRunInformation") {
 		sites_monthlyclim_source <- SWRunInformation$ClimateNormals_source[seq.tr]
 	} else {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
@@ -2510,11 +2616,11 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 	monthlyclim <- array(NA, dim=c(length(seq.tr), 3, 12), dimnames=list(NULL, c("rh", "cover", "wind"), NULL))
 	get_NA_byrow <- function(dat) apply(dat, 1, anyNA)
 	
-	if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA){
-		if(!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+	if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
+		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 	
 		do_extract <- get_NA_byrow(monthlyclim) | is.na(sites_monthlyclim_source) | (sites_monthlyclim_source == "ClimateNormals_NCDC2005_USA")
-		if(sum(do_extract) > 0){
+		if (any(do_extract)) {
 			reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
 	
 			#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
@@ -2537,14 +2643,18 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 			code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
 	
 			#locations of simulation runs
-			locations <- SpatialPoints(coords=with(SWRunInformation[seq.tr[do_extract],], data.frame(X_WGS84, Y_WGS84)), proj4string=CRS("+proj=longlat +datum=WGS84"))
-			projStringWGS84 <- proj4string(locations)
+			run_sites_noaaca <- run_sites[do_extract, ]
+			# Align with data crs
+			noaaca <- rgdal::readOGR(dsn=dir.ex.dat.RH, layer=datafile.RH[1], verbose=FALSE)
+			crs_data <- raster::crs(noaaca)
+			if (!raster::compareCRS(crs_sites, crs_data)) {
+				run_sites_noaaca <- sp::spTransform(run_sites_noaaca, CRS = crs_data)	#transform points to grid-coords
+			}
 	
 			#extract data for locations
-			get.month <- function(path, shp, month){
-				s <- readOGR(dsn=path, layer=shp[month], verbose=FALSE)
-				s.wgs84 <- spTransform(s, CRS=CRS(projStringWGS84))	#transform to wgs84
-				val <- sp::over(x=locations, y=s.wgs84)$GRIDCODE
+			get.month <- function (path, shp, month) {
+				noaaca <- rgdal::readOGR(dsn=path, layer=shp[month], verbose=FALSE)
+				val <- sp::over(x = run_sites_noaaca, y = noaaca)$GRIDCODE
 			}
 			monthlyclim[do_extract, "rh", ] <- sapply(st_mo, FUN=function(m) code.RH[get.month(path=dir.ex.dat.RH, shp=datafile.RH, month=m)])
 			monthlyclim[do_extract, "cover", ] <- sapply(st_mo, FUN=function(m) 100 - code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)]) #subtract from 100% as we want cover not no-cover
@@ -2553,13 +2663,13 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 	
 			# Save extracted data to disk
 			i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
-				} else if(extract_determine_database == "SWRunInformation"){
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
 				}
 	
@@ -2576,20 +2686,20 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 			
 				rm(i.temp)
 			}
-			rm(locations, reference)
+			rm(run_sites_noaaca, reference, noaaca)
 		}
 	
-		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 	}
 	
-	if(exinfo$ExtractSkyDataFromNCEPCFSR_Global){
+	if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
 		#Citations: Environmental Modeling Center/National Centers for Environmental Prediction/National Weather Service/NOAA/U.S. Department of Commerce. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory.
 		# http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
 		
-		if(!be.quiet) writeLines(c(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()), "NOTE: Do not interrupt - this process cannot resume."))
+		if (!be.quiet) writeLines(c(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()), "NOTE: Do not interrupt - this process cannot resume."))
 
 		do_extract <- get_NA_byrow(monthlyclim) | is.na(sites_monthlyclim_source) | (sites_monthlyclim_source == "ClimateNormals_NCEPCFSR_Global")
-		if(sum(do_extract) > 0){		
+		if (any(do_extract)) {		
 			# preparations
 			dir.ex.dat <- file.path(dir.ex.weather, "NCEPCFSR", "CFSR_weather_prog08032012")
 			stopifnot(file.exists(dir.ex.dat))
@@ -2613,13 +2723,13 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		
 			# Save extracted data to disk
 			i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
-			if(sum(i_good) > 0){
+			if (any(i_good)) {
 				i_Done <- rep(FALSE, times=length(seq.tr)) #length(i_Done) == length(seq.tr)
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if(extract_determine_database == "order"){
+				if (extract_determine_database == "order") {
 					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
-				} else if(extract_determine_database == "SWRunInformation"){
+				} else if (extract_determine_database == "SWRunInformation") {
 					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
 				}
 
@@ -2640,14 +2750,14 @@ if(exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCE
 		}
 		rm(do_extract)
 	
-		if(!be.quiet) print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
 	}
 
 	#write data to datafile.SWRunInformation
 	SWRunInformation$ClimateNormals_source[seq.tr] <- as.character(sites_monthlyclim_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	
-	if(anyNA(sites_monthlyclim_source)) warning("Climate normals weren't found for ", sum(is.na(sites_monthlyclim_source)), " sites")
+	if (anyNA(sites_monthlyclim_source)) warning("Climate normals weren't found for ", sum(is.na(sites_monthlyclim_source)), " sites")
 
 	rm(monthlyclim, sites_monthlyclim_source)
 }
