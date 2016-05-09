@@ -116,9 +116,12 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 # - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
 # if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation'
 extract_determine_database <- "order" # one of c("order", "SWRunInformation")
-#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global"
-extract_gridcell_or_point <- "point" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
-gridcell_resolution <- 1/8
+#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global" and "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"
+extract_gridcell_or_point <- "gridcell" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
+# if (extract_gridcell_or_point == "gridcell"), then provide grid resolution or path to raster file
+cell_res <- c(1e4, 1e4)
+gridcell_raster <- file.path(dir.in, "mask_10km.tif")
+# External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
