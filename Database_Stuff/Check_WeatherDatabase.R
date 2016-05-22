@@ -3,7 +3,7 @@ library(Rsoilwat31)
 library(parallel)
 library(compiler)
 
-do_preprocess_tempfiles <- FALSE
+do_preprocess_tempfiles <- TRUE		# Set to TRUE, for instance, if previous run was prematurely aborted
 
 n_cores <- 20
 startyear <- 1979
@@ -37,7 +37,7 @@ merge_workers_tempfiles <- function(dir_temp, pattern, file) {
 		temps <- lapply(ftemps, function(f) read.csv(f, header = TRUE))
 		res <- do.call("rbind", temps)
 	
-		stopifnot(nrow(res) == sum(lengths(temps)))
+		stopifnot(nrow(res) == sum(vapply(temps, nrow, NA_integer_)))
 	
 		write.table(res, file = file, append = TRUE, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = FALSE)
 		unlink(ftemps)
@@ -192,7 +192,7 @@ process_tempfiles <- function(climate, ids_todo, var_out = vars, ftemp, fdups, f
 				saveRDS(ids_unique, file = fstat1)
 				clusterExport(cl, c("climate_progress", "idus_ss", "repeats", "vars", "check_entry"), envir = environment())
 				
-				paste(Sys.time(), ": 'process_tempfiles' check status of each temporary output; this may take a while.")
+				print(paste0(Sys.time(), ": 'process_tempfiles' check status of n = ", length(ids_unique), " extractions; this may take a while."))
 				status <- data.frame(t(parSapply(cl, X = seq_along(ids_unique), FUN = function(i)
 								check_entry(i, idss = idus_ss[i, ], data = climate_progress, vars = vars, repeats = repeats))))
 				saveRDS(status, file = fstat2)
@@ -201,7 +201,7 @@ process_tempfiles <- function(climate, ids_todo, var_out = vars, ftemp, fdups, f
 				status <- readRDS(fstat2)
 			}
 
-			paste(Sys.time(), ": 'process_tempfiles' process successful database extractions")
+			print(paste0(Sys.time(), ": 'process_tempfiles' process successful database extractions"))
 			#	- # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
 			ids_keep <- rep(TRUE, nrow(climate_progress))
 			#	- # of duplicates >= repeats and 
@@ -223,7 +223,7 @@ process_tempfiles <- function(climate, ids_todo, var_out = vars, ftemp, fdups, f
 			
 			ids_keep <- ids_keep & !ids_good
 			
-			paste(Sys.time(), ": 'process_tempfiles' process database extractions with variation among repeats")
+			print(paste0(Sys.time(), ": 'process_tempfiles' process database extractions with variation among repeats"))
 			#		- varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
 			ids_vdups <- ids_unique[status[status[, "Status"] == 0L, "seq_id"]]
 			idups <- ids_progress %in% ids_vdups
@@ -254,20 +254,31 @@ if (do_preprocess_tempfiles) {
 
 
 #---Go through the weather database
-summarize_weather <- compiler::cmpfun(function(i, iclimate, scen_table, startyear, endyear) {
+summarize_weather <- compiler::cmpfun(function(i, iclimate, scen, startyear, endyear, db_name) {
 	stopifnot(exists("outfile"), file.exists(outfile))
-	if (i %% 1000 == 1) print(paste(Sys.time(), ": run =", i))
+	
+	if (i %% 1000 == 1) print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ", iclimate["Site_id"], "/", scen))
 	
 	# Access data from database
 	wtemp <- try(dbW_getWeatherData(Site_id = iclimate["Site_id"],
 					startYear = startyear, endYear = endyear,
-					Scenario = scen_table[as.integer(iclimate["Scenario_id"]), "Scenario"]),
+					Scenario = scen),
 				silent = TRUE)
-
+				
+	if (inherits(wtemp, "try-error")) {
+		# Maybe the connection to the database failed? Re-set connection and attempt extraction once more
+		dbW_disconnectConnection()
+		dbW_setConnection(dbFilePath = db_name, FALSE)
+		
+		wtemp <- try(dbW_getWeatherData(Site_id = iclimate["Site_id"],
+						startYear = startyear, endYear = endyear,
+						Scenario = scen),
+					silent = TRUE)
+	}		
 	
 	if (inherits(wtemp, "try-error")) {
 		iclimate["Status"] <- 0
-		print(paste(Sys.time(), ": run =", i, "failed:", wtemp))
+		print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ", iclimate["Site_id"], "/", scen, " failed:", wtemp))
 
 	} else {
 		iclimate["Status"] <- 1
@@ -314,11 +325,12 @@ itests <- unlist(lapply(seq_len(repeats), function(i) sample(x = ids_todo, size 
 
 idone <- parSapply(cl, X = itests, FUN = function(i)
 						summarize_weather(i, iclimate = climate[i, ],
-											scen_table = dbW_iScenarioTable,
+											scen = scen_table[as.integer(climate[i, "Scenario_id"]), "Scenario"],
 											startyear = startyear,
-											endyear = endyear))
+											endyear = endyear,
+											db_name = dbWeatherDataFile))
 
-temp <- clusterEvalQ(cl, dbDisconnect(dbW_con))
+temp <- clusterEvalQ(cl, dbW_disconnectConnection())
 
 
 #---Final save
