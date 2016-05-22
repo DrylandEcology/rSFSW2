@@ -134,7 +134,7 @@ process_good_extractions <- function(climate, ids_todo, var_out = vars, file = f
 	list(climate = climate, ids_todo = ids_todo)
 }
 
-paste(Sys.time(), ": process previous progress")
+paste0(Sys.time(), ": process previous progress")
 
 progress <- process_good_extractions(climate, ids_todo)
 climate <- progress[["climate"]]
@@ -244,7 +244,7 @@ process_tempfiles <- function(climate, ids_todo, var_out = vars, ftemp, fdups, f
 	list(climate = climate, ids_todo = ids_todo)
 }
 
-paste(Sys.time(), ": process previous output")
+paste0(Sys.time(), ": process previous output")
 
 if (do_preprocess_tempfiles) {
 	progress2 <- process_tempfiles(climate, ids_todo, vars, ftemp, fdups, fout, repeats, dir_temp, pattern_temp)
@@ -309,7 +309,7 @@ summarize_weather <- compiler::cmpfun(function(i, iclimate, scen, startyear, end
 
 
 # Calculate in parallel
-print(paste(Sys.time(), ": # run =", length(ids_todo), "out of", nrow(climate)))
+print(paste0(Sys.time(), ": # run =", length(ids_todo), "out of", nrow(climate)))
 
 clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid", "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
 temp <- clusterEvalQ(cl, {
@@ -334,15 +334,49 @@ temp <- clusterEvalQ(cl, dbW_disconnectConnection())
 
 
 #---Final save
-print(paste(Sys.time(), ": process new output"))
+print(paste0(Sys.time(), ": process new output"))
 
 progress3 <- process_tempfiles(climate, ids_todo, vars, ftemp, fdups, fout, repeats, dir_temp, pattern_temp)
 climate <- progress3[["climate"]]
 ids_todo <- progress3[["ids_todo"]]
 
-print(paste(Sys.time(), ": script completed, but # run =", length(ids_todo), "out of", nrow(climate), "still to do"))
+print(paste0(Sys.time(), ": script completed"))
+if (length(ids_todo) > 0) print(paste("# run =", length(ids_todo), "out of", nrow(climate), "still to do"))
 
 saveRDS(climate, file = fclimate)
 
 #---Clean-up
 stopCluster(cl)
+
+
+#---Report on extracted 'climate'
+# Failures
+failed <- climate$Status == 0
+iNAs <- apply(climate, 1, anyNA)
+identical(failed, iNAs)
+print(paste0("Unsuccessful extractions: n = ", sum(failed), "; f = ", signif(sum(failed) / length(failed), 2)))
+with(climate[failed, ], plot(Site_id, Scenario_id))
+
+failed_siteID <- climate[failed, "Site_id"]
+print(paste0("Sites with at least one unsuccessful extractions: n = ", length(unique(failed_siteID))))
+failed_siteID_freq <- tapply(rep(1, sum(failed)), failed_siteID, sum)
+probs <- c(0, 0.01, 0.5, 0.99, 1)
+print(paste0("Unsuccessful extractions per scenario: quantiles: ", paste(probs, quantile(failed_siteID_freq, probs = probs), sep = "% = ", collapse = ", ")))
+
+failed_scenID <- climate[failed, "Scenario_id"]
+print(paste0("Scenarios with at least one unsuccessful extractions: n = ", length(unique(failed_scenID))))
+print(paste0("Unsuccessful extractions per scenario: n = "))
+	print(table(failed_scenID))
+
+
+# Variation among downscaled scenarios
+
+dat <- climate[!failed & climate$Scenario_id > 1, ]
+for (iv in vars) {
+	print(paste0("Mean variation within sites among downscaled scenarios for variable ", iv))
+	temp <- aggregate(dat[, iv], by = list(dat$Site_id), FUN = function(x) {
+		rx <- range(x)
+		c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
+	})
+	print(round(apply(temp[[2]], 2, mean), 2))
+}
