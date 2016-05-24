@@ -48,7 +48,7 @@ merge_workers_tempfiles <- function(dir_temp, pattern, file) {
 
 
 #---Connect to weather database
-dbWeatherDataFile <- file.path(dir_big, "1_DATA_SWInput", "dbWeatherData_decadalSDM_Projections_1979-2010.sqlite3")
+dbWeatherDataFile <- file.path(dir_big, "1_Data_SWInput", "dbWeatherData_decadalSDM_Projections_1979-2010.sqlite3")
 
 
 dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
@@ -74,11 +74,14 @@ dbW_disconnectConnection()
 #	Non-empty rows in 'climate' will be extracted
 vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
 
-climate <- as.data.frame(matrix(NA, nrow = nrow(dbW_iSiteTable) * nrow(dbW_iScenarioTable),
+used_sites <- dbW_iSiteTable$Latitude > -90 & dbW_iSiteTable$Latitude > -180
+sitesN <- sum(used_sites)
+
+climate <- as.data.frame(matrix(NA, nrow = nrow(dbW_iScenarioTable) * sitesN,
 									ncol = 3 + length(vars),
 									dimnames = list(NULL, c("Site_id", "Scenario_id", "Status", vars))))
-climate[, "Site_id"] <- dbW_iSiteTable[, "Site_id"]
-climate[, "Scenario_id"] <- rep(dbW_iScenarioTable[, "id"], each = nrow(dbW_iSiteTable))
+climate[, "Site_id"] <- dbW_iSiteTable[used_sites, "Site_id"]
+climate[, "Scenario_id"] <- rep(dbW_iScenarioTable[, "id"], each = sitesN)
 
 ids_todo <- seq_len(nrow(climate))
 
@@ -309,7 +312,7 @@ summarize_weather <- compiler::cmpfun(function(i, iclimate, scen, startyear, end
 
 
 # Calculate in parallel
-print(paste0(Sys.time(), ": # run =", length(ids_todo), "out of", nrow(climate)))
+print(paste0(Sys.time(), ": # run =", length(ids_todo), " out of", nrow(climate)))
 
 clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid", "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
 temp <- clusterEvalQ(cl, {
@@ -325,7 +328,7 @@ itests <- unlist(lapply(seq_len(repeats), function(i) sample(x = ids_todo, size 
 
 idone <- parSapply(cl, X = itests, FUN = function(i)
 						summarize_weather(i, iclimate = climate[i, ],
-											scen = scen_table[as.integer(climate[i, "Scenario_id"]), "Scenario"],
+											scen = dbW_iScenarioTable[as.integer(climate[i, "Scenario_id"]), "Scenario"],
 											startyear = startyear,
 											endyear = endyear,
 											db_name = dbWeatherDataFile))
