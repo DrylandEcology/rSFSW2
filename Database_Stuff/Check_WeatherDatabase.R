@@ -105,15 +105,15 @@ revert_ids <- compiler::cmpfun(function(ids, id_vars = c("Site_id", "Scenario_id
 })
 
 copy_matches <- compiler::cmpfun(function(out, data, match_vars, copy_vars, ids_out = NULL) {
-	ids1 <- make_ids(out, id_vars = match_vars)
-	ids2 <- make_ids(data, id_vars = match_vars)
+	out_ids <- make_ids(out, id_vars = match_vars)
+	data_ids <- make_ids(data, id_vars = match_vars)
 
-	imc <- match(ids2, ids1, nomatch = 0)
-	imt <- match(ids1, ids2, nomatch = 0)
+	im_data <- match(out_ids, data_ids, nomatch = 0)
+	im_out <- out_ids %in% data_ids
 
-	out[imc, copy_vars] <- data[imt, copy_vars]
+	out[im_out, copy_vars] <- data[im_data, copy_vars]
 
-	list(out = out, ids_out = if (!is.null(ids_out)) ids_out[-imc] else NA)
+	list(out = out, ids_out = if (!is.null(ids_out)) ids_out[!im_out] else NA)
 })
 
 process_good_extractions <- function(climate, ids_todo, var_out = vars, file = fout) {
