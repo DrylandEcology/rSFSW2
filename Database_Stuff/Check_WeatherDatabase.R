@@ -313,36 +313,39 @@ summarize_weather <- compiler::cmpfun(function(i, iclimate, scen, startyear, end
 
 
 # Calculate in parallel
-print(paste0(Sys.time(), ": # run =", length(ids_todo), " out of", nrow(climate)))
+if (length(ids_todo) > 0) {
+	print(paste0(Sys.time(), ": # run =", length(ids_todo), " out of", nrow(climate)))
 
-clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid", "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
-temp <- clusterEvalQ(cl, {
-	require(Rsoilwat31)
-	dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
-})
-temp <- clusterEvalQ(cl, {
-	outfile <- file.path(dir_temp, paste0(pattern_temp, "-", get(name_wid), ".csv"))
-	write.table(climate[0, ], file = outfile, append = FALSE, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = TRUE)
-})
+	clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid", "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
+	temp <- clusterEvalQ(cl, {
+		require(Rsoilwat31)
+		dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
+	})
+	temp <- clusterEvalQ(cl, {
+		outfile <- file.path(dir_temp, paste0(pattern_temp, "-", get(name_wid), ".csv"))
+		write.table(climate[0, ], file = outfile, append = FALSE, sep = ",", dec = ".", qmethod = "double", row.names = FALSE, col.names = TRUE)
+	})
 
-itests <- unlist(lapply(seq_len(repeats), function(i) sample(x = ids_todo, size = length(ids_todo))))
+	itests <- unlist(lapply(seq_len(repeats), function(i) sample(x = ids_todo, size = length(ids_todo))))
 
-idone <- parSapply(cl, X = itests, FUN = function(i)
-						summarize_weather(i, iclimate = climate[i, ],
-											scen = dbW_iScenarioTable[as.integer(climate[i, "Scenario_id"]), "Scenario"],
-											startyear = startyear,
-											endyear = endyear,
-											db_name = dbWeatherDataFile))
+	idone <- parSapply(cl, X = itests, FUN = function(i)
+							summarize_weather(i, iclimate = climate[i, ],
+												scen = dbW_iScenarioTable[as.integer(climate[i, "Scenario_id"]), "Scenario"],
+												startyear = startyear,
+												endyear = endyear,
+												db_name = dbWeatherDataFile))
 
-temp <- clusterEvalQ(cl, dbW_disconnectConnection())
-
+	temp <- clusterEvalQ(cl, dbW_disconnectConnection())
+}
 
 #---Final save
-print(paste0(Sys.time(), ": process new output"))
+if (length(ids_todo) > 0) {
+	print(paste0(Sys.time(), ": process new output"))
 
-progress3 <- process_tempfiles(climate, ids_todo, vars, ftemp, fdups, fout, repeats, dir_temp, pattern_temp)
-climate <- progress3[["climate"]]
-ids_todo <- progress3[["ids_todo"]]
+	progress3 <- process_tempfiles(climate, ids_todo, vars, ftemp, fdups, fout, repeats, dir_temp, pattern_temp)
+	climate <- progress3[["climate"]]
+	ids_todo <- progress3[["ids_todo"]]
+}
 
 print(paste0(Sys.time(), ": script completed"))
 if (length(ids_todo) > 0) print(paste("# run =", length(ids_todo), "out of", nrow(climate), "still to do"))
