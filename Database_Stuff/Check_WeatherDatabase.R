@@ -11,6 +11,9 @@ endyear <- 2010
 repeats <- 2	# number of times each weather object is extracted (repeats > 1 enable comparison of the duplicates)
 name_wid <- ".wid"
 
+vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
+vars_mult <- c("MAP_mm")
+
 #---Paths
 dir_prj <- "/PATH/TO/PROJECT"
 dir_big <- "/PATH/TO/WEATHERDATABASE"
@@ -72,8 +75,6 @@ dbW_disconnectConnection()
 
 #---Define output
 #	Non-empty rows in 'climate' will be extracted
-vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
-
 used_sites <- dbW_iSiteTable$Latitude > -90 & dbW_iSiteTable$Latitude > -180
 sitesN <- sum(used_sites)
 
@@ -372,12 +373,28 @@ print(paste0("Unsuccessful extractions per scenario: n = "))
 	print(table(failed_scenID))
 
 
-# Variation among downscaled scenarios
+# Variation among downscaled scenarios as difference to current
 
 dat <- climate[!failed & climate$Scenario_id > 1, ]
+dat_cur <- climate[climate$Site_id %in% dat$Site_id & climate$Scenario_id == 1, ]
+dat <- dat[do.call(order, dat), ]
+
+dat_cur <- copy_matches(out = dat, data = dat_cur[do.call(order, dat_cur), ],
+				match_vars = c("Site_id"),
+				copy_vars = vars)[["out"]]
+
+dat_diff <- dat
+for (iv in vars) {
+	dat_diff[, iv] <- if (iv %in% vars_mult) {
+							dat[, iv] / dat_cur[, iv]
+						} else {
+							dat[, iv] - dat_cur[, iv]
+						}
+}
+
 for (iv in vars) {
 	print(paste0("Mean variation within sites among downscaled scenarios for variable ", iv))
-	temp <- aggregate(dat[, iv], by = list(dat$Site_id), FUN = function(x) {
+	temp <- aggregate(dat_diff[, iv], by = list(dat_diff$Site_id), FUN = function(x) {
 		rx <- range(x)
 		c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
 	})
