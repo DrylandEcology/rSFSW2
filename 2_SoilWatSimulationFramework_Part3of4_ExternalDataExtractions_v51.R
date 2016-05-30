@@ -54,20 +54,30 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		stop("The packages 'rgdal', 'sp', and 'raster' are required, but one or multiple of them are not installed.")
 	}
 	
-	if (extract_gridcell_or_point == "gridcell") {
-		if (file.exists(gridcell_raster)) {
-			cell_raster <- raster::raster(gridcell_raster)
-			if (is.finite(cell_res) && !all(raster::res(cell_raster) == cell_res)) {
-				cell_res <- raster::res(cell_raster)
-			}	
+	# make sure that flag 'extract_gridcell_or_point' has a valid option
+	extract_gridcell_or_point <- match.arg(extract_gridcell_or_point, c("point", "gridcell"))
+	
+	# SpatialPoints of cell centers in WGS84
+	crs_sites <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
+	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)	
 
-			crs_sites <- sp::CRS("+proj=longlat +datum=WGS84")
-			run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[seq.tr,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)	
+	# make sure gridcell_raster agrees with gridcell_res and gridcell_crs; gridcell_raster takes priority
+	if (extract_gridcell_or_point == "gridcell") {
+		if (file.exists(fname_gridcell_raster)) {
+			gridcell_raster <- raster::raster(fname_gridcell_raster)
+			
+			gridcell_res <- raster::res(gridcell_raster)
+			gridcell_crs <- raster::crs(gridcell_raster)
 		}
 	}
 	
-	stopifnot(is.finite(cell_res), length(cell_res) == 2L)
+	# make sure that gridcell_res is valid
+	stopifnot(is.finite(gridcell_res), length(gridcell_res) == 2L)
+	# make sure that gridcell_crs is valid
+	stopifnot((temp <- rgdal::checkCRSArgs(as.character(gridcell_crs)))[[1]])
+	gridcell_crs <- sp::CRS(temp[[2]])
 
+	# extraction functions
 	if (extract_gridcell_or_point == "point") {
 		#' function to extract data for sites
 		#'
@@ -77,10 +87,173 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
 			raster::extract(data, x)
 		})
+		
 	} else if (extract_gridcell_or_point == "gridcell") {
+		
+		#' Extract values from Raster* objects that are covered by an extent rectangle.
+		#'
+		#' A cell is covered if its center is inside the polygon (but see the weights option for considering partly covered cells).
+		#' 
+		#' @paramInherits raster::extract
+		#' @param y A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the corners of an \code{\linkS4class{Extent}} object.
+		#' @seealso \code{\link[raster]{extract}}
+		
+		#' @return A list with one item for each extent of \code{y}.
+		#' 	Each element is a matrix where each row corresponds to one of the cells of \code{x} contained in a SpatialPolygon
+		#' 	and where columns correspond to layers of \code{x}.
+		#'	If \code{weights} is \code{TRUE}, then an additional last column is added which contains the weights of the rows.
+		extract_blocks <- compiler::cmpfun(function(x, y, weights = FALSE) {
+			stopifnot(ncol(y) == 4L)
+			
+			grid_res <- raster::res(x)
+			iseq <- seq_len(nrow(y))
+			
+			cell_blocks <- lapply(iseq, function(i) {
+				ext <- raster::extent(y[i, 1], y[i, 2], y[i, 3], y[i, 4])
+				if (weights) ext <- ext + grid_res
+				raster::cellsFromExtent(object = x, extent = ext, expand = FALSE)
+			})
+			
+			unique_cells <- sort(unique(unlist(cell_blocks)))
+			vtemp <- raster::extract(x, y = unique_cells)
+			vals <- lapply(cell_blocks, function(block) vtemp[match(block, unique_cells, nomatch = 0), ])
+	
+			
+			if (weights) {
+				xy_cell_block <- lapply(cell_blocks, function(block)
+					raster::xyFromCell(object = x, cell = block))
+			
+				halfres <- grid_res / 2
+				coords_cell_block <- lapply(xy_cell_block, function(xy)
+					cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
+						  xy[, 2] - halfres[2], xy[, 2] + halfres[2]))
+				
+				vals <- lapply(iseq, function(i) {
+					xy <- coords_cell_block[[i]]
+					ext <- y[i, ]
+					overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
+					overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
+					w <- overlap_dx * overlap_dy
+					cbind(vals[[i]], weight = w / sum(w))
+				})
+				
+			}			
+			
+			vals
+		})
+
+
+		#' Extract all cell values that occur within each rectangle
+		#'
+		#' This is similar to \code{\link[raster]{aggregate}} but with more control and information.
+		#'
+		#' Available extraction \code{method}s include
+		#'  \describe{
+		#' 		\item{raster}{Uses the function \code{\link[raster]{extract}}}
+		#' 		\item{raster_con}{Uses the function \code{extract2_Raster_SpatialPolygons}. This is a modified version of \code{\link[raster]{extract}} where the 'connection' to the raster file is stable for the entire extraction call and not re-opened/closed for each read event. This allows a massive speed-up which scales with the number of 'rectangles' to be extracted.}
+		#' 		\item{block}{Uses the function \code{extract_blocks}.
+		#' 	}
+		#' The weighted mean of the extracted values can be calculated as weighted.mean(values, w = weights)
+		#' 
+		#' @param x A raster* object from which data is extracted.
+		#' @param coord A numeric vector of length two or a matrix with two columns. The x and y coordinates of the center(s) of the rectangle(s).
+		#' @param to_res A numeric vector of length two. The x- and y-extent of the rectangle(s).
+		#' @param with_weigths A logical value or \code{NULL}. If \code{NULL}, then code attempts to determine whether weights are required for the call to \code{\link[raster]{extract}}.
+		#' @param method A character string. Selects the extraction method, see details.
+		#' @param tol A numeric value. The absolute tolerance for deviation used if \code{is.null(with_weights)}.
+		#'
+		#' @return A list of length corresponding to the number of rectangles. Each element is a list which contains three items each
+		#'	\describe{
+		#'		\item{N}{An integer vector. The number of unique values within the rectangle for each layer of \code{x}.}
+		#'		\item{values}{A list of numeric vectors. The sorted unique values as vector for each layer.}
+		#'		\item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
+		#'	}
+		reaggregate <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), with_weights = NULL, method = c("raster", "raster_con", "block"), tol = 1e-2) {
+			if (is.null(dim(coords)) && length(coords) == 2L) {
+				coords <- matrix(coords, ncol = 2)
+			}
+			
+			fun_extract <- switch(EXPR = method,
+									raster = raster::extract,
+									raster_con = extract2_Raster_SpatialPolygons,
+									block = extract_blocks)
+			
+			to_halfres <- to_res / 2
+			cxy <- cbind(coords[, 1] - to_halfres[1], coords[, 1] + to_halfres[1],
+						 coords[, 2] - to_halfres[2], coords[, 2] + to_halfres[2])
+			
+			if (method %in% c("raster", "raster_con")) {
+				# Create SpatialPolygons with #features == # rectangles
+				ptemp0 <- lapply(seq_len(nrow(coords)),
+									function(i) matrix(c(cxy[i, 1], cxy[i, 3], cxy[i, 1], cxy[i, 4], cxy[i, 2], cxy[i, 4], cxy[i, 2], cxy[i, 3]),
+												ncol = 2, byrow = TRUE))
+				ptemp1 <- lapply(ptemp0, sp::Polygon)
+				ptemp2 <- lapply(seq_along(ptemp1), function(i) sp::Polygons(ptemp1[i], ID = i))
+				ys <- sp::SpatialPolygons(ptemp2, proj4string = raster::crs(x))
+			} else if (method == "block") {
+				ys <- cxy
+			}
+			
+			if (is.null(with_weights)) {
+				# determine if we need the 'weights' argument to extract (c. 2-times slower)
+				#	- to_res is a (whole number) multiple of res(grid)
+				fact <- to_res / raster::res(x)
+				#	- corners of cell_poly align with the origin of grid
+				orig <- (c(cxy[1, 1], cxy[1, 3]) - raster::origin(x)) / to_res
+				with_weights <- !all(sapply(c(fact, orig), function(f) isTRUE(all.equal(round(f), f, tolerance = tol, scale = 1))))
+			}
+			
+			# extract
+			nl <- raster::nlayers(x)
+			
+			# @param sval A list with one item for each 'ys'. Each element is a matrix where each row corresponds to one of the cells contained in the 'rectangle' and where columns correspond to layers in 'x' plus the last column which contain the weights of the rows.
+			if (with_weights) {
+				sval <- fun_extract(x = x, y = ys, weights = TRUE)
+			} else {
+				temp <- fun_extract(x = x, y = ys, weights = FALSE)
+				sval <- lapply(temp, function(v) if (length(v) > 0) cbind(v, nl / length(v)) else NA)
+			}
+			
+			# Return object
+			lapply(sval, function(v)
+				if (length(v) > 0) {
+					w <- v[, ncol(v)]
+					f <- lapply(seq_len(nl), function(i) as.vector(tapply(w, v[, i], sum)))
+					vals <- lapply(seq_len(nl), function(i) sort(unique(v[, i])))
+					list(N = lengths(f), values = vals, fraction = f)
+				} else {
+					list(N = -1, values = NULL, fraction = NULL)
+				})
+		})
+
+
+		
+		#' Resample with 'weighted mean' as the aggregation function
+		#'
+		#' @paramInherits reaggregate
+		#' @return A matrix. The columns correspond to layers of the Raster* object \code{x}. 
+		#' The rows correspond to each rectangle, i.e., a row of \code{coords}.
+		reaggregate_wmean <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), with_weights = NULL, method = "raster", tol = 1e-2) {
+			temp <- reaggregate(x = x, coord = coords, to_res = to_res, with_weights = with_weights, method = method, tol = tol)
+			
+			res <- sapply(temp, function(vals) {
+					vapply(seq_along(vals[["N"]]), function(i) {
+						if (vals[["N"]][i] > 0) {
+							weighted.mean(vals[["values"]][[i]], w = vals[["fraction"]][[i]])
+						} else NA
+					}, NA_real_)
+			})
+			
+			if (is.null(dim(res))) matrix(res, ncol = 1) else t(res)
+		})
+
+
 		#' function to extract data for raster cells
 		#'
-		#' @param x A RasterLayer object for which !NA cells values of 'data' are resampled and extracted
+		#' @description This function is slow because of the call to \code{\link[raster]{resample}}.
+		#' The result is also too smooth because of 'two' smoothing steps: (i) aggregation and (ii) 'bilinear' resampling method.
+		#' 
+		#' @param x A RasterLayer object for which !NA cells, values of 'data' are resampled and extracted
 		#' @param data A raster* object from which data is extracted
 		#' @param ...
 		#'	\describe{
@@ -88,8 +261,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		#'		\item{coords}{Points represented by a two-column matrix or data.frame, or SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector representing cell numbers.}
 		#'		\item{crit_v_exclude}{A character string representing a logical expression based on a variable named 'v'. If present, then the condition(s) are applied to 'data' before resampling.}
 		#'	}
+		#' @seealso \code{\link[raster]{extract}}
 		#' @return A vector or matrix with length/rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
-		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
+		extract_external_data_old <- compiler::cmpfun(function(x, data, ...) {
 			dots <- list(...)	# coords, method
 			if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
 			if ("crit_v_exclude" %in% names(dots)) {
@@ -101,7 +275,143 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			data2 <- raster::resample(x = data, y = x, method = dots[["method"]])
 			raster::extract(x = data2, y = dots[["coords"]])	# extract by coords == run_sites[do_extract, ] to get the correct order
 		})
+		
+
+		#' function to extract data for raster cells
+		#'
+		#' @param x Either A RasterLayer OR a numeric vector of length two. If the former, then values of \code{data} are resampled and extracted for !NA cells.
+		#'		If the latter, then the vector represents the raster resolution in x- and y-coordinates.
+		#' @param data A raster* object from which data is extracted
+		#' @param ...
+		#'	\describe{
+		#'		\item{method}{A character string. The method argument passed to \code{reaggregate}. Default is 'block' which is the fastest.}
+		#'		\item{coords}{Cell centers (corresponding to !NA cells of \code{x}) that are represented by a two-column matrix of xy coordinates. If not provided, then extracted from \code{x}.}
+		#'	}
+		#' @seealso \code{\link[raster]{extract}}
+		#' @return A matrix with rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
+		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
+			dots <- list(...)
+			
+			if (!("method" %in% names(dots)))
+				dots[["method"]] <- "block"
+			
+			if (!("coords" %in% names(dots))) {
+				dots[["coords"]] <- raster::xyFromCell(x, cell = seq_len(raster::ncell(x)))
+			} else {
+				dots[["coords"]] <- sp::coordinates(dots[["coords"]])
+			}
+			if (nrow(dots[["coords"]]) == 0)
+				return(matrix(NA, ncol = raster::nlayers(data)))
+			
+			if (inherits(x, "Raster")) {
+				to_res <- raster::res(x)
+			} else {
+				stopifnot(is.vector(x), length(x) == 2L, x > 0)
+				to_res <- x
+			}
+			
+			reaggregate_wmean(x = data,
+				coords = dots[["coords"]],
+				to_res = to_res,
+				with_weights = TRUE,
+				method = dots[["method"]])
+		})
+		
+		#' Extracts the 'units' argument from a CRS object
+		#'
+		#' @param CRS A Raster*, Spatial*, CRS, or character object with a coordinate reference system (CRS).
+		#' @return A character string or \code{NA}.
+		crs_units <- compiler::cmpfun(function(CRS) {
+			args_crs <- raster::crs(CRS, asText = TRUE)
+			stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
+			
+			args2 <- strsplit(args_crs, split = "+", fixed = TRUE)[[1]]
+			units <- trimws(args2[grep("units", args2)])
+			if (length(units) > 0) {
+				strsplit(units, split = "=", fixed = TRUE)[[1]][2]
+			} else NA
+		})
+		
+		#' Aligns 'grid_from' with 'grid_to' for certain cells
+		#'
+		#' @param grid_from A RasterLayer object.
+		#' @param coords A matrix of x and y coordinates, or a SpatialPoints or SpatialPointsDataFrame object indicating which cells of projected 'grid_from' will be used.
+		#' @param grid_to A RasterLayer object.
+		#' @param crs_to A CRS object or \code{NULL} in which case it will be extracted from \code{grid_to}.
+		#'
+		#' @return A list with two elements
+		#'	\describe{
+		#'		\item{x}{A RasterLayer object. Cells values are \code{NA} or 1 if they contain points of \code{coords}.}
+		#'		\item{index}{An integer vector. The cell numbers of \code{x} that correspond to \code{coords}.}
+		#' }
+		align_with_target_grid <- compiler::cmpfun(function(grid_from, coords, grid_to, crs_to = NULL) {
+			if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
+			
+			# Align with data crs
+			if (raster::compareCRS(crs_data, raster::crs(grid_from))) {
+				x <- grid_from
+			} else {
+				to_ext <- raster::projectExtent(grid_from, grid_to)
+				if (identical(crs_units(to_ext), crs_units(grid_from))) {
+					raster::res(to_ext) <- raster::res(grid_from)
+				}
+				raster::origin(to_ext) <- raster::origin(grid_to)
+				x <- raster::projectRaster(grid_from, to = to_ext, method = "ngb")
+			}
+			
+			# locations of simulation runs
+			x <- raster::init(x, fun = function(i) rep(NA, i))
+			imatch <- raster::cellFromXY(x, coords)
+			x[imatch] <- 1
+	
+			list(x = x, index = imatch)
+		})
+
+
+		#' Calculate resolution of one coordinate system for points in their coordinate system transformed to a target coordinate system 
+		#'
+		#' @param res_from A numeric vector of length two. The resolution in x and y direction in the coordinate system \code{crs_from}.
+		#' @param crs_from A CRS object. The coordinate system of \code{res_from}.
+		#' @param sp A SpatialPoints object. Cell center points for which new resolutions will be calculated.
+		#' @param crs_sp A CRS object. The coordinate system of \code{sp}.
+		#' @param crs_to A CRS object. The coordinate system in which the resulting resolution will be calculated.
+		#'
+		#' @return A numeric vector of length two (if resolution is constant for each point) or a matrix with two columns for the x- and y-resolutions per row for each point.
+		align_with_target_res <- compiler::cmpfun(function(res_from, crs_from, sp, crs_sp, crs_to) {
+			if (identical(crs_units(crs_from), crs_units(crs_to))) {
+				res_from
+			} else {
+				if (!raster::compareCRS(crs_sp, crs_from)) {
+					# transform points to same coordinate system as resolution
+					sp_from <- sp::spTransform(sp, CRS = crs_from)
+				}
+				
+				# resolution is constant for every point in crs_from
+				coords_from <- sp::coordinates(sp_from)
+				from_halfres <- res_from / 2
+				
+				# cell corners of each point
+				#	- lower left cell corner
+				cxy0_from <- cbind(coords_from[, 1] - from_halfres[1], coords_from[, 2] - from_halfres[2])
+				cxy0_from_sp <- sp::SpatialPoints(coords = cxy0_from, proj4string = crs_from)
+				#	- upper right cell corner
+				cxy1_from <- cbind(coords_from[, 1] + from_halfres[1], coords_from[, 2] + from_halfres[2])
+				cxy1_from_sp <- sp::SpatialPoints(coords = cxy1_from, proj4string = crs_from)
+				
+				# transform cell corners to target coordinate system
+				cxy0_to_sp <- sp::spTransform(cxy0_from_sp, CRS = crs_to)
+				cxy1_to_sp <- sp::spTransform(cxy1_from_sp, CRS = crs_to)
+				
+				# resolution varies with latitude of points in crs_to
+				cxy0_to <- sp::coordinates(cxy0_to_sp)
+				cxy1_to <- sp::coordinates(cxy1_to_sp)
+				
+				abs(cxy1_to - cxy0_to)
+			}
+		})
+
 	}	
+
 }
 
 #--------------------------------------------------------------------------------------------------#
@@ -1363,17 +1673,17 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	calc.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) { 
 		#Identify index for site and scenario
 		ig <- (i - 1) %% length(reqGCMs) + 1
+		il <- (i - 1) %/% length(reqGCMs) + 1
+
 		gcm <- reqGCMs[ig]
 		rcps <- reqRCPsPerGCM[[ig]]
 		downs <- reqDownscalingsPerGCM[[ig]]
-		il <- (i - 1) %/% length(reqGCMs) + 1
-		lon <- locations[il, 1]
-		lat <- locations[il, 2]
-		site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, 3], "Site_id"]		
+		lon <- locations[il, "X_WGS84"]
+		lat <- locations[il, "Y_WGS84"]
+		site_id <- locations[il, "site_id"]
+#		site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, "WeatherFolder"], "Site_id"]		
 		ncFiles_gcm <- if (is_GDODCPUCLLNL) gcmFiles[grepl(paste0("_", as.character(gcm), "_"), gcmFiles)] else NULL
 		if (!be.quiet) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#			if (!be.quiet && (i-1) %% print_int == 0) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
-#			if (!be.quiet && (i-1) %% 10000 == 0) saveRDS(i, file=file.path(dir.out.temp, paste0("iteration_", i, ".rds")))
 		
 		# Data Bounding Box
 		if (!(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2])) {
@@ -1585,6 +1895,127 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		res
 	})
 
+	#' Make daily weather for a scenario
+	#'
+	#' A wrapper function for \code{calc.ScenarioWeather} with error control. This function assumes that a
+	#' whole bunch of variables exist in the parent environment and contain appropriate values.
+	try.ScenarioWeather <- compiler::cmpfun(function(i) {
+		temp <- try(calc.ScenarioWeather(i = i,
+						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						gcmFiles = gcmFiles,
+						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+						climate.ambient = climate.ambient,
+						bbox = bbox,
+						locations = locations,
+						dbW_iSiteTable = dbW_iSiteTable,
+						varTags = varTags, fileVarTags = fileVarTags,
+						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+						simstartyr = simstartyr, endyr = endyr,
+						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+						downscaling.options = downscaling.options,
+						dir.out.temp = dir.out.temp,
+						be.quiet = be.quiet,
+						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles),
+					silent = FALSE)
+		
+		if (inherits(temp, "try-error")) {
+			print(paste(Sys.time(), temp))
+			save(i, temp, file = file.path(dir.out.temp, paste0("failed_", i, ".RData")))
+			res <- NULL
+		} else {
+			res <- i
+		}
+
+		res
+	})
+
+	#' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
+	#'
+	#' This function assumes that a whole bunch of global variables exist and contain appropriate values.
+	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, locations, varTags, fileVarTags, getYears, assocYears, saveNEXtempfiles) {
+		#requests is_ToDo: fastest if nc file is
+		#	- DONE: permutated to (lat, lon, time) instead (time, lat, lon)
+		#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
+		#TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
+
+		if (parallel_runs && parallel_init) {
+			is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
+
+			# extract the GCM data depending on parallel backend
+			if (identical(parallel_backend, "mpi")) {
+				exportObjects(list.export)
+				if (is_NEX && useRCurl && !saveNEXtempfiles)
+					mpi.bcast.cmd(library("RCurl", quietly=TRUE))
+				if (is_GDODCPUCLLNL)
+					mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
+				mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
+				mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+			
+				i_Done <- mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather)
+			
+				mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+				mpi.bcast.cmd(rm(list=ls()))
+				mpi.bcast.cmd(gc())
+				
+			} else if (identical(parallel_backend, "snow")) {
+				snow::clusterExport(cl, list.export, envir=parent.frame())
+				if (is_NEX && useRCurl && !saveNEXtempfiles)
+					snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
+				if (is_GDODCPUCLLNL)
+					snow::clusterEvalQ(cl, library("ncdf4", quietly=TRUE))
+				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
+				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+			
+				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather)
+			
+				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+				snow::clusterEvalQ(cl, rm(list=ls()))
+				snow::clusterEvalQ(cl, gc())
+				
+			} else if (identical(parallel_backend, "multicore")) {
+				packages.export <- "Rsoilwat31"
+				if (is_NEX && useRCurl && !saveNEXtempfiles)
+					packages.export <- c(packages.export, "RCurl")
+				if (is_GDODCPUCLLNL)
+					packages.export <- c(packages.export, "ncdf4")
+				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
+					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+					temp <- try.ScenarioWeather(i)
+					Rsoilwat31::dbW_disconnectConnection()
+					return(temp)
+				}
+			} else {
+				i_Done <- NULL
+			}
+			
+		} else {
+			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i)
+			Rsoilwat31::dbW_disconnectConnection()
+		}
+	
+
+		if (!be.quiet) print(paste("Started adding temporary files into database '", GCM_source, "' at", Sys.time()))
+		Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+		temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+		if (length(temp.files) > 0) {
+			for (k in seq_along(temp.files)) {
+				wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
+				for (j in seq_along(wdataOut)) {
+					for (l in seq_along(wdataOut[[j]])) {
+						res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
+						if (inherits(res, "try-error")) break
+					}
+					if (inherits(res, "try-error")) break
+				}
+				if (!inherits(res, "try-error")) unlink(ftemp)
+			}
+		}
+		Rsoilwat31::dbW_disconnectConnection()
+	
+		sort(unlist(i_Done))
+	})
+
 
 }
 
@@ -1627,6 +2058,7 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 	#write data to datafile.SWRunInformation
 	SWRunInformation$GCM_sources[seq.tr] <- as.character(sites_GCM_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 	if (anyNA(sites_GCM_source)) warning("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
 
@@ -1708,7 +2140,7 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 		stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
 
 		#put requests together
-		locations <- with(SWRunInformation[do_SWRun_sites, ], data.frame(X_WGS84, Y_WGS84, WeatherFolder))	#locations of simulation runs
+		locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
 		requestN <- length(reqGCMs) * nrow(locations)
 		if (!be.quiet) print(paste("'", GCM_source, "' will run", requestN, "times"))
 	
@@ -1800,38 +2232,8 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 		}
 
 	
-		try.ScenarioWeather <- function(i) {
-			temp <- try(calc.ScenarioWeather(i = i,
-							GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
-							gcmFiles = gcmFiles,
-							reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-							climate.ambient = climate.ambient,
-							bbox = bbox,
-							locations = locations,
-							dbW_iSiteTable = dbW_iSiteTable,
-							varTags = varTags, fileVarTags = fileVarTags,
-							getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-							simstartyr = simstartyr, endyr = endyr,
-							DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-							downscaling.options = downscaling.options,
-							dir.out.temp = dir.out.temp,
-							be.quiet = be.quiet,
-							useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles),
-						silent = FALSE)
-			
-			if (inherits(temp, "try-error")) {
-				print(paste(Sys.time(), temp))
-				save(i, temp, file = file.path(dir.out.temp, paste0("failed_", i, ".RData")))
-				res <- NULL
-			} else {
-				res <- i
-			}
-	
-			res
-		}
-
 		#objects that need exporting to workers
-		list.export <- c("dir.out.temp", "dir.ex.dat", "GCM_source", "is_GDODCPUCLLNL", "is_NEX", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "future_yrs", "DScur_startyr", "DScur_endyr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "GCM_source", "print_int",
+		list.export <- c("dir.out.temp", "GCM_source", "is_GDODCPUCLLNL", "is_NEX", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "future_yrs", "DScur_startyr", "DScur_endyr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "print_int",
 				"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
 				"downscale.raw", "downscale.delta", "downscale.deltahybrid", "downscale.deltahybrid3mod", "downscale.periods",
 				"in_GMC_box", "unique_times", "useSlices", "erf", "add_delta_to_PPT", "fix_PPTdata_length", "calc_Days_withLoweredPPT", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "stretch_values", 
@@ -1846,93 +2248,10 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 				"mmPerDay_to_cmPerMonth", "whereNearest", "get.TimeIndices", "get.SpatialIndices", "do_ncvar_get")
 		}
 
-		tryToGet_ClimDB <- function(is_ToDo) {
-			#requests is_ToDo: fastest if nc file is
-			#	- DONE: permutated to (lat, lon, time) instead (time, lat, lon)
-			#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
-			#TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
-	
-			if (parallel_runs && parallel_init) {
-				is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
-
-				# extract the GCM data depending on parallel backend
-				if (identical(parallel_backend, "mpi")) {
-					exportObjects(list.export)
-					if (is_NEX && useRCurl && !saveNEXtempfiles)
-						mpi.bcast.cmd(library("RCurl", quietly=TRUE))
-					if (is_GDODCPUCLLNL)
-						mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
-					mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
-					mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
-				
-					i_Done <- mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather)
-				
-					mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
-					mpi.bcast.cmd(rm(list=ls()))
-					mpi.bcast.cmd(gc())
-					
-				} else if (identical(parallel_backend, "snow")) {
-					snow::clusterExport(cl, list.export, envir=parent.frame())
-					if (is_NEX && useRCurl && !saveNEXtempfiles)
-						snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
-					if (is_GDODCPUCLLNL)
-						snow::clusterEvalQ(cl, library("ncdf4", quietly=TRUE))
-					snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
-					snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
-				
-					i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather)
-				
-					snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-					snow::clusterEvalQ(cl, rm(list=ls()))
-					snow::clusterEvalQ(cl, gc())
-					
-				} else if (identical(parallel_backend, "multicore")) {
-					packages.export <- "Rsoilwat31"
-					if (is_NEX && useRCurl && !saveNEXtempfiles)
-						packages.export <- c(packages.export, "RCurl")
-					if (is_GDODCPUCLLNL)
-						packages.export <- c(packages.export, "ncdf4")
-					i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
-						Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-						temp <- try.ScenarioWeather(i)
-						Rsoilwat31::dbW_disconnectConnection()
-						return(temp)
-					}
-				} else {
-					i_Done <- NULL
-				}
-				
-			} else {
-				Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i)
-				Rsoilwat31::dbW_disconnectConnection()
-			}
-		
-
-			if (!be.quiet) print(paste("Started adding temporary files into database '", GCM_source, "' at", Sys.time()))
-			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-			temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
-			if (length(temp.files) > 0) {
-				for (k in seq_along(temp.files)) {
-					wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
-					for (j in seq_along(wdataOut)) {
-						for (l in seq_along(wdataOut[[j]])) {
-							res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
-							if (inherits(res, "try-error")) break
-						}
-						if (inherits(res, "try-error")) break
-					}
-					if (!inherits(res, "try-error")) unlink(ftemp)
-				}
-			}
-			Rsoilwat31::dbW_disconnectConnection()
-		
-			sort(unlist(i_Done))
-		}
 
 		#Repeat call to get climate data for all requests until complete
 		repeatN <- 0
-		i_AllToDo <- 1:requestN
+		i_AllToDo <- seq_len(requestN)
 		i_Done <- NULL
 	
 		logFile <- file.path(dir.out, paste0("extractionsDone_", GCM_source, ".rds"))
@@ -1943,11 +2262,17 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 		if (length(temp.files) > 0) {
 			i_Done <- sort(unique(c(i_Done, as.integer(unlist(strsplit(unlist(strsplit(temp.files, split="_", fixed=TRUE))[c(FALSE, TRUE)], split=".", fixed=TRUE))[c(TRUE, FALSE)]))))
 		}
+		
 		while (repeatExtractionLoops_maxN > repeatN && length(i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0) {
 			repeatN <- repeatN + 1
 			if (!be.quiet) print(paste("'", GCM_source, "' will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
-			i_Done <- sort(unique(c(i_Done, tryToGet_ClimDB(is_ToDo=i_ToDo))))
-			saveRDS(i_Done, file=logFile)
+			
+			out <- tryToGet_ClimDB(is_ToDo = i_ToDo,
+				list.export = list.export,
+				GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, locations, varTags, fileVarTags, getYears, assocYears, saveNEXtempfiles)
+			
+			i_Done <- sort(unique(c(i_Done, out)))
+			saveRDS(i_Done, file = logFile)
 		}
 		rm(i_ToDo, logFile)
 
@@ -1957,7 +2282,7 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 			failedLocations_DB <- locations[temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1), ]
 			include_YN_updateFailed <- include_YN
 			include_YN_updateFailed[do_SWRun_sites][temp] <- 0
-			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, "failedLocations_ClimDB.RData"))
+			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("failedLocations_ClimDB_", GCM_source, ".RData")))
 			SWRunInformation_updateFailed <- cbind(SWRunInformation, include_YN_updateFailed=include_YN_updateFailed)
 			write.csv(SWRunInformation_updateFailed, file=file.path(dir.in, paste0("failedLocationsUpdated_ClimDB_", GCM_source, "_", datafile.SWRunInformation)))
 			rm(failedLocations_DB, include_YN_updateFailed, SWRunInformation_updateFailed)
@@ -1977,7 +2302,7 @@ if (	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_
 								do_SWRun_sites = seq.tr[sites_GCM_source == isource])
 	}
 
-	rm(sites_GCM_source, xy, i_use, id_sites, get_climatechange_data)
+	rm(sites_GCM_source, xy, i_use, xy, get_climatechange_data)
 }
 
 
@@ -2055,6 +2380,7 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 			#write data to datafile.climatescenarios_values
 			tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
 			write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 			
 			rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
 		} else {
@@ -2098,7 +2424,6 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			soil_data <- array(NA, dim=c(sum(do_extract), nl, 5), dimnames=list(NULL, paste0("L", seq_len(nl)), c("bedrock", "matricd", "rockvol", "sand", "clay")))
 			g <- raster::brick(file.path(dir.ex.conus, "bd.tif"))
 			crs_data <- raster::crs(g)
-			res_data <- raster::res(g)
 
 			#locations of simulation runs
 			sites_conus <- run_sites[do_extract, ]
@@ -2108,51 +2433,64 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			}
 
 			if (extract_gridcell_or_point == "point") {
-				x_conus <- sites_conus
-				args_template <- list(x = x_conus)
+				args_template <- list(x = sites_conus)
 				
 			} else if (extract_gridcell_or_point == "gridcell") {
-				# Align with data crs
-				if (raster::compareCRS(crs_data, raster::crs(cell_raster))) {
-					x_conus <- cell_raster
-				} else {
-					to_ext <- raster::projectExtent(cell_raster, g)
-					raster::res(to_ext) <- raster::res(cell_raster)
-					raster::origin(to_ext) <- raster::origin(g)
-					x_conus <- raster::projectRaster(cell_raster, to = to_ext, method = "ngb")
-				}
-				# locations of simulation runs
-				x_conus[] <- NA
-				x_conus[raster::cellFromXY(x_conus, sites_conus)] <- 1
-								
-				args_template <- list(x = x_conus, coords = sites_conus, method = "bilinear")
-			
-			} else {
-				stop("Flag 'extract_gridcell_or_point' has no accepted value; it should be 'point' or 'gridcell'")
+				cell_res_conus <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+					sp = run_sites, crs_sp = crs_sites, crs_to = crs_data)
+				args_template <- list(x = cell_res_conus, coords = sites_conus, method = "block")			
 			}
-	
+
 			#extract data
-			cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
-			g <- raster::calc(g, fun = cond30) # bulk density of less than 0.3 g / cm3 should be treated as no soil
+			ftemp <- file.path(dir.ex.conus, "bd_cond30.tif")
+			if (file.exists(ftemp)) {
+				g <- raster::brick(ftemp)
+			} else {
+				# bulk density of less than 0.3 g / cm3 should be treated as no soil
+				cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
+				g <- raster::calc(g, fun = cond30, filename = ftemp)
+			}
 			soil_data[, , "matricd"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100	
 
-			g <- raster::raster(file.path(dir.ex.conus, "rockdepm.tif"))
 			cond0 <- compiler::cmpfun(function(v) ifelse(!is.na(v) & v > 0, v, NA))
-			g <- raster::calc(g, fun = cond0) # rockdepth of 0 cm should be treated as no soil
+			ftemp <- file.path(dir.ex.conus, "rockdepm_cond0.tif")
+			if (file.exists(ftemp)) {
+				g <- raster::raster(ftemp)
+			} else {
+				# rockdepth of 0 cm should be treated as no soil
+				g <- raster::calc(raster::raster(file.path(dir.ex.conus, "rockdepm.tif")), fun = cond0, filename = ftemp)
+			}
 			soil_data[, 1, "bedrock"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
 			lys <- 1:max(findInterval(soil_data[, 1, "bedrock"], ldepth), na.rm=TRUE)
 
 			g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
 			rockvol <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
 	
-			g <- raster::brick(file.path(dir.ex.conus, "sand.tif"))
-			g <- raster::calc(g, fun = cond0) # sand of 0 % should be treated as no soil
+			ftemp <- file.path(dir.ex.conus, "sand_cond0.tif")
+			if (file.exists(ftemp)) {
+				g <- raster::brick(ftemp)
+			} else {
+				# sand of 0 cm should be treated as no soil
+				g <- raster::calc(raster::brick(file.path(dir.ex.conus, "sand.tif")), fun = cond0, filename = ftemp)
+			}
 			sand <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
-			g <- raster::brick(file.path(dir.ex.conus, "clay.tif"))
-			g <- raster::calc(g, fun = cond0) # clay of 0 % should be treated as no soil
+
+			ftemp <- file.path(dir.ex.conus, "clay_cond0.tif")
+			if (file.exists(ftemp)) {
+				g <- raster::brick(ftemp)
+			} else {
+				# clay of 0 cm should be treated as no soil
+				g <- raster::calc(raster::brick(file.path(dir.ex.conus, "clay.tif")), fun = cond0, filename = ftemp)
+			}
 			clay <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
-			g <- raster::brick(file.path(dir.ex.conus, "silt.tif"))
-			g <- raster::calc(g, fun = cond0) # silt of 0 % should be treated as no soil
+
+			ftemp <- file.path(dir.ex.conus, "silt_cond0.tif")
+			if (file.exists(ftemp)) {
+				g <- raster::brick(ftemp)
+			} else {
+				# silt of 0 cm should be treated as no soil
+				g <- raster::calc(raster::brick(file.path(dir.ex.conus, "silt.tif")), fun = cond0, filename = ftemp)
+			}
 			silt <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
 
 			if (FALSE) {#visualize in interactive sessions
@@ -2196,6 +2534,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soillayers[seq.tr[i_Done], "SoilDepth_cm"] <- soil_data[i_good, 1, "bedrock"]
 				sw_input_soillayers[seq.tr[i_Done], 2+lys] <- matrix(data=rep(ldepth[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
@@ -2215,10 +2554,11 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#write data to datafile.soils
 				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		
 				rm(tempdat, i.temp)
 			}
-			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, x_conus, soil_data, cond0, cond30)
+			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
@@ -2245,58 +2585,43 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			is_ToDo <- seq_along(run_sites_wise)
 		
 			#---extract data
-			grid_wise <- raster(x=file.path(dir.ex.dat, "Grid", "smw5by5min"))
+			grid_wise <- raster::raster(x=file.path(dir.ex.dat, "Grid", "smw5by5min"))
 
 			#- List all the wise cells that are covered by the grid cell or point location
 			if (extract_gridcell_or_point == "point") {
-				suids <- extract(grid_wise, run_sites_wise)
-				sim_cells_SUIDs <- data.frame(i=is_ToDo, SUIDs_N=1, SUID=suids, fraction=1)
+				suids <- raster::extract(grid_wise, run_sites_wise)
+				sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
 			
 			} else if (extract_gridcell_or_point == "gridcell") {
-			
-				extract_SUIDs <- function(i, res = c(0, 0)) {
-					# coord: X, Y coordinates of point or cell center
-					# res: grid cell resolution
-					.local <- function(i) {
-						coord <- coordinates(run_sites_wise[i, ])
-						resp <- list(i=i, SUIDs_N=0, SUID=NULL, fraction=NULL)
-
-						cells_wise <- cellsFromExtent(object=grid_wise, extent=extent(coord[1] - res[1]/2, coord[1] + res[1]/2, coord[2] - res[2]/2, coord[2] + res[2]/2), expand=FALSE)
-						if (!is.null(cells_wise)) {
-							minmax_cells_wise <- range(cells_wise, na.rm=TRUE)
-							xy_minmax_cells_wise <- xyFromCell(object=grid_wise, cell=minmax_cells_wise)
-
-							icol <- colFromX(object=grid_wise, x=xy_minmax_cells_wise[, 1])
-							irow <- rowFromY(object=grid_wise, y=xy_minmax_cells_wise[, 2])
-		
-							#extract values
-							sval <- sort(getValuesBlock(x=grid_wise, row=irow[1], nrow=1 + diff(irow), col=icol[1], ncol=1 + diff(icol))) #getValuesBlock() faster than extract() for one location
-							if (length(sval) != length(cells_wise)) sval <- sval[sample(x=length(sval), size=length(cells_wise))]
-
-							#calculate proportions of each value
-							temp <- rle(sval)
-
-							resp$SUIDs_N <- length(temp$values)
-							resp$SUID <- temp$values
-							resp$fraction <- temp$lengths / length(cells_wise)
-						}
-				
-						return(resp)
+				cell_res_wise <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+					sp = run_sites_wise, crs_sp = crs_sites, crs_to = raster::crs(grid_wise))
+							
+				extract_SUIDs <- compiler::cmpfun(function(i, res = c(0, 0)) {
+					# raster::nlayers(grid_wise) == 1
+					out <- try(reaggregate(x = grid_wise,
+								coord = sp::coordinates(run_sites_wise[i, ]),
+								to_res = if (is.null(dim(res))) res else res[i, ],
+								with_weights = TRUE,
+								method = "block"), silent = TRUE)
+					
+					if (inherits(out, "try-error")) {
+						list(i = i, SUIDs_N = -1, SUID = NULL, fraction = NULL)
+					} else {
+						list(i = i, SUIDs_N = out[[1]][["N"]][[1]],
+									SUID = out[[1]][["values"]][[1]],
+									fraction = out[[1]][["fraction"]][[1]])
 					}
-			
-					temp <- try(.local(i), silent=TRUE)
-					return(if (!inherits(temp, "try-error")) temp else list(i=i, SUIDs_N=-1, SUID=NULL, fraction=NULL))
-				}
+				})
 
 				if (parallel_runs && parallel_init) {
 					#objects that need exporting to slaves
-					list.export <- c("grid_wise", "run_sites_wise")
+					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise")
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
 						mpi.bcast.cmd(library(raster, quietly=TRUE))
 				
-						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res=cell_res)
+						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res=cell_res_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						mpi.bcast.cmd(rm(list=ls()))
@@ -2305,22 +2630,20 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						snow::clusterExport(cl, list.export, envir=parent.frame())
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
 				
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res=cell_res)
+						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res=cell_res_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						snow::clusterEvalQ(cl, rm(list=ls()))
 						snow::clusterEvalQ(cl, gc())
 					} else if (identical(parallel_backend, "multicore")) {
 						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i, res=cell_res)
+						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i, res=cell_res_wise)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
 				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% extract_SUIDs(i, res=cell_res)
+					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% extract_SUIDs(i, res=gridcell_res)
 				}
-			} else {
-				stop("Flag 'extract_gridcell_or_point' has no accepted value; it should be 'point' or 'gridcell'")
 			}
 			rm(grid_wise)
 
@@ -2451,6 +2774,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soillayers[seq.tr[i_Done], 2+lys] <- matrix(data=rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				sw_input_soillayers[seq.tr[i_Done], 2+(1:20)[-lys]] <- NA
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
@@ -2470,9 +2794,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#write data to datafile.soils
 				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 			}
 		
-			rm(sim_cells_soils, tempdat, i.temp, lys, run_sites_wise)
+			rm(sim_cells_soils, tempdat, i.temp, lys, run_sites_wise, cell_res_wise)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
@@ -2485,6 +2810,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 	include_YN[seq.tr[notDone]] <- 0
 	SWRunInformation$Include_YN[seq.tr[notDone]] <- 0
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 	if (any(notDone)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 }
@@ -2515,21 +2841,28 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
 		if (any(do_extract)) {
-			dir.ex.dat <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
+			dir.ex.ned <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
 	
 			#read raster data
-			g.elev <- raster(file.path(dir.ex.dat, "ned_1s_westernUS_GeogrNAD83.tif"))
+			g.elev <- raster::raster(file.path(dir.ex.ned, "ned_1s_westernUS_GeogrNAD83.tif"))
 			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			run_sites_ned <- run_sites[do_extract, ]
+			sites_ned <- run_sites[do_extract, ]
 			# Align with data crs
 			if (!raster::compareCRS(crs_sites, crs_data)) {
-				run_sites_ned <- sp::spTransform(run_sites_ned, CRS = crs_data)	#transform points to grid-coords
+				sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)	#transform points to grid-coords
 			}
-	
+
+			if (extract_gridcell_or_point == "point") {
+				args_template <- list(x = sites_ned)
+
+			} else if (extract_gridcell_or_point == "gridcell") {
+				args_template <- list(x = gridcell_res, coords = sites_ned, method = "block")			
+			}
+
 			#extract data for locations
-			elevation_m[do_extract] <- round(extract(g.elev, run_sites_ned))	# elevation in m a.s.l.
+			elevation_m[do_extract] <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
 
 			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
 			if (any(i_good)) {
@@ -2543,7 +2876,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 				}
 			}
 	
-			rm(g.elev, run_sites_ned)
+			rm(dir.ex.ned, g.elev, sites_ned, args_template, i_good)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
@@ -2555,21 +2888,30 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	
 		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
 		if (any(do_extract)) {
-			dir.ex.dat <- file.path(dir.ex.dem, "HWSD")
+			dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
 	
 			#read raster data
-			g.elev <- raster(file.path(dir.ex.dat, "GloElev_30as.asc"))
+			g.elev <- raster(file.path(dir.ex.hwsd, "GloElev_30as.asc"))
 			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			run_sites_hwsd <- run_sites[do_extract, ]
+			sites_hwsd <- run_sites[do_extract, ]
 			# Align with data crs
 			if (!raster::compareCRS(crs_sites, crs_data)) {
-				run_sites_hwsd <- sp::spTransform(run_sites_hwsd, CRS = crs_data)	#transform points to grid-coords
+				sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform points to grid-coords
+			}
+
+			if (extract_gridcell_or_point == "point") {
+				args_template1 <- list(x = sites_hwsd)
+
+			} else if (extract_gridcell_or_point == "gridcell") {
+				cell_res_hwsd <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+					sp = run_sites, crs_sp = crs_sites, crs_to = crs_data)
+				args_template2 <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block")			
 			}
 	
 			#extract data for locations
-			elevation_m[do_extract] <- round(extract(g.elev, run_sites_hwsd))	# elevation in m a.s.l.
+			elevation_m[do_extract] <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
 
 			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
 			if (any(i_good)) {
@@ -2582,7 +2924,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 					sites_elevation_source[which(do_extract)[!i_good]] <- NA
 				}
 			}
-			rm(g.elev, run_sites_hwsd)
+			rm(g.elev, sites_hwsd, cell_res_hwsd, dir.ex.hswd)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
@@ -2593,6 +2935,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	SWRunInformation$ELEV_m[seq.tr] <- elevation_m
 	SWRunInformation$Elevation_source[seq.tr] <- as.character(sites_elevation_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
 	if (anyNA(elevation_m)) warning("Elevation wasn't found for ", sum(is.na(elevation_m)), " sites")
 	
@@ -2683,6 +3026,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	
 				#write data to datafile.cloud
 				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 			
 				rm(i.temp)
 			}
@@ -2743,6 +3087,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 				#write data to datafile.cloud
 				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		
 				rm(i_Done, i.temp)
 			}
@@ -2756,6 +3101,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	#write data to datafile.SWRunInformation
 	SWRunInformation$ClimateNormals_source[seq.tr] <- as.character(sites_monthlyclim_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
 	if (anyNA(sites_monthlyclim_source)) warning("Climate normals weren't found for ", sum(is.na(sites_monthlyclim_source)), " sites")
 

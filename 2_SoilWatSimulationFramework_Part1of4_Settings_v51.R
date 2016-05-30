@@ -56,7 +56,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #parent folder of simulation project
 dir.prj <- "~/YOURPROJECT"
 if(interactive()) setwd(dir.prj)
-dir.prj <- dir.runs <- getwd()
+dir.prj <- dir.big <- getwd()
 
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
@@ -73,8 +73,8 @@ dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add infor
 dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
 dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
-dir.sw.runs <- file.path(dir.runs, "3_Runs")	#path to SoilWat-runs
-dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated output
+dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
+dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
 
 
 #------Define actions to be carried out by simulation framework
@@ -106,7 +106,7 @@ dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite3")
+dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
@@ -116,11 +116,12 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 # - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
 # if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation'
 extract_determine_database <- "order" # one of c("order", "SWRunInformation")
-#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global" and "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"
+#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global"
 extract_gridcell_or_point <- "gridcell" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
-# if (extract_gridcell_or_point == "gridcell"), then provide grid resolution or path to raster file
-cell_res <- c(1e4, 1e4)
-gridcell_raster <- file.path(dir.in, "mask_10km.tif")
+# if (extract_gridcell_or_point == "gridcell"), then provide either path to raster file (takes precedence) or (grid resolution and grid crs)
+fname_gridcell_raster <- file.path(dir.in, "mask_10km.tif")
+gridcell_res <- c(1e4, 1e4)
+gridcell_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
 # External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
