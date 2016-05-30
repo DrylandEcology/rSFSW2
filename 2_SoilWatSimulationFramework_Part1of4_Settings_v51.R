@@ -114,8 +114,8 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
 # - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over 'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested and data is available for both
 # - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
-# if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation'
-extract_determine_database <- "order" # one of c("order", "SWRunInformation")
+# if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation' if available; if not available, then fall back to option 'order'
+extract_determine_database <- "SWRunInformation" # one of c("order", "SWRunInformation")
 #extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global"
 extract_gridcell_or_point <- "gridcell" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
 # if (extract_gridcell_or_point == "gridcell"), then provide either path to raster file (takes precedence) or (grid resolution and grid crs)
