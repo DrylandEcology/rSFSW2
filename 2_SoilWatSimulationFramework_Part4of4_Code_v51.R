@@ -123,7 +123,7 @@ dir.sw.in <- normalizePath(dir.sw.in)
 if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
-dir.create2(dir.runs, showWarnings=FALSE, recursive=TRUE)
+dir.create2(dir.big, showWarnings=FALSE, recursive=TRUE)
 if(saveSoilWatInputOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
@@ -246,6 +246,10 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 } else {
 	# Read data from files
 	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
+	stopifnot(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
+		function(x) x %in% colnames(SWRunInformation)),		# required columns
+		all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation)))	# consecutive site_id
+	)	
 	include_YN <- SWRunInformation$Include_YN
 	labels <- SWRunInformation$Label
 
@@ -1283,6 +1287,8 @@ if(do_weather_source){
 			if(!be.quiet) print(paste("There are no daily weather data for", length(id_remove), "sites"))
 			SWRunInformation$Include_YN[seq.tr][id_remove] <- 0
 			write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+			
 			stop(paste("Restart code because master file", datafile.SWRunInformation, "has changed"))
 		}
 	}
@@ -1291,6 +1297,7 @@ if(do_weather_source){
 	SWRunInformation$WeatherFolder[seq.tr][!is.na(sites_dailyweather_names)] <- na.exclude(sites_dailyweather_names)
 	SWRunInformation$dailyweather_source[seq.tr] <- as.character(sites_dailyweather_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 }
 
 
@@ -1324,9 +1331,6 @@ if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.Ou
 setwd(dir.prj)
 source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v51.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
-
-if(getCurrentWeatherDataFromDatabase)
-	conWeather <- dbConnect(drv, dbname=dbWeatherDataFile)
 
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 
@@ -2106,6 +2110,7 @@ if(any(actions == "create")){
 
 			#write data to datafile.soils
 			write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		}
 	}
 	if(any(create_treatments == "LookupTranspRegionsFromTable")){
@@ -2135,6 +2140,7 @@ if(any(actions == "create")){
 
 			#write data to datafile.soils
 			write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		}
 	}
 
@@ -2165,6 +2171,7 @@ if(any(actions == "create")){
 
 			#write data to datafile.cloud
 			write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		}
 	}
 
@@ -2291,6 +2298,7 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		#write data to datafile.soils
 		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clay, use.layers, layers.depth, layers.width)
 
@@ -2316,6 +2324,7 @@ if(any(actions == "create") && any(pcalcs > 0)){
 #		#write data to datafile.soils
 #		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 #		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+#		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 #
 #		rm(use.layers, sand, clay, fieldc, wiltp, tempdat, i.fieldc, i.wiltp)
 #	}
