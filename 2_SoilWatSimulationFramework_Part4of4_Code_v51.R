@@ -813,7 +813,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 
 
 #------------------------DAILY WEATHER
-if(any(grepl("dailyweather_source", colnames(SWRunInformation)))){
+if (extract_determine_database == "SWRunInformation" && "dailyweather_source" %in% colnames(SWRunInformation)) {
 	sites_dailyweather_source <- factor(SWRunInformation$dailyweather_source[seq.tr], levels=dailyweather_options)
 	do_weather_source <- anyNA(sites_dailyweather_source)
 } else {
