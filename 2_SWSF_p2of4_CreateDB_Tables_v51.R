@@ -8,6 +8,110 @@
 #
 ###############################################################################
 suppressMessages(library(RSQLite))
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------CREATE WEATHER DATABASE AND POPULATION WITH DAILY WEATHER FOR CURRENT CONDITIONS
+if (createAndPopulateWeatherDatabase) {
+	if (file.exists(dbWeatherDataFile)) {
+		print("Removing old database")
+		file.remove(dbWeatherDataFile)
+	}
+	
+	print("Creating new Weather database")
+	# weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
+	dbW_createDatabase(dbFilePath = dbWeatherDataFile,
+		site_data = data.frame(Site_id = SWRunInformation$site_id,
+						Latitude = SWRunInformation$Y_WGS84,
+						Longitude = SWRunInformation$X_WGS84,
+						Label = SWRunInformation$WeatherFolder,
+						stringsAsFactors = FALSE),
+		site_subset = runIDs_sites,
+		scenarios = data.frame(Scenario = climate.conditions))
+
+	Time <- Sys.time()
+	
+	# Extract weather data and move to weather database based on inclusion-invariant 'site_id'
+	# Extract weather data per site
+	if (!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
+	
+	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica")) ## position in 'runIDs_sites'
+	if (length(ids_single) > 0) {
+		if (any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
+			Maurer <- with(SWRunInformation[runIDs_sites[ids_single], ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+		
+		for (i in seq_along(ids_single)) {
+			i_idss <- ids_single[i]
+			i_site <- runIDs_sites[i_idss]
+			
+			if (!be.quiet && i %% 100 == 1)
+				print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[i_site], i, "of", length(ids_single), "sites in database"))
+			
+			if (sites_dailyweather_source[i_idss] == "LookupWeatherFolder") {
+				weatherData <- ExtractLookupWeatherFolder(dir.weather = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+									weatherfoldername = SWRunInformation$WeatherFolder[i_site])
+			
+			} else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
+				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname = Maurer[i],
+									startYear = simstartyr,
+									endYear = endyr)
+			
+			} else {
+				stop(paste(sites_dailyweather_source[i_idss], "not implemented"))
+			}
+			
+			if (!is.null(weatherData)) {
+				years <- as.integer(names(weatherData))
+				data_blob <- dbW_weatherData_to_blob(weatherData)
+				Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
+					Scenario_id = 1,
+					StartYear = years[1],
+					EndYear = years[length(years)],
+					weatherData = data_blob)
+			} else {
+				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[i_site]))
+			}
+		}
+		rm(ids_single, i_idss, i_site, weatherData, years, data_blob)
+	}
+
+	# Extract weather data for all sites based on inclusion-invariant 'site_id'
+	ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
+	if (length(ids_DayMet_extraction) > 0) {
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
+			coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+			start_year = simstartyr,
+			end_year = endyr)
+	}
+	rm(ids_DayMet_extraction)
+
+	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
+	if (length(ids_NRCan_extraction) > 0) {
+		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
+			coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+			start_year = simstartyr,
+			end_year = endyr)
+	}
+	rm(ids_NRCan_extraction)
+
+	ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
+	if (length(ids_NCEPCFSR_extraction) > 0) {
+		GriddedDailyWeatherFromNCEPCFSR_Global(site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
+			dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
+			start_year = simstartyr,
+			end_year = endyr,
+			rm_temp = TRUE)
+	}
+	rm(ids_NCEPCFSR_extraction)
+	
+	dbW_disconnectConnection()
+}
+
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------PREPARE OUTPUT DATABASES
+
+# NOTE: Do not change the design of the output database without adjusting the iterator functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
+
 drv <- dbDriver("SQLite")
 con <- dbConnect(drv, dbname = name.OutputDB)
 Tables <- dbListTables(con)
@@ -27,69 +131,6 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
-if(createAndPopulateWeatherDatabase) {
-	if(file.exists(dbWeatherDataFile)) {
-		print("Removing old database")
-		file.remove(dbWeatherDataFile)
-	}
-	print("Creating New Weather database")
-	dbW_createDatabase(dbWeatherDataFile)
-	#dbW_setConnection(dbFilePath=dbWeatherDataFile, FALSE)
-	
-	
-	MetaData <- data.frame(Latitude=SWRunInformation$Y_WGS84[seq.tr],Longitude=SWRunInformation$X_WGS84[seq.tr],Label=SWRunInformation$WeatherFolder[seq.tr],stringsAsFactors = FALSE)
-	Rsoilwat31:::dbW_addSites(MetaData)
-	
-	SWRunInformation$site_id[seq.tr] <- dbW_getSiteTable()$Site_id
-	write.csv(SWRunInformation, file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-
-	MetaData <- data.frame(Scenario=climate.conditions)
-	Rsoilwat31:::dbW_addScenarios(MetaData)
-
-	Time <- Sys.time()
-	
-	# Extract weather data and move to weather database
-	# Extract weather data per site
-	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica"))
-	if(!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
-	if(length(ids_single) > 0){
-		if(any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
-			Maurer <- with(SWRunInformation[seq.tr, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-		for(i in seq_along(ids_single)){
-			if(!be.quiet && i %% 100 == 1) print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[seq.tr[ids_single[i]]], i, "of", length(ids_single), "sites in database"))
-			if(sites_dailyweather_source[ids_single[i]] == "LookupWeatherFolder"){
-				weatherData <- ExtractLookupWeatherFolder(dir.weather=file.path(dir.sw.in.tr, "LookupWeatherFolder"), weatherfoldername=SWRunInformation$WeatherFolder[seq.tr[ids_single[i]]])
-			} else if(sites_dailyweather_source[ids_single[i]] == "Maurer2002_NorthAmerica"){
-				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=Maurer[ids_single[i]], startYear=simstartyr, endYear=endyr)
-			} else {
-				stop(paste(sites_dailyweather_source[ids_single[i]], "not implemented"))
-			}
-			if(!is.null(weatherData)){
-				years <- as.integer(names(weatherData))
-				data_blob <- dbW_weatherData_to_blob(weatherData)
-				Rsoilwat31:::dbW_addWeatherDataNoCheck(ids_single[i], 1, head(years, n=1), tail(years, n=1), data_blob)
-			} else {
-				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[seq.tr[ids_single[i]]]))
-			}
-		}
-		rm(ids_single, weatherData, years, data_blob)
-	}
-
-	# Extract weather data for all sites
-	ids_DayMet_extraction <- which(sites_dailyweather_source == "DayMet_NorthAmerica") ## position in 'seq.tr'
-	if(length(ids_DayMet_extraction) > 0) ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(ids=ids_DayMet_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_DayMet_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
-	rm(ids_DayMet_extraction)
-
-	ids_NRCan_extraction <- which(sites_dailyweather_source == "NRCan_10km_Canada")
-	if(length(ids_NRCan_extraction) > 0) ExtractGriddedDailyWeatherFromNRCan_10km_Canada(ids=ids_NRCan_extraction, coords_WGS84=SWRunInformation[seq.tr[ids_NRCan_extraction], c("X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr)
-	rm(ids_NRCan_extraction)
-
-	ids_NCEPCFSR_extraction <- which(sites_dailyweather_source == "NCEPCFSR_Global")
-	if(length(ids_NCEPCFSR_extraction) > 0) GriddedDailyWeatherFromNCEPCFSR_Global(ids=ids_NCEPCFSR_extraction, dat_sites=SWRunInformation[seq.tr[ids_NCEPCFSR_extraction], c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop=FALSE], start_year=simstartyr, end_year=endyr, rm_temp=TRUE)
-	rm(ids_NCEPCFSR_extraction)
-	
-	dbW_disconnectConnection()
-}
 
 if((length(Tables) == 0) || do.clean) {
 
@@ -137,23 +178,26 @@ if((length(Tables) == 0) || do.clean) {
 	
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 		dbBegin(con)
-		if(all(!is.na(SWRunInformation$WeatherFolder[seq.tr]))) {
-			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)", bind.data = data.frame(folder=unique(SWRunInformation$WeatherFolder[seq.tr]),stringsAsFactors=FALSE))
+		if (all(!is.na(SWRunInformation$WeatherFolder))) {
+			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
+				bind.data = data.frame(folder = unique(SWRunInformation$WeatherFolder), stringsAsFactors = FALSE))
 		} else {
-			if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments=="LookupWeatherFolder")) stop("Weather Data in Master has NA's.") 
+			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments == "LookupWeatherFolder"))
+				stop("Weather Data in Master has NA's.") 
 		}
 		dbCommit(con)
 	
 		#############Site Table############################
+		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
 		#This returns the SQLite Types of the columns
-		site_col_types <-sapply(X=1:ncol(SWRunInformation), function(x) mapType(typeof(SWRunInformation[[x]])))
+		site_col_types <- sapply(X = seq_len(ncol(SWRunInformation)), function(x) mapType(typeof(SWRunInformation[[x]])))
 		site_columns <- colnames(SWRunInformation)
 		site_columns <- sub(pattern="WeatherFolder",replacement="WeatherFolder_id",site_columns)
 		site_col_types[which(colnames(SWRunInformation) == "WeatherFolder")] <- "INTEGER"
 		dbGetQuery(con, paste("CREATE TABLE sites(id INTEGER PRIMARY KEY AUTOINCREMENT,", paste(site_columns, site_col_types, collapse=","), ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));", sep=""))
 	
 	
-		sites_data<-data.frame(SWRunInformation[seq.tr,],row.names=NULL, check.rows=FALSE, check.names=FALSE, stringsAsFactors=FALSE)
+		sites_data <- data.frame(SWRunInformation, row.names = NULL, check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
 	
 		#Consider a faster way than this....
 		colnames(sites_data) <- site_columns
@@ -165,7 +209,7 @@ if((length(Tables) == 0) || do.clean) {
 	
 		rm(site_col_types,site_columns,sites_data)
 	
-		useExperimentals <- trowExperimentals > 0 && length(create_experimentals) > 0
+		useExperimentals <- expN > 0 && length(create_experimentals) > 0
 		useTreatments <- !(length(create_treatments[!(create_treatments %in% create_experimentals)])==0)
 	
 		#############simulation_years table#########################
@@ -192,10 +236,10 @@ if((length(Tables) == 0) || do.clean) {
 			#next add any from the treatments table if its turned on
 			treatments_lookupweatherfolders <- character(0)
 			if(any(names(sw_input_treatments_use[-1][which(sw_input_treatments_use[-1] > 0 & is.finite(as.numeric(sw_input_treatments_use[-1])))])=="LookupWeatherFolder")) {
-				treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders, sw_input_treatments$LookupWeatherFolder[seq.tr])
+				treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders, sw_input_treatments$LookupWeatherFolder[runIDs_sites])
 			}
 			if(any(create_experimentals=="LookupWeatherFolder")) {
-				treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders, sw_input_experimentals$LookupWeatherFolder[seq.tr])
+				treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders, sw_input_experimentals$LookupWeatherFolder[runIDs_sites])
 			}
 			#Remove NA because that defaults to sites default weatherFolder also make sure each folder is unique
 			treatments_lookupweatherfolders <- treatments_lookupweatherfolders[!is.na(treatments_lookupweatherfolders)]
@@ -231,13 +275,14 @@ if((length(Tables) == 0) || do.clean) {
 			stopifnot(nrow(db_experimentals) == nrow(sw_input_experimentals))
 		} else {
 			#experimentals does not have any rows. Are any of the create_experimentals turned on
-			if(length(create_experimentals) > 0 && trowExperimentals == 0) stop("No rows in experimentals table but columns are turned on")
-			if(trowExperimentals > 0 && length(create_experimentals)==0) warning("Rows in experimentals are not being used.")
+			if(length(create_experimentals) > 0 && expN == 0) stop("No rows in experimentals table but columns are turned on")
+			if(expN > 0 && length(create_experimentals)==0) warning("Rows in experimentals are not being used.")
 		}
 	
 		if(useTreatments) {
-			# we only need the columns that are turned on and not in experimentals. Experimentals over write. Only rows that are going to be used
-			db_treatments <- unique(df<-sw_input_treatments[seq.tr,create_treatments[!(create_treatments %in% create_experimentals)], drop=FALSE])
+			# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
+			# we only need the columns that are turned on and not in experimentals. Experimentals over write.
+			db_treatments <- unique(df<-sw_input_treatments[, create_treatments[!(create_treatments %in% create_experimentals)], drop=FALSE])
 			db_treatments_rows <- nrow(db_treatments)
 			#this maps locations from reduced
 			temp<-duplicated(df)
@@ -359,7 +404,7 @@ if((length(Tables) == 0) || do.clean) {
 			unique_simulation_years <- unique(simulation_years)
 			#each row is unique so add id to db_combined
 			if(nrow(unique_simulation_years)==nrow(simulation_years)) {
-				id<-1:nrow(unique_simulation_years)
+				id <- seq_len(nrow(unique_simulation_years))
 			  	unique_simulation_years<-cbind(id,unique_simulation_years[,2:4])
 				db_combined_exp_treatments$simulation_years_id <- unique_simulation_years[,1]
 			} else {#treatment table has a map to reduced rows in simulation_years
@@ -397,44 +442,48 @@ if((length(Tables) == 0) || do.clean) {
 		##################################################
 	
 		#############run_labels table#########################
+		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
 		dbGetQuery(con, "CREATE TABLE run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
 		dbBegin(con)
 		if(useExperimentals) {
-			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);", bind.data = data.frame(label=paste(formatC(seq.todo, width=ceiling(log10(runsN.todo + 1)), format = "d", flag="0"), rep(sw_input_experimentals[,1],each=runs), labels[seq.tr], sep="_"),stringsAsFactors = FALSE))
+			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
+				bind.data = data.frame(label = paste(formatC(SWRunInformation$site_id, width = counter.digitsN, format = "d", flag = "0"),
+													rep(sw_input_experimentals[, 1], each = runsN_master), labels,
+													sep = "_"),
+										stringsAsFactors = FALSE))
 		} else {
-			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);", bind.data = data.frame(label=labels[seq.tr],stringsAsFactors = FALSE))
+			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
+				bind.data = data.frame(label = labels, stringsAsFactors = FALSE))
 		}
 		dbCommit(con)
 		##################################################
 	
 	
 		#####################runs table###################
+		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
 		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
-		db_runs <- data.frame(matrix(data=0, nrow=runsN.todo*scenario_No, ncol=5,dimnames=list(NULL,c("P_id","label_id","site_id","treatment_id","scenario_id"))))
+		db_runs <- data.frame(matrix(data = 0,
+									 nrow = runsN_Pid,
+									 ncol = 5,
+									 dimnames = list(NULL, c("P_id", "label_id", "site_id", "treatment_id", "scenario_id"))))
 	
-		db_runs$P_id <- 1:nrow(db_runs)
-		db_runs$scenario_id <- rep(1:scenario_No, times=runsN.todo)
+		db_runs$P_id <- seq_len(runsN_Pid)
+		db_runs$label_id <- rep(seq_len(runsN_incl), each = scenario_No)
+		db_runs$site_id <- rep(rep(SWRunInformation$site_id, times = max(expN, 1L)), each = scenario_No)
+		db_runs$scenario_id <- rep(seq_len(scenario_No), times = runsN_incl)
 	
-		if(useTreatments) {
-			if(useExperimentals) {
-				db_runs$label_id <- rep(seq.todo,each=scenario_No)
-				db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
-				i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runs,ncol=trowExperimentals,byrow=T))
+		if (useTreatments) {
+			if (useExperimentals) {
+				i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runsN_master,ncol=expN,byrow=T))
 				db_runs$treatment_id <- rep(i_exp+(treatments_unique_map-1),each=scenario_No)
 			} else {
-				db_runs$label_id <- rep(seq.todo,each=scenario_No)
-				db_runs$site_id <- rep(1:runs,each=scenario_No)
 				db_runs$treatment_id <- rep(treatments_unique_map,each=scenario_No)
 			}
 		} else {
 			if(useExperimentals) {
-				db_runs$label_id <- rep(seq.todo,each=scenario_No)
-				db_runs$site_id <- rep(rep(1:runs,times=trowExperimentals),each=scenario_No)
-				i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runs,ncol=trowExperimentals,byrow=T))
+				i_exp<-as.vector(matrix(data=exp_start_rows,nrow=runsN_master,ncol=expN,byrow=T))
 				db_runs$treatment_id <- rep(i_exp,each=scenario_No)
 			} else {
-				db_runs$label_id <- rep(seq.todo,each=scenario_No)
-				db_runs$site_id <- rep(1:runs,each=scenario_No)
 				db_runs$treatment_id <- 1
 			}
 		}
@@ -444,7 +493,7 @@ if((length(Tables) == 0) || do.clean) {
 		##################################################
 	
 		################CREATE VIEW########################
-		sites_columns <- colnames(SWRunInformation[Index_RunInformation])
+		sites_columns <- colnames(SWRunInformation)[Index_RunInformation]
 		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
 		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
 		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
