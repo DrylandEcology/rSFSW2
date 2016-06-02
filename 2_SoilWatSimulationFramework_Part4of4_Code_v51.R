@@ -1332,6 +1332,18 @@ setwd(dir.prj)
 source("2_SoilWatSimulationFramework_Part2of4_CreateDB_Tables_v51.R", echo=F, keep.source=F)
 con <- dbConnect(drv, dbname=name.OutputDB)
 
+if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
+	# Check that version of dbWeather suffices
+	dbW_setConnection(dbWeatherDataFile)
+	v_dbW <- dbW_version()
+	
+	if (v_dbW < minVersion_dbWeather) {
+		print(paste0("The version (", v_dbW, ") of the daily weather database is outdated; min. version required: ", minVersion_dbWeather))
+		if (v_dbW >= "1") print("Use function 'Rsoilwat31:::dbW_upgrade_v1to2' to upgrade your version 1.y.z weather database to version 2.0.0")
+		stop("Outdated weather database")
+	}
+}
+
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 
 #------simulation timing
