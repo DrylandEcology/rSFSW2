@@ -96,6 +96,17 @@ if (exinfo$extract_gridcell_or_point) {
 		
 	} else if (extract_gridcell_or_point == "gridcell") {
 		
+		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres) {
+			xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
+			xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
+						xy[, 2] - halfres[2], xy[, 2] + halfres[2])
+			ext <- y[i, ]
+			overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
+			overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
+			w <- overlap_dx * overlap_dy
+			cbind(vals[[i]], weight = w / sum(w))
+		})
+
 		#' Extract values from Raster* objects that are covered by an extent rectangle.
 		#'
 		#' A cell is covered if its center is inside the polygon (but see the weights option for considering partly covered cells).
@@ -129,24 +140,9 @@ if (exinfo$extract_gridcell_or_point) {
 					}	
 			
 			if (weights) {
-				xy_cell_block <- lapply(cell_blocks, function(block)
-					raster::xyFromCell(object = x, cell = block))
-			
 				halfres <- grid_res / 2
-				coords_cell_block <- lapply(xy_cell_block, function(xy)
-					cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
-						  xy[, 2] - halfres[2], xy[, 2] + halfres[2]))
-				
-				vals <- lapply(iseq, function(i) {
-					xy <- coords_cell_block[[i]]
-					ext <- y[i, ]
-					overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
-					overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
-					w <- overlap_dx * overlap_dy
-					cbind(vals[[i]], weight = w / sum(w))
-				})
-				
-			}			
+				vals <- lapply(iseq, add_weights, vals = vals, x = x, cell_blocks, halfres = halfres)
+			}
 			
 			vals
 		})
@@ -166,7 +162,7 @@ if (exinfo$extract_gridcell_or_point) {
 		#' 
 		#' @param x A raster* object from which data is extracted.
 		#' @param coord A numeric vector of length two or a matrix with two columns. The x and y coordinates of the center(s) of the rectangle(s).
-		#' @param to_res A numeric vector of length two or a matrix with two columns. The x- and y-extent of the rectangle(s).
+		#' @param to_res A numeric vector of length two. The x- and y-extent of the rectangle(s).
 		#' @param with_weigths A logical value or \code{NULL}. If \code{NULL}, then code attempts to determine whether weights are required for the call to \code{\link[raster]{extract}}.
 		#' @param method A character string. Selects the extraction method, see details.
 		#' @param tol A numeric value. The absolute tolerance for deviation used if \code{is.null(with_weights)}.
@@ -246,23 +242,42 @@ if (exinfo$extract_gridcell_or_point) {
 
 
 		
-		#' Resample with 'weighted mean' as the aggregation function
+		#' The 'weighted mean' (and sample quantiles) of re-aggregation output
 		#'
-		#' @paramInherits reaggregate
-		#' @return A matrix. The columns correspond to layers of the Raster* object \code{x}. 
-		#' The rows correspond to each rectangle, i.e., a row of \code{coords}.
-		reaggregate_wmean <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), with_weights = NULL, method = "raster", tol = 1e-2) {
-			temp <- reaggregate(x = x, coord = coords, to_res = to_res, with_weights = with_weights, method = method, tol = tol)
+		#' @param reagg A list. The output object of a call to \code{reaggregate}.
+		#' @param probs A numeric vector of probabilities with values in \code{[0,1]} at which sample quantiles are returned or \code{NA}.
+		#'
+		#' @return An array. The first dimension corresponds to each rectangle, i.e., a row of \code{coords};
+		#' the second dimension corresponds to the layers of the re-aggregated and -sampled Raster* object \code{x};
+		#' And the third dimension corresponds to the aggregation type(s) (weighted mean, and sample quantiles if any).
+		weighted.agg <- compiler::cmpfun(function(reagg, probs = NA) {
+			stopifnot(requireNamespace("Hmisc"))
 			
-			res <- sapply(temp, function(vals) {
-					vapply(seq_along(vals[["N"]]), function(i) {
-						if (vals[["N"]][i] > 0) {
-							weighted.mean(vals[["values"]][[i]], w = vals[["fraction"]][[i]])
-						} else NA
-					}, NA_real_)
-			})
+			nf <- 1 + if (anyNA(probs)) 0 else length(probs)
+
+			res <- array(NA_real_,
+				dim = c(length(reagg), length(reagg[[1]][["N"]]), nf),
+				dimnames = list(NULL, paste0("Layer", seq_along(reagg[[1]][["N"]])), c("wmean", if (!anyNA(probs)) paste0("q", probs))))
+			FUN.VALUE <- rep(NA_real_, nf)
 			
-			if (is.null(dim(res))) matrix(res, ncol = 1) else t(res)
+			for (k in seq_along(reagg)) {
+				res[k, , ] <- t(vapply(seq_along(reagg[[k]][["N"]]), function(i) {
+						if (reagg[[k]][["N"]][i] > 0) {
+							out <- weighted.mean(reagg[[k]][["values"]][[i]],
+								w = reagg[[k]][["fraction"]][[i]])
+							if (!anyNA(probs)) {
+								out <- c(wmean = out,
+									Hmisc::wtd.quantile(reagg[[k]][["values"]][[i]],
+										weights = reagg[[k]][["fraction"]][[i]],
+										probs = probs,
+										normwt = TRUE))
+							}
+							out
+						} else FUN.VALUE
+					}, FUN.VALUE))
+			}
+			
+			res
 		})
 
 
@@ -295,7 +310,7 @@ if (exinfo$extract_gridcell_or_point) {
 		})
 		
 
-		#' function to extract data for raster cells
+		#' function to extract the weighted mean (and sample quantiles) for raster cells
 		#'
 		#' @param x Either A RasterLayer OR raster resolution as a numeric vector of length two or a matrix with two columns.
 		#'		If a RasterLayer, then values of \code{data} are resampled and extracted for !NA cells.
@@ -306,6 +321,7 @@ if (exinfo$extract_gridcell_or_point) {
 		#'	\describe{
 		#'		\item{method}{A character string. The method argument passed to \code{reaggregate}. Default is 'block' which is the fastest.}
 		#'		\item{coords}{Cell centers (corresponding to !NA cells of \code{x}) that are represented by a two-column matrix of xy coordinates. If not provided, then extracted from \code{x}.}
+		#'		\item{probs}{A numeric vector of probabilities with values in \code{[0,1]} at which sample quantiles are returned.}
 		#'	}
 		#' @seealso \code{\link[raster]{extract}}
 		#' @return A matrix with rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
@@ -322,6 +338,9 @@ if (exinfo$extract_gridcell_or_point) {
 			}
 			if (nrow(dots[["coords"]]) == 0)
 				return(matrix(NA, ncol = raster::nlayers(data)))
+				
+			if (!("probs" %in% names(dots)))
+				dots[["probs"]] <- NA
 			
 			if (inherits(x, "Raster")) {
 				to_res <- raster::res(x)
@@ -334,11 +353,14 @@ if (exinfo$extract_gridcell_or_point) {
 				}
 			}
 			
-			reaggregate_wmean(x = data,
-				coords = dots[["coords"]],
+			reagg <- reaggregate(x = data,
+				coord = dots[["coords"]],
 				to_res = to_res,
 				with_weights = TRUE,
-				method = dots[["method"]])
+				method = dots[["method"]],
+				tol = 1e-2)
+			
+			weighted.agg(reagg, probs = dots[["probs"]])
 		})
 		
 		#' Extracts the 'units' argument from a CRS object
@@ -2557,7 +2579,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("SoilTexture_source" %in% colnames(SWRunInformation))) {
 					sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
 					
 				} else if (extract_determine_database == "SWRunInformation") {
@@ -2796,7 +2818,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("SoilTexture_source" %in% colnames(SWRunInformation))) {
 					sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
 				} else if (extract_determine_database == "SWRunInformation") {
 					sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
@@ -2866,14 +2888,17 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	} else {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
-	elevation_m <- rep(NA, times = runsN_sites)
+	
+	elev_probs <- if (extract_gridcell_or_point == "gridcell") c(0.025, 0.5, 0.975) else NULL
+	elevation_m <- matrix(NA, nrow = runsN_sites, ncol = 1 + length(elev_probs),
+		dimnames = list(NULL, c("ELEV_m", if (extract_gridcell_or_point == "gridcell") paste0("ELEV_m_q", elev_probs))))
 	
 	#	- extract NED data where available
 	if (exinfo$ExtractElevation_NED_USA) {
 		if (!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
 		#ned.usgs.gov
 	
-		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
+		do_extract <- !complete.cases(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_NED_USA")
 		if (any(do_extract)) {
 			dir.ex.ned <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
 	
@@ -2894,18 +2919,23 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			} else if (extract_gridcell_or_point == "gridcell") {
 				cell_res_ned <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
-				args_template <- list(x = cell_res_ned, coords = sites_ned, method = "block")			
+				args_template <- list(x = cell_res_ned, coords = sites_ned, method = "block", probs = elev_probs)			
 			}
 
 			#extract data for locations
-			elevation_m[do_extract] <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
-
-			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
+			temp <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
+			if (is.vector(temp)) {
+				elevation_m[do_extract, "ELEV_m"] <- temp
+			} else if (is.array(temp)) {
+				elevation_m[do_extract, ] <- temp[, 1, ]
+			} else stop("Unknown object returned from 'extract_external_data' when extracting elevation data.")
+			
+			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("Elevation_source" %in% colnames(SWRunInformation))) {
 					sites_elevation_source[i_Done] <- "Elevation_NED_USA"
 				} else if (extract_determine_database == "SWRunInformation") {
 					sites_elevation_source[which(do_extract)[!i_good]] <- NA
@@ -2922,7 +2952,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	if (exinfo$ExtractElevation_HWSD_Global) {
 		if (!be.quiet) print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
 	
-		do_extract <- is.na(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
+		do_extract <- !complete.cases(elevation_m) | is.na(sites_elevation_source) | (sites_elevation_source == "Elevation_HWSD_Global")
 		if (any(do_extract)) {
 			dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
 	
@@ -2943,18 +2973,23 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			} else if (extract_gridcell_or_point == "gridcell") {
 				cell_res_hwsd <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
-				args_template <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block")			
+				args_template <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block", probs = elev_probs)			
 			}
 
 			#extract data for locations
-			elevation_m[do_extract] <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
+			temp <- round(do.call("extract_external_data", args = c(args_template, data = list(g.elev))))	# elevation in m a.s.l.
+			if (is.vector(temp)) {
+				elevation_m[do_extract, "ELEV_m"] <- temp
+			} else if (is.array(temp)) {
+				elevation_m[do_extract, ] <- temp[, 1, ]
+			} else stop("Unknown object returned from 'extract_external_data' when extracting elevation data.")
 
-			i_good <- !is.na(elevation_m[do_extract]) #length(i_good) == sum(do_extract)
+			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("Elevation_source" %in% colnames(SWRunInformation))) {
 					sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
 				} else if (extract_determine_database == "SWRunInformation") {
 					sites_elevation_source[which(do_extract)[!i_good]] <- NA
@@ -2968,7 +3003,14 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 
 
 	#write data to datafile.SWRunInformation
-	SWRunInformation$ELEV_m[runIDs_sites] <- elevation_m
+	icolnew <- !(colnames(elevation_m) %in% colnames(SWRunInformation))
+	if (any(icolnew)) {
+		SWRunInformation <- cbind(SWRunInformation,
+			matrix(NA, nrow = nrow(SWRunInformation), ncol = sum(icolnew),
+				dimnames = list(NULL, colnames(elevation_m)[icolnew])))
+	}
+	SWRunInformation[runIDs_sites, colnames(elevation_m)] <- elevation_m
+
 	SWRunInformation$Elevation_source[runIDs_sites] <- as.character(sites_elevation_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
@@ -3046,7 +3088,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("ClimateNormals_source" %in% colnames(SWRunInformation))) {
 					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
 				} else if (extract_determine_database == "SWRunInformation") {
 					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
@@ -3107,7 +3149,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order") {
+				if (extract_determine_database == "order" || !("ClimateNormals_source" %in% colnames(SWRunInformation))) {
 					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
 				} else if (extract_determine_database == "SWRunInformation") {
 					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
