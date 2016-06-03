@@ -440,4 +440,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if(!interactive()) source("2_SoilWatSimulationFramework_Part4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
+if(!interactive()) source("2_SWSF_p4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
