@@ -97,14 +97,19 @@ if (exinfo$extract_gridcell_or_point) {
 	} else if (extract_gridcell_or_point == "gridcell") {
 		
 		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres) {
-			xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
-			xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
-						xy[, 2] - halfres[2], xy[, 2] + halfres[2])
-			ext <- y[i, ]
-			overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
-			overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
-			w <- overlap_dx * overlap_dy
-			cbind(vals[[i]], weight = w / sum(w))
+			if (length(cell_blocks[[i]]) > 0) {
+				xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
+				xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
+							xy[, 2] - halfres[2], xy[, 2] + halfres[2])
+				ext <- y[i, ]
+				overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
+				overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
+				w <- overlap_dx * overlap_dy
+				cbind(vals[[i]], weight = w / sum(w))
+			
+			} else {
+				cbind(vals[[i]], weight = numeric(0))
+			}
 		})
 
 		#' Extract values from Raster* objects that are covered by an extent rectangle.
@@ -120,6 +125,7 @@ if (exinfo$extract_gridcell_or_point) {
 		#' 	and where columns correspond to layers of \code{x}.
 		#'	If \code{weights} is \code{TRUE}, then an additional last column is added which contains the weights of the rows.
 		extract_blocks <- compiler::cmpfun(function(x, y, weights = FALSE) {
+			fun_match <- if (requireNamespace("fastmatch")) fastmatch::fmatch else match
 			stopifnot(ncol(y) == 4L)
 			
 			grid_res <- raster::res(x)
@@ -134,9 +140,9 @@ if (exinfo$extract_gridcell_or_point) {
 			vtemp <- raster::extract(x, y = unique_cells)
 
 			vals <- if (raster::nlayers(x) == 1) {
-						lapply(cell_blocks, function(block) vtemp[match(block, unique_cells, nomatch = NA)])
+						lapply(cell_blocks, function(block) vtemp[fun_match(block, unique_cells, nomatch = NA)])
 					} else {
-						lapply(cell_blocks, function(block) vtemp[match(block, unique_cells, nomatch = NA), ])
+						lapply(cell_blocks, function(block) vtemp[fun_match(block, unique_cells, nomatch = NA), ])
 					}	
 			
 			if (weights) {
@@ -181,7 +187,7 @@ if (exinfo$extract_gridcell_or_point) {
 			if (is.vector(to_res) && length(to_res) == 2L && to_res > 0) {
 				to_res <- matrix(to_res, ncol = 2)
 			}
-			stopifnot(is.matrix(to_res), nrow(to_res) == nrow(coords))
+			stopifnot(is.matrix(to_res), nrow(to_res) == 1L || nrow(to_res) == nrow(coords))
 			
 			fun_extract <- switch(EXPR = method,
 									raster = raster::extract,
@@ -254,10 +260,11 @@ if (exinfo$extract_gridcell_or_point) {
 			stopifnot(requireNamespace("Hmisc"))
 			
 			nf <- 1 + if (anyNA(probs)) 0 else length(probs)
+			nl <- max(1, sapply(reagg, function(x) length(x[["N"]])))
 
 			res <- array(NA_real_,
-				dim = c(length(reagg), length(reagg[[1]][["N"]]), nf),
-				dimnames = list(NULL, paste0("Layer", seq_along(reagg[[1]][["N"]])), c("wmean", if (!anyNA(probs)) paste0("q", probs))))
+				dim = c(length(reagg), nl, nf),
+				dimnames = list(NULL, paste0("Layer", seq_len(nl)), c("wmean", if (!anyNA(probs)) paste0("q", probs))))
 			FUN.VALUE <- rep(NA_real_, nf)
 			
 			for (k in seq_along(reagg)) {
