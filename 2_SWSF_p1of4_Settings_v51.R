@@ -82,7 +82,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
 actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
 #continues with unfinished part of simulation after abort if TRUE
-continueAfterAbort <- TRUE
+continueAfterAbort <- TRUE # affects: weather database creation; consideration of 'runIDs_done'
 #use preprocessed input data if available
 usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
