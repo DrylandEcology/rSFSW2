@@ -400,7 +400,7 @@ if (exinfo$extract_gridcell_or_point) {
 			if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
 			
 			# Align with data crs
-			if (raster::compareCRS(crs_data, raster::crs(grid_from))) {
+			if (raster::compareCRS(crs_to, raster::crs(grid_from))) {
 				x <- grid_from
 			} else {
 				to_ext <- raster::projectExtent(grid_from, grid_to)
@@ -2491,6 +2491,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		}
 		
 		if (any(do_extract)) {
+			if (!be.quiet) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' will be extracted for n =", sum(do_extract), "sites"))
+
 			dir.ex.conus <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
 			stopifnot(file.exists(dir.ex.conus))
 			
@@ -2591,21 +2593,17 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 			#Convert bulk density to matric density
 			#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
-	# TODO: unclear whether this is bulk or matric density, Miller et al. 1998 has labelled this as bulk, but it appears as if it is matric because eq. 20 (Saxton et al. 2006) would give otherwise negative values for matricd (bulkd <- matricd * (1 - rockvol) + rockvol * 2.65)
+			# TODO: unclear whether this is bulk or matric density, Miller et al. 1998 has labelled this as bulk, but it appears as if it is matric because eq. 20 (Saxton et al. 2006) would give otherwise negative values for matricd (bulkd <- matricd * (1 - rockvol) + rockvol * 2.65)
 			#matricd <- ifelse(abs(1 - rockvol) > sqrt(.Machine$double.eps), (bulkd - rockvol * 2.65) / (1 - rockvol), 0)
 		
 			i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract)
+			sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
 		
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order" || !("SoilTexture_source" %in% colnames(SWRunInformation))) {
-					sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
-					
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
 						
 				#set and save soil layer structure
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- soil_data[i_good, 1, "bedrock"]
@@ -2635,6 +2633,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		
 				rm(tempdat, i.temp, i_Done)
 			}
+
+			if (!be.quiet) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30, i_good)
 		}
 		
@@ -2666,6 +2666,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		
 
 		if (any(do_extract)) {
+			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' will be extracted for n =", sum(do_extract), "sites"))
 		
 			layer_N <- 5	#WISE contains five soil layers for each prid
 			layer_Nsim <- 6	#WISE contains five soil layers for each prid; I added one layer to account for lithosols (Ix), which have a soildepth of 10 cm; for all other soil types, my layers 0-10 cm and 10-20 cm contain the same wise information
@@ -2716,7 +2717,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						exportObjects(list.export)
 						mpi.bcast.cmd(library(raster, quietly=TRUE))
 				
-						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res=cell_res_wise)
+						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						mpi.bcast.cmd(rm(list=ls()))
@@ -2725,19 +2726,21 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						snow::clusterExport(cl, list.export, envir=parent.frame())
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
 				
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res=cell_res_wise)
+						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
 						snow::clusterEvalQ(cl, rm(list=ls()))
 						snow::clusterEvalQ(cl, gc())
 					} else if (identical(parallel_backend, "multicore")) {
 						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i, res=cell_res_wise)
+						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar%
+							extract_SUIDs(i, res = cell_res_wise)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
 				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% extract_SUIDs(i, res=gridcell_res)
+					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do%
+						extract_SUIDs(i, res = cell_res_wise)
 				}
 			}
 			rm(grid_wise)
@@ -2747,74 +2750,103 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			#- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
 			dat_wise <- read.csv(file=file.path(dir.ex.dat, "WISEsummaryFile.csv"))
 		
-			get_prids <- function(suid) {
+			get_prids <- compiler::cmpfun(function(suid) {
 				soils <- dat_wise[dat_wise$SUID == suid, ]
 				frac <- unique(soils[, c("PROP", "PRID")])
-				depth <- aggregate(soils$BotDep, by=list(soils$PRID), FUN=max)
-				return(list(PRIDs_N=nrow(soils)/layer_N, PRID=frac$PRID, fraction=frac$PROP/100, soildepth=ifelse((temp <- depth[match(frac$PRID, depth[, 1]), 2]) > 0, temp, NA), soildat=soils))
-			}
+				depth <- aggregate(soils$BotDep, by = list(soils$PRID), FUN = max)
+				idepth <- depth[match(frac$PRID, depth[, 1]), 2]
+				
+				list(PRIDs_N = nrow(soils) / layer_N,
+					 PRID = frac$PRID,
+					 fraction = frac$PROP / 100,
+					 soildepth = ifelse(idepth > 0, idepth, NA),
+					 soildat = soils)
+			})
 
-			get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
-				return(sum(soildat_rows * frac, dat, na.rm=TRUE)) #weighted mean = sum of values x weights
-			}
+			get_SoilDatValuesForLayer <- compiler::cmpfun(function(dat, soildat_rows, frac) {
+				sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
+			})
 
-			template_simulationSoils <- rep(NA, times=2 + 4 * layer_Nsim)
+			template_simulationSoils <- rep(NA, times = 2 + 4 * layer_Nsim)
 			names(template_simulationSoils) <- c("i", "soildepth", paste0(rep(c("bulk", "sand", "clay", "cfrag"), times=layer_Nsim), "_L", rep(1:layer_Nsim, each=4)))
 			template_simulationSoils["soildepth"] <- 0
 		
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- function(i) {
-				.local <- function(i) {
-					#Init
-					simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
-					simulation_layer_frac <- rep(0, times=layer_Nsim) #fraction of each soil layer covering this simulation cell
-					simulationSoils <- template_simulationSoils
-					simulationSoils["i"] <- i
-					PRIDs_N <- 0
-					PRIDs <- PRIDs_frac <- NULL
-					#Do calculations if any soils in this simulation cell
-					if (sim_cells_SUIDs[i, ]$SUIDs_N > 0) {
-						this_simCell <- c(sim_cells_SUIDs[i, ], soils=list(t(sapply(sim_cells_SUIDs[i, ]$SUID, FUN=get_prids))))
-						for (is in 1:this_simCell$SUIDs_N) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
-							prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
-							PRIDs_frac <- c(PRIDs_frac, prids_frac)
-							simulation_frac <- simulation_frac + sum(ifelse(!is.na(this_simCell$soils[is,]$soildepth), prids_frac, 0))
-							simulationSoils["soildepth"] <- simulationSoils["soildepth"] + sum(this_simCell$soils[is,]$soildepth * prids_frac, na.rm=TRUE)
-							if (!all(is.na(this_simCell$soils[is,]$soildepth))) for (ils in 1:layer_Nsim) {
-								lwise <- if (ils == 1) 1 else ils - 1	# I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
-								layer.there <- this_simCell$soils[is,]$soildepth > layer_TopDep[ils]	#checks if for each prid, there soils are deeper than this layer. It also accounts that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as water and glaciers. Lithosols (Ix) have soildepth of 10 cm.
-								pfracl <- prids_frac[layer.there]
-								simulation_layer_frac[ils] <- simulation_layer_frac[ils] + sum(pfracl, na.rm=TRUE)
-								if (sum(layer.there, na.rm=TRUE) > 0) {
-									irow <- lwise + ((0:(this_simCell$soils[is,]$PRIDs_N-1))*layer_N)[layer.there]
-									simulationSoils[paste0("bulk_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("bulk_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "BULK"], frac=pfracl)	# bulk density (kg/dm3)
-									simulationSoils[paste0("sand_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("sand_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "SDTO"], frac=pfracl)	# Sand mass (%)
-									simulationSoils[paste0("clay_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("clay_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "CLPC"], frac=pfracl)	 # clay mass (%)
-									simulationSoils[paste0("cfrag_L", ils)] <- get_SoilDatValuesForLayer(dat=simulationSoils[paste0("cfrag_L", ils)], soildat_rows=this_simCell$soils[is,]$soildat[irow, "CFRAG"], frac=pfracl)	# coarse fragments (vol % > 2 mm)
-								}
+			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep) {
+				#Init
+				simulationSoils["i"] <- i
+				simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
+				simulation_layer_frac <- rep(0, times = layer_Nsim) #fraction of each soil layer covering this simulation cell
+				PRIDs_N <- 0
+				PRIDs <- PRIDs_frac <- NULL
+				
+				#Do calculations if any soils in this simulation cell
+				if (i_sim_cells_SUIDs$SUIDs_N > 0) {
+					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID, FUN = get_prids))))
+					
+					for (is in seq_len(this_simCell$SUIDs_N)) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
+						prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
+						PRIDs_frac <- c(PRIDs_frac, prids_frac)
+						simulation_frac <- simulation_frac + sum(ifelse(!is.na(this_simCell$soils[is,]$soildepth), prids_frac, 0))
+						simulationSoils["soildepth"] <- simulationSoils["soildepth"] + sum(this_simCell$soils[is,]$soildepth * prids_frac, na.rm = TRUE)
+						
+						if (!all(is.na(this_simCell$soils[is,]$soildepth))) for (ils in seq_len(layer_Nsim)) {
+							lwise <- if (ils == 1) 1 else {ils - 1}	# I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
+							layer.there <- this_simCell$soils[is,]$soildepth > layer_TopDep[ils]	#checks if for each prid, there soils are deeper than this layer. It also accounts that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as water and glaciers. Lithosols (Ix) have soildepth of 10 cm.
+							pfracl <- prids_frac[layer.there]
+							simulation_layer_frac[ils] <- simulation_layer_frac[ils] + sum(pfracl, na.rm=TRUE)
+							
+							if (sum(layer.there, na.rm = TRUE) > 0) {
+								irow <- lwise + ((0:(this_simCell$soils[is,]$PRIDs_N - 1)) * layer_N)[layer.there]
+								simulationSoils[paste0("bulk_L", ils)] <- get_SoilDatValuesForLayer(
+									dat = simulationSoils[paste0("bulk_L", ils)],
+									soildat_rows = this_simCell$soils[is,]$soildat[irow, "BULK"],
+									frac = pfracl)	# bulk density (kg/dm3)
+								simulationSoils[paste0("sand_L", ils)] <- get_SoilDatValuesForLayer(
+									dat = simulationSoils[paste0("sand_L", ils)],
+									soildat_rows = this_simCell$soils[is,]$soildat[irow, "SDTO"],
+									frac = pfracl)	# Sand mass (%)
+								simulationSoils[paste0("clay_L", ils)] <- get_SoilDatValuesForLayer(
+									dat = simulationSoils[paste0("clay_L", ils)],
+									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CLPC"],
+									frac = pfracl)	 # clay mass (%)
+								simulationSoils[paste0("cfrag_L", ils)] <- get_SoilDatValuesForLayer(
+									dat = simulationSoils[paste0("cfrag_L", ils)],
+									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
+									frac = pfracl)	# coarse fragments (vol % > 2 mm)
 							}
 						}
-					
-						#Adjust values for area present
-						simulationSoils <- simulationSoils / c(1, simulation_frac, rep(simulation_layer_frac, each=4))
 					}
-					return(simulationSoils)
+				
+					#Adjust values for area present
+					simulationSoils <- simulationSoils / c(1, simulation_frac, rep(simulation_layer_frac, each = 4))
 				}
-		
+				
+				simulationSoils
+			})
+			
+			
+			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep) {
 				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
-				temp <- .local(i)
-				return(if (!inherits(temp, "try-error")) temp else template_simulationSoils)
-			}
+				temp <- calc_weightedMeanForSimulationCell(i,
+							i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
+							simulationSoils = template_simulationSoils,
+							layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
+				if (inherits(temp, "try-error")) template_simulationSoils else temp
+			})
 	
 			if (parallel_runs && parallel_init) {
 				#objects that need exporting to slaves
-				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
+				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 			
-					sim_cells_soils <- mpi.applyLB(x=is_ToDo, fun=calc_weightedMeanForSimulationCell)
+					sim_cells_soils <- mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+						sim_cells_SUIDs = sim_cells_SUIDs,
+						template_simulationSoils = template_simulationSoils,
+						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 			
 					mpi.bcast.cmd(rm(list=ls()))
@@ -2822,20 +2854,29 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				} else if (identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export, envir=parent.frame())
 			
-					sim_cells_soils <- snow::clusterApplyLB(cl, x=is_ToDo, fun=calc_weightedMeanForSimulationCell)
+					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+						sim_cells_SUIDs = sim_cells_SUIDs,
+						template_simulationSoils = template_simulationSoils,
+						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 				
 					snow::clusterEvalQ(cl, rm(list=ls()))
 					snow::clusterEvalQ(cl, gc())
 				} else if (identical(parallel_backend, "multicore")) {
-					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar% calc_weightedMeanForSimulationCell(i)
+					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
+						template_simulationSoils = template_simulationSoils,
+						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 				}
 			} else {
-				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do% calc_weightedMeanForSimulationCell(i)
+				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do%
+					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
+						template_simulationSoils = template_simulationSoils,
+						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 			}
 			rm(dat_wise)
 
-			sim_cells_soils <- round(sim_cells_soils[order(sim_cells_soils[, "i"]), ], 2)
+			sim_cells_soils <- sim_cells_soils[order(sim_cells_soils[, "i"]), ]
 
 			if (FALSE) {#visualize in interactive sessions
 				temp <- sim_cells_soils[, grep("sand", colnames(sim_cells_soils))]
@@ -2848,20 +2889,18 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 			#Convert bulk density to matric density
 			#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
-	#TODO: why so many negative values?
+			#TODO: why so many negative values?
 			#matricd <- (sim_cells_soils[, grep("bulk", colnames(sim_cells_soils))] - 2.65 * sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))]) / (1 - sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))])
-	
-			i_good <- complete.cases(sim_cells_soils) #length(i_good) == sum(do_extract)
+			
+			i_good <- rep(FALSE, sum(do_extract))
+			i_good[sim_cells_soils[complete.cases(sim_cells_soils), "i"]] <- TRUE # i is index for do_extract
+			sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
 		
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order" || !("SoilTexture_source" %in% colnames(SWRunInformation))) {
-					sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
 		
 				#set and save soil layer structure
 				lys <- 1:layer_Nsim
@@ -2894,6 +2933,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				rm(lys, tempdat, i.temp, i_Done)
 			}
 		
+			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 			rm(sim_cells_soils, run_sites_wise, cell_res_wise, i_good)
 		}
 		
@@ -2909,7 +2949,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-	if (any(notDone)) warning(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA': no soil information for one or several sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+	if (any(notDone)) print(paste("'ExtractSoilData': no soil information for n =", sum(notDone), "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
 }
 
 #------END OF SOIL CHARACTERISTICS------
@@ -2972,15 +3012,12 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			} else stop("Unknown object returned from 'extract_external_data' when extracting elevation data.")
 			
 			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
+			sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
-
-				if (extract_determine_database == "order" || !("Elevation_source" %in% colnames(SWRunInformation))) {
-					sites_elevation_source[i_Done] <- "Elevation_NED_USA"
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_elevation_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_elevation_source[i_Done] <- "Elevation_NED_USA"
 			}
 	
 			rm(dir.ex.ned, g.elev, sites_ned, args_template, i_good)
@@ -3026,15 +3063,13 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			} else stop("Unknown object returned from 'extract_external_data' when extracting elevation data.")
 
 			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
+			sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order" || !("Elevation_source" %in% colnames(SWRunInformation))) {
-					sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_elevation_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
 			}
 			rm(g.elev, sites_hwsd, cell_res_hwsd, dir.ex.hswd)
 		}
@@ -3125,15 +3160,13 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	
 			# Save extracted data to disk
 			i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
+			sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
+			
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order" || !("ClimateNormals_source" %in% colnames(SWRunInformation))) {
-					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
 	
 				#add data to sw_input_cloud and set the use flags
 				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
@@ -3186,15 +3219,13 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 		
 			# Save extracted data to disk
 			i_good <- do_extract & !get_NA_byrow(monthlyclim) #length(i_good) == sum(do_extract)
+			sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
+			
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
 				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-				if (extract_determine_database == "order" || !("ClimateNormals_source" %in% colnames(SWRunInformation))) {
-					sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
-				} else if (extract_determine_database == "SWRunInformation") {
-					sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
-				}
+				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCEPCFSR_Global"
 
 				#add data to sw_input_cloud and set the use flags
 				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
