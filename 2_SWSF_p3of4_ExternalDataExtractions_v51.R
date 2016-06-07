@@ -96,14 +96,13 @@ if (exinfo$extract_gridcell_or_point) {
 		
 	} else if (extract_gridcell_or_point == "gridcell") {
 		
-		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres) {
+		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres, exts) {
 			if (length(cell_blocks[[i]]) > 0) {
 				xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
 				xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
 							xy[, 2] - halfres[2], xy[, 2] + halfres[2])
-				ext <- y[i, ]
-				overlap_dx <- pmin(ext[2], xy[, 2]) - pmax(ext[1], xy[, 1])
-				overlap_dy <- pmin(ext[4], xy[, 4]) - pmax(ext[3], xy[, 3])
+				overlap_dx <- pmin(exts[i, 2], xy[, 2]) - pmax(exts[i, 1], xy[, 1])
+				overlap_dy <- pmin(exts[i, 4], xy[, 4]) - pmax(exts[i, 3], xy[, 3])
 				w <- overlap_dx * overlap_dy
 				cbind(vals[[i]], weight = w / sum(w))
 			
@@ -147,7 +146,7 @@ if (exinfo$extract_gridcell_or_point) {
 			
 			if (weights) {
 				halfres <- grid_res / 2
-				vals <- lapply(iseq, add_weights, vals = vals, x = x, cell_blocks, halfres = halfres)
+				vals <- lapply(iseq, add_weights, vals = vals, x = x, cell_blocks, halfres = halfres, exts = y)
 			}
 			
 			vals
@@ -334,7 +333,7 @@ if (exinfo$extract_gridcell_or_point) {
 		#' @return A matrix with rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
 		extract_external_data <- compiler::cmpfun(function(x, data, ...) {
 			dots <- list(...)
-			
+
 			if (!("method" %in% names(dots)))
 				dots[["method"]] <- "block"
 			
@@ -361,7 +360,7 @@ if (exinfo$extract_gridcell_or_point) {
 			}
 			
 			reagg <- reaggregate(x = data,
-				coord = dots[["coords"]],
+				coords = dots[["coords"]],
 				to_res = to_res,
 				with_weights = TRUE,
 				method = dots[["method"]],
@@ -2474,8 +2473,23 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
 		# Note(drs): it appears that NODATA values are recorded as 0
 		
-		do_extract <- is.na(sites_externalsoils_source) | sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA"
+		if (continueAfterAbort) {
+			any_data <- function(data, tag) apply(data[, grepl(tag, colnames(data))], 1, function(x) all(is.na(x)))
 
+			do_extract <- is.na(sites_externalsoils_source) | (
+							sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA" & (
+								is.na(sw_input_soillayers[runIDs_sites, "SoilDepth_cm"]) |
+								any_data(sw_input_soils[runIDs_sites, ], "Matricd_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "Sand_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "Clay_L")
+								)
+							)
+		} else {
+			do_extract <- is.na(sites_externalsoils_source) |
+							sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA"
+		}
+		
 		if (any(do_extract)) {
 			dir.ex.conus <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
 			stopifnot(file.exists(dir.ex.conus))
@@ -2505,15 +2519,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			}
 
 			#extract data
+			cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
 			ftemp <- file.path(dir.ex.conus, "bd_cond30.tif")
 			if (file.exists(ftemp)) {
 				g <- raster::brick(ftemp)
 			} else {
 				# bulk density of less than 0.3 g / cm3 should be treated as no soil
-				cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
 				g <- raster::calc(g, fun = cond30, filename = ftemp)
 			}
-			soil_data[, , "matricd"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100	
+			soil_data[, , "matricd"] <- round(do.call("extract_external_data", args = c(args_template, data = list(g)))) / 100	
 
 			cond0 <- compiler::cmpfun(function(v) ifelse(!is.na(v) & v > 0, v, NA))
 			ftemp <- file.path(dir.ex.conus, "rockdepm_cond0.tif")
@@ -2523,7 +2537,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				# rockdepth of 0 cm should be treated as no soil
 				g <- raster::calc(raster::raster(file.path(dir.ex.conus, "rockdepm.tif")), fun = cond0, filename = ftemp)
 			}
-			soil_data[, 1, "bedrock"] <- do.call("extract_external_data", args = c(args_template, data = list(g))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
+			soil_data[, 1, "bedrock"] <- round(do.call("extract_external_data", args = c(args_template, data = list(g)))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
 			lys <- 1:max(findInterval(soil_data[, 1, "bedrock"], ldepth), na.rm=TRUE)
 
 			g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
@@ -2619,9 +2633,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 		
-				rm(tempdat, i.temp)
+				rm(tempdat, i.temp, i_Done)
 			}
-			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30)
+			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30, i_good)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
@@ -2632,7 +2646,25 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		#Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5 arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
 		#http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
 		#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-		do_extract <- is.na(sites_externalsoils_source) | sites_externalsoils_source == "ISRICWISEv12_Global"
+
+		if (continueAfterAbort) {
+			any_data <- function(data, tag) apply(data[, grepl(tag, colnames(data))], 1, function(x) all(is.na(x)))
+
+			do_extract <- is.na(sites_externalsoils_source) | (
+							sites_externalsoils_source == "ISRICWISEv12_Global" & (
+								is.na(sw_input_soillayers[runIDs_sites, "SoilDepth_cm"]) |
+								any_data(sw_input_soils[runIDs_sites, ], "Matricd_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "Sand_L") |
+								any_data(sw_input_soils[runIDs_sites, ], "Clay_L")
+								)
+							)
+		} else {
+			do_extract <- is.na(sites_externalsoils_source) |
+							sites_externalsoils_source == "ISRICWISEv12_Global"
+		}
+		
+
 		if (any(do_extract)) {
 		
 			layer_N <- 5	#WISE contains five soil layers for each prid
@@ -2833,7 +2865,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		
 				#set and save soil layer structure
 				lys <- 1:layer_Nsim
-				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- sim_cells_soils[i_good, "soildepth"]
+				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
 				sw_input_soillayers[runIDs_sites[i_Done], 2+lys] <- matrix(data=rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				sw_input_soillayers[runIDs_sites[i_Done], 2+(1:20)[-lys]] <- NA
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
@@ -2842,25 +2874,27 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
 				i.temp <- grep(pattern="Matricd_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- sim_cells_soils[i_good, paste0("bulk_L", lys)]
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("bulk_L", lys)], 2)
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grep(pattern="GravelContent_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- sim_cells_soils[i_good, paste0("cfrag_L", lys)] / 100
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("cfrag_L", lys)]) / 100
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grep(pattern="Sand_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- sim_cells_soils[i_good, paste0("sand_L", lys)] / 100
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("sand_L", lys)]) / 100
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grep(pattern="Clay_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- sim_cells_soils[i_good, paste0("clay_L", lys)] / 100
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
 				sw_input_soils_use[i.temp][lys] <- 1
 
 				#write data to datafile.soils
 				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
 				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+				rm(lys, tempdat, i.temp, i_Done)
 			}
 		
-			rm(sim_cells_soils, tempdat, i.temp, lys, run_sites_wise, cell_res_wise)
+			rm(sim_cells_soils, run_sites_wise, cell_res_wise, i_good)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
