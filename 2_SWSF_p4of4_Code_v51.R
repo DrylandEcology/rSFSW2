@@ -528,15 +528,15 @@ if(any(simulation_timescales=="daily")){
 		daily_no <- length(output_aggregate_daily)
 	}
 
-	if(AggLayer.daily){
-		aggLs_no <- 2 + ifelse(is.null(Depth_ThirdAggLayer.daily), 1, ifelse(!is.na(Depth_ThirdAggLayer.daily), 1, 0)) + ifelse(is.null(Depth_FourthAggLayer.daily), 1, ifelse(!is.na(Depth_FourthAggLayer.daily), 1, 0))
-	} else {#at this stage we don't know how many soil layers we will have among the SoilWat runs; so just prepare for the maximum
-		if(!any(create_treatments == "soilsin") & !is.null(sw_input_soillayers)){
-			aggLs_no <- max(apply(sw_input_soillayers[, -1], MARGIN=1, FUN=function(x) ifelse(is.na(x[1]), NA, findInterval(x[1] - sqrt(.Machine$double.neg.eps), c(0, na.exclude(unlist(x[-1]))))) ), na.rm=TRUE)
-		} else {
-			aggLs_no <- SoilLayer_MaxNo
-		}
-	}
+#	if(AggLayer.daily){
+#		aggLs_no <- 2 + ifelse(is.null(Depth_ThirdAggLayer.daily), 1, ifelse(!is.na(Depth_ThirdAggLayer.daily), 1, 0)) + ifelse(is.null(Depth_FourthAggLayer.daily), 1, ifelse(!is.na(Depth_FourthAggLayer.daily), 1, 0))
+#	} else {#at this stage we don't know how many soil layers we will have among the SoilWat runs; so just prepare for the maximum
+#		if(!any(create_treatments == "soilsin") & !is.null(sw_input_soillayers)){
+#			aggLs_no <- max(apply(sw_input_soillayers[, -1], MARGIN=1, FUN=function(x) ifelse(is.na(x[1]), NA, findInterval(x[1] - sqrt(.Machine$double.neg.eps), c(0, na.exclude(unlist(x[-1]))))) ), na.rm=TRUE)
+#		} else {
+#			aggLs_no <- SoilLayer_MaxNo
+#		}
+#	}
 }
 
 

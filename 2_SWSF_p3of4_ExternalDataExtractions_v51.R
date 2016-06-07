@@ -2512,6 +2512,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			}
 
 			if (extract_gridcell_or_point == "point") {
+				cell_res_conus <- NULL
 				args_template <- list(x = sites_conus)
 				
 			} else if (extract_gridcell_or_point == "gridcell") {
@@ -2607,23 +2608,24 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						
 				#set and save soil layer structure
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- soil_data[i_good, 1, "bedrock"]
-				sw_input_soillayers[runIDs_sites[i_Done], 2+lys] <- matrix(data=rep(ldepth[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
+				i.temp <- grep("depth_L", colnames(sw_input_soillayers))
+				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(data=rep(ldepth[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
 				i.temp <- grepl(pattern="Matricd_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "matricd"]
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "matricd"]
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grepl(pattern="GravelContent_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "rockvol"]
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "rockvol"]
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grepl(pattern="Sand_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "sand"]
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "sand"]
 				sw_input_soils_use[i.temp][lys] <- 1
 				i.temp <- grepl(pattern="Clay_L", x=names(sw_input_soils_use))
-				sw_input_soils[runIDs_sites[i_Done], i.temp][, lys] <- soil_data[i_good, lys, "clay"]
+				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "clay"]
 				sw_input_soils_use[i.temp][lys] <- 1
 
 				#write data to datafile.soils
@@ -2685,6 +2687,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 			#- List all the wise cells that are covered by the grid cell or point location
 			if (extract_gridcell_or_point == "point") {
+				cell_res_wise <- NULL
 				suids <- raster::extract(grid_wise, run_sites_wise)
 				sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
 			
@@ -2905,8 +2908,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#set and save soil layer structure
 				lys <- 1:layer_Nsim
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
-				sw_input_soillayers[runIDs_sites[i_Done], 2+lys] <- matrix(data=rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
-				sw_input_soillayers[runIDs_sites[i_Done], 2+(1:20)[-lys]] <- NA
+				i.temp <- grep("depth_L", colnames(sw_input_soillayers))
+				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(data=rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
+				sw_input_soillayers[runIDs_sites[i_Done], i.temp[-lys]] <- NA
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
