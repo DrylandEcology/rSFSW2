@@ -13,8 +13,12 @@ suppressMessages(library(RSQLite))
 #------------------------CREATE WEATHER DATABASE AND POPULATION WITH DAILY WEATHER FOR CURRENT CONDITIONS
 if (createAndPopulateWeatherDatabase) {
 	if (file.exists(dbWeatherDataFile)) {
-		print("Removing old database")
-		file.remove(dbWeatherDataFile)
+		if (continueAfterAbort) {
+			stop("Weather database exists, 'continueAfterAbort' is TRUE, and 'createAndPopulateWeatherDatabase' is TRUE: a maximum of two of these three conditions may simultaneously be TRUE: adjust inputs and restart")
+		} else {
+			print("Removing old database")
+			file.remove(dbWeatherDataFile)
+		}
 	}
 	
 	print("Creating new Weather database")

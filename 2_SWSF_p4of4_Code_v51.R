@@ -131,7 +131,9 @@ if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWa
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
 temp <- file.path(dir.out, timerfile)
-if (file.exists(temp) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) try(file.remove(temp), silent=TRUE)
+if (file.exists(temp) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) {
+	try(file.remove(temp), silent=TRUE)
+}
 if (!file.exists(temp)) {
 	write.table(t(c(0,NA)), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
 	runIDs_done <- NULL
@@ -4091,7 +4093,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 
 			#overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
-			if(!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient){
+			if (!continueAfterAbort | (continueAfterAbort & !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient) {
 
 				#delete data so that they are read anew for each scenario; each variable is checked that datafile is read in only once per scenario
 				to_del <- c("temp.yr", "temp.mo", "temp.dy",
