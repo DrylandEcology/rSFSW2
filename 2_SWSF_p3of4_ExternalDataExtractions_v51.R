@@ -2141,7 +2141,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	if (anyNA(sites_GCM_source)) warning("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
 
 	#access climate change data
-	get_climatechange_data <- compiler::cmpfun(function(GCM_source, is_GDODCPUCLLNL, is_NEX, do_SWRun_sites) {
+	get_climatechange_data <- compiler::cmpfun(function(GCM_source, is_GDODCPUCLLNL, is_NEX, do_SWRun_sites, include_YN_climscen) {
 	#	GCM_source <- if (GCM_source == "CMIP5_BCSD_NEX_USA") {
 	#					"CMIP5-BCSD-NEX-USA"
 	#				} else if (grepl("CMIP3_BCSD_GDODCPUCLLNL", GCM_source)) {
@@ -2355,32 +2355,46 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		rm(i_ToDo, logFile)
 
 		#Clean up: report unfinished locations, etc.
-		if (length(i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0) {
+		i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo
+		if (length(i_ToDo) > 0) {
 			warning(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", GCM_source, "'"))
-			failedLocations_DB <- locations[temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1), ]
+			temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1)
+			failedLocations_DB <- locations[temp, ]
+			
 			include_YN_updateFailed <- include_YN
 			include_YN_updateFailed[do_SWRun_sites][temp] <- 0
-			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("failedLocations_ClimDB_", GCM_source, ".RData")))
-			SWRunInformation_updateFailed <- cbind(SWRunInformation, include_YN_updateFailed=include_YN_updateFailed)
-			write.csv(SWRunInformation_updateFailed, file=file.path(dir.in, paste0("failedLocationsUpdated_ClimDB_", GCM_source, "_", datafile.SWRunInformation)))
-			rm(failedLocations_DB, include_YN_updateFailed, SWRunInformation_updateFailed)
+			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("ClimDB_failedLocations_", GCM_source, ".RData")))
+
+			hereDone <- match(locations[, "site_id"], table = SWRunInformation[, "site_id"], nomatch = 0)
+			include_YN_climscen[hereDone] <- 1
+
+			rm(failedLocations_DB, include_YN_updateFailed)
 		}
 	
 		if (!be.quiet) print(paste("Finished '", GCM_source, "' at", Sys.time()))
 	
 		rm(locations, requestN, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, getYears, assocYears, gcmsDB, scenariosDB)
 
-		invisible(0)
+		include_YN_climscen
 	})
 	
+	# keep track of successful/unsuccessful climate scenarios
+	include_YN_climscen <- rep(0, runsN_master)
+	
+	# loop through data sources
 	for (isource in sort(unique(sites_GCM_source))) {
-		get_climatechange_data(GCM_source = isource,
+		include_YN_climscen <- get_climatechange_data(GCM_source = isource,
 								is_GDODCPUCLLNL = grepl("BCSD_GDODCPUCLLNL", isource),
 								is_NEX = isource == "CMIP5_BCSD_NEX_USA",
-								do_SWRun_sites = runIDs_sites[sites_GCM_source == isource])
+								do_SWRun_sites = runIDs_sites[sites_GCM_source == isource],
+								include_YN_climscen = include_YN_climscen)
 	}
 
-	rm(sites_GCM_source, xy, i_use, xy, get_climatechange_data)
+	SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
+	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+	rm(sites_GCM_source, xy, i_use, xy, include_YN_climscen)
 }
 
 
@@ -2954,12 +2968,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 	#write data to datafile.SWRunInformation
 	SWRunInformation$SoilTexture_source[runIDs_sites] <- as.character(sites_externalsoils_source)
 	notDone <- is.na(sites_externalsoils_source)
-	include_YN[runIDs_sites[notDone]] <- 0
-	SWRunInformation$Include_YN[runIDs_sites[notDone]] <- 0
+	include_YN_soils <- rep(0, runsN_master)
+	include_YN_soils[runIDs_sites[!notDone]] <- 1
+	SWRunInformation$Include_YN_SoilSources <- include_YN_soils
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 	if (any(notDone)) print(paste("'ExtractSoilData': no soil information for n =", sum(notDone), "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+
+	rm(do_extract, notDone, include_YN_soils)
 }
 
 #------END OF SOIL CHARACTERISTICS------
@@ -3114,12 +3131,18 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	SWRunInformation[runIDs_sites, colnames(elevation_m)] <- elevation_m
 
 	SWRunInformation$Elevation_source[runIDs_sites] <- as.character(sites_elevation_source)
+
+	notDone <- is.na(sites_elevation_source)
+	include_YN_elev <- rep(0, runsN_master)
+	include_YN_elev[runIDs_sites[!notDone]] <- 1
+	SWRunInformation$Include_YN_ElevationSources <- include_YN_elev
+
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (anyNA(elevation_m)) warning("Elevation wasn't found for ", sum(!complete.cases(elevation_m)), " sites")
+	if (any(notDone)) warning("Elevation wasn't found for ", sum(notDone), " sites")
 	
-	rm(elevation_m, sites_elevation_source)
+	rm(elevation_m, sites_elevation_source, notDone, include_YN_elev)
 }
 
 #------END OF ELEVATION------
@@ -3297,12 +3320,18 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 	#write data to datafile.SWRunInformation
 	SWRunInformation$ClimateNormals_source[runIDs_sites] <- as.character(sites_monthlyclim_source)
+
+	notDone <- is.na(sites_monthlyclim_source)
+	include_YN_climnorm <- rep(0, runsN_master)
+	include_YN_climnorm[runIDs_sites[!notDone]] <- 1
+	SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
+
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (anyNA(sites_monthlyclim_source)) warning("Climate normals weren't found for ", sum(is.na(sites_monthlyclim_source)), " sites")
+	if (any(notDone)) warning("Climate normals weren't found for ", sum(notDone), " sites")
 
-	rm(monthlyclim, sites_monthlyclim_source)
+	rm(monthlyclim, sites_monthlyclim_source, notDone, include_YN_climnorm)
 }
 
 #--------------------------------------------------------------------------------------------------#
