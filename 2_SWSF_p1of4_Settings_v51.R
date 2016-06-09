@@ -81,8 +81,11 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
 actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
-#continues with unfinished part of simulation after abort if TRUE
-continueAfterAbort <- TRUE # affects: weather database creation; consideration of 'runIDs_done'; extraction of external soil information
+#continues with unfinished part of simulation after abort if TRUE, i.e., 
+#	- it doesn't delete an existing weather database, if a new one is requested
+#	- it doesn't re-extract external information (soils, elevation, climate normals) if already extracted
+#	- it doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
+continueAfterAbort <- TRUE
 #use preprocessed input data if available
 usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
