@@ -2546,7 +2546,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				args_template <- list(x = cell_res_conus, coords = sites_conus, method = "block")			
 			}
 
-			#extract data
+			#---extract data
 			# bulk density -> matric density
 			cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
 			ftemp <- file.path(dir.ex.conus, "bd_cond30.tif")
@@ -2557,7 +2557,14 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				g <- raster::calc(g, fun = cond30, filename = ftemp)
 			}
 			soil_data[, , "matricd"] <- round(do.call("extract_external_data", args = c(args_template, data = list(g)))) / 100	
+			print("NOTE: soil density values extracted from CONUS-soil (gridded STATSGO) may be too low!")	
+				
+			# Convert bulk density to matric density
+			#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
+			# This appears to be matric density, Miller et al. 1998 has labelled this as bulk. However, eq. 20 (Saxton et al. 2006) would give negative values if we assumed it to be bulk density
+			#matricd <- ifelse(abs(1 - rockvol) > sqrt(.Machine$double.eps), (bulkd - rockvol * 2.65) / (1 - rockvol), 0)
 
+			# soil depth
 			cond0 <- compiler::cmpfun(function(v) ifelse(!is.na(v) & v > 0, v, NA))
 			ftemp <- file.path(dir.ex.conus, "rockdepm_cond0.tif")
 			if (file.exists(ftemp)) {
@@ -2566,12 +2573,24 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				# rockdepth of 0 cm should be treated as no soil
 				g <- raster::calc(raster::raster(file.path(dir.ex.conus, "rockdepm.tif")), fun = cond0, filename = ftemp)
 			}
-			soil_data[, 1, "bedrock"] <- round(do.call("extract_external_data", args = c(args_template, data = list(g)))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
-			lys <- 1:max(findInterval(soil_data[, 1, "bedrock"], ldepth), na.rm=TRUE)
-
+			rockdep_cm <- round(do.call("extract_external_data", args = c(args_template, data = list(g)))) #depth in cm >< bedrock from datafile.bedrock, but seems to make more sense?
+			
+			# rock volume
 			g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
 			rockvol <- do.call("extract_external_data", args = c(args_template, data = list(g))) / 100
-	
+			# eq. 7 of Miller et al. 1998
+			rockvol <- round(pmax(pmin(rockvol, 1), 0), 2) # volume fraction of bulk=total soil
+			soil_data[, , "rockvol"] <- ifelse(is.finite(rockvol), rockvol, NA)
+			
+			# adjust soil depth by layers with 100% rock volume
+			solid_rock_nl <- apply(soil_data[, , "rockvol"] >= 1 - sqrt(.Machine$double.neg.eps), 1, sum, na.rm = TRUE)
+			solid_rock_nl <- 1 + nl - solid_rock_nl
+			solid_rock_cm <- c(0, ldepth)[solid_rock_nl]
+			
+			soil_data[, 1, "bedrock"] <- pmin(rockdep_cm, solid_rock_cm) # in most cases == rockdep_cm
+			lys <- 1:max(findInterval(soil_data[, 1, "bedrock"], ldepth), na.rm=TRUE)
+			
+			# sand, silt, and clay
 			ftemp <- file.path(dir.ex.conus, "sand_cond0.tif")
 			if (file.exists(ftemp)) {
 				g <- raster::brick(ftemp)
@@ -2609,20 +2628,13 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			}
 
 			#Normalize to 0-1
-			total_matric <- sand + clay + silt
-			total_bulk <- total_matric + rockvol
+			total_matric <- sand + clay + silt # values between 0.99 and 1.01 (of the matric component)
 			sand <- round(sand / total_matric, 2) # mass fraction of matric component
 			soil_data[, , "sand"] <- ifelse(is.finite(sand), sand, NA)
 			clay <- round(clay / total_matric, 2) # mass fraction of matric component
 			soil_data[, , "clay"] <- ifelse(is.finite(clay), clay, NA)
-			rockvol <- round(rockvol / total_bulk, 2) # volume fraction of bulk=total soil
-			soil_data[, , "rockvol"] <- ifelse(is.finite(rockvol), rockvol, NA)
 
-			#Convert bulk density to matric density
-			#	eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
-			# TODO: unclear whether this is bulk or matric density, Miller et al. 1998 has labelled this as bulk, but it appears as if it is matric because eq. 20 (Saxton et al. 2006) would give otherwise negative values for matricd (bulkd <- matricd * (1 - rockvol) + rockvol * 2.65)
-			#matricd <- ifelse(abs(1 - rockvol) > sqrt(.Machine$double.eps), (bulkd - rockvol * 2.65) / (1 - rockvol), 0)
-		
+			# Determine successful extractions
 			i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract)
 			sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
 		
@@ -2663,7 +2675,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			}
 
 			if (!be.quiet) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
-			rm(lys, total_bulk, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30, i_good)
+			rm(lys, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30, i_good, solid_rock_nl, solid_rock_cm)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
