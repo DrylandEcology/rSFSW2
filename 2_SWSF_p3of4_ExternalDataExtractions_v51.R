@@ -110,6 +110,30 @@ if (exinfo$extract_gridcell_or_point) {
 			raster::extract(data, x)
 		})
 		
+		#' extract spatial polygon data for sites
+		#'
+		#' @param x Points represented by an object inheriting from \linkS4class{SpatialPoints}.
+		#' @param data A object inheriting from \linkS4class{SpatialPolygons} from which data is extracted.
+		#' @param file_path A character string. The directory of the shapefile if \code{data == NULL}.
+		#' @param file_shp A character string. The filename of the shapefile if \code{data == NULL}.
+		#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects columns of the extracted object.
+		#' @param code A vector. If not \code{NULL}, then the extracted data are treated as integer codes of a factor whose levels are encoded by \code{code}.
+		#'
+		#' @seealso \code{\link[sp]{over}}
+		#'
+		#' @return A vector or matrix with length/rows corresponding to the elements of \code{x} and available columns requested by \code{fields}. If \code{!is.null(code)}, then the encoded 'factor levels' are returned.
+		extract_from_external_shapefile <- compiler::cmpfun(function(x, data = NULL, file_path = NULL, file_shp = NULL, fields = NULL, code = NULL, ...) {
+			if (is.null(data)) {
+				if (!requireNamespace("rgdal")) stop("'rgdal' is required but not available")
+				data <- rgdal::readOGR(dsn = file_path, layer = file_shp, verbose = FALSE)
+			}
+			
+			val <- sp::over(x = x, y = data)
+			if (!is.null(fields)) val <- val[, colnames(val) %in% fields, drop = FALSE]
+			
+			if (!is.null(code)) apply(val, 2, function(x) code[as.integer(x)]) else val
+		})
+			
 	} else if (extract_gridcell_or_point == "gridcell") {
 		
 		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres, exts) {
@@ -381,6 +405,123 @@ if (exinfo$extract_gridcell_or_point) {
 				with_weights = TRUE,
 				method = dots[["method"]],
 				tol = 1e-2)
+			
+			weighted.agg(reagg, probs = dots[["probs"]])
+		})
+
+		#' Re-aggregation of spatial polygon data by spatial rectangles/polygons
+		#'
+		#' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete information and not the area-weigthed sum.
+		#'
+		#' @param x A \linkS4class{SpatialPolygons} object from which data is extracted.
+		#' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the rectangle(s) for which data is re-aggregated.
+		#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects columns of the extracted object.
+		#' @param code A vector. If not \code{NULL}, then the extracted data are treated as integer codes of a factor whose levels are encoded by \code{code}.
+		#'
+		#' @return A list of length corresponding to the number of rectangles. Each element is a list which contains three items each
+		#'	\describe{
+		#'		\item{N}{An integer vector. The number of unique values within the rectangle for each layer of \code{x}.}
+		#'		\item{values}{A list of numeric vectors or matrices. The sorted unique values as vector or matrix for each layer.}
+		#'		\item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
+		#'	}
+		reaggregate_shapefile <- function(x, by, field = NULL, code = NULL) {
+			# Code from sp:::aggregatePolyWeighted version 1.2.3
+			if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
+
+			i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
+			
+			# Modified code
+			rect_subs <- t(sapply(i@polygons, function(p) {
+							IDs <- as.integer(strsplit(slot(p, name = "ID"), " ")[[1]])
+							if (!(length(IDs) == 2)) stop("IDs contain spaces: this breaks identification after gIntersection()")
+
+							c(	area = slot(p, name = "area"),
+								ID_data = which(row.names(x) == IDs[1]),
+								ID_rect = which(row.names(by) == IDs[2]))
+						}))
+			subs_agg <- aggregate(rect_subs[, "area"],
+									by = list(rect_subs[, "ID_data"], rect_subs[, "ID_rect"]),
+									sum)
+
+			# Return object
+			lapply(seq_along(by), function(k) {
+					v <- subs_agg[subs_agg[, "Group.2"] == k, , drop = FALSE]
+					
+					if (nrow(v) > 0) {
+						vals <- v[, "Group.1"]
+						vals <- if (is.null(dim(x@data))) x@data[vals] else x@data[vals, ]
+						if (!is.null(fields)) vals <- vals[, colnames(vals) %in% fields, drop = FALSE]
+						if (!is.null(code)) vals <- apply(vals, 2, function(x) code[as.integer(x)])
+						
+						list(N = list(nrow(v)), values = list(vals), fraction = list(v[, "x"]))
+					} else {
+						list(N = -1, values = NULL, fraction = NULL)
+					}
+				})
+    	}
+
+
+		#' Extract spatial polygon data for polygons or rectangles.
+		#'
+		#' @param x Points represented by an object inheriting from \linkS4class{SpatialPolygons}.
+		#' @param x Either an object inheriting from \linkS4class{SpatialPolygons} OR resolution(s) of rectangles as a numeric vector of length two or a matrix with two columns.
+		#'		If \linkS4class{SpatialPolygons}, then values of \code{data} are extracted per polygon and weighted by area.
+		#'		If the latter, then \code{coords} must be provided. \code{x} is the vector or matrix representing the rectangle extents in x- and y-coordinates.
+		#'		If a matrix, then rows must match \code{coords}.
+		#' @param data A object inheriting from \linkS4class{SpatialPolygons} from which data is extracted.
+		#' @param file_path A character string. The directory of the shapefile if \code{data == NULL}.
+		#' @param file_shp A character string. The filename of the shapefile if \code{data == NULL}.
+		#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects columns of the extracted object.
+		#' @param code A vector. If not \code{NULL}, then the extracted data are treated as integer codes of a factor whose levels are encoded by \code{code}.
+		#' @param ...
+		#'	\describe{
+		#'		\item{coords}{Cell centers (corresponding to each resolution of \code{x}) that are represented by a two-column matrix of xy coordinates. Ignored if x is inheriting from \linkS4class{SpatialPolygons}.}
+		#'		\item{crs_data}{A \linkS4class{CRS} object indicating the coordinate reference system (CRS) of x and coords. Ignored if x is inheriting from \linkS4class{SpatialPolygons}.}
+		#'		\item{probs}{A numeric vector of probabilities with values in \code{[0,1]} at which sample quantiles are returned.}
+		#'	}
+		#'
+		#' @seealso \code{\link[sp]{over}}
+		#'
+		#' @return A vector or matrix with length/rows corresponding to the elements of \code{x} and available columns requested by \code{fields}. If \code{!is.null(code)}, then the encoded 'factor levels' are returned.
+		extract_from_external_shapefile <- compiler::cmpfun(function(x, data = NULL, file_path = NULL, file_shp = NULL, fields = NULL, code = NULL, ...) {
+			if (!requireNamespace("rgeos")) stop("'rgeos' is required but not available")
+			
+			if (is.null(data)) {
+				if (!requireNamespace("rgdal")) stop("'rgdal' is required but not available")
+				data <- rgdal::readOGR(dsn = file_path, layer = file_shp, verbose = FALSE)
+			}
+			
+			dots <- list(...)
+			if (!("probs" %in% names(dots)))
+				dots[["probs"]] <- NA
+			
+			if (!inherits(x, "SpatialPolygons")) {
+				if (!("coords" %in% names(dots))) stop("Since 'x' are not 'SpatialPolygons', 'coords' are required")
+				coords <- sp::coordinates(dots[["coords"]])
+			
+				# Convert resolution/rectangles into SpatialPolygons
+				if (is.vector(x) && length(x) == 2L && x > 0) {
+					x <- matrix(x, ncol = 2)
+				}
+				stopifnot(is.matrix(x), nrow(x) == 1L || nrow(x) == nrow(coords))
+	
+				to_halfres <- x / 2
+				cxy <- cbind(coords[, 1] - to_halfres[, 1], coords[, 1] + to_halfres[, 1],
+							 coords[, 2] - to_halfres[, 2], coords[, 2] + to_halfres[, 2])
+
+				ptemp0 <- lapply(seq_len(nrow(coords)),
+									function(i) matrix(c(cxy[i, 1], cxy[i, 3], cxy[i, 1], cxy[i, 4], cxy[i, 2], cxy[i, 4], cxy[i, 2], cxy[i, 3]),
+												ncol = 2, byrow = TRUE))
+				ptemp1 <- lapply(ptemp0, sp::Polygon)
+				ptemp2 <- lapply(seq_along(ptemp1), function(i) sp::Polygons(ptemp1[i], ID = i))
+				x <- sp::SpatialPolygons(ptemp2, proj4string = dots[["crs_data"]])
+			}
+			
+			if (!raster::compareCRS(raster::crs(x), raster::crs(data))) {
+				x <- sp::spTransform(x, CRS = raster::crs(data))
+			}
+			
+			reagg <- reaggregate_shapefile(x = data, by = x, field = field, code = code)
 			
 			weighted.agg(reagg, probs = dots[["probs"]])
 		})
@@ -3211,41 +3352,60 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
 			dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
-
-			dir.ex.dat.RH <- file.path(dir.ex.dat, "HumidityRelative_Percent")
-			dir.ex.dat.cover <- file.path(dir.ex.dat, "Sunshine_Percent")
-		#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
-			dir.ex.dat.wind <- file.path(dir.ex.dat, "WindSpeed_mph")
-	
-			datafile.RH <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-			datafile.cover <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-		#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-			datafile.wind <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-	
-			code.RH <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
-			code.cover <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
-		#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
-			code.wind <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+			
+			dir_noaaca <- list()
+			dir_noaaca[["RH"]] <- file.path(dir.ex.dat, "HumidityRelative_Percent")
+			dir_noaaca[["cover"]] <- file.path(dir.ex.dat, "Sunshine_Percent")
+			#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
+			dir_noaaca[["wind"]] <- file.path(dir.ex.dat, "WindSpeed_mph")
+			
+			files_shp <- list()
+			files_shp[["RH"]] <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+			files_shp[["cover"]] <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+			#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+			files_shp[["wind"]] <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+			
+			var_codes <- list()
+			var_codes[["RH"]] <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
+			var_codes[["cover"]] <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
+			#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
+			var_codes[["wind"]] <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
 	
 			#locations of simulation runs
-			run_sites_noaaca <- run_sites[do_extract, ]
+			sites_noaaca <- run_sites[do_extract, ]
 			# Align with data crs
-			noaaca <- rgdal::readOGR(dsn=dir.ex.dat.RH, layer=datafile.RH[1], verbose=FALSE)
+			noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
 			crs_data <- raster::crs(noaaca)
 			if (!raster::compareCRS(crs_sites, crs_data)) {
-				run_sites_noaaca <- sp::spTransform(run_sites_noaaca, CRS = crs_data)	#transform points to grid-coords
+				sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)	#transform points to grid-coords
 			}
-	
+
+			if (extract_gridcell_or_point == "point") {
+				args_extract <- list(x = sites_noaaca)
+
+			} else if (extract_gridcell_or_point == "gridcell") {
+				cell_res_noaaca <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
+				args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)			
+			}
+
 			#extract data for locations
-			get.month <- function (path, shp, month) {
-				noaaca <- rgdal::readOGR(dsn=path, layer=shp[month], verbose=FALSE)
-				val <- sp::over(x = run_sites_noaaca, y = noaaca)$GRIDCODE
-			}
-			monthlyclim[do_extract, "rh", ] <- sapply(st_mo, FUN=function(m) code.RH[get.month(path=dir.ex.dat.RH, shp=datafile.RH, month=m)])
-			monthlyclim[do_extract, "cover", ] <- sapply(st_mo, FUN=function(m) 100 - code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)]) #subtract from 100% as we want cover not no-cover
-		#		cover <- sapply(st_mo, FUN=function(m) code.cover[get.month(path=dir.ex.dat.cover, shp=datafile.cover, month=m)])
-			monthlyclim[do_extract, "wind", ] <- sapply(st_mo, FUN=function(m) code.wind[get.month(path=dir.ex.dat.wind, shp=datafile.wind, month=m)])
+			temp <- round(do.call("extract_from_external_shapefile", args = c(args_extract, data = list(g.elev))))	# elevation in m a.s.l.
 	
+			for (iv in names(dir_noaaca)) {
+				monthlyclim[do_extract, iv, ] <- sapply(st_mo, function(m)
+					do.call("extract_from_external_shapefile",
+						args = c(args_extract,
+								file_path = list(dir_noaaca[[iv]]),
+								file_shp = list(files_shp[[iv]][m]),
+								field = list("GRIDCODE"),
+								code = list(var_codes[[iv]]))))
+			}
+			
+			#subtract from 100% as we want cover and not no-cover
+			monthlyclim[do_extract, "cover", ] <- 100 - monthlyclim[do_extract, "cover", ] 
+
+
 			# Save extracted data to disk
 			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract)
 			sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
@@ -3258,12 +3418,15 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 	
 				#add data to sw_input_cloud and set the use flags
-				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "rh", ], 2)
-				sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
-				sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
+				i.temp <- grepl("RH", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "rh", ], 2)
+				i.temp <- grepl("SkyC", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "cover", ], 2)
+				i.temp <- grepl("wind", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "wind", ], 2)
 	
 				#write data to datafile.cloud
 				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
@@ -3271,7 +3434,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			
 				rm(i.temp)
 			}
-			rm(run_sites_noaaca, reference, noaaca)
+			rm(dir_noaaca, files_shp, var_codes, sites_noaaca, reference, noaaca)
 		}
 	
 		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
