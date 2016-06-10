@@ -6396,7 +6396,22 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						prev.Doy_SeedDispersalStart <- Doy_SeedDispersalStart
 					}#end of species loop
 				}
-
+       #64
+				if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
+				  if(print.debug) print("Aggregation of dailyWarmDays")
+				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+				  
+				  for(iTmax in Tmean_crit_C){
+				    WarmDays <- aggregate(temp.dy$max > iTmax, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) x<-x+1 )[, 2]#Numbers of days with max.temp > 0
+				    
+				    #resMeans[nv] <- mean(HotDays, na.rm=TRUE)
+				    #resSDs[nv] <- sd(HotDays, na.rm=TRUE)
+				    #nv <- nv+1
+				  }
+				  
+				  rm(WarmDays)
+				}				
+				
 				#---Aggregation: done with options
 
 				#temporaly save aggregate data

@@ -875,7 +875,27 @@ if((length(Tables) == 0) || do.clean) {
 				#Output for time series: not yet implemented for db			
 			}
 		}
-	
+		print("64a")
+	#64
+		if(any(simulation_timescales=="daily")  & aon$dailyDryPeriods ){	
+		  temp <- c(temp,paste("ThermalDryPeriod", paste(c("StartDt", "EndDt"), rep(SWPcrit_MPa, each=2), sep="")))
+		  print("64b")
+		}
+	#65
+		print("65a")
+		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){			
+		  temp <- c(temp, paste0("TmaxAbove", ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "degC_days_mean"))
+		  print("65b")
+		}	
+	#66	
+		if(any(simulation_timescales=="daily") & aon$dailyDegreeDaysCnt){
+		  temp <- c(temp, paste("DegreeDays.Cnt", DegreeDayBase, "C.dailyTmeanCnt", sep=""))
+		}
+	#67	
+		if(any(simulation_timescales=="daily") & aon$dailyTMaxTenDayMean){
+		  temp <- c(temp, "HottestTopTen")
+		  temp <- c(temp, "HottestTopTenCrit")
+		}				
 		#---Aggregation: done with options
 	
 		#Convert '.' to "_"

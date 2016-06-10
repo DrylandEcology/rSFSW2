@@ -314,7 +314,12 @@ output_aggregates <- c(
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
 						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_GISSM", 0
+						"dailyRegeneration_GISSM", 0,
+					#---Aggregation: 
+					  "dailyDryPeriods", 1,
+					  "dailyWarmDays",1,
+					  "dailyDegreeDaysCnt",1,
+					  "dailyTMaxTenDayMean", 1
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
@@ -332,6 +337,7 @@ SWPcrit_MPa <- c(-1.5, -3.0, -3.5, -3.9) #e.g., -1.5 or c(-3.0, -3.9, -4.9); cri
 #critical temperatures
 Tmin_crit_C <- c(-15, -9, 0)	#e.g., 0 or c(-15, -9, 0)
 Tmax_crit_C <- c(34, 40)	#e.g., 34 or c(34, 40)
+Tmean_crit_C <- c(5, 15, 25, 35)
 
 #degree-days and suitable temperature
 DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are accumulated
