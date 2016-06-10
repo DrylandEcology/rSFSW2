@@ -53,7 +53,9 @@ exinfo$extract_gridcell_or_point <-
 	exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA	||
 	exinfo$ExtractSoilDataFromISRICWISEv12_Global		||
 	exinfo$ExtractElevation_NED_USA						||
-	exinfo$ExtractElevation_HWSD_Global
+	exinfo$ExtractElevation_HWSD_Global					||
+	exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA		||
+	exinfo$ExtractSkyDataFromNCEPCFSR_Global
 
 if (exinfo$extract_gridcell_or_point) {
 	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
