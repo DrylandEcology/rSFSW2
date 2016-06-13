@@ -607,12 +607,10 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 
 #------------------------FUNCTIONS FOR NCEP/CFSR DATA
 if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCEPCFSR_Global){
-	# MAKE SURE THE FOLLOWING CONDITIONS ARE MET BEFORE RUNNING:
-	# 	1) dynamically link cfsr_convert to do this call: "make linkr"
-	#	2) compile wGrib2 program beforehand & have it located in the same directory as cfsr_convert.  Instructions for how to compile wGrib2 are in cfsr_convert.c header.
-	#	3) have appropriate grib files located in the gribfiles folder in the same directory as cfsr_convert.  Info about the gribfiles needed is in cfsr_convert.c
-	#
-	#	for further reference, check in cfsr_convert.c
+	writeLines(c("make sure the following conditions are met before running any 'NCEPCFSR' extraction:", 
+		" 	1) C code for 'cfsr_convert' is located in directory 'dir.cfsr.code'",
+		"	2) Compiled 'wgrib2' executable is located in directory 'dir.cfsr.code' or '/opt/local/bin/' & have it located in the same directory as cfsr_convert.  Instructions for how to compile 'wgrib2' can be found in the 'cfsr_convert.c'. The code of wgrib2 is available from http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
+		"	3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'.  Info about the gribfiles is in 'cfsr_convert.c'"))
 
 	#daily data (http://rda.ucar.edu/datasets/ds093.1/): ds093.1 NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010, 0.313-deg: 6-hourly
 	#- maximum temperature: 2m above ground (Kelvin): 6-hour period
@@ -636,15 +634,15 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 		invisible(0)
 	}
 
-	prepare_NCEPCFSR_extraction <- function(dir.cfsr){
-		dir.create(dir.in.cfsr <- file.path(dir.in, "ncepcfsr"), showWarnings=FALSE)
+	prepare_NCEPCFSR_extraction <- function(dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
+		dir.create(dir.in.cfsr <- file.path(dir.big, "ncepcfsr"), showWarnings=FALSE)
 		fname_cfsr <- file.path(dir.in.cfsr, "cfsr_convert.so")
 
 		.local <- function(){
 			#Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
 			if(!file.exists(fname_cfsr)){ # compile
 				dtemp <- getwd()
-				setwd(dir.cfsr)
+				setwd(dir.cfsr.code)
 				stopifnot(file.exists("cfsr_convert.c", "generic2.c", "generic2.h", "filefuncs2.c", "filefuncs2.h", "mymemory2.c", "mymemory2.h"))
 				unlink(c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o"))
 				stopifnot(system2(command=file.path(Sys.getenv()[["R_HOME"]], "R"), args=paste("CMD SHLIB -o", fname_cfsr, "cfsr_convert.c generic2.c filefuncs2.c mymemory2.c"), wait=TRUE) == 0)
@@ -662,7 +660,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 			#Soft link to gribbed data
 			fname_gribDir <- "griblargeC2"
 			if(!file.exists(dir.grib <- file.path(dir.in.cfsr, fname_gribDir))){ # value of gribDir defined in cfsr_convert.c
-				stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr, fname_gribDir), dir.grib)) == 0)
+				stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
 			}
 
 			#Set up temporary directory for C code to store objects
@@ -1218,7 +1216,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherData
 	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
 	stopifnot(file.exists(dir.ex.CFSR))
 
-	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.CFSR)
+	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.CFSR)
 	stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 	# Function to be executed for all SoilWat-sites together

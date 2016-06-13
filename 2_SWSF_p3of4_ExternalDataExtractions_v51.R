@@ -3462,7 +3462,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			dir.ex.dat <- file.path(dir.ex.weather, "NCEPCFSR", "CFSR_weather_prog08032012")
 			stopifnot(file.exists(dir.ex.dat))
 		
-			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr=dir.ex.dat)
+			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.dat)
 			stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 			#locations of simulation runs
