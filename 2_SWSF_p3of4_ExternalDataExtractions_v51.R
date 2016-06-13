@@ -426,7 +426,7 @@ if (exinfo$extract_gridcell_or_point) {
 		#'		\item{values}{A list of numeric vectors or matrices. The sorted unique values as vector or matrix for each layer.}
 		#'		\item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
 		#'	}
-		reaggregate_shapefile <- function(x, by, field = NULL, code = NULL) {
+		reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 			# Code from sp:::aggregatePolyWeighted version 1.2.3
 			if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
 
@@ -523,7 +523,7 @@ if (exinfo$extract_gridcell_or_point) {
 				x <- sp::spTransform(x, CRS = raster::crs(data))
 			}
 			
-			reagg <- reaggregate_shapefile(x = data, by = x, field = field, code = code)
+			reagg <- reaggregate_shapefile(x = data, by = x, fields = fields, code = code)
 			
 			weighted.agg(reagg, probs = dots[["probs"]])
 		})
@@ -3076,7 +3076,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 			if (FALSE) {#visualize in interactive sessions
 				temp <- sim_cells_soils[, grep("sand", colnames(sim_cells_soils))]
-				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=nl)))
+				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=10)))
 				cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
 				plot(run_sites_wise, pch=15, cex=0.5, col=cols[cats])
 				legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
@@ -3392,15 +3392,13 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			}
 
 			#extract data for locations
-			temp <- round(do.call("extract_from_external_shapefile", args = c(args_extract, data = list(g.elev))))	# elevation in m a.s.l.
-	
 			for (iv in names(dir_noaaca)) {
 				monthlyclim[do_extract, iv, ] <- sapply(st_mo, function(m)
 					do.call("extract_from_external_shapefile",
 						args = c(args_extract,
 								file_path = list(dir_noaaca[[iv]]),
 								file_shp = list(files_shp[[iv]][m]),
-								field = list("GRIDCODE"),
+								fields = list("GRIDCODE"),
 								code = list(var_codes[[iv]]))))
 			}
 			
