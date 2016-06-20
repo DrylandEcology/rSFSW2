@@ -161,6 +161,12 @@ do.ExtractExternalDatasets <- c(
 		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
+chunk_size.options <- list(
+		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
+		ExtractSkyDataFromNCEPCFSR_Global = 100,
+		DailyWeatherFromNCEPCFSR_Global = 100
+)
+
 do.PriorCalculations <- c(
 		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 1,
 		"EstimateInitialSoilTemperatureForEachSoilLayer", 1,
