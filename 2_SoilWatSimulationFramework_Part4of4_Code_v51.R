@@ -6872,18 +6872,20 @@ if(any(actions=="concatenate")) {
 			}
 			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
 
-			command<-paste(paste(settings,collapse="\n"),"BEGIN;",paste(".read ",file.path(dir.out.temp,theFileList[j]),sep=""),"COMMIT;",sep="\n")
+			command <- paste(paste(settings,collapse="\n"),"BEGIN;",paste(".read ",file.path(dir.out.temp,theFileList[j]),sep=""),"COMMIT;",sep="\n")
+			sqlCommand1 <- paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDB))
 			if (.Platform$OS.type == "unix") {
-				 system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDB)))
+				 system(sqlCommand1)
 			} else {
-
+				 system2(command="cmd.exe", args=sqlCommand1)
 			}
 
 			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
+				sqlCommand2 <- paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDBCurrent))
 				if (.Platform$OS.type == "unix") {
-					system(paste("echo ",shQuote(command)," | sqlite3 ", shQuote(name.OutputDBCurrent)))
+					system(sqlCommand2)
 				} else {
-
+					system2(command="cmd.exe", args=sqlCommand2)
 				}
 			}
 
