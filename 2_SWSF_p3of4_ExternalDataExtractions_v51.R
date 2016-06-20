@@ -3289,7 +3289,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 				sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
 				if (!be.quiet) print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 			}
-			rm(g.elev, sites_hwsd, cell_res_hwsd, dir.ex.hswd)
+			rm(g.elev, sites_hwsd, cell_res_hwsd, dir.ex.hwsd)
 		}
 		
 		if (!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
@@ -3400,8 +3400,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			}
 
 			# determine NOAA CA extractions to do
-			chunk_size <- 10000	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
-			do_chunks <- parallel::splitIndices(n_extract, ceiling(n_extract / chunk_size))
+			do_chunks <- parallel::splitIndices(n_extract, ceiling(n_extract / chunk_size.options[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]))
 			
 			n_vars <- ncol(monthlyclim)
 			n_months <- length(st_mo)
@@ -3434,7 +3433,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				(iv == n_vars && m < n_months) ||
 				(iv == n_vars && m == n_months && ic < n_chunks)) repeat {
 
-				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", chunk_size), sep = ", ")))
+				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", chunk_size.options[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]), sep = ", ")))
 				
 				iextr <- i_extract[do_chunks[[ic]]]
 				args_chunk <- args_extract
@@ -3529,13 +3528,24 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			dir.ex.dat <- file.path(dir.ex.weather, "NCEPCFSR", "CFSR_weather_prog08032012")
 			stopifnot(file.exists(dir.ex.dat))
 		
-			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.dat)
+			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data = dir.ex.dat)
 			stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 			#locations of simulation runs
 			locations <- SWRunInformation[runIDs_sites[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
 			# do the extractions
-			temp <- try(get_NCEPCFSR_data(dat_sites=locations, daily=FALSE, monthly=TRUE, yearLow=startyr, yearHigh=endyr, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE), silent=TRUE)
+			temp <- try(get_NCEPCFSR_data(
+							dat_sites = locations,
+							daily = FALSE,
+							monthly = TRUE,
+							yearLow = startyr,
+							yearHigh = endyr,
+							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
+							cfsr_so = prepd_CFSR$cfsr_so,
+							dir.in.cfsr = prepd_CFSR$dir.in.cfsr,
+							dir.temp = dir.out.temp,
+							rm_mc_files = TRUE),
+						silent = TRUE)
 			stopifnot(!inherits(temp, "try-error"))
 
 			#match weather folder names in case of missing extractions
@@ -3586,7 +3596,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	include_YN_climnorm[runIDs_sites[!notDone]] <- 1
 	SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
 
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+	write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
 	if (any(notDone)) warning("Climate normals weren't found for ", sum(notDone), " sites")
