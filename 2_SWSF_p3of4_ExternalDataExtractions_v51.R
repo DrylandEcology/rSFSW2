@@ -426,13 +426,15 @@ if (exinfo$extract_gridcell_or_point) {
 		#'		\item{values}{A list of numeric vectors or matrices. The sorted unique values as vector or matrix for each layer.}
 		#'		\item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
 		#'	}
-		reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
+		reaggregate_shapefile <- compiler::cmpfun(function(x, by, fields = NULL, code = NULL) {
 			# Code from sp:::aggregatePolyWeighted version 1.2.3
 			if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
 
 			i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
 			
 			# Modified code
+			if (is.null(i)) return(rep(list(list(N = -1, values = NULL, fraction = NULL)), length(by)))
+			
 			rect_subs <- t(sapply(i@polygons, function(p) {
 							IDs <- as.integer(strsplit(slot(p, name = "ID"), " ")[[1]])
 							if (!(length(IDs) == 2)) stop("IDs contain spaces: this breaks identification after gIntersection()")
@@ -460,7 +462,7 @@ if (exinfo$extract_gridcell_or_point) {
 						list(N = -1, values = NULL, fraction = NULL)
 					}
 				})
-    	}
+    	})
 
 
 		#' Extract spatial polygon data for polygons or rectangles.
@@ -3332,7 +3334,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
 
-	monthlyclim <- array(NA, dim = c(runsN_sites, 3, 12), dimnames = list(NULL, c("rh", "cover", "wind"), NULL))
+	monthlyclim <- array(NA, dim = c(runsN_sites, 3, 12), dimnames = list(NULL, c("RH", "cover", "wind"), NULL))
 	
 	if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
 		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
@@ -3346,32 +3348,38 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
 		}
+		
+		i_extract <- as.integer(which(do_extract))
+		n_extract <- sum(do_extract)
 
-		if (any(do_extract)) {
-			if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =", sum(do_extract), "sites"))
+		if (n_extract > 0) {
+			if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =", n_extract, "sites"))
 			reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
 	
 			#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
 			dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 			
-			dir_noaaca <- list()
-			dir_noaaca[["RH"]] <- file.path(dir.ex.dat, "HumidityRelative_Percent")
-			dir_noaaca[["cover"]] <- file.path(dir.ex.dat, "Sunshine_Percent")
-			#		dir.ex.dat.cover <- file.path(dir.ex.dat, "SkyCoverDay_Percent")
-			dir_noaaca[["wind"]] <- file.path(dir.ex.dat, "WindSpeed_mph")
+			dir_noaaca <- list(
+							RH = file.path(dir.ex.dat, "HumidityRelative_Percent"),
+							cover = file.path(dir.ex.dat, "Sunshine_Percent"),
+							# cover = file.path(dir.ex.dat, "SkyCoverDay_Percent"),
+							wind = file.path(dir.ex.dat, "WindSpeed_mph"))
 			
-			files_shp <- list()
-			files_shp[["RH"]] <- paste("RH23", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-			files_shp[["cover"]] <- paste("SUN52", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-			#		datafile.cover <- paste("SKYC50", formatC(st_mo, width=2,format="d", flag="0"), sep="")
-			files_shp[["wind"]] <- paste("WND60B", formatC(st_mo, width=2,format="d", flag="0"), sep="")
+			files_shp <- list(
+							RH = paste0("RH23", formatC(st_mo, width=2,format="d", flag="0")),
+							cover = paste0("SUN52", formatC(st_mo, width=2,format="d", flag="0")),
+							# cover = paste0("SKYC50", formatC(st_mo, width=2,format="d", flag="0")),
+							wind = paste0("WND60B", formatC(st_mo, width=2,format="d", flag="0")))
 			
-			var_codes <- list()
-			var_codes[["RH"]] <- c(10, 23, 31, 41, 51, 61, 71, 78, 90) #percent
-			var_codes[["cover"]] <- c(11, 26, 36, 46, 56, 66, 76, 86, 96)	#percent
-			#		code.cover <- c(11, 23, 31, 41, 51, 61, 71, 81, 93)	#percent
-			var_codes[["wind"]] <- c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6)	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+			var_codes <- list(
+							RH = c(10, 23, 31, 41, 51, 61, 71, 78, 90), #percent
+							cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),	#percent
+							# cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),	#percent
+							wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+			stopifnot(	colnames(monthlyclim) == names(dir_noaaca), 
+						colnames(monthlyclim) == names(files_shp), 
+						colnames(monthlyclim) == names(var_codes))
 	
 			#locations of simulation runs
 			sites_noaaca <- run_sites[do_extract, ]
@@ -3391,15 +3399,74 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)			
 			}
 
+			# determine NOAA CA extractions to do
+			chunk_size <- 10000	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
+			do_chunks <- parallel::splitIndices(n_extract, ceiling(n_extract / chunk_size))
+			
+			n_vars <- ncol(monthlyclim)
+			n_months <- length(st_mo)
+			n_chunks <- length(do_chunks)
+			iv <- m <- ic <- 1
+			
+			# determine start location based on interrupted data extraction
+			ftemp_noaaca <- file.path(dir.out.temp, "NOAA_ClimateAtlas_extraction.rds")
+			
+			if (continueAfterAbort && file.exists(ftemp_noaaca)) {
+				prev_noaaca <- readRDS(ftemp_noaaca)
+				
+				if (identical(do_extract, prev_noaaca[["do_extract"]])) { # only continue if same extractions
+					monthlyclim[do_extract, , ] <- prev_noaaca[["monthlyclim"]][do_extract, , ]
+					
+					iv <- prev_noaaca[["iv"]]
+					m <- prev_noaaca[["m"]]
+					if (identical(do_chunks, prev_noaaca[["do_chunks"]])) {
+						ic <- prev_noaaca[["ic"]]
+					} else {
+						itemp <- max(unlist(prev_noaaca[["do_chunks"]][seq_len(prev_noaaca[["ic"]])]))
+						cnewmaxs <- sapply(do_chunks, function(x) max(x))
+						ic <- findInterval(itemp, c(0, cnewmaxs))
+					}
+				}
+			}
+
 			#extract data for locations
-			for (iv in names(dir_noaaca)) {
-				monthlyclim[do_extract, iv, ] <- sapply(st_mo, function(m)
-					do.call("extract_from_external_shapefile",
-						args = c(args_extract,
+			if (iv < n_vars ||
+				(iv == n_vars && m < n_months) ||
+				(iv == n_vars && m == n_months && ic < n_chunks)) repeat {
+
+				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", chunk_size), sep = ", ")))
+				
+				iextr <- i_extract[do_chunks[[ic]]]
+				args_chunk <- args_extract
+				args_chunk[["x"]] <- args_chunk[["x"]][do_chunks[[ic]], ]
+				if (!is.null(args_chunk[["coords"]]))
+					args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
+
+				monthlyclim[iextr, iv, ] <- do.call("extract_from_external_shapefile",
+						args = c(args_chunk,
 								file_path = list(dir_noaaca[[iv]]),
 								file_shp = list(files_shp[[iv]][m]),
 								fields = list("GRIDCODE"),
-								code = list(var_codes[[iv]]))))
+								code = list(var_codes[[iv]])))
+					
+				if (ic < n_chunks) {
+					ic <- ic + 1
+				} else {
+					ic <- 1
+					m <- m + 1
+				}
+				if (m > n_months) {
+					m <- 1
+					iv <- iv + 1
+				}
+
+				if (continueAfterAbort) saveRDS(list(monthlyclim = monthlyclim,
+													do_extract = do_extract,
+													do_chunks = do_chunks,
+													iv = iv, m = m, ic = ic),
+											file = ftemp_noaaca)
+
+				if (iv > n_vars) break
 			}
 			
 			#subtract from 100% as we want cover and not no-cover
@@ -3408,28 +3475,28 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 			# Save extracted data to disk
 			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract)
-			sites_monthlyclim_source[which(do_extract)[!i_good]] <- NA
+			sites_monthlyclim_source[i_extract[!i_good]] <- NA
 			
 			if (any(i_good)) {
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+				i_Done[i_extract[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_monthlyclim_source[i_Done] <- "ClimateNormals_NCDC2005_USA"
-				if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+				if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =", sum(i_good), "out of", n_extract, "sites"))
 	
 				#add data to sw_input_cloud and set the use flags
-				i.temp <- grepl("RH", names(sw_input_cloud_use))
+				i.temp <- grep("RH", names(sw_input_cloud_use))
 				sw_input_cloud_use[i.temp] <- 1
-				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "rh", ], 2)
-				i.temp <- grepl("SkyC", names(sw_input_cloud_use))
+				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "RH", ], 2)
+				i.temp <- grep("SkyC", names(sw_input_cloud_use))
 				sw_input_cloud_use[i.temp] <- 1
 				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "cover", ], 2)
-				i.temp <- grepl("wind", names(sw_input_cloud_use))
+				i.temp <- grep("wind", names(sw_input_cloud_use))
 				sw_input_cloud_use[i.temp] <- 1
 				sw_input_cloud[runIDs_sites[i_Done], i.temp[st_mo]] <- round(monthlyclim[i_good, "wind", ], 2)
 	
 				#write data to datafile.cloud
-				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 			
 				rm(i.temp)
@@ -3475,7 +3542,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			res <- as.matrix(temp[["res_clim"]][, -1])
 			irow <- match(temp[["res_clim"]][, "WeatherFolder"], table=locations[, "WeatherFolder"], nomatch=0)
 			irowL <- (irow > 0)
-			monthlyclim[do_extract, "rh", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
+			monthlyclim[do_extract, "RH", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
 			monthlyclim[do_extract, "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
 			monthlyclim[do_extract, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
 		
@@ -3491,7 +3558,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 				#add data to sw_input_cloud and set the use flags
 				sw_input_cloud_use[i.temp <- grepl(pattern="RH", x=names(sw_input_cloud_use))] <- 1
-				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "rh", ], 2)
+				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "RH", ], 2)
 				sw_input_cloud_use[i.temp <- grepl(pattern="SkyC", x=names(sw_input_cloud_use))] <- 1
 				sw_input_cloud[runIDs_sites[i_Done], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
 				sw_input_cloud_use[i.temp <- grepl(pattern="wind", x=names(sw_input_cloud_use))] <- 1
