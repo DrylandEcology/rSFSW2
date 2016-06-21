@@ -726,7 +726,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 		dir.create(dir.temp.cfsr <- file.path(dir.temp, "temp_NCEFCFSR"), showWarnings=FALSE)
 		dir.temp.sites <- file.path(dir.temp.cfsr, dat_sites[, "WeatherFolder"])
 		temp <- lapply(dir.temp.sites, FUN=function(x) dir.create(x, showWarnings=FALSE))
-		dir.temp.sitesC <- gsub("/", "//", dir.temp.sites) # C-style paths
+		dir.temp.sitesC <- gsub("/", "//", normalizePath(dir.temp.sites)) # C-style paths; they cannot be relative to ~
 
 		# prepare tasks
 		n_years <- (yearHigh - yearLow + 1)
