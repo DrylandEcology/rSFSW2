@@ -6877,7 +6877,7 @@ if(any(actions=="concatenate")) {
 			if (.Platform$OS.type == "unix") {
 				 system(sqlCommand1)
 			} else {
-				 system2(command="cmd.exe", args=sqlCommand1)
+				 system2(sqlCommand1)
 			}
 
 			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
@@ -6885,7 +6885,7 @@ if(any(actions=="concatenate")) {
 				if (.Platform$OS.type == "unix") {
 					system(sqlCommand2)
 				} else {
-					system2(command="cmd.exe", args=sqlCommand2)
+					system2(sqlCommand2)
 				}
 			}
 
