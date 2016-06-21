@@ -198,6 +198,7 @@ if (exinfo$extract_gridcell_or_point) {
 			extract2_Raster_SpatialPolygons <- function(x, ...) {
 				stop("Function 'extract2_Raster_SpatialPolygons' is not defined")
 			}
+		}
 
 		#' Extract all raster cell values that occur within each rectangle
 		#'
