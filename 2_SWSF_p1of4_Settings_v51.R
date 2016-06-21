@@ -94,6 +94,8 @@ saveSoilWatInputOutput <- FALSE
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
+# check linked BLAS library before simulation runs
+check.blas <- FALSE
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.

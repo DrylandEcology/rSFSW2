@@ -6763,7 +6763,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 # print system information
 print(temp <- sessionInfo())
-if (print.debug && grepl("darwin", temp$platform)) { # apparently this works only on Mac OS X
+if (check.blas && grepl("darwin", temp$platform)) { # apparently this works only on Mac OS X
 	blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
 	blas <- sub("-L/", "/", (strsplit(blas, split=" ")[[1]][1]))
 	lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
