@@ -1023,6 +1023,8 @@ void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* 
 	
 	for( i=0; i<nSites; i++)
 		CloseFile(&siteFiles[i]);	
+	
+	CloseFile(&inFile);
 }
 
 void monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[], char* siteDirs[], int* yearLow, int* yearHigh, int* type) {
@@ -1165,12 +1167,12 @@ int main (int argc, char *argv[])
 		exit(0);
 	}
 	
+	FILE* logFile = OpenFile("stdout.log", "w");
 	if(redirectStdOut == 1) {
 		printf("NOTE: stdout & stderr are being redirected to stdout.log\n");
 		
 		char logFileBuffer[1024];
 		// opening the logfile and setting the buffering correctly
-		FILE* logFile = OpenFile("stdout.log", "w");
 		setvbuf(logFile, logFileBuffer, _IOLBF, sizeof(char) * 1024); // sets the logFile to be line-buffered (ie: it flushes the buffer every time a new-line '\n' character is encountered).
 		
 		// these calls redirect stdout & stderr to stdout.log
@@ -1283,5 +1285,8 @@ int main (int argc, char *argv[])
 		int diffTime = endTime.tv_sec - startTime.tv_sec;
 		printf("Time total: %d secs\n", diffTime);
 	}
+	
+	CloseFile(&logFile);
+	
 	return 0;
 }
