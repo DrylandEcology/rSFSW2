@@ -1681,7 +1681,8 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				if (length(vtemp) < 12*yearsN) { #some GCMs only have values up to Nov 2099
 					tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep="_")
 					targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
-					dat[match(tempYearMonth, targetYearMonth, nomatch=0)] <- vtemp[match(targetYearMonth, tempYearMonth, nomatch=0)]
+					iavail <- match(targetYearMonth, tempYearMonth, nomatch = 0)
+					dat[iaval > 0] <- vtemp[iavail]
 				} else {
 					dat <- vtemp
 				}
@@ -3555,8 +3556,8 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 			#match weather folder names in case of missing extractions
 			res <- as.matrix(temp[["res_clim"]][, -1])
-			irow <- match(temp[["res_clim"]][, "WeatherFolder"], table=locations[, "WeatherFolder"], nomatch=0)
-			irowL <- (irow > 0)
+			irow <- match(locations[, "WeatherFolder"], table = temp[["res_clim"]][, "WeatherFolder"], nomatch = 0)
+			irowL <- irow > 0
 			monthlyclim[do_extract, "RH", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
 			monthlyclim[do_extract, "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
 			monthlyclim[do_extract, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
@@ -3586,7 +3587,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 				rm(i_Done, i.temp)
 			}
-			rm(locations, temp)
+			rm(locations, temp, i_good, irow, irowL)
 		}
 		rm(do_extract)
 	
