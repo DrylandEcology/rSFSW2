@@ -3095,13 +3095,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
 			}
+		}
 
-			#SoilWat needs positive values for sand and clay contents
-			temp <- colnames(swSoils_Layers(swRunScenariosData[[1]]))
-			if(!all(swSoils_Layers(swRunScenariosData[[1]])[, grep("sand", temp)] > 0, swSoils_Layers(swRunScenariosData[[1]])[, grep("clay", temp)] > 0)){
-				warning(paste("Run:", i_sim, i_labels, ", no or zero sand or clay content: SoilWat will likely crash"))
-				tasks$create <- 0
-			}
+		# Check soil
+		this_soil <- swSoils_Layers(swRunScenariosData[[1]])
+		temp <- this_soil[, grep("depth", colnames(this_soil), ignore.case = TRUE)]
+		check_depth <- !is.na(temp) & temp > 0 & diff(c(0, temp)) > 0
+		temp <- this_soil[, grep("density", colnames(this_soil), ignore.case = TRUE)]
+		check_density <- !is.na(temp) & temp > 0.3 & temp <= 2.65
+		temp <- this_soil[, grep("gravel", colnames(this_soil), ignore.case = TRUE)]
+		check_gravel <- !is.na(temp) & temp >= 0 & temp < 1
+		temp <- this_soil[, grep("sand", colnames(this_soil), ignore.case = TRUE)]
+		check_sand <- !is.na(temp) & temp > 0 & temp <= 1
+		temp <- this_soil[, grep("clay", colnames(this_soil), ignore.case = TRUE)]
+		check_clay <- !is.na(temp) & temp > 0 & temp <= 1
+		
+		if (!all(check_depth, check_density, check_gravel, check_sand, check_clay)) {
+			print(paste("Run:", i_sim, i_labels, ": soil data didn't pass quality test."))
+			print(this_soil)
+			tasks$create <- 0
 		}
 
 
@@ -6771,7 +6783,7 @@ if (check.blas && grepl("darwin", temp$platform)) { # apparently this works only
 	get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
 	temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
-	print("Test linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
+	print("Check linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
 	print(system.time({ x <- replicate(5e3, rnorm(5e3)); tcrossprod(x) }))
 
 	# Example values:
