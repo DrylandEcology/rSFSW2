@@ -79,8 +79,8 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
+#actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
+actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")#
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals) if already extracted
@@ -92,6 +92,8 @@ usePreProcessedInput <- TRUE
 saveSoilWatInputOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
+# fields/variables of input data for which to create maps if any(actions == "map_input")
+map_vars <- c("SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
@@ -115,6 +117,24 @@ getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
+#-Spatial setup of simulations
+# Should the locations of 'SWRunInformation' interpreted as 2D-cells of a raster/grid or as 1D-sites
+# sim_cells_or_points: currently, implemented for 
+# - actions == "map_inputs"
+# - external extractions:
+#	- soils: "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
+#	- elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
+#	- climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA" (NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global')
+sim_cells_or_points <- "cell" # one of c("point", "cell"), whether to extract for point locations or averaged over a cell area
+if (sim_cells_or_points == "cell") {
+	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
+	fname_sim_raster <- file.path(dir.in, "mask_10km.tif")
+	sim_res <- c(1e4, 1e4)
+	sim_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
+} else {
+	sim_crs <- sp::CRS("+init=epsg:4326") # WGS84
+}
+
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 # if extract_determine_database == "order", then
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
@@ -122,15 +142,7 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 # - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
 # if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation' if available; if not available, then fall back to option 'order'
 extract_determine_database <- "SWRunInformation" # one of c("order", "SWRunInformation")
-#extract_gridcell_or_point: currently, implemented for 
-# - soils: "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
-# - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
-# - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA" (NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global')
-extract_gridcell_or_point <- "gridcell" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
-# if (extract_gridcell_or_point == "gridcell"), then provide either path to raster file (takes precedence) or (grid resolution and grid crs)
-fname_gridcell_raster <- file.path(dir.in, "mask_10km.tif")
-gridcell_res <- c(1e4, 1e4)
-gridcell_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
+
 # External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
@@ -165,8 +177,8 @@ do.ExtractExternalDatasets <- c(
 
 chunk_size.options <- list(
 		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
-		ExtractSkyDataFromNCEPCFSR_Global = 100,
-		DailyWeatherFromNCEPCFSR_Global = 100
+		ExtractSkyDataFromNCEPCFSR_Global = 100,	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
+		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
 )
 
 do.PriorCalculations <- c(

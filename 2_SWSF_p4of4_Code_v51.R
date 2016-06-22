@@ -289,7 +289,7 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	tr_files <- tr_prod <- tr_site <- tr_soil <- tr_weather <- tr_cloud <- list()
 	tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
-	if (actionWithSoilWat || any(actions == "external")) {
+	if (actionWithSoilWat || any(actions == "external") || any(actions == "map_input")) {
 		sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
 		sw_input_cloud <- read.csv(temp, skip=1)
 		colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
@@ -545,6 +545,43 @@ temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractEx
 exinfo <- data.frame(t(as.numeric(temp[,-1])))
 names(exinfo) <- temp[,1]
 
+exinfo$use_sim_spatial <- 
+	exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA	||
+	exinfo$ExtractSoilDataFromISRICWISEv12_Global		||
+	exinfo$ExtractElevation_NED_USA						||
+	exinfo$ExtractElevation_HWSD_Global					||
+	exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA		||
+	exinfo$ExtractSkyDataFromNCEPCFSR_Global
+
+
+#------------------------SPATIAL SETUP OF SIMULATIONS
+if (exinfo$use_sim_spatial || any(actions == "map_input")) {
+	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
+		stop("The packages 'rgdal', 'sp', and 'raster' are required, but one or multiple of them are not installed.")
+	}
+	
+	# make sure that flag 'sim_cells_or_points' has a valid option
+	sim_cells_or_points <- match.arg(sim_cells_or_points, c("point", "cell"))
+
+	# make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
+	if (sim_cells_or_points == "cell") {
+		if (file.exists(fname_sim_raster)) {
+			sim_raster <- raster::raster(fname_sim_raster)
+			sim_res <- raster::res(sim_raster)
+			sim_crs <- raster::crs(sim_raster)
+		}
+	}
+
+	# make sure that sim_res is valid
+	stopifnot(is.finite(sim_res), length(sim_res) == 2L, sim_res > 0)
+	# make sure that sim_crs is valid
+	stopifnot((temp <- rgdal::checkCRSArgs(as.character(sim_crs)))[[1]])
+	sim_crs <- sp::CRS(temp[[2]])
+
+	# SpatialPoints of simulation cell centers/sites in WGS84
+	crs_sites <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
+	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)	
+}
 
 
 
@@ -2461,6 +2498,102 @@ if(any(actions == "create") && any(pcalcs > 0)){
 	}
 
 	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+}
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------MAP INPUT VARIABLES (FOR QUALITY CONTROL)
+if (any(actions == "map_input") && length(map_vars) > 0) {
+	if (!be.quiet) print(paste("SWSF generates maps of input variables for quality control: started at", t1 <- Sys.time()))
+	dir.create(dir.inmap <- file.path(dir.out, "Input_maps"), showWarnings = FALSE)
+
+	input_avail <- list(SWRunInformation = list(cols = colnames(SWRunInformation), use = rep(TRUE, ncol(SWRunInformation))),
+						sw_input_soillayers = list(cols = colnames(sw_input_soillayers), use = rep(TRUE, ncol(sw_input_soillayers))),
+						sw_input_cloud = list(cols = colnames(sw_input_cloud), use = as.logical(sw_input_cloud_use)),
+						sw_input_prod = list(cols = colnames(sw_input_prod), use = as.logical(sw_input_prod_use)),
+						sw_input_site = list(cols = colnames(sw_input_site), use = as.logical(sw_input_site_use)),
+						sw_input_soils = list(cols = colnames(sw_input_soils), use = as.logical(sw_input_soils_use)),
+						sw_input_weather = list(cols = colnames(sw_input_weather), use = as.logical(sw_input_weather_use)),
+						sw_input_climscen = list(cols = colnames(sw_input_climscen), use = as.logical(sw_input_climscen_use)),
+						sw_input_climscen_values = list(cols = colnames(sw_input_climscen_values), use = as.logical(sw_input_climscen_use))
+					)
+						
+	for (iv in seq_along(map_vars)) {
+		iv_locs <- lapply(input_avail, function(ina) grep(map_vars[iv], ina$cols[ina$use], ignore.case = TRUE, value = TRUE))
+		iv_locs <- iv_locs[lengths(iv_locs) > 0]
+		
+		if (length(iv_locs) > 0) {
+			dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
+
+			for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
+				dat <- get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]]
+				names(dat) <- iv_locs[[it1]][it2]
+			
+				map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2], sim_cells_or_points, sep = "_")
+			
+				# Convert data to spatial object
+				if (sim_cells_or_points == "point") {
+					sp_dat <- as(run_sites, "SpatialPointsDataFrame")
+					temp <- as.data.frame(dat)
+					colnames(temp) <-  iv_locs[[it1]][it2]
+					slot(sp_dat, "data") <- temp
+				
+					if (!raster::compareCRS(crs_sites, sim_crs)) {
+						sp_dat <- sp::spTransform(sp_dat, CRS = sim_crs)
+					}
+				
+				} else if (sim_cells_or_points == "cell") {
+					sp_dat <- sim_raster
+					stopifnot(raster::canProcessInMemory(sp_dat)) # if failing, then need a more sophisticated assignment of values than implemented below
+
+					temp <- run_sites
+					if (!raster::compareCRS(crs_sites, sim_crs)) {
+						temp <- sp::spTransform(temp, CRS = sim_crs)
+					}
+				
+					sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
+				}
+			
+				# Save to disk
+				saveRDS(sp_dat, file = file.path(dir.inmapvar, paste0(map_flag, ".rds")))
+			
+				# Figure
+				png(height = 10, width = 6, units = "in", res = 200, file = file.path(dir.inmapvar, paste0(map_flag, ".png")))
+				par_old <- par(mfrow = c(2, 1), mar = c(2.5, 2.5, 0.5, 0.5), mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
+			
+				# panel a: map
+				n_cols <- 255
+				cols <- rev(terrain.colors(7))
+				cols[1] <- "gray"
+				cols <- colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
+				if (sim_cells_or_points == "point") {
+					par1 <- par(mar = c(2.5, 2.5, 0.5, 8.5))
+					cdat <- cut(dat, n_cols)
+					sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15, cex = max(0.25, 1 / length(dat)), axes = TRUE, asp = 1)
+					# legend
+					ids <- round(seq(1, n_cols, length.out = 12))
+					lusr <- par("usr")
+					lxy <- cbind(rep(lusr[2] + (lusr[2] - lusr[1]) / 15, 12),
+								 lusr[3] + (lusr[4] - lusr[3]) / 4 + seq(0, 1, length.out = 12) * (lusr[4] - lusr[3]) / 2)
+					points(lxy, col = cols[ids], pch = 15, cex = 2, xpd = NA)
+					text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
+					par(par1)
+
+				} else if (sim_cells_or_points == "cell") {
+					raster::plot(sp_dat, col = cols, asp = 1)
+				}
+				mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"), font = 2)
+
+				# panel b: histogram
+				hist(dat, xlab = paste(names(iv_locs)[it1], iv_locs[[it1]][it2]), main = "")
+				mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[2], ")"), font = 2)
+			
+				par(par_old)
+				dev.off()
+			}
+		}
+	}
+	
+	if (!be.quiet) print(paste("SWSF input maps: ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
 
 
