@@ -49,22 +49,7 @@ if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 }
 
 
-exinfo$extract_gridcell_or_point <- 
-	exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA	||
-	exinfo$ExtractSoilDataFromISRICWISEv12_Global		||
-	exinfo$ExtractElevation_NED_USA						||
-	exinfo$ExtractElevation_HWSD_Global					||
-	exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA		||
-	exinfo$ExtractSkyDataFromNCEPCFSR_Global
-
-if (exinfo$extract_gridcell_or_point) {
-	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
-		stop("The packages 'rgdal', 'sp', and 'raster' are required, but one or multiple of them are not installed.")
-	}
-	
-	# make sure that flag 'extract_gridcell_or_point' has a valid option
-	extract_gridcell_or_point <- match.arg(extract_gridcell_or_point, c("point", "gridcell"))
-
+if (exinfo$use_sim_spatial) {
 	has_nodata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
 		if (is.null(tag)) {
 			apply(data, MARGIN, function(x) all(is.na(x)))
@@ -81,28 +66,8 @@ if (exinfo$extract_gridcell_or_point) {
 		}
 	})
 	
-	# SpatialPoints of cell centers in WGS84
-	crs_sites <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
-	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)	
-
-	# make sure gridcell_raster agrees with gridcell_res and gridcell_crs; gridcell_raster takes priority
-	if (extract_gridcell_or_point == "gridcell") {
-		if (file.exists(fname_gridcell_raster)) {
-			gridcell_raster <- raster::raster(fname_gridcell_raster)
-			
-			gridcell_res <- raster::res(gridcell_raster)
-			gridcell_crs <- raster::crs(gridcell_raster)
-		}
-	}
-	
-	# make sure that gridcell_res is valid
-	stopifnot(is.finite(gridcell_res), length(gridcell_res) == 2L, gridcell_res > 0)
-	# make sure that gridcell_crs is valid
-	stopifnot((temp <- rgdal::checkCRSArgs(as.character(gridcell_crs)))[[1]])
-	gridcell_crs <- sp::CRS(temp[[2]])
-
 	# extraction functions
-	if (extract_gridcell_or_point == "point") {
+	if (sim_cells_or_points == "point") {
 		#' extract raster data for sites
 		#'
 		#' @param x Points represented by a two-column matrix or data.frame, or SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector representing cell numbers.
@@ -136,7 +101,7 @@ if (exinfo$extract_gridcell_or_point) {
 			if (!is.null(code)) apply(val, 2, function(x) code[as.integer(x)]) else val
 		})
 			
-	} else if (extract_gridcell_or_point == "gridcell") {
+	} else if (sim_cells_or_points == "cell") {
 		
 		add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres, exts) {
 			if (length(cell_blocks[[i]]) > 0) {
@@ -2687,12 +2652,12 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)	#transform points to grid-coords
 			}
 
-			if (extract_gridcell_or_point == "point") {
+			if (sim_cells_or_points == "point") {
 				cell_res_conus <- NULL
 				args_extract <- list(x = sites_conus)
 				
-			} else if (extract_gridcell_or_point == "gridcell") {
-				cell_res_conus <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+			} else if (sim_cells_or_points == "cell") {
+				cell_res_conus <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_conus, coords = sites_conus, method = "block")			
 			}
@@ -2869,13 +2834,13 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			grid_wise <- raster::raster(x=file.path(dir.ex.dat, "Grid", "smw5by5min"))
 
 			#- List all the wise cells that are covered by the grid cell or point location
-			if (extract_gridcell_or_point == "point") {
+			if (sim_cells_or_points == "point") {
 				cell_res_wise <- NULL
 				suids <- raster::extract(grid_wise, run_sites_wise)
 				sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
 			
-			} else if (extract_gridcell_or_point == "gridcell") {
-				cell_res_wise <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+			} else if (sim_cells_or_points == "cell") {
+				cell_res_wise <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
 					sp = run_sites_wise, crs_sp = crs_sites, crs_to = raster::crs(grid_wise))
 				
 				#' A wrapper for \code{reaggregate_raster} design to work with raster data from ISRIC-WISE
@@ -3083,7 +3048,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			sim_cells_soils <- sim_cells_soils[order(sim_cells_soils[, "i"]), ]
 
 			if (FALSE) {#visualize in interactive sessions
-				temp <- sim_cells_soils[, grep("sand", colnames(sim_cells_soils))]
+				temp <- sim_cells_soils[, grep("bulk", colnames(sim_cells_soils))]
 				cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=10)))
 				cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
 				plot(run_sites_wise, pch=15, cex=0.5, col=cols[cats])
@@ -3178,9 +3143,9 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
 	
-	elev_probs <- if (extract_gridcell_or_point == "gridcell") c(0.025, 0.5, 0.975) else NULL
+	elev_probs <- if (sim_cells_or_points == "cell") c(0.025, 0.5, 0.975) else NULL
 	elevation_m <- matrix(NA, nrow = runsN_sites, ncol = 1 + length(elev_probs),
-		dimnames = list(NULL, c("ELEV_m", if (extract_gridcell_or_point == "gridcell") paste0("ELEV_m_q", elev_probs))))
+		dimnames = list(NULL, c("ELEV_m", if (sim_cells_or_points == "cell") paste0("ELEV_m_q", elev_probs))))
 	
 	#	- extract NED data where available
 	if (exinfo$ExtractElevation_NED_USA) {
@@ -3209,11 +3174,11 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 				sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)	#transform points to grid-coords
 			}
 
-			if (extract_gridcell_or_point == "point") {
+			if (sim_cells_or_points == "point") {
 				args_extract <- list(x = sites_ned)
 
-			} else if (extract_gridcell_or_point == "gridcell") {
-				cell_res_ned <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+			} else if (sim_cells_or_points == "cell") {
+				cell_res_ned <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_ned, coords = sites_ned, method = "block", probs = elev_probs)			
 			}
@@ -3268,11 +3233,11 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 				sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform points to grid-coords
 			}
 
-			if (extract_gridcell_or_point == "point") {
+			if (sim_cells_or_points == "point") {
 				args_extract <- list(x = sites_hwsd)
 
-			} else if (extract_gridcell_or_point == "gridcell") {
-				cell_res_hwsd <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+			} else if (sim_cells_or_points == "cell") {
+				cell_res_hwsd <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block", probs = elev_probs)			
 			}
@@ -3396,11 +3361,11 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)	#transform points to grid-coords
 			}
 
-			if (extract_gridcell_or_point == "point") {
+			if (sim_cells_or_points == "point") {
 				args_extract <- list(x = sites_noaaca)
 
-			} else if (extract_gridcell_or_point == "gridcell") {
-				cell_res_noaaca <- align_with_target_res(res_from = gridcell_res, crs_from = gridcell_crs,
+			} else if (sim_cells_or_points == "cell") {
+				cell_res_noaaca <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
 					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)			
 			}
@@ -3439,7 +3404,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				(iv == n_vars && m < n_months) ||
 				(iv == n_vars && m == n_months && ic < n_chunks)) repeat {
 
-				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", chunk_size.options[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]), sep = ", ")))
+				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", n_chunks), sep = ", ")))
 				
 				iextr <- i_extract[do_chunks[[ic]]]
 				args_chunk <- args_extract
@@ -3549,7 +3514,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 							dir.temp = dir.out.temp,
 							rm_mc_files = TRUE),
 						silent = TRUE)
-			stopifnot(!inherits(temp, "try-error"))
+			if (inherits(temp, "try-error")) stop(temp)
 
 			#match weather folder names in case of missing extractions
 			res <- as.matrix(temp[["res_clim"]][, -1])
