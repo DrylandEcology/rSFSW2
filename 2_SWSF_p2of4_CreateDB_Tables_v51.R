@@ -183,13 +183,16 @@ if((length(Tables) == 0) || do.clean) {
 	
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 		dbBegin(con)
-		if (all(!is.na(SWRunInformation$WeatherFolder))) {
-			dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
-				bind.data = data.frame(folder = unique(SWRunInformation$WeatherFolder), stringsAsFactors = FALSE))
-		} else {
-			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && !any(create_treatments == "LookupWeatherFolder"))
+		
+		if (any(!(SWRunInformation$dailyweather_source[runIDs_sites] == "LookupWeatherFolder"))) {
+			if (any(!is.na(SWRunInformation$WeatherFolder))) {
+				dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
+					bind.data = data.frame(folder = unique(na.exclude(SWRunInformation$WeatherFolder)), stringsAsFactors = FALSE))
+			} else {
 				stop("Weather Data in Master has NA's.") 
+			}
 		}
+		
 		dbCommit(con)
 	
 		#############Site Table############################
@@ -516,8 +519,7 @@ if((length(Tables) == 0) || do.clean) {
 					paste("sites", sites_columns, sep = ".", collapse = ", "),
 				if (useExperimentals)
 					"experimental_labels.label AS Experimental_Label",
-				if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica)
-					"weatherfolders.folder AS WeatherFolder",
+				"weatherfolders.folder AS WeatherFolder",
 				if (useExperimentals | useTreatments)
 					paste("treatments", treatment_columns, sep = ".", collapse = ", "),
 				"simulation_years.StartYear",
@@ -530,16 +532,12 @@ if((length(Tables) == 0) || do.clean) {
 			"CREATE VIEW header AS SELECT ", header_columns, " FROM runs, run_labels, sites, ",
 			if (useExperimentals)
 				"experimental_labels, ",
-			"treatments, scenario_labels, simulation_years",
-			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica)
-				", weatherfolders",
+			"treatments, scenario_labels, simulation_years, weatherfolders",
 			" WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
-			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) {
-				if (useTreatmentWeatherFolder) {
-					"treatments.LookupWeatherFolder_id=weatherfolders.id AND "
-				} else {
-					"sites.WeatherFolder_id=weatherfolders.id AND "
-				}
+			if (useTreatmentWeatherFolder) {
+				"treatments.LookupWeatherFolder_id=weatherfolders.id AND "
+			} else {
+				"sites.WeatherFolder_id=weatherfolders.id AND "
 			},
 			if (useExperimentals)
 				"treatments.experimental_id=experimental_labels.id AND ",
