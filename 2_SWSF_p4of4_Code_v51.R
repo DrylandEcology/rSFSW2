@@ -570,10 +570,11 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 			sim_res <- raster::res(sim_raster)
 			sim_crs <- raster::crs(sim_raster)
 		}
+
+		# make sure that sim_res is valid
+		stopifnot(is.finite(sim_res), length(sim_res) == 2L, sim_res > 0)
 	}
 
-	# make sure that sim_res is valid
-	stopifnot(is.finite(sim_res), length(sim_res) == 2L, sim_res > 0)
 	# make sure that sim_crs is valid
 	stopifnot((temp <- rgdal::checkCRSArgs(as.character(sim_crs)))[[1]])
 	sim_crs <- sp::CRS(temp[[2]])
