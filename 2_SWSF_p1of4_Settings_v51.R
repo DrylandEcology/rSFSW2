@@ -115,7 +115,7 @@ dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
-createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
+createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
 
 #-Spatial setup of simulations
 # Should the locations of 'SWRunInformation' interpreted as 2D-cells of a raster/grid or as 1D-sites
