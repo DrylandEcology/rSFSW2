@@ -2083,9 +2083,10 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	#' Make daily weather for a scenario
 	#'
-	#' A wrapper function for \code{calc.ScenarioWeather} with error control. This function assumes that a
-	#' whole bunch of variables exist in the parent environment and contain appropriate values.
-	try.ScenarioWeather <- compiler::cmpfun(function(i) {
+	#' A wrapper function for \code{calc.ScenarioWeather} with error control.
+	#'
+	#' @inheritParams calc.ScenarioWeather
+	try.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) {
 		temp <- try(calc.ScenarioWeather(i = i,
 						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
@@ -2131,17 +2132,32 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			if (identical(parallel_backend, "mpi")) {
 				exportObjects(list.export)
 				if (is_NEX && useRCurl && !saveNEXtempfiles)
-					mpi.bcast.cmd(library("RCurl", quietly=TRUE))
+					Rmpi::mpi.bcast.cmd(library("RCurl", quietly=TRUE))
 				if (is_GDODCPUCLLNL)
-					mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
-				mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
-				mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+					Rmpi::mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
+				Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
+				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 			
-				i_Done <- mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather)
+				i_Done <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather,
+						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						gcmFiles = gcmFiles,
+						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+						climate.ambient = climate.ambient,
+						bbox = bbox,
+						locations = locations,
+						dbW_iSiteTable = dbW_iSiteTable,
+						varTags = varTags, fileVarTags = fileVarTags,
+						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+						simstartyr = simstartyr, endyr = endyr,
+						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+						downscaling.options = downscaling.options,
+						dir.out.temp = dir.out.temp,
+						be.quiet = be.quiet,
+						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
 			
-				mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
-				mpi.bcast.cmd(rm(list=ls()))
-				mpi.bcast.cmd(gc())
+				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+				Rmpi::mpi.bcast.cmd(rm(list=ls()))
+				Rmpi::mpi.bcast.cmd(gc())
 				
 			} else if (identical(parallel_backend, "snow")) {
 				snow::clusterExport(cl, list.export, envir=parent.frame())
@@ -2152,7 +2168,22 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
 				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 			
-				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather)
+				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
+						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						gcmFiles = gcmFiles,
+						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+						climate.ambient = climate.ambient,
+						bbox = bbox,
+						locations = locations,
+						dbW_iSiteTable = dbW_iSiteTable,
+						varTags = varTags, fileVarTags = fileVarTags,
+						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+						simstartyr = simstartyr, endyr = endyr,
+						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+						downscaling.options = downscaling.options,
+						dir.out.temp = dir.out.temp,
+						be.quiet = be.quiet,
+						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
 			
 				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
 				snow::clusterEvalQ(cl, rm(list=ls()))
@@ -2166,7 +2197,22 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					packages.export <- c(packages.export, "ncdf4")
 				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
 					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-					temp <- try.ScenarioWeather(i)
+					temp <- try.ScenarioWeather(i,
+						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						gcmFiles = gcmFiles,
+						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+						climate.ambient = climate.ambient,
+						bbox = bbox,
+						locations = locations,
+						dbW_iSiteTable = dbW_iSiteTable,
+						varTags = varTags, fileVarTags = fileVarTags,
+						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+						simstartyr = simstartyr, endyr = endyr,
+						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+						downscaling.options = downscaling.options,
+						dir.out.temp = dir.out.temp,
+						be.quiet = be.quiet,
+						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
 					Rsoilwat31::dbW_disconnectConnection()
 					return(temp)
 				}
@@ -2176,7 +2222,22 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			
 		} else {
 			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i)
+			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i,
+						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						gcmFiles = gcmFiles,
+						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+						climate.ambient = climate.ambient,
+						bbox = bbox,
+						locations = locations,
+						dbW_iSiteTable = dbW_iSiteTable,
+						varTags = varTags, fileVarTags = fileVarTags,
+						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+						simstartyr = simstartyr, endyr = endyr,
+						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+						downscaling.options = downscaling.options,
+						dir.out.temp = dir.out.temp,
+						be.quiet = be.quiet,
+						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
 			Rsoilwat31::dbW_disconnectConnection()
 		}
 	
@@ -2186,11 +2247,22 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if (length(temp.files) > 0) {
 			for (k in seq_along(temp.files)) {
-				wdataOut <- readRDS(file=ftemp <- file.path(dir.out.temp, temp.files[k]))
+				ftemp <- file.path(dir.out.temp, temp.files[k])
+				wdataOut <- readRDS(file = ftemp)
+				
 				for (j in seq_along(wdataOut)) {
 					for (l in seq_along(wdataOut[[j]])) {
-						res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id=wdataOut[[j]][[l]]$Site_id, Scenario_id=wdataOut[[j]][[l]]$Scenario_id, StartYear=wdataOut[[j]][[l]]$StartYear, EndYear=wdataOut[[j]][[l]]$EndYear, weatherData=wdataOut[[j]][[l]]$weatherData), silent=TRUE)
-						if (inherits(res, "try-error")) break
+						res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(
+									Site_id = 		wdataOut[[j]][[l]]$Site_id,
+									Scenario_id =	wdataOut[[j]][[l]]$Scenario_id,
+									StartYear = 	wdataOut[[j]][[l]]$StartYear,
+									EndYear = 		wdataOut[[j]][[l]]$EndYear,
+									weatherData = 	wdataOut[[j]][[l]]$weatherData),
+								silent=TRUE)
+						if (inherits(res, "try-error")) {
+							if (!be.quiet) print(paste("Adding downscaled data for Site_id", wdataOut[[j]][[l]]$Site_id, "scenario", wdataOut[[j]][[l]]$Scenario_id, "was unsuccessful:", temp))
+							break
+						}
 					}
 					if (inherits(res, "try-error")) break
 				}
@@ -2254,7 +2326,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
 
-	if (anyNA(sites_GCM_source)) warning("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
+	if (anyNA(sites_GCM_source)) print("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
 
 	#access climate change data
 	get_climatechange_data <- compiler::cmpfun(function(GCM_source, is_GDODCPUCLLNL, is_NEX, do_SWRun_sites, include_YN_climscen) {
@@ -2470,21 +2542,29 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		}
 		rm(i_ToDo, logFile)
 
+		# Determine progress
+		if (length(i_Done) > 0) {
+			if (!be.quiet) print(paste(GCM_source, "was extracted for n =", length(i_Done), "out of", length(i_AllToDo), "downscaling requests"))
+
+			ils_done <- unique((i_Done - 1) %/% length(reqGCMs) + 1)
+			include_YN_climscen[do_SWRun_sites][ils_done] <- 1
+			
+			i_ToDo <- i_AllToDo[-i_Done]
+		} else {
+			i_ToDo <- i_AllToDo
+		}
+		
 		#Clean up: report unfinished locations, etc.
-		i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo
 		if (length(i_ToDo) > 0) {
-			warning(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", GCM_source, "'"))
-			temp <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1)
-			failedLocations_DB <- locations[temp, ]
+			print(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", GCM_source, "'"))
+			ils_notdone <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1)
+			failedLocations_DB <- locations[ils_notdone, ]
 			
 			include_YN_updateFailed <- include_YN
-			include_YN_updateFailed[do_SWRun_sites][temp] <- 0
+			include_YN_updateFailed[do_SWRun_sites][ils_notdone] <- 0
 			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("ClimDB_failedLocations_", GCM_source, ".RData")))
 
-			hereDone <- match(locations[, "site_id"], table = SWRunInformation[, "site_id"], nomatch = 0)
-			include_YN_climscen[hereDone] <- 1
-
-			rm(failedLocations_DB, include_YN_updateFailed)
+			rm(failedLocations_DB, include_YN_updateFailed, ils_notdone)
 		}
 	
 		if (!be.quiet) print(paste("Finished '", GCM_source, "' at", Sys.time()))
@@ -2510,7 +2590,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-	rm(sites_GCM_source, xy, i_use, xy, include_YN_climscen)
+	rm(sites_GCM_source, xy, i_use, include_YN_climscen)
 }
 
 
@@ -2592,7 +2672,7 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 			
 			rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
 		} else {
-			warning("Not all scenarios requested in 'datafile.SWRunInformation' are available in with 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'")
+			print("Not all scenarios requested in 'datafile.SWRunInformation' are available in with 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'")
 		}
 	}
 	if (!be.quiet) print(paste("Finished 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
@@ -2884,13 +2964,13 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
 						exportObjects(list.export)
-						mpi.bcast.cmd(library(raster, quietly=TRUE))
+						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 				
-						sim_cells_SUIDs <- mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
+						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 				
-						mpi.bcast.cmd(rm(list=ls()))
-						mpi.bcast.cmd(gc())
+						Rmpi::mpi.bcast.cmd(rm(list=ls()))
+						Rmpi::mpi.bcast.cmd(gc())
 					} else if (identical(parallel_backend, "snow")) {
 						snow::clusterExport(cl, list.export, envir=parent.frame())
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
@@ -3012,14 +3092,14 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				if (identical(parallel_backend, "mpi")) {
 					exportObjects(list.export)
 			
-					sim_cells_soils <- mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 			
-					mpi.bcast.cmd(rm(list=ls()))
-					mpi.bcast.cmd(gc())
+					Rmpi::mpi.bcast.cmd(rm(list=ls()))
+					Rmpi::mpi.bcast.cmd(gc())
 				} else if (identical(parallel_backend, "snow")) {
 					snow::clusterExport(cl, list.export, envir=parent.frame())
 			
@@ -3286,7 +3366,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (any(notDone)) warning("Elevation wasn't found for ", sum(notDone), " sites")
+	if (any(notDone)) print("Elevation wasn't found for ", sum(notDone), " sites")
 	
 	rm(elevation_m, sites_elevation_source, notDone, include_YN_elev)
 }
@@ -3564,7 +3644,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (any(notDone)) warning("Climate normals weren't found for ", sum(notDone), " sites")
+	if (any(notDone)) print("Climate normals weren't found for ", sum(notDone), " sites")
 
 	rm(monthlyclim, sites_monthlyclim_source, notDone, include_YN_climnorm)
 }
