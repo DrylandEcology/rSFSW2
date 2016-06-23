@@ -2526,70 +2526,74 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 			dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
 			for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-				dat <- get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]]
-				names(dat) <- iv_locs[[it1]][it2]
-			
-				map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2], sim_cells_or_points, sep = "_")
-			
-				# Convert data to spatial object
-				if (sim_cells_or_points == "point") {
-					sp_dat <- as(run_sites, "SpatialPointsDataFrame")
-					temp <- as.data.frame(dat)
-					colnames(temp) <-  iv_locs[[it1]][it2]
-					slot(sp_dat, "data") <- temp
+				dat <- as.numeric(get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]])
 				
-					if (!raster::compareCRS(crs_sites, sim_crs)) {
-						sp_dat <- sp::spTransform(sp_dat, CRS = sim_crs)
+				if (any(is.finite(dat))) {
+					names(dat) <- iv_locs[[it1]][it2]
+			
+					map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2], sim_cells_or_points, sep = "_")
+			
+					# Convert data to spatial object
+					if (sim_cells_or_points == "point") {
+						sp_dat <- as(run_sites, "SpatialPointsDataFrame")
+						temp <- as.data.frame(dat)
+						colnames(temp) <-  iv_locs[[it1]][it2]
+						slot(sp_dat, "data") <- temp
+				
+						if (!raster::compareCRS(crs_sites, sim_crs)) {
+							sp_dat <- sp::spTransform(sp_dat, CRS = sim_crs)
+						}
+				
+					} else if (sim_cells_or_points == "cell") {
+						sp_dat <- sim_raster
+						stopifnot(raster::canProcessInMemory(sp_dat)) # if failing, then need a more sophisticated assignment of values than implemented below
+
+						temp <- run_sites
+						if (!raster::compareCRS(crs_sites, sim_crs)) {
+							temp <- sp::spTransform(temp, CRS = sim_crs)
+						}
+				
+						sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
 					}
-				
-				} else if (sim_cells_or_points == "cell") {
-					sp_dat <- sim_raster
-					stopifnot(raster::canProcessInMemory(sp_dat)) # if failing, then need a more sophisticated assignment of values than implemented below
+			
+					# Save to disk
+					saveRDS(sp_dat, file = file.path(dir.inmapvar, paste0(map_flag, ".rds")))
+			
+					# Figure
+					png(height = 10, width = 6, units = "in", res = 200, file = file.path(dir.inmapvar, paste0(map_flag, ".png")))
+					par_old <- par(mfrow = c(2, 1), mar = c(2.5, 2.5, 0.5, 0.5), mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
+			
+					# panel a: map
+					n_cols <- 255
+					cols <- rev(terrain.colors(7))
+					cols[1] <- "gray"
+					cols <- colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
+					if (sim_cells_or_points == "point") {
+						par1 <- par(mar = c(2.5, 2.5, 0.5, 8.5))
+						cdat <- cut(dat, n_cols)
+						p_size <- function(x) max(0.25, min(2, 100 / x))
+						sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15, cex = p_size(length(dat)), axes = TRUE, asp = 1)
+						# legend
+						ids <- round(seq(1, n_cols, length.out = 12))
+						lusr <- par("usr")
+						lxy <- cbind(rep(lusr[2] + (lusr[2] - lusr[1]) / 15, 12),
+									 lusr[3] + (lusr[4] - lusr[3]) / 4 + seq(0, 1, length.out = 12) * (lusr[4] - lusr[3]) / 2)
+						points(lxy, col = cols[ids], pch = 15, cex = 2, xpd = NA)
+						text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
+						par(par1)
 
-					temp <- run_sites
-					if (!raster::compareCRS(crs_sites, sim_crs)) {
-						temp <- sp::spTransform(temp, CRS = sim_crs)
+					} else if (sim_cells_or_points == "cell") {
+						raster::plot(sp_dat, col = cols, asp = 1)
 					}
-				
-					sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
-				}
-			
-				# Save to disk
-				saveRDS(sp_dat, file = file.path(dir.inmapvar, paste0(map_flag, ".rds")))
-			
-				# Figure
-				png(height = 10, width = 6, units = "in", res = 200, file = file.path(dir.inmapvar, paste0(map_flag, ".png")))
-				par_old <- par(mfrow = c(2, 1), mar = c(2.5, 2.5, 0.5, 0.5), mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
-			
-				# panel a: map
-				n_cols <- 255
-				cols <- rev(terrain.colors(7))
-				cols[1] <- "gray"
-				cols <- colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
-				if (sim_cells_or_points == "point") {
-					par1 <- par(mar = c(2.5, 2.5, 0.5, 8.5))
-					cdat <- cut(dat, n_cols)
-					sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15, cex = max(0.25, 1 / length(dat)), axes = TRUE, asp = 1)
-					# legend
-					ids <- round(seq(1, n_cols, length.out = 12))
-					lusr <- par("usr")
-					lxy <- cbind(rep(lusr[2] + (lusr[2] - lusr[1]) / 15, 12),
-								 lusr[3] + (lusr[4] - lusr[3]) / 4 + seq(0, 1, length.out = 12) * (lusr[4] - lusr[3]) / 2)
-					points(lxy, col = cols[ids], pch = 15, cex = 2, xpd = NA)
-					text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
-					par(par1)
+					mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"), font = 2)
 
-				} else if (sim_cells_or_points == "cell") {
-					raster::plot(sp_dat, col = cols, asp = 1)
-				}
-				mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"), font = 2)
-
-				# panel b: histogram
-				hist(dat, xlab = paste(names(iv_locs)[it1], iv_locs[[it1]][it2]), main = "")
-				mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[2], ")"), font = 2)
+					# panel b: histogram
+					hist(dat, xlab = paste(names(iv_locs)[it1], iv_locs[[it1]][it2]), main = "")
+					mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[2], ")"), font = 2)
 			
-				par(par_old)
-				dev.off()
+					par(par_old)
+					dev.off()
+				}
 			}
 		}
 	}
