@@ -498,14 +498,53 @@ if((length(Tables) == 0) || do.clean) {
 		##################################################
 	
 		################CREATE VIEW########################
-		sites_columns <- colnames(SWRunInformation)[Index_RunInformation]
-		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
+		if (length(Index_RunInformation) > 0) {
+			sites_columns <- colnames(SWRunInformation)[Index_RunInformation]
+			icol <- grep("WeatherFolder", sites_columns)
+			if (length(icol) > 0)
+				sites_columns <- sites_columns[-icol]
+		} else {
+			sites_columns <- NULL
+		}
 		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
-		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
-		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
-		header_columns<-paste(header_columns,collapse = ", ")
+		if (useTreatmentWeatherFolder)
+			treatment_columns <- treatment_columns[-grep("WeatherFolder", treatment_columns)]
+		header_columns <- paste(c(
+				"runs.P_id",
+				"run_labels.label AS Labels",
+				if (!is.null(sites_columns))
+					paste("sites", sites_columns, sep = ".", collapse = ", "),
+				if (useExperimentals)
+					"experimental_labels.label AS Experimental_Label",
+				if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica)
+					"weatherfolders.folder AS WeatherFolder",
+				if (useExperimentals | useTreatments)
+					paste("treatments", treatment_columns, sep = ".", collapse = ", "),
+				"simulation_years.StartYear",
+				"simulation_years.simulationStartYear AS SimStartYear",
+				"simulation_years.EndYear",
+				"scenario_labels.label AS Scenario"),
+			collapse = ", ")
 	
-		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
+		dbGetQuery(con, paste(
+			"CREATE VIEW header AS SELECT ", header_columns, " FROM runs, run_labels, sites, ",
+			if (useExperimentals)
+				"experimental_labels, ",
+			"treatments, scenario_labels, simulation_years",
+			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica)
+				", weatherfolders",
+			" WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
+			if (!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) {
+				if (useTreatmentWeatherFolder) {
+					"treatments.LookupWeatherFolder_id=weatherfolders.id AND "
+				} else {
+					"sites.WeatherFolder_id=weatherfolders.id AND "
+				}
+			},
+			if (useExperimentals)
+				"treatments.experimental_id=experimental_labels.id AND ",
+			"treatments.simulation_years_id=simulation_years.id;",
+		sep = ""))
 		##################################################
 	
 	#B. Aggregation_Overall

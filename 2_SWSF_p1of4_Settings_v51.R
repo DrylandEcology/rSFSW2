@@ -102,7 +102,7 @@ check.blas <- FALSE
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- TRUE
-copyCurrentConditionsFromTempSQL <- TRUE
+copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
@@ -125,10 +125,10 @@ createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database a
 #	- soils: "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
 #	- elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
 #	- climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA" (NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global')
-sim_cells_or_points <- "cell" # one of c("point", "cell"), whether to extract for point locations or averaged over a cell area
+sim_cells_or_points <- "point" # one of c("point", "cell"), whether to extract for point locations or averaged over a cell area
 if (sim_cells_or_points == "cell") {
 	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
-	fname_sim_raster <- file.path(dir.in, "mask_10km.tif")
+	fname_sim_raster <- file.path(dir.in, "YOURRASTER.FILE")
 	sim_res <- c(1e4, 1e4)
 	sim_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
 } else {
@@ -284,7 +284,7 @@ accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemis
 accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemisphere) then shift monthly production values in prod.in file by six months
 
 #------Output Header Columns------#
-Index_RunInformation <- c(2:3, 5:11, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+Index_RunInformation <- NULL #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
@@ -389,7 +389,7 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- TRUE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
 Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
 Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
 Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
