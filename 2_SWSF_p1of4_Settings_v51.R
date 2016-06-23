@@ -56,6 +56,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 dir.prj <- "~/YOURPROJECT"
+dir.code <- "~/YOURCODE/SoilWat_R_Wrapper"
 if(interactive()) setwd(dir.prj)
 dir.prj <- dir.big <- getwd()
 
@@ -466,4 +467,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if(!interactive()) source("2_SWSF_p4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
+if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of4_Code_v51.R"), verbose = FALSE, chdir = FALSE)
