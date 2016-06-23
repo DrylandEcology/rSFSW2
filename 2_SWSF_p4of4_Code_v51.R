@@ -3883,97 +3883,85 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 
 #------------------------EXECUTE SOILWAT
-	if( tasks$execute == 1 ){
+	if (tasks$execute == 1) {
 		runData <- list()
 
-		if(is.na(i_sw_input_treatments$Exclude_ClimateAmbient)) i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
-		if(any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient && i_sim!=1) {
-			Exclude_ClimateAmbient <- 2
-		} else {
-			Exclude_ClimateAmbient <- 1
-		}
+		if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient)) i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
+		sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") && i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
 
-		DeltaX <- c(15, 0)
-		for (sc in Exclude_ClimateAmbient:scenario_No){
-			if(print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
-#			runData[[sc]]<-tryCatch({ sw_exec(data=swRunScenariosData[[sc]],weatherList=i_sw_weatherList, echo=F, quiet=F,colNames=saveSoilWatInputOutput)
-#					}, warning = function(w) {
-#						print("------------Warning----------")
-#						print(w)
-#						print("-----------------------------")
-#						#assign("todo$aggregate", FALSE, pos=2)
-#						#mpi.send.Robj(i_sim,0,4)
-#					}, error = function(e) {
-#						print("-------------Error-----------")
-#						print(e)
-#						print("-----------------------------")
-#						if(parallel_runs && identical(parallel_backend,"mpi"))
-#							mpi.send.Robj(i_sim,0,4)
-#						return(NA)
-#					})
-#			if(isTRUE(is.na(runData[[sc]]))){
-#				todo$execute <- todo$aggregate <- FALSE
-#				break
-#			}
-			if (DeltaX[2] == 1)
-			{
-			  print("Using pre-determined DeltaX.")
-			  print(DeltaX)
-				swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
-				runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-			}
-			else
-			{
-				runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
+		tempError <- function() .Call("tempError")
+		DeltaX <- c(NA, 0L)
+			# first element: determined deltaX_Param value; will be used for all scenarios >= sc if modified
+			# second element: -1 == failed; 0 == no run yet; 1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
+		
+		for (sc in sc1:scenario_No) {
+			if (print.debug) print(paste("Start of SoilWat execution for scenario:", sc))
+			
+			scw <- if (getScenarioWeatherDataFromDatabase) sc else 1L
+			mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
+			
+			if (DeltaX[2] > 0) {
+				if (print.debug) print(paste("Using pre-determined DeltaX =", DeltaX[1]))
+				if (DeltaX[2] == 2L) swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
 
-				tempError <- function() {.Call("tempError")}
+				runData[[sc]] <- try(sw_exec(inputData = swRunScenariosData[[sc]],
+											 weatherList = i_sw_weatherList[[scw]],
+									echo = FALSE, quiet = FALSE),
+								silent = TRUE)
+			
+			} else {
+				runData[[sc]] <- try(sw_exec(inputData = swRunScenariosData[[sc]],
+											 weatherList = i_sw_weatherList[[scw]],
+									echo = FALSE, quiet = FALSE),
+								silent = TRUE)
 
 				## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-				if (tempError() == TRUE)
-				{
+				is_SOILTEMP_INSTABLE <- tempError()
+				
+				if (is_SOILTEMP_INSTABLE) {
 					## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
-					i_soil_rep = 0
-					incrementer = 15
-					TEST_FOR_SOILTEMP_STABILITY <- tempError() # Initialize so that we can enter the loop
+					i_soil_rep <- 0
+					DeltaX[1] <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
 
-					while (!inherits(runData[[sc]], "try-error") && TEST_FOR_SOILTEMP_STABILITY == TRUE && incrementer <= 90)
-					{
+					while (!inherits(runData[[sc]], "try-error") && is_SOILTEMP_INSTABLE && DeltaX[1] <= mDepth && i_soil_rep < 10) {
 						## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
-						mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
-						if (mDepth %% incrementer != 0)
-						{
-							while (mDepth %% incrementer != 0)
-							{
-								incrementer = incrementer + 5
-							}
+						repeat {
+							DeltaX[1] <- DeltaX[1] + increment_soiltemperature_deltaX_cm
+							if (mDepth %% DeltaX[1] == 0) break
 						}
 
-					  print(paste("Site", i_sim, i_labels, "SOILWAT called again with deltaX = ", min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]), " because soil temperature estability criterion was not met." ))
-
 						## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-						swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
-						runData[[sc]] <- try(sw_exec(inputData=swRunScenariosData[[sc]],weatherList=i_sw_weatherList[[ifelse(getScenarioWeatherDataFromDatabase, sc, 1)]], echo=F, quiet=F), silent=TRUE)
-
+						swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
+						if (print.debug) print(paste("Site", i_sim, i_labels, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met." ))
+						
+						runData[[sc]] <- try(sw_exec(inputData = swRunScenariosData[[sc]],
+											 weatherList = i_sw_weatherList[[scw]],
+									echo = FALSE, quiet = FALSE),
+								silent = TRUE)
+	
 						## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-						dx <- min(incrementer, swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"])
-						TEST_FOR_SOILTEMP_STABILITY <- tempError()
-	          incrementer = incrementer + 5 ##Increment Again so that we try a new deltaX
+						is_SOILTEMP_INSTABLE <- tempError()
+						i_soil_rep <- i_soil_rep + 1
 					}
-					DeltaX <- c(dx, 1)
-					if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
-				}
-				else
-				{
-				  DeltaX <- c(15, 1)
+					
+					DeltaX[2] <- if (!inherits(runData[[sc]], "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
+					
+					#TODO: change deltaX_Param for all [> sc] as well
+					if (saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+				
+				} else {
+					DeltaX <- c(swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
 				}
 			}
-			if(inherits(runData[[sc]], "try-error")){
+			
+			if (inherits(runData[[sc]], "try-error") || DeltaX[2] < 0) {
 				tasks$execute <- 0
 				break
 			}
 		}
-		if(saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
-		if(tasks$execute > 0){
+		
+		if (saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
+		if (tasks$execute > 0) {
 			tasks$execute <- 2
 		} else {
 			tasks$aggregate <- -1
@@ -6949,7 +6937,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C","name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
