@@ -879,8 +879,11 @@ if((length(Tables) == 0) || do.clean) {
 	#64
 		if(any(simulation_timescales=="daily")  & aon$dailyDryPeriods ){	
 		  for (i in SWPcrit_MPa){
-		      temp <- c(temp, paste(c("StartDoY", "EndDoY"), i,sep="_"))
+		      temp <- c(temp, paste("Top",c("StartDoY", "EndDoY"), i,sep="_"))
 		  }
+		  for (i in SWPcrit_MPa){
+		    temp <- c(temp, paste("Bottom",c("StartDoY", "EndDoY"), i,sep="_"))
+		  }		  
 		}
 	#65
 		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
