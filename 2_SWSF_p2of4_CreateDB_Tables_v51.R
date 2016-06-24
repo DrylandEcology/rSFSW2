@@ -21,7 +21,6 @@ if (createAndPopulateWeatherDatabase) {
 		}
 	}
 	
-	print("Creating new Weather database")
 	# weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
 	dbW_createDatabase(dbFilePath = dbWeatherDataFile,
 		site_data = data.frame(Site_id = SWRunInformation$site_id,
@@ -117,8 +116,7 @@ if (createAndPopulateWeatherDatabase) {
 
 # NOTE: Do not change the design of the output database without adjusting the iterator functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
 
-drv <- dbDriver("SQLite")
-con <- dbConnect(drv, dbname = name.OutputDB)
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 Tables <- dbListTables(con)
 
 set_PRAGMAs <- function(con){
@@ -143,7 +141,7 @@ if((length(Tables) == 0) || do.clean) {
 
 		if(do.clean && length(dbListTables(con)) > 0){
 			unlink(name.OutputDB)
-			con <- dbConnect(drv, dbname = name.OutputDB)
+			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			set_PRAGMAs(con)
 		}
 
@@ -1043,12 +1041,12 @@ if((length(Tables) == 0) || do.clean) {
 	
 			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
 			for(i in seq_along(dbEnsemblesFilePaths)) {
-				con<-dbConnect(drv, dbEnsemblesFilePaths[i])
+				con<-DBI::dbConnect(RSQLite::SQLite(), dbEnsemblesFilePaths[i])
 				set_PRAGMAs(con)
 			
 				if(do.clean && length(dbListTables(con)) > 0){
 					unlink(dbEnsemblesFilePaths[i])
-					con <- dbConnect(drv, dbname=dbEnsemblesFilePaths[i])
+					con <- DBI::dbConnect(RSQLite::SQLite(), dbname=dbEnsemblesFilePaths[i])
 					set_PRAGMAs(con)
 				}
 			

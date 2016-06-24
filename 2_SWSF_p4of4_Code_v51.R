@@ -1459,14 +1459,13 @@ if(getCurrentWeatherDataFromDatabase){
 
 #------ Create the Database and Tables within
 if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.time()))
-drv <- dbDriver("SQLite")
 
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 setwd(dir.prj)
 source(file.path(dir.code, "2_SWSF_p2of4_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
 
-con <- dbConnect(drv, dbname=name.OutputDB)
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname=name.OutputDB)
 
 if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 	# Check that version of dbWeather suffices
@@ -3301,59 +3300,62 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if (print.debug) print("Start of daily weather")
 		i_sw_weatherList <- list()
 		
+		.local_weatherDirName <- function(i_sim) {	# Get name of weather file from output database
+			con <<- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+			temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1)))[1,1]
+			dbDisconnect(con)
+			temp
+		}
+
 		if (!getCurrentWeatherDataFromDatabase) {
 			if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
 				dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
+			
 			} else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
 				i_sw_weatherList[[1]] <- with(i_SWRunInformation, ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = NULL, coords_WGS84 = c(X_WGS84, Y_WGS84), start_year = simstartyr, end_year = endyr))
+			
+			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {	# Read weather data from folder
+				i_sw_weatherList[[1]] <- try(getWeatherData_folders(
+						LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+						weatherDirName = .local_weatherDirName(i_sim),
+						filebasename = filebasename,
+						startYear = simstartyr,
+						endYear = endyr),
+					silent = TRUE)
 			}
 			
 		} else {
 			#---Extract weather data
-			.local_weatherDirName <- function(i) {	# Get name of weather file from output database
-				drv <<- dbDriver("SQLite")
-				con <<- dbConnect(drv, dbname = name.OutputDB)
-				temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1)))[1,1]
-				dbDisconnect(con)
-				temp
-			}
 			weather_label_cur <- try(.local_weatherDirName(i_sim), silent = TRUE)
-			
-			if (!inherits(weather_label_cur, "try-error")) {
-				if (getCurrentWeatherDataFromDatabase) {
-					.local <- function(i) {
-						# Extract weather data from db
-						dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
-						i_sw_weatherList <- list()
-						sn <- if (getScenarioWeatherDataFromDatabase) scenario_No else 1L
-						for (k in seq_len(sn)) {
-							i_sw_weatherList[[k]] <- dbW_getWeatherData(Label = weather_label_cur,
-														startYear = simstartyr,
-														endYear = endyr,
-														Scenario = climate.conditions[k])
-						}
-					
-						i_sw_weatherList
-					}
-					i_sw_weatherList <- try(.local(i_sim), silent = TRUE)
+
+			if (inherits(weather_label_cur, "try-error")) {
+				i_sw_weatherList <- weather_label_cur
 				
-				} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {	# Read weather data from folder
-					i_sw_weatherList[[1]] <- try(getWeatherData_folders(
-							LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
-							weatherDirName = weather_label_cur,
-							filebasename = filebasename,
-							startYear = simstartyr,
-							endYear = endyr),
-						silent = TRUE)
-					
+			} else {
+				.local <- function(i) {
+					# Extract weather data from db
+					i_sw_weatherList <- list()
+					sn <- if (getScenarioWeatherDataFromDatabase) scenario_No else 1L
+					for (k in seq_len(sn)) {
+						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label = weather_label_cur,
+													startYear = simstartyr,
+													endYear = endyr,
+													Scenario = climate.conditions[k])
+					}
+				
+					i_sw_weatherList
 				}
+
+				dbW_setConnection(dbFilePath = dbWeatherDataFile)
+				i_sw_weatherList <- try(.local(i_sim), silent = TRUE)
+				dbW_disconnectConnection()
 			}
 		}
 		
 		#Check that extraction of weather data was successful
 		if(inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-			if(!be.quiet) print(paste(i_sim, i_labels, "i_sw_weatherList ERROR"))
+			if(!be.quiet) print(paste(i_sim, i_labels, "i_sw_weatherList ERROR:", i_sw_weatherList))
 			tasks$create <- 0
 		}
 
@@ -6825,7 +6827,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 						}
-						con <- dbConnect(drv, dbname = name.OutputDB)
+						con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 						dbSendQuery(con,SQL1)
 						dbSendQuery(con,SQL2)
 						dbClearResult(dbListResults(con)[[1]])
@@ -6937,7 +6939,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","createAndPopulateWeatherDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
@@ -6955,8 +6957,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(circular,quietly = TRUE))
 			mpi.bcast.cmd(library(SPEI,quietly = TRUE))
 			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
-			#mpi.bcast.cmd(con<-dbConnect(drv,dbWeatherDataFile))
+			#mpi.bcast.cmd(con<-DBI::dbConnect(RSQLite::SQLite(),dbWeatherDataFile))
 
 			mpi.bcast.cmd(work())
 
@@ -7115,11 +7116,10 @@ if(any(actions=="concatenate")) {
 	if(temp <= (MinTimeConcat-36000) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 10 hours for anything useful
 		library(RSQLite)
 		#Connect to the Database
-		drv <- dbDriver("SQLite")
-		con <- dbConnect(drv, dbname = name.OutputDB)
+		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 		if(copyCurrentConditionsFromTempSQL) {
 			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=FALSE)
-			con2 <- dbConnect(drv, dbname = name.OutputDBCurrent)
+			con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
 			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
 			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
 			dbGetQuery(con2,"DELETE FROM runs WHERE scenario_id != 1;")
@@ -7162,13 +7162,13 @@ warning("The variable 'i' is used here in the code without it being defined. It 
 
 			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
 			  dbDisconnect(con)
-			  con<-dbConnect(drv, dbname = name.OutputDBCurrent)
+			  con<-DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
 			  dbBegin(con)
 			  dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
 			  dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
 			  dbCommit(con)
 			  dbDisconnect(con)
-			  con<-dbConnect(drv, dbname = name.OutputDB)
+			  con<-DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			}
 
 
@@ -7201,14 +7201,14 @@ warning("The variable 'i' is used here in the code without it being defined. It 
 			Tables <- dbListTables(con)
 			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
 
-			con <- dbConnect(drv, name.OutputDBCurrent)
+			con <- DBI::dbConnect(RSQLite::SQLite(), name.OutputDBCurrent)
 			for(i in 1:length(sqlTables)) {#Create the tables
 				res<-dbSendQuery(con, sqlTables[i])
 				dbClearResult(res)
 			}
 			dbGetQuery(con, sqlView)
 
-			con <- dbConnect(drv, dbname = name.OutputDB)
+			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			#Get Tables minus ones we do not want
 			Tables <- dbListTables(con)
 			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
@@ -7253,8 +7253,7 @@ if(checkCompleteness){
 	headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
 	checkForMissing <- function(Table, database){
-		drv <- dbDriver("SQLite")
-		con <- dbConnect(drv, dbname = database)
+		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = database)
 
 		sql <- paste("SELECT runs.P_id FROM runs LEFT JOIN ",Table," ON (runs.P_id=",Table,".P_id) WHERE ",Table,".P_id is NULL ORDER BY runs.P_id",sep="")
 
@@ -7267,8 +7266,7 @@ if(checkCompleteness){
 	}
 
 	library(RSQLite,quietly = TRUE)
-	drv <- dbDriver("SQLite")
-	con <- dbConnect(drv, dbname = name.OutputDB)
+	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
 	Tables <- dbListTables(con) #get a list of tables
 	Tables <- Tables[-which(Tables %in% headerTables)]
@@ -7358,8 +7356,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	}
 
 	collect_EnsembleFromScenarios <- function(Table){
-		drv <- dbDriver("SQLite")
-		con <- dbConnect(drv, dbname = name.OutputDB)
+		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 		#########TIMING#########
 		TableTimeStop <- Sys.time() - t.overall
 		units(TableTimeStop) <- "secs"
@@ -7418,7 +7415,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 
 		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
 			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
-			conEnsembleDB <- dbConnect(drv, dbname=tfile)
+			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
 
 			nfiles <- 0
 			#Grab x rows at a time
@@ -7500,8 +7497,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	}
 
 	library(RSQLite,quietly = TRUE)
-	drv <- dbDriver("SQLite")
-	con <- dbConnect(drv, dbname = name.OutputDB)
+	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
 	Tables <- dbListTables(con) #get a list of tables
 	Tables <- Tables[-which(Tables %in% headerTables)]
@@ -7515,7 +7511,6 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			exportObjects(list.export)
 
 			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-			mpi.bcast.cmd(drv<-dbDriver("SQLite"))
 
 			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
 			ensembles.completed <- sum(unlist(ensembles.completed))
@@ -7532,7 +7527,6 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
 
 			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
-			snow::clusterEvalQ(cl, drv<-dbDriver("SQLite"))
 
 			ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
 		}
