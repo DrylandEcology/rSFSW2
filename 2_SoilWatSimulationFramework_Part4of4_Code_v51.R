@@ -6546,17 +6546,17 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 						if(agg.analysis == 1){
 							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL1 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailyMean,collapse=",")),");", sep="")
+							SQL2 <- paste0("INSERT INTO \"",paste0("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES (",paste0(P_id,",",paste0(res.dailySD,collapse=",")),");", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 						} else {
 							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
 							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL1 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL2 <- paste0("INSERT INTO \"",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),"\" VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 						}
-						dbSendQuery(con,SQL1)
-						dbSendQuery(con,SQL2)						
 
 					}#end if continueAfterAbort
 				}#doi loop
@@ -6874,10 +6874,9 @@ if(any(actions=="concatenate")) {
 			colNames<-dbListFields(con,"aggregation_overall_mean")
 			file<-read.csv(paste(file.path(dir.out.temp,theFileList[j]),sep=""),header=FALSE)
 			colnames(file)<-colNames
-			sequence_from<-dim(file)[1]/i
-			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),sequence_from)),1:(length(colNames))])
+			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),2)),])
 			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
-			aggregation_overall_sd<-file[(seq(2,nrow(file),sequence_from)),1:length(colNames)]
+			aggregation_overall_sd<-file[(seq(2,nrow(file),2)),]
 			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
 
 			dbBegin(con)
