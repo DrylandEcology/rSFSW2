@@ -36,7 +36,7 @@ print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
 minVersionRsoilwat <- "1.0.1"
-minVersion_dbWeather <- "2.0.0"
+minVersion_dbWeather <- "3.0.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
@@ -117,6 +117,7 @@ getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
 dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
+dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
 
 #-Spatial setup of simulations
 # Should the locations of 'SWRunInformation' interpreted as 2D-cells of a raster/grid or as 1D-sites

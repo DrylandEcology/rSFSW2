@@ -608,6 +608,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	dbW_setConnection(dbFilePath=dbWeatherDataFile)
 	dbW_iSiteTable <- dbW_getSiteTable()
 	dbW_iScenarioTable <- dbW_getScenariosTable()
+	dbW_compression_type <- Rsoilwat31:::dbW_compression()
 	
 	climScen <- data.frame(matrix(unlist(strsplit(temp <- climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE)), ncol=4, byrow=TRUE), stringsAsFactors=FALSE)
 	climScen$imap_todbW <- match(temp, table=dbW_iScenarioTable$Scenario, nomatch=0)
@@ -1856,7 +1857,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	}
 	
 	#----Extraction function
-	calc.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) { 
+	calc.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) { 
 		#Identify index for site and scenario
 		ig <- (i - 1) %% length(reqGCMs) + 1
 		il <- (i - 1) %/% length(reqGCMs) + 1
@@ -1991,7 +1992,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						stopifnot(!inherits(scen.fut.daily, "try-error"))
 						print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", rownames(future_yrs)[it], ": raw method: checks turned off for monthly->daily"))
 					}
-					data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+					data_blob <- dbW_weatherData_to_blob(scen.fut.daily, compression_type)
 					years <- as.integer(names(scen.fut.daily))
 					types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=years[1], EndYear=years[length(years)], weatherData=data_blob)
 				}
@@ -2016,7 +2017,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						stopifnot(!inherits(scen.fut.daily, "try-error"))
 						print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", rownames(future_yrs)[it], ": delta method: checks turned off for monthly->daily"))
 					}
-					data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+					data_blob <- dbW_weatherData_to_blob(scen.fut.daily, compression_type)
 					years <- as.integer(names(scen.fut.daily))
 					types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=years[1], EndYear=years[length(years)], weatherData=data_blob)
 				}
@@ -2040,7 +2041,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						stopifnot(!inherits(scen.fut.daily, "try-error"))
 						print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", rownames(future_yrs)[it], ": delta-hybrid replaced by delta method for monthly->daily"))
 					}
-					data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+					data_blob <- dbW_weatherData_to_blob(scen.fut.daily, compression_type)
 					years <- as.integer(names(scen.fut.daily))
 					types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=years[1], EndYear=years[length(years)], weatherData=data_blob)
 				}
@@ -2068,7 +2069,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						stopifnot(!inherits(scen.fut.daily, "try-error"))
 						print(paste0(i, ", site_id = ", site_id, ", scenario_id = ", scenario_id, ", ", tolower(paste(tag, gcm, sep=".")), ", timeslice = ", rownames(future_yrs)[it], ": delta-hybrid-3mod replaced by delta method for monthly->daily"))
 					}
-					data_blob <- dbW_weatherData_to_blob(scen.fut.daily)
+					data_blob <- dbW_weatherData_to_blob(scen.fut.daily, compression_type)
 					years <- as.integer(names(scen.fut.daily))
 					types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=years[1], EndYear=years[length(years)], weatherData=data_blob)
 				}
@@ -2086,7 +2087,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#' A wrapper function for \code{calc.ScenarioWeather} with error control.
 	#'
 	#' @inheritParams calc.ScenarioWeather
-	try.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) {
+	try.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) {
 		temp <- try(calc.ScenarioWeather(i = i,
 						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
@@ -2095,6 +2096,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						bbox = bbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
+						compression_type = compression_type,
 						varTags = varTags, fileVarTags = fileVarTags,
 						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
 						simstartyr = simstartyr, endyr = endyr,
@@ -2146,6 +2148,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						bbox = bbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
+						compression_type = dbW_compression_type,
 						varTags = varTags, fileVarTags = fileVarTags,
 						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
 						simstartyr = simstartyr, endyr = endyr,
@@ -2176,6 +2179,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						bbox = bbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
+						compression_type = dbW_compression_type,
 						varTags = varTags, fileVarTags = fileVarTags,
 						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
 						simstartyr = simstartyr, endyr = endyr,
@@ -2205,6 +2209,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						bbox = bbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
+						compression_type = dbW_compression_type,
 						varTags = varTags, fileVarTags = fileVarTags,
 						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
 						simstartyr = simstartyr, endyr = endyr,
@@ -2230,6 +2235,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						bbox = bbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
+						compression_type = dbW_compression_type,
 						varTags = varTags, fileVarTags = fileVarTags,
 						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
 						simstartyr = simstartyr, endyr = endyr,
@@ -2257,7 +2263,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 									Scenario_id =	wdataOut[[j]][[l]]$Scenario_id,
 									StartYear = 	wdataOut[[j]][[l]]$StartYear,
 									EndYear = 		wdataOut[[j]][[l]]$EndYear,
-									weatherData = 	wdataOut[[j]][[l]]$weatherData),
+									weather_blob = 	wdataOut[[j]][[l]]$weatherData),
 								silent=TRUE)
 						if (inherits(res, "try-error")) {
 							if (!be.quiet) print(paste("Adding downscaled data for Site_id", wdataOut[[j]][[l]]$Site_id, "scenario", wdataOut[[j]][[l]]$Scenario_id, "was unsuccessful:", temp))
@@ -2499,7 +2505,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	
 		#objects that need exporting to workers
-		list.export <- c("dir.out.temp", "GCM_source", "is_GDODCPUCLLNL", "is_NEX", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "future_yrs", "DScur_startyr", "DScur_endyr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "bbox", "print_int",
+		list.export <- c("dir.out.temp", "GCM_source", "is_GDODCPUCLLNL", "is_NEX", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "future_yrs", "DScur_startyr", "DScur_endyr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "dbW_compression_type", "bbox", "print_int",
 				"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
 				"downscale.raw", "downscale.delta", "downscale.deltahybrid", "downscale.deltahybrid3mod", "downscale.periods",
 				"in_GMC_box", "unique_times", "useSlices", "erf", "add_delta_to_PPT", "fix_PPTdata_length", "calc_Days_withLoweredPPT", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "stretch_values", 

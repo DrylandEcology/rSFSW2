@@ -1131,7 +1131,7 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 					
 					if (!inherits(weatherData, "try-error")) {
 						# Store site weather data in weather database
-						data_blob <- dbW_weatherData_to_blob(weatherData)
+						data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
 						Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
 							Scenario_id = 1,
 							StartYear = start_year,
@@ -1247,7 +1247,7 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 			names(weatherData) <- as.character(NRC_target_years)
 
 			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData)
+			data_blob <- dbW_weatherData_to_blob(weatherData, dbW_weatherData_to_blob)
 			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
 				Scenario_id = 1,
 				StartYear = start_year,
@@ -1289,7 +1289,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherData
 				endYear = end_year)
 
 			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData)
+			data_blob <- dbW_weatherData_to_blob(weatherData, dbW_weatherData_to_blob)
 			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
 				Scenario_id = 1,
 				StartYear = start_year,
@@ -1477,6 +1477,7 @@ if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 		if (v_dbW >= "1") print("Use function 'Rsoilwat31:::dbW_upgrade_v1to2' to upgrade your version 1.y.z weather database to version 2.0.0")
 		stop("Outdated weather database")
 	}
+	
 }
 
 if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -3335,16 +3336,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			} else {
 				.local <- function(i) {
 					# Extract weather data from db
-					i_sw_weatherList <- list()
+					dat <- list()
 					sn <- if (getScenarioWeatherDataFromDatabase) scenario_No else 1L
 					for (k in seq_len(sn)) {
-						i_sw_weatherList[[k]] <- dbW_getWeatherData(Label = weather_label_cur,
+						dat[[k]] <- dbW_getWeatherData(Label = weather_label_cur,
 													startYear = simstartyr,
 													endYear = endyr,
 													Scenario = climate.conditions[k])
 					}
 				
-					i_sw_weatherList
+					dat
 				}
 
 				dbW_setConnection(dbFilePath = dbWeatherDataFile)
