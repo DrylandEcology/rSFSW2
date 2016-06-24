@@ -126,7 +126,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			newPPTevent_N <- ceiling(pptToDistribute / dailyPPTceiling)
 			newPPTevents <- lapply(seq_along(i_extreme), FUN=function(i) {
 				if(newPPTevent_N[i] > 0){
-					#Randomly select days within ± sigmaN days from a normal distribution		
+					#Randomly select days within ?? sigmaN days from a normal distribution		
 					xt <- (temp <- (-sigmaN*newPPTevent_N[i]):(sigmaN*newPPTevent_N[i]))[(i_extreme[i] + temp > 0)]
 					xt <- xt[1 <= i_extreme[i] + xt & i_extreme[i] + xt <= length(data)] #do not select day from previous or next year
 					probs <- dnorm(x=xt, mean=0, sd=newPPTevent_N[i])
@@ -168,7 +168,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 	#Add/multiply deltas to historic daily data to generate future daily SoilWat-formatted weather
 	applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, do_checks=FALSE){
-		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
+		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by ???spreading out??? very large daily precipitation values into one or more adjacent days"
 
 		res <- try(lapply(obs.hist.daily, FUN=function(obs) {
 					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
@@ -263,7 +263,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 	downscale.delta <- function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE){
 		#Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta change and downscaled gcm scenarios for three mountainous basins in the United States. Journal of the American Water Resources Association 36:387-397.
-		#Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+		#Hamlet, A. F., E. P. Salath??, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 		
 		# 1. Calculate mean monthly values in historic and future scenario values
 		temp <- rep(1:12, times=nrow(scen.fut.monthly) / 12)
@@ -295,7 +295,7 @@ if(	exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	
 	downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, do_checks=TRUE){
 		#Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
-		#Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+		#Hamlet, A. F., E. P. Salath??, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 		#Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 		#Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
 		#Functions

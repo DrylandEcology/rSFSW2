@@ -448,9 +448,10 @@ if((length(Tables) == 0) || do.clean) {
 		if(length(icol <- grep(pattern="WeatherFolder", sites_columns)) > 0) sites_columns <- sites_columns[-icol]
 		treatment_columns <- colnames(db_combined_exp_treatments)[-(1:3)]
 		if(useTreatmentWeatherFolder) treatment_columns <- treatment_columns[-grep(pattern="WeatherFolder",treatment_columns)]
-		header_columns<-c("runs.P_id","run_labels.label AS Labels", paste("sites",sites_columns,sep=".",collapse = ", "), if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
+		header_columns<-c("runs.P_id","run_labels.label AS Labels", #paste("sites",sites_columns,sep=".",collapse = ", "), 
+		                  if(useExperimentals) "experimental_labels.label AS Experimental_Label",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) "weatherfolders.folder AS WeatherFolder", if(useExperimentals | useTreatments) paste("treatments",treatment_columns, sep=".", collapse=", "), "simulation_years.StartYear", "simulation_years.simulationStartYear AS SimStartYear", "simulation_years.EndYear", "scenario_labels.label AS Scenario")
 		header_columns<-paste(header_columns,collapse = ", ")
-	
+		print(paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
 		dbGetQuery(con, paste("CREATE VIEW header AS SELECT ",header_columns, " FROM runs, run_labels, sites, ", if(useExperimentals) "experimental_labels, ","treatments, scenario_labels, simulation_years", if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) ", weatherfolders"," WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",if(!exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) { if(useTreatmentWeatherFolder) "treatments.LookupWeatherFolder_id=weatherfolders.id AND " else "sites.WeatherFolder_id=weatherfolders.id AND " }, if(useExperimentals) "treatments.experimental_id=experimental_labels.id AND ","treatments.simulation_years_id=simulation_years.id;",sep=""))
 		##################################################
 	
@@ -875,27 +876,37 @@ if((length(Tables) == 0) || do.clean) {
 				#Output for time series: not yet implemented for db			
 			}
 		}
-		print("64a")
 	#64
 		if(any(simulation_timescales=="daily")  & aon$dailyDryPeriods ){	
-		  temp <- c(temp,paste("ThermalDryPeriod", paste(c("StartDt", "EndDt"), rep(SWPcrit_MPa, each=2), sep="")))
-		  print("64b")
+		  for (i in SWPcrit_MPa){
+		      temp <- c(temp, paste(c("StartDoY", "EndDoY"), i,sep="_"))
+		  }
 		}
 	#65
-		print("65a")
-		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){			
-		  temp <- c(temp, paste0("TmaxAbove", ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "degC_days_mean"))
-		  print("65b")
+		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
+		  temp <- c(temp, paste0("TmaxAbove", ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "T_mean_crit_days"))
 		}	
 	#66	
 		if(any(simulation_timescales=="daily") & aon$dailyDegreeDaysCnt){
-		  temp <- c(temp, paste("DegreeDays.Cnt", DegreeDayBase, "C.dailyTmeanCnt", sep=""))
+		  for (i in SWPcrit_MPa) {
+		    temp <- c(temp, paste("DegreeDays.Cnt", i ,"C.dailyTmeanCnt", sep="_"))
+		    for (j in Tmean_crit_C) {
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "Bot", "OverCrit","C.dailyTmeanCnt", sep="_"))
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "Bot", "UnderCrit","C.dailyTmeanCnt", sep="_"))
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "Top", "OverCrit","C.dailyTmeanCnt", sep="_"))
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "Top", "UnderCrit","C.dailyTmeanCnt", sep="_"))    
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "All", "OverCrit","C.dailyTmeanCnt", sep="_"))
+		      temp <- c(temp, paste("DegreeDays.Cnt", i, j, "All", "UnderCrit","C.dailyTmeanCnt", sep="_"))        
+		    }
+		  }	  
 		}
 	#67	
 		if(any(simulation_timescales=="daily") & aon$dailyTMaxTenDayMean){
 		  temp <- c(temp, "HottestTopTen")
-		  temp <- c(temp, "HottestTopTenCrit")
-		}				
+		  for (icrit in SWPcrit_MPa) {
+		    temp <- c(temp, paste("HottestTopTenCrit",c("TopOver","TopBelow","BotOver","BotBelow","AllOver","AllBelow"), icrit, sep= "_")   )
+		  }
+		}		
 		#---Aggregation: done with options
 	
 		#Convert '.' to "_"

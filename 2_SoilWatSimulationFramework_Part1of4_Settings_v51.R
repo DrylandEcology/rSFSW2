@@ -36,9 +36,9 @@ print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
 minVersionRsoilwat <- "0.31.16"
-num_cores <- 2
+num_cores <- 1
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
-parallel_runs <- if(interactive()) FALSE else TRUE
+parallel_runs <- if(interactive()) FALSE else FALSE
 
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
@@ -54,7 +54,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 
 #------Set paths to simulation framework folders
 #parent folder of simulation project
-dir.prj <- "~/YOURPROJECT"
+dir.prj <- "/Users/alexreeder/Documents/Soilwat_R_Wrapper"
 if(interactive()) setwd(dir.prj)
 dir.prj <- dir.runs <- getwd()
 
@@ -80,12 +80,13 @@ dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated o
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
 actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
+actions <- c("create", "aggregate", "concatenate", "execute")#
 #continues with unfinished part of simulation after abort if TRUE
 continueAfterAbort <- TRUE
 #use preprocessed input data if available
 usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
-saveSoilWatInputOutput <- FALSE
+saveSoilWatInputOutput <- TRUE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
@@ -106,7 +107,7 @@ dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite3")
+dbWeatherDataFile <- file.path(dir.in, "dbWeatherData_Validation.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
@@ -158,14 +159,14 @@ do.PriorCalculations <- c(
 
 #------Time frame of simulation: if not specified in the treatment datafile
 #year when SoilWat starts the simulation
-simstartyr  <- 1979
+simstartyr  <- 2010
 #first year that is used for output aggregation, e.g., simstartyr + 1
 getStartYear <- function(simstartyr){
 	return(simstartyr + 1)
 }
 startyr <- getStartYear(simstartyr)
 #year when SoilWat ends the simulation
-endyr <- 2010
+endyr <- 2014
 
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
@@ -234,7 +235,7 @@ accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemi
 
 #------Output Header Columns------#
 Index_RunInformation <- c(2:3, 5:11, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
-
+Index_RunInformation <-NULL
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
 simulation_timescales <- c("daily", "monthly", "yearly")
