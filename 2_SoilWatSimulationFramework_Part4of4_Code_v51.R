@@ -6555,11 +6555,8 @@ do_OneSite <- function(i, i_labels, i_SWRunInformation, i_sw_input_soillayers, i
 							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 						}
-						con <- dbConnect(drv, dbname = name.OutputDB)
 						dbSendQuery(con,SQL1)
-						dbSendQuery(con,SQL2)
-						dbClearResult(dbListResults(con)[[1]])
-						dbDisconnect(con)						
+						dbSendQuery(con,SQL2)						
 
 					}#end if continueAfterAbort
 				}#doi loop
