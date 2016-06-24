@@ -29,7 +29,8 @@ if (createAndPopulateWeatherDatabase) {
 						Label = SWRunInformation$WeatherFolder,
 						stringsAsFactors = FALSE),
 		site_subset = runIDs_sites,
-		scenarios = data.frame(Scenario = climate.conditions))
+		scenarios = data.frame(Scenario = climate.conditions),
+		compression_type = dbW_compression_type)
 
 	Time <- Sys.time()
 	
@@ -64,12 +65,12 @@ if (createAndPopulateWeatherDatabase) {
 			
 			if (!is.null(weatherData)) {
 				years <- as.integer(names(weatherData))
-				data_blob <- dbW_weatherData_to_blob(weatherData)
+				data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
 				Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
 					Scenario_id = 1,
 					StartYear = years[1],
 					EndYear = years[length(years)],
-					weatherData = data_blob)
+					weather_blob = data_blob)
 			} else {
 				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[i_site]))
 			}
