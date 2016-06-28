@@ -7102,84 +7102,109 @@ tryCatch({
 #------------------------
 
 #------------------------
-if(any(actions=="concatenate")) {
-	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1 <- Sys.time()))
-	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
+if (any(actions == "concatenate")) {
+	t1 <- Sys.time()
+	if(!be.quiet) print(paste("Inserting Data from Temp SQL files into Database", ": started at", t1))
 
-	temp <- Sys.time() - t.overall
-	units(temp) <- "secs"
-	temp <- as.double(temp)
-	if(temp <= (MinTimeConcat-36000) | !parallel_runs | !identical(parallel_backend,"mpi")) {#need at least 10 hours for anything useful
-		library(RSQLite)
+	temp <- as.double(difftime(t1, t.overall, units = "secs"))
+	
+	if (temp <= (MinTimeConcat - 36000) || !parallel_runs || !identical(parallel_backend, "mpi")) {#need at least 10 hours for anything useful
 		#Connect to the Database
 		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-		if(copyCurrentConditionsFromTempSQL) {
-			file.copy(from=name.OutputDB, to=name.OutputDBCurrent, overwrite=FALSE)
-			con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
-			NumberTables <- length(dbListTables(con2)[!(dbListTables(con2) %in% headerTables)])
-			##DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER##
-			dbGetQuery(con2,"DELETE FROM runs WHERE scenario_id != 1;")
-		}
-		if(file.exists(file.path(dir.out.temp,concatFile))) {
-			completedFiles <- basename(readLines(file.path(dir.out.temp,concatFile)))
-		} else {
-			completedFiles <- character(0)
-		}
-		theFileList <- list.files(path=dir.out.temp, pattern="SQL", full.names=FALSE, recursive=TRUE, include.dirs=FALSE, ignore.case=FALSE)
-		if(any(theFileList %in% completedFiles)) {
+		
+		do_DBCurrent <- copyCurrentConditionsFromTempSQL || copyCurrentConditionsFromDatabase
+		reset_DBCurrent <- copyCurrentConditionsFromTempSQL && (cleanDB || !file.exists(name.OutputDBCurrent))
+		if (reset_DBCurrent) file.copy(from = name.OutputDB, to = name.OutputDBCurrent)		
+		if (do_DBCurrent) con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
+		if (reset_DBCurrent) dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+		
+		# Prepare output databases
+		set_PRAGMAs(con, PRAGMA_settings1)
+		if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1)
+
+		# Locate temporary SQL files
+		theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
+			full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+		completedFiles <- if (file.exists(file.path(dir.out.temp,concatFile))) {
+				basename(readLines(file.path(dir.out.temp, concatFile)))
+			} else {
+				character(0)
+			}
+		if (any(theFileList %in% completedFiles)) {
 			theFileList <- theFileList[-which(theFileList %in% completedFiles)]#remove any already inserted files from list
 		}
+		
+		# Add data to SQL databases
+		for	(j in seq_along(theFileList)) {
+			tDB1 <- Sys.time()
+			if (print.debug) {
+				print(paste(j,": started at ", tDB1, sep = ""))
+			}
 
-		for(j in 1:length(theFileList)) {
-			FAIL <- FALSE
-
-			temp <- Sys.time() - t.overall
-			units(temp) <- "secs"
-			temp <- as.double(temp)
-			if( (temp > (MaxRunDurationTime-MaxConcatTime)) & parallel_runs & identical(parallel_backend,"mpi") ) {#figure need at least 8 minutes for big ones  ( not run in parallel
+			tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
+			if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
 				break
 			}
-			if(print.debug) print(paste(j,": started at ",temp<-Sys.time(),sep=""))
-			colNames<-dbListFields(con,"aggregation_overall_mean")
-			file<-read.csv(paste(file.path(dir.out.temp,theFileList[j]),sep=""),header=FALSE)
-			colnames(file)<-colNames
-#TODO(drs): figure out what 'i' should be; Caitlin suggests that i should be j
-warning("The variable 'i' is used here in the code without it being defined. It will have a value from whatever it was used for previously.")
-			sequence_from<-dim(file)[1]/j
-			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),sequence_from)),1:(length(colNames))])
-			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
-			aggregation_overall_sd<-file[(seq(2,nrow(file),sequence_from)),1:length(colNames)]
-			aggregation_overall_sd$P_id<-gsub("INSERT INTO aggregation_overall_sd VALUES ("," ",aggregation_overall_sd$P_id,fixed=TRUE)
-
-			dbBegin(con)
-			dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
-			dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
-			dbCommit(con)
-
-			if(copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])) {
-			  dbDisconnect(con)
-			  con<-DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
-			  dbBegin(con)
-			  dbWriteTable(con, "aggregation_overall_mean", aggregation_overall_mean, row.names = F,append=TRUE)
-			  dbWriteTable(con, "aggregation_overall_sd", aggregation_overall_sd, row.names = F,append=TRUE)
-			  dbCommit(con)
-			  dbDisconnect(con)
-			  con<-DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+			
+			OK <- TRUE
+			# Read SQL statements from temporary file
+			sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
+			add_to_DBCurrent <- copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])
+			
+			# Check what has already been inserted
+			pids_inserted_mean <- DBI::dbGetQuery(con, "SELECT P_id FROM aggregation_overall_mean;")[, 1]
+			pids_inserted_sd <- DBI::dbGetQuery(con, "SELECT P_id FROM aggregation_overall_sd;")[, 1]
+			if (add_to_DBCurrent) {
+				pids2_inserted_mean <- DBI::dbGetQuery(con2, "SELECT P_id FROM aggregation_overall_mean;")[, 1]
+				pids2_inserted_sd <- DBI::dbGetQuery(con2, "SELECT P_id FROM aggregation_overall_sd;")[, 1]
 			}
-
-
-
-			write(file.path(dir.out.temp, theFileList[j]), file=file.path(dir.out.temp,concatFile), append = TRUE)
-			if(!FAIL && deleteTmpSQLFiles) try(file.remove(file.path(dir.out.temp, theFileList[j])), silent=TRUE)
-			if(print.debug) {
-				temp2<-Sys.time() - temp
-				units(temp2) <- "secs"
-				temp2 <- as.double(temp2)
-				print(paste("    ended at ",Sys.time(),", after ",temp2," seconds.",sep=""))
+			
+			# Send SQL statements to database
+			OK <- OK && DBI::dbBegin(con)
+			if (add_to_DBCurrent) OK <- OK && DBI::dbBegin(con2)
+			
+			for (k in seq_along(sql_cmds)) {
+				id <- as.integer(substr(sql_cmds[k],
+									8 + regexpr("VALUES (", sql_cmds[k], fixed = TRUE),
+									-1 + regexpr(",", sql_cmds[k], fixed = TRUE)))
+				
+				if (grepl("aggregation_overall_mean", sql_cmds[k])) {
+					do_insert <- !(id %in% pids_inserted_mean)
+					do_insert2 <- if (add_to_DBCurrent) !(id %in% pids2_inserted_mean) else FALSE
+				
+				} else if (grepl("aggregation_overall_sd", sql_cmds[k])) {
+					do_insert <- !(id %in% pids_inserted_sd)
+					do_insert2 <- if (add_to_DBCurrent) !(id %in% pids2_inserted_sd) else FALSE
+				}
+								
+				if (do_insert) {
+					res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
+					OK <- OK && !inherits(res, "try-error")
+				}
+				if (do_insert2) {
+					res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
+					OK <- OK && !inherits(res, "try-error")
+				}
+					
+				if (!OK) break
+			}
+			
+			OK <- OK && DBI::dbCommit(con)
+			if (add_to_DBCurrent) OK <- OK && DBI::dbCommit(con2)
+			
+			# Clean up and report
+			if (OK) {
+				write(file.path(dir.out.temp, theFileList[j]), file = file.path(dir.out.temp,concatFile), append = TRUE)
+				if (deleteTmpSQLFiles)
+					try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
+			}
+			if (print.debug) {
+				tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
+				print(paste("    ended at", Sys.time(), "after", tDB, "s"))
 			}
 		}
 
-		if(!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+		if (!be.quiet) print(paste("Database complete in :",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 
 		if(copyCurrentConditionsFromDatabase & !copyCurrentConditionsFromTempSQL) {
 			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
@@ -7233,6 +7258,9 @@ warning("The variable 'i' is used here in the code without it being defined. It 
 			unlink(paste(Tables,".sql",sep=""))
 			unlink(c("dump.txt","insert.txt"))
 		}
+		
+		DBI::dbDisconnect(con)
+		if (do_DBCurrent) DBI::dbDisconnect(con2)
 	} else {
 		print(paste("Need more than ", MinTimeConcat," seconds to put SQL in Database.",sep=""))
 	}
