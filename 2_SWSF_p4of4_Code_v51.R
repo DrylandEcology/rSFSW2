@@ -620,7 +620,7 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 			if(!be.quiet) setDefaultClusterOptions(outfile="")
 			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
 			cl <- snow::makeSOCKcluster(num_cores)
-			clusterApply(cl, 1:num_cores, function(x) nodeNumber<<-x)
+			clusterApply(cl, seq_len(num_cores), function(x) .nodeNumber <<- x) # need a .x object that does not get deleted with rm(list = ls())
 			#snow::clusterSetupRNG(cl) #random numbers setup
 			doSNOW::registerDoSNOW(cl) 	# register foreach backend
 		}
@@ -4208,22 +4208,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#prepare SQL result container
 		SQL <- SQLcurrent <- character(0)
-		if(parallel_runs && parallel_backend == "mpi") {
-			dbTempFileName <- paste("SQL_Node_",mpi.comm.rank(),".sql",sep="")
-			dbTempFileNameCurrent <- paste("SQL_Current_Node_",mpi.comm.rank(),".sql",sep="")
-		} else if(parallel_runs && parallel_backend == "snow") {
-			dbTempFileName <- paste("SQL_Node_",nodeNumber,".sql",sep="")
-			dbTempFileNameCurrent <- paste("SQL_Current_Node_",nodeNumber,".sql",sep="")
+		fid <- if (parallel_runs && parallel_backend == "mpi") {
+			mpi.comm.rank()			
+		} else if (parallel_runs && parallel_backend == "snow") {
+			.nodeNumber
 		} else if (parallel_runs && parallel_backend == "multicore") {
-			#TODO Get proper node number.
-			dbTempFileName <- paste("SQL_Node_",sample(1:500,1),".sql",sep="")
-			dbTempFileNameCurrent <- paste("SQL_Current_Node_",sample(1:500,1),".sql",sep="")
+			sample.int(50000, 1)
 		} else {
-			dbTempFileName <- "SQL.sql"
-			dbTempFileNameCurrent <- "SQL_Current.sql"
+			0L
 		}
-		dbTempFile <- file.path(dir.out, "temp", dbTempFileName)
-		dbTempFileCurrent <- file.path(dir.out, "temp", dbTempFileNameCurrent)
+		dbTempFile <- file.path(dir.out, "temp", paste("SQL_Node_", fid, ".sql", sep = ""))
+		dbTempFileCurrent <- file.path(dir.out, "temp", paste("SQL_Current_Node_", fid, ".sql", sep = ""))
 
 		#Performance Measuring
 		#if(aggregate.timing) OutputTiming <- list()
@@ -7050,7 +7045,7 @@ tryCatch({
 				i_site <- it_site(i_sim)
 				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
 			}
-			snow::clusterEvalQ(cl, rm(list=ls(all=TRUE)))
+			snow::clusterEvalQ(cl, rm(list=ls()))
 			snow::clusterEvalQ(cl, gc())
 		}
 		if(identical(parallel_backend, "multicore")){
