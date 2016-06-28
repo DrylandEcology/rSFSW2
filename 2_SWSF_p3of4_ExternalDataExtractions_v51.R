@@ -54,7 +54,7 @@ if (exinfo$use_sim_spatial) {
 		if (is.null(tag)) {
 			apply(data, MARGIN, function(x) all(is.na(x)))
 		} else {
-			apply(data[, grepl(tag, colnames(data))], MARGIN, function(x) all(is.na(x)))
+			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, function(x) all(is.na(x)))
 		}
 	})
 	
@@ -62,7 +62,7 @@ if (exinfo$use_sim_spatial) {
 		if (is.null(tag)) {
 			apply(data, MARGIN, anyNA)
 		} else {
-			apply(data[, grepl(tag, colnames(data))], MARGIN, anyNA)
+			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, anyNA)
 		}
 	})
 	
