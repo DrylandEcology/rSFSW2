@@ -7143,9 +7143,9 @@ if(any(actions=="concatenate")) {
 			colNames<-dbListFields(con,"aggregation_overall_mean")
 			file<-read.csv(paste(file.path(dir.out.temp,theFileList[j]),sep=""),header=FALSE)
 			colnames(file)<-colNames
-#TODO(drs): figure out what 'i' should be
+#TODO(drs): figure out what 'i' should be; Caitlin suggests that i should be j
 warning("The variable 'i' is used here in the code without it being defined. It will have a value from whatever it was used for previously.")
-			sequence_from<-dim(file)[1]/i
+			sequence_from<-dim(file)[1]/j
 			aggregation_overall_mean<-data.frame(file[(seq(1,nrow(file),sequence_from)),1:(length(colNames))])
 			aggregation_overall_mean$P_id<-gsub("INSERT INTO aggregation_overall_mean VALUES ("," ",aggregation_overall_mean$P_id,fixed=TRUE)
 			aggregation_overall_sd<-file[(seq(2,nrow(file),sequence_from)),1:length(colNames)]
