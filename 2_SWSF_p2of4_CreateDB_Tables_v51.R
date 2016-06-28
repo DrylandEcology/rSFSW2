@@ -120,15 +120,24 @@ if (createAndPopulateWeatherDatabase) {
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 Tables <- dbListTables(con)
 
-set_PRAGMAs <- function(con){
-	dbGetQuery(con,"PRAGMA page_size=65536;") #no return value (http://www.sqlite.org/pragma.html)
-	dbGetQuery(con,"PRAGMA max_page_count=2147483646;") #returns the maximum page count
-	dbGetQuery(con,"PRAGMA foreign_keys = ON;") #no return value
-	settings <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-	lapply(settings, function(x) dbGetQuery(con,x))
+# PRAGMA, see http://www.sqlite.org/pragma.html
+PRAGMA_settings1 <- c("PRAGMA cache_size = 400000;",
+					  "PRAGMA synchronous = 1;",
+					  "PRAGMA locking_mode = EXCLUSIVE;",
+					  "PRAGMA temp_store = MEMORY;",
+					  "PRAGMA auto_vacuum = NONE;")
+PRAGMA_settings2 <- c(PRAGMA_settings1,
+					  "PRAGMA page_size=65536;", # no return value
+					  "PRAGMA max_page_count=2147483646;", # returns the maximum page count
+					  "PRAGMA foreign_keys = ON;") #no return value
+
+set_PRAGMAs <- function(con, settings) {
+	temp <- lapply(settings, function(x) DBI::dbGetQuery(con, x))
+
+	invisible(0)
 }
 
-if(length(Tables) == 0) set_PRAGMAs(con)
+if(length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2)
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
 #Only do this if the database is empty
@@ -143,7 +152,7 @@ if((length(Tables) == 0) || do.clean) {
 		if(do.clean && length(dbListTables(con)) > 0){
 			unlink(name.OutputDB)
 			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-			set_PRAGMAs(con)
+			set_PRAGMAs(con, PRAGMA_settings2)
 		}
 
 
@@ -1043,12 +1052,12 @@ if((length(Tables) == 0) || do.clean) {
 			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
 			for(i in seq_along(dbEnsemblesFilePaths)) {
 				con<-DBI::dbConnect(RSQLite::SQLite(), dbEnsemblesFilePaths[i])
-				set_PRAGMAs(con)
+				set_PRAGMAs(con, PRAGMA_settings2)
 			
 				if(do.clean && length(dbListTables(con)) > 0){
 					unlink(dbEnsemblesFilePaths[i])
 					con <- DBI::dbConnect(RSQLite::SQLite(), dbname=dbEnsemblesFilePaths[i])
-					set_PRAGMAs(con)
+					set_PRAGMAs(con, PRAGMA_settings2)
 				}
 			
 				for(j in seq_along(ensemble.families)) {
