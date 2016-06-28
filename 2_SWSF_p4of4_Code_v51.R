@@ -3302,9 +3302,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		i_sw_weatherList <- list()
 		
 		.local_weatherDirName <- function(i_sim) {	# Get name of weather file from output database
-			con <<- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-			temp <- dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1)))[1,1]
-			dbDisconnect(con)
+			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+			temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1)))[1,1]
+			DBI::dbDisconnect(con)
 			temp
 		}
 
@@ -6816,18 +6816,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+
 						} else {
 							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
 							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 						}
-						con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-						dbSendQuery(con,SQL1)
-						dbSendQuery(con,SQL2)
-						dbClearResult(dbListResults(con)[[1]])
-						dbDisconnect(con)						
 
 					}#end if continueAfterAbort
 				}#doi loop
