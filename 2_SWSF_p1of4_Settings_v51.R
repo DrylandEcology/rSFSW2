@@ -36,7 +36,7 @@ print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
 minVersionRsoilwat <- "1.0.1"
-minVersion_dbWeather <- "3.0.0"
+minVersion_dbWeather <- "3.1.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
@@ -81,7 +81,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("create", "execute", "aggregate", "concatenate", "ensemble")#
+actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals) if already extracted
