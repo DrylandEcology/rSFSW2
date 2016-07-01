@@ -2220,6 +2220,34 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 
 	source(file.path(dir.code, "2_SWSF_p3of4_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
 
+
+	# Check that include_YN* are inclusive
+	includes_all_sources <- grep("Include_YN", colnames(SWRunInformation), ignore.case = TRUE, value = TRUE)
+	includes_sources <- includes_all_sources[-which(includes_all_sources == "Include_YN")]
+	if (length(includes_sources) > 0L) {
+		include_YN_sources <- apply(SWRunInformation[, includes_sources], 1, function(x) all(x > 0L))
+	
+		if (all(include_YN_sources[include_YN > 0L])) {
+			if(!be.quiet) print(paste("External sources available for all requested SWSF simulation runs"))
+	
+		if (!identical(include_YN > 0L, include_YN_sources)) {
+			include_YN_available <- rep(0, runsN_master)
+			include_YN_available[include_YN_sources] <- 1
+			SWRunInformation$include_YN_available <- include_YN_available
+
+			write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
+			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+			rm(include_YN_available)
+
+			stop("External sources not available for every requested SWSF simulation run. ",
+				"New column 'include_YN_available' with updated information stored to MasterInput file 'SWRunInformation' on disk. ",
+				"SWSF is stopped so that you can bring 'include_YN' and 'include_YN_available' in agreement before running the simulations.")
+		}
+	
+		rm(include_YN_sources, runIDs_sites_new)
+	}
+
+	rm(includes_all_sources, includes_sources)
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 }
 
