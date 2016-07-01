@@ -3650,7 +3650,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (any(notDone)) print("Climate normals weren't found for ", sum(notDone), " sites")
+	if (any(notDone)) print(paste("Climate normals weren't found for", sum(notDone), "sites"))
 
 	rm(monthlyclim, sites_monthlyclim_source, notDone, include_YN_climnorm)
 }
