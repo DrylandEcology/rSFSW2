@@ -3329,6 +3329,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		} else {
 			#---Extract weather data
 			weather_label_cur <- try(.local_weatherDirName(i_sim), silent = TRUE)
+			if (is.na(weather_label_cur))
+				weather_label_cur <- try({function() stop("Output DB ", basename(name.OutputDB), " has no information about weather data for run ", i_sim)}(), silent = TRUE)
 
 			if (inherits(weather_label_cur, "try-error")) {
 				i_sw_weatherList <- weather_label_cur
