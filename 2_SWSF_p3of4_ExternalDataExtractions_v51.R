@@ -3405,6 +3405,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
 		}
+		names(do_extract) <- NULL
 		
 		i_extract <- as.integer(which(do_extract))
 		n_extract <- sum(do_extract)
@@ -3531,7 +3532,8 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 			# Save extracted data to disk
 			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == length(do_extract) == runsN_sites
-			sites_monthlyclim_source[!i_good] <- NA
+			i_notgood <- do_extract & has_incompletedata(monthlyclim) #length(i_good) == length(do_extract) == runsN_sites
+			sites_monthlyclim_source[i_notgood] <- NA
 			
 			if (any(i_good)) {
 				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCDC2005_USA"
@@ -3554,7 +3556,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			
 				rm(i.temp)
 			}
-			rm(dir_noaaca, files_shp, var_codes, sites_noaaca, reference, noaaca, i_good)
+			rm(dir_noaaca, files_shp, var_codes, sites_noaaca, reference, noaaca, i_good, i_notgood)
 		}
 	
 		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
@@ -3575,6 +3577,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
 		}
+		names(do_extract) <- NULL
 	
 		if (any(do_extract)) {		
 			if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =", sum(do_extract), "sites"))
@@ -3612,18 +3615,22 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 		
 			# Save extracted data to disk
 			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract) == runsN_sites
-			sites_monthlyclim_source[!i_good] <- NA
+			i_notgood <- do_extract & has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract) == runsN_sites
+			sites_monthlyclim_source[i_notgood] <- NA
 			
 			if (any(i_good)) {
 				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCEPCFSR_Global"
 				if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
 
 				#add data to sw_input_cloud and set the use flags
-				sw_input_cloud_use[i.temp <- grep("RH", names(sw_input_cloud_use))] <- 1
+				i.temp <- grep("RH", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "RH", ], 2)
-				sw_input_cloud_use[i.temp <- grep("SkyC", names(sw_input_cloud_use))] <- 1
+				i.temp <- grep("SkyC", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
-				sw_input_cloud_use[i.temp <- grep("wind", names(sw_input_cloud_use))] <- 1
+				i.temp <- grep("wind", names(sw_input_cloud_use))
+				sw_input_cloud_use[i.temp] <- 1
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
 
 				#write data to datafile.cloud
@@ -3632,7 +3639,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 		
 				rm(i.temp)
 			}
-			rm(locations, temp, i_good, irow, irowL)
+			rm(locations, temp, i_good, i_notgood, irow, irowL)
 		}
 		rm(do_extract)
 	
