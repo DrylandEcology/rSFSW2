@@ -2230,7 +2230,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 		if (all(include_YN_sources[include_YN > 0L])) {
 			if(!be.quiet) print(paste("External sources available for all requested SWSF simulation runs"))
 	
-		if (!identical(include_YN > 0L, include_YN_sources)) {
+		} else {
 			include_YN_available <- rep(0, runsN_master)
 			include_YN_available[include_YN_sources] <- 1
 			SWRunInformation$include_YN_available <- include_YN_available
