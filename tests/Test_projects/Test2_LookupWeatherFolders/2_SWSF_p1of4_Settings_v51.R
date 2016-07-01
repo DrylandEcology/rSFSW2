@@ -27,7 +27,7 @@
 #---------------------------------------------SETUP------------------------------------------------#
 
 #------Clean the working environment
-rm(list=ls(all=TRUE))
+#rm(list=ls(all=TRUE))
 
 #------Overall timing
 t.overall <- Sys.time()
@@ -56,14 +56,14 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 if(interactive()) {
-	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test1"))
+	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test2_LookupWeatherFolders"))
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
 dir.code <- normalizePath(file.path("..", "..", "..")) # "github/SoilWat_R_Wrapper"
 
 #parent folder containing external data
-dir.external <- "/Volumes/YOURBIGDATA/BigData/GIS/Data"
+#drs dir.external <- "/Volumes/YOURBIGDATA/BigData/GIS/Data"
 dir.external <- "/Volumes/BookDuo_12TB/BigData/GIS/Data"
 
 #paths to external subfolder
@@ -118,7 +118,7 @@ dailyweather_options <- c("Maurer2002_NorthAmerica", "DayMet_NorthAmerica", "Loo
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData_test1.sqlite3")
+dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData_test.sqlite3")
 createAndPopulateWeatherDatabase <- TRUE #TRUE, will create a new(!) database and populate with current data
 dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
 
@@ -151,7 +151,7 @@ extract_determine_database <- "SWRunInformation" # one of c("order", "SWRunInfor
 # External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
-		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 1,	#1/8-degree resolution
+		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
 		"GriddedDailyWeatherFromDayMet_NorthAmerica", 0,	#1-km resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
@@ -168,16 +168,16 @@ do.ExtractExternalDatasets <- c(
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
 
 		#Mean monthly wind, relative humidity, and 100% - sunshine
-		"ExtractSkyDataFromNOAAClimateAtlas_USA", 1,
+		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		"ExtractSkyDataFromNCEPCFSR_Global", 0,
 
 		#Topography
-		"ExtractElevation_NED_USA", 1,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
+		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
 		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database
 
 		#Soil texture
 		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-		"ExtractSoilDataFromISRICWISEv12_Global", 1
+		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
 chunk_size.options <- list(
@@ -256,7 +256,7 @@ ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
 #------Names of files that contain input data or treatment codes
-datafile.SWRunInformation <- "SWRuns_InputMaster_Test1_v11.csv"
+datafile.SWRunInformation <- "SWRuns_InputMaster_Test_v11.csv"
 
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
