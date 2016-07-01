@@ -145,7 +145,7 @@ headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_label
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
 
-if((length(Tables) == 0) || do.clean) {
+if (length(Tables) == 0 || do.clean) {
 
 	.local <- function(){
 
@@ -192,7 +192,8 @@ if((length(Tables) == 0) || do.clean) {
 		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 		dbBegin(con)
 		
-		if (any(!(SWRunInformation$dailyweather_source[runIDs_sites] == "LookupWeatherFolder"))) {
+		if (!(all(any((SWRunInformation$dailyweather_source[runIDs_sites] == "LookupWeatherFolder")),
+				  any(create_treatments == "LookupWeatherFolder")))) {
 			if (any(!is.na(SWRunInformation$WeatherFolder))) {
 				dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
 					bind.data = data.frame(folder = unique(na.exclude(SWRunInformation$WeatherFolder)), stringsAsFactors = FALSE))
