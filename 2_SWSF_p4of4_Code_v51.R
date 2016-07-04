@@ -1276,9 +1276,9 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherData
 	stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 	# Function to be executed for all SoilWat-sites together
-	GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, start_year, end_year, rm_temp = TRUE) {
+	GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, start_year, end_year, n_site_per_core = 100, rm_temp = TRUE) {
 		# do the extractions
-		etemp <- get_NCEPCFSR_data(dat_sites = dat_sites, daily=TRUE, monthly=FALSE, yearLow=start_year, yearHigh=end_year, n_site_per_core=100, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE)
+		etemp <- get_NCEPCFSR_data(dat_sites = dat_sites, daily=TRUE, monthly=FALSE, yearLow=start_year, yearHigh=end_year, n_site_per_core=n_site_per_core, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE)
 
 		# move the weather data into the database
 		for (i in seq_along(site_ids)) {
