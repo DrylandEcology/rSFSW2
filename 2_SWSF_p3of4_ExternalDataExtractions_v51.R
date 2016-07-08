@@ -3372,7 +3372,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 	
-	if (any(notDone)) print("Elevation wasn't found for ", sum(notDone), " sites")
+	if (any(notDone)) print(paste("Elevation wasn't found for ", sum(notDone), " sites"))
 	
 	rm(elevation_m, sites_elevation_source, notDone, include_YN_elev)
 }
