@@ -2225,7 +2225,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 	includes_all_sources <- grep("Include_YN", colnames(SWRunInformation), ignore.case = TRUE, value = TRUE)
 	includes_sources <- includes_all_sources[-which(includes_all_sources == "Include_YN")]
 	if (length(includes_sources) > 0L) {
-		include_YN_sources <- apply(SWRunInformation[, includes_sources], 1, function(x) all(x > 0L))
+		include_YN_sources <- apply(SWRunInformation[, includes_sources, drop = FALSE], 1, function(x) all(x > 0L))
 	
 		if (all(include_YN_sources[include_YN > 0L])) {
 			if(!be.quiet) print(paste("External sources available for all requested SWSF simulation runs"))
