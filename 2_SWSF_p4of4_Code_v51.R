@@ -2435,7 +2435,7 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		ld <- 1:SoilLayer_MaxNo
 		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
 		stopifnot(length(use.layers) > 0)
-		layers.depth <- as.matrix(sw_input_soillayers[, match(paste("depth_L", use.layers, sep=""), colnames(sw_input_soillayers))])
+		layers.depth <- as.matrix(sw_input_soillayers[runIDs_sites, match(paste("depth_L", use.layers, sep=""), colnames(sw_input_soillayers)), drop = FALSE])
 		if(length(dim(layers.depth)) > 0){
 			layers.width <- t(apply(layers.depth, MARGIN=1, FUN=function(x) diff(c(0, x))))
 		} else {
@@ -2444,8 +2444,8 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth.max - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
 
 #TODO: add influence of gravel
-		sand <- sw_input_soils[, match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))]
-		clay <- sw_input_soils[, match(paste("Clay_L", ld, sep=""), colnames(sw_input_soils_use))]
+		sand <- sw_input_soils[runIDs_sites, match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use)), drop = FALSE]
+		clay <- sw_input_soils[runIDs_sites, match(paste("Clay_L", ld, sep=""), colnames(sw_input_soils_use)), drop = FALSE]
 		sand.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(sand[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
 		clay.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(clay[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
 
@@ -2468,8 +2468,8 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		sw_input_soils_use[i.bsE] <- 0
 		sw_input_soils_use[i.bsE][1:max(unlist(bsEvap.ld))] <- 1
 
-		sw_input_soils[, i.bsE] <- 0
-		sw_input_soils[, i.bsE] <- bsEvap.coeff
+		sw_input_soils[runIDs_sites, i.bsE] <- 0
+		sw_input_soils[runIDs_sites, i.bsE] <- bsEvap.coeff
 
 		#write data to datafile.soils
 		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
@@ -2516,7 +2516,8 @@ if(any(actions == "create") && any(pcalcs > 0)){
 		#set use flags
 		ld <- 1:SoilLayer_MaxNo
 		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
-		soilTemp <- sw_input_soils[, index.soilTemp <- match(paste("SoilTemp_L", ld, sep=""), colnames(sw_input_soils_use))[use.layers]]
+		index.soilTemp <- match(paste("SoilTemp_L", ld, sep=""), colnames(sw_input_soils_use))[use.layers]
+		soilTemp <- sw_input_soils[runIDs_sites, index.soilTemp, drop = FALSE]
 		sw_input_soils_use[index.soilTemp] <- 1
 
 		#function to be executed for each SoilWat-run
