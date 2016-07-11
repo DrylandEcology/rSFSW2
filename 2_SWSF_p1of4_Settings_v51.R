@@ -35,7 +35,7 @@ be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "1.0.1"
+minVersionRsoilwat <- "1.1.0"
 minVersion_dbWeather <- "3.1.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
@@ -81,6 +81,16 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
+#	- data preparation
+#		- "external": pulls data from 'external' data sources from 'dir.external' as specified by 'do.ExtractExternalDatasets'
+#		- "map_input": creates maps of input data as specified by 'map_vars'
+#	- simulation runs ('create', 'execute', and 'aggregate' can be used individually if 'saveRsoilwatInput' and/or 'saveRsoilwatOutput')
+#		- "create": puts information and files together for each simulation run
+#		- "execute": executes the SoilWat simulation
+#		- "aggregate": calculates aggregated response variables from the SoilWat output and writes results to temporary text files
+#	- output handling
+#		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
+#		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
 actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
@@ -90,7 +100,8 @@ continueAfterAbort <- TRUE
 #use preprocessed input data if available
 usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
-saveSoilWatInputOutput <- FALSE
+saveRsoilwatInput <- FALSE
+saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")

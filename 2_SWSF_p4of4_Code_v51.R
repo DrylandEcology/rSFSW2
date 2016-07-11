@@ -124,14 +124,14 @@ if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.ou
 dir.out.temp <- file.path(dir.out, "temp")
 dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.big, showWarnings=FALSE, recursive=TRUE)
-if(saveSoilWatInputOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
+if(saveRsoilwatInput || saveRsoilwatOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
 temp <- file.path(dir.out, timerfile)
-if (file.exists(temp) && (!continueAfterAbort || (actionWithSWSFOutput && !actionWithSoilWat))) {
+if (file.exists(temp) && !continueAfterAbort) {
 	try(file.remove(temp), silent=TRUE)
 }
 if (!file.exists(temp)) {
@@ -2244,7 +2244,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 				"SWSF is stopped so that you can bring 'include_YN' and 'include_YN_available' in agreement before running the simulations.")
 		}
 	
-		rm(include_YN_sources, runIDs_sites_new)
+		rm(include_YN_sources)
 	}
 
 	rm(includes_all_sources, includes_sources)
@@ -2682,16 +2682,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 	}
 
 	#set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
-	tasks <- list(aggregate=1, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
-					create=1,
-					execute=1)
+	tasks <- list(aggregate = 1L, #for now: ignoring to check time-series aggregations, i.e., assuming that if overallAggs is done, then time-series output was also completed
+					create = 1L,
+					execute = 1L)
+
+	#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
+	if (saveRsoilwatInput || saveRsoilwatOutput) {
+		temp <- file.path(dir.sw.runs, i_labels)
+		dir.create2(temp, showWarnings = FALSE)
+		f_sw_input <- file.path(temp, "sw_input.RData")
+		f_sw_output <- file.path(temp, "sw_output.RData")
+	}
 
 	#----Get preparations done
-	if( all(unlist(tasks) %in% c(-1, 1)) ){
+	if (all(unlist(tasks) %in% c(-1L, 1L))) {
 		#get treatment sw.input.filenames for this run
 		filesin <- swFilesIn
 
-		if(!is.null(create_treatments) & tasks$create == 1){
+		if(!is.null(create_treatments) & tasks$create == 1L){
 			if(any(create_treatments == "sw")){
 				sw <- i_sw_input_treatments$sw
 			}
@@ -2716,21 +2724,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		}
 
 		#if action is not create then get sw.input.filenames from filesin for this run
-		if(tasks$create == -1){
+		if(tasks$create == -1L){
 			stop("This currently doesn't work") #TODO make it work low PR
 			soilsin <- basename(unlist(strsplit(infiletext[10], split="[[:space:]]"))[1])
 		}
 
 		#------Learn about soil layer structure
 		#determine number of soil layers = d and soildepth
-		if(!any(create_treatments=="soilsin") & tasks$create == 1) {
+		if(!any(create_treatments=="soilsin") & tasks$create == 1L) {
 			soildepth <- i_sw_input_soillayers$SoilDepth_cm
 			layers_depth <- na.omit(as.numeric(i_sw_input_soillayers[2 + lmax]))
 			if(!(length(d <- which(soildepth == layers_depth)) > 0)){	#soildepth is one of the lower layer boundaries
 				d <- min(length(layers_depth), findInterval(soildepth, layers_depth)+1)	#soildepth is not one of the lower layer boundaries, the next deeper layer boundary is used
 			}
 		} else {# needs to be read from soilsin file
-			if(tasks$create == -1) stop("This currently doesn't work") #TODO make it work low PR
+			if(tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
 			layers_depth <- swSoils_Layers(tr_soil[[soilsin]])[,1]
 			d <- length(layers_depth)
 			soildepth <- max(layers_depth)
@@ -2738,11 +2746,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#functions to obtain soil layer structures
 		#layer sequence
-		#########################Moved to Rsoilwat###########################
-		#adjustLayersDepth <- function(layers_depth, d) return(round(layers_depth[1:d])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
-		#getLayersWidth <- function(layers_depth) return(diff(c(0, layers_depth)))
-		#setLayerSequence <- function(d) return(1:d)
-		#####################################################################
 		ld <- setLayerSequence(d)
 		layers_depth <- adjustLayersDepth(layers_depth, d)
 		layers_width <- getLayersWidth(layers_depth)
@@ -2791,16 +2794,23 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				simTime2 <- simTime_ForEachUsedTimeUnit_South
 			}
 		}
-		#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
-		if(saveSoilWatInputOutput) dir.create2(dir.sw.runs.sim <- file.path(dir.sw.runs, i_labels),showWarnings=F)
 	}
 
 
 #------------------------CREATE RUNS
-	if( tasks$create == 1 ){
+	if (tasks$create == 1L && continueAfterAbort && saveRsoilwatInput && file.exists(f_sw_input)) {
+		load(f_sw_input)	# load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals
+		tasks$create <- 2L
+	}
+
+	if (tasks$create == 1L) {
 		if(print.debug) print("Start of section 'create'")
 		EVCO_done <- TRCO_done <- FALSE	#to check whether we get information for evaporation and transpiration coefficients
 		TRRG_done <- FALSE #to check whether we get information for transpiration regions
+		
+		# Data objects used also during aggregation
+		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
+		ClimatePerturbationsVals <- matrix(data=c(rep(1,12),rep(0,24)),nrow=scenario_No, ncol=12*3, byrow=TRUE) #, dimnames=list(NULL,paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 
 		#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
 		#Make a local copy of the swInput object do not want to destroy orignal
@@ -2864,7 +2874,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) {
 			if(any(is.na(i_sw_input_treatments$LookupEvapCoeffFromTable)) || !all(unique(i_sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) {
 				print("ERROR: LookupEvapCoeffFromTable column in expirementals cannot have any NAs or name is not in tr_input_EvapCoeff table.")
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				tempdat <- get.LookupEvapCoeffFromTable(evco_type=i_sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
 				if(all(colSums(tempdat$sw_input_soils,na.rm=T)>0) && !any(is.na(colSums(tempdat$sw_input_soils))) ) {
@@ -2872,14 +2882,14 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					i_sw_input_soils <- tempdat$sw_input_soils
 				} else {
 					print("ERROR: get.LookupEvapCoeffFromTable returned a Layer that didn't have a sum greater then 0 or had a NA.")
-					tasks$create <- 0
+					tasks$create <- 0L
 				}
 			}
 		}
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) {
 			if(any(is.na(i_sw_input_treatments$LookupTranspRegionsFromTable)) || !all(unique(i_sw_input_treatments$LookupTranspRegionsFromTable) %in% rownames(tr_input_TranspRegions))) {
 				print("ERROR: LookupTranspRegionsFromTable column in expirementals cannot have any NAs or name is not in LookupTranspRegionsFromTable data table.")
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				tempdat <- get.LookupTranspRegionsFromTable(trtype=i_sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
 				sw_input_soils_use <- tempdat$sw_input_soils_use
@@ -2889,7 +2899,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) {
 			if(any(is.na(i_sw_input_treatments$LookupSnowDensityFromTable)) || !all(unique(i_sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_SnowD))) {
 				print("ERROR: LookupSnowDensityFromTable column in expirementals cannot have any NAs or name is not in tr_input_SnowD data table.")
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				tempdat <- get.LookupSnowDensityFromTable(sdcategories=i_sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=i_sw_input_cloud)
 				sw_input_cloud_use <- tempdat$sw_input_cloud_use
@@ -2904,7 +2914,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass)) print("LookupTranspCoeffFromTable_Grass for this run cannot be NA.")
 			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Grass name for this run are not in tr_input_TranspCoeff table column names.")
 			if(temp || temp1) {
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Grass"], layers_depth=layers_depth, adjustType="positive")
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){#trco does not have NA and sum is greater than 0.
@@ -2915,7 +2925,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					i_sw_input_soils[i.temp][1:length(trco)] <- trco
 				} else {
 					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type grass.")
-					tasks$create <- 0
+					tasks$create <- 0L
 				}
 			}
 		}
@@ -2924,7 +2934,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub)) print("LookupTranspCoeffFromTable_Shrub for this run cannot be NA.")
 			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Shrub name for this run are not in tr_input_TranspCoeff table column names.")
 			if(temp || temp1) {
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Shrub"], layers_depth=layers_depth, adjustType="inverse")
 				#set the use flags
@@ -2935,7 +2945,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					i_sw_input_soils[i.temp][1:length(trco)] <- trco
 				}  else {
 					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type shrub.")
-					tasks$create <- 0
+					tasks$create <- 0L
 				}
 			}
 		}
@@ -2944,7 +2954,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) print("LookupTranspCoeffFromTable_Tree for this run cannot be NA.")
 			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Tree name for this run are not in tr_input_TranspCoeff table column names.")
 			if(temp || temp1) {
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Tree"], layers_depth=layers_depth, adjustType="inverse")
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
@@ -2954,7 +2964,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					i_sw_input_soils[i.temp][1:length(trco)] <- trco
 				} else {
 					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Tree.")
-					tasks$create <- 0
+					tasks$create <- 0L
 				}
 			}
 		}
@@ -2963,7 +2973,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb)) print("LookupTranspCoeffFromTable_Forb for this run cannot be NA.")
 			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Forb name for this run are not in tr_input_TranspCoeff table column names.")
 			if(temp || temp1) {
-				tasks$create <- 0
+				tasks$create <- 0L
 			} else {
 				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Forb"], layers_depth=layers_depth, adjustType="inverse")
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
@@ -2973,7 +2983,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					i_sw_input_soils[i.temp][1:length(trco)] <- trco
 				} else {
 					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Forb.")
-					tasks$create <- 0
+					tasks$create <- 0L
 				}
 			}
 		}
@@ -3281,7 +3291,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if (!all(check_depth, check_density, check_gravel, check_sand, check_clay)) {
 			print(paste("Run:", i_sim, i_labels, ": soil data didn't pass quality test."))
 			print(this_soil)
-			tasks$create <- 0
+			tasks$create <- 0L
 		}
 
 
@@ -3388,13 +3398,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		#Check that extraction of weather data was successful
 		if(inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
 			if(!be.quiet) print(paste(i_sim, i_labels, "i_sw_weatherList ERROR:", i_sw_weatherList))
-			tasks$create <- 0
+			tasks$create <- 0L
 		}
 
 		#copy and make climate scenarios from datafiles
-		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
-		ClimatePerturbationsVals <- matrix(data=c(rep(1,12),rep(0,24)),nrow=scenario_No, ncol=12*3, byrow=TRUE) #, dimnames=list(NULL,paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
-		if(tasks$create > 0) for(sc in 1:scenario_No){
+		if(tasks$create > 0L) for(sc in 1:scenario_No){
 			if(sc > 1){
 				swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
 			} else {
@@ -3684,7 +3692,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						use_Forbs_Fraction, Forbs_Fraction,
 						use_BareGround_Fraction, BareGround_Fraction), silent=TRUE)
 				if(inherits(temp, "try-error")){
-					tasks$create <- 0
+					tasks$create <- 0L
 				} else {
 					grass.fraction <- temp$Composition[1]
 					swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
@@ -3886,14 +3894,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			print("Transpiration regions not set for this run.")
 		}
 
-		if(tasks$create <= 0 || !EVCO_done || !TRCO_done || !TRRG_done){
-			tasks$create <- 0
-			tasks$execute <- tasks$aggregate <- -1
+		if(tasks$create <= 0L || !EVCO_done || !TRCO_done || !TRRG_done){
+			tasks$create <- 0L
+			tasks$execute <- tasks$aggregate <- -1L
 		} else {
-			tasks$create <- 2
+			tasks$create <- 2L
 		}
 
-		if(saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+		if (saveRsoilwatInput)
+			save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals, file = f_sw_input)
 	}#end if do create runs
 
 	if(makeInputForExperimentalDesign && expN > 0 && length(create_experimentals) > 0) {
@@ -3917,7 +3926,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 
 #------------------------EXECUTE SOILWAT
-	if (tasks$execute == 1) {
+	if (tasks$execute == 1L && continueAfterAbort && saveRsoilwatOutput && file.exists(f_sw_output)) {
+		load(f_sw_output)	# load objects: runData
+		tasks$execute <- 2L
+	}
+	
+	if (!exists("swRunScenariosData") || !exists("i_sw_weatherList"))
+		tasks$execute <- -1L
+	
+	if (tasks$execute == 1L) {
 		runData <- list()
 
 		if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient)) i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
@@ -3981,7 +3998,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					DeltaX[2] <- if (!inherits(runData[[sc]], "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
 					
 					#TODO: change deltaX_Param for all [> sc] as well
-					if (saveSoilWatInputOutput) save(swRunScenariosData, i_sw_weatherList, file=file.path(dir.sw.runs.sim, "sw_input.RData"))
+					if (saveRsoilwatInput)
+						save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals, file = f_sw_input)
 				
 				} else {
 					DeltaX <- c(swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
@@ -3989,23 +4007,36 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 			
 			if (inherits(runData[[sc]], "try-error") || DeltaX[2] < 0) {
-				tasks$execute <- 0
+				tasks$execute <- 0L
 				break
 			}
 		}
 		
-		if (saveSoilWatInputOutput) save(runData, file=file.path(dir.sw.runs.sim, "sw_output.RData"))
-		if (tasks$execute > 0) {
-			tasks$execute <- 2
-		} else {
-			tasks$aggregate <- -1
-		}
+		if (saveRsoilwatOutput)
+			save(runData, file = f_sw_output)
+		
 	}#end if do execute
 
-#------------------------AGGREGATE SOILWAT OUTPUT
+	if (tasks$execute > 0L && exists("runData"))
+		tasks$execute <- 2L
 
-	if( tasks$aggregate == 1 ){
+#------------------------AGGREGATE SOILWAT OUTPUT
+	if (!exists("swRunScenariosData") || !exists("runData"))
+		tasks$aggregate <- -1L
+
+	if (tasks$aggregate == 1L) {
 		if(print.debug) print("Preparations for aggregation")
+
+		#get soil texture data for each layer
+		stemp <- swSoils_Layers(swRunScenariosData[[1]])
+		layers_depth <- stemp[, 1]
+		layers_width <- getLayersWidth(layers_depth)
+		soilDepth_cm <- max(stemp[, 1])
+		soilLayers_N <- length(stemp[, 1])
+
+		gravel <- stemp[,3]
+		sand <- stemp[,9]
+		clay <- stemp[,10]
 
 		#get soil aggregation layer for daily aggregations
 		if(AggLayer.daily){
@@ -4014,15 +4045,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			aggLs <- as.list(ld)
 		}
 		aggLs_no <- length(aggLs)
-
-		#get soil texture data for each layer
-		stemp <- swSoils_Layers(swRunScenariosData[[1]])
-		soilDepth_cm <- max(stemp[, 1])
-		soilLayers_N <- length(stemp[, 1])
-
-		gravel <- stemp[,3]
-		sand <- stemp[,9]
-		clay <- stemp[,10]
 
 		texture <- list(sand.top=weighted.mean(sand[topL], layers_width[topL]),
 						sand.bottom=weighted.mean(sand[bottomL], layers_width[bottomL]),
@@ -4304,9 +4326,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 				#result vector column index indicating variable within set of n_variables per scenario
 				resMeans <- resSDs <- rep(NA, length=dbOverallColumns)
-#check that db still works:
-#					res <- vector(mode="numeric", length=n_variables)
-#					res <- data.frame(t(res), stringsAsFactors = FALSE)
 				nv <- 1
 
 
@@ -6862,7 +6881,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				}#doi loop
 			}#end if daily output
 
-			if(tasks$aggregate > 0 && length(SQL) > 0 && sc == 1){
+			if(tasks$aggregate > 0L && length(SQL) > 0 && sc == 1){
 				#Clear SQL
 				SQLcurrent <- SQL
 				SQL <- character(0)
@@ -6871,8 +6890,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	} #end if do aggregate
 
-	if(tasks$aggregate > 0 && (length(SQL) > 0 || length(SQLcurrent) > 0)){
-		tasks$aggregate <- 2
+	if(tasks$aggregate > 0L && (length(SQL) > 0 || length(SQLcurrent) > 0)){
+		tasks$aggregate <- 2L
 		if(length(SQLcurrent) > 0) write(SQLcurrent, dbTempFileCurrent, append=TRUE)
 		if(length(SQL) > 0) write(SQL, dbTempFile, append=TRUE)
 	}
@@ -6965,7 +6984,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 
 	#objects to export
 	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
-			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveSoilWatInputOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
