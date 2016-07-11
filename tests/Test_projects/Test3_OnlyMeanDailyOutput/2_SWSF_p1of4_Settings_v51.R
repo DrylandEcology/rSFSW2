@@ -27,7 +27,7 @@
 #---------------------------------------------SETUP------------------------------------------------#
 
 #------Clean the working environment
-# rm(list=ls(all=TRUE))
+#rm(list=ls(all=TRUE))
 
 #------Overall timing
 t.overall <- Sys.time()
@@ -56,7 +56,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 if(interactive()) {
-	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "2_SWSF_p1of4_Settings_v51"))
+	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test3_OnlyMeanDailyOutput"))
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
@@ -94,7 +94,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #	- output handling
 #		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
 #		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-actions <- c("external", "map_input", "create", "execute", "aggregate", "concatenate")
+actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals) if already extracted
@@ -115,7 +115,7 @@ checkCompleteness <- FALSE
 check.blas <- FALSE
 
 #------Define how aggregated output should be handled:
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- FALSE
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
@@ -129,8 +129,8 @@ dailyweather_options <- c("Maurer2002_NorthAmerica", "DayMet_NorthAmerica", "Loo
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData_test.sqlite3")
-createAndPopulateWeatherDatabase <- TRUE #TRUE, will create a new(!) database and populate with current data
+dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
+createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
 dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
 
 #-Spatial setup of simulations
@@ -162,7 +162,7 @@ extract_determine_database <- "SWRunInformation" # one of c("order", "SWRunInfor
 # External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
-		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 1,	#1/8-degree resolution
+		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
 		"GriddedDailyWeatherFromDayMet_NorthAmerica", 0,	#1-km resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
@@ -174,21 +174,21 @@ do.ExtractExternalDatasets <- c(
 		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
 		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		#CMIP5
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 1,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
 
 		#Mean monthly wind, relative humidity, and 100% - sunshine
-		"ExtractSkyDataFromNOAAClimateAtlas_USA", 1,
+		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
 		"ExtractSkyDataFromNCEPCFSR_Global", 0,
 
 		#Topography
-		"ExtractElevation_NED_USA", 1,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
+		"ExtractElevation_NED_USA", 0,	#1-arcsec resolution, National Elevation Dataset (ned.usgs.gov), currently downloaded only for western US
 		"ExtractElevation_HWSD_Global", 0, #30-arcsec resolution, Harmonized World Soil Database
 
 		#Soil texture
 		"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-		"ExtractSoilDataFromISRICWISEv12_Global", 1
+		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
 chunk_size.options <- list(
@@ -308,77 +308,77 @@ simulation_timescales <- c("daily", "monthly", "yearly")
 #turn aggregation for variable groups on (1) or off (0), don't delete any variable group labels
 output_aggregates <- c(
 					#---Aggregation: SoilWat inputs
-						"input_SoilProfile", 1,
-            			"input_FractionVegetationComposition", 1,
-						"input_VegetationBiomassMonthly", 1,
-						"input_VegetationPeak", 1,
-						"input_Phenology", 1,
-						"input_TranspirationCoeff", 1,
-						"input_ClimatePerturbations", 1,
+						"input_SoilProfile", 0,
+            			"input_FractionVegetationComposition", 0,
+						"input_VegetationBiomassMonthly", 0,
+						"input_VegetationPeak", 0,
+						"input_Phenology", 0,
+						"input_TranspirationCoeff", 0,
+						"input_ClimatePerturbations", 0,
 					#---Aggregation: Climate and weather
-						"yearlyTemp", 1,
-						"yearlyPPT", 1,
-						"dailySnowpack", 1,
-						"dailyFrostInSnowfreePeriod", 1,
-						"dailyHotDays", 1,
-						"dailyPrecipitationEventSizeDistribution", 1,
-						"yearlyAET", 1,
-						"yearlyPET", 1,
-						"monthlySeasonalityIndices", 1,
+						"yearlyTemp", 0,
+						"yearlyPPT", 0,
+						"dailySnowpack", 0,
+						"dailyFrostInSnowfreePeriod", 0,
+						"dailyHotDays", 0,
+						"dailyPrecipitationEventSizeDistribution", 0,
+						"yearlyAET", 0,
+						"yearlyPET", 0,
+						"monthlySeasonalityIndices", 0,
 					#---Aggregation: Climatic dryness
-						"yearlymonthlyTemperateDrylandIndices", 1,
-						"yearlyDryWetPeriods", 1,
-						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about
-						"dailyPrecipitationFreeEventDistribution", 1,
-						"monthlySPEIEvents", 1,
+						"yearlymonthlyTemperateDrylandIndices", 0,
+						"yearlyDryWetPeriods", 0,
+						"dailyWeatherGeneratorCharacteristics", 0,	#Takes about .5120 seconds for 33 scenarios is about
+						"dailyPrecipitationFreeEventDistribution", 0,
+						"monthlySPEIEvents", 0,
 					#---Aggregation: Climatic control
-						"monthlyPlantGrowthControls", 1,
-						"dailyC4_TempVar", 1,
-						"dailyDegreeDays", 1,
+						"monthlyPlantGrowthControls", 0,
+						"dailyC4_TempVar", 0,
+						"dailyDegreeDays", 0,
 						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
 						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#---Aggregation: Yearly water balance
-						"yearlyWaterBalanceFluxes", 1,
-						"dailySoilWaterPulseVsStorage", 1,
+						"yearlyWaterBalanceFluxes", 0,
+						"dailySoilWaterPulseVsStorage", 0,
 					#---Aggregation: Daily extreme values
-						"dailyTranspirationExtremes", 1,
-						"dailyTotalEvaporationExtremes", 1,
-						"dailyDrainageExtremes", 1,
-						"dailyInfiltrationExtremes", 1,
-						"dailyAETExtremes", 1,
-						"dailySWPextremes", 1,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
-						"dailyRechargeExtremes", 1,
+						"dailyTranspirationExtremes", 0,
+						"dailyTotalEvaporationExtremes", 0,
+						"dailyDrainageExtremes", 0,
+						"dailyInfiltrationExtremes", 0,
+						"dailyAETExtremes", 0,
+						"dailySWPextremes", 0,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
+						"dailyRechargeExtremes", 0,
 					#---Aggregation: Ecological dryness
-						"dailyWetDegreeDays", 1,
-						"monthlySWPdryness", 1,
-						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
-						"dailySuitablePeriodsDuration", 1,
-						"dailySuitablePeriodsAvailableWater", 1,
-						"dailySuitablePeriodsDrySpells", 1,
-						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
-						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
-						"dailySWPdrynessIntensity", 1,
+						"dailyWetDegreeDays", 0,
+						"monthlySWPdryness", 0,
+						"dailySWPdrynessANDwetness", 0, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
+						"dailySuitablePeriodsDuration", 0,
+						"dailySuitablePeriodsAvailableWater", 0,
+						"dailySuitablePeriodsDrySpells", 0,
+						"dailySWPdrynessDurationDistribution", 0,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
+						"dailySWPdrynessEventSizeDistribution", 0,	#Takes about .5120 seconds for 33 scenarios is about .2819334
+						"dailySWPdrynessIntensity", 0,
 					#---Aggregation: Mean monthly values
-						"monthlyTemp", 1,
-						"monthlyPPT", 1,
-						"monthlySnowpack", 1,
-						"monthlySoilTemp", 1,
-						"monthlyRunoff", 1,
-						"monthlyHydraulicRedistribution", 1,
-						"monthlyInfiltration", 1,
-						"monthlyDeepDrainage", 1,
-						"monthlySWPmatric", 1,
-						"monthlyVWCbulk", 1,
-						"monthlyVWCmatric", 1,
-						"monthlySWCbulk", 1,
-						"monthlySWAbulk", 1,
-						"monthlySWAmatric", 1,
-						"monthlyTranspiration", 1,
-						"monthlySoilEvaporation", 1,
-						"monthlyAET", 1,
-						"monthlyPET", 1,
-						"monthlyAETratios", 1,
-						"monthlyPETratios", 1,
+						"monthlyTemp", 0,
+						"monthlyPPT", 0,
+						"monthlySnowpack", 0,
+						"monthlySoilTemp", 0,
+						"monthlyRunoff", 0,
+						"monthlyHydraulicRedistribution", 0,
+						"monthlyInfiltration", 0,
+						"monthlyDeepDrainage", 0,
+						"monthlySWPmatric", 0,
+						"monthlyVWCbulk", 0,
+						"monthlyVWCmatric", 0,
+						"monthlySWCbulk", 0,
+						"monthlySWAbulk", 0,
+						"monthlySWAmatric", 0,
+						"monthlyTranspiration", 0,
+						"monthlySoilEvaporation", 0,
+						"monthlyAET", 0,
+						"monthlyPET", 0,
+						"monthlyAETratios", 0,
+						"monthlyPETratios", 0,
 					#---Aggregation: Potential regeneration
 						"dailyRegeneration_bySWPSnow", 0,
 						"dailyRegeneration_GISSM", 0
