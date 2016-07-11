@@ -19,7 +19,7 @@ if (length(tests) > 0) {
 	
 		if (length(test_code) == 1L) {
 			setwd(tests[it])
-			source(test_code, verbose = FALSE, chdir = FALSE)
+			try(source(test_code, verbose = FALSE, chdir = FALSE))
 		
 		} else {
 			print("Source code for test project not found.")
@@ -34,12 +34,12 @@ if (length(tests) > 0) {
 		}
 
 	if (delete_output) for (it in seq_along(tests)) {
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "dbWeatherData_test.sqlite3")))
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.RData")))
-		try(unlink(file.path(tests[it], "last.dump.rda")))
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "swrun", ".Rapp.history")))
-		try(unlink(file.path(tests[it], "3_Runs"), recursive = TRUE))
-		try(unlink(file.path(tests[it], "4_Data_SWOutputAggregated"), recursive = TRUE))
+		try(unlink(file.path(tests[it], "1_Data_SWInput", "dbWeatherData_test.sqlite3")), silent = TRUE)
+		try(unlink(file.path(tests[it], "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.RData")), silent = TRUE)
+		try(unlink(file.path(tests[it], "last.dump.rda")), silent = TRUE)
+		try(unlink(file.path(tests[it], "1_Data_SWInput", "swrun", ".Rapp.history")), silent = TRUE)
+		try(unlink(file.path(tests[it], "3_Runs"), recursive = TRUE), silent = TRUE)
+		try(unlink(file.path(tests[it], "4_Data_SWOutputAggregated"), recursive = TRUE), silent = TRUE)
 	}
 }
 
