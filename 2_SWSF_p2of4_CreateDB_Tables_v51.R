@@ -983,19 +983,17 @@ if (length(Tables) == 0 || do.clean) {
 		
 		dbOverallColumns <- length(temp)
 	
-		temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
-	
-		sdString <- gsub("_mean", "_sd", temp)
-		meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",temp), collapse = ", ")
-		sdString <-paste(c("\"P_id\" INTEGER PRIMARY KEY",sdString), collapse = ", ")
+		if (dbOverallColumns > 0)
+			temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
+			
+		meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", temp), collapse = ", ")
+		sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", gsub("_mean", "_sd", temp)), collapse = ", ")
 	
 		SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_mean\" (", meanString, ");", sep="")
 		SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_sd\" (", sdString, ");", sep="")
 		
-		rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-		dbClearResult(rs)
-		rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
-		dbClearResult(rs)
+		rs <- DBI::dbGetQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+		rs <- DBI::dbGetQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	
 		if(!is.null(output_aggregate_daily)) {
 			doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
