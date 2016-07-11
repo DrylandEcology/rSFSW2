@@ -6723,8 +6723,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				if (dbOverallColumns > 0 && dbOverallColumns == (nv - 1)) {
 					resMeans[!is.finite(resMeans)] <- "NULL"
 					resSDs[!is.finite(resSDs)] <- "NULL"
-					temp1 <- paste0(P_id, resMeans[1:(nv-1)], collapse = ",")
-					temp2 <- paste0(P_id, resSDs[1:(nv-1)], collapse = ",")
+					temp1 <- paste0(c(P_id, resMeans[1:(nv-1)]), collapse = ",")
+					temp2 <- paste0(c(P_id, resSDs[1:(nv-1)]), collapse = ",")
 				} else {
 					temp1 <- temp2 <- P_id
 				}
@@ -7210,7 +7210,6 @@ if (any(actions == "concatenate")) {
 			# Check what has already been inserted to the tables
 # NOTE(drs): assuming that every table has the same set of P_id inserted!
 			pids_inserted <- DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", out_tables_aggr[1], ";"))[, 1]
-print("here1")
 			if (add_to_DBCurrent)
 				pids2_inserted <- DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", out_tables_aggr[1], ";"))[, 1]
 			
