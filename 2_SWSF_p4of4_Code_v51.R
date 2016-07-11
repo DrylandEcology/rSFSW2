@@ -289,88 +289,86 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	tr_files <- tr_prod <- tr_site <- tr_soil <- tr_weather <- tr_cloud <- list()
 	tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
-	if (actionWithSoilWat || any(actions == "external") || any(actions == "map_input")) {
-		sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
-		sw_input_cloud <- read.csv(temp, skip=1)
-		colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
+	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
+	sw_input_cloud <- read.csv(temp, skip=1)
+	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
 
-		sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
-		sw_input_prod <- read.csv(temp, skip=1)
-		colnames(sw_input_prod) <- colnames(sw_input_prod_use)
-		sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
+	sw_input_prod <- read.csv(temp, skip=1)
+	colnames(sw_input_prod) <- colnames(sw_input_prod_use)
+	sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-		sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
-		sw_input_site <- read.csv(temp, skip=1)
-		colnames(sw_input_site) <- colnames(sw_input_site_use)
-		sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
+	sw_input_site <- read.csv(temp, skip=1)
+	colnames(sw_input_site) <- colnames(sw_input_site_use)
+	sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-		sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
-		sw_input_soils <- read.csv(temp, skip=1)
-		colnames(sw_input_soils) <- colnames(sw_input_soils_use)
-		sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+	sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
+	sw_input_soils <- read.csv(temp, skip=1)
+	colnames(sw_input_soils) <- colnames(sw_input_soils_use)
+	sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
 
-		sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
-		sw_input_weather <- read.csv(temp, skip=1)
-		colnames(sw_input_weather) <- colnames(sw_input_weather_use)
+	sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
+	sw_input_weather <- read.csv(temp, skip=1)
+	colnames(sw_input_weather) <- colnames(sw_input_weather_use)
 
-		sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
-		sw_input_climscen <- read.csv(temp, skip=1)
-		colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
+	sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
+	sw_input_climscen <- read.csv(temp, skip=1)
+	colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
 
-		sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
-		sw_input_climscen_values <- read.csv(temp, skip=1)
-		colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
+	sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
+	sw_input_climscen_values <- read.csv(temp, skip=1)
+	colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
 
-		if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
-		if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
-		if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
-		if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
-		if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
-		if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
-		if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
+	if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
+	if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
+	if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
+	if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
+	if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
+	if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
+	if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
 
-		#Create a list of possible treatment files with data.
-		if(any(create_treatments=="sw"))
-			print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
-		if(any(create_treatments=="filesin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
-		}
-		if(any(create_treatments=="prodin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
-		}
-		if(any(create_treatments=="siteparamin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
-		}
-		if(any(create_treatments=="soilsin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
-		}
-		if(any(create_treatments=="weathersetupin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
-		}
-		if(any(create_treatments=="cloudin")) {
-			temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
-			tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
-		}
-
-		if(any(create_treatments == "LookupClimatePPTScenarios")) tr_input_climPPT <- read.csv( file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
-		if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
-		if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
-		if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-		if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
-			tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
-			tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
-			tr_input_TranspCoeff <- read.csv(temp, skip=2)
-			colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
-		}
-		if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
-		if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
-		if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
+	#Create a list of possible treatment files with data.
+	if(any(create_treatments=="sw"))
+		print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
+	if(any(create_treatments=="filesin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
 	}
+	if(any(create_treatments=="prodin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
+	}
+	if(any(create_treatments=="siteparamin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
+	}
+	if(any(create_treatments=="soilsin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
+	}
+	if(any(create_treatments=="weathersetupin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
+	}
+	if(any(create_treatments=="cloudin")) {
+		temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
+	}
+
+	if(any(create_treatments == "LookupClimatePPTScenarios")) tr_input_climPPT <- read.csv( file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
+	if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
+	if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
+	if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
+	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
+		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
+		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
+		tr_input_TranspCoeff <- read.csv(temp, skip=2)
+		colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+	}
+	if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
+	if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
+	if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
 
 	#-import regeneration data
 	param.species_regeneration <- list()
@@ -4286,8 +4284,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 				#dbOverallColumns comes from database creation
 				P_id <- it_Pid(i_sim, sc)
-				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(temp <- rep("NULL", times=dbOverallColumns),collapse=","),sep=""),");", sep="")
-				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(temp,collapse=","),sep=""),");", sep="")
+				temp <- paste(c(P_id, if (dbOverallColumns > 0) paste0(rep("NULL", dbOverallColumns), collapse = ",")), collapse = ",")
+				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
+				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
 				if(length(SQL) == 0) {
 					SQL <- paste(SQL1, SQL2, sep="\n")
 				} else {
@@ -6720,11 +6719,18 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 				#temporaly save aggregate data
 				P_id <- it_Pid(i_sim, sc)
-
-				resMeans[!is.finite(resMeans)] <- "NULL"
-				resSDs[!is.finite(resSDs)] <- "NULL"
-				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (",paste0(P_id,",",paste0(resMeans[1:(nv-1)],collapse=","),sep=""),");", sep="")
-				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (",paste0(P_id,",",paste0(resSDs[1:(nv-1)],collapse=","),sep=""),");", sep="")
+				
+				if (dbOverallColumns > 0 && dbOverallColumns == (nv - 1)) {
+					resMeans[!is.finite(resMeans)] <- "NULL"
+					resSDs[!is.finite(resSDs)] <- "NULL"
+					temp1 <- paste0(P_id, resMeans[1:(nv-1)], collapse = ",")
+					temp2 <- paste0(P_id, resSDs[1:(nv-1)], collapse = ",")
+				} else {
+					temp1 <- temp2 <- P_id
+				}
+				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
+				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
+				
 				if(length(SQL) == 0) {
 					SQL <- paste(SQL1, SQL2, sep="\n")
 				} else {
@@ -6864,16 +6870,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						if(agg.analysis == 1){
 							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 
 						} else {
 							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
 							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
+							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
 							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
 						}
 
@@ -7165,6 +7171,8 @@ if (any(actions == "concatenate")) {
 		if (reset_DBCurrent) file.copy(from = name.OutputDB, to = name.OutputDBCurrent)		
 		if (do_DBCurrent) con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
 		if (reset_DBCurrent) dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+		out_tables <- DBI::dbListTables(con)
+		out_tables_aggr <- grep("aggregation_", out_tables, value = TRUE)
 		
 		# Prepare output databases
 		set_PRAGMAs(con, PRAGMA_settings1)
@@ -7199,31 +7207,37 @@ if (any(actions == "concatenate")) {
 			sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
 			add_to_DBCurrent <- copyCurrentConditionsFromTempSQL && grepl("SQL_Current", theFileList[j])
 			
-			# Check what has already been inserted
-			pids_inserted_mean <- DBI::dbGetQuery(con, "SELECT P_id FROM aggregation_overall_mean;")[, 1]
-			pids_inserted_sd <- DBI::dbGetQuery(con, "SELECT P_id FROM aggregation_overall_sd;")[, 1]
-			if (add_to_DBCurrent) {
-				pids2_inserted_mean <- DBI::dbGetQuery(con2, "SELECT P_id FROM aggregation_overall_mean;")[, 1]
-				pids2_inserted_sd <- DBI::dbGetQuery(con2, "SELECT P_id FROM aggregation_overall_sd;")[, 1]
-			}
+			# Check what has already been inserted to the tables
+# NOTE(drs): assuming that every table has the same set of P_id inserted!
+			pids_inserted <- DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", out_tables_aggr[1], ";"))[, 1]
+print("here1")
+			if (add_to_DBCurrent)
+				pids2_inserted <- DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", out_tables_aggr[1], ";"))[, 1]
 			
 			# Send SQL statements to database
 			OK <- OK && DBI::dbBegin(con)
 			if (add_to_DBCurrent) OK <- OK && DBI::dbBegin(con2)
-			
+
+# NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
+# around SQL insert statements, but instead as data.frames. Data.frames could be much faster
+# checked for duplicate P_id entries and could be inserted all at once with RSQLite::dbWriteTable()
 			for (k in seq_along(sql_cmds)) {
-				id <- as.integer(substr(sql_cmds[k],
-									8 + regexpr("VALUES (", sql_cmds[k], fixed = TRUE),
-									-1 + regexpr(",", sql_cmds[k], fixed = TRUE)))
+				# Determine P_id
+				id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
+				id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
+				if (id_end < 0)
+					id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
 				
-				if (grepl("aggregation_overall_mean", sql_cmds[k])) {
-					do_insert <- !(id %in% pids_inserted_mean)
-					do_insert2 <- if (add_to_DBCurrent) !(id %in% pids2_inserted_mean) else FALSE
-				
-				} else if (grepl("aggregation_overall_sd", sql_cmds[k])) {
-					do_insert <- !(id %in% pids_inserted_sd)
-					do_insert2 <- if (add_to_DBCurrent) !(id %in% pids2_inserted_sd) else FALSE
+				if (any(id_start < 1, id_end <= id_start)) {
+					print(paste0("P_id not found in file ", sQuote(theFileList[j]), " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
+					next()
 				}
+				
+				id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
+				
+# NOTE(drs): assuming duplicate pids do not show up in the same temporary file
+				do_insert <- !(id %in% pids_inserted)
+				do_insert2 <- if (add_to_DBCurrent) !(id %in% pids2_inserted) else FALSE
 								
 				if (do_insert) {
 					res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
@@ -7237,8 +7251,13 @@ if (any(actions == "concatenate")) {
 				if (!OK) break
 			}
 			
-			OK <- OK && DBI::dbCommit(con)
-			if (add_to_DBCurrent) OK <- OK && DBI::dbCommit(con2)
+			if (OK) {
+				OK <- OK && DBI::dbCommit(con)
+				if (add_to_DBCurrent) OK <- OK && DBI::dbCommit(con2)
+			} else {
+				DBI::dbRollback(con)
+				if (add_to_DBCurrent) DBI::dbRollback(con2)
+			}
 			
 			# Clean up and report
 			if (OK) {
@@ -7445,7 +7464,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 				dat <- cbind(headerInfo, dat)
 			}
 			dbBegin(conn=conEnsembleDB)
-			dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES(",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
+			dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES (",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
 			dbCommit(conn=conEnsembleDB)
 			written<-1
 			#written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
