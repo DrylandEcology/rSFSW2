@@ -1833,6 +1833,36 @@ max.duration <- function(x) {
 	}
 	return(rmax)
 }
+max.duration <- function(x, target_val = 1L, return_doys = FALSE) {
+	r <- rle(x)
+	rgood <- r$values == target_val
+	igood <- which(rgood)
+	
+	if (length(igood) > 0) {
+		len <- max(r$lengths[igood])
+		
+		if (return_doys) {
+			imax <- which(rgood & r$lengths == len)[1]
+			
+			rdoys <- cumsum(r$lengths)
+			doys <- if (imax == 1L) {
+					c(start = 1L, end = rdoys[1])
+				} else {
+					c(start = rdoys[imax - 1] + 1,
+						end = rdoys[imax])
+				}
+		}
+		
+	} else {
+		len <- 0L
+		doys <- c(start = NA, end = NA)
+	}
+	
+	if (return_doys)
+		return(c(len, doys))
+	
+	len
+}
 startDoyOfDuration <- function(x, duration=10) {
 	r <- rle(x)
 	if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
@@ -6413,6 +6443,48 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 						prev.Doy_SeedDispersalStart <- Doy_SeedDispersalStart
 					}#end of species loop
 				}
+
+				#64 Daniel's version
+				if(any(simulation_timescales=="daily") & aon$dailyDryPeriods){
+#TODO: rename aon options from 'dailyDryPeriods' to 'dailyThermalDryPeriods'
+					if (print.debug) print("Aggregation of dailyThermalDryPeriods (version drs)")
+					if (!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, sum)
+
+					thermal <- temp.dy$mean > 0
+
+					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+					SWCcritsT_mm <- SWPtoVWC(SWPcrit_MPa, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
+					if (length(bottomL) > 0 && !identical(bottomL, 0))
+						SWCcritsB_mm <- SWPtoVWC(SWPcrit_MPa, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
+					
+					for (icrit in seq_along(SWPcrit_MPa)) {
+						thermaldry.top <- thermal & swcbulk.dy$top >= SWCcritsT_mm[icrit]
+						thermaldry.bottom <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+								thermal & swcbulk.dy$bottom >= SWCcritsT_mm[icrit]
+							} else {
+								rep(FALSE, length(thermaldry.top))
+							}
+						
+						temp <- aggregate(cbind(thermaldry.top, thermaldry.bottom),
+									by = list(simTime2$year_ForEachUsedDay_NSadj),
+									FUN = function(x) max.duration(x, return_doys = TRUE))
+						
+						resMeans[nv:(nv+3)] <- c(
+							apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ.mean, int = 365),
+							apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ.mean, int = 365))
+						resSDs[nv:(nv+3)] <- c(
+							apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ.sd, int = 365),
+							apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ.sd, int = 365))
+						nv <- nv+4
+
+					}
+
+					rm(thermal, adjDays, SWCcritsT_mm, thermaldry.top)
+					if (length(bottomL) > 0 && !identical(bottomL, 0))
+						rm(SWCcritsB_mm, thermaldry.bottom)
+				}
+
 				#64
 				if(any(simulation_timescales=="daily") & aon$dailyDryPeriods){
 				  if(print.debug) print("Aggregation of dailyDryPeriods")
