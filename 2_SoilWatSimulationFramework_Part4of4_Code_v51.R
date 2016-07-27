@@ -6416,25 +6416,33 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 				#64
 				if(any(simulation_timescales=="daily") & aon$dailyDryPeriods){
 				  if(print.debug) print("Aggregation of dailyDryPeriods")
-				  #if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 				  if(!exists("soiltemp.dy.all")) soiltemp.dy <- get_Response_aggL(sc, sw_soiltemp, "dy", scaler=1, FUN=weighted.mean, weights=layers_width)
-				  for(iCritSoil in SWPcrit_MPa){
-				    maxtop <- aggregate(soiltemp.dy$top > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
-				      myrl <- rle(x)
-				      mv <- max(myrl$length[which(myrl$value==TRUE)])
-				      start <- 0
-				      end <- start + mv
-				      for(i in 1:length(myrl$length)) {
-				        if(myrl$length[i] == mv & myrl$values[i] == TRUE) {
-				          end <- start + mv 
-				          if(start == 0) start <- 1
-				          break
-				        }else {
-				          start <- start + myrl$length[i]
-				        }
-				      }
-				      c(start, end)
-				    })[2]
+				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
+				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
+				 # for(iCritSoil in SWPcrit_MPa){
+				  print("Pre1    O_O")
+				  lapply(SWPcrit_MPa, FUN = function(iCritSoil)  {
+				      #maxtop <- aggregate(soiltemp.dy$top > iCritSoil && temp.dy$mean > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
+				    #   maxtop <- aggregate(swpmatric.dy$top > iCritSoil && temp.dy$mean > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
+				    #   print("1a")
+				    #   myrl <- rle(x)
+				    #   mv <- max(myrl$length[which(myrl$value==TRUE)])
+				    #   start <- 0
+				    #   end <- start + mv
+				    #   print("1")
+				    #   for(i in 1:length(myrl$length)) {
+				    #     if(myrl$length[i] == mv & myrl$values[i] == TRUE) {
+				    #       end <- start + mv
+				    #       if(start == 0) start <- 1
+				    #       break
+				    #     }else {
+				    #       start <- start + myrl$length[i]
+				    #     }
+				    #   }
+				    #   c(start, end)
+				    # })[2]
+				    print("2")
 				    starts <- maxtop$x[,1]
 				    ends <-maxtop$x[,2]
 				    resMeans[nv ] <- mean(starts)
@@ -6467,7 +6475,7 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 				    nv <- nv + 2
 				  }
 				  rm(maxtop, maxbot, starts, ends)
-				}					
+				}
        #65
 				if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
 				  if(print.debug) print("Aggregation of dailyWarmDays")
