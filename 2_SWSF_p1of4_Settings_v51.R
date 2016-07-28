@@ -5,12 +5,15 @@
 #--------------------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
-# - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2014
+# - Daniel R Schlaepfer (daniel.schlaepfer@unibas.ch, drs): 2009-2016
 # - Donovan Miller (dlm): 2012
 # - Ryan Murphy (rjm): 2012-2015
+# - Charlie Duso (cd): 2016
+# - Caitlin Andrews (ca): 2016
+# - Alexander Reeder (ar): 2016
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
-#The R code below was tested on R version 3.1.1
+#The R code below was tested on R version 3.3.0
 
 #------DISCLAIMER: This program is distributed in the hope that it will be useful,
 #but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,7 +38,8 @@ be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
 
 #------Mode of framework
-minVersionRsoilwat <- "0.31.16"
+minVersionRsoilwat <- "1.1.0"
+minVersion_dbWeather <- "3.1.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- if(interactive()) FALSE else TRUE
@@ -55,8 +59,9 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 dir.prj <- "~/YOURPROJECT"
+dir.code <- "~/YOURCODE/SoilWat_R_Wrapper"
 if(interactive()) setwd(dir.prj)
-dir.prj <- dir.runs <- getwd()
+dir.prj <- dir.big <- getwd()
 
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
@@ -73,28 +78,46 @@ dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add infor
 dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
 dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
-dir.sw.runs <- file.path(dir.runs, "3_Runs")	#path to SoilWat-runs
-dir.out <- file.path(dir.prj, "4_Data_SWOutputAggregated")	#path to aggregated output
+dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
+dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("external", "create", "execute", "aggregate", "concatenate", "ensemble")
-actions <- c("external", "create", "execute", "aggregate", "concatenate", "ensemble")#
-#continues with unfinished part of simulation after abort if TRUE
+#actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
+#	- data preparation
+#		- "external": pulls data from 'external' data sources from 'dir.external' as specified by 'do.ExtractExternalDatasets'
+#		- "map_input": creates maps of input data as specified by 'map_vars'
+#	- simulation runs ('create', 'execute', and 'aggregate' can be used individually if 'saveRsoilwatInput' and/or 'saveRsoilwatOutput')
+#		- "create": puts information and files together for each simulation run
+#		- "execute": executes the SoilWat simulation
+#		- "aggregate": calculates aggregated response variables from the SoilWat output and writes results to temporary text files
+#	- output handling
+#		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
+#		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
+actions <- c("create", "execute", "aggregate", "concatenate")
+#continues with unfinished part of simulation after abort if TRUE, i.e., 
+#	- it doesn't delete an existing weather database, if a new one is requested
+#	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
+#	- it doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
 continueAfterAbort <- TRUE
 #use preprocessed input data if available
 usePreProcessedInput <- TRUE
 #stores for each SoilWat simulation a folder with inputs and outputs if TRUE
-saveSoilWatInputOutput <- FALSE
+saveRsoilwatInput <- FALSE
+saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
+# fields/variables of input data for which to create maps if any(actions == "map_input")
+map_vars <- c("SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
+# check linked BLAS library before simulation runs
+check.blas <- FALSE
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- TRUE
-copyCurrentConditionsFromTempSQL <- TRUE
+copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
@@ -106,19 +129,37 @@ dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.in, "dbWeatherData.sqlite3")
-createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with data
+dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
+createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
+dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
+
+#-Spatial setup of simulations
+# Should the locations of 'SWRunInformation' interpreted as 2D-cells of a raster/grid or as 1D-sites
+# sim_cells_or_points: currently, implemented for 
+# - actions == "map_inputs"
+# - external extractions:
+#	- soils: "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
+#	- elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
+#	- climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA" (NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global')
+sim_cells_or_points <- "point" # one of c("point", "cell"), whether to extract for point locations or averaged over a cell area
+if (sim_cells_or_points == "cell") {
+	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
+	fname_sim_raster <- file.path(dir.in, "YOURRASTER.FILE")
+	sim_res <- c(1e4, 1e4)
+	sim_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
+} else {
+	sim_crs <- sp::CRS("+init=epsg:4326") # WGS84
+}
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
 # if extract_determine_database == "order", then
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
 # - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over 'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested and data is available for both
 # - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and data is available for both
-# if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation'
-extract_determine_database <- "order" # one of c("order", "SWRunInformation")
-#extract_gridcell_or_point: currently, only implemented for "ExtractSoilDataFromISRICWISEv12_Global"
-extract_gridcell_or_point <- "point" # one of c("point", "gridcell"), whether to extract for point locations or averaged over a cell area
-gridcell_resolution <- 1/8
+# if extract_determine_database == "SWRunInformation", then use information in suitable columns of spreadsheet 'SWRunInformation' if available; if not available, then fall back to option 'order'
+extract_determine_database <- "SWRunInformation" # one of c("order", "SWRunInformation")
+
+# External datasets
 do.ExtractExternalDatasets <- c(
 		#Daily weather data for current conditions
 		"GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,	#1/8-degree resolution
@@ -150,26 +191,46 @@ do.ExtractExternalDatasets <- c(
 		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
+chunk_size.options <- list(
+		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
+		ExtractSkyDataFromNCEPCFSR_Global = 100,	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
+		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
+)
+
 do.PriorCalculations <- c(
 		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 1,
 		"EstimateInitialSoilTemperatureForEachSoilLayer", 1,
 		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
 )
 
-#------Time frame of simulation: if not specified in the treatment datafile
-#year when SoilWat starts the simulation
+#------Time frames of simulation (if not specified in the treatment datafile)
+#	current simulation years = simstartyr:endyr
+#	years used for results = startyr:endyr
 simstartyr  <- 1979
-#first year that is used for output aggregation, e.g., simstartyr + 1
-getStartYear <- function(simstartyr){
-	return(simstartyr + 1)
-}
+getStartYear <- function(simstartyr) simstartyr + 1
 startyr <- getStartYear(simstartyr)
-#year when SoilWat ends the simulation
 endyr <- 2010
+
+#Future time period(s):
+#	future simulation years = delta + simstartyr:endyr
+#	future simulation years downscaled based on
+#		- current conditions = DScur_startyr:DScur_endyr
+#		- future conditions = DSfut_startyr:DSfut_endyr
+# NOTE: Multiple time periods doesn't work with external type 'ClimateWizardEnsembles'
+# Each row of 'future_yrs' will be applied to every climate.conditions
+DScur_startyr <- startyr
+DScur_endyr <- endyr
+
+ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
+future_yrs <- matrix(c(c(d <- 40, startyr + d, endyr + d),
+						c(d <- 90, startyr + d, endyr + d - 1)), # most GCMs don't have data for 2100
+					ncol = length(ctemp), byrow = TRUE, dimnames = list(NULL, ctemp))
+rownames(future_yrs) <- make.names(paste0("d", future_yrs[, "delta"], "yrs"), unique = TRUE)
 
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
 adjust.soilDepth <- FALSE # [FALSE] fill soil layer structure from shallower layer(s) or [TRUE] adjust soil depth if there is no soil texture information for the lowest layers
+increment_soiltemperature_deltaX_cm <- 5	# If SOILWAT soil temperature is simulated and the solution instable, then the soil profile layer width is increased by this value until a stable solution can be found or total failure is determined
 
 #Climate conditions
 climate.ambient <- "Current"	#Name of climatic conditions of the daily weather input when monthly climate perturbations are all off
@@ -179,23 +240,30 @@ climate.ambient <- "Current"	#Name of climatic conditions of the daily weather i
 climate.conditions <- c(climate.ambient,	"RCP45.ACCESS1-0", "RCP45.ACCESS1-3", "RCP45.bcc-csm1-1", "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM", "RCP45.CanESM2", "RCP45.CCSM4", "RCP45.CESM1-BGC", "RCP45.CESM1-CAM5", "RCP45.CMCC-CM", "RCP45.CNRM-CM5", "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2", "RCP45.FGOALS-s2", "RCP45.FIO-ESM", "RCP45.GFDL-CM3", "RCP45.GFDL-ESM2G", "RCP45.GFDL-ESM2M", "RCP45.GISS-E2-H-CC",	"RCP45.GISS-E2-R", "RCP45.GISS-E2-R-CC",	"RCP45.HadGEM2-AO", "RCP45.HadGEM2-CC", "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR", "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR", "RCP45.MIROC-ESM", "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5", "RCP45.MPI-ESM-LR", "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3", "RCP45.NorESM1-M", "RCP45.NorESM1-ME",
 											"RCP85.ACCESS1-0", "RCP85.ACCESS1-3", "RCP85.bcc-csm1-1", "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM", "RCP85.CanESM2", "RCP85.CCSM4", "RCP85.CESM1-BGC", "RCP85.CESM1-CAM5", "RCP85.CMCC-CM", "RCP85.CNRM-CM5", "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2", "RCP85.FGOALS-s2", "RCP85.FIO-ESM", "RCP85.GFDL-CM3", "RCP85.GFDL-ESM2G", "RCP85.GFDL-ESM2M", 						"RCP85.GISS-E2-R", 							"RCP85.HadGEM2-AO", "RCP85.HadGEM2-CC", "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR", "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR", "RCP85.MIROC-ESM", "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5", "RCP85.MPI-ESM-LR", "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3", "RCP85.NorESM1-M", "RCP85.NorESM1-ME")
 climate.conditions <- c(climate.ambient)
-#Future time period(s) simulated = delta + simstartyr:endyr; also used to extract external climate conditions
-#Will be applied to each climate.conditions
-#Multiple time periods doesn't work with external type 'ClimateWizardEnsembles'
-deltaFutureToSimStart_yr <- c(50, 90)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
-downscaling.method           <- c("hybrid-delta-3mod")                #one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
+downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
 
-downscaling.daily_ppt_limit  <- 1.5                                   #valid values are 0, 1.5 or 10
-downscaling.monthly_ti_limit <- 1.5                                   #valid values are 0, 1.5 or 10 ???
-downscaling.ppt_type         <- "detailed"                            #either "detailed" or "simple"
-downscaling.correct_spline   <- "attempt"                             #one of "fail", "none" or "attempt" 
-downscaling.extrapol_type    <- "linear_Thermessl2012CC.QMv1b"        #set to "Boe", "Thermessl2012CC.QMv1b" or "none"
+downscaling.options <- list(
+	daily_ppt_limit = 1.5,							#
+	monthly_limit = 1.5,							#
+	ppt_type = "detailed",							# either "detailed" or "simple"
+	correct_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
+		#	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
+		#	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
+		#	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
+	extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
+		#	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
+		#	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+		#	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
+		# 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+	sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
+	PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
+)
 
 #Climate ensembles created across scenarios
-ensemble.families <- c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
+ensemble.families <- NULL #c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
@@ -233,7 +301,7 @@ accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemis
 accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemisphere) then shift monthly production values in prod.in file by six months
 
 #------Output Header Columns------#
-Index_RunInformation <- c(2:3, 5:11, 16:17) #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
+Index_RunInformation <- NULL #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
 #simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
@@ -338,7 +406,7 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- TRUE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
 Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
 Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
 Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
@@ -415,4 +483,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if(!interactive()) source("2_SoilWatSimulationFramework_Part4of4_Code_v51.R", echo=FALSE, keep.source=FALSE)
+if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of4_Code_v51.R"), verbose = FALSE, chdir = FALSE)
