@@ -104,7 +104,7 @@ if (createAndPopulateWeatherDatabase) {
 			start_year = simstartyr,
 			end_year = endyr,
 			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-			rm_temp = TRUE)
+			rm_temp = deleteTmpSQLFiles)
 	}
 	rm(ids_NCEPCFSR_extraction)
 	
