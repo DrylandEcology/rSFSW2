@@ -752,28 +752,61 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 		return(1)
 	}
 
-	get_NCEPCFSR_data <- function(dat_sites, daily=FALSE, monthly=FALSE, yearLow, yearHigh, n_site_per_core=100, cfsr_so, dir.in.cfsr, dir.temp, rm_mc_files=FALSE){
+	get_NCEPCFSR_data <- function(dat_sites, daily=FALSE, monthly=FALSE, yearLow, yearHigh, n_site_per_core=100, cfsr_so, dir.in.cfsr, dir.temp, rm_mc_files=FALSE, continueAfterAbort. = continueAfterAbort){
 	#str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
 	# $ WeatherFolder: chr  ...
 	# $ X_WGS84      : num  -117 -117 -117 -117 -120 ...
 	# $ Y_WGS84      : num  32.8 32.8 32.8 32.8 38.9 ...
+		
+		years <- yearLow:yearHigh
 
 		# directory paths
-		dir.create(dir.temp.cfsr <- file.path(dir.temp, "temp_NCEFCFSR"), showWarnings=FALSE)
+		dir.temp.cfsr <- file.path(dir.temp, "temp_NCEFCFSR")
 		dir.temp.sites <- file.path(dir.temp.cfsr, dat_sites[, "WeatherFolder"])
-		temp <- lapply(dir.temp.sites, FUN=function(x) dir.create(x, showWarnings=FALSE))
-		dir.temp.sitesC <- gsub("/", "//", normalizePath(dir.temp.sites)) # C-style paths; they cannot be relative to ~
+		
+		# determine previous efforts		
+		if (continueAfterAbort.) {
+			i_done <- file.exists(dir.temp.sites)
+			if (sum(i_done) > 0) {
+				for (i in which(i_done)) {
+					i_done[i] <- 
+						if (monthly) {
+							file.exists(file.path(dir.temp.sites[i], "mc.csv"))
+						} else {
+							TRUE
+						} && if (daily) {
+							d_files <- list.files(dir.temp.sites[i], pattern = "weath.")
+							d_years <- as.integer(sapply(strsplit(d_files, ".", fixed = TRUE), function(x) x[2]))
+							all(d_years %in% years)
+						} else {
+							TRUE
+						}
+					if (!i_done[i]) unlink(dir.temp.sites[i], recursive = TRUE)
+				}
+			}
+			i_todo <- !i_done
+			
+		} else {
+			i_todo <- rep(TRUE, nrow(dat_sites))
+		}
 
 		# prepare tasks
-		n_years <- (yearHigh - yearLow + 1)
-		n_sites <- nrow(dat_sites)
-		do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
-		
-		n_climvars <- n_dailyvars <- 3
-		do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = st_mo, years = yearLow:yearHigh)
-
 		# do the extractions, loop over chunks of sites
+		n_sites <- sum(i_todo)
+		n_sites_all <- nrow(dat_sites)
+		
 		if (n_sites > 0) {
+			dat_sites_todo <- dat_sites[i_todo, ]
+			
+			dir.create(dir.temp.cfsr, showWarnings = FALSE)
+			temp <- lapply(dir.temp.sites, dir.create, showWarnings = FALSE)
+			dir.temp.sitesC <- gsub("/", "//", normalizePath(dir.temp.sites)) # C-style paths; they cannot be relative to ~
+		
+			n_years <- length(years)
+			n_climvars <- n_dailyvars <- 3
+			do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
+			do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = st_mo, years = years)
+
 			dtemp <- getwd()
 			setwd(dir.in.cfsr)
 
@@ -807,8 +840,8 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 				nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
 				ntemp <- length(do_sites[[k]])
 				irows <- do_sites[[k]]
-				longs <- dat_sites[irows, "X_WGS84"]
-				lats <- dat_sites[irows, "Y_WGS84"]
+				longs <- dat_sites_todo[irows, "X_WGS84"]
+				lats <- dat_sites_todo[irows, "Y_WGS84"]
 				dtemp <- dir.temp.sitesC[irows]
 
 				if (print.debug) print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command="lsof", args="-c R | wc -l", stdout=TRUE)))
@@ -819,7 +852,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 							nDailyReads <- mpi.applyLB(x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
 							nDailyReads <- do.call(sum, nDailyReads)
 
-							nDailyWrites <- mpi.applyLB(x=yearLow:yearHigh, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+							nDailyWrites <- mpi.applyLB(x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites_todo[irows, "WeatherFolder"], siteDirsC=dtemp)
 							nDailyWrites <- do.call(sum, nDailyWrites)
 						}
 						if (monthly) {
@@ -827,7 +860,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 							nMonthlyReads <- do.call(sum, nMonthlyReads)
 						}
 						if (monthly && k == length(do_sites)) { # only do at the end
-							nMonthlyWrites <- mpi.applyLB(x=1:n_sites, fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
+							nMonthlyWrites <- mpi.applyLB(x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
 							nMonthlyWrites <- do.call(sum, nMonthlyWrites)
 						}
 					} else if (identical(parallel_backend, "snow")) {
@@ -835,7 +868,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 							nDailyReads <- snow::clusterApplyLB(cl, x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
 							nDailyReads <- do.call(sum, nDailyReads)
 
-							nDailyWrites <- snow::clusterApplyLB(cl, x=yearLow:yearHigh, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+							nDailyWrites <- snow::clusterApplyLB(cl, x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
 							nDailyWrites <- do.call(sum, nDailyWrites)
 						}
 						if (monthly) {
@@ -843,14 +876,14 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 							nMonthlyReads <- do.call(sum, nMonthlyReads)
 						}
 						if (monthly && k == length(do_sites)) { # only do at the end
-							nMonthlyWrites <- snow::clusterApplyLB(cl, x=1:n_sites, fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
+							nMonthlyWrites <- snow::clusterApplyLB(cl, x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir.temp.sitesC)
 							nMonthlyWrites <- do.call(sum, nMonthlyWrites)
 						}
 					} else if (identical(parallel_backend, "multicore")) {
 						if (daily) {
 							nDailyReads <- foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
 								gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-							nDailyWrites <- foreach(y = yearLow:yearHigh, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+							nDailyWrites <- foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
 								writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
 						}
 						if (monthly) {
@@ -858,7 +891,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 								gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
 						}
 						if (monthly && k == length(do_sites)) { # only do at the end
-							nMonthlyWrites <- foreach(ic = 1:n_sites, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+							nMonthlyWrites <- foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
 								writeMonthlyClimate(ic, siteDirsC=dir.temp.sitesC)
 						}
 					}
@@ -866,7 +899,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 					if (daily) {
 						nDailyReads <- foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
 							gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-						nDailyWrites <- foreach(y = yearLow:yearHigh, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+						nDailyWrites <- foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
 							writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
 					}
 					if (monthly) {
@@ -874,7 +907,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 							gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
 					}
 					if (monthly && k == length(do_sites)) { # only do at the end
-						nMonthlyWrites <- foreach(ic = 1:n_sites, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+						nMonthlyWrites <- foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
 							writeMonthlyClimate(ic, siteDirsC=dir.temp.sitesC)
 					}
 				}
@@ -905,11 +938,11 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 
 		# concatenating the monthlyClimate csv files
 		if (monthly) {
-			res_clim <- data.frame(matrix(NA, nrow=n_sites, ncol=1 + n_climvars * 12))
+			res_clim <- data.frame(matrix(NA, nrow = n_sites_all, ncol = 1 + n_climvars * 12))
 			colnames(res_clim) <- c("WeatherFolder", paste0("Cloud_m", st_mo), paste0("Wind_m", st_mo), paste0("RH_m", st_mo))
 			res_clim[, "WeatherFolder"] <- dat_sites[, "WeatherFolder"]
 
-			for (i in seq_len(n_sites)) {
+			for (i in seq_len(n_sites_all)) {
 				ftemp <- file.path(dir.temp.sites[i], "mc.csv")
 				if (file.exists(ftemp)) {
 					table.mc <- read.csv(file=ftemp, comment="", stringsAsFactors=FALSE)
@@ -1134,7 +1167,7 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 							Scenario_id = 1,
 							StartYear = start_year,
 							EndYear = end_year,
-							weatherData = data_blob)
+							weather_blob = data_blob)
 
 						site_ids_done <- c(site_ids_done, site_ids_todo[idm])
 						saveRDS(site_ids_done, file = wtemp_file)
@@ -1245,12 +1278,12 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 			names(weatherData) <- as.character(NRC_target_years)
 
 			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData, dbW_weatherData_to_blob)
+			data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
 			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
 				Scenario_id = 1,
 				StartYear = start_year,
 				EndYear = end_year,
-				weatherData = data_blob)
+				weather_blob = data_blob)
 		}
 		#unlink(file=wtemp_file)
 
@@ -1287,12 +1320,12 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherData
 				endYear = end_year)
 
 			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData, dbW_weatherData_to_blob)
+			data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
 			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
 				Scenario_id = 1,
 				StartYear = start_year,
 				EndYear = end_year,
-				weatherData = data_blob)
+				weather_blob = data_blob)
 		}
 
 		if (rm_temp) {

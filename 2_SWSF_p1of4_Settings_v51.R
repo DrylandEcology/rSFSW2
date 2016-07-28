@@ -5,12 +5,15 @@
 #--------------------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
-# - Daniel R Schlaepfer (dschlaep@uwyo.edu, drs): 2009-2014
+# - Daniel R Schlaepfer (daniel.schlaepfer@unibas.ch, drs): 2009-2016
 # - Donovan Miller (dlm): 2012
 # - Ryan Murphy (rjm): 2012-2015
+# - Charlie Duso (cd): 2016
+# - Caitlin Andrews (ca): 2016
+# - Alexander Reeder (ar): 2016
 #for contact and further information see also: sites.google.com/site/drschlaepfer
 
-#The R code below was tested on R version 3.1.1
+#The R code below was tested on R version 3.3.0
 
 #------DISCLAIMER: This program is distributed in the hope that it will be useful,
 #but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -94,7 +97,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
-#	- it doesn't re-extract external information (soils, elevation, climate normals) if already extracted
+#	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
 #	- it doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
 continueAfterAbort <- TRUE
 #use preprocessed input data if available
