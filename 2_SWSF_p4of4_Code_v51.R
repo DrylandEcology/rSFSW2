@@ -252,8 +252,10 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
 	stopifnot(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
 		function(x) x %in% colnames(SWRunInformation)),		# required columns
-		all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation)))	# consecutive site_id
-	)	
+		all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
+		!grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
+		!grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
+	)
 	include_YN <- SWRunInformation$Include_YN
 	labels <- SWRunInformation$Label
 
@@ -262,11 +264,17 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
 	sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
 	colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
+	stopifnot(
+		!grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
+	)
 
 	sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
 	sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
 	colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
 	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
+	stopifnot(
+		!grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)	# no space-characters in weather-data names
+	)
 
 	#update treatment specifications based on experimental design
 	sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
@@ -1006,7 +1014,7 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	stopifnot(file.exists(dir.ex.maurer2002))
 
 	create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
-		paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_")
+		gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_"))
 	}
 
 
@@ -1391,7 +1399,7 @@ if(do_weather_source){
 			there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= -131.104 & SWRunInformation[runIDs_sites, "X_WGS84"] <= -52.95) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= 14.53 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 52)
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "DayMet_NorthAmerica"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_DayMet", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
+				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_DayMet", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
 			}
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'DayMet_NorthAmerica'"))
 		}
@@ -1412,7 +1420,7 @@ if(do_weather_source){
 			there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
+				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
 			}
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
@@ -1426,7 +1434,7 @@ if(do_weather_source){
 			there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= 0 - 180 & SWRunInformation[runIDs_sites, "X_WGS84"] <= 360 - 180) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= -89.761 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 89.761)
 			if(sum(there) > 0){
 				sites_dailyweather_source[there] <<- "NCEPCFSR_Global"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", format(Y_WGS84, digits=4, format="f")))
+				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
 			}
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
 		}
@@ -1460,6 +1468,7 @@ if(do_weather_source){
 	}
 
 	# Save information about weather source to disk file
+	sites_dailyweather_names <- gsub("[[:space:]]", "", sites_dailyweather_names)
 	SWRunInformation$WeatherFolder[runIDs_sites][!is.na(sites_dailyweather_names)] <- na.exclude(sites_dailyweather_names)
 	SWRunInformation$dailyweather_source[runIDs_sites] <- as.character(sites_dailyweather_source)
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)

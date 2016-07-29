@@ -212,7 +212,7 @@ if (length(Tables) == 0 || do.clean) {
 		site_columns <- sub(pattern="WeatherFolder",replacement="WeatherFolder_id",site_columns)
 		site_col_types[which(colnames(SWRunInformation) == "WeatherFolder")] <- "INTEGER"
 		dbGetQuery(con, paste("CREATE TABLE sites(id INTEGER PRIMARY KEY AUTOINCREMENT,", paste(site_columns, site_col_types, collapse=","), ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));", sep=""))
-	
+			# create table fails if 'WeatherFolder' contains spaces
 	
 		sites_data <- data.frame(SWRunInformation, row.names = NULL, check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
 	
