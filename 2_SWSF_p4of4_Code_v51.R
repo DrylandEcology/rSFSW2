@@ -719,6 +719,13 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 
 		return(res)
 	}
+	
+	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+	stopifnot(file.exists(dir.ex.CFSR))
+
+	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.CFSR)
+	stopifnot(!inherits(prepd_CFSR, "try-error"))
+
 
 	# Wrapper functions for C code to access NCEP/CFSR data and write out to temporary files
 	gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
@@ -779,7 +786,10 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 				for (i in which(i_done)) {
 					i_done[i] <- 
 						if (monthly) {
-							file.exists(file.path(dir.temp.sites[i], "mc.csv"))
+							file.exists(file.path(dir.temp.sites[i], "mc.csv")) ||
+							{file.exists(file.path(dir.temp.sites[i], "cc.txt")) &&
+							file.exists(file.path(dir.temp.sites[i], "rh.txt")) &&
+							file.exists(file.path(dir.temp.sites[i], "ws.txt"))}
 						} else {
 							TRUE
 						} && if (daily) {
@@ -1307,12 +1317,6 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherDatabase){
 	#Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
 	# http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
-
-	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
-	stopifnot(file.exists(dir.ex.CFSR))
-
-	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.CFSR)
-	stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 	# Function to be executed for all SoilWat-sites together
 	GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, start_year, end_year, n_site_per_core = 100, rm_temp = TRUE) {

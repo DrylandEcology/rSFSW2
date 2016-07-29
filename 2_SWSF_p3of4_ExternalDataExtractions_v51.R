@@ -3581,12 +3581,6 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	
 		if (any(do_extract)) {		
 			if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =", sum(do_extract), "sites"))
-			# preparations
-			dir.ex.dat <- file.path(dir.ex.weather, "NCEPCFSR", "CFSR_weather_prog08032012")
-			stopifnot(file.exists(dir.ex.dat))
-		
-			prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data = dir.ex.dat)
-			stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 			#locations of simulation runs
 			locations <- SWRunInformation[runIDs_sites[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
