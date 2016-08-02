@@ -6445,8 +6445,7 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 				}
 
 				#64 Daniel's version
-				if(any(simulation_timescales=="daily") & aon$dailyDryPeriods){
-#TODO: rename aon options from 'dailyDryPeriods' to 'dailyThermalDryPeriods'
+				if(any(simulation_timescales=="daily") & aon$dailyThermalDryPeriods){
 					if (print.debug) print("Aggregation of dailyThermalDryPeriods (version drs)")
 					if (!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 					if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, sum)
@@ -6484,70 +6483,6 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 					if (length(bottomL) > 0 && !identical(bottomL, 0))
 						rm(SWCcritsB_mm, thermaldry.bottom)
 				}
-
-				#64
-				if(any(simulation_timescales=="daily") & aon$dailyDryPeriods){
-				  if(print.debug) print("Aggregation of dailyDryPeriods")
-				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
-				  if(!exists("soiltemp.dy.all")) soiltemp.dy <- get_Response_aggL(sc, sw_soiltemp, "dy", scaler=1, FUN=weighted.mean, weights=layers_width)
-				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
-				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
-				 # for(iCritSoil in SWPcrit_MPa){
-				  print("Pre1    O_O")
-				  lapply(SWPcrit_MPa, FUN = function(iCritSoil)  {
-				      #maxtop <- aggregate(soiltemp.dy$top > iCritSoil && temp.dy$mean > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
-				    #   maxtop <- aggregate(swpmatric.dy$top > iCritSoil && temp.dy$mean > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
-				    #   print("1a")
-				    #   myrl <- rle(x)
-				    #   mv <- max(myrl$length[which(myrl$value==TRUE)])
-				    #   start <- 0
-				    #   end <- start + mv
-				    #   print("1")
-				    #   for(i in 1:length(myrl$length)) {
-				    #     if(myrl$length[i] == mv & myrl$values[i] == TRUE) {
-				    #       end <- start + mv
-				    #       if(start == 0) start <- 1
-				    #       break
-				    #     }else {
-				    #       start <- start + myrl$length[i]
-				    #     }
-				    #   }
-				    #   c(start, end)
-				    # })[2]
-				    print("2")
-				    starts <- maxtop$x[,1]
-				    ends <-maxtop$x[,2]
-				    resMeans[nv ] <- mean(starts)
-				    resMeans[nv +1] <- mean(ends)
-				    resSDs[nv] <- sd(starts)
-				    resSDs[nv + 1] <- sd(ends)			   
-				    nv <- nv + 2
-				    maxbot <- aggregate(soiltemp.dy$bottom > 0, by= list(simTime2$year_ForEachUsedDay) , FUN=function(x) {
-				      myrl <- rle(x)
-				      mv <- max(myrl$length[which(myrl$value==TRUE)])
-				      start <- 0
-				      end <- start + mv
-				      for(i in 1:length(myrl$length)) {
-				        if(myrl$length[i] == mv & myrl$values[i] == TRUE) {
-				          end <- start + mv 
-				          if(start == 0) start <- 1
-				          break
-				        }else {
-				          start <- start + myrl$length[i]
-				        }
-				      }
-				      c(start, end)
-				    })[2]
-				    starts <- maxbot$x[,1]
-				    ends <-maxbot$x[,2]
-				    resMeans[nv ] <- mean(starts)
-				    resMeans[nv +1] <- mean(ends)
-				    resSDs[nv] <- sd(starts)
-				    resSDs[nv + 1] <- sd(ends)			   
-				    nv <- nv + 2
-				  }
-				  rm(maxtop, maxbot, starts, ends)
-				}
        #65
 				if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
 				  if(print.debug) print("Aggregation of dailyWarmDays")
@@ -6578,53 +6513,52 @@ swSoils_Layers(modInput)[, "gravel_content"] <- 0.1
 				  resSDs[nv:(nv+length(ddaycnt)-1)] <- unlist(lapply(baseagg, FUN = sd))
 				  nv <- nv+length(ddaycnt)
 				  
-				  lapply(Tmean_crit_C,
-				         FUN= function(i) {
-				              lapply(SWPcrit_MPa, FUN=function(j) {
-				                
-				                degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom < j,1, 0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers < SWPcrit_MPa
-				                
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-
-				                degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom > j,1, 0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers > SWPcrit_MPa
-
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-
-				                degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top < j,1, 0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topoil layers < SWPcrit_MPa
-
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-
-				                degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top > j,1, 0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topsoil layers > SWPcrit_MPa
-
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-
-				                degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x < j)),1,0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
-
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-
-				                degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x > j)),1,0)
-				                temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
-
-				                resMeans[nv] <<- mean(temp)
-				                resSDs[nv] <<- sd(temp)
-				                nv <<- nv+1
-				              })
-				         })
+				  for (i in Tmean_crit_C) {
+				    for (j in SWPcrit_MPa) {
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom < j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers < SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom > j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers > SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top < j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topoil layers < SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top > j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topsoil layers > SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x < j)),1,0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x > j)),1,0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				    }
+				  }
 				  rm( temp.dy.all)
 				}
 			#67

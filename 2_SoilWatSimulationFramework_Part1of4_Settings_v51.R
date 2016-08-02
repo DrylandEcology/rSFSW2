@@ -317,7 +317,7 @@ output_aggregates <- c(
 						"dailyRegeneration_bySWPSnow", 0,
 						"dailyRegeneration_GISSM", 0,
 					#---Aggregation: 
-					  "dailyDryPeriods", 1,
+					  "dailyThermalDryPeriods", 1,
 					  "dailyWarmDays",1,
 					  "dailyDegreeDaysCnt",1,
 					  "dailyTMaxTenDayMean", 1

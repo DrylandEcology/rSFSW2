@@ -877,7 +877,7 @@ if((length(Tables) == 0) || do.clean) {
 			}
 		}
 	#64
-		if(any(simulation_timescales=="daily")  & aon$dailyDryPeriods ){	
+		if(any(simulation_timescales=="daily")  & aon$dailyThermalDryPeriods ){	
 		  temp <- c(temp, paste(rep(c("Top","Bottom"),each=2,times=length(SWPcrit_MPa)),c("StartDoY", "EndDoY"), rep(SWPcrit_MPa, each=4),sep="_"))
 		}
 	#65
