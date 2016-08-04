@@ -975,7 +975,24 @@ if (length(Tables) == 0 || do.clean) {
 				#Output for time series: not yet implemented for db			
 			}
 		}
-	
+	#64
+		if(any(simulation_timescales=="daily")  & aon$dailyThermalDryPeriods ){	
+		  temp <- c(temp, paste(rep(c("Top","Bottom"),each=2,times=length(SWPcrit_MPa)),c("StartDoY", "EndDoY"), rep(SWPcrit_MPa, each=4),sep="_"))
+		}
+	#65
+		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
+		  temp <- c(temp, paste0("TmaxAbove", ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "T_mean_crit_days"))
+		}	
+	#66	
+		if(any(simulation_timescales=="daily") & aon$dailyDegreeDaysCnt){
+		  temp <- c(temp, paste("DegreeDays.Cnt", SWPcrit_MPa ,"C.dailyTmeanCnt", sep="_"))
+  	  temp <- c(temp,  paste("DegreeDays.Cnt", rep(SWPcrit_MPa,each=3*2,times=length(Tmean_crit_C)), rep(Tmean_crit_C,each=length(SWPcrit_MPa)*2*3), rep(c("Bot","Top","All"),each=2, times=length(Tmean_crit_C)*length(SWPcrit_MPa)/2), rep(c("UnderCrit","OverCrit"),length(Tmean_crit_C)*length(SWPcrit_MPa)*3),"C.dailyTmeanCnt", sep="_"))
+		}
+	#67	
+		if(any(simulation_timescales=="daily") & aon$dailyTMaxTenDayMean){
+		  temp <- c(temp, "HottestTopTen")
+		  temp <- c(temp, paste("HottestTopTenCrit",rep(c("TopOver","TopBelow","BotOver","BotBelow","AllOver","AllBelow"),each=length(SWPcrit_MPa)), SWPcrit_MPa, sep= "_")   )
+		}		
 		#---Aggregation: done with options
 	
 		#Convert '.' to "_"
