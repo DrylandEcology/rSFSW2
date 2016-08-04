@@ -6761,6 +6761,244 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					}#end of species loop
 				}
 
+				#64 Daniel's version
+				if(any(simulation_timescales=="daily") & aon$dailyThermalDryPeriods){
+					if (print.debug) print("Aggregation of dailyThermalDryPeriods (version drs)")
+					if (!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+					if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, sum)
+
+					thermal <- temp.dy$mean > 0
+
+					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+					SWCcritsT_mm <- SWPtoVWC(SWPcrit_MPa, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
+					if (length(bottomL) > 0 && !identical(bottomL, 0))
+						SWCcritsB_mm <- SWPtoVWC(SWPcrit_MPa, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
+					
+					for (icrit in seq_along(SWPcrit_MPa)) {
+						thermaldry.top <- thermal & swcbulk.dy$top >= SWCcritsT_mm[icrit]
+						thermaldry.bottom <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+								thermal & swcbulk.dy$bottom >= SWCcritsT_mm[icrit]
+							} else {
+								rep(FALSE, length(thermaldry.top))
+							}
+						
+						temp <- aggregate(cbind(thermaldry.top, thermaldry.bottom),
+									by = list(simTime2$year_ForEachUsedDay_NSadj),
+									FUN = function(x) max.duration(x, return_doys = TRUE))
+						
+						resMeans[nv:(nv+3)] <- c(
+							apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ.mean, int = 365),
+							apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ.mean, int = 365))
+						resSDs[nv:(nv+3)] <- c(
+							apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ.sd, int = 365),
+							apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ.sd, int = 365))
+						nv <- nv+4
+
+					}
+
+					rm(thermal, adjDays, SWCcritsT_mm, thermaldry.top)
+					if (length(bottomL) > 0 && !identical(bottomL, 0))
+						rm(SWCcritsB_mm, thermaldry.bottom)
+				}
+       #65
+				if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
+				  if(print.debug) print("Aggregation of dailyWarmDays")
+				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+				  
+				  WarmDays <- lapply(Tmean_crit_C, FUN = function(x) {aggregate(temp.dy$mean > x, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) sum(x) )[, 2]})
+				  resMeans[nv:(nv+length(Tmean_crit_C)-1)] <- unlist(lapply(WarmDays, mean))
+				  resSDs[nv:(nv++length(Tmean_crit_C)-1)] <- unlist(lapply(WarmDays, sd))
+				  nv <- nv+length(Tmean_crit_C)
+	
+				  rm(WarmDays)
+				}	
+			#66
+				if(any(simulation_timescales=="daily") & aon$dailyDegreeDaysCnt){	#Degree days based on daily temp
+				  if(print.debug) print("Aggregation of dailyDegreeDaysCnt")
+				  if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(sc, sw_vwcmatric, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
+				  if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all)		
+				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
+				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
+				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+				  
+				  temp.dy.all <- swpmatric.dy.all$val[which(vwcmatric.dy.all$val[,1] %in% simTime2$year_ForEachUsedDay),3:10]  # seems for airtemperature no dy.all is available, where to get it??
+				  
+				  baseagg <- lapply(Tmean_crit_C, FUN=function(x) {aggregate(ifelse(temp.dy$mean > x ,1, 0), by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]})
+				  ddaycnt <- unlist(lapply(baseagg, FUN = mean))
+				  
+				  resMeans[nv:(nv+length(ddaycnt)-1)] <- ddaycnt
+				  resSDs[nv:(nv+length(ddaycnt)-1)] <- unlist(lapply(baseagg, FUN = sd))
+				  nv <- nv+length(ddaycnt)
+				  
+				  for (i in Tmean_crit_C) {
+				    for (j in SWPcrit_MPa) {
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom < j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers < SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$bottom > j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and bottomsoil layers > SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top < j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topoil layers < SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i & swpmatric.dy$top > j,1, 0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2] # Number of days with temp > Tmean_crit_C and topsoil layers > SWPcrit_MPa
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x < j)),1,0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				      
+				      degdaycnt <- ifelse(temp.dy$mean > i &  apply(temp.dy.all, 1, FUN = function(x) all(x > j)),1,0)
+				      temp <- aggregate(degdaycnt, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]
+				      
+				      resMeans[nv] <- mean(temp)
+				      resSDs[nv] <- sd(temp)
+				      nv <- nv+1
+				    }
+				  }
+				  rm( temp.dy.all)
+				}
+			#67
+				if(any(simulation_timescales=="daily") & aon$dailyTMaxTenDayMean){
+				  if(print.debug) print("Aggregation of dailyTMaxTenDayMean")
+				  if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(sc, sw_vwcmatric, "dyAll", 1, FUN=weighted.mean, weights=layers_width)
+				  if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all) #swp.dy.all is required to get all layers
+				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
+				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
+				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+
+				  all_soiltemp <- swpmatric.dy.all$val[which(swpmatric.dy.all$val[,1] %in% simTime2$year_ForEachUsedDay),3:10]  # seems for airtemperature no dy.all is available, where to get it??
+
+				  ma <- array(NA,c(length(temp.dy$max), 3))
+				  ma[,1] <- temp.dy$max
+				  ma[,2] <- swpmatric.dy$top
+				  ma[,3] <- swpmatric.dy$bottom
+
+				  toptenmean <- aggregate(temp.dy$max, by= list(simTime2$year_ForEachUsedDay),FUN= function(x) mean(sort(x, decreasing = TRUE)[1:10]))$x
+
+				  resMeans[nv] <- mean(toptenmean)
+				  resSDs[nv] <- sd(toptenmean)
+				  nv <- nv+1
+				   
+		      topovercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+		          my_idx <- which(ma[,2] > icrit)
+		          if (length(ma[my_idx]) == 0) {
+		            topovercrit2 <- 0
+		          }   else {
+		            topovercrit2 <- aggregate(ma[my_idx,1], by = list(simTime2$year_ForEachUsedDay[my_idx]),FUN= function(x) {
+		              mean(sort(x, decreasing = TRUE)[1:10])
+		            })$x
+		          }
+		          topovercrit2
+		      })
+		      resMeans[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(topovercrit, mean) )
+		      resSDs[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(topovercrit, sd) )
+		      nv <- nv + length(SWPcrit_MPa)
+
+          topundercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+              my_idx <- which(ma[,2] < icrit)
+              if (length(ma[my_idx]) == 0) {
+                topundercrit2 <- 0
+              }   else {
+                topundercrit2 <- aggregate(ma[my_idx,1], by = list(simTime2$year_ForEachUsedDay[my_idx]),FUN= function(x) {
+                  mean(sort(x, decreasing = TRUE)[1:10])
+                })$x
+              }
+              topundercrit2
+          })
+          resMeans[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(topundercrit, mean) )
+          resSDs[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(topundercrit, sd))
+          nv <- nv + length(SWPcrit_MPa)
+
+          botovercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+              my_idx <- which(ma[,3] > icrit)
+              if (length(ma[my_idx]) == 0) {
+                botovercrit2 <- 0
+              }   else {
+                botovercrit2 <- aggregate(ma[my_idx,1], by = list(simTime2$year_ForEachUsedDay[my_idx]),FUN= function(x) {
+                  mean(sort(x, decreasing = TRUE)[1:10])
+                })$x
+              }
+              botovercrit2
+          })
+          resMeans[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(botovercrit, mean))
+          resSDs[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(botovercrit, sd))
+          nv <- nv + length(SWPcrit_MPa)
+
+          botundercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+              my_idx <- which(ma[,3] > icrit)
+              if (length(ma[my_idx]) == 0) {
+                botundercrit2 <- 0
+              }   else {
+                botundercrit2 <- aggregate(ma[my_idx,1], by = list(simTime2$year_ForEachUsedDay[my_idx]),FUN= function(x) {
+                  mean(sort(x, decreasing = TRUE)[1:10])
+                })$x
+              }
+              botundercrit2
+          })
+          resMeans[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(botundercrit, mean))
+          resSDs[nv:(nv + length(SWPcrit_MPa)-1)] <- unlist(lapply(botundercrit, sd))
+          nv <- nv + length(SWPcrit_MPa)
+
+          allovercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+              i_suitable <- which(apply(all_soiltemp, 1, FUN = function(x) {
+                all(x > icrit)
+              }))
+              if (length(i_suitable) == 0) {
+                allovercrit2 <- 0
+              } else {
+                allovercrit2 <- aggregate(ma[i_suitable, 1],
+                                          by = list(simTime2$year_ForEachUsedDay[i_suitable]),FUN= function(x) {
+                                            mean(sort(x, decreasing = TRUE)[1:10])
+                                          })$x
+              }
+              allovercrit2
+          })
+          resMeans[nv:(nv+length(SWPcrit_MPa) -1)] <- unlist(lapply(allovercrit,mean))
+          resSDs[nv:(nv+length(SWPcrit_MPa) -1)] <- unlist(lapply(allovercrit, sd))
+          nv <- nv + length(SWPcrit_MPa)
+
+          allundercrit <- lapply(SWPcrit_MPa, FUN=function(icrit) {
+              i_suitable <- which(apply(all_soiltemp, 1, FUN = function(x) {
+                all(x < icrit)
+              }))
+              if (length(i_suitable) == 0) {
+                allundercrit2 <- 0
+              } else {
+                allundercrit2 <- aggregate(ma[i_suitable, 1],
+                                         by = list(simTime2$year_ForEachUsedDay[i_suitable]),
+                                         FUN= function(x) {
+                                          mean(sort(x, decreasing = TRUE)[1:10])
+                                         })$x
+             }
+             allundercrit2
+          })
+          resMeans[nv:(nv+length(SWPcrit_MPa) -1)] <- unlist(lapply(allundercrit,mean))
+          resSDs[nv:(nv+length(SWPcrit_MPa) -1)] <- unlist(lapply(allundercrit, sd))
+          nv <- nv + length(SWPcrit_MPa)
+
+				  rm(ma, toptenmean, all_soiltemp, topovercrit, topundercrit, botovercrit, botundercrit, allovercrit, allundercrit)
+				}
 				#---Aggregation: done with options
 
 				#temporaly save aggregate data
