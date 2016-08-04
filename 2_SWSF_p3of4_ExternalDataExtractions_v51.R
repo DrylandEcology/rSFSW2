@@ -280,7 +280,7 @@ if (exinfo$use_sim_spatial) {
 			
 			for (k in seq_along(reagg)) {
 				res[k, , ] <- t(vapply(seq_along(reagg[[k]][["N"]]), function(i) {
-						if (reagg[[k]][["N"]][i] > 0) {
+						if (reagg[[k]][["N"]][i] > 0 && reagg[[k]][["fraction"]][[i]] > 0) {
 							out <- weighted.mean(reagg[[k]][["values"]][[i]],
 								w = reagg[[k]][["fraction"]][[i]])
 							if (!anyNA(probs)) {
