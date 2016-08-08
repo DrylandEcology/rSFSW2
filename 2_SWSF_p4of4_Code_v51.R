@@ -4625,15 +4625,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailyHotDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
 
-					for(iTmax in Tmax_crit_C){
-						HotDays <- aggregate(temp.dy$max > iTmax, by=list(simTime2$year_ForEachUsedDay), FUN=sum)[, 2]#Numbers of days with max.temp > 0
+					nv_add <- length(Tmax_crit_C)
+					
+					dailyExcess <- temp.dy$max > 
+						matrix(rep.int(Tmax_crit_C, length(temp.dy$max)),
+							ncol = nv_add, byrow = TRUE)					
+					
+					HotDays <- matrix(NA, nrow = simTime$no.useyr, ncol = nv_add)
+					for (k in seq_along(Tmax_crit_C))
+						HotDays[, k] <- tapply(dailyExcess[, k],
+							INDEX = simTime2$year_ForEachUsedDay,
+							FUN = sum)
 
-						resMeans[nv] <- mean(HotDays, na.rm=TRUE)
-						resSDs[nv] <- sd(HotDays, na.rm=TRUE)
-						nv <- nv+1
-					}
+					nv_new <- nv + nv_add
+					resMeans[nv:(nv_new - 1)] <- .colMeans(HotDays, simTime$no.useyr, nv_add)
+					resSDs[nv:(nv_new - 1)] <- apply(HotDays, 2, sd)
+					nv <- nv_new
 
-					rm(HotDays)
+					rm(HotDays, dailyExcess)
 				}
 			#12b
 				if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
@@ -4689,15 +4698,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					nv <- nv+8
 
 					rm(events, counts.available, counts.summary, freq.summary, eventsPerYear)
-				}
-			#14
-				if(any(simulation_timescales=="yearly") & aon$yearlyAET){
-					if(print.debug) print("Aggregation of yearlyAET")
-					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
-
-					resMeans[nv] <- mean(AET.yr$val)
-					resSDs[nv] <- sd(AET.yr$val)
-					nv <- nv+1
 				}
 			#15
 				if(any(simulation_timescales=="yearly") & aon$yearlyPET){
@@ -4924,7 +4924,297 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					rm(degday)
 				}
 
-			#25
+
+				#---Aggregation: Yearly water balance
+			#27.0
+				if(any(simulation_timescales=="yearly") & aon$yearlyAET){
+					if(print.debug) print("Aggregation of yearlyAET")
+					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
+
+					resMeans[nv] <- mean(AET.yr$val)
+					resSDs[nv] <- sd(AET.yr$val)
+					nv <- nv+1
+				}
+				
+			#27
+				if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
+					if(print.debug) print("Aggregation of yearlyWaterBalanceFluxes")
+					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
+					if(!exists("Esurface.yr")) Esurface.yr <- get_Esurface_yr(sc)
+					if(!exists("intercept.yr")) intercept.yr <- get_Interception_yr(sc)
+					if(!exists("inf.yr")) inf.yr <- get_Inf_yr(sc)
+					if(!exists("runoff.yr")) runoff.yr <- get_Runoff_yr(sc)
+					if(!exists("transp.yr")) transp.yr <- get_Response_aggL(sc, sw_transp, "yr", 10, sum)
+					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
+					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc)
+					if(!exists("Esoil.yr")) Esoil.yr <- get_Response_aggL(sc, sw_evsoil, "yr", 10, sum)
+					if(!exists("deepDrain.yr")) deepDrain.yr <- get_DeepDrain_yr(sc)
+
+					rain_toSoil <- prcp.yr$rain - intercept.yr$sum
+					transp.tot <- transp.yr$top + transp.yr$bottom
+
+					evap_soil.tot <- as.vector(Esoil.yr$top + Esoil.yr$bottom)
+					evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
+
+					temp1 <- 10 * slot(slot(runData[[sc]],sw_percolation),"Year")
+					if(length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
+						drain.topTobottom <- temp1[simTime$index.useyr, 1+DeepestTopLayer]
+					} else {
+						drain.topTobottom <- NA
+					}
+					temp1 <- 10 * slot(slot(runData[[sc]],sw_hd),"Year")
+					if(length(topL) > 1) {
+						hydred.topTobottom <- apply(temp1[simTime$index.useyr, 1+topL, drop=FALSE], 1, sum)
+					} else {
+						hydred.topTobottom <- temp1[simTime$index.useyr,1+topL]
+					}
+
+					if( any(simulation_timescales=="daily")) {
+						temp1 <- 10 * slot(slot(runData[[sc]],sw_swcbulk),"Day")
+						if(simTime$index.usedy[1] == 1){ #simstartyr == startyr, then (simTime$index.usedy-1) misses first value
+							index.usedyPlusOne <- simTime$index.usedy[-length(simTime$index.usedy)]+1
+						} else {
+							index.usedyPlusOne <- simTime$index.usedy
+						}
+						if(length(topL) > 1) {
+							swcdyflux <- apply(temp1[index.usedyPlusOne,2+ld], 1, sum) - apply(temp1[index.usedyPlusOne-1,2+ld], 1, sum)
+						} else {
+							swcdyflux <- temp1[index.usedyPlusOne,2+ld] - temp1[index.usedyPlusOne-1,2+ld]
+						}
+						swc.flux <- aggregate(swcdyflux, by=list(temp1[index.usedyPlusOne,1]), FUN=sum)[,2]
+					} else {
+						swc.flux <- NA
+					}
+
+					#mean fluxes
+					resMeans[nv:(nv+22)] <- apply(fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux), 2, mean)
+					resMeans[nv+23] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
+					resMeans[nv+24] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
+					resMeans[nv+25] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
+					resMeans[nv+26] <- if (sum(PET.yr$val) > 0) mean(AET.yr$val/PET.yr$val) else 0
+					resMeans[nv+27] <- if (sum(PET.yr$val) > 0) mean(transp.tot/PET.yr$val) else 0
+					resMeans[nv+28] <- if (sum(PET.yr$val) > 0) mean(evap_soil.tot/PET.yr$val) else 0
+
+					#sd of fluxes
+					resSDs[nv:(nv+22)] <- apply(fluxtemp, 2, sd)
+					resSDs[nv+23] <- if (sum(transp.tot) > 0) sd(transp.yr$bottom/transp.tot) else 0
+					resSDs[nv+24] <- if (sum(AET.yr$val) > 0) sd(transp.tot/AET.yr$val) else 0
+					resSDs[nv+25] <- if (sum(AET.yr$val) > 0) sd(evap_soil.tot/AET.yr$val) else 0
+					resSDs[nv+26] <- if (sum(PET.yr$val) > 0) sd(AET.yr$val/PET.yr$val) else 0
+					resSDs[nv+27] <- if (sum(PET.yr$val) > 0) sd(transp.tot/PET.yr$val) else 0
+					resSDs[nv+28] <- if (sum(PET.yr$val) > 0) sd(evap_soil.tot/PET.yr$val) else 0
+
+					nv <- nv+29
+
+					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
+				}
+
+			#27.2
+				if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
+					if(print.debug) print("Aggregation of dailySoilWaterPulseVsStorage")
+					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
+					if(!exists("transp.dy.all")) transp.dy.all <- get_Response_aggL(sc, sw_transp, "dyAll", 10, sum)
+					if(!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(sc, sw_evsoil, "dyAll", 10, sum)
+					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
+
+					percolation <- 10 * slot(slot(runData[[sc]],sw_percolation), "Day")[simTime$index.usedy, 2 + head(ld, n=-1)]
+					hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
+
+					# Water balance
+					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow=length(simTime$index.usedy), ncol=length(ld))
+					# Inputs: infiltration + received hydraulic redistribution + received percolation
+					inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
+					inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
+					inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
+
+					# Outputs: soil evaporation + transpiration + deep drainage + hydraulic redistribution donor + percolation donor
+					itemp <- 1:(ncol(Esoil.dy.all$val) - 2)
+					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + Esoil.dy.all$val[simTime$index.usedy, -(1:2)]
+					itemp <- grepl("transp_total", colnames(transp.dy.all$val))
+					outputs_by_layer[, 1:sum(itemp)] <- outputs_by_layer[, 1:sum(itemp)] + transp.dy.all$val[simTime$index.usedy, itemp]
+					itemp <- ncol(outputs_by_layer)
+					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + deepDrain.dy$val
+					outputs_by_layer[, -itemp] <- outputs_by_layer[, -itemp] + ifelse(percolation < 0, -percolation, 0)
+					outputs_by_layer <- outputs_by_layer + ifelse(hydred < 0, -hydred, 0)
+
+					# balance
+					balance <- inputs_by_layer - outputs_by_layer
+					extraction <- balance < 0
+					storage_use <- by(cbind(extraction, outputs_by_layer), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=function(x) {
+						res1 <- apply(x[, ld], MARGIN=2, FUN=rle)
+						res2 <- apply(x[, max(ld) + ld], MARGIN=2, FUN=function(y) list(out=y))
+						return(modifyList(res1, res2))})
+
+					# median duration among extracting spells for each layer and each year
+					extraction_duration_days <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) mean(dat$lengths[as.logical(dat$values)])))
+
+					# median annual sum of all extracted water during extracting spells for each layer and each year
+					extraction_summed_mm <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) {
+							dat$values <- as.logical(dat$values)
+							temp <- dat
+							if(any(dat$values)) temp$values[dat$values] <- 1:sum(dat$values) # give unique ID to each extraction spell
+							if(any(!dat$values)){
+								temp$values[!dat$values] <- 0 # we are not interested in positive spells
+								has_zero <- TRUE
+							} else {
+								has_zero <- FALSE
+							}
+							storage_ids <- inverse.rle(temp)
+							x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
+							if(has_zero && length(x) > 0) x <- x[-1] # remove first element because this represents the positive spells (id = 0)
+							return(sum(x))
+						}))
+
+					# aggregate across years for each soil layer
+					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
+					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
+					nv <- nv+SoilLayer_MaxNo
+					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
+					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
+					nv <- nv+SoilLayer_MaxNo
+
+					rm(percolation, hydred, inputs_by_layer, outputs_by_layer, balance, extraction, storage_use, extraction_duration_days, extraction_summed_mm)
+				}
+
+
+				#---Aggregation: Daily extreme values
+			#28
+				if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {#mean and SD of DOY and value of minimum/maximum
+					if(print.debug) print("Aggregation of dailyTranspirationExtremes")
+					if(!exists("transp.dy")) transp.dy <- get_Response_aggL(sc, sw_transp, "dy", 10, FUN=sum)
+
+					extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
+					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					nv <- nv+2
+
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+2
+
+					rm(extremes)
+				}
+			#29
+				if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
+					if(print.debug) print("Aggregation of dailyTotalEvaporationExtremes")
+					if(!exists("Esoil.dy")) Esoil.dy <- get_Response_aggL(sc, sw_evsoil, "dy", 10, FUN=sum)
+					if(!exists("Esurface.dy")) Esurface.dy <- get_Esurface_dy(sc)
+
+					extremes <- as.matrix(aggregate(cbind(Esoil.dy$top + Esoil.dy$bottom + Esurface.dy$sum), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
+					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					nv <- nv+2
+
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+2
+
+					rm(extremes)
+				}
+			#30
+				if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
+					if(print.debug) print("Aggregation of dailyDrainageExtremes")
+					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
+
+					extremes <- as.matrix(aggregate(deepDrain.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
+					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					nv <- nv+2
+
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+2
+
+					rm(extremes)
+				}
+			#31
+				if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
+					if(print.debug) print("Aggregation of dailyInfiltrationExtremes")
+					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
+
+					extremes <- as.matrix(aggregate(inf.dy$inf, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
+					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					nv <- nv+2
+
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+2
+
+					rm(extremes)
+				}
+			#32
+				if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {
+					if(print.debug) print("Aggregation of dailyAETExtremes")
+					if(!exists("AET.dy")) AET.dy <- get_AET_dy(sc)
+
+					extremes <- as.matrix(aggregate(AET.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+
+					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
+					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					nv <- nv+2
+
+					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+2
+
+					rm(extremes)
+				}
+			#33
+				if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
+					if(print.debug) print("Aggregation of dailySWPextremes")
+					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
+					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
+
+					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
+						extremes <- as.matrix(aggregate(cbind(swpmatric.dy$top, swpmatric.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+					} else {
+						extremes <- cbind(temp <- as.matrix(aggregate(swpmatric.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
+					}
+
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=mean, na.rm=TRUE)
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=sd, na.rm=TRUE)
+					nv <- nv+4
+
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+4
+
+					rm(extremes)
+				}
+			#34
+				if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
+					if(print.debug) print("Aggregation of dailyRechargeExtremes")
+					if(!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, FUN=sum)
+
+					recharge.dy <- NULL
+					recharge.dy$top <- swcbulk.dy$top / (SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
+
+					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
+						recharge.dy$bottom <- swcbulk.dy$bottom / (SWPtoVWC(-0.033, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL]))
+						extremes <- as.matrix(aggregate(cbind(recharge.dy$top, recharge.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
+					} else {
+						extremes <- cbind(temp <- as.matrix(aggregate(recharge.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
+					}
+
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
+					nv <- nv+4
+
+					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
+					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
+					nv <- nv+4
+
+					rm(recharge.dy, extremes)
+				}
+
+				#---Aggregation: Ecological dryness
+
+			#35a
 				regimes_done <- FALSE
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
 					if(print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
@@ -5371,7 +5661,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  
 				  }
 				  
-			#26
+			#35b
 				if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 					if(print.debug) print("Aggregation of dailyNRCS_Chambers2014_ResilienceResistance")
@@ -5416,286 +5706,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				}
 				rm(regimes_done)
 
-
-				#---Aggregation: Yearly water balance
-			#27
-				if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
-					if(print.debug) print("Aggregation of yearlyWaterBalanceFluxes")
-					if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc)
-					if(!exists("Esurface.yr")) Esurface.yr <- get_Esurface_yr(sc)
-					if(!exists("intercept.yr")) intercept.yr <- get_Interception_yr(sc)
-					if(!exists("inf.yr")) inf.yr <- get_Inf_yr(sc)
-					if(!exists("runoff.yr")) runoff.yr <- get_Runoff_yr(sc)
-					if(!exists("transp.yr")) transp.yr <- get_Response_aggL(sc, sw_transp, "yr", 10, sum)
-					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc)
-					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc)
-					if(!exists("Esoil.yr")) Esoil.yr <- get_Response_aggL(sc, sw_evsoil, "yr", 10, sum)
-					if(!exists("deepDrain.yr")) deepDrain.yr <- get_DeepDrain_yr(sc)
-
-					rain_toSoil <- prcp.yr$rain - intercept.yr$sum
-					transp.tot <- transp.yr$top + transp.yr$bottom
-
-					evap_soil.tot <- as.vector(Esoil.yr$top + Esoil.yr$bottom)
-					evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
-
-					temp1 <- 10 * slot(slot(runData[[sc]],sw_percolation),"Year")
-					if(length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
-						drain.topTobottom <- temp1[simTime$index.useyr, 1+DeepestTopLayer]
-					} else {
-						drain.topTobottom <- NA
-					}
-					temp1 <- 10 * slot(slot(runData[[sc]],sw_hd),"Year")
-					if(length(topL) > 1) {
-						hydred.topTobottom <- apply(temp1[simTime$index.useyr, 1+topL, drop=FALSE], 1, sum)
-					} else {
-						hydred.topTobottom <- temp1[simTime$index.useyr,1+topL]
-					}
-
-					if( any(simulation_timescales=="daily")) {
-						temp1 <- 10 * slot(slot(runData[[sc]],sw_swcbulk),"Day")
-						if(simTime$index.usedy[1] == 1){ #simstartyr == startyr, then (simTime$index.usedy-1) misses first value
-							index.usedyPlusOne <- simTime$index.usedy[-length(simTime$index.usedy)]+1
-						} else {
-							index.usedyPlusOne <- simTime$index.usedy
-						}
-						if(length(topL) > 1) {
-							swcdyflux <- apply(temp1[index.usedyPlusOne,2+ld], 1, sum) - apply(temp1[index.usedyPlusOne-1,2+ld], 1, sum)
-						} else {
-							swcdyflux <- temp1[index.usedyPlusOne,2+ld] - temp1[index.usedyPlusOne-1,2+ld]
-						}
-						swc.flux <- aggregate(swcdyflux, by=list(temp1[index.usedyPlusOne,1]), FUN=sum)[,2]
-					} else {
-						swc.flux <- NA
-					}
-
-					#mean fluxes
-					resMeans[nv:(nv+22)] <- apply(fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux), 2, mean)
-					resMeans[nv+23] <- ifelse(sum(transp.tot)==0, 0, mean(transp.yr$bottom/transp.tot))
-					resMeans[nv+24] <- ifelse(sum(AET.yr$val)==0, 0, mean(transp.tot/AET.yr$val))
-					resMeans[nv+25] <- ifelse(sum(AET.yr$val)==0, 0, mean(evap_soil.tot/AET.yr$val))
-					resMeans[nv+26] <- ifelse(sum(PET.yr$val)==0, 0, mean(AET.yr$val/PET.yr$val))
-					resMeans[nv+27] <- ifelse(sum(PET.yr$val)==0, 0, mean(transp.tot/PET.yr$val))
-					resMeans[nv+28] <- ifelse(sum(PET.yr$val)==0, 0, mean(evap_soil.tot/PET.yr$val))
-
-					#sd of fluxes
-					resSDs[nv:(nv+22)] <- apply(fluxtemp, 2, sd)
-					resSDs[nv+23] <- ifelse(sum(transp.tot)==0, 0, sd(transp.yr$bottom/transp.tot))
-					resSDs[nv+24] <- ifelse(sum(AET.yr$val)==0, 0, sd(transp.tot/AET.yr$val))
-					resSDs[nv+25] <- ifelse(sum(AET.yr$val)==0, 0, sd(evap_soil.tot/AET.yr$val))
-					resSDs[nv+26] <- ifelse(sum(PET.yr$val)==0, 0, sd(AET.yr$val/PET.yr$val))
-					resSDs[nv+27] <- ifelse(sum(PET.yr$val)==0, 0, sd(transp.tot/PET.yr$val))
-					resSDs[nv+28] <- ifelse(sum(PET.yr$val)==0, 0, sd(evap_soil.tot/PET.yr$val))
-
-					nv <- nv+29
-
-					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
-				}
-
-			#27.2
-				if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
-					if(print.debug) print("Aggregation of dailySoilWaterPulseVsStorage")
-					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
-					if(!exists("transp.dy.all")) transp.dy.all <- get_Response_aggL(sc, sw_transp, "dyAll", 10, sum)
-					if(!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(sc, sw_evsoil, "dyAll", 10, sum)
-					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
-
-					percolation <- 10 * slot(slot(runData[[sc]],sw_percolation), "Day")[simTime$index.usedy, 2 + head(ld, n=-1)]
-					hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
-
-					# Water balance
-					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow=length(simTime$index.usedy), ncol=length(ld))
-					# Inputs: infiltration + received hydraulic redistribution + received percolation
-					inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
-					inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
-					inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
-
-					# Outputs: soil evaporation + transpiration + deep drainage + hydraulic redistribution donor + percolation donor
-					itemp <- 1:(ncol(Esoil.dy.all$val) - 2)
-					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + Esoil.dy.all$val[simTime$index.usedy, -(1:2)]
-					itemp <- grepl("transp_total", colnames(transp.dy.all$val))
-					outputs_by_layer[, 1:sum(itemp)] <- outputs_by_layer[, 1:sum(itemp)] + transp.dy.all$val[simTime$index.usedy, itemp]
-					itemp <- ncol(outputs_by_layer)
-					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + deepDrain.dy$val
-					outputs_by_layer[, -itemp] <- outputs_by_layer[, -itemp] + ifelse(percolation < 0, -percolation, 0)
-					outputs_by_layer <- outputs_by_layer + ifelse(hydred < 0, -hydred, 0)
-
-					# balance
-					balance <- inputs_by_layer - outputs_by_layer
-					extraction <- balance < 0
-					storage_use <- by(cbind(extraction, outputs_by_layer), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=function(x) {
-						res1 <- apply(x[, ld], MARGIN=2, FUN=rle)
-						res2 <- apply(x[, max(ld) + ld], MARGIN=2, FUN=function(y) list(out=y))
-						return(modifyList(res1, res2))})
-
-					# median duration among extracting spells for each layer and each year
-					extraction_duration_days <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) mean(dat$lengths[as.logical(dat$values)])))
-
-					# median annual sum of all extracted water during extracting spells for each layer and each year
-					extraction_summed_mm <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) {
-							dat$values <- as.logical(dat$values)
-							temp <- dat
-							if(any(dat$values)) temp$values[dat$values] <- 1:sum(dat$values) # give unique ID to each extraction spell
-							if(any(!dat$values)){
-								temp$values[!dat$values] <- 0 # we are not interested in positive spells
-								has_zero <- TRUE
-							} else {
-								has_zero <- FALSE
-							}
-							storage_ids <- inverse.rle(temp)
-							x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
-							if(has_zero && length(x) > 0) x <- x[-1] # remove first element because this represents the positive spells (id = 0)
-							return(sum(x))
-						}))
-
-					# aggregate across years for each soil layer
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
-					nv <- nv+SoilLayer_MaxNo
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
-					nv <- nv+SoilLayer_MaxNo
-
-					rm(percolation, hydred, inputs_by_layer, outputs_by_layer, balance, extraction, storage_use, extraction_duration_days, extraction_summed_mm)
-				}
-
-
-				#---Aggregation: Daily extreme values
-			#28
-				if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {#mean and SD of DOY and value of minimum/maximum
-					if(print.debug) print("Aggregation of dailyTranspirationExtremes")
-					if(!exists("transp.dy")) transp.dy <- get_Response_aggL(sc, sw_transp, "dy", 10, FUN=sum)
-
-					extremes <- as.matrix(aggregate(cbind(transp.dy$top + transp.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
-					nv <- nv+2
-
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+2
-
-					rm(extremes)
-				}
-			#29
-				if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
-					if(print.debug) print("Aggregation of dailyTotalEvaporationExtremes")
-					if(!exists("Esoil.dy")) Esoil.dy <- get_Response_aggL(sc, sw_evsoil, "dy", 10, FUN=sum)
-					if(!exists("Esurface.dy")) Esurface.dy <- get_Esurface_dy(sc)
-
-					extremes <- as.matrix(aggregate(cbind(Esoil.dy$top + Esoil.dy$bottom + Esurface.dy$sum), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
-					nv <- nv+2
-
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+2
-
-					rm(extremes)
-				}
-			#30
-				if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
-					if(print.debug) print("Aggregation of dailyDrainageExtremes")
-					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc)
-
-					extremes <- as.matrix(aggregate(deepDrain.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
-					nv <- nv+2
-
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+2
-
-					rm(extremes)
-				}
-			#31
-				if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
-					if(print.debug) print("Aggregation of dailyInfiltrationExtremes")
-					if(!exists("inf.dy")) inf.dy <- get_Inf_dy(sc)
-
-					extremes <- as.matrix(aggregate(inf.dy$inf, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
-					nv <- nv+2
-
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+2
-
-					rm(extremes)
-				}
-			#32
-				if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {
-					if(print.debug) print("Aggregation of dailyAETExtremes")
-					if(!exists("AET.dy")) AET.dy <- get_AET_dy(sc)
-
-					extremes <- as.matrix(aggregate(AET.dy$val, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-
-					resMeans[nv:(nv+1)] <- apply(temp <- extremes[, c(2:3), drop=FALSE], MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
-					nv <- nv+2
-
-					resMeans[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+1)] <- apply(extremes[, 4:5, drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+2
-
-					rm(extremes)
-				}
-			#33
-				if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
-					if(print.debug) print("Aggregation of dailySWPextremes")
-					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
-					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
-
-					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
-						extremes <- as.matrix(aggregate(cbind(swpmatric.dy$top, swpmatric.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-					} else {
-						extremes <- cbind(temp <- as.matrix(aggregate(swpmatric.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
-					}
-
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=mean, na.rm=TRUE)
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=sd, na.rm=TRUE)
-					nv <- nv+4
-
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+4
-
-					rm(extremes)
-				}
-			#34
-				if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
-					if(print.debug) print("Aggregation of dailyRechargeExtremes")
-					if(!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(sc, sw_swcbulk, "dy", 10, FUN=sum)
-
-					recharge.dy <- NULL
-					recharge.dy$top <- swcbulk.dy$top / (SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
-
-					if(length(bottomL) > 0 && !identical(bottomL, 0)) {
-						recharge.dy$bottom <- swcbulk.dy$bottom / (SWPtoVWC(-0.033, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL]))
-						extremes <- as.matrix(aggregate(cbind(recharge.dy$top, recharge.dy$bottom), by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365))))
-					} else {
-						extremes <- cbind(temp <- as.matrix(aggregate(recharge.dy$top, by=list(simTime2$year_ForEachUsedDay), FUN=function(x) c(max(x), min(x), circ.mean(which(x==max(x)), int=365), circ.mean(which(x==min(x)), int=365)))), matrix(NA, nrow=nrow(temp), ncol=ncol(temp)-1))
-					}
-
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(2:3, 6:7), drop=FALSE], MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
-					nv <- nv+4
-
-					resMeans[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.mean(x, int=365))
-					resSDs[nv:(nv+3)] <- apply(extremes[, c(4:5, 8:9), drop=FALSE], MARGIN=2, FUN=function(x) circ.sd(x, int=365))
-					nv <- nv+4
-
-					rm(recharge.dy, extremes)
-				}
-
-				#---Aggregation: Ecological dryness
-			#35
+			#35.2
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
 					if(print.debug) print("Aggregation of dailyWetDegreeDays")
 					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
@@ -6219,8 +6230,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of monthlySoilTemp")
 					if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(sc, sw_soiltemp, "mo", scaler=1, FUN=weighted.mean, weights=layers_width)
 
-					resMeans[nv+st_mo-1] <- soiltemp.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- soiltemp.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(soiltemp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(soiltemp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(soiltemp.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(soiltemp.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#48
@@ -6237,8 +6250,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of monthlyHydraulicRedistribution")
 					if(!exists("hydred.mo")) hydred.mo <- get_Response_aggL(sc, sw_hd, "mo", 10, FUN=sum)
 
-					resMeans[nv+st_mo-1] <- hydred.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- hydred.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(hydred.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(hydred.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(hydred.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(hydred.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#50
@@ -6274,8 +6289,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of monthlyVWC")
 					if(!exists("vwcbulk.mo")) vwcbulk.mo <- get_Response_aggL(sc, sw_vwcbulk, "mo", 1, FUN=weighted.mean, weights=layers_width)
 
-					resMeans[nv+st_mo-1] <- vwcbulk.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- vwcbulk.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(vwcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(vwcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(vwcbulk.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(vwcbulk.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#53 b.)
@@ -6283,8 +6300,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of monthlyVWCmatric")
 					if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(sc, sw_vwcmatric, "mo", 1, FUN=weighted.mean, weights=layers_width)
 
-					resMeans[nv+st_mo-1] <- vwcmatric.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- vwcmatric.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(vwcmatric.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(vwcmatric.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(vwcmatric.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(vwcmatric.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#54
@@ -6292,35 +6311,55 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of monthlySWCbulk")
 					if(!exists("swcbulk.mo")) swcbulk.mo <- get_Response_aggL(sc, sw_swcbulk, "mo", 10, FUN=sum)
 
-					resMeans[nv+st_mo-1] <- swcbulk.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- swcbulk.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(swcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(swcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(swcbulk.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(swcbulk.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
-			#55 a.)
+			#55
 				if(any(simulation_timescales=="monthly") & aon$monthlySWAbulk){
 					if(print.debug) print("Aggregation of monthlySWA")
-					if(!exists("swabulk.mo")) swabulk.mo <- get_Response_aggL(sc, sw_swabulk, "mo", 10, FUN=sum)
+					if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(sc, sw_vwcmatric, "mo", 1, FUN=weighted.mean, weights=layers_width)
 
-					resMeans[nv+st_mo-1] <- swabulk.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- swabulk.mo$aggMean.bottom
-					nv <- nv+24
-				}
-			#55 b.)
-				if(any(simulation_timescales=="monthly") & aon$monthlySWAmatric){
-					if(print.debug) print("Aggregation of monthlySWA")
-					if(!exists("swamatric.mo")) swamatric.mo <- get_Response_aggL(sc, sw_swamatric, "mo", 10, FUN=sum)
-
-					resMeans[nv+st_mo-1] <- swamatric.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- swamatric.mo$aggMean.bottom
-					nv <- nv+24
+					VWCcritsT <- SWPtoVWC(SWPcrit_MPa, texture$sand.top, texture$clay.top)
+					VWCcritsB <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+							SWPtoVWC(SWPcrit_MPa, texture$sand.bottom, texture$clay.bottom)
+						} else {
+							rep(NA, length(SWPcrit_MPa))
+						}
+					
+					for (icrit in SWPcrit_MPa) {
+						temp_top_mo <- 10 * sum(layers_width[topL]) * (vwcmatric.mo$top - VWCcritsT[icrit])
+						temp_top_mean <- aggregate(temp_top_mo, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+						temp_top_sd <- aggregate(temp_top_mo, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+						
+						if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+							temp_bottom_mo <- 10 * sum(layers_width[bottomL]) * (vwcmatric.mo$bottom - VWCcritsB[icrit])
+							temp_bottom_mean <- aggregate(temp_bottom_mo, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+							temp_bottom_sd <- aggregate(temp_bottom_mo, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+						} else {
+							temp_bottom_mo <- temp_bottom_mean <- temp_bottom_sd <- rep(NA, 12)
+						}
+					
+						resMeans[nv+st_mo-1] <- ifelse(temp_top_mean > 0, temp_top_mean, 0)
+						resSDs[nv+st_mo-1] <- ifelse(temp_top_mean > 0, temp_top_sd, 0)
+						resMeans[nv+st_mo-1+12] <- ifelse(is.na(temp_bottom_mean) | temp_bottom_mean > 0, temp_bottom_mean, 0)
+						resSDs[nv+st_mo-1+12] <- ifelse(is.na(temp_bottom_sd) | temp_bottom_sd > 0, temp_bottom_sd, 0)
+						nv <- nv+24
+					}
+					
+					rm(VWCcritsT, VWCcritsB, temp_top_mo, temp_top_mean, temp_top_sd, temp_bottom_mo, temp_bottom_mean, temp_bottom_sd)
 				}
 			#56
 				if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
 					if(print.debug) print("Aggregation of monthlyTranspiration")
 					if(!exists("transp.mo")) transp.mo <- get_Response_aggL(sc, sw_transp, "mo", 10, FUN=sum)
 
-					resMeans[nv+st_mo-1] <- transp.mo$aggMean.top
-					resMeans[nv+st_mo-1+12] <- transp.mo$aggMean.bottom
+					resMeans[nv+st_mo-1] <- aggregate(transp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1] <- aggregate(transp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
+					resMeans[nv+st_mo-1+12] <- aggregate(transp.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
+					resSDs[nv+st_mo-1+12] <- aggregate(transp.mo$bottom, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+24
 				}
 			#57
@@ -7214,7 +7253,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 
 	#objects to export
 	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
-			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swabulk","sw_swamatric","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
+			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))

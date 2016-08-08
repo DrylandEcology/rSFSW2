@@ -645,11 +645,11 @@ if (length(Tables) == 0 || do.clean) {
 		}
 	#11
 		if(any(simulation_timescales=="daily") & aon$dailyFrostInSnowfreePeriod){			
-			temp <- c(temp, paste0("TminBelow", ifelse(Tmin_crit_C < 0, "Neg", ifelse(Tmin_crit_C > 0, "Pos", "")), abs(Tmin_crit_C), "degCwithoutSnowpack_days_mean"))
+			temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnowpack_days_mean"))
 		}
 	#12
 		if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
-			temp <- c(temp, paste0("TmaxAbove", ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "degC_days_mean"))
+			temp <- c(temp, paste0("TmaxAbove", fieldtag_Tmax_crit_C, "_days_mean"))
 		}
 	#12b
 		if (any(simulation_timescales == "daily") && aon$dailyWarmDays) {
@@ -660,11 +660,6 @@ if (length(Tables) == 0 || do.clean) {
 			bins.summary <- (0:6) * bin.prcpSizes
 			temp <- c(temp, paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep=""))
 			rm(bins.summary)
-		}
-	
-	#14
-		if(any(simulation_timescales=="yearly") & aon$yearlyAET){
-			temp <- c(temp, "AET_mm_mean")
 		}
 	
 	#15
@@ -728,22 +723,13 @@ if (length(Tables) == 0 || do.clean) {
 		if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){
 			temp <- c(temp, paste("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays_mean", sep=""))
 		}
-	#25
-		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
-			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "MoistureControlSection_Lower_cm", "AnhydrousControlSection_Upper_cm", "AnhydrousControlSection_Lower_cm", "Permafrost_TF"),
-							paste0(c(c("SoilTemp_AnhydrousDepth_C","SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
-							c("Cumlative_Days_Above_0C", "Cumlative_Days_Above_5C", "Cumlative_DryDays_whenT50Above5C", "Consecutive_MoistDays_whenT50Above8C","Consecutive_DryDays_Summer", "Consecutive_MoistDays_AllYear_AnyLayer", "Cumlative_MoistDays_AllYear_AnyLayer", "Cumlative_DryDays_AllYear_AnyLayer","Consecutive_MoistDays_Winter")), "_mean"),
-							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
-		}	
-	#26	
-		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
-			cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
-			temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
-			rm(cats)
-		}
 
 		##############################################################---Aggregation: Yearly water balance---##############################################################
+		
+	#27.0
+		if(any(simulation_timescales=="yearly") & aon$yearlyAET){
+			temp <- c(temp, "AET_mm_mean")
+		}
 	
 	#27
 		if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
@@ -796,9 +782,23 @@ if (length(Tables) == 0 || do.clean) {
 
 		##############################################################---Aggregation: Ecological dryness---##############################################################
 	
-	#35
+	#35a
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "MoistureControlSection_Lower_cm", "AnhydrousControlSection_Upper_cm", "AnhydrousControlSection_Lower_cm", "Permafrost_TF"),
+							paste0(c(c("SoilTemp_AnhydrousDepth_C","SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
+							c("Cumlative_Days_Above_0C", "Cumlative_Days_Above_5C", "Cumlative_DryDays_whenT50Above5C", "Consecutive_MoistDays_whenT50Above8C","Consecutive_DryDays_Summer", "Consecutive_MoistDays_AllYear_AnyLayer", "Cumlative_MoistDays_AllYear_AnyLayer", "Cumlative_DryDays_AllYear_AnyLayer","Consecutive_MoistDays_Winter")), "_mean"),
+							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
+							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
+		}	
+	#35b	
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+			cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
+			temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
+			rm(cats)
+		}
+	#35.2
 		if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){
-			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
+			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
 		}
 	
 	#35.3
@@ -824,29 +824,29 @@ if (length(Tables) == 0 || do.clean) {
 
 	#36
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){
-			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""), 
-					paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep=""))
+			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""), 
+					paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep=""))
 		}
 	
 	#37
 		if(any(simulation_timescales=="daily") & aon$dailySWPdrynessANDwetness){
-			temp <- c(temp, paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)), 
+			temp <- c(temp, paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(fieldtag_SWPcrit_MPa, each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)), 
 							rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each=4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each=2), times=2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times=2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times=2)), "_mean", sep=""))
 		}
 	
 	#38
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
 			quantiles <- c(0.05, 0.5, 0.95)
-			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
+			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
 			rm(quantiles)
 		}
 	#39
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsAvailableWater){
-			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), "_AvailableWater_mm_mean", sep=""))
+			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), "_AvailableWater_mm_mean", sep=""))
 		}
 	#40
 		if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDrySpells){
-			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
+			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
 		}
 	#41
 		if(any(simulation_timescales=="daily") & aon$dailySWPdrynessDurationDistribution){
@@ -854,11 +854,16 @@ if (length(Tables) == 0 || do.clean) {
 			quantiles <- (0:4)/4
 			mo_seasons <- matrix(data=c(12,1:11), ncol=3, nrow=4, byrow=TRUE)
 			season.flag <- c("DJF", "MAM", "JJA", "SON")
-			for(icrit in seq(along=SWPcrit_MPa)) {
-				for(season in 1:nrow(mo_seasons)){
-					temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Month", season.flag[season], ".", rep(c("topLayers", "bottomLayers"), each=length(quantiles)), ".Duration_days_quantile", rep(quantiles, times=2), sep=""))
-				}
-			}
+
+			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+								rep(rep(fieldtag_SWPcrit_MPa, each = 2 * length(quantiles)), times = length(season.flag)),
+								".Month",
+								rep(season.flag, each = 2 * length(quantiles) * length(SWPcrit_MPa)), ".",
+								rep(rep(paste0(rep(c("topLayers", "bottomLayers"), each = length(quantiles)),
+									".Duration_days_quantile",
+									rep(quantiles, times = 2)), times = length(SWPcrit_MPa)),
+								times = length(season.flag))))
+
 			rm(deciles, quantiles, mo_seasons, season.flag)
 		}
 	
@@ -867,17 +872,25 @@ if (length(Tables) == 0 || do.clean) {
 			binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
 			binsN <- length(binSize) - 1
 			binTitle <- paste("SizeClass", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days", sep="")
-			for(icrit in seq(along=SWPcrit_MPa)) {
-				temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".Annual.", rep(c("topLayers", "bottomLayers"), each=binsN+1), rep(c("_count", paste(".", binTitle, "_fraction", sep="")), times=2), "_mean", sep=""))
-			}
+
+			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+								rep(fieldtag_SWPcrit_MPa, each = 2 * (binsN + 1)),
+								".Annual.",
+								rep(c("topLayers", "bottomLayers"), each = binsN + 1),
+								rep(c("_count", paste0(".", binTitle, "_fraction")), times = 2),
+								"_mean"))
+
 			rm(binSize, binsN, binTitle)
 		}
 	
 	#43
 		if(any(simulation_timescales=="daily") && aon$dailySWPdrynessIntensity) {
-			for(icrit in seq(along=SWPcrit_MPa)){
-				temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".MissingWater.", rep(c("topLayers", "bottomLayers"), each=4), ".", rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times=2), "_mean", sep=""))
-			}
+			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+								rep(fieldtag_SWPcrit_MPa, each = 4 * 2),
+								".MissingWater.",
+								rep(c("topLayers", "bottomLayers"), each = 4), ".",
+								rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times = 2),
+								"_mean"))
 		}
 
 	#43.2	
@@ -954,13 +967,12 @@ if (length(Tables) == 0 || do.clean) {
 			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
 		}
 	
-	#55 a.)
+	#55
 		if(any(simulation_timescales=="monthly") & aon$monthlySWAbulk){
-			temp <- c(temp, paste("AWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
-		}
-	#55 b.)
-		if(any(simulation_timescales=="monthly") & aon$monthlySWAmatric){
-			temp <- c(temp, paste("AWCmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+			temp <- c(temp, paste0("SWAbulk_",
+								"SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
+								c(paste0("topLayers_m", st_mo), paste0("bottomLayers_m", st_mo)),
+								"_mm_mean"))
 		}
 	
 	#56
