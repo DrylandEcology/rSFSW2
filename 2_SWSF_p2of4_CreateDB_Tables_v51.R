@@ -559,6 +559,12 @@ if (length(Tables) == 0 || do.clean) {
 		##############################################################---Aggregation: SoilWat inputs---##############################################################
 		## Note: All '.' will be translated to "_" because of sqlite field name constraints
 		temp <- character(0)
+		
+		fieldtag_SWPcrit_MPa <- paste0(abs(round(-1000 * SWPcrit_MPa, 0)), "kPa")
+		fieldtag_Tmin_crit_C <- paste0(ifelse(Tmin_crit_C < 0, "Neg", ifelse(Tmin_crit_C > 0, "Pos", "")), abs(Tmin_crit_C), "C")
+		fieldtag_Tmax_crit_C <- paste0(ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "C")
+		fieldtag_Tmean_crit_C <- paste0(ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "C")
+
 	#0.
 		if(aon$input_SoilProfile){
 			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction", "topLayers.Gravel_fraction", "bottomLayers.Gravel_fraction","deltaX"), sep="")
@@ -645,6 +651,10 @@ if (length(Tables) == 0 || do.clean) {
 		if(any(simulation_timescales=="daily") & aon$dailyHotDays){			
 			temp <- c(temp, paste0("TmaxAbove", ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "degC_days_mean"))
 		}
+	#12b
+		if (any(simulation_timescales == "daily") && aon$dailyWarmDays) {
+		  temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days_mean"))
+		}	
 	#13
 		if(any(simulation_timescales=="daily") & aon$dailyPrecipitationEventSizeDistribution){
 			bins.summary <- (0:6) * bin.prcpSizes
@@ -791,6 +801,27 @@ if (length(Tables) == 0 || do.clean) {
 			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
 		}
 	
+	#35.3
+		if(any(simulation_timescales=="daily") && aon$dailyThermalDrynessStartEnd){	
+		  temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
+							rep(fieldtag_SWPcrit_MPa, each = 4),
+							"_NSadj_",
+							rep(c("topLayers", "bottomLayers"), each = 2), "_",
+							rep(c("Start", "End"), times = 2),
+							"_LongestContinuous_days_mean"))
+		}
+
+	#35.4	
+		if(any(simulation_timescales=="daily") && aon$dailyThermalSWPConditionCount){
+		  temp <- c(temp, paste0("SoilPeriods_Warm",
+							rep(paste0(rep(c("Dry", "Wet"), times = 3), "_",
+								rep(c("allLayers", "topLayer", "bottomLayer"), each = 2)),
+								each = length(Tmean_crit_C) * length(SWPcrit_MPa)),
+							"_Tcrit", rep(fieldtag_Tmean_crit_C, times = length(SWPcrit_MPa)),
+							"_SWPcrit", rep(fieldtag_SWPcrit_MPa, each = length(Tmean_crit_C)),
+							"_Count_days_mean"))
+		}
+
 	#36
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){
 			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(paste(abs(round(-1000*SWPcrit_MPa, 0)), "kPa", sep=""), times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""), 
@@ -848,6 +879,19 @@ if (length(Tables) == 0 || do.clean) {
 				temp <- c(temp, paste("DrySoilPeriods.SWPcrit", paste(abs(round(-1000*SWPcrit_MPa[icrit], 0)), "kPa", sep=""), ".MissingWater.", rep(c("topLayers", "bottomLayers"), each=4), ".", rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times=2), "_mean", sep=""))
 			}
 		}
+
+	#43.2	
+		if(any(simulation_timescales=="daily") && aon$dailyThermalDrynessStress){
+			temp <- c(temp, 
+						paste0("Mean10HottestDays_AirTmax", 
+							c("_mean", "_max",
+							paste0(paste0("_MoistureStress_",
+									"SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
+									rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = length(SWPcrit_MPa)), each = 2)
+								),
+								rep(c("_mean", "_max"), each = length(SWPcrit_MPa))))))
+
+		}		
 
 		##############################################################---Aggregation: Mean monthly values---##############################################################
 	
@@ -975,24 +1019,7 @@ if (length(Tables) == 0 || do.clean) {
 				#Output for time series: not yet implemented for db			
 			}
 		}
-	#64
-		if(any(simulation_timescales=="daily")  & aon$dailyThermalDryPeriods ){	
-		  temp <- c(temp, paste(rep(c("Top","Bottom"),each=2,times=length(SWPcrit_MPa)),c("StartDoY", "EndDoY"), rep(SWPcrit_MPa, each=4),sep="_"))
-		}
-	#65
-		if(any(simulation_timescales=="daily") & aon$dailyWarmDays){
-		  temp <- c(temp, paste0("TmaxAbove", ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "T_mean_crit_days"))
-		}	
-	#66	
-		if(any(simulation_timescales=="daily") & aon$dailyDegreeDaysCnt){
-		  temp <- c(temp, paste("DegreeDays.Cnt", SWPcrit_MPa ,"C.dailyTmeanCnt", sep="_"))
-  	  temp <- c(temp,  paste("DegreeDays.Cnt", rep(SWPcrit_MPa,each=3*2,times=length(Tmean_crit_C)), rep(Tmean_crit_C,each=length(SWPcrit_MPa)*2*3), rep(c("Bot","Top","All"),each=2, times=length(Tmean_crit_C)*length(SWPcrit_MPa)/2), rep(c("UnderCrit","OverCrit"),length(Tmean_crit_C)*length(SWPcrit_MPa)*3),"C.dailyTmeanCnt", sep="_"))
-		}
-	#67	
-		if(any(simulation_timescales=="daily") & aon$dailyTMaxTenDayMean){
-		  temp <- c(temp, "HottestTopTen")
-		  temp <- c(temp, paste("HottestTopTenCrit",rep(c("TopOver","TopBelow","BotOver","BotBelow","AllOver","AllBelow"),each=length(SWPcrit_MPa)), SWPcrit_MPa, sep= "_")   )
-		}		
+
 		#---Aggregation: done with options
 	
 		#Convert '.' to "_"

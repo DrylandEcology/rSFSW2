@@ -322,6 +322,7 @@ output_aggregates <- c(
 						"dailySnowpack", 1,
 						"dailyFrostInSnowfreePeriod", 1,
 						"dailyHotDays", 1,
+						"dailyWarmDays", 1,
 						"dailyPrecipitationEventSizeDistribution", 1,
 						"yearlyAET", 1,
 						"yearlyPET", 1,
@@ -351,6 +352,8 @@ output_aggregates <- c(
 						"dailyRechargeExtremes", 1,
 					#---Aggregation: Ecological dryness
 						"dailyWetDegreeDays", 1,
+						"dailyThermalDrynessStartEnd", 1,
+						"dailyThermalSWPConditionCount", 1,
 						"monthlySWPdryness", 1,
 						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
 						"dailySuitablePeriodsDuration", 1,
@@ -359,6 +362,7 @@ output_aggregates <- c(
 						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
 						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
 						"dailySWPdrynessIntensity", 1,
+						"dailyThermalDrynessStress", 1,
 					#---Aggregation: Mean monthly values
 						"monthlyTemp", 1,
 						"monthlyPPT", 1,
@@ -381,13 +385,8 @@ output_aggregates <- c(
 						"monthlyAETratios", 1,
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
-						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_GISSM", 0,
-					#---Aggregation: 
-					  "dailyThermalDryPeriods", 1,
-					  "dailyWarmDays",1,
-					  "dailyDegreeDaysCnt",1,
-					  "dailyTMaxTenDayMean", 1
+						"dailyRegeneration_bySWPSnow", 1,
+						"dailyRegeneration_GISSM", 1
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
