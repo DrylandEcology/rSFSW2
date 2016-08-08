@@ -59,7 +59,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 if(interactive()) {
-	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test2_LookupWeatherFolders"))
+	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test4_AllOverallAggregations"))
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
@@ -97,7 +97,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #	- output handling
 #		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
 #		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-actions <- c("external", "map_input", "create", "execute", "aggregate", "concatenate")
+actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
@@ -118,7 +118,7 @@ checkCompleteness <- FALSE
 check.blas <- FALSE
 
 #------Define how aggregated output should be handled:
-cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
+cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
 deleteTmpSQLFiles <- FALSE
 copyCurrentConditionsFromTempSQL <- TRUE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
@@ -132,8 +132,8 @@ dailyweather_options <- c("Maurer2002_NorthAmerica", "DayMet_NorthAmerica", "Loo
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData_test.sqlite3")
-createAndPopulateWeatherDatabase <- TRUE #TRUE, will create a new(!) database and populate with current data
+dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
+createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
 dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
 
 #-Spatial setup of simulations
@@ -177,7 +177,7 @@ do.ExtractExternalDatasets <- c(
 		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
 		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		#CMIP5
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 1,	#1/8-degree resolution
+		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
 		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
 
@@ -242,6 +242,7 @@ climate.ambient <- "Current"	#Name of climatic conditions of the daily weather i
 #Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
 climate.conditions <- c(climate.ambient,	"RCP45.CanESM2", "RCP45.CESM1-CAM5", "RCP45.HadGEM2-CC",
 											"RCP85.CanESM2", "RCP85.CESM1-CAM5", "RCP85.HadGEM2-CC")
+climate.conditions <- c(climate.ambient)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
@@ -386,14 +387,14 @@ output_aggregates <- c(
 						"monthlyAETratios", 1,
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
-						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_GISSM", 0
+						"dailyRegeneration_bySWPSnow", 1,
+						"dailyRegeneration_GISSM", 1
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
 
 #options: NULL or at least one of c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
-output_aggregate_daily <- c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
+output_aggregate_daily <- NULL # c("AET", "Transpiration", "EvaporationSoil", "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "SoilTemperature")
 #select variables to output as aggregated yearly time series
 ouput_aggregated_ts <- NULL #c("Regeneration")
 

@@ -326,22 +326,20 @@ output_aggregates <- c(
 						"dailyHotDays", 1,
 						"dailyWarmDays", 1,
 						"dailyPrecipitationEventSizeDistribution", 1,
-						"yearlyAET", 1,
 						"yearlyPET", 1,
 						"monthlySeasonalityIndices", 1,
 					#---Aggregation: Climatic dryness
 						"yearlymonthlyTemperateDrylandIndices", 1,
 						"yearlyDryWetPeriods", 1,
-						"dailyWeatherGeneratorCharacteristics", 1,	#Takes about .5120 seconds for 33 scenarios is about
+						"dailyWeatherGeneratorCharacteristics", 1,
 						"dailyPrecipitationFreeEventDistribution", 1,
 						"monthlySPEIEvents", 1,
 					#---Aggregation: Climatic control
 						"monthlyPlantGrowthControls", 1,
 						"dailyC4_TempVar", 1,
 						"dailyDegreeDays", 1,
-						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
-						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 					#---Aggregation: Yearly water balance
+						"yearlyAET", 1,
 						"yearlyWaterBalanceFluxes", 1,
 						"dailySoilWaterPulseVsStorage", 1,
 					#---Aggregation: Daily extreme values
@@ -350,19 +348,21 @@ output_aggregates <- c(
 						"dailyDrainageExtremes", 1,
 						"dailyInfiltrationExtremes", 1,
 						"dailyAETExtremes", 1,
-						"dailySWPextremes", 1,						#Takes about .7630 seconds for 33 scenarios is about .419 minutes
+						"dailySWPextremes", 1,
 						"dailyRechargeExtremes", 1,
 					#---Aggregation: Ecological dryness
+						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
 						"dailyWetDegreeDays", 1,
 						"dailyThermalDrynessStartEnd", 1,
 						"dailyThermalSWPConditionCount", 1,
 						"monthlySWPdryness", 1,
-						"dailySWPdrynessANDwetness", 1, 			#Takes about 3.200 seconds for 33 scenarios is about 1.76 minutes
+						"dailySWPdrynessANDwetness", 1,
 						"dailySuitablePeriodsDuration", 1,
 						"dailySuitablePeriodsAvailableWater", 1,
 						"dailySuitablePeriodsDrySpells", 1,
-						"dailySWPdrynessDurationDistribution", 1,	#Takes about .8132 seconds for 33 scenarios is about .447 minutes
-						"dailySWPdrynessEventSizeDistribution", 1,	#Takes about .5120 seconds for 33 scenarios is about .2819334
+						"dailySWPdrynessDurationDistribution", 1,
+						"dailySWPdrynessEventSizeDistribution", 1,
 						"dailySWPdrynessIntensity", 1,
 						"dailyThermalDrynessStress", 1,
 					#---Aggregation: Mean monthly values
@@ -379,7 +379,6 @@ output_aggregates <- c(
 						"monthlyVWCmatric", 1,
 						"monthlySWCbulk", 1,
 						"monthlySWAbulk", 1,
-						"monthlySWAmatric", 1,
 						"monthlyTranspiration", 1,
 						"monthlySoilEvaporation", 1,
 						"monthlyAET", 1,
@@ -477,7 +476,6 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 	sw_surfaceWater	<- "SURFACEWATER"
 	sw_swp			<- "SWPMATRIC"
 	sw_swabulk		<- "SWABULK"
-	sw_swamatric	<- "SWAMATRIC"
 	sw_swcbulk		<- "SWCBULK"
 	sw_temp			<- "TEMP"
 	sw_transp		<- "TRANSP"
