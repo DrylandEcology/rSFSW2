@@ -30,7 +30,7 @@ if (length(tests) > 0) {
 			temp <- readline("Should the test output be deleted (y/n): ")
 			temp == "y" || temp == "Y" || grepl("yes", temp, ignore.case = TRUE)
 		} else {
-			FALSE
+			TRUE
 		}
 
 	if (delete_output) for (it in seq_along(tests)) {

@@ -59,7 +59,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 if(interactive()) {
-	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "2_SWSF_p1of4_Settings_v51"))
+	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test1_downscaling_overhaul"))
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
