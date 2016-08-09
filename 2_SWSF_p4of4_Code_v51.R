@@ -2015,12 +2015,50 @@ circ.sd <- function(x, int, na.rm=FALSE){
 }
 
 
-#functions wet and dry periods			  
+#functions wet and dry periods
+
+#' Saturation vapor pressure
+#'
+#' @param T A numeric vector of temperature(s) (deg C)
+#' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at 
+#'    temperature T
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+vp0 <- function(T) {
+	0.6108 * exp(17.27 * T / (T + 273.3))	# eq. 5 of Yoder et al. 2005
+}
+
+
+#' Vapor pressure deficit
+#'
+#' @param Tmin A numeric vector of daily minimum temperature(s) (deg C)
+#' @param Tmax A numeric vector of daily maximum temperature(s) (deg C)
+#' @param RHmean A numeric vector of daily mean relative humidity (percentage)
+#' @return A numeric vector of length \code{T} of vapor pressure deficit (kPa)
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+vpd <- function(Tmin, Tmax, RHmean = NULL) {
+	if (is.null(RHmean)) {
+		(vp0(Tmax) - vp0(Tmin)) / 2	# eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
+	} else {
+		(vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)	# eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
+	}
+}
+
+
+#' @param x A numeric vector
+#' @param fun A function which requires one argument. \code{fun} will be applied to
+#'    the k-largest values of \code{x}.
+#' @param k An integer value. The k-largest value(s) of \code{x} will be used. The largest
+#'    value will be used if 0 or negative.
+#' @param na.rm A logical value
+#' @param ... Optional arguments to be passed to \code{fun}
+#' 
+#' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},
+#'    otherwise the result of applying \code{fun} to the k-largest values.
 fun_kLargest <- function(x, fun = NULL, k = 10L, na.rm = FALSE, ...) {
 	if (na.rm)
 		x <- na.exclude(x)
 	x <- sort.int(x, decreasing = TRUE, na.last = !na.rm, method = "radix")
-	x <- x[seq_len(max(1L, min(length(x), k)))]
+	x <- x[seq_len(max(1L, min(length(x), as.integer(k))))]
 	
 	if (is.null(fun)) x else fun(x, ...)
 }
@@ -4244,12 +4282,30 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			return(list(mean=slot(slot(runData[[sc]],"TEMP"),"Year")[simTime$index.useyr, 4]))
 		}
 		get_Temp_mo <- function(sc){
-			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 4], mean=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 5]))
+			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 4],
+						mean=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 5],
+						max=slot(slot(runData[[sc]],"TEMP"),"Month")[simTime$index.usemo, 3]))
 		}
 		get_Temp_dy <- function(sc){
 			return(list(min=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 4],
 							mean=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 5],
 							max=slot(slot(runData[[sc]],"TEMP"),"Day")[simTime$index.usedy, 3]))
+		}
+		get_VPD_mo <- function(sc, temp.mo) {
+			rH <- swCloud_SkyCover(swRunScenariosData[[sc]])
+			rH <- as.vector(rH[simTime2$month_ForEachUsedMonth])
+			res <- list()
+			res$mean <- vpd(temp.mo$min, temp.mo$max, rH)
+			
+			res
+		}
+		get_VPD_dy <- function(sc, temp.dy) {
+			rH <- swCloud_SkyCover(swRunScenariosData[[sc]])
+			rH <- as.vector(rH[simTime2$month_ForEachUsedDay])
+			res <- list()
+			res$mean <- vpd(temp.dy$min, temp.dy$max, rH)
+			
+			res
 		}
 
 		get_PPT_yr <- function(sc){
@@ -4381,6 +4437,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				to_del <- c("temp.yr", "temp.mo", "temp.dy",
 							"prcp.yr", "prcp.mo", "prcp.dy",
 							"PET.yr", "PET.mo", "PET.dy",
+							"vpd.yr", "vpd.mo", "vpd.dy",
 							"AET.yr", "AET.mo", "AET.dy",
 							"soiltemp.yr", "soiltemp.mo", "soiltemp.dy",
 							"swcbulk.yr", "swcbulk.mo", "swcbulk.dy",
@@ -6161,24 +6218,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
 				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
 				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
+				  if(!exists("vpd.dy")) vpd.dy <- get_vpd_dy(sc, temp.dy)
 				  
-				  # Moisture stress during hot and dry periods
+				  # Moisture stress during hot and dry periods				  
 				  nv_add <- length(SWPcrit_MPa)
-				  dryness <- matrix(rep.int(SWPcrit_MPa, length(temp.dy$max)),
+				  dryness <- matrix(rep.int(SWPcrit_MPa, length(vpd.dy$mean)),
 				      ncol = nv_add, byrow = TRUE)
 				  n_conds <- 4L
 				  conds <- list() # max length(conds) == n_conds
-				  conds[["Always"]] <- matrix(TRUE, nrow = length(temp.dy$max), ncol = 1)
+				  conds[["Always"]] <- matrix(TRUE, nrow = length(vpd.dy$mean), ncol = 1)
 				  conds[["DryAll"]] <- apply(swpmatric.dy.all$val[simTime$index.usedy, -(1:2), drop = FALSE], 1, max) < dryness
 				  conds[["DryTop"]] <- swpmatric.dy$top < dryness
 				  conds[["DryBottom"]] <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
 						  swpmatric.dy$bottom < dryness
 					  } else{
-						  matrix(FALSE, nrow = length(temp.dy$max), ncol = nv_add)
+						  matrix(FALSE, nrow = length(vpd.dy$mean), ncol = nv_add)
 					  }
 				  
 				  for (d3 in seq_len(n_conds)) {
-					temp <- ifelse(conds[[d3]], temp.dy$max, NA)
+					temp <- ifelse(conds[[d3]], vpd.dy$mean, NA)
 				    nv_add <- ncol(temp)
 					stress <- array(NA, dim = c(simTime$no.useyr, nv_add))
 					for (d2 in seq_len(nv_add)) {
@@ -6388,6 +6446,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resMeans[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate( PET.mo$val , by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
 					nv <- nv+12
+				}
+			#59.2
+				if (any(simulation_timescales == "monthly") && aon$monthlyVPD) {
+					if (print.debug) print("Aggregation of monthlyVPD")
+					if (!exists("temp.mo")) temp.mo <- get_Temp_mo(sc)
+					if (!exists("vpd.mo")) vpd.mo <- get_VPD_mo(sc, temp.mo)
+					
+					nv_new <- nv + 12
+					resMeans[nv:(nv_new - 1)] <- aggregate(vpd.mo$mean,
+						by = list(simTime2$month_ForEachUsedMonth),
+						FUN = mean)[,2]
+					resSDs[nv:(nv_new - 1)] <- aggregate(vpd.mo$mean,
+						by = list(simTime2$month_ForEachUsedMonth),
+						FUN = sd)[,2]
+					nv <- nv_new
 				}
 			#60
 				if(any(simulation_timescales=="monthly") & aon$monthlyAETratios){

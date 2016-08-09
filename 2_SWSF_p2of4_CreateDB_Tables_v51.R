@@ -896,7 +896,7 @@ if (length(Tables) == 0 || do.clean) {
 	#43.2	
 		if(any(simulation_timescales=="daily") && aon$dailyThermalDrynessStress){
 			temp <- c(temp, 
-						paste0("Mean10HottestDays_AirTmax", 
+						paste0("Mean10HottestDays_VPD_kPa", 
 							c("_mean", "_max",
 							paste0(paste0("_MoistureStress_",
 									"SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
@@ -993,6 +993,11 @@ if (length(Tables) == 0 || do.clean) {
 	#59
 		if(any(simulation_timescales=="monthly") & aon$monthlyPET){
 			temp <- c(temp, paste("PET.m", st_mo, "_mm_mean", sep=""))
+		}
+	
+	#59.2
+		if (any(simulation_timescales == "monthly") && aon$monthlyVPD) {
+			temp <- c(temp, paste0("VPD_m", st_mo, "_kPa_mean"))
 		}
 	
 	#60
