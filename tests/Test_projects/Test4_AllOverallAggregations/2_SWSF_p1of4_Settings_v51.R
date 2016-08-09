@@ -384,6 +384,7 @@ output_aggregates <- c(
 						"monthlySoilEvaporation", 1,
 						"monthlyAET", 1,
 						"monthlyPET", 1,
+						"monthlyVPD", 1,
 						"monthlyAETratios", 1,
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
