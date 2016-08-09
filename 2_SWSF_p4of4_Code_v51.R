@@ -189,7 +189,7 @@ if(!require(circular, quietly=TRUE)) {
 	stopifnot(require(circular, quietly=TRUE))
 }
 if(!require(SPEI, quietly=TRUE)) {
-	tryCatch(install.packages("SPEI",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("SPEI failed to install"); stop("Stopping") })
+	tryCatch(install.packages("SPEI",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	stopifnot(require(SPEI, quietly=TRUE))
 }
 if(!require(RSQLite,quietly = TRUE)) {
