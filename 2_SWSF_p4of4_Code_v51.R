@@ -2057,7 +2057,7 @@ vpd <- function(Tmin, Tmax, RHmean = NULL) {
 fun_kLargest <- function(x, fun = NULL, k = 10L, na.rm = FALSE, ...) {
 	if (na.rm)
 		x <- na.exclude(x)
-	x <- sort.int(x, decreasing = TRUE, na.last = !na.rm, method = if (getRversion() >= "3.3.0") "radix" else "quick")
+	x <- sort.int(x, decreasing = TRUE, na.last = !na.rm, method = "radix")
 	x <- x[seq_len(max(1L, min(length(x), as.integer(k))))]
 	
 	if (is.null(fun)) x else fun(x, ...)
@@ -6218,7 +6218,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, "dy", 1, FUN=weighted.mean, weights=layers_width)
 				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy)
 				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc)
-				  if(!exists("vpd.dy")) vpd.dy <- get_VPD_dy(sc, temp.dy)
+				  if(!exists("vpd.dy")) vpd.dy <- get_vpd_dy(sc, temp.dy)
 				  
 				  # Moisture stress during hot and dry periods				  
 				  nv_add <- length(SWPcrit_MPa)
