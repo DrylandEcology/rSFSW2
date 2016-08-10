@@ -5548,7 +5548,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      LanhConditionalDF$COND2<-LanhConditionalDF$MATLanh <= 5
 				      #In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
 				      LanhConditionalDF$COND3_Test <- (LanhConditionalDF$Lanh_Dry_Half == LanhConditionalDF$T50_at0C)#TRUE = where are both these conditions met
-				      LanhConditionalDF <- ddply(LanhConditionalDF,.(Years),transform, HalfDryDaysCumAbove0C = sum(COND3_Test == TRUE),SoilAbove0C=sum(T50_at0C == TRUE))#Number of days where 1/2 soil layers are are dry while temp >0
+				      HalfDryDaysCumAbove0C <- with(LanhConditionalDF, tapply(COND3_Test,Years,function(x) sum(x == TRUE)))
+				      LanhConditionalDF <- merge(LanhConditionalDF, data.frame(Years=names(HalfDryDaysCumAbove0C),HalfDryDaysCumAbove0C=HalfDryDaysCumAbove0C,row.names=NULL),by='Years')
+				      SoilAbove0C <- with(LanhConditionalDF, tapply(T50_at0C,Years,function(x) sum(x == TRUE)))
+				      LanhConditionalDF <- merge(LanhConditionalDF, data.frame(Years=names(SoilAbove0C),SoilAbove0C=SoilAbove0C,row.names=NULL),by='Years')
 				      LanhConditionalDF$COND3 <- LanhConditionalDF$HalfDryDaysCumAbove0C > (.5 * LanhConditionalDF$SoilAbove0C)#TRUE = Half of soil layers are dry greater than half the days where MAST >0c
 				      
 				      LanhConditionalDF2<-unique(LanhConditionalDF[,c('Years','COND1','COND2','COND3')])
@@ -5580,26 +5583,30 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				                                T50djf = rep(T50djf[wyears_index],lapply(T50_at5C,length))
 				                                )
 				      
-				      #COND1 - Dry in ALL parts for more than half of the CUMLATIVE days per year when the soil temperature at a depth of 50cm is above 5C  
+				       #COND1 - Dry in ALL parts for more than half of the CUMLATIVE days per year when the soil temperature at a depth of 50cm is above 5C  
 				      ConditionalDF$COND1_Test <- ifelse(ConditionalDF$MCS_Dry_All == TRUE & ConditionalDF$T50_at5C ==TRUE,TRUE,FALSE)#TRUE = where are both these conditions met
-				      ConditionalDF <- ddply(ConditionalDF,.(Years),transform, DryDaysCumAbove5C = sum(COND1_Test == TRUE), SoilAbove5C = sum(T50_at5C ==TRUE))#Number of days where soils are are dry while temp50_5C
-				      ConditionalDF$COND1 <- ConditionalDF$DryDaysCumAbove5C > (.5 * ConditionalDF$SoilAbove5C)#TRUE = Dry Soils are greater than 1/2 cumulative days/year
+				      DryDaysCumAbove5C <- with(ConditionalDF, tapply(COND1_Test,Years,function(x) sum(x == TRUE)))
+				      ConditionalDF <- merge(ConditionalDF,data.frame(Years = names(DryDaysCumAbove5C), DryDaysCumAbove5C = DryDaysCumAbove5C, row.names=NULL), by = 'Years')
+				      SoilAbove5C <- with(ConditionalDF, tapply(T50_at5C,Years,function(x) sum(x == TRUE)))
+				      ConditionalDF <- merge(ConditionalDF,data.frame(Years = names(SoilAbove5C), SoilAbove5C = SoilAbove5C, row.names=NULL), by = 'Years')
+				      ConditionalDF$COND1 <- ConditionalDF$DryDaysCumAbove5C > (.5 * ConditionalDF$SoilAbove5C)#TRUE =Soils are dry greater than 1/2 cumulative days/year
 				      
 				      #COND1.1 - Moist in SOME or ALL parts for more than half of the CUMLATIVE days per year when the soil temperature at a depth of 50cm is above 5
 				      #!MCs_Dry_All = MCS_ Moist Any
+				      #This Test is kind of redundant basically if COND1 is TRUE than 
 				      ConditionalDF$COND1_1_Test <- ifelse(ConditionalDF$MCS_Dry_All == FALSE & ConditionalDF$T50_at5C ==TRUE,TRUE,FALSE)#TRUE = where are both these conditions met
-				      ConditionalDF <- ddply(ConditionalDF,.(Years),transform, AnyMoistDaysCumAbove5C = sum(COND1_1_Test == TRUE))#Number of days where soils are are dry while temp50_5C
-				      ConditionalDF$COND1_1 <- ConditionalDF$AnyMoistDaysCumAbove5C > (.5 * ConditionalDF$SoilAbove5C)#TRUE = Dry Soils are greater than 1/2 cumulative days/year?
-				      
+				      AnyMoistDaysCumAbove5C <-  with(ConditionalDF, tapply(COND1_1_Test,Years,function(x) sum(x == TRUE)))
+				      ConditionalDF <- merge(ConditionalDF,data.frame(Years = names(AnyMoistDaysCumAbove5C), AnyMoistDaysCumAbove5C = AnyMoistDaysCumAbove5C, row.names=NULL), by = 'Years')
+				      ConditionalDF$COND1_1 <- ConditionalDF$AnyMoistDaysCumAbove5C > (.5 * ConditionalDF$SoilAbove5C)
 				      #Cond2 - Moist in SOME or all parts for less than 90 CONSECUTIVE days when the the soil temperature at a depth of 50cm is above 8C                                             
 				      ConditionalDF$COND2_Test <- ifelse(ConditionalDF$MCS_Dry_All == FALSE & ConditionalDF$T50_at8C == TRUE, TRUE,FALSE)#TRUE = where are both these conditions met
-				      COND2_Value <- ddply(ConditionalDF,.(Years),function(x) consec(x$COND2_Test))#Consecutive days of Moist soil
-				      COND2_Value <-rename(COND2_Value,replace=c("V1"="MoistDaysConsecAbove8C"))
-				      ConditionalDF <- suppressMessages(join(ConditionalDF,COND2_Value))
+				      MoistDaysConsecAbove8C <- with(ConditionalDF,tapply(COND2_Test,Years,function(x) consec(x)))				      #Consecutive days of Moist soil @ Conditions
+				      ConditionalDF<-merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecAbove8C),MoistDaysConsecAbove8C=MoistDaysConsecAbove8C,row.names=NULL),by='Years')
 				      ConditionalDF$COND2 <- ConditionalDF$MoistDaysConsecAbove8C < 90 & ConditionalDF$MoistDaysConsecAbove8C > 0 # TRUE = moist less than 90 consecutive days , FALSE = moist more than 90 consecutive days
 				      
 				      #COND3 - MCS is Not dry in ANY part as long as 90 CUMLATIVE days - Can't be dry longer than 90 cum days
-				      ConditionalDF <- ddply(ConditionalDF,.(Years),transform, DryDaysCumAny = sum(MCS_Moist_All == FALSE))#Number of days where any soils are dry
+				      DryDaysCumAny <- with(ConditionalDF, tapply(MCS_Moist_All,Years,function(x) sum(x == FALSE)))#Number of days where any soils are dry
+				      ConditionalDF <- merge(ConditionalDF,data.frame(Years = names(DryDaysCumAny), DryDaysCumAny = DryDaysCumAny, row.names=NULL), by = 'Years')
 				      ConditionalDF$COND3 <- ConditionalDF$DryDaysCumAny < 90 #TRUE = Not Dry for as long 90 cumlative days,FALSE = Dry as long as as 90 Cumlative days
 				      
 				      #COND4 - The means annual soil temperature at 50cm is < or > 22C 
@@ -5609,27 +5616,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      ConditionalDF$COND5 <-  abs(ConditionalDF$T50djf - ConditionalDF$T50jja) > 6 #TRUE - Greater than 6, FALSE - Less than 6
 				      
 				      #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
-				      DryDaysConsecSummer <- ddply(ConditionalDF[ConditionalDF$DOY %in% c(172:293),],.(Years),function(x) consec(x$MCS_Dry_All))#Consecutive days of dry soil after summer solsitice
-				      DryDaysConsecSummer <- rename (DryDaysConsecSummer,replace = c("V1" = "DryDaysConsecSummer"))
-				      ConditionalDF <- suppressMessages(join(ConditionalDF,DryDaysConsecSummer))
+				      DryDaysConsecSummer <- with(ConditionalDF[ConditionalDF$DOY %in% c(172:293),], tapply(MCS_Dry_All,Years,function(x) consec(x)))#Consecutive days of dry soil after summer solsitice
+				      ConditionalDF <- merge(ConditionalDF, data.frame(Years = names(DryDaysConsecSummer),DryDaysConsecSummer = DryDaysConsecSummer,row.names=NULL),by='Years')
 				      ConditionalDF$COND6 <- ConditionalDF$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days 
 				      
 				      #COND7 - MCS is MOIST in SOME parts for more than 180 CUMLATIVE days
-				      ConditionalDF <- ddply(ConditionalDF,.(Years),transform, MoistDaysCumAny = sum(MCS_Dry_All == FALSE))#Number of days where any soils are moist 
+				      MoistDaysCumAny <- with(ConditionalDF, tapply(MCS_Dry_All,Years,function(x) sum(x == FALSE)))#Number of days where any soils are moist
+				      ConditionalDF <- merge(ConditionalDF,data.frame(Years = names(MoistDaysCumAny), MoistDaysCumAny = MoistDaysCumAny, row.names=NULL), by = 'Years')
 				      ConditionalDF$COND7 <- ConditionalDF$MoistDaysCumAny > 180 #TRUE = Not Dry or Moist for as long 180 cumlative days
 				      
 				      #Cond8 - MCS is MOIST in SOME parts for more than 90 CONSECUTIVE days
-				      MoistDaysConsecAny <- ddply(ConditionalDF,.(Years),function(x) consec(!x$MCS_Dry_All))#Consecutive days of moist soil 
-				      MoistDaysConsecAny <- rename (MoistDaysConsecAny,replace = c("V1" = "MoistDaysConsecAny"))
-				      ConditionalDF <- suppressMessages(join(ConditionalDF,MoistDaysConsecAny))
+				      MoistDaysConsecAny <- with(ConditionalDF,tapply(MCS_Dry_All,Years,function(x) consec(!x))) #Consecutive days of Moist soil
+				      ConditionalDF<-merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecAny),MoistDaysConsecAny=MoistDaysConsecAny,row.names=NULL),by='Years')
 				      ConditionalDF$COND8 <- ConditionalDF$MoistDaysConsecAny > 90 # TRUE = Moist more than 90 Consecutive Days 
 				      
 				      #COND9 - Moist in ALL parts MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
-				      MoistDaysConsecWinter <- ddply(ConditionalDF[ConditionalDF$DOY %in% c(355:365,1:111),],.(Years),function(x) consec(x$MCS_Moist_All))#Consecutive days of moist soil after winter solsitice
-				      MoistDaysConsecWinter <- rename (MoistDaysConsecWinter,replace = c("V1" = "MoistDaysConsecWinter"))
-				      ConditionalDF<-suppressMessages(join(ConditionalDF,MoistDaysConsecWinter))
+				      MoistDaysConsecWinter <- with(ConditionalDF[ConditionalDF$DOY %in% c(355:365,1:111),], tapply(MCS_Moist_All,Years,function(x) consec(x)))#Consecutive days of moist soil after winter solsitice
+				      ConditionalDF <- merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecWinter),MoistDaysConsecWinter = MoistDaysConsecWinter,row.names=NULL),by='Years')
 				      ConditionalDF$COND9<-ConditionalDF$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days 
-				      
+				     
 				      ConditionalDF2<-unique(ConditionalDF[,c('Years','COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')])
 				      ConditionalDF3<-apply(ConditionalDF2[,2:length(ConditionalDF2)],2,function(x) length(which(x==TRUE)) >= length(which(x==FALSE)))
 				      
