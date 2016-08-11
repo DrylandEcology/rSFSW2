@@ -5279,22 +5279,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  #Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
 				  #Soil Survey Staff. 2010. Keys to soil taxonomy, 11th ed., USDA Natural Resources Conservation Service, Washington, DC.
 				  
-				  #function for the calculation of consecutive days
-				  consec<-function(x){
-				    result<-rle(diff(x))
-				    result
-				    if(x[1]==TRUE){
-				      result2<-max(result$length[(seq(1,length(result$length),4))])
-				    }else{
-				      if(length(result$length)>2)
-				        result2<-max(result$length[seq(3,length(result$length),4)])+1
-				      if(length(result$length)==2)
-				        result2<-result$lengths[2]
-				      if(length(result$length)==1)  
-				        result2<-result$lengths[1]
-				    }
-				    return(result2)
-				  }
 				  #Result containers
 				  Tregime_names <- c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
 				  Tregime <- rep(0, times=length(Tregime_names))
@@ -5600,7 +5584,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      ConditionalDF$COND1_1 <- ConditionalDF$AnyMoistDaysCumAbove5C > (.5 * ConditionalDF$SoilAbove5C)
 				      #Cond2 - Moist in SOME or all parts for less than 90 CONSECUTIVE days when the the soil temperature at a depth of 50cm is above 8C                                             
 				      ConditionalDF$COND2_Test <- ifelse(ConditionalDF$MCS_Dry_All == FALSE & ConditionalDF$T50_at8C == TRUE, TRUE,FALSE)#TRUE = where are both these conditions met
-				      MoistDaysConsecAbove8C <- with(ConditionalDF,tapply(COND2_Test,Years,function(x) max.duration(x)))				      #Consecutive days of Moist soil @ Conditions
+				      MoistDaysConsecAbove8C <- with(ConditionalDF,tapply(COND2_Test, Years, max.duration))				      #Consecutive days of Moist soil @ Conditions
 				      ConditionalDF<-merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecAbove8C),MoistDaysConsecAbove8C=MoistDaysConsecAbove8C,row.names=NULL),by='Years')
 				      ConditionalDF$COND2 <- ConditionalDF$MoistDaysConsecAbove8C < 90 & ConditionalDF$MoistDaysConsecAbove8C > 0 # TRUE = moist less than 90 consecutive days , FALSE = moist more than 90 consecutive days
 				      
@@ -5616,7 +5600,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      ConditionalDF$COND5 <-  abs(ConditionalDF$T50djf - ConditionalDF$T50jja) > 6 #TRUE - Greater than 6, FALSE - Less than 6
 				      
 				      #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
-				      DryDaysConsecSummer <- with(ConditionalDF[ConditionalDF$DOY %in% c(172:293),], tapply(MCS_Dry_All,Years,function(x) max.duration(x)))#Consecutive days of dry soil after summer solsitice
+				      DryDaysConsecSummer <- with(ConditionalDF[ConditionalDF$DOY %in% c(172:293),], tapply(MCS_Dry_All, Years, max.duration))#Consecutive days of dry soil after summer solsitice
 				      ConditionalDF <- merge(ConditionalDF, data.frame(Years = names(DryDaysConsecSummer),DryDaysConsecSummer = DryDaysConsecSummer,row.names=NULL),by='Years')
 				      ConditionalDF$COND6 <- ConditionalDF$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days 
 				      
@@ -5626,12 +5610,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      ConditionalDF$COND7 <- ConditionalDF$MoistDaysCumAny > 180 #TRUE = Not Dry or Moist for as long 180 cumlative days
 				      
 				      #Cond8 - MCS is MOIST in SOME parts for more than 90 CONSECUTIVE days
-				      MoistDaysConsecAny <- with(ConditionalDF,tapply(MCS_Dry_All,Years,function(x) max.duration(!x))) #Consecutive days of Moist soil
+				      MoistDaysConsecAny <- with(ConditionalDF,tapply(MCS_Dry_All,Years, function(x) max.duration(!x))) #Consecutive days of Moist soil
 				      ConditionalDF<-merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecAny),MoistDaysConsecAny=MoistDaysConsecAny,row.names=NULL),by='Years')
 				      ConditionalDF$COND8 <- ConditionalDF$MoistDaysConsecAny > 90 # TRUE = Moist more than 90 Consecutive Days 
 				      
 				      #COND9 - Moist in ALL parts MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
-				      MoistDaysConsecWinter <- with(ConditionalDF[ConditionalDF$DOY %in% c(355:365,1:111),], tapply(MCS_Moist_All,Years,function(x) max.duration(x)))#Consecutive days of moist soil after winter solsitice
+				      MoistDaysConsecWinter <- with(ConditionalDF[ConditionalDF$DOY %in% c(355:365,1:111),], tapply(MCS_Moist_All, Years, max.duration))#Consecutive days of moist soil after winter solsitice
 				      ConditionalDF <- merge(ConditionalDF, data.frame(Years = names(MoistDaysConsecWinter),MoistDaysConsecWinter = MoistDaysConsecWinter,row.names=NULL),by='Years')
 				      ConditionalDF$COND9<-ConditionalDF$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days 
 				     
