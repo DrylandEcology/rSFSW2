@@ -5506,8 +5506,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				    wyears_normal <- (simstartyr+1):endyr
 				    wyears_index <- findInterval(wyears_normal,wyears)
 
-				    
-				    if(!be.quiet) if(length(wyears_normal) <= 2) {print("Number of normal years not long enough to calculated NRCS Soil Moisture Regimes. Try increasing length of simulation")}
 				    if(length(wyears_normal) > 2){
 				      #Structures used Lanh delinieation
 				      #days where T @ 50 is > 0c
@@ -5674,6 +5672,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				      rm(i_MCS, MCS, i_Lanh_depth, iL)
 				  
 				    } else {
+				    	if(!be.quiet)
+				    		print(paste0(i_labels, "Number of normal years not long enough to calculated NRCS Soil Moisture Regimes. Try increasing length of simulation"))
 				      Sregime[] <- NA
 				      Tregime[] <- NA
 				    }
@@ -5681,13 +5681,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				    rm(wateryears, wyears, i_depth50, T50, MAP, normal1, normal2, wyears_normal,wyears_index)
 				    
 				  } else {
-				    Tregime[] <- NA
+					print(paste0(i_labels, " failed aggregating for NRCS soil regimes",
+						" because of insufficient soil layers: required would be {",
+							paste(sort(unique(c(Fifty_depth, MCS_depth))), collapse = ", "), "} and available are {",
+							paste(stemp[, "depth_cm"], collapse = ", "), "}",
+						" or because of invariant/turned-off soil temperature: sd(Tsoil) is ",
+							signif(sd(soiltemp.yr.all$val[, -1]), 3), "C"))
+					Tregime[] <- NA
 				    Sregime[] <- NA
 				  }
 				  }  
-				  print(i_labels)
-				  print(Sregime)
-				  print(Tregime)
 				  
 				  resMeans[nv:(nv+4+15+length(Tregime_names)+length(Sregime_names))] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost),
 				                                                                           mean(MATLanh),mean(MAT50), mean(T50jja), mean(T50djf),CSPartSummer, 
