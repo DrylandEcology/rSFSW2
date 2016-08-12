@@ -17,15 +17,34 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
 ow <- options("warn", "error")
-if(print.debug){
-	if(interactive()){
-		options(warn=1, error=quote({dump.frames(to.file=TRUE)}))
-	} else {
-		options(warn=2, error=quote({dump.frames(to.file=TRUE); q("no")}))	#turns all warnings into errors, dumps all to a file, and quits
-	}
+if (print.debug) {
+	# turns all warnings into errors, dumps (if requested) objects and frames to files, and (if not interactive) quits
+	options(warn = 2, error = quote({
+		if (debug.dump.objects) {
+			exported_objs <- ls(name = environment())
+			save(list = exported_objs, envir = environment(),
+				file = file.path(dir.prj, "last.dump.env.RData"))
+			to_export <- setdiff(ls(name = parent.frame()), c("exported_objs", exported_objs))
+			if (length(to_export) > 0)
+				save(list = to_export, envir = parent.frame(),
+					file = file.path(dir.prj, "last.dump.parent.RData"))
+			to_export <- setdiff(ls(name = .GlobalEnv), c("to_export", "exported_objs", exported_objs))
+			if (length(to_export) > 0)
+				save(list = to_export, envir = .GlobalEnv,
+					file = file.path(dir.prj, "last.dump.global.RData"))
+		}
+		dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
+		if (!interactive())
+			q("no")
+	}))
+	# Note: view dumped frames with
+	# load(file.path(dir.prj, "last.dump.rda"))
+	# debugger(`path/to/file/last.dump.rda`)
 } else {
-	options(warn=0, error=traceback)	#catches all warnings and on error returns a traceback()
+	# catches and prints all warnings and on error returns a traceback()
+	options(warn = 1, error = traceback)
 }
+
 
 #custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
 #note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
@@ -7324,7 +7343,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation

@@ -36,6 +36,7 @@
 t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
+debug.dump.objects <- TRUE
 
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
