@@ -4258,12 +4258,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				}
 			}
 		}
-		get_SWPmatric_aggL <- function(vwcmatric){
-			val.top <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
-			val.bottom <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom, texture$clay.bottom)
+		get_SWPmatric_aggL <- function(vwcmatric, texture. = texture, sand. = sand, clay. = clay){
+			val.top <- VWCtoSWP(vwcmatric$top, texture.$sand.top, texture.$clay.top)
+			val.bottom <- VWCtoSWP(vwcmatric$bottom, texture.$sand.bottom, texture.$clay.bottom)
 			if(!is.null(vwcmatric$aggMean.top)){
-				aggMean.top <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top, texture$clay.top)
-				aggMean.bottom <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
+				aggMean.top <- VWCtoSWP(vwcmatric$aggMean.top, texture.$sand.top, texture.$clay.top)
+				aggMean.bottom <- VWCtoSWP(vwcmatric$aggMean.bottom, texture.$sand.bottom, texture.$clay.bottom)
 				return(list(top=val.top, bottom=val.bottom, aggMean.top=aggMean.top, aggMean.bottom=aggMean.bottom))
 			}
 			if(!is.null(vwcmatric$val)){
@@ -4272,7 +4272,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				} else {
 					index.header <- 1
 				}
-				val <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
+				val <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand., clay.))
 				return(list(val=val, top=val.top, bottom=val.bottom))
 			} else {
 				return(list(top=val.top, bottom=val.bottom))
