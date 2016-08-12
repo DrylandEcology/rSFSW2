@@ -58,6 +58,10 @@ url.Rrepos <- "https://cran.us.r-project.org"
 
 #------Set paths to simulation framework folders
 #parent folder of simulation project
+# for test projects:
+#	if interactive: current working directory must be SoilWat_R_Wrapper/
+#	if !interactive: current working directory must be folder of test projects,
+#		e.g., SoilWat_R_Wrapper/tests/Test_projects/Test4_AllOverallAggregations
 if(interactive()) {
 	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test1_downscaling_overhaul"))
 	setwd(dir.prj)
