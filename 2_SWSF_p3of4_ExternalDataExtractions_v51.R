@@ -3453,7 +3453,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 			} else if (sim_cells_or_points == "cell") {
 				cell_res_noaaca <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
+					sp = sites_noaaca, crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)			
 			}
 
@@ -3499,7 +3499,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				if (!is.null(args_chunk[["coords"]]))
 					args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
 
-				monthlyclim[iextr, iv, ] <- do.call("extract_from_external_shapefile",
+				monthlyclim[iextr, iv, m] <- do.call("extract_from_external_shapefile",
 						args = c(args_chunk,
 								file_path = list(dir_noaaca[[iv]]),
 								file_shp = list(files_shp[[iv]][m]),
