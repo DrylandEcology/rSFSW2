@@ -36,6 +36,7 @@
 t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- if(interactive()) TRUE else FALSE
+debug.dump.objects <- TRUE
 
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
@@ -58,6 +59,10 @@ url.Rrepos <- "https://cran.us.r-project.org"
 
 #------Set paths to simulation framework folders
 #parent folder of simulation project
+# for test projects:
+#	if interactive: current working directory must be SoilWat_R_Wrapper/
+#	if !interactive: current working directory must be folder of test projects,
+#		e.g., SoilWat_R_Wrapper/tests/Test_projects/Test4_AllOverallAggregations
 if(interactive()) {
 	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test4_AllOverallAggregations"))
 	setwd(dir.prj)
