@@ -2397,100 +2397,151 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 #------------------------OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS TO CREATE THEM
 
 #------obtain information prior to simulation runs
-if(any(actions == "create")){
-	if(!be.quiet) print(paste("SWSF obtains information prior to simulation runs: started at", t1 <- Sys.time()))
+if (any(actions == "create")) {
+  if (!be.quiet)
+    print(paste("SWSF obtains information prior to simulation runs: started at", t1 <- Sys.time()))
 
-	if(any(create_treatments == "LookupEvapCoeffFromTable")){
-		#lookup bare soil evaporation coefficients per soil layer per distribution type for each simulation run and copy values to 'datafile.soils'
-		get.LookupEvapCoeffFromTable <- function(evco_type, sw_input_soils_use, sw_input_soils){
-			#extract data from table by category
-			table.EvapCoeff <- matrix(data=unlist(sapply(evco_type, FUN=function(i) {tr_input_EvapCoeff[which(rownames(tr_input_EvapCoeff) == as.character(i)), 1:SoilLayer_MaxNo]})), ncol=SoilLayer_MaxNo, byrow=TRUE)
+  if (any(create_treatments %in% c("LookupEvapCoeffFromTable",
+                                   "LookupTranspRegionsFromTable",
+                                   "LookupSnowDensityFromTable"))) {
+  
+    get.LookupFromTable <- function(pattern, trtype, tr_input, sw_input_use, sw_input, nvars) {
+      nruns <- NROW(sw_input)
+      if (length(trtype) == 1L && nruns > 1L)
+        trtype <- rep(trtype, nruns)
+      stopifnot(length(trtype) == nruns)
+    
+      # extract data from table by type
+      ids <- match(trtype, rownames(tr_input), nomatch = NA)
+      res <- tr_input[ids, seq_len(nvars), drop = FALSE]
+    
+      # identify columns with relevant data
+      icols_in <- grep(pattern, names(sw_input_use))
+      icols_res <- which(apply(!is.na(res), 2L, any))
+      stopifnot(length(icols_in) >= max(icols_res))
+      seq1_icols_in <- icols_in[icols_res]
+      seq2_icols_in <- icols_in[-icols_res]
+    
+      # add data to datafiles and set the use flags
+      sw_input[, seq1_icols_in] <- res[, icols_res]
+      sw_input_use[seq1_icols_in] <- 1L
+    
+      if (length(seq2_icols_in) > 0) {
+        sw_input[, seq2_icols_in] <- NA
+        sw_input_use[seq2_icols_in] <- 0L
+      }
 
-			#add data to sw_input_soils and set the use flags
-			i.temp <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
-			tr.col.max <- max(rowSums(!is.na(table.EvapCoeff)))
-			sw_input_soils[, i.temp][1:tr.col.max] <- ifelse(!is.na(table.EvapCoeff[, 1:tr.col.max]), table.EvapCoeff[, 1:tr.col.max], 0)
-			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
+      list(sw_input_use = sw_input_use,
+           sw_input = sw_input)
+    }
 
-			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
-			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
+    fill_empty <- function(data, pattern, fill, tol = sqrt(.Machine$double.eps)) {
+      stopifnot(names(data) %in% c("sw_input", "sw_input_use"))
+  
+      icols <- sapply(data, function(x) grep(pattern, colnames(x)))
+      stopifnot(dim(icols)[2L] == 2L)
+    
+      for (k in seq_len(dim(icols)[1L])) {
+        ic <- icols[k, "sw_input"]
+        iempty <- is.na(data$sw_input[, ic]) | abs(data$sw_input[, ic]) < tol
+        if (any(iempty)) {
+          data$sw_input[iempty, ic] <- fill
+          data$sw_input_use[icols[k, "sw_input_use"]] <- 1L
+        }
+      }
+  
+      data
+    }
 
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
-		}
 
-		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) ){#Use only if option is off in sw_input_experimentals and on in treatments
-			if(any(is.na(sw_input_treatments$LookupEvapCoeffFromTable))) stop("ERROR: LookupEvapCoeffFromTable column in treatments cannot have any NAs.")
-			if(!all(unique(sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) stop("ERROR: LookupEvapCoeffFromTable column values in treatments do not match up with trfile.LookupEvapCoeffFromTable row names.")
-			tempdat <- get.LookupEvapCoeffFromTable(evco_type=sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils)
-			sw_input_soils_use <- tempdat$sw_input_soils_use
-			sw_input_soils <- tempdat$sw_input_soils
+    do_prior_lookup <- list(
+      LookupEvapCoeffFromTable = list(
+        flag = "LookupEvapCoeffFromTable",
+        pattern = "EvapCoeff",
+        tr_input = tr_input_EvapCoeff,
+        sw_input_use = "sw_input_soils_use",
+        sw_input = "sw_input_soils",
+        nvars = SoilLayer_MaxNo,
+        do_fill = FALSE,
+        datafile = file.path(dir.sw.dat, datafile.soils)),
+    
+      LookupTranspRegionsFromTable = list(
+        flag = "LookupTranspRegionsFromTable",
+        pattern = "TranspRegion",
+        tr_input = tr_input_TranspRegions,
+        sw_input_use = "sw_input_soils_use",
+        sw_input = "sw_input_soils",
+        nvars = SoilLayer_MaxNo,
+        do_fill = FALSE,
+        datafile = file.path(dir.sw.dat, datafile.soils)),
+    
+      LookupSnowDensityFromTable = list(
+        flag = "LookupSnowDensityFromTable",
+        pattern = "(snowd)|(SnowD_Hemisphere)",
+        tr_input = tr_input_SnowD,
+        sw_input_use = "sw_input_cloud_use",
+        sw_input = "sw_input_cloud",
+        nvars = 12 + 1,
+        do_fill = TRUE,
+        fill_pattern = "snowd",
+        fill_value = 76,  	# 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
+        datafile = file.path(dir.sw.dat, datafile.cloud))
+    )
+  
+    done_prior <- rep(FALSE, length(do_prior_lookup))
+    names(done_prior) <- names(do_prior_lookup)
 
-			#write data to datafile.soils
-			write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-		}
-	}
-	if(any(create_treatments == "LookupTranspRegionsFromTable")){
-		#lookup transpiration region per soil layer per distribution type for each simulation run and copy values to 'datafile.soils'
-		get.LookupTranspRegionsFromTable <- function(trtype, sw_input_soils_use, sw_input_soils){
-			#extract data from table by type
-			table.TranspReg <- matrix(data=unlist(sapply(trtype, FUN=function(i) {tr_input_TranspRegions[which(rownames(tr_input_TranspRegions) == as.character(i)), 1:SoilLayer_MaxNo]})), ncol=SoilLayer_MaxNo, byrow=TRUE)
+    for (pc in do_prior_lookup) {
+      if (any(create_treatments == pc$flag)) {
+        #lookup values per category for each simulation run and copy values to datafile
+        if (!(sw_input_experimentals_use[pc$flag]) ||
+            (as.logical(sw_input_experimentals_use[pc$flag]) &&
+            length(unique(sw_input_experimentals[, pc$flag])) == 1L)) {
+          # Lookup prior to do_OneSite() only if option is off in sw_input_experimentals or constant
 
-			#add data to sw_input_soils and set the use flags
-			i.temp <- grepl(pattern="TranspRegion", x=names(sw_input_soils_use))
-			tr.col.max <- max(rowSums(!is.na(table.TranspReg)))
-			sw_input_soils[, i.temp][1:tr.col.max] <- table.TranspReg[, 1:tr.col.max]
-			sw_input_soils[, i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- NA
-
-			sw_input_soils_use[i.temp][1:tr.col.max] <- 1
-			sw_input_soils_use[i.temp][(tr.col.max+1):SoilLayer_MaxNo] <- 0
-
-			return(list(sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils))
-		}
-
-		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) ){#Use only if option is off in sw_input_experimentals
-			if(any(is.na(sw_input_treatments$LookupTranspRegionsFromTable))) stop("ERROR: LookupTranspRegionsFromTable column in treatments cannot have any NAs.")
-			if(!all(unique(sw_input_treatments$LookupTranspRegionsFromTable) %in% rownames(tr_input_TranspRegions))) stop("ERROR: LookupTranspRegionsFromTable column values in treatments do not match up with trfile.LookupTranspRegionsFromTable row names.")
-			tempdat <- get.LookupTranspRegionsFromTable(trtype=sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=sw_input_soils)
-			sw_input_soils_use <- tempdat$sw_input_soils_use
-			sw_input_soils <- tempdat$sw_input_soils
-
-			#write data to datafile.soils
-			write.csv(rbind(sw_input_soils_use, sw_input_soils), file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-		}
-	}
-
-	if(any(create_treatments == "LookupSnowDensityFromTable")){
-		#lookup monthly snow density values per category for each simulation run and copy values to 'datafile.cloud'
-		get.LookupSnowDensityFromTable <- function(sdcategories, sw_input_cloud_use, sw_input_cloud){
-			#extract data from table by category
-			snowd <- matrix(data=unlist(sapply(sdcategories, FUN=function(i) {tr_input_SnowD[which(rownames(tr_input_SnowD) == as.character(i)), st_mo]})), ncol=12, byrow=TRUE)
-			notes <- data.frame(matrix(data=unlist(sapply(sdcategories, FUN=function(i) {tr_input_SnowD[which(rownames(tr_input_SnowD) == as.character(i)), 13:14]})), ncol=2, byrow=TRUE), stringsAsFactors=FALSE)
-
-			#add fresh snow density during month of no or zero data
-			if(sum(itemp <- (is.na(snowd) | snowd == 0)) > 0) snowd[itemp] <- 76 #76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
-
-			#add data to sw_input_cloud and set the use flags
-			sw_input_cloud_use[i.temp <- grepl(pattern="snowd", x=names(sw_input_cloud_use))] <- 1
-			sw_input_cloud[, i.temp][st_mo] <- snowd
-			sw_input_cloud[, grepl(pattern="(SnowD_Hemisphere)|(SnowD_Source)", x=names(sw_input_cloud))] <- cbind(notes[1], apply(notes[2], MARGIN=2, FUN=function(x) paste("Type", sdcategories, "from", x)))
-
-			return(list(sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud))
-		}
-
-		if( !(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) ){#Use only if option is off in sw_input_experimentals
-			if(any(is.na(sw_input_treatments$LookupSnowDensityFromTable))) stop("ERROR: LookupSnowDensityFromTable column in treatments cannot have any NAs.")
-			if(!all(unique(sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_SnowD))) stop("ERROR: LookupSnowDensityFromTable column values in treatments do not match up with trfile.LookupSnowDensityFromTable row names.")
-			tempdat <- get.LookupSnowDensityFromTable(sdcategories=sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=sw_input_cloud)
-			sw_input_cloud_use <- tempdat$sw_input_cloud_use
-			sw_input_cloud <- tempdat$sw_input_cloud
-
-			#write data to datafile.cloud
-			write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
-			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-		}
-	}
+          if (!be.quiet)
+            print(paste(Sys.time(), ": performing", shQuote(pc$flag)))
+      
+          trtype <- if (as.logical(sw_input_experimentals_use[pc$flag])) {
+            unique(sw_input_experimentals[, pc$flag])
+          } else {
+            sw_input_treatments[, pc$flag]
+          }
+        
+          if (any(is.na(trtype)))
+            stop("ERROR: ", pc$flag, " column cannot have any NAs.")
+          if (!all(unique(trtype) %in% rownames(pc$tr_input)))
+            stop("ERROR: ", pc$flag, " column values do not match up with trfile.", pc$flag, " row names.")
+      
+          tempdat <- try(get.LookupFromTable(
+            pattern = pc$pattern,
+            trtype = trtype,
+            tr_input = pc$tr_input,
+            sw_input_use = get(pc$sw_input_use),
+            sw_input = get(pc$sw_input),
+            nvars = pc$nvars))
+        
+          done_prior[pc$flag] <- !inherits(tempdat, "try-error")
+          if (done_prior[pc$flag]) {
+            if (!is.null(pc$do_fill) && pc$do_fill)
+              tempdat <- fill_empty(tempdat, pattern = pc$fill_pattern, fill = pc$fill_value)
+        
+            assign(pc$sw_input_use, tempdat$sw_input_use, envir = .GlobalEnv)
+            assign(pc$sw_input, tempdat$sw_input, envir = .GlobalEnv)
+ 
+            #write data to datafile.cloud
+            write.csv(rbind(tempdat$sw_input_use, tempdat$sw_input), file = pc$datafile, row.names = FALSE)
+            unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+          }
+      
+        } else {
+          done_prior[pc$flag] <- FALSE
+        }
+      }
+    }
+  
+    rm(do_prior_lookup)
+  }
 
 	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile"))
 	{
@@ -3016,41 +3067,72 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#------2. Step: b) Information for this SoilWat-run from treatment chunks stored in dir.sw.in.tr
 		#Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
-		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupEvapCoeffFromTable")) {
-			if(any(is.na(i_sw_input_treatments$LookupEvapCoeffFromTable)) || !all(unique(i_sw_input_treatments$LookupEvapCoeffFromTable) %in% rownames(tr_input_EvapCoeff))) {
-				print("ERROR: LookupEvapCoeffFromTable column in expirementals cannot have any NAs or name is not in tr_input_EvapCoeff table.")
-				tasks$create <- 0L
-			} else {
-				tempdat <- get.LookupEvapCoeffFromTable(evco_type=i_sw_input_treatments$LookupEvapCoeffFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
-				if(all(colSums(tempdat$sw_input_soils,na.rm=T)>0) && !any(is.na(colSums(tempdat$sw_input_soils))) ) {
-					sw_input_soils_use <- tempdat$sw_input_soils_use
-					i_sw_input_soils <- tempdat$sw_input_soils
-				} else {
-					print("ERROR: get.LookupEvapCoeffFromTable returned a Layer that didn't have a sum greater then 0 or had a NA.")
-					tasks$create <- 0L
-				}
-			}
-		}
-		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupTranspRegionsFromTable")) {
-			if(any(is.na(i_sw_input_treatments$LookupTranspRegionsFromTable)) || !all(unique(i_sw_input_treatments$LookupTranspRegionsFromTable) %in% rownames(tr_input_TranspRegions))) {
-				print("ERROR: LookupTranspRegionsFromTable column in expirementals cannot have any NAs or name is not in LookupTranspRegionsFromTable data table.")
-				tasks$create <- 0L
-			} else {
-				tempdat <- get.LookupTranspRegionsFromTable(trtype=i_sw_input_treatments$LookupTranspRegionsFromTable, sw_input_soils_use=sw_input_soils_use, sw_input_soils=i_sw_input_soils)
-				sw_input_soils_use <- tempdat$sw_input_soils_use
-				i_sw_input_soils <- tempdat$sw_input_soils
-			}
-		}
-		if(any(names(sw_input_experimentals)[sw_input_experimentals_use == 1] == "LookupSnowDensityFromTable")) {
-			if(any(is.na(i_sw_input_treatments$LookupSnowDensityFromTable)) || !all(unique(i_sw_input_treatments$LookupSnowDensityFromTable) %in% rownames(tr_input_SnowD))) {
-				print("ERROR: LookupSnowDensityFromTable column in expirementals cannot have any NAs or name is not in tr_input_SnowD data table.")
-				tasks$create <- 0L
-			} else {
-				tempdat <- get.LookupSnowDensityFromTable(sdcategories=i_sw_input_treatments$LookupSnowDensityFromTable, sw_input_cloud_use=sw_input_cloud_use, sw_input_cloud=i_sw_input_cloud)
-				sw_input_cloud_use <- tempdat$sw_input_cloud_use
-				i_sw_input_cloud <- tempdat$sw_input_cloud
-			}
-		}
+    if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
+                                     "LookupTranspRegionsFromTable",
+                                     "LookupSnowDensityFromTable")]) &&
+        any(done_prior)) {
+
+      do_lookup <- list(
+        LookupEvapCoeffFromTable = list(
+          flag = "LookupEvapCoeffFromTable",
+          pattern = "EvapCoeff",
+          tr_input = tr_input_EvapCoeff,
+          sw_input_use = sw_input_soils_use,
+          sw_input = i_sw_input_soils,
+          nvars = SoilLayer_MaxNo,
+          do_fill = FALSE),
+  
+        LookupTranspRegionsFromTable = list(
+          flag = "LookupTranspRegionsFromTable",
+          pattern = "TranspRegion",
+          tr_input = tr_input_TranspRegions,
+          sw_input_use = sw_input_soils_use,
+          sw_input = i_sw_input_soils,
+          nvars = SoilLayer_MaxNo,
+          do_fill = FALSE),
+  
+        LookupSnowDensityFromTable = list(
+          flag = "LookupSnowDensityFromTable",
+          pattern = "(snowd)|(SnowD_Hemisphere)",
+          tr_input = tr_input_SnowD,
+          sw_input_use = sw_input_cloud_use,
+          sw_input = i_sw_input_cloud,
+          nvars = 12 + 1,
+          do_fill = TRUE,
+          fill_pattern = "snowd",
+          fill_value = 76)	# 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
+      )
+
+      for (pc in do_lookup) {
+        if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
+          if (any(is.na(i_sw_input_treatments[pc$flag])) ||
+             !all(unique(i_sw_input_treatments[pc$flag]) %in% rownames(pc$tr_input))) {
+            print(paste("ERROR:", shQuote(pc$flag), "column in expirementals cannot have any NAs or name is not in tr_input table."))
+            tasks$create <- 0L
+    
+          } else {
+            tempdat <- try(get.LookupFromTable(
+              pattern = pc$flag,
+              trtype = i_sw_input_treatments[pc$flag],
+              tr_input = pc$tr_input,
+              sw_input_use = pc$sw_input_use,
+              sw_input = pc$sw_input,
+              nvars = pc$nvars))
+
+            if (!inherits(tempdat, "try-error")) {
+              if (!is.null(pc$do_fill) && pc$do_fill)
+                tempdat <- fill_empty(tempdat, pattern = pc$fill_pattern, fill = pc$fill_value)
+          
+              assign(pc$sw_input_use, tempdat$sw_input_use)
+              assign(pc$sw_input, tempdat$sw_input)
+
+            } else {
+              tasks$create <- 0L
+            }
+          }
+        }
+      }
+    }
 
 		#Treatment chunks
 		if(print.debug) print("Start of LookupTranspCoeff")
@@ -7363,7 +7445,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupEvapCoeffFromTable","get.LookupSnowDensityFromTable","get.LookupTranspRegionsFromTable","max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects", "dir.prj",
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupFromTable", "fill_empty", "done_prior", "max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects", "dir.prj",
 			"work", "do_OneSite", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
