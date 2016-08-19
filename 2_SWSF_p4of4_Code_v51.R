@@ -3070,7 +3070,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
-        any(done_prior)) {
+        any(!done_prior)) {
 
       do_lookup <- list(
         LookupEvapCoeffFromTable = list(
@@ -3104,7 +3104,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       )
 
       for (pc in do_lookup) {
-        if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
+        if (as.logical(sw_input_experimentals_use[pc$flag]) && !done_prior[pc$flag]) {
           if (any(is.na(i_sw_input_treatments[pc$flag])) ||
              !all(unique(i_sw_input_treatments[pc$flag]) %in% rownames(pc$tr_input))) {
             print(paste("ERROR:", shQuote(pc$flag), "column in expirementals cannot have any NAs or name is not in tr_input table."))
