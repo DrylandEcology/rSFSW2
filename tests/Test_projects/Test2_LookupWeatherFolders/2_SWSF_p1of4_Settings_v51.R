@@ -106,6 +106,7 @@ actions <- c("external", "map_input", "create", "execute", "aggregate", "concate
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
+# - it doesn't lookup values from tables if already available in input datafiles, i.e., 'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and 'LookupSnowDensityFromTable'
 #	- it doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
 continueAfterAbort <- TRUE
 #use preprocessed input data if available
