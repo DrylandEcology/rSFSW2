@@ -2499,6 +2499,21 @@ if (any(actions == "create")) {
             length(unique(sw_input_experimentals[, pc$flag])) == 1L)) {
           # Lookup prior to do_OneSite() only if option is off in sw_input_experimentals or constant
 
+          if (continueAfterAbort) {
+            # Determine whether lookup already carried out and stored to file
+            sw_input_use <- get(pc$sw_input_use)
+            
+            icols <- grep(pc$pattern, names(sw_input_use))
+            icols <- icols[sw_input_use[icols] > 0]
+            temp <- get(pc$sw_input)[, icols, drop = FALSE]
+            
+            if (all(!apply(is.na(temp), 2, all))) {
+              # if no layer has only NAs for which the _use flag is on, then consider as completed
+              done_prior[pc$flag] <- TRUE
+              next
+            }
+          }
+
           if (!be.quiet)
             print(paste(Sys.time(), ": performing", shQuote(pc$flag)))
       
