@@ -108,7 +108,7 @@ saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")
-map_vars <- c("SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
+map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
