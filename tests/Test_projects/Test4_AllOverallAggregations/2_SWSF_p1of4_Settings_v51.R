@@ -35,15 +35,15 @@
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
-print.debug <- if(interactive()) TRUE else FALSE
-debug.dump.objects <- TRUE
+print.debug <- interactive()
+debug.dump.objects <- interactive()
 
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
 minVersion_dbWeather <- "3.1.0"
 num_cores <- 4
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
-parallel_runs <- if(interactive()) FALSE else TRUE
+parallel_runs <- !interactive()
 
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
