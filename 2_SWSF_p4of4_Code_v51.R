@@ -731,7 +731,8 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 
 			#Soft link to gribbed data
 			fname_gribDir <- "griblargeC2"
-			if(!file.exists(dir.grib <- file.path(dir.in.cfsr, fname_gribDir))){ # value of gribDir defined in cfsr_convert.c
+			dir.grib <- file.path(dir.in.cfsr, fname_gribDir)
+			if(!file.exists(dir.grib)){ # value of gribDir defined in cfsr_convert.c
 				stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
 			}
 
@@ -2615,28 +2616,169 @@ if (any(actions == "create")) {
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
+#' Split soil layer in two layers
+#' 
+#' @details The method \code{interpolate} calculates the weighted mean of the columns/layers
+#'  \code{il} and \code{il + 1}.
+#'  The method \code{exhaust} distributes the value of \code{il + 1} according to the weights.
+#'
+#' @param x A numeric data.frame or matrix. Columns are soil layers.
+#' @param il An integer value. The column/soil layer number after which a new layer is added.
+#' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
+#' @param method A character string. \code{See details.}
+#'
+#' @return An object like x with one column more at position \code{il + 1}.
+add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
+  method <- match.arg(method)
+  if (!is.matrix(x))
+    x <- as.matrix(x)
+  ncols <- dim(x)[2]
+  
+  if (ncols > il) {
+    x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
+    
+    if (method == "interpolate") {
+      x[, il + 1] <- if (il > 0) {
+        (x[, il] * w[1] + x[, il + 2] * w[2]) / sum(w)
+      } else {
+        x[, il + 2]
+      }
+      
+    } else if (method == "exhaust") {
+      x[, il + 1] <- x[, il + 2] * w[1] / sum(w)
+      x[, il + 2] <- x[, il + 2] * w[2] / sum(w)
+    }
+    
+  } else if (ncols == il) {
+    x <- x[, c(seq_len(ncols), NA)]
+    
+    if (method == "interpolate") {
+      x[, il + 1] <- x[, il]
+      
+    } else if (method == "exhaust") {
+      x[, il + 1] <- x[, il] * w[2] / sum(w)
+      x[, il] <- x[, il] * w[1] / sum(w)
+    }
+    
+  } else {
+    stop("Object x has ", ncols, " columns; thus, a new ", il, "-th column cannot be created")
+  }
+  
+  x
+}
+
 #------flags
 temp <- matrix(data=do.PriorCalculations, ncol=2, nrow=length(do.PriorCalculations)/2, byrow=TRUE)
 pcalcs <- data.frame(t(as.numeric(temp[,-1])))
 names(pcalcs) <- temp[,1]
 
-if(actionWithSoilWat) {
-	do.GetClimateMeans <- 	(sum(sw_input_climscen_values_use[-1]) > 0) |
-			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature |
-			sw_input_site_use$SoilTempC_atLowerBoundary |
-			sw_input_site_use$SoilTempC_atUpperBoundary |
-			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer |
-			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") |
-			any(create_treatments == "AdjMonthlyBioMass_Temperature") |
-			any(create_treatments == "AdjMonthlyBioMass_Precipitation") |
+if (actionWithSoilWat) {
+	do.GetClimateMeans <- (sum(sw_input_climscen_values_use[-1]) > 0) ||
+			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature ||
+			sw_input_site_use$SoilTempC_atLowerBoundary ||
+			sw_input_site_use$SoilTempC_atUpperBoundary ||
+			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer ||
+			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
+			any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
+			any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
 			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
 }
 
-if(any(actions == "create") && any(pcalcs > 0)){
-	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
+if (any(as.logical(pcalcs))) {
+  if (!be.quiet)
+    print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
+
+  if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
+    if (!be.quiet)
+      print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of", paste0(requested_soil_layers, collapse = ", "), "cm"))
+    # How to add different soil variables
+    sl_vars_mean <- c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp") # values will be interpolated
+    sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm") # values will be exhausted
+    
+    # Requested layers
+    requested_soil_layers <- as.integer(round(requested_soil_layers))
+    stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
+    req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
+  
+    # Available layers
+    temp <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
+    var_layers <- unique(sapply(temp, function(x) paste0(x[-length(x)], collapse = "_")))
+    temp <- unique(sapply(temp, function(x) x[length(x)]))
+    use_layers <- paste0("depth_", temp)
+    stopifnot(length(use_layers) > 0)
+  
+    layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_sites, use_layers, drop = FALSE]))
+    i_nodata <- apply(is.na(layers_depth), 1, all)
+    if (any(i_nodata)) {
+      layers_depth <- layers_depth[!i_nodata, ]
+      runIDs_sites_ws <- runIDs_sites[!i_nodata]
+    }
+    i_nodata <- apply(is.na(layers_depth), 2, all)
+    if (any(i_nodata))
+      layers_depth <- layers_depth[, !i_nodata]
+    ids_layers <- seq_len(dim(layers_depth)[2])
+    avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
+  
+    # Loop through runs with same layer profile and adjust
+    layer_sets <- unique(avail_sl_ids)
+    if (length(layer_sets) > 0) {
+      has_changed <- FALSE
+      sw_input_soils_data <- lapply(var_layers, function(x)
+        as.matrix(sw_input_soils[runIDs_sites_ws, grep(x, names(sw_input_soils))[ids_layers]]))
+      
+      for (ils in seq_along(layer_sets)) {
+        il_set <- avail_sl_ids == layer_sets[ils]
+        if (sum(il_set, na.rm = TRUE) == 0) next
+      
+        # Identify which requested layers to add
+        ldset <- na.exclude(layers_depth[which(il_set)[1], ])
+        req_sl_toadd <- setdiff(requested_soil_layers, ldset)
+        req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
+        if (length(req_sd_toadd) == 0) next
+        
+        # Add identified layers
+        for (lnew in req_sd_toadd) {
+          ilnew <- findInterval(lnew, ldset)
+          il_weight <- abs(lnew - ldset[ilnew + 1:0])
+          sw_input_soils_data <- lapply(seq_along(var_layers), function(iv)
+            add_layer_to_soil(sw_input_soils_data[[iv]],
+              il = ilnew, w = il_weight,
+              method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
+          ldset <- sort(c(ldset, lnew))
+        }
+        
+        # Update soil datafiles
+        lyrs <- seq_along(ldset)
+        
+        for (iv in seq_along(var_layers)) {
+          i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
+          sw_input_soils[runIDs_sites_ws[il_set], i.temp] <- 
+            round(sw_input_soils_data[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
+          sw_input_soils_use[i.temp] <- 1L
+        }
+        
+        sw_input_soillayers[runIDs_sites_ws[il_set],
+          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = length(il_set), ncol = length(ldset), byrow = TRUE)
+        has_changed <- TRUE
+      }
+
+      if (has_changed) {
+        #write data to datafile.soillayers
+        write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
+        #write data to datafile.soils
+        tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+        write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+        unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      }
+    }
+  
+    if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
+  }
 
 	if(pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
 		#calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
+	  if(!be.quiet) print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
+		
 		bsEvap.depth.max <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
 
 		ld <- 1:SoilLayer_MaxNo
@@ -2713,13 +2855,13 @@ if(any(actions == "create") && any(pcalcs > 0)){
 #	}
 
 	#------used during each simulation run: define functions here
-	if(pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
+	if(any(actions == "create") && pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
 		sw_input_site_use$SoilTempC_atLowerBoundary <- 1 #set use flag
 		sw_input_site_use$SoilTempC_atUpperBoundary <- 1
 		#call function 'SiteClimate' in each SoilWat-run
 	}
 
-	if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
+	if(any(actions == "create") && pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
 		#set use flags
 		ld <- 1:SoilLayer_MaxNo
 		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
@@ -4648,7 +4790,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					tempdat[,3] <- swProd_MonProd_tree(swRunScenariosData[[sc]])[,2]*swProd_MonProd_tree(swRunScenariosData[[sc]])[,3]
 					tempdat[,4] <- swProd_MonProd_forb(swRunScenariosData[[sc]])[,2]*swProd_MonProd_forb(swRunScenariosData[[sc]])[,3]
 
-					sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN=2, fracs, FUN="*"), MARGIN=1, function(x) sum(x)) #sweep out fractionals, and sum over rows
+					sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN=2, fracs, FUN="*"), MARGIN=1, sum) #sweep out fractionals, and sum over rows
 					maxMonth <- which(sumWeightedLiveBiomassByMonth==max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
 					meanPeakMonth <- circ.mean(maxMonth, 12)
 					duration <- circ.range(maxMonth, 12)+1
