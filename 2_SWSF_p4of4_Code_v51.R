@@ -2619,56 +2619,59 @@ if (actionWithSoilWat) {
 }
 
 if (any(as.logical(pcalcs))) {
-	if (!be.quiet)
-	  print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
+  if (!be.quiet)
+    print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
 
   if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
-	  if (!be.quiet)
-	    print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of", paste0(requested_soil_layers, collapse = ", "), "cm"))
+    if (!be.quiet)
+      print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of", paste0(requested_soil_layers, collapse = ", "), "cm"))
     # How to add different soil variables
     sl_vars_mean <- c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp") # values will be interpolated
     sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm") # values will be exhausted
     
     # Requested layers
     requested_soil_layers <- as.integer(round(requested_soil_layers))
-	  stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
-	  req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
-	  
-	  # Available layers
-	  temp <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
-	  var_layers <- unique(sapply(temp, function(x) paste0(x[-length(x)], collapse = "_")))
-	  temp <- unique(sapply(temp, function(x) x[length(x)]))
-	  use_layers <- paste0("depth_", temp)
-	  stopifnot(length(use_layers) > 0)
-	  
-		layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_sites, use_layers, drop = FALSE]))
-		i_nodata <- apply(is.na(layers_depth), 1, all)
-		if (any(i_nodata)) {
-		  layers_depth <- layers_depth[!i_nodata, ]
-		  runIDs_sites_ws <- runIDs_sites[!i_nodata]
-		}
-		i_nodata <- apply(is.na(layers_depth), 2, all)
-		if (any(i_nodata))
-		  layers_depth <- layers_depth[, !i_nodata]
-	  ids_layers <- seq_len(dim(layers_depth)[2])
-	  avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
-	  
-	  # Loop through runs with same layer profile and adjust
-	  layer_sets <- unique(avail_sl_ids)
+    stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
+    req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
+  
+    # Available layers
+    temp <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
+    var_layers <- unique(sapply(temp, function(x) paste0(x[-length(x)], collapse = "_")))
+    temp <- unique(sapply(temp, function(x) x[length(x)]))
+    use_layers <- paste0("depth_", temp)
+    stopifnot(length(use_layers) > 0)
+  
+    layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_sites, use_layers, drop = FALSE]))
+    i_nodata <- apply(is.na(layers_depth), 1, all)
+    if (any(i_nodata)) {
+      layers_depth <- layers_depth[!i_nodata, ]
+      runIDs_sites_ws <- runIDs_sites[!i_nodata]
+    }
+    i_nodata <- apply(is.na(layers_depth), 2, all)
+    if (any(i_nodata))
+      layers_depth <- layers_depth[, !i_nodata]
+    ids_layers <- seq_len(dim(layers_depth)[2])
+    avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
+  
+    # Loop through runs with same layer profile and adjust
+    layer_sets <- unique(avail_sl_ids)
     if (length(layer_sets) > 0) {
+      has_changed <- FALSE
       sw_input_soils_data <- lapply(var_layers, function(x)
         as.matrix(sw_input_soils[runIDs_sites_ws, grep(x, names(sw_input_soils))[ids_layers]]))
       
       for (ils in seq_along(layer_sets)) {
         il_set <- avail_sl_ids == layer_sets[ils]
+        if (sum(il_set, na.rm = TRUE) == 0) next
       
         # Identify which requested layers to add
         ldset <- na.exclude(layers_depth[which(il_set)[1], ])
         req_sl_toadd <- setdiff(requested_soil_layers, ldset)
         req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
+        if (length(req_sd_toadd) == 0) next
         
         # Add identified layers
-        if (length(req_sd_toadd) > 0) for (lnew in req_sd_toadd) {
+        for (lnew in req_sd_toadd) {
           ilnew <- findInterval(lnew, ldset)
           il_weight <- abs(lnew - ldset[ilnew + 1:0])
           sw_input_soils_data <- lapply(seq_along(var_layers), function(iv)
@@ -2678,7 +2681,6 @@ if (any(as.logical(pcalcs))) {
           ldset <- sort(c(ldset, lnew))
         }
         
-        
         # Update soil datafiles
         lyrs <- seq_along(ldset)
         
@@ -2686,22 +2688,25 @@ if (any(as.logical(pcalcs))) {
           i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
           sw_input_soils[runIDs_sites_ws[il_set], i.temp] <- 
             round(sw_input_soils_data[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
-				  sw_input_soils_use[i.temp] <- 1
+          sw_input_soils_use[i.temp] <- 1L
         }
         
         sw_input_soillayers[runIDs_sites_ws[il_set],
           grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = length(il_set), ncol = length(ldset), byrow = TRUE)
-      }      
+        has_changed <- TRUE
+      }
 
-      #write data to datafile.soillayers
-			write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
-      #write data to datafile.soils
-      tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-      write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      if (has_changed) {
+        #write data to datafile.soillayers
+        write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
+        #write data to datafile.soils
+        tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+        write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+        unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      }
     }
   
-	  if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
+    if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
   }
 
 	if(pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
