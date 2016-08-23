@@ -1508,7 +1508,10 @@ get_Runoff_yr <- compiler::cmpfun(function(sc, x, st) {
        snowmelt = x[, 4])
 })
 
-cor2  <- compiler::cmpfun(function(y) cor(y[,1], y[,2]))
+cor2  <- compiler::cmpfun(function(y) {
+	res <- try(cor(y[,1], y[,2]), silent = TRUE)
+	if (inherits(res, "try-error")) NA else res
+})
 
 #data is the values for one year adj for SWPcrit_MPa; TRUE==dry
 EventDistribution <- compiler::cmpfun(function(data, N, size) {
