@@ -3341,8 +3341,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						gravel.bottom=weighted.mean(gravel[bottomL], layers_width[bottomL])
 					)
 
-
-
 		if(any(simulation_timescales=="daily") && daily_no > 0){
 			textureDAgg <- list(	gravel=sapply(1:aggLs_no, FUN=function(x) weighted.mean(gravel[aggLs[[x]]], layers_width[aggLs[[x]]])),
 									sand=sapply(1:aggLs_no, FUN=function(x) weighted.mean(sand[aggLs[[x]]], layers_width[aggLs[[x]]])),
@@ -3738,14 +3736,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("PET.mo")) PET.mo <- get_PET_mo(sc, runData, simTime)
 
 					#in case var(ppt or swp)==0 => cor is undefined: exclude those years
-					resMeans[nv] <- mean( temp <- by(data.frame(PET.mo$val, swpmatric.mo$top), INDICES=simTime2$yearno_ForEachUsedMonth, FUN=cor2), na.rm=TRUE )
-					resSDs[nv] <- sd(temp, na.rm=TRUE)
-					if(length(bottomL) > 0 && !identical(bottomL, 0)){
-						resMeans[nv+1] <- mean( temp <- by(data.frame(PET.mo$val, swpmatric.mo$bottom), INDICES=simTime2$yearno_ForEachUsedMonth, FUN=cor2), na.rm=TRUE )
-						resSDs[nv+1] <- sd(temp, na.rm=TRUE)
+					temp <- by(data.frame(PET.mo$val, swpmatric.mo$top), simTime2$yearno_ForEachUsedMonth, cor2)
+					resMeans[nv] <- mean(temp, na.rm = TRUE)
+					resSDs[nv] <- sd(temp, na.rm = TRUE)
+					
+					if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+						temp <- by(data.frame(PET.mo$val, swpmatric.mo$bottom), simTime2$yearno_ForEachUsedMonth, cor2)
+						resMeans[nv+1] <- mean(temp, na.rm = TRUE)
+						resSDs[nv+1] <- sd(temp, na.rm = TRUE)
 					}
-					resMeans[nv+2] <- mean( temp <- by(data.frame(temp.mo$mean, prcp.mo$ppt), INDICES=simTime2$yearno_ForEachUsedMonth, FUN=cor2), na.rm=TRUE )
-					resSDs[nv+2] <- sd(temp, na.rm=TRUE)
+					
+					temp <- by(data.frame(temp.mo$mean, prcp.mo$ppt), simTime2$yearno_ForEachUsedMonth, cor2)
+					resMeans[nv+2] <- mean(temp, na.rm = TRUE)
+					resSDs[nv+2] <- sd(temp, na.rm = TRUE)
 
 					nv <- nv+3
 				}
