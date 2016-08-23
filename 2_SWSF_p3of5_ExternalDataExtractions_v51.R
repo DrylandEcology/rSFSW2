@@ -50,22 +50,6 @@ if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 
 
 if (exinfo$use_sim_spatial) {
-	has_nodata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
-		if (is.null(tag)) {
-			apply(data, MARGIN, function(x) all(is.na(x)))
-		} else {
-			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, function(x) all(is.na(x)))
-		}
-	})
-	
-	has_incompletedata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
-		if (is.null(tag)) {
-			apply(data, MARGIN, anyNA)
-		} else {
-			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, anyNA)
-		}
-	})
-	
 	# extraction functions
 	if (sim_cells_or_points == "point") {
 		#' extract raster data for sites
