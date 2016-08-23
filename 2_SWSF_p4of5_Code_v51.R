@@ -1536,7 +1536,7 @@ if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.tim
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 setwd(dir.prj)
-source(file.path(dir.code, "2_SWSF_p2of4_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
+source(file.path(dir.code, "2_SWSF_p2of5_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
 
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname=name.OutputDB)
 
@@ -2360,7 +2360,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
 	stopifnot(file.exists(dir.external))
 
-	source(file.path(dir.code, "2_SWSF_p3of4_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
+	source(file.path(dir.code, "2_SWSF_p3of5_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
 
 
 	# Check that include_YN* are inclusive
