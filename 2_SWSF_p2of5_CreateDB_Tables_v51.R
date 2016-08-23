@@ -564,24 +564,24 @@ if (length(Tables) == 0 || do.clean) {
 		}
 	#5.
 		if(aon$input_TranspirationCoeff){
-			if(AggLayer.daily){
-				ltemp <- paste("L0to", Depth_FirstAggLayer.daily, "cm", sep="")
-				if(is.null(Depth_SecondAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.numeric(Depth_SecondAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm", sep=""))
+			if(daily_lyr_agg[["do"]]){
+				ltemp <- paste("L0to", daily_lyr_agg[["first_cm"]], "cm", sep="")
+				if(is.null(daily_lyr_agg[["second_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "toSoilDepth", sep=""))
+				} else if(is.numeric(daily_lyr_agg[["second_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "to", daily_lyr_agg[["second_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_ThirdAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_ThirdAggLayer.daily)){
-				} else if(is.numeric(Depth_ThirdAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["third_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["third_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["third_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "to", daily_lyr_agg[["third_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_FourthAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_FourthAggLayer.daily)){
-				} else if(is.numeric(Depth_FourthAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["fourth_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["fourth_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["fourth_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "to", daily_lyr_agg[["fourth_cm"]], "cm", sep=""))
 				}
 				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SoilLayer_MaxNo, sep=""))
 			} else {

@@ -82,15 +82,6 @@ dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration fil
 dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
 dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
 
-#---Load functions
-ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (file.exists(ftemp)) {
-  load(ftemp)
-} else {
-  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
-  save(list = ls(name = "swsf_funs"), file = ftemp)
-  detach("swsf_funs")
-}
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
@@ -124,6 +115,16 @@ map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
 check.blas <- FALSE
+
+#---Load functions
+ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (file.exists(ftemp) && continueAfterAbort) {
+  load(ftemp)
+} else {
+  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = ftemp)
+  detach("swsf_funs")
+}
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
@@ -423,11 +424,12 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
-Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
-Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
-Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
-Depth_FourthAggLayer.daily  <- NULL	#cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
+daily_lyr_agg <- list(
+      do = FALSE,				# if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+      first_cm = 10, 	  # cm, distinguishes between first and second soil layer for average daily data aggregation
+      second_cm = 20, 	# cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
+      third_cm = 60, 	  # cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
+      fourth_cm = NULL) # cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
 
 #regeneration: germination and establishment
 season.start <- "LastSnow" # either doy or "LastSnow"

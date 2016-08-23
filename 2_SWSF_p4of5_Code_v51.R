@@ -49,6 +49,7 @@ dir.create2(dir.big, showWarnings=FALSE, recursive=TRUE)
 if(saveRsoilwatInput || saveRsoilwatOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
 dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
+dirname.sw.runs.weather <- "WeatherData"
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
@@ -150,15 +151,6 @@ if(!parallel_runs) {
 aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
 aon <- data.frame(t(as.numeric(aon.help[,-1])))
 names(aon) <- aon.help[,1]
-
-#------constants
-output_timescales_maxNo <- 4
-SoilLayer_MaxNo <- 20
-lmax <- 1:SoilLayer_MaxNo
-dirname.sw.runs.weather <- "WeatherData"
-SoilWat.windspeedAtHeightAboveGround <- 2	#m
-st_mo <- 1:12
-
 
 #------import data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
@@ -440,8 +432,8 @@ if(any(simulation_timescales=="daily")){
 		daily_no <- length(output_aggregate_daily)
 	}
 
-#	if(AggLayer.daily){
-#		aggLs_no <- 2 + ifelse(is.null(Depth_ThirdAggLayer.daily), 1, ifelse(!is.na(Depth_ThirdAggLayer.daily), 1, 0)) + ifelse(is.null(Depth_FourthAggLayer.daily), 1, ifelse(!is.na(Depth_FourthAggLayer.daily), 1, 0))
+#	if(daily_lyr_agg[["do"]]){
+#		aggLs_no <- 2 + ifelse(is.null(daily_lyr_agg[["third_cm"]]), 1, ifelse(!is.na(daily_lyr_agg[["third_cm"]]), 1, 0)) + ifelse(is.null(daily_lyr_agg[["fourth_cm"]]), 1, ifelse(!is.na(daily_lyr_agg[["fourth_cm"]]), 1, 0))
 #	} else {#at this stage we don't know how many soil layers we will have among the SoilWat runs; so just prepare for the maximum
 #		if(!any(create_treatments == "soilsin") & !is.null(sw_input_soillayers)){
 #			aggLs_no <- max(apply(sw_input_soillayers[, -1], MARGIN=1, FUN=function(x) ifelse(is.na(x[1]), NA, findInterval(x[1] - sqrt(.Machine$double.neg.eps), c(0, na.exclude(unlist(x[-1]))))) ), na.rm=TRUE)
@@ -574,7 +566,7 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
 	stopifnot(file.exists(dir.ex.CFSR))
 
-	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.cfsr.data=dir.ex.CFSR)
+	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.big, dir.ex.CFSR)
 	stopifnot(!inherits(prepd_CFSR, "try-error"))
 
 	get_NCEPCFSR_data <- function(dat_sites, daily=FALSE, monthly=FALSE, yearLow, yearHigh, n_site_per_core=100, cfsr_so, dir.in.cfsr, dir.temp, rm_mc_files=FALSE, continueAfterAbort. = continueAfterAbort){
@@ -1336,9 +1328,17 @@ if(!be.quiet) print(paste("SWSF sets up the database: ended after",  round(difft
 output_timescales_shortest <- ifelse(any(simulation_timescales=="daily"), 1, ifelse(any(simulation_timescales=="weekly"), 2, ifelse(any(simulation_timescales=="monthly"), 3, 4)))
 
 simTime <- simTiming(startyr, simstartyr, endyr)
-simTime_ForEachUsedTimeUnit_North <- simTiming_ForEachUsedTimeUnit(simTime, latitude=90)
+simTime_ForEachUsedTimeUnit_North <- simTiming_ForEachUsedTimeUnit(simTime,
+  sim_tscales = simulation_timescales,
+  latitude = 90,
+	account_NorthSouth = accountNSHemispheres_agg)
+	  
 if(accountNSHemispheres_agg){
-	simTime_ForEachUsedTimeUnit_South <- simTiming_ForEachUsedTimeUnit(simTime, latitude=-90)
+	simTime_ForEachUsedTimeUnit_South <- simTiming_ForEachUsedTimeUnit(simTime,
+	  sim_tscales = simulation_timescales,
+	  latitude = -90,
+	  account_NorthSouth = accountNSHemispheres_agg)
+	  
 } else {
 	simTime_ForEachUsedTimeUnit_South <- simTime_ForEachUsedTimeUnit_North
 }
@@ -1932,13 +1932,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		i_labels <- paste(flag.icounter, sw_input_experimentals[i_exp,1], i_labels, sep="_")
 
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
-		i_sw_input_treatments <- transferExpDesignToInput(i_sw_input_treatments,
+		i_sw_input_treatments <- transferExpDesignToInput(i_sw_input_treatments, i_exp,
 		  df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-		i_sw_input_soils <- transferExpDesignToInput(i_sw_input_soils,
+		i_sw_input_soils <- transferExpDesignToInput(i_sw_input_soils, i_exp,
 		  df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-		i_sw_input_site <- transferExpDesignToInput(i_sw_input_site,
+		i_sw_input_site <- transferExpDesignToInput(i_sw_input_site, i_exp,
 		  df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-		i_sw_input_prod <- transferExpDesignToInput(i_sw_input_prod,
+		i_sw_input_prod <- transferExpDesignToInput(i_sw_input_prod, i_exp,
 		  df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
 	}
 
@@ -2047,7 +2047,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 			#------simulation timing needs to be adjusted
 			simTime <- simTiming(startyr, simstartyr, endyr)
-			simTime2 <- simTiming_ForEachUsedTimeUnit(simTime, latitude=i_SWRunInformation$Y_WGS84)
+			simTime2 <- simTiming_ForEachUsedTimeUnit(simTime,
+			  sim_tscales = simulation_timescales,
+			  latitude = i_SWRunInformation$Y_WGS84,
+			  account_NorthSouth = accountNSHemispheres_agg)
+			  
 		} else {
 			if(i_SWRunInformation$Y_WGS84 >= 0){
 				simTime2 <- simTime_ForEachUsedTimeUnit_North
@@ -2056,6 +2060,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 		}
 	}
+
 
 
 #------------------------CREATE RUNS
@@ -3321,7 +3326,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		clay <- stemp[,10]
 
 		#get soil aggregation layer for daily aggregations
-		if(AggLayer.daily){
+		if(daily_lyr_agg[["do"]]){
 			aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth)
 		} else {
 			aggLs <- as.list(ld)
@@ -6044,7 +6049,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 						agg.no <- ifelse(agg.analysis == 1, 1, aggLs_no)
 
-						res.dailyMean <- res.dailySD <- rep(NA, times=ifelse(agg.analysis == 1, 1, ifelse(AggLayer.daily, agg.no, SoilLayer_MaxNo)) * 366)
+						res.dailyMean <- res.dailySD <- rep(NA, times=ifelse(agg.analysis == 1, 1, ifelse(daily_lyr_agg[["do"]], agg.no, SoilLayer_MaxNo)) * 366)
 
 						scaler <- switch(EXPR=output_aggregate_daily[doi], SWPmatric=1, VWCbulk=1, VWCmatric=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=1, 10) 	# SWP: -bar => MPa (but, since calculated via VWC, needs be same as VWC); VWC: # cm/cm -> m3/m3; default: cm => mm
 
@@ -6276,9 +6281,9 @@ if(actionWithSoilWat && runsN_todo > 0){
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
 	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002","AggLayer.daily","Depth_TopLayers","Depth_FirstAggLayer.daily","Depth_SecondAggLayer.daily","Depth_ThirdAggLayer.daily","Depth_FourthAggLayer.daily","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupFromTable", "fill_empty", "done_prior", "max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects", "dir.prj",
-			"work", "do_OneSite", "transferExpDesignToInput", "accountNSHemispheres_veg","AggLayer.daily","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master",
-			"setDeepestTopLayer", "setTopLayer", "setBottomLayer", ".local_weatherDirName", "finite01", "cor2", "cut0Inf", "tempError", "tol", "toln")
+	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002", "daily_lyr_agg","Depth_TopLayers","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupFromTable", "fill_empty", "done_prior", "max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects", "dir.prj",
+			"work", "do_OneSite", "transferExpDesignToInput", "accountNSHemispheres_veg", "daily_lyr_agg","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master",
+			"setDeepestTopLayer", "setTopLayer", "setBottomLayer", ".local_weatherDirName", "finite01", "cor2", "cut0Inf", "tempError", "tol", "toln", "accountNSHemispheres_agg")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))

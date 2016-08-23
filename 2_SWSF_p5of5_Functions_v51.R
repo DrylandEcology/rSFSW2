@@ -1,6 +1,13 @@
+#------ Constants
+output_timescales_maxNo <- 4L
+SoilLayer_MaxNo <- 20L
+lmax <- seq_len(SoilLayer_MaxNo)
+SoilWat.windspeedAtHeightAboveGround <- 2	#m
+st_mo <- seq_len(12L)
 tol <- sqrt(.Machine$double.eps)
 toln <- sqrt(.Machine$double.neg.eps)
 
+#------ Funtions
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
 set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
@@ -30,8 +37,9 @@ has_incompletedata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
 })
 
 .Last <- compiler::cmpfun(function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
-  if (is.loaded("mpi_initialize") && exists("mpi.comm.size")){
-    if (mpi.comm.size(1) > 0) mpi.close.Rslaves()
+  if (is.loaded("mpi_initialize") && exists("mpi.comm.size")) {
+    if (Rmpi::mpi.comm.size(1) > 0)
+      Rmpi::mpi.close.Rslaves()
     .Call("mpi_finalize")
   }
 })
@@ -66,7 +74,7 @@ file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mod
     if(file.exists(from))
       if(!file.exists(to)) {
         print("trying to copy the file again")
-        file.copy2(from, to, overwrite, copy.mode, (times+1))	#recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
+        Recall(from, to, overwrite, copy.mode, (times+1))	#recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
       }
   #else { #this commented out part copies the file via the system command cp
   #	if(any(grepl("/", to, fixed=TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
@@ -82,6 +90,19 @@ file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mod
   #	if(copy.mode == TRUE) command <- paste(command, "-p")
   #	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
   #}
+})
+#made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
+dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
+  dir.create(path, showWarnings, recursive, mode)
+  if(times < 24)
+    if(!file.exists(path)) {
+      print("trying to make directory again")
+      dir.create2(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
+    }
+  #else if(recursive == TRUE) #this commented out part makes the directory via the system call mkdir
+  #	system(paste("mkdir -p", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
+  #else
+  #	system(paste("mkdir", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
 })
 #copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
 dir.copy <- compiler::cmpfun(function(dir.from, dir.to, overwrite=FALSE){
@@ -112,19 +133,6 @@ dir.remove <- compiler::cmpfun(function(dir){
   }
   file.remove(dir)
 })
-#made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
-  dir.create(path, showWarnings, recursive, mode)
-  if(times < 24)
-    if(!file.exists(path)) {
-      print("trying to make directory again")
-      dir.create2(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
-    }
-  #else if(recursive == TRUE) #this commented out part makes the directory via the system call mkdir
-  #	system(paste("mkdir -p", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
-  #else
-  #	system(paste("mkdir", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
-})
 
 isLeapYear <- compiler::cmpfun(function(y) {
   #from package: tis
@@ -134,12 +142,12 @@ isLeapYear <- compiler::cmpfun(function(y) {
 # iterator functions
 #' @param isim An integer value. A value of \code{runIDs_todo} as subset of \code{runIDs_total}.
 #' @details NOTE: Do not change the iterators without adjusting the design of the output databases!
+it_exp <- compiler::cmpfun(function(isim, runN = runsN_master) (isim - 1L) %/% runN + 1L)
+it_site <- compiler::cmpfun(function(isim, runN = runsN_master) runN[(isim - 1L) %% runN + 1L])
 it_Pid_old <- compiler::cmpfun(function(isim, sc, scN = scenario_No) (isim - 1L) * scN + sc)
 it_Pid <- compiler::cmpfun(function(isim, sc, scN = scenario_No, runN = runsN_master) {
   ((it_exp(isim, runN) - 1L) * runN + it_site(isim, runN) - 1L) * scN + sc
 })
-it_exp <- compiler::cmpfun(function(isim, runN = runsN_master) (isim - 1L) %/% runN + 1L)
-it_site <- compiler::cmpfun(function(isim, runN = runsN_master) runN[(isim - 1L) %% runN + 1L])
 
 ## Tests
 #include_YN <- c(0, 0, 1, 0, 0, 1, 1, 0)
@@ -154,9 +162,9 @@ exportObjects <- compiler::cmpfun(function(allObjects) {
     bcast.tempString <- allObjects[obj]
     bcast.tempValue <- try(eval(as.name(allObjects[obj])))
     if(!inherits(bcast.tempValue, "try-error")){
-      mpi.bcast.Robj2slave(bcast.tempString)
-      mpi.bcast.Robj2slave(bcast.tempValue)
-      mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
+      Rmpi::mpi.bcast.Robj2slave(bcast.tempString)
+      Rmpi::mpi.bcast.Robj2slave(bcast.tempValue)
+      Rmpi::mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
     } else {
       print(paste(obj, bcast.tempString, "not successful"))
     }
@@ -169,7 +177,7 @@ load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
   invisible(0)
 })
 
-prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
+prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir.big, dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
   dir.create(dir.in.cfsr <- file.path(dir.big, "ncepcfsr"), showWarnings=FALSE)
   fname_cfsr <- file.path(dir.in.cfsr, "cfsr_convert.so")
 
@@ -272,17 +280,17 @@ simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
   res[["discardmo"]] <- res[["discardyr"]] * 12
   res[["discarddy"]] <- as.numeric(temp - as.POSIXlt(paste0(simstartyr, "-01-01")))
 
-  res[["index.useyr"]] <- discardyr + seq_len(no.useyr)
-  res[["index.usemo"]] <- discardmo + seq_len(no.usemo)
-  res[["index.usedy"]] <- discarddy + seq_len(no.usedy)
+  res[["index.useyr"]] <- res[["discardyr"]] + seq_len(res[["no.useyr"]])
+  res[["index.usemo"]] <- res[["discardmo"]] + seq_len(res[["no.usemo"]])
+  res[["index.usedy"]] <- res[["discarddy"]] + seq_len(res[["no.usedy"]])
 
   res
 })
 
-simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, latitude = 90) {	#positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, latitude = 90, account_NorthSouth = TRUE) {	#positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
   res <- list()
   
-  if (any(simulation_timescales == "daily")) {
+  if (any(sim_tscales == "daily")) {
     temp <- as.POSIXlt(seq(from = as.POSIXlt(paste0(min(st$useyrs), "-01-01")),
                            to = as.POSIXlt(paste0(max(st$useyrs), "-12-31")),
                            by = "1 day"))
@@ -291,7 +299,7 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, latitude = 90) {	
     res$month_ForEachUsedDay <- res$month_ForEachUsedDay_NSadj <- temp$mon + 1
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
     
-    if (latitude < 0 && accountNSHemispheres_agg) {
+    if (latitude < 0 && account_NorthSouth) {
       dshift <- as.POSIXlt(paste(st$useyrs, 6, 30, sep = "-"))$yday + 1	#new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy=366, there are two with doy=182
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
         temp <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
@@ -307,20 +315,20 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, latitude = 90) {	
     }
   }
   
-  if (any(simulation_timescales == "weekly")) {
+  if (any(sim_tscales == "weekly")) {
 
   }
   
-  if (any(simulation_timescales == "monthly")) {
+  if (any(sim_tscales == "monthly")) {
     res$yearno_ForEachUsedMonth <- res$yearno_ForEachUsedMonth_NSadj <- rep(seq_len(st$no.useyr), each = 12)
     res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(st_mo, times = st$no.useyr)
     
-    if (latitude < 0 && accountNSHemispheres_agg) {
+    if (latitude < 0 && account_NorthSouth) {
       res$month_ForEachUsedMonth_NSadj <- (res$month_ForEachUsedMonth + 5) %% 12 + 1
     }
   }
   
-  if (any(simulation_timescales == "yearly")) {
+  if (any(sim_tscales == "yearly")) {
 
   }
 
@@ -449,7 +457,7 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun
 
   #Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
   if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
-    stop(print(paste(i, " run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))) #throw an error
+    stop(print(paste(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))) #throw an error
   }
 
   if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1){
@@ -740,46 +748,42 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegetationComposition,AdjMonth
 
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean <- compiler::cmpfun(function(x, int, na.rm=FALSE) {
-  if(length(x) == sum(is.na(x))){
-    return(NA)
-  } else {
-    require(circular)
-
+circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+  if (!all(is.na(x))) {
     circ <- 2 * pi / int
-    x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-    x.int <- mean.circular(x.circ, na.rm=na.rm) / circ
-    rm(circ, x.circ)
-    return(round(as.numeric(x.int) - 1, 13) %% int + 1)	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
+  
+    round(as.numeric(x_int) - 1, 13) %% int + 1	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+  } else {
+    NA
   }
 })
 
-circ.range <- compiler::cmpfun(function(x, int, na.rm=FALSE) {
-  if(length(x) == sum(is.na(x))){
-    return(NA)
-  } else {
-    require(circular)
-
+circ.range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+  if (!all(is.na(x))) {
     circ <- 2 * pi / int
-    x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-    x.int <- range(x.circ, na.rm=na.rm) / circ
-    rm(circ, x.circ)
-    return(as.numeric(x.int))
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_int <- range(x_circ, na.rm = na.rm) / circ
+    as.numeric(x_int)
+    
+  } else {
+    NA
   }
 })
 
 circ.sd <- compiler::cmpfun(function(x, int, na.rm=FALSE){
-  if(length(x) == sum(is.na(x)) || sum(!is.na(x)) == 1){
-    return(NA)
-  } else if(sd(x, na.rm=TRUE) == 0){
-    return(0)
+  if (length(x) - sum(is.na(x)) > 1) {
+    if (sd(x, na.rm = TRUE) > 0) {
+      circ <- 2 * pi / int
+      x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+      x_int <- circular::sd.circular(x_circ, na.rm = na.rm) / circ
+      as.numeric(x_int)
+    } else {
+      0
+    }
   } else {
-    require(circular)
-    circ <- 2 * pi / int
-    x.circ <- circular(x * circ, type="angles", units="radians", rotation="clock", modulo="2pi")
-    x.int <- sd.circular(x.circ, na.rm=na.rm) / circ
-    rm(circ, x.circ)
-    return(as.numeric(x.int))
+    NA
   }
 })
 
@@ -1032,19 +1036,20 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
     swp <- vwc
     swp[!is.na(swp)] <- NA
   }
-  return(swp) #MPa [-Inf, 0]
+  
+  swp #MPa [-Inf, 0]
 })
 
 #two, three, or four layer aggregation for average daily aggregation output
-setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth){
+setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, daily_lyr_agg){
   d <- length(layers_depth)
   vals <- list()
   #first layer
-  DeepestFirstDailyAggLayer <- findInterval(Depth_FirstAggLayer.daily, c(0, layers_depth) + tol, all.inside=TRUE)
-  vals[[1]] <- 1:DeepestFirstDailyAggLayer
+  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
+  vals[[1]] <- seq_len(DeepestFirstDailyAggLayer)
   #second layer
-  if(!is.null(Depth_SecondAggLayer.daily)){
-    DeepestSecondDailyAggLayer <- findInterval(Depth_SecondAggLayer.daily, c(0, layers_depth) + tol, all.inside=TRUE)
+  if(!is.null(daily_lyr_agg[["second_cm"]])){
+    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
   } else {
     DeepestSecondDailyAggLayer <- d
   }
@@ -1052,9 +1057,9 @@ setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth){
     vals[[2]] <- (DeepestFirstDailyAggLayer+1):DeepestSecondDailyAggLayer
   }
   #third layer
-  if(!is.null(Depth_ThirdAggLayer.daily)){
-    if(!is.na(Depth_ThirdAggLayer.daily)){
-      DeepestThirdDailyAggLayer <- findInterval(Depth_ThirdAggLayer.daily, c(0, layers_depth) + tol, all.inside=TRUE)
+  if(!is.null(daily_lyr_agg[["third_cm"]])){
+    if(!is.na(daily_lyr_agg[["third_cm"]])){
+      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
     } else {
       DeepestThirdDailyAggLayer <- NULL
     }
@@ -1065,9 +1070,9 @@ setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth){
     vals[[3]] <- (DeepestSecondDailyAggLayer+1):DeepestThirdDailyAggLayer
   }
   #fourth layer
-  if(!is.null(Depth_FourthAggLayer.daily)){
-    if(!is.na(Depth_FourthAggLayer.daily)){
-      DeepestFourthDailyAggLayer <- findInterval(Depth_FourthAggLayer.daily, c(0, layers_depth) + tol, all.inside=TRUE)
+  if(!is.null(daily_lyr_agg[["fourth_cm"]])){
+    if(!is.na(daily_lyr_agg[["fourth_cm"]])){
+      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
     } else {
       DeepestFourthDailyAggLayer <- NULL
     }
@@ -1199,7 +1204,7 @@ EstimateInitialSoilTemperatureForEachSoilLayer <- compiler::cmpfun(function(laye
 })
 
 #--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
-transferExpDesignToInput <- compiler::cmpfun(function(x, df_exp, df_exp_use) {
+transferExpDesignToInput <- compiler::cmpfun(function(x, i_exp, df_exp, df_exp_use) {
   temp <- match(names(df_exp)[df_exp_use == 1], names(x), nomatch = 0)
   ctemp <- temp[!(temp == 0)]
   if (length(ctemp) > 0) {
@@ -1250,7 +1255,7 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
       1L
     }
 
-  temp1 <- scaler * slot(slot(runData[[sc_i]], response), 
+  temp1 <- scaler * slot(slot(x[[sc_i]], response), 
     switch(tscale,
       dy = "Day", dyAll = "Day",
       mo = "Month", moAll = "Month",
@@ -1364,21 +1369,21 @@ get_Temp_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
 })
 
 get_Temp_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
-  x <- slot(slot(runData[[sc]], "TEMP"), "Day")[simTime$index.usedy, ]
+  x <- slot(slot(x[[sc]], "TEMP"), "Day")[st$index.usedy, ]
   list(min =  x[, 4],
        mean = x[, 5],
        max =  x[, 3])
 })
 
 get_VPD_mo <- compiler::cmpfun(function(sc, temp.mo, xin = swRunScenariosData, st2 = simTime2) {
-  rH <- swCloud_SkyCover(xin[[sc]])
+  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedMonth])
 
   list(mean = vpd(temp.mo$min, temp.mo$max, rH))
 })
 
 get_VPD_dy <- compiler::cmpfun(function(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2) {
-  rH <- swCloud_SkyCover(xin[[sc]])
+  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
   
   list(mean = vpd(temp.dy$min, temp.dy$max, rH))
@@ -1391,7 +1396,7 @@ get_PPT_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
 })
 
 get_PPT_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
-  x <- 10 * slot(slot(x[[sc]], "PRECIP"), "Month")[simTime$index.usemo, ]
+  x <- 10 * slot(slot(x[[sc]], "PRECIP"), "Month")[st$index.usemo, ]
   list(ppt = x[, 3], rain = x[, 4],
        snowmelt = x[, 6])
 })
@@ -1469,7 +1474,7 @@ get_DeepDrain_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
   list(val = 10 * slot(slot(x[[sc]], "DEEPSWC"), "Year")[st$index.useyr, 2])
 })
 
-get_DeepDrain_mo <- compiler::cmpfun(function(sc) {
+get_DeepDrain_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
   list(val = 10 * slot(slot(x[[sc]], "DEEPSWC"), "Month")[st$index.usemo, 3])
 })
 
