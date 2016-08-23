@@ -125,13 +125,13 @@ check.blas <- FALSE
 
 #---Load functions
 ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (file.exists(ftemp) && continueAfterAbort) {
-  load(ftemp)
-} else {
+if (!file.exists(ftemp) && continueAfterAbort) {
   sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
   save(list = ls(name = "swsf_funs"), file = ftemp)
   detach("swsf_funs")
 }
+load(ftemp)
+
 
 #------Define how aggregated output should be handled:
 cleanDB <- TRUE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.

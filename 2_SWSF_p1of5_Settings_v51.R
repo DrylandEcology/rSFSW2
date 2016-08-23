@@ -110,7 +110,7 @@ saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")
-map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
+map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "EvapCoeff", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
@@ -118,13 +118,13 @@ check.blas <- FALSE
 
 #---Load functions
 ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (file.exists(ftemp) && continueAfterAbort) {
-  load(ftemp)
-} else {
+if (!file.exists(ftemp) && continueAfterAbort) {
   sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
   save(list = ls(name = "swsf_funs"), file = ftemp)
   detach("swsf_funs")
 }
+load(ftemp)
+
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.

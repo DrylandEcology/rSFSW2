@@ -97,7 +97,7 @@ dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = 
   if(times < 24)
     if(!file.exists(path)) {
       print("trying to make directory again")
-      dir.create2(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
+      Recall(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
     }
   #else if(recursive == TRUE) #this commented out part makes the directory via the system call mkdir
   #	system(paste("mkdir -p", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
@@ -110,7 +110,7 @@ dir.copy <- compiler::cmpfun(function(dir.from, dir.to, overwrite=FALSE){
   dir.list <- basename(list.dirs2(dir.from, full.names=FALSE, recursive=FALSE))
   file.list <- list.files(dir.from)
   if(length(dir.list) > 0) {
-    sapply(dir.list, function(x) {dir.copy(dir.from=file.path(dir.from, x), dir.to=file.path(dir.to, x), overwrite=overwrite)})
+    sapply(dir.list, function(x) {Recall(dir.from=file.path(dir.from, x), dir.to=file.path(dir.to, x), overwrite=overwrite)})
     #file.list <- file.list[-match(dir.list, table=file.list)] #this line gives an error when run in R v. 2.13
     file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
   }
@@ -125,7 +125,7 @@ dir.remove <- compiler::cmpfun(function(dir){
   file.list <- file.list[-which(file.list %in% c(".", ".."))]
   dir.list <- basename(list.dirs2(dir, full.names=FALSE, recursive=FALSE))
   if(length(dir.list) > 0) {
-    sapply(dir.list, function(x) {dir.remove(dir=file.path(dir, x))})
+    sapply(dir.list, function(x) Recall(dir=file.path(dir, x)))
     file.list <- file.list[-match(dir.list, table=file.list)]
   }
   if(length(file.list) > 0) {
@@ -142,18 +142,18 @@ isLeapYear <- compiler::cmpfun(function(y) {
 # iterator functions
 #' @param isim An integer value. A value of \code{runIDs_todo} as subset of \code{runIDs_total}.
 #' @details NOTE: Do not change the iterators without adjusting the design of the output databases!
-it_exp <- compiler::cmpfun(function(isim, runN = runsN_master) (isim - 1L) %/% runN + 1L)
-it_site <- compiler::cmpfun(function(isim, runN = runsN_master) runN[(isim - 1L) %% runN + 1L])
-it_Pid_old <- compiler::cmpfun(function(isim, sc, scN = scenario_No) (isim - 1L) * scN + sc)
-it_Pid <- compiler::cmpfun(function(isim, sc, scN = scenario_No, runN = runsN_master) {
+it_exp <- compiler::cmpfun(function(isim, runN) (isim - 1L) %/% runN + 1L)
+it_site <- compiler::cmpfun(function(isim, runN) runN[(isim - 1L) %% runN + 1L])
+it_Pid_old <- compiler::cmpfun(function(isim, sc, scN) (isim - 1L) * scN + sc)
+it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN) {
   ((it_exp(isim, runN) - 1L) * runN + it_site(isim, runN) - 1L) * scN + sc
 })
 
 ## Tests
 #include_YN <- c(0, 0, 1, 0, 0, 1, 1, 0)
 #include_YN <- rep(1, 8)
-#t(sapply(runIDs_todo, function(isim) c(isim, it_site(isim), it_exp(isim), it_Pid(isim, 1), it_Pid_old(isim, 1))))
-#t(sapply(runIDs_total, function(isim) c(isim, it_site(isim), it_exp(isim), it_Pid(isim, 1), it_Pid_old(isim, 1))))
+#t(sapply(runIDs_todo, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
+#t(sapply(runIDs_total, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
 
 exportObjects <- compiler::cmpfun(function(allObjects) {
   print("exporting objects from master node to slave nodes")
@@ -360,43 +360,56 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
   itemp <- year.start <= sw.weather.suffices & year.end >= sw.weather.suffices
   years <- sw.weather.suffices[itemp]
 
-  tempMean <- tempMin <- tempMax <- ppt <- rep(0, times=12)
+  tempMean <- tempMin <- tempMax <- ppt <- rep(0, times = 12)
   mat <- NULL
-  if(do.C4vars){
-    dailyTempMin <- NULL
-    dailyTempMean <- NULL
+  if (do.C4vars) {
+    dailyTempMin <- dailyTempMean <- NULL
   }
-  if((no.yrs <- length(years)) > 0) for(y in 1:no.yrs){
-      temp.dailyTempMean <- apply(get_swWeatherData(weatherList, years[y])@data[, 2:3], 1, mean)
-      temp.dailyTempMin <- get_swWeatherData(weatherList, years[y])@data[, 3]
-      temp.dailyTempMax <- get_swWeatherData(weatherList, years[y])@data[, 2]
+  
+  no.yrs <- length(years)
+  if (no.yrs > 0) for (y in seq_len(no.yrs)) {
+  		x <- Rsoilwat31::get_swWeatherData(weatherList, years[y])@data[, c("Tmax_C", "Tmin_C", "PPT_cm"), drop = FALSE]
+      temp.dailyTempMean <- rowMeans(x[, c("Tmax_C", "Tmin_C")])
+      temp.dailyTempMin <- x[, "Tmin_C"]
+      temp.dailyTempMax <- x[, "Tmax_C"]
       mat <- c(mat, mean(temp.dailyTempMean))
-      if(do.C4vars){
-        dailyTempMin <- c(dailyTempMin, get_swWeatherData(weatherList, years[y])@data[, 3])
+      
+      if (do.C4vars) {
+        dailyTempMin <- c(dailyTempMin, temp.dailyTempMin)
         dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
       }
-      month_forEachDoy <- as.POSIXlt(seq(from=as.POSIXlt(paste(years[y], "-01-01", sep="")), to=as.POSIXlt(paste(years[y], "-12-31", sep="")), by="1 day"))$mon + 1
-      if (years[y] == 1942 ){
-        month_forEachDoy<-c(month_forEachDoy,12)
+      
+      month_forEachDoy <- as.POSIXlt(seq(from = as.POSIXlt(paste0(years[y], "-01-01")),
+      																	 to = as.POSIXlt(paste0(years[y], "-12-31")),
+      																	 by = "1 day"))$mon + 1
+      if (years[y] == 1942) { #TODO: why? 1942 is not a leap year
+        month_forEachDoy <- c(month_forEachDoy, 12)
       }
-      tempMean <- tempMean + aggregate(temp.dailyTempMean, by=list(month_forEachDoy), FUN=mean)[, 2]
-      tempMin <- tempMin + aggregate(temp.dailyTempMin, by=list(month_forEachDoy), FUN=mean)[, 2]
-      tempMax <- tempMax + aggregate(temp.dailyTempMax, by=list(month_forEachDoy), FUN=mean)[, 2]
-      ppt <- ppt + aggregate(get_swWeatherData(weatherList, years[y])@data[, 4], by=list(month_forEachDoy), FUN=sum)[, 2]
+      
+      tempMean <- tempMean + aggregate(temp.dailyTempMean, by = list(month_forEachDoy), mean)[, 2]
+      tempMin <- tempMin + aggregate(temp.dailyTempMin, by = list(month_forEachDoy), mean)[, 2]
+      tempMax <- tempMax + aggregate(temp.dailyTempMax, by = list(month_forEachDoy), mean)[, 2]
+      ppt <- ppt + aggregate(x[, "PPT_cm"], by = list(month_forEachDoy), sum)[, 2]
     }
-  tempMean <- tempMean / no.yrs
-  tempMin <- tempMin / no.yrs
-  tempMax <- tempMax / no.yrs
-  ppt <- ppt / no.yrs
+  
+  res <- list()
+  res[["meanMonthlyTempC"]] <- tempMean / no.yrs
+  res[["minMonthlyTempC"]] <- tempMin / no.yrs
+  res[["maxMonthlyTempC"]] <- tempMax / no.yrs
+  res[["meanMonthlyPPTcm"]] <- ppt / no.yrs
+  
+  res[["MAP_cm"]] <- sum(ppt)
+  res[["MAT_C"]] <- mean(mat)
 
-  res <- list(meanMonthlyTempC=tempMean, minMonthlyTempC=tempMin, maxMonthlyTempC=tempMax,
-        meanMonthlyPPTcm=ppt, MAP_cm=sum(ppt), MAT_C=mean(mat))
-
-  if(do.C4vars){
-    res$dailyTempMin <- dailyTempMin
-    res$dailyTempMean <- dailyTempMean
-    res$dailyC4vars <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
+  if (do.C4vars) {
+    res[["dailyTempMin"]] <- dailyTempMin
+    res[["dailyTempMean"]] <- dailyTempMean
+    res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
+    
+  } else {
+  	res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
   }
+  
   res
 })
 
@@ -1230,9 +1243,9 @@ setBottomLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
   }
 })
 
-.local_weatherDirName <- compiler::cmpfun(function(i_sim, name.OutputDB) {	# Get name of weather file from output database
+local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, name.OutputDB) {	# Get name of weather file from output database
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1)))[1,1]
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN)))[1,1]
   DBI::dbDisconnect(con)
   temp
 })
@@ -1243,8 +1256,7 @@ tempError <- compiler::cmpfun(function() .Call("tempError"))
 get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
                               tscale = c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"),
                               scaler = 10, FUN, weights = NULL,
-                              x = runData, st = simTime, st2 = simTime2,
-                              topL. = topL, bottomL. = bottomL) {
+                              x, st, st2, topL, bottomL) {
   FUN <- match.fun(FUN)
   tscale <- match.arg(tscale)
   responseRepeats <- if (response %in% c("TRANSP", "HYDRED")) {
@@ -1292,34 +1304,34 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
   
   layers <- seq_len((ncol(temp1) - index.col) / responseRepeats)
   
-  #adjust topL. and bottomL. locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
-  if (max(layers) <= max(topL.)) {
-    topL. <- layers
-    bottomL. <- 0
-  } else if (max(layers) < max(bottomL.)) {
-    bottomL. <- min(bottomL.):max(layers)
+  #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
+  if (max(layers) <= max(topL)) {
+    topL <- layers
+    bottomL <- 0
+  } else if (max(layers) < max(bottomL)) {
+    bottomL <- min(bottomL):max(layers)
   }
   
   res <- list()
-  res[["top"]] <- if (length(topL.) > 1) {
+  res[["top"]] <- if (length(topL) > 1) {
       if (is.null(weights)) {
-        apply(temp1[index.usetimestep, index.col + topL., drop = FALSE], 1, FUN)
+        apply(temp1[index.usetimestep, index.col + topL, drop = FALSE], 1, FUN)
       } else {
-        apply(temp1[index.usetimestep, index.col + topL., drop = FALSE], 1, FUN, weights[topL.])
+        apply(temp1[index.usetimestep, index.col + topL, drop = FALSE], 1, FUN, weights[topL])
       }
     } else {
-      temp1[index.usetimestep, index.col + topL.]
+      temp1[index.usetimestep, index.col + topL]
     }
-  res[["bottom"]] <- if (length(bottomL.) > 1) {
+  res[["bottom"]] <- if (length(bottomL) > 1) {
       if(is.null(weights)){
-        apply(temp1[index.usetimestep, index.col + bottomL., drop = FALSE], 1, FUN)
+        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN)
       } else {
-        apply(temp1[index.usetimestep, index.col + bottomL., drop = FALSE], 1, FUN, weights[bottomL.])
+        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN, weights[bottomL])
       }
-    } else if (is.null(bottomL.) || identical(bottomL., 0)) {
+    } else if (is.null(bottomL) || identical(bottomL, 0)) {
       matrix(data = 0, nrow = length(index.usetimestep), ncol = 1)
     } else {
-      temp1[index.usetimestep, index.col + bottomL.]
+      temp1[index.usetimestep, index.col + bottomL]
     }
 
   if (!is.null(timestep_ForEachEntry)) {
@@ -1334,15 +1346,15 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
   res
 })
 
-get_SWPmatric_aggL <- compiler::cmpfun(function(vwcmatric, texture. = texture, sand. = sand, clay. = clay) {
+get_SWPmatric_aggL <- compiler::cmpfun(function(vwcmatric, texture, sand, clay) {
   res <- list()
   
-  res[["top"]] <- VWCtoSWP(vwcmatric$top, texture.$sand.top, texture.$clay.top)
-  res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture.$sand.bottom, texture.$clay.bottom)
+  res[["top"]] <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
+  res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom, texture$clay.bottom)
   
   if (!is.null(vwcmatric$aggMean.top)) {
-    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture.$sand.top, texture.$clay.top)
-    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom, texture.$sand.bottom, texture.$clay.bottom)
+    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top, texture$clay.top)
+    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
   }
   
   if (!is.null(vwcmatric$val)) {
@@ -1351,103 +1363,103 @@ get_SWPmatric_aggL <- compiler::cmpfun(function(vwcmatric, texture. = texture, s
     } else {
       index.header <- 1
     }
-    res[["val"]] <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand., clay.))
+    res[["val"]] <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
   }
   
   res
 })
 
-get_Temp_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Temp_yr <- compiler::cmpfun(function(sc, x, st) {
   list(mean = slot(slot(x[[sc]], "TEMP"), "Year")[st$index.useyr, 4])
 })
 
-get_Temp_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Temp_mo <- compiler::cmpfun(function(sc, x, st) {
   x <- slot(slot(x[[sc]], "TEMP"), "Month")[st$index.usemo, ]
   list(min =  x[, 4],
        mean = x[, 5],
        max =  x[, 3])
 })
 
-get_Temp_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Temp_dy <- compiler::cmpfun(function(sc, x, st) {
   x <- slot(slot(x[[sc]], "TEMP"), "Day")[st$index.usedy, ]
   list(min =  x[, 4],
        mean = x[, 5],
        max =  x[, 3])
 })
 
-get_VPD_mo <- compiler::cmpfun(function(sc, temp.mo, xin = swRunScenariosData, st2 = simTime2) {
+get_VPD_mo <- compiler::cmpfun(function(sc, temp.mo, xin, st2) {
   rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedMonth])
 
   list(mean = vpd(temp.mo$min, temp.mo$max, rH))
 })
 
-get_VPD_dy <- compiler::cmpfun(function(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2) {
+get_VPD_dy <- compiler::cmpfun(function(sc, temp.dy, xin, st2) {
   rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
   
   list(mean = vpd(temp.dy$min, temp.dy$max, rH))
 })
 
-get_PPT_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_PPT_yr <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "PRECIP"), "Year")[st$index.useyr, ]
   list(ppt = x[, 2], rain = x[, 3],
        snowfall = x[, 4], snowmelt = x[, 5], snowloss = x[, 6])
 })
 
-get_PPT_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_PPT_mo <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "PRECIP"), "Month")[st$index.usemo, ]
   list(ppt = x[, 3], rain = x[, 4],
        snowmelt = x[, 6])
 })
 
-get_PPT_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_PPT_dy <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "PRECIP"), "Day")[st$index.usedy, ]
   list(ppt = x[, 3], rain = x[, 4],
        snowfall = x[, 5], snowmelt = x[, 6], snowloss = x[, 7])
 })
 
-get_PET_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_PET_yr <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "PET"), "Year")[st$index.useyr, 2])
 })
 
-get_PET_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_PET_mo <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "PET"), "Month")[st$index.usemo, 3])
 })
 
-get_AET_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_AET_yr <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "AET"), "Year")[st$index.useyr, 2])
 })
 
-get_AET_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_AET_mo <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "AET"), "Month")[st$index.usemo, 3])
 })
 
-get_AET_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_AET_dy <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "AET"), "Day")[st$index.usedy, 3])
 })
 
-get_SWE_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_SWE_mo <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "SNOWPACK"), "Month")[st$index.usemo, 3])
 })
 
-get_SWE_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_SWE_dy <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "SNOWPACK"), "Day")[st$index.usedy, 3])
 })
 
-get_Inf_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Inf_yr <- compiler::cmpfun(function(sc, x, st) {
   list(inf = 10 * slot(slot(x[[sc]], "SOILINFILT"), "Year")[st$index.useyr, 2])
 })
 
-get_Inf_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Inf_mo <- compiler::cmpfun(function(sc, x, st) {
   list(inf = 10 * slot(slot(x[[sc]], "SOILINFILT"), "Month")[st$index.usemo, 3])
 })
 
-get_Inf_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Inf_dy <- compiler::cmpfun(function(sc, x, st) {
   list(inf = 10 * slot(slot(x[[sc]], "SOILINFILT"), "Day")[st$index.usedy, 3])
 })
 
-get_Esurface_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Esurface_yr <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "EVAPSURFACE"), "Year")[st$index.useyr, ]
   list(sum = x[, 2],
        veg = rowSums(x[, 3:6]),
@@ -1455,7 +1467,7 @@ get_Esurface_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
        surfacewater = x[, 8])
 })
 
-get_Esurface_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Esurface_dy <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "EVAPSURFACE"), "Day")[st$index.usedy, ]
   list(sum = x[, 3],
        veg = rowSums(x[, 4:7]),
@@ -1463,33 +1475,33 @@ get_Esurface_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
        surfacewater = x[, 9])
 })
 
-get_Interception_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Interception_yr <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "INTERCEPTION"), "Year")[st$index.useyr, ]
   list(sum = x[, 2],
        veg = rowSums(x[, 3:6]),
        litter = x[, 7])
 })
 
-get_DeepDrain_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_DeepDrain_yr <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "DEEPSWC"), "Year")[st$index.useyr, 2])
 })
 
-get_DeepDrain_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_DeepDrain_mo <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "DEEPSWC"), "Month")[st$index.usemo, 3])
 })
 
-get_DeepDrain_dy <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_DeepDrain_dy <- compiler::cmpfun(function(sc, x, st) {
   list(val = 10 * slot(slot(x[[sc]], "DEEPSWC"), "Day")[st$index.usedy, 3])
 })
 
-get_Runoff_mo <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Runoff_mo <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "RUNOFF"), "Month")[st$index.usemo, ]
   list(val = x[, 3],
        ponded = x[, 4],
        snowmelt = x[, 5])
 })
 
-get_Runoff_yr <- compiler::cmpfun(function(sc, x = runData, st = simTime) {
+get_Runoff_yr <- compiler::cmpfun(function(sc, x, st) {
   x <- 10 * slot(slot(x[[sc]], "RUNOFF"), "Year")[st$index.useyr, ]
   list(val = x[, 2],
        ponded = x[, 3],
