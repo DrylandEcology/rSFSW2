@@ -131,12 +131,6 @@ PRAGMA_settings2 <- c(PRAGMA_settings1,
 					  "PRAGMA max_page_count=2147483646;", # returns the maximum page count
 					  "PRAGMA foreign_keys = ON;") #no return value
 
-set_PRAGMAs <- function(con, settings) {
-	temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
-
-	invisible(0)
-}
-
 if(length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2)
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
@@ -153,11 +147,6 @@ if (length(Tables) == 0 || do.clean) {
 			unlink(name.OutputDB)
 			con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			set_PRAGMAs(con, PRAGMA_settings2)
-		}
-
-		getSiteIds <- function(con, folderNames) {
-			wf_ids <- RSQLite::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
-			res <- wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
 		}
 
 		######################
