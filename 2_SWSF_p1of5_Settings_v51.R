@@ -213,7 +213,6 @@ do.PriorCalculations <- c(
 #	current simulation years = simstartyr:endyr
 #	years used for results = startyr:endyr
 simstartyr  <- 1979
-getStartYear <- function(simstartyr) simstartyr + 1
 startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
