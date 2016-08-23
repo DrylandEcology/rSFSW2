@@ -5245,7 +5245,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#47
 				if(any(simulation_timescales == "monthly") & aon$monthlySoilTemp) {
 					if(print.debug) print("Aggregation of monthlySoilTemp")
-					if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(sc, sw_soiltemp, "mo", scaler=1, FUN=weighted.mean, weights=layers_width)
+					if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(sc, sw_soiltemp, tscale = "mo", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 
 					resMeans[nv+st_mo-1] <- aggregate(soiltemp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate(soiltemp.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
@@ -5304,7 +5304,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#53 a.)
 				if(any(simulation_timescales=="monthly") & aon$monthlyVWCbulk){
 					if(print.debug) print("Aggregation of monthlyVWC")
-					if(!exists("vwcbulk.mo")) vwcbulk.mo <- get_Response_aggL(sc, sw_vwcbulk, "mo", 1, FUN=weighted.mean, weights=layers_width)
+					if(!exists("vwcbulk.mo")) vwcbulk.mo <- get_Response_aggL(sc, sw_vwcbulk, tscale = "mo", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 
 					resMeans[nv+st_mo-1] <- aggregate(vwcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=mean)[,2]
 					resSDs[nv+st_mo-1] <- aggregate(vwcbulk.mo$top, by=list(simTime2$month_ForEachUsedMonth), FUN=sd)[,2]
