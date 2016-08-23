@@ -82,6 +82,9 @@ dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration fil
 dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
 dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
 
+#---Load functions
+source(file.path(dir.code, "2_SWSF_p5of5_Functions_v51.R"), verbose = FALSE, chdir = FALSE)
+
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
@@ -491,4 +494,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of4_Code_v51.R"), verbose = FALSE, chdir = FALSE)
+if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
