@@ -3327,7 +3327,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#get soil aggregation layer for daily aggregations
 		if(daily_lyr_agg[["do"]]){
-			aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth)
+			aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth, daily_lyr_agg)
 		} else {
 			aggLs <- as.list(ld)
 		}
@@ -3605,9 +3605,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								syi <- syi + 1
 							}
 							if(nrow(res.snow) > 1){
-								resMeans[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ.mean, int = 365, na.rm = TRUE)),
+								resMeans[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ.mean, int = 365, na.rm = TRUE),
 								                         apply(res.snow[,-(1:3)], 2, mean, na.rm = TRUE))
-								resSDs[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ.sd, int = 365, na.rm = TRUE)),
+								resSDs[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ.sd, int = 365, na.rm = TRUE),
 								                       apply(res.snow[,-(1:3)], 2, sd, na.rm = TRUE))
 							} else {
 								resMeans[nv:(nv+4)] <- res.snow[1,-1]
@@ -4865,10 +4865,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					start.bottom <- apply(drymonths.bottom, MARGIN=c(1, 3), FUN=match, x=1, nomatch=0)
 					start.bottom[start.bottom != 0] <- ifelse((temp <- (start.bottom[start.bottom != 0] + adjMonths) %% 12) == 0, 12, temp)
 
-					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ.mean, int = 12)),
-					                                               apply(start.bottom, MARGIN=1, circ.mean, int = 12)))
-					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ.sd, int = 12)),
-					                                             apply(start.bottom, MARGIN=1, circ.sd, int = 12)))
+					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ.mean, int = 12),
+					                                               apply(start.bottom, MARGIN=1, circ.mean, int = 12))
+					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ.sd, int = 12),
+					                                             apply(start.bottom, MARGIN=1, circ.sd, int = 12))
 
 					nv <- nv+2*length(SWPcrit_MPa)
 
@@ -4940,10 +4940,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						}
 
 						#aggregate results
-						resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)]), MARGIN=2, FUN=mean, na.rm=TRUE),
-								apply(res.dry[, c(1:2, 5:6), drop=FALSE], MARGIN=2, circ.mean, int = 365, na.rm = TRUE)))
-						resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE),
-								apply(res.dry[, c(1:2, 5:6), drop=FALSE], MARGIN=2, circ.sd, int = 365, na.rm = TRUE)))
+						temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)])
+						resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(colMeans(temp, na.rm = TRUE),
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], 2, circ.mean, int = 365, na.rm = TRUE))
+						resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, 2, sd, na.rm = TRUE),
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], 2, circ.sd, int = 365, na.rm = TRUE))
 					}
 					nv <- nv+16*length(SWPcrit_MPa)
 
