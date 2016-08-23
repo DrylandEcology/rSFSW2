@@ -2503,7 +2503,7 @@ if (any(actions == "create")) {
           if (continueAfterAbort) {
             # Determine whether lookup already carried out and stored to file
             sw_input_use <- get(pc$sw_input_use)
-            
+
             icols <- grep(pc$pattern, names(sw_input_use))
             icols <- icols[sw_input_use[icols] > 0]
             temp <- get(pc$sw_input)[, icols, drop = FALSE]
@@ -2545,7 +2545,7 @@ if (any(actions == "create")) {
             assign(pc$sw_input_use, tempdat$sw_input_use, envir = .GlobalEnv)
             assign(pc$sw_input, tempdat$sw_input, envir = .GlobalEnv)
  
-            #write data to datafile.cloud
+            #write data to datafile
             write.csv(rbind(tempdat$sw_input_use, tempdat$sw_input), file = pc$datafile, row.names = FALSE)
             unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
           }
@@ -2769,65 +2769,107 @@ if (any(as.logical(pcalcs))) {
         tempdat <- rbind(sw_input_soils_use, sw_input_soils)
         write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
         unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+        print("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to adjust lookup tables with per-layer values if applicable for this project")
       }
     }
   
     if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
   }
 
-	if(pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture){
-		#calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
-	  if(!be.quiet) print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
-		
-		bsEvap.depth.max <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
+  if (pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture) {
+    #calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
+    # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 
-		ld <- 1:SoilLayer_MaxNo
-		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
-		stopifnot(length(use.layers) > 0)
-		layers.depth <- as.matrix(sw_input_soillayers[runIDs_sites, match(paste("depth_L", use.layers, sep=""), colnames(sw_input_soillayers)), drop = FALSE])
-		if(length(dim(layers.depth)) > 0){
-			layers.width <- t(apply(layers.depth, MARGIN=1, FUN=function(x) diff(c(0, x))))
-		} else {
-			layers.width <- diff(c(0, layers.depth))
-		}
-		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth.max - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
+    if (!be.quiet)
+      print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
 
-#TODO: add influence of gravel
-		sand <- sw_input_soils[runIDs_sites, match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use)), drop = FALSE]
-		clay <- sw_input_soils[runIDs_sites, match(paste("Clay_L", ld, sep=""), colnames(sw_input_soils_use)), drop = FALSE]
-		sand.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(sand[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
-		clay.mean <- sapply(1:nrow(layers.depth), FUN=function(l) weighted.mean(as.numeric(clay[l, bsEvap.ld[[l]]]), w=layers.width[bsEvap.ld[[l]]], na.rm=TRUE))
+    depth_max_bs_evap <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
+    tol <- sqrt(.Machine$double.eps)
 
-		temp <- 4.1984+0.6695*sand.mean^2+168.7603*clay.mean^2	# soil texture influence: Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
-		bsEvap.depth.min <- ifelse(length(dim(layers.depth)) > 0, min(layers.width[, 1]), min(layers.width[1]))
-		stopifnot(bsEvap.depth.min < bsEvap.depth.max)
-		temp <- matrix(data=c(temp, rep(bsEvap.depth.min, times=nrow(layers.depth)), rep(bsEvap.depth.max, times=nrow(layers.depth))), ncol=3, byrow=FALSE)
-		bsEvap.depth <- apply(temp, MARGIN=1, FUN=function(x) min(c(x[3], max(x[1:2], na.rm=TRUE)), na.rm=TRUE))
-		bsEvap.ld <- t(lapply(1:nrow(layers.depth), FUN=function(l) 1:(1+findInterval(bsEvap.depth[l] - sqrt(.Machine$double.neg.eps), na.exclude(as.numeric(layers.depth[l, ]))))))
+    icol_bsE <- grep("EvapCoeff", names(sw_input_soils_use))
+    icol_sand <- grep("Sand_L", names(sw_input_soils_use))
+    icol_clay <- grep("Clay_L", names(sw_input_soils_use))
+    use_layers <- which(sw_input_soils_use[icol_sand] == 1 & sw_input_soils_use[icol_clay] == 1)
+    stopifnot(length(use_layers) > 0)
 
-		bsEvap.coeff <-  t(sapply(1:nrow(layers.depth), FUN=function(i) {
-							temp <- rep(NA, times=SoilLayer_MaxNo);
-							temp[bsEvap.ld[[i]]] <- 1 - exp(1 - layers.depth[i, bsEvap.ld[[i]]] * 5 / bsEvap.depth[i]) / exp(1);	#function made up to match previous cummulative distributions
-							return( (temp <- (c(temp <- as.numeric(temp), 1)-c(0, temp))[ld])/sum(temp, na.rm=TRUE) )	#garuantee that sum is 1
-						} ))
+    do_calc <- TRUE
+    if (continueAfterAbort) {
+      temp <- icol_bsE[use_layers]
+      icols <- temp[sw_input_soils_use[temp] > 0]
+      if (length(icols) > 0L) {
+        do_calc <- !all(rowSums(sw_input_soils[runIDs_sites, icols, drop = FALSE], na.rm = TRUE) > 0)
+      }
+    }
 
-		i.bsE <- grepl(pattern="EvapCoeff", x=names(sw_input_soils_use))
+    if (do_calc) {
+      layers_depth <- as.matrix(sw_input_soillayers[runIDs_sites, grep("depth_L", names(sw_input_soillayers))[use_layers], drop = FALSE])
+      depth_min_bs_evap <- min(layers_depth[, 1])
+      stopifnot(na.exclude(depth_min_bs_evap < depth_max_bs_evap))
 
-		#add data to sw_input_soils and set the use flags
-		sw_input_soils_use[i.bsE] <- 0
-		sw_input_soils_use[i.bsE][1:max(unlist(bsEvap.ld))] <- 1
+      lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
+        xdm <- depth_max_bs_evap - x
+        i0 <- abs(xdm) < tol
+        ld <- if (any(i0, na.rm = TRUE)) {
+          which(i0)
+        } else {
+          temp <- which(xdm < 0)
+          if (length(temp) > 0) temp[1] else length(x)
+        }
+        c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
+      }))
+      ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
 
-		sw_input_soils[runIDs_sites, i.bsE] <- 0
-		sw_input_soils[runIDs_sites, i.bsE] <- bsEvap.coeff
+      #TODO: add influence of gravel
+      sand <- sw_input_soils[runIDs_sites, icol_sand, drop = FALSE]
+      clay <- sw_input_soils[runIDs_sites, icol_clay, drop = FALSE]
+      sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) / ldepth_max_bs_evap
+      clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) / ldepth_max_bs_evap
 
-		#write data to datafile.soils
-		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
+      depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE), depth_max_bs_evap, na.rm = TRUE)
+      lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
+        i0 <- abs(x) < tol
+        ld <- if (any(i0, na.rm = TRUE)) {
+          which(i0)
+        } else {
+          temp <- which(x < 0)
+          if (length(temp) > 0) temp[1] else sum(!is.na(x))
+        }
+        c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
+      }))
+    
+      temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)	# function made up to match previous cummulative distributions
+      temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
+      coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
+      coeff_bs_evap <- coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
 
-		rm(tempdat, i.bsE, bsEvap.coeff, bsEvap.depth, clay.mean, sand.mean, sand, clay, use.layers, layers.depth, layers.width)
+      #add data to sw_input_soils and set the use flags
+      icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > tol))))
+      icols_bsE_used <- icol_bsE[icol]
+      icols_bse_notused <- icol_bsE[-icol]
 
-	}
+      sw_input_soils_use[icols_bsE_used] <- 1
+      sw_input_soils[runIDs_sites, icols_bsE_used] <- coeff_bs_evap[, icol]
+    
+      sw_input_soils_use[icols_bse_notused] <- 0
+      sw_input_soils[runIDs_sites, icols_bse_notused] <- 0
+
+      #write data to datafile.soils
+      tempdat <- rbind(sw_input_soils_use, sw_input_soils)
+      write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+      rm(tempdat, icol, icols_bsE_used, icols_bse_notused, coeff_bs_evap, temp_coeff,
+        lyrs_bs_evap, depth_bs_evap, temp_depth, ldepth_max_bs_evap, sand, clay, sand_mean,
+        clay_mean, depth_min_bs_evap, layers_depth)
+    }
+
+    rm(depth_max_bs_evap, icol_bsE, icol_sand, icol_clay, use_layers, do_calc)
+
+    if (!be.quiet)
+      print(paste(Sys.time(), "completed 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
+  }
 
 # SoilWat >=v31 calculates field capacity and wilting point internally; they are no longer required as inputs and this option has become obsolete
 #	if(pcalcs$CalculateFieldCapacityANDWiltingPointFromSoilTexture){
