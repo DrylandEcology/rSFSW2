@@ -83,8 +83,14 @@ dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
 dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
 
 #---Load functions
-source(file.path(dir.code, "2_SWSF_p5of5_Functions_v51.R"), verbose = FALSE, chdir = FALSE)
-
+ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (file.exists(ftemp)) {
+  load(ftemp)
+} else {
+  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = ftemp)
+  detach("swsf_funs")
+}
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
