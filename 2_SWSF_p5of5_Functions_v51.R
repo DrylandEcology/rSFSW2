@@ -1,5 +1,10 @@
 #------ Remove when this becomes a R package
+# - compiler::cmpfun
+# - move constants to package environment
+
 slot <- methods::slot
+
+
 
 #------ Constants
 output_timescales_maxNo <- 4L
@@ -319,9 +324,9 @@ writeMonthlyClimate <- compiler::cmpfun(function(id, siteDirsC) {
   1L
 })
 
-create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
+create_filename_for_Maurer2002_NorthAmerica <- compiler::cmpfun(function(X_WGS84, Y_WGS84){
   gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_"))
-}
+})
 
 simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
   res <- list()
@@ -654,12 +659,87 @@ calc.loess_coeff <- compiler::cmpfun(function(N, span) {
   lcoef
 })
 
+predict.season <- compiler::cmpfun(function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq) {
+  #length(std.season.seq) >= 3 because of padding and test that season duration > 0
+  lcoef <- calc.loess_coeff(N = length(std.season.seq), span = 0.4)
 
-AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegetationComposition,AdjMonthlyBioMass_Temperature,AdjMonthlyBioMass_Precipitation,grasses.c3c4ann.fractions,growing.season.threshold.tempC,isNorth,MAP_mm,monthly.temp) {
-  tr_VegComp_Adj <- tr_VegetationComposition	#Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
+  op <- options(c("warn", "error"))
+  on.exit(options(op))
+  options(warn = -1, error = traceback) #loess throws many warnings: 'pseudoinverse used', see calc.loess_coeff(), etc.
+  
+  sapply(apply(biomass_Standard, 2, function(x) {
+      lf <- loess(x[std.season.padded] ~ std.season.seq, span = lcoef$span, degree = lcoef$degree)
+      predict(lf, newdata = data.frame(std.season.seq = site.season.seq))
+    }),
+    FUN = function(x) max(0, x)) # guarantee that > 0
+})
+
+#Equations: Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
+Shrub_ANPP <- compiler::cmpfun(function(MAP_mm) 0.393 * MAP_mm - 10.2)
+Grass_ANPP <- compiler::cmpfun(function(MAP_mm) 0.646 * MAP_mm - 102.5)
+
+#' @section Default inputs:
+#'    - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
+#'    - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
+adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs,
+         ShrubsMAP_mm, GrassMAP_mm, vegcomp_std_shrubs, vegcomp_std_grass, tol. = tol) {
+
+  #Intercepts to match outcomes of M & L 1993 equations under 'default' MAP with our previous default inputs for shrubs and sgs-grasslands
+  #Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
+  Shrub_ANPPintercept <- (vegcomp_std_shrubs[1] * biom_maxs["Sh.Amount.Live"] +
+                          vegcomp_std_shrubs[2] * biom_maxs["C3.Amount.Live"] +
+                          vegcomp_std_shrubs[3] * biom_maxs["C4.Amount.Live"]) - 
+                        Shrub_ANPP(StandardShrub_MAP_mm)
+  Grasses_ANPPintercept <- (vegcomp_std_grass[1] * biom_maxs["Sh.Amount.Live"] +
+                            vegcomp_std_grass[2] * biom_maxs["C3.Amount.Live"] +
+                            vegcomp_std_grass[3] * biom_maxs["C4.Amount.Live"]) -
+                          Grass_ANPP(StandardGrasses_MAP_mm)
+
+  #Get scaling values for scaled biomass; guarantee that > minimum.totalBiomass
+  minimum.totalBiomass <- 0 #This is a SoilWat parameter
+  Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(ShrubsMAP_mm) + Shrub_ANPPintercept)
+  Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(GrassMAP_mm) + Grasses_ANPPintercept)
+
+  #Scale live biomass amount by productivity; assumption: ANPP = peak standing live biomass
+  biom_shrubs$Sh.Amount.Live <- biom_shrubs$Sh.Amount.Live * Shrub_BiomassScaler
+  biom_C3$C3.Amount.Live <- biom_C3$C3.Amount.Live * Grass_BiomassScaler
+  biom_C4$C4.Amount.Live <- biom_C4$C4.Amount.Live * Grass_BiomassScaler
+  biom_annuals$Annual.Amount.Live <- biom_annuals$Annual.Amount.Live * Grass_BiomassScaler
+
+  #Scale litter amount by productivity and adjust for ratio of litter/live
+  biom_shrubs$Sh.Litter <- biom_shrubs$Sh.Litter * Shrub_BiomassScaler * biom_maxs["Sh.Litter"] / biom_maxs["Sh.Amount.Live"]
+  biom_C3$C3.Litter <- biom_C3$C3.Litter * Grass_BiomassScaler * biom_maxs["C3.Litter"] / biom_maxs["C3.Amount.Live"]
+  biom_C4$C4.Litter <- biom_C4$C4.Litter * Grass_BiomassScaler * biom_maxs["C4.Litter"] / biom_maxs["C4.Amount.Live"]
+  biom_annuals$Annual.Litter <- biom_annuals$Annual.Litter * Grass_BiomassScaler * biom_maxs["Annual.Litter"] / biom_maxs["Annual.Amount.Live"]
+
+  #Guarantee that live fraction = ]0, 1]
+  biom_shrubs$Sh.Perc.Live <- pmin(1, pmax(tol., biom_shrubs$Sh.Perc.Live))
+  biom_C3$C3.Perc.Live <- pmin(1, pmax(tol., biom_C3$C3.Perc.Live))
+  biom_C4$C4.Perc.Live <- pmin(1, pmax(tol., biom_C4$C4.Perc.Live))
+  biom_annuals$Annual.Perc.Live <- pmin(1, pmax(tol., biom_annuals$Annual.Perc.Live))
+
+  #Calculate total biomass based on scaled live biomass amount
+  biom_shrubs$Sh.Biomass <- biom_shrubs$Sh.Amount.Live / biom_shrubs$Sh.Perc.Live
+  biom_C3$C3.Biomass <- biom_C3$C3.Amount.Live / biom_C3$C3.Perc.Live
+  biom_C4$C4.Biomass <- biom_C4$C4.Amount.Live / biom_C4$C4.Perc.Live
+  biom_annuals$Annual.Biomass <- biom_annuals$Annual.Amount.Live / biom_annuals$Annual.Perc.Live
+
+  list(biom_shrubs = biom_shrubs,
+       biom_C3 = biom_C3,
+       biom_C4 = biom_C4,
+       biom_annuals = biom_annuals)
+})
+
+
+AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom, 
+                do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
+                grasses.c3c4ann.fractions, growing_limit_C = 4,
+                isNorth = TRUE, MAP_mm = 450, monthly.temp) {
+
+  #Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
   #Describe conditions for which the default vegetation biomass values are valid
-  std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing.season.threshold.tempC == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
-  std.growing <- st_mo[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+  std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing_limit_C == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+  std.growing <- seq_len(12L)[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
   #Default site for the grass description is SGS LTER
   StandardGrasses_MAP_mm <- 340
   StandardGrasses_VegComposition <- c(0.12, 0.22, 0.66) #Fraction of shrubs, C3, and C4
@@ -668,154 +748,157 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegetationComposition,AdjMonth
   StandardShrub_VegComposition <- c(0.7, 0.3, 0) #Fraction of shrubs, C3, and C4
 
   #Calculate 'live biomass amount'
-  tr_VegComp_Adj$Sh.Amount.Live <- tr_VegComp_Adj$Sh.Biomass * tr_VegComp_Adj$Sh.Perc.Live
-  tr_VegComp_Adj$C3.Amount.Live <- tr_VegComp_Adj$C3.Biomass * tr_VegComp_Adj$C3.Perc.Live
-  tr_VegComp_Adj$C4.Amount.Live <- tr_VegComp_Adj$C4.Biomass * tr_VegComp_Adj$C4.Perc.Live
-  tr_VegComp_Adj$Annual.Amount.Live <- tr_VegComp_Adj$Annual.Biomass * tr_VegComp_Adj$Annual.Perc.Live
+  tr_VegBiom$Sh.Amount.Live <- tr_VegBiom$Sh.Biomass * tr_VegBiom$Sh.Perc.Live
+  tr_VegBiom$C3.Amount.Live <- tr_VegBiom$C3.Biomass * tr_VegBiom$C3.Perc.Live
+  tr_VegBiom$C4.Amount.Live <- tr_VegBiom$C4.Biomass * tr_VegBiom$C4.Perc.Live
+  tr_VegBiom$Annual.Amount.Live <- tr_VegBiom$Annual.Biomass * tr_VegBiom$Annual.Perc.Live
 
   #Scale monthly values of litter and live biomass amount by column-max; total biomass will be back calculated from 'live biomass amount' / 'percent live'
-  colmax <- apply(tr_VegComp_Adj[, itemp <- grepl("Litter", names(tr_VegComp_Adj)) | grepl("Amount.Live", names(tr_VegComp_Adj))], MARGIN=2, FUN=max)
-  colmin <- apply(tr_VegComp_Adj[, itemp], MARGIN=2, FUN=min)
-  tr_VegComp_Adj[, itemp] <- sweep(tr_VegComp_Adj[, itemp], MARGIN=2, STATS=colmax, FUN="/")
+  colmax <- apply(tr_VegBiom[, itemp <- grepl("Litter", names(tr_VegBiom)) | grepl("Amount.Live", names(tr_VegBiom))], MARGIN=2, FUN=max)
+#  colmin <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=min)
+  tr_VegBiom[, itemp] <- sweep(tr_VegBiom[, itemp], MARGIN=2, STATS=colmax, FUN="/")
 
-  #Pull different composition types
-  shrubs_Composition <- shrubs_Standard <- tr_VegComp_Adj[, grepl("Sh", names(tr_VegComp_Adj))]
-  C3_Composition <- C3_Standard <- tr_VegComp_Adj[, grepl("C3", names(tr_VegComp_Adj))]
-  C4_Composition <- C4_Standard <- tr_VegComp_Adj[, grepl("C4", names(tr_VegComp_Adj))]
-  AnnGrass_Composition <- AnnGrass_Standard <- tr_VegComp_Adj[, grepl("Annual", names(tr_VegComp_Adj))]
-
-  adjCompPPT <- function(shrubs_Composition, C3_Composition, C4_Composition, AnnGrass_Composition, ShrubsMAP_mm, GrassMAP_mm) {
-    #Equations: Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
-    Shrub_ANPP <- function(MAP_mm) 0.393 * MAP_mm - 10.2
-    Grass_ANPP <- function(MAP_mm) 0.646 * MAP_mm - 102.5
-
-    #Intercepts to match outcomes of M & L 1993 equations under 'default' MAP with our previous default inputs for shrubs and sgs-grasslands
-    #Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
-    Shrub_ANPPintercept <- (StandardShrub_VegComposition[1]*colmax["Sh.Amount.Live"] + StandardShrub_VegComposition[2]*colmax["C3.Amount.Live"] + StandardShrub_VegComposition[3]*colmax["C4.Amount.Live"]) - Shrub_ANPP(StandardShrub_MAP_mm)	#Default input for shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
-    Grasses_ANPPintercept <- (StandardGrasses_VegComposition[1]*colmax["Sh.Amount.Live"] + StandardGrasses_VegComposition[2]*colmax["C3.Amount.Live"] + StandardGrasses_VegComposition[3]*colmax["C4.Amount.Live"]) - Grass_ANPP(StandardGrasses_MAP_mm)		#Default input for sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
-
-    #Get scaling values for scaled biomass; guarantee that > minimum.totalBiomass
-    minimum.totalBiomass <- 0 #This is a SoilWat parameter
-    Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(ShrubsMAP_mm) + Shrub_ANPPintercept)
-    Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(GrassMAP_mm) + Grasses_ANPPintercept)
-
-    #Scale live biomass amount by productivity; assumption: ANPP = peak standing live biomass
-    shrubs_Composition$Sh.Amount.Live <- shrubs_Composition$Sh.Amount.Live * Shrub_BiomassScaler
-    C3_Composition$C3.Amount.Live <- C3_Composition$C3.Amount.Live * Grass_BiomassScaler
-    C4_Composition$C4.Amount.Live <- C4_Composition$C4.Amount.Live * Grass_BiomassScaler
-    AnnGrass_Composition$Annual.Amount.Live <- AnnGrass_Composition$Annual.Amount.Live * Grass_BiomassScaler
-
-    #Scale litter amount by productivity and adjust for ratio of litter/live
-    shrubs_Composition$Sh.Litter <- shrubs_Composition$Sh.Litter * Shrub_BiomassScaler * colmax["Sh.Litter"] / colmax["Sh.Amount.Live"]
-    C3_Composition$C3.Litter <- C3_Composition$C3.Litter * Grass_BiomassScaler * colmax["C3.Litter"] / colmax["C3.Amount.Live"]
-    C4_Composition$C4.Litter <- C4_Composition$C4.Litter * Grass_BiomassScaler * colmax["C4.Litter"] / colmax["C4.Amount.Live"]
-    AnnGrass_Composition$Annual.Litter <- AnnGrass_Composition$Annual.Litter * Grass_BiomassScaler * colmax["Annual.Litter"] / colmax["Annual.Amount.Live"]
-
-    #Guarantee that live fraction = ]0, 1]
-    shrubs_Composition$Sh.Perc.Live <- pmin(1, pmax(tol, shrubs_Composition$Sh.Perc.Live))
-    C3_Composition$C3.Perc.Live <- pmin(1, pmax(tol, C3_Composition$C3.Perc.Live))
-    C4_Composition$C4.Perc.Live <- pmin(1, pmax(tol, C4_Composition$C4.Perc.Live))
-    AnnGrass_Composition$Annual.Perc.Live <- pmin(1, pmax(tol, AnnGrass_Composition$Annual.Perc.Live))
-
-    #Calculate total biomass based on scaled live biomass amount
-    shrubs_Composition$Sh.Biomass <- shrubs_Composition$Sh.Amount.Live / shrubs_Composition$Sh.Perc.Live
-    C3_Composition$C3.Biomass <- C3_Composition$C3.Amount.Live / C3_Composition$C3.Perc.Live
-    C4_Composition$C4.Biomass <- C4_Composition$C4.Amount.Live / C4_Composition$C4.Perc.Live
-    AnnGrass_Composition$Annual.Biomass <- AnnGrass_Composition$Annual.Amount.Live / AnnGrass_Composition$Annual.Perc.Live
-
-    list(shrubs_Composition = shrubs_Composition,
-         C3_Composition = C3_Composition,
-         C4_Composition = C4_Composition,
-         AnnGrass_Composition = AnnGrass_Composition)
-  }
+  #Pull different vegetation types
+  biom_shrubs <- biom_std_shrubs <- tr_VegBiom[, grepl("Sh", names(tr_VegBiom))]
+  biom_C3 <- biom_std_C3 <- tr_VegBiom[, grepl("C3", names(tr_VegBiom))]
+  biom_C4 <- biom_std_C4 <- tr_VegBiom[, grepl("C4", names(tr_VegBiom))]
+  biom_annuals <- biom_std_annuals <- tr_VegBiom[, grepl("Annual", names(tr_VegBiom))]
 
   #adjust phenology for mean monthly temperatures
-  if(AdjMonthlyBioMass_Temperature) {
-    growing.season <- monthly.temp >= growing.season.threshold.tempC
+  if (do_adjBiom_by_temp) {
+    growing.season <- monthly.temp >= growing_limit_C
+    n_nonseason <- sum(!growing.season)
+    n_season <- sum(growing.season)
 
-    if(!isNorth) growing.season <- c(growing.season[7:12], growing.season[1:6]) #Standard growing season needs to be adjusted for southern Hemi
-
-    predict.season <- function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq){
-      #length(std.season.seq) >= 3 because of padding and test that season duration > 0
-      lcoef <- calc.loess_coeff(N=length(std.season.seq), span=0.4)
-
-      op <- options(c("warn", "error"))
-      options(warn=-1, error=traceback) #loess throws many warnings: 'pseudoinverse used', see calc.loess_coeff(), etc.
-      res <- sapply(apply(biomass_Standard, MARGIN=2, function(x) {lf<-loess(x[std.season.padded] ~ std.season.seq, span=lcoef$span, degree=lcoef$degree); predict(lf, newdata=data.frame(std.season.seq=site.season.seq) ) }), FUN=function(x) max(0, x)) # guarantee that > 0
-      options(op)
-      return(res)
-    }
+    if (!isNorth)
+      growing.season <- c(growing.season[7:12], growing.season[1:6]) #Standard growing season needs to be adjusted for southern Hemi
 
     #Adjust for timing and duration of non-growing season
-    if(sum(!growing.season) > 0) {
-      if(sum(!growing.season) < 12) {
+    if (n_nonseason > 0) {
+      if (n_nonseason < 12) {
         std.winter.padded <- (c(std.winter[1] - 1, std.winter, std.winter[length(std.winter)] + 1) - 1) %% 12 + 1
         std.winter.seq <- 0:(length(std.winter.padded) - 1)
-        site.winter.seq <- seq(from=1, to=length(std.winter), length=sum(!growing.season))
+        site.winter.seq <- seq(from = 1, to = length(std.winter), length = n_nonseason)
         site.winter.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(!growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[length(temp3)] #Calculate first month of winter
-        site.winter.months <- (site.winter.start + 1:sum(!growing.season) - 2) %% 12 + 1
+        site.winter.months <- (site.winter.start + seq_len(n_nonseason) - 2) %% 12 + 1
 
-        shrubs_Composition[site.winter.months,] <- predict.season(shrubs_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
-        C3_Composition[site.winter.months,] <- predict.season(C3_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
-        C4_Composition[site.winter.months,] <- predict.season(C4_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
-        AnnGrass_Composition[site.winter.months,] <- predict.season(AnnGrass_Standard, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_shrubs[site.winter.months,] <- predict.season(biom_std_shrubs, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_C3[site.winter.months,] <- predict.season(biom_std_C3, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_C4[site.winter.months,] <- predict.season(biom_std_C4, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_annuals[site.winter.months,] <- predict.season(biom_std_annuals, std.winter.padded, std.winter.seq, site.winter.seq)
 
       } else { #if winter lasts 12 months
         #Take the mean of the winter months
-        shrubs_Composition[] <- matrix(apply(shrubs_Standard[std.winter,], 2, mean), nrow=12, ncol=ncol(shrubs_Composition), byrow=TRUE)
-        C3_Composition[] <- matrix(apply(C3_Standard[std.winter,], 2, mean), nrow=12, ncol=ncol(C3_Composition), byrow=TRUE)
-        C4_Composition[] <- matrix(apply(C4_Standard[std.winter,], 2, mean), nrow=12, ncol=ncol(C4_Composition), byrow=TRUE)
-        AnnGrass_Composition[] <- matrix(apply(AnnGrass_Standard[std.winter,], 2, mean), nrow=12, ncol=ncol(AnnGrass_Composition), byrow=TRUE)
+        biom_shrubs[] <- matrix(apply(biom_std_shrubs[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_shrubs), byrow=TRUE)
+        biom_C3[] <- matrix(apply(biom_std_C3[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_C3), byrow=TRUE)
+        biom_C4[] <- matrix(apply(biom_std_C4[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_C4), byrow=TRUE)
+        biom_annuals[] <- matrix(apply(biom_std_annuals[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
       }
     }
+    
     #Adjust for timing and duration of growing season
-    if(sum(growing.season)>0) {
-      if(sum(growing.season) < 12) {
+    if (n_season > 0) {
+      if (n_season < 12) {
         std.growing.padded <- (c(std.growing[1] - 1, std.growing, std.growing[length(std.growing)] + 1) - 1) %% 12 + 1
         std.growing.seq <- 0:(length(std.growing.padded) - 1)
-        site.growing.seq <- seq(from=1, to=length(std.growing), length=sum(growing.season))
+        site.growing.seq <- seq(from = 1, to = length(std.growing), length = n_season)
         site.growing.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[1] #Calculate first month of growing season
-        site.growing.months <- (site.growing.start + 1:sum(growing.season) - 2) %% 12 + 1
+        site.growing.months <- (site.growing.start + seq_len(n_season) - 2) %% 12 + 1
 
-        shrubs_Composition[site.growing.months,] <- predict.season(shrubs_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
-        C3_Composition[site.growing.months,] <- predict.season(C3_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
-        C4_Composition[site.growing.months,] <- predict.season(C4_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
-        AnnGrass_Composition[site.growing.months,] <- predict.season(AnnGrass_Standard, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_shrubs[site.growing.months,] <- predict.season(biom_std_shrubs, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_C3[site.growing.months,] <- predict.season(biom_std_C3, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_C4[site.growing.months,] <- predict.season(biom_std_C4, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_annuals[site.growing.months,] <- predict.season(biom_std_annuals, std.growing.padded, std.growing.seq, site.growing.seq)
 
       } else { #if growing season lasts 12 months
-        shrubs_Composition[] <- matrix(apply(shrubs_Standard[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(shrubs_Composition), byrow=TRUE)
-        C3_Composition[] <- matrix(apply(C3_Standard[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(C3_Composition), byrow=TRUE)
-        C4_Composition[] <- matrix(apply(C4_Standard[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(C4_Composition), byrow=TRUE)
-        AnnGrass_Composition[] <- matrix(apply(AnnGrass_Standard[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(AnnGrass_Composition), byrow=TRUE)
+        biom_shrubs[] <- matrix(apply(biom_std_shrubs[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_shrubs), byrow=TRUE)
+        biom_C3[] <- matrix(apply(biom_std_C3[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_C3), byrow=TRUE)
+        biom_C4[] <- matrix(apply(biom_std_C4[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_C4), byrow=TRUE)
+        biom_annuals[] <- matrix(apply(biom_std_annuals[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
       }
     }
-    if(!isNorth) { #Adjustements were done as if on nothern hemisphere
-      shrubs_Composition <- rbind(shrubs_Composition[7:12,], shrubs_Composition[1:6,])
-      C3_Composition <- rbind(C3_Composition[7:12,], C3_Composition[1:6,])
-      C4_Composition <- rbind(C4_Composition[7:12,], C4_Composition[1:6,])
-      AnnGrass_Composition <- rbind(AnnGrass_Composition[7:12,], AnnGrass_Composition[1:6,])
-    }
-    if(!AdjMonthlyBioMass_Precipitation){
-      temp<-adjCompPPT(shrubs_Composition,C3_Composition,C4_Composition,AnnGrass_Composition,ShrubsMAP_mm=StandardShrub_MAP_mm, GrassMAP_mm=StandardGrasses_MAP_mm)
-      shrubs_Composition <- temp$shrubs_Composition
-      C3_Composition <- temp$C3_Composition
-      C4_Composition <- temp$C4_Composition
-      AnnGrass_Composition <- temp$AnnGrass_Composition
+    
+    if (!isNorth) { #Adjustements were done as if on nothern hemisphere
+      biom_shrubs <- rbind(biom_shrubs[7:12,], biom_shrubs[1:6,])
+      biom_C3 <- rbind(biom_C3[7:12,], biom_C3[1:6,])
+      biom_C4 <- rbind(biom_C4[7:12,], biom_C4[1:6,])
+      biom_annuals <- rbind(biom_annuals[7:12,], biom_annuals[1:6,])
     }
   }
-  #Adjust biomass amounts by productivity relationship with MAP
-  if(AdjMonthlyBioMass_Precipitation) {
-    temp<-adjCompPPT(shrubs_Composition,C3_Composition,C4_Composition,AnnGrass_Composition,ShrubsMAP_mm=MAP_mm, GrassMAP_mm=MAP_mm)
-    shrubs_Composition <- temp$shrubs_Composition
-    C3_Composition <- temp$C3_Composition
-    C4_Composition <- temp$C4_Composition
-    AnnGrass_Composition <- temp$AnnGrass_Composition
+  
+  # if (do_adjBiom_by_ppt) then adjust biomass amounts by productivity relationship with MAP
+  temp <- adjBiom_by_ppt(
+    biom_shrubs, biom_C3, biom_C4, biom_annuals,
+    biom_maxs = colmax,
+    ShrubsMAP_mm = if (do_adjBiom_by_ppt) MAP_mm else StandardShrub_MAP_mm,
+    GrassMAP_mm = if (do_adjBiom_by_ppt) MAP_mm else StandardGrasses_MAP_mm,
+    vegcomp_std_shrubs = StandardShrub_VegComposition,
+    vegcomp_std_grass = StandardGrasses_VegComposition)
+
+  biom_shrubs <- temp$biom_shrubs
+  biom_C3 <- temp$biom_C3
+  biom_C4 <- temp$biom_C4
+  biom_annuals <- temp$biom_annuals
+
+  biom_grasses <- biom_C3 * grasses.c3c4ann.fractions[1] +
+                  biom_C4 * grasses.c3c4ann.fractions[2] +
+                  biom_annuals * grasses.c3c4ann.fractions[3]
+  
+  list(grass = as.matrix(biom_grasses),
+       shrub = as.matrix(biom_shrubs))
+})
+
+#' Lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'
+#'
+#' first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
+#' second row of datafile is source of data
+#' the other rows contain the data for each distribution type = columns
+#' @section Note:
+#'  cannot write data from sw_input_soils to datafile.soils
+TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
+  soillayer_no, trco_type, layers_depth,
+  adjustType = c("positive", "inverse", "allToLast")) {
+  
+  #extract data from table by category
+  trco.code <- as.character(tr_input_code[, which(colnames(tr_input_code) == trco_type)])
+  trco <- rep(0, times = soillayer_no)
+  trco.raw <- na.omit(tr_input_coeff[, which(colnames(tr_input_coeff) == trco_type)])
+
+  if (trco.code == "DepthCM") {
+    temp <- sum(trco.raw, na.rm = TRUE)
+    trco_sum <- if(temp == 0 | is.na(temp), 1, temp)
+    lup <- 1
+    for(l in 1:soillayer_no){
+      llow <- as.numeric(layers_depth[l])
+      if(is.na(llow) | lup > length(trco.raw))
+      {
+        l <- l - 1
+        break
+      }
+      trco[l] <- sum(trco.raw[lup:llow], na.rm=TRUE) / trco_sum
+      lup <- llow + 1
+    }
+    usel <- l
+  } else if(trco.code == "Layer"){
+    usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
+    trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
   }
 
-  Grass_Composition <- C3_Composition*grasses.c3c4ann.fractions[1] + C4_Composition*grasses.c3c4ann.fractions[2] + AnnGrass_Composition*grasses.c3c4ann.fractions[3]
-  
-  list(grass = as.matrix(Grass_Composition),
-       shrub = as.matrix(shrubs_Composition))
+  if(identical(adjustType, "positive")){
+    trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
+  } else if(identical(adjustType, "inverse")){
+    irows <- 1:max(which(trco > 0))
+    trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
+  } else if(identical(adjustType, "allToLast")){
+    irow <- max(which(trco > 0))
+    if(irow > 1){
+      trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
+    } else {
+      trco[1] <- 1
+    }
+  }
+
+  trco
 })
 
 
@@ -979,6 +1062,37 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
   }
 })
 
+#' @section Note:
+#'  either swp or sand/clay needs be a single value
+#' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
+pdf_to_vwc <- compiler::cmpfun(function(swp, sand, clay, thetas, psis, b, do.na = TRUE, MPa_toBar = -10, bar_conversion = 1024) {
+  vwc <- ifelse(!is.na(swp) & swp <= 0,
+                thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100,
+                NA)
+  
+  if (do.na & length(na.index) > 0) {
+    vwc <- napredict(na.act, vwc)
+  }
+  
+  vwc
+})
+
+#' @section Note:
+#'  either vwc or sand/clay needs be a single value
+#' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
+pdf_to_swp <- compiler::cmpfun(function(vwc, sand, clay, thetas, psis, b, do.na = TRUE, bar_toMPa = -0.1, bar_conversion = 1024) {
+  swp <- ifelse(!is.na(vwc) & vwc <= 1,
+                psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa,
+                NA)
+  
+  if (do.na & length(na.index) > 0) {
+    swp <- napredict(na.act, swp)
+  }
+  
+  swp
+})
+
+
 #convert SWP(matric) to VWC(matric), e.g., to calculate field capacity and wilting point
 SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
 #Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
@@ -993,6 +1107,8 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
 #input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
 
   stopifnot(length(sand) && length(sand) == length(clay))
+  sand[sand > 1 | sand < 0] <- NA
+  clay[clay > 1 | clay < 0] <- NA
   na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
 
   if(length(sand) > length(na.act)){
@@ -1008,26 +1124,15 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
     b <- -0.3 * sand + 15.7 * clay + 3.10
     if(any(b <= 0)) stop("b <= 0")
 
-    bar_conversion <- 1024
-    MPa_toBar <- -10
-
-    get_vector <- function(swp, sand, clay, thetas=thetas, psis=psis, b=b, do.na=TRUE){#either swp or sand/clay needs be a single value
-      vwc <- ifelse(!is.na(swp) & swp <= 0 & sand <= 1 & sand >= 0 & clay <= 1 & clay >= 0, thetas * (psis / (swp * MPa_toBar * bar_conversion))^(1/b) / 100, NA)
-      if(do.na & length(na.index) > 0){
-        vwc <- napredict(na.act, vwc)
-      }
-      return(vwc)
-    }
-
     if(is.null(dim(swp))){
       if(length(swp) == 1 & length(sand) >= 1 | length(swp) >= 1 & length(sand) == 1){ #cases 1-3
-        vwc <- get_vector(swp, sand, clay, thetas=thetas, psis=psis, b=b)
+        vwc <- pdf_to_vwc(swp, sand, clay, thetas=thetas, psis=psis, b=b)
       } else if(length(swp) > 1 & length(sand) > 1){ #case 4
-        vwc <- t(sapply(1:length(swp), FUN=function(d) get_vector(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)))
+        vwc <- t(sapply(1:length(swp), FUN=function(d) pdf_to_vwc(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)))
       }
     } else {
       if(length(sand) == 1){ #case 5
-        vwc <- sapply(1:ncol(swp), FUN=function(d) get_vector(swp[, d], sand, clay, thetas=thetas, psis=psis, b=b))
+        vwc <- sapply(1:ncol(swp), FUN=function(d) pdf_to_vwc(swp[, d], sand, clay, thetas=thetas, psis=psis, b=b))
       } else { #case 6
         sand <- napredict(na.act, sand)
         clay <- napredict(na.act, clay)
@@ -1035,14 +1140,15 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
         psis <- napredict(na.act, psis)
         thetas <- napredict(na.act, thetas)
         b <- napredict(na.act, b)
-        vwc <- sapply(1:ncol(swp), FUN=function(d) get_vector(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
+        vwc <- sapply(1:ncol(swp), FUN=function(d) pdf_to_vwc(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
       }
     }
   } else {
     vwc <- swp
     vwc[!is.na(vwc)] <- NA
   }
-  return(vwc) #fraction m3/m3 [0, 1]
+  
+  vwc #fraction m3/m3 [0, 1]
 })
 
 #convert VWC(matric) to SWP(matric)
@@ -1059,6 +1165,8 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
 #input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
 
   stopifnot(length(sand) && length(sand) == length(clay))
+  sand[sand > 1 | sand < 0] <- NA
+  clay[clay > 1 | clay < 0] <- NA
   na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
 
   if(length(sand) > length(na.act)){
@@ -1074,26 +1182,15 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
     b <- -0.3 * sand + 15.7 * clay + 3.10
     if(any(b <= 0)) stop("b <= 0")
 
-    bar_conversion <- 1024
-    bar_toMPa <- -1/10
-
-    get_vector <- function(vwc, sand, clay, thetas=thetas, psis=psis, b=b, do.na=TRUE){#either vwc or sand/clay needs be a single value
-      swp <- ifelse(!is.na(vwc) & vwc <= 1 & vwc >= 0 & sand <= 1 & sand >= 0 & clay <= 1 & clay >= 0, psis / ((vwc*100/thetas) ^ b * bar_conversion) * bar_toMPa, NA)
-      if(do.na & length(na.index) > 0){
-        swp <- napredict(na.act, swp)
-      }
-      return(swp)
-    }
-
     if(is.null(dim(vwc))){
       if(length(vwc) == 1 & length(sand) >= 1 | length(vwc) >= 1 & length(sand) == 1){ #cases 1-3
-        swp <- get_vector(vwc, sand, clay, thetas=thetas, psis=psis, b=b)
+        swp <- pdf_to_swp(vwc, sand, clay, thetas=thetas, psis=psis, b=b)
       } else if(length(vwc) > 1 & length(sand) > 1){ #case 4
-        swp <- t(sapply(1:length(vwc), FUN=function(d) get_vector(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)))
+        swp <- t(sapply(1:length(vwc), FUN=function(d) pdf_to_swp(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)))
       }
     } else {
       if(length(sand) == 1){ #case 5
-        swp <- sapply(1:ncol(vwc), FUN=function(d) get_vector(vwc[, d], sand, clay, thetas=thetas, psis=psis, b=b))
+        swp <- sapply(1:ncol(vwc), FUN=function(d) pdf_to_swp(vwc[, d], sand, clay, thetas=thetas, psis=psis, b=b))
       } else { #case 6
         sand <- napredict(na.act, sand)
         clay <- napredict(na.act, clay)
@@ -1101,7 +1198,7 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
         psis <- napredict(na.act, psis)
         thetas <- napredict(na.act, thetas)
         b <- napredict(na.act, b)
-        swp <- sapply(1:ncol(vwc), FUN=function(d) get_vector(vwc[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
+        swp <- sapply(1:ncol(vwc), FUN=function(d) pdf_to_swp(vwc[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
       }
     }
   } else {
@@ -1582,5 +1679,359 @@ EventDistribution <- compiler::cmpfun(function(data, N, size) {
     bins[ix] <- bins[ix] + 1
   }
   bins
+})
+
+
+#------------------------DAILY WEATHER
+#TODO replace with Rsoilwat31::getWeatherData_folders
+ExtractLookupWeatherFolder <- compiler::cmpfun(function(dir.weather, weatherfoldername) {
+  WeatherFolder <- file.path(dir.weather, weatherfoldername)
+  weath <- list.files(WeatherFolder, pattern = "weath.")
+  years <- as.numeric(sub(pattern = "weath.", replacement = "", weath))
+  stopifnot(!anyNA(years))
+
+  weatherData <- list()
+  for (j in seq_along(weath)) {
+    data_sw <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header = FALSE, comment.char = "#", blank.lines.skip = TRUE, sep = "\t"))
+    data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+    colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+    weatherData[[j]] <- new("swWeatherData",
+                            year = years[j],
+                            data = data.matrix(data_sw, rownames.force = FALSE))
+  }
+  
+  names(weatherData) <- years
+  weatherData
+})
+
+#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
+#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(function(dir_data, cellname, startYear = simstartyr, endYear = endyr) {
+  #read data from Maurer et al. 2002
+  weath.data <- try(read.table(file=file.path(dir_data, cellname), comment.char=""), silent=TRUE)
+  weathDataList <- list()
+  
+  if(!inherits(weath.data, "try-error")){
+    colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
+
+    #times
+    date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+        to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
+        by="1 day")
+    
+    # conversion precipitation: mm/day -> cm/day
+    data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
+    colnames(data_all) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+
+    years <- startYear:endYear
+    n_years <- length(years)
+    if(!all(years %in% unique(weath.data$year)))
+      stop("simstartyr or endyr out of weather data range")
+    for(y in seq_along(years)) {
+      data_sw <- data_all[weath.data$year == years[y], ]
+      data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+      weathDataList[[y]]<-new("swWeatherData",
+                              year = years[y],
+                              data = data.matrix(data_sw, rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
+    }
+    names(weathDataList) <- as.character(years)
+    weath.data <- weathDataList
+  }
+  
+  weathDataList
+})
+
+
+get_DayMet_cellID <- compiler::cmpfun(function(coords_WGS84) {
+  # Determine 1-km cell that contains requested location
+  res_DayMet <- 1000L
+
+  proj_LCC <- sp::CRS("+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5 +lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+  proj_WGS84 <- sp::CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+
+  xy_LCC <- sp::coordinates(sp::spTransform(sp::SpatialPoints(coords = coords_WGS84, proj4string = proj_WGS84), proj_LCC))
+  dm_LCC <- floor(xy_LCC / res_DayMet) # Origin at lower-lef corner (-2015000, -3037000)
+    ## ==> (0, 0)- cell includes xlim = [0, 1000[ and ylim = [0, 1000[
+    ## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
+
+  cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
+                        if(chr[1] < 0) "-" else "+", formatC(abs(chr[1]), width=6, flag="0", format="d"), "_",
+                        if(chr[2] < 0) "-" else "+", formatC(abs(chr[2]), width=6, flag="0", format="d")))
+
+  dm_LCC <- res_DayMet * dm_LCC + 500 # center of 1-km cells to avoid projection errors at cell margins
+  dm_WGS84 <- sp::coordinates(sp::spTransform(sp::SpatialPoints(coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
+
+  list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84)
+})
+
+#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
+#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+get_DayMet_NorthAmerica <- compiler::cmpfun(function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year = simstartyr, end_year = endyr) {
+  # Filename for data of this 1-km cell
+  ftemp <- file.path(dir_data, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
+
+  # Get data
+  pwd <- getwd()
+  get_from_ornl <- TRUE
+  if(file.exists(ftemp)){
+    dm_temp <- try(read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
+    if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
+  }
+  if(get_from_ornl){
+    setwd(dir_data)
+    dm_temp <- try(DaymetR::download.daymet(site=cellID, lat=Ydm_WGS84, lon=Xdm_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
+  }
+
+  # Convert to Rsoilwat format
+  if(!inherits(dm_temp, "try-error")){
+    if(exists(cellID, envir=.GlobalEnv)){
+      temp <- get(cellID, envir=.GlobalEnv)$data
+    } else if(!get_from_ornl && inherits(dm_temp, "data.frame")){
+      temp <- dm_temp
+    } else stop(paste("Daymet data not successful", cellID))
+
+    data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
+    stopifnot(!anyNA(data_all), sum(data_all == -9999L) == 0)
+    template_sw <- data.frame(matrix(NA, nrow=366, ncol=4, dimnames=list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
+
+    years <- start_year:end_year
+    weathDataList <- list()
+    for(y in seq_along(years)){
+      data_sw <- template_sw
+      # All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
+      data_sw[1:365, ] <- data_all[data_all$year == years[y], -1]
+      if(isLeapYear(years[y])){
+        data_sw[366, ] <- c(366, data_sw[365, -1])
+      }
+      data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+      weathDataList[[y]] <- new("swWeatherData",
+                                year=years[y],
+                                data = data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE)) #strip row.names, otherwise they consume about 60% of file size
+    }
+    names(weathDataList) <- as.character(years)
+  } else {
+    weathDataList <- dm_temp
+  }
+
+  # Clean up
+  if (exists(cellID, envir=.GlobalEnv))
+    rm(list=cellID, envir=.GlobalEnv)
+  setwd(pwd)
+
+  weathDataList
+})
+
+
+ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- compiler::cmpfun(function(dir_data, site_ids, coords_WGS84, start_year, end_year) {
+  xy_WGS84 <- matrix(unlist(coords_WGS84), ncol = 2)[1, , drop = FALSE]
+  dm <- get_DayMet_cellID(xy_WGS84)
+
+  get_DayMet_NorthAmerica(
+    dir_data = dir_data, 
+    cellID = dm$cellID[1],
+    Xdm_WGS84 = dm$dm_WGS84[1, 1], Ydm_WGS84 = dm$dm_WGS84[1, 2],
+    start_year, end_year)
+})
+
+# Function to be executed for all SoilWat-sites together
+#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
+#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(function(dir_data, site_ids, coords_WGS84, start_year, end_year, dir_temp = tempdir(), dbW_compression_type = "gzip") {
+  if (!be.quiet)
+    print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+
+  # Check if weather data was previously partially extracted
+  wtemp_file <- file.path(dir_temp, "DayMet_weather_temp.rds")
+  site_ids_done <- if (file.exists(wtemp_file)) readRDS(wtemp_file) else NULL
+  iuse <- !(site_ids %in% site_ids_done)
+
+  if (sum(iuse) > 0) {
+    site_ids_todo <- site_ids[iuse]
+    xy_WGS84 <- coords_WGS84[iuse, , drop=FALSE]
+    dm <- get_DayMet_cellID(xy_WGS84)
+
+    #TODO: re-write for parallel processing (does it make sense to download in parallel?)
+    # Extract weather data sequentially for requested locations
+    for (idm in seq_along(site_ids_todo)) {
+      if (!be.quiet)
+        print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
+
+      weatherData <- get_DayMet_NorthAmerica(
+        dir_data = dir_data, 
+        cellID = dm$cellID[idm],
+        Xdm_WGS84 = dm$dm_WGS84[idm, 1], Ydm_WGS84 = dm$dm_WGS84[idm, 2],
+        start_year, end_year)
+      
+      if (!inherits(weatherData, "try-error")) {
+        # Store site weather data in weather database
+        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+        Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
+          Scenario_id = 1,
+          StartYear = start_year,
+          EndYear = end_year,
+          weather_blob = data_blob)
+
+        site_ids_done <- c(site_ids_done, site_ids_todo[idm])
+        saveRDS(site_ids_done, file = wtemp_file)
+      } else {
+        warning(paste(Sys.time(), "DayMet data extraction NOT successful for site", site_ids_todo[idm]))
+      }
+    }
+  }
+
+  if (!be.quiet)
+    print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+
+  invisible(0)
+})
+
+
+# Function to be executed for all SoilWat-sites together
+#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
+#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir_data,
+  site_ids, coords_WGS84, start_year, end_year,
+  dir_temp = tempdir(), dbW_compression_type = "gzip", do_parallel = FALSE, ncores = 1L) {
+  
+  if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
+
+  NRC_years <- as.integer(list.dirs(path=dir_temp, recursive=FALSE, full.names=FALSE))
+  NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
+  stopifnot(start_year:end_year %in% NRC_target_years)
+
+  vars <- c("max", "min", "pcp") # units = C, C, mm/day
+  prj_geographicWGS84 <- sp::CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+  prj_geographicNAD83 <- sp::CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
+
+  sp_locs <- sp::SpatialPoints(coords=coords_WGS84, proj4string=prj_geographicWGS84)
+  sp_locs <- sp::spTransform(sp_locs, CRSobj=prj_geographicNAD83)
+
+  if (do_parallel)
+    raster::beginCluster(n = ncores, type = "SOCK")
+
+  #TODO: re-write for a more memory friendly approach
+
+  # Check if weather data was partially extracted already
+  wtemp_file <- file.path(dir_temp, "NRCan_weather_temp.RData")
+  if(file.exists(wtemp_file)){
+    load(wtemp_file) # NRC_weather, iy
+    yr_offset <- iy
+    NRC_use_years <- NRC_target_years[-(1:iy)]
+  } else {
+    NRC_weather <- array(NA, dim=c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames=list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(mm)")))
+    NRC_use_years <- NRC_target_years
+    yr_offset <- 0
+  }
+
+  # Extract weather data for all locations together for each day of each year
+  pwd <- getwd()
+  for(iy in seq_along(NRC_use_years)){ # Loop through years
+    if(!be.quiet)
+      print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
+    setwd(file.path(dir_temp, NRC_use_years[iy]))
+    NRC_days <- list.files() #find all days for this year
+    ndays <- length(NRC_days) / length(vars)
+    stopifnot(ndays == if(isLeapYear(NRC_use_years[iy])) 366 else 365)
+
+    # Stack rasters for each day and extract data
+    NRC_stack <- raster::stack(NRC_days, RAT=FALSE, quick=TRUE)
+    raster::projection(NRC_stack) <- prj_geographicNAD83
+    temp <- round(raster::extract(NRC_stack, sp_locs), 2) #weather.digits; [sp_locs, NRC_days x vars]
+
+    # Convert extraction information to array
+    ivars <- substr(NRC_days, 1, 3) # sapply(vars, nchar) == 3
+    for(iv in seq_along(vars)){
+      idays <- as.integer(sapply(strsplit(NRC_days[vars[iv] == ivars], split="[_.]"), FUN=function(x) x[2]))
+      NRC_weather[, 1:ndays, yr_offset + iy, iv] <- temp[, which(vars[iv] == ivars)[order(idays)][1:ndays]]
+    }
+    save(NRC_weather, iy, file=wtemp_file)
+  }
+  setwd(pwd)
+  if (do_parallel)
+    raster::endCluster()
+
+
+  # Convert weather array to SoilWat weather objects for each sites
+  NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
+  
+  for (i in seq_along(site_ids)) {
+    if (!be.quiet && i %% 100 == 1)
+      print(paste(Sys.time(), "storing NRC weather data of site_id", site_ids[i], i, "of", length(site_ids), "sites in database"))
+    
+    weatherData <- list()
+    for (iy in seq_along(NRC_target_years)) {
+      doys <- if (isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
+      data_sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm) [ppt was converted from mm to cm]
+      colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+      weatherData[[iy]] <- new("swWeatherData",
+                              year = NRC_target_years[iy],
+                              data = data.matrix(data_sw, rownames.force = FALSE))
+    }
+    names(weatherData) <- as.character(NRC_target_years)
+
+    # Store site weather data in weather database
+    data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+    Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+      Scenario_id = 1,
+      StartYear = start_year,
+      EndYear = end_year,
+      weather_blob = data_blob)
+  }
+  #unlink(file=wtemp_file)
+
+  if (!be.quiet)
+    print(paste("Finished 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
+
+  rm(NRC_weather, weatherData, data_blob)
+  gc()
+
+  invisible(0)
+})
+
+GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year, 
+  meta_cfsr, n_site_per_core = 100,
+  rm_temp = TRUE, dir_temp = tempdir(),
+  dbW_compression_type = "gzip") {
+  
+  #Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
+  # http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
+  
+  # do the extractions
+  etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
+    daily = TRUE, monthly =  FALSE,
+    yearLow = start_year, yearHigh = end_year,
+    n_site_per_core = n_site_per_core,
+    cfsr_so = meta_cfsr$cfsr_so,
+    dir.in.cfsr = meta_cfsr$dir.in.cfsr,
+    dir.temp = dir_temp,
+    rm_mc_files = TRUE)
+
+  # move the weather data into the database
+  for (i in seq_along(site_ids)) {
+    weatherData <- Rsoilwat31::getWeatherData_folders(
+      LookupWeatherFolder = etemp$dir.temp.cfsr,
+      weatherDirName = dat_sites[i, "WeatherFolder"],
+      filebasename = "weath",
+      startYear = start_year,
+      endYear = end_year)
+
+    # Store site weather data in weather database
+    data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+    Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+      Scenario_id = 1,
+      StartYear = start_year,
+      EndYear = end_year,
+      weather_blob = data_blob)
+  }
+
+  if (rm_temp) {
+    dir.remove(etemp$dir.temp.cfsr)
+    temp <- lapply(c("ppt", "tmax", "tmin"), FUN=function(x) dir.remove(file.path(meta_cfsr$dir.in.cfsr, "temporary_dy", x)))
+  }
+
+  if (!be.quiet)
+    print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
+
+  invisible(0)
 })
 
