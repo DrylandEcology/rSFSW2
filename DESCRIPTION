@@ -1,6 +1,6 @@
 Package: SWSF
 Title: SOILWAT Simulation Framework
-Version: 1.2.1
+Version: 1.2.2
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
 			person("Ryan", "Murphy", role = "ctb", email = "not@available.com"))
 Description: An R wrapper for simulation experiments with SOILWAT

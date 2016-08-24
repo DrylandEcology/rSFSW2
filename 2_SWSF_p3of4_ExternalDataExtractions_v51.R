@@ -2699,17 +2699,23 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
 	
+	do_extract <- list(ExtractSoilDataFromCONUSSOILFromSTATSGO_USA = FALSE,
+	                   ExtractSoilDataFromISRICWISEv12_Global = FALSE)
+	did_extract <- c(ExtractSoilDataFromCONUSSOILFromSTATSGO_USA = FALSE,
+	                 ExtractSoilDataFromISRICWISEv12_Global = FALSE)
+	
 	if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
-		if (!be.quiet) print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
 		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
 		# Note(drs): it appears that NODATA values are recorded as 0
 		
-		do_extract <- is.na(sites_externalsoils_source) |
+		do_extract[[1]] <- is.na(sites_externalsoils_source) |
 						sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & (
+			do_extract[[1]] <- do_extract[[1]] & (
 								is.na(sw_input_soillayers[runIDs_sites, "SoilDepth_cm"]) |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
@@ -2717,8 +2723,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
 		}
 				
-		if (any(do_extract)) {
-			if (!be.quiet) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' will be extracted for n =", sum(do_extract), "sites"))
+		if (any(do_extract[[1]])) {
+			if (!be.quiet)
+			  print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' will be extracted for n =", sum(do_extract[[1]]), "sites"))
 
 			dir.ex.conus <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
 			stopifnot(file.exists(dir.ex.conus))
@@ -2727,12 +2734,12 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			nl <- length(ldepth)
 
 			# output container
-			soil_data <- array(NA, dim=c(sum(do_extract), nl, 5), dimnames=list(NULL, paste0("L", seq_len(nl)), c("bedrock", "matricd", "rockvol", "sand", "clay")))
+			soil_data <- array(NA, dim=c(sum(do_extract[[1]]), nl, 5), dimnames=list(NULL, paste0("L", seq_len(nl)), c("bedrock", "matricd", "rockvol", "sand", "clay")))
 			g <- raster::brick(file.path(dir.ex.conus, "bd.tif"))
 			crs_data <- raster::crs(g)
 
 			#locations of simulation runs
-			sites_conus <- run_sites[do_extract, ]
+			sites_conus <- run_sites[do_extract[[1]], ]
 			# Align with data crs
 			if (!raster::compareCRS(crs_sites, crs_data)) {
 				sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)	#transform points to grid-coords
@@ -2744,7 +2751,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				
 			} else if (sim_cells_or_points == "cell") {
 				cell_res_conus <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
+					sp = run_sites[do_extract[[1]], ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_conus, coords = sites_conus, method = "block")			
 			}
 
@@ -2837,12 +2844,13 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			soil_data[, , "clay"] <- ifelse(is.finite(clay), clay, NA)
 
 			# Determine successful extractions
-			i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract)
-			sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
+			i_good <- complete.cases(soil_data[, 1, ]) #length(i_good) == sum(do_extract[[1]])
+			sites_externalsoils_source[which(do_extract[[1]])[!i_good]] <- NA
 		
 			if (any(i_good)) {
+			  did_extract[1] <- TRUE
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+				i_Done[which(do_extract[[1]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_externalsoils_source[i_Done] <- "CONUSSOILFromSTATSGO_USA"
 						
@@ -2876,24 +2884,27 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				rm(tempdat, i.temp, i_Done)
 			}
 
-			if (!be.quiet) print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+			if (!be.quiet)
+			  print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract[[1]]), "sites"))
 			rm(lys, total_matric, rockvol, sand, clay, silt, g, sites_conus, cell_res_conus, soil_data, cond0, cond30, i_good, solid_rock_nl, solid_rock_cm)
 		}
 		
-		if (!be.quiet) print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 	}
 
 	if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
-		if (!be.quiet) print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
 		#Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5 arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
 		#http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
 		#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
 
-		do_extract <- is.na(sites_externalsoils_source) |
+		do_extract[[2]] <- is.na(sites_externalsoils_source) |
 						sites_externalsoils_source == "ISRICWISEv12_Global"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & (
+			do_extract[[2]] <- do_extract[[2]] & (
 								is.na(sw_input_soillayers[runIDs_sites, "SoilDepth_cm"]) |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
@@ -2901,8 +2912,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
 		}		
 
-		if (any(do_extract)) {
-			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' will be extracted for n =", sum(do_extract), "sites"))
+		if (any(do_extract[[2]])) {
+			if (!be.quiet)
+			  print(paste("'ExtractSoilDataFromISRICWISEv12_Global' will be extracted for n =", sum(do_extract[[2]]), "sites"))
 		
 			layer_N <- 5	#WISE contains five soil layers for each prid
 			layer_Nsim <- 6	#WISE contains five soil layers for each prid; I added one layer to account for lithosols (Ix), which have a soildepth of 10 cm; for all other soil types, my layers 0-10 cm and 10-20 cm contain the same wise information
@@ -2913,7 +2925,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 	
 			#run_sites_wise of simulation runs
-			run_sites_wise <- run_sites[do_extract, ]
+			run_sites_wise <- run_sites[do_extract[[2]], ]
 			is_ToDo <- seq_along(run_sites_wise)
 		
 			#---extract data
@@ -3147,13 +3159,14 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			# 'bulk density' here is of the matric component, i.e., what we call matric density
 			#matricd <- (sim_cells_soils[, grep("bulk", colnames(sim_cells_soils))] - 2.65 * sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))]) / (1 - sim_cells_soils[, grep("cfrag", colnames(sim_cells_soils))])
 			
-			i_good <- rep(FALSE, sum(do_extract))
-			i_good[sim_cells_soils[complete.cases(sim_cells_soils), "i"]] <- TRUE # i is index for do_extract
-			sites_externalsoils_source[which(do_extract)[!i_good]] <- NA
+			i_good <- rep(FALSE, sum(do_extract[[2]]))
+			i_good[sim_cells_soils[complete.cases(sim_cells_soils), "i"]] <- TRUE # i is index for do_extract[[2]]
+			sites_externalsoils_source[which(do_extract[[2]])[!i_good]] <- NA
 		
 			if (any(i_good)) {
+			  did_extract[2] <- TRUE
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+				i_Done[which(do_extract[[2]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
 		
@@ -3189,7 +3202,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				rm(lys, tempdat, i.temp, i_Done)
 			}
 		
-			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract[[2]]), "sites"))
 			rm(sim_cells_soils, run_sites_wise, cell_res_wise, i_good)
 		}
 		
@@ -3197,18 +3210,26 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 	}
 
 	
-	#write data to datafile.SWRunInformation
-	SWRunInformation$SoilTexture_source[runIDs_sites] <- as.character(sites_externalsoils_source)
-	notDone <- is.na(sites_externalsoils_source)
-	include_YN_soils <- rep(0, runsN_master)
-	include_YN_soils[runIDs_sites[!notDone]] <- 1
-	SWRunInformation$Include_YN_SoilSources <- include_YN_soils
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+	if (any(did_extract)) {
+    #write data to datafile.SWRunInformation
+    SWRunInformation$SoilTexture_source[runIDs_sites] <- as.character(sites_externalsoils_source)
+    notDone <- is.na(sites_externalsoils_source)
+    include_YN_soils <- rep(0, runsN_master)
+    include_YN_soils[runIDs_sites[!notDone]] <- 1
+    SWRunInformation$Include_YN_SoilSources <- include_YN_soils
+    write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-	if (any(notDone)) print(paste("'ExtractSoilData': no soil information for n =", sum(notDone), "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
-
-	rm(do_extract, notDone, include_YN_soils)
+    if (any(notDone))
+      print(paste("'ExtractSoilData': no soil information for n =", sum(notDone), "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+    
+    rm(notDone, include_YN_soils)
+    
+  } else {
+      print("'ExtractSoilData': no data extracted because already available")
+  }
+  
+	rm(do_extract, did_extract)
 }
 
 #------END OF SOIL CHARACTERISTICS------
@@ -3228,6 +3249,11 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	} else {
 		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
 	}
+
+  do_extract <- list(ExtractElevation_NED_USA = FALSE,
+                     ExtractElevation_HWSD_Global = FALSE)
+  did_extract <- c(ExtractElevation_NED_USA = FALSE,
+                   ExtractElevation_HWSD_Global = FALSE)
 	
 	elev_probs <- if (sim_cells_or_points == "cell") c(0.025, 0.5, 0.975) else NULL
 	elevation_m <- matrix(NA, nrow = runsN_sites, ncol = 1 + length(elev_probs),
@@ -3235,18 +3261,19 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 	
 	#	- extract NED data where available
 	if (exinfo$ExtractElevation_NED_USA) {
-		if (!be.quiet) print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
 		#ned.usgs.gov
 	
-		do_extract <- !complete.cases(elevation_m) | is.na(sites_elevation_source) |
+		do_extract[[1]] <- !complete.cases(elevation_m) | is.na(sites_elevation_source) |
 						sites_elevation_source == "Elevation_NED_USA"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & has_nodata(SWRunInformation[runIDs_sites, ], "ELEV_m")
+			do_extract[[1]] <- do_extract[[1]] & has_nodata(SWRunInformation[runIDs_sites, ], "ELEV_m")
 		}
 
-		if (any(do_extract)) {
-			if (!be.quiet) print(paste("'ExtractElevation_NED_USA' will be extracted for n =", sum(do_extract), "sites"))
+		if (any(do_extract[[1]])) {
+			if (!be.quiet) print(paste("'ExtractElevation_NED_USA' will be extracted for n =", sum(do_extract[[1]]), "sites"))
 			dir.ex.ned <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
 	
 			#read raster data
@@ -3254,7 +3281,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			sites_ned <- run_sites[do_extract, ]
+			sites_ned <- run_sites[do_extract[[1]], ]
 			# Align with data crs
 			if (!raster::compareCRS(crs_sites, crs_data)) {
 				sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)	#transform points to grid-coords
@@ -3265,47 +3292,52 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 
 			} else if (sim_cells_or_points == "cell") {
 				cell_res_ned <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
+					sp = run_sites[do_extract[[1]], ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_ned, coords = sites_ned, method = "block", probs = elev_probs)			
 			}
 
 			#extract data for locations
 			temp <- round(do.call("extract_from_external_raster", args = c(args_extract, data = list(g.elev))))	# elevation in m a.s.l.
 			if (is.vector(temp)) {
-				elevation_m[do_extract, "ELEV_m"] <- temp
+				elevation_m[do_extract[[1]], "ELEV_m"] <- temp
 			} else if (is.array(temp)) {
-				elevation_m[do_extract, ] <- temp[, 1, ]
+				elevation_m[do_extract[[1]], ] <- temp[, 1, ]
 			} else stop("Unknown object returned from 'extract_from_external_raster' when extracting elevation data.")
 			
-			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
-			sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			i_good <- complete.cases(elevation_m[do_extract[[1]], ]) #length(i_good) == sum(do_extract[[1]])
+			sites_elevation_source[which(do_extract[[1]])[!i_good]] <- NA
 			
 			if (any(i_good)) {
+				did_extract[1] <- TRUE
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+				i_Done[which(do_extract[[1]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 				sites_elevation_source[i_Done] <- "Elevation_NED_USA"
-				if (!be.quiet) print(paste("'ExtractElevation_NED_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+				if (!be.quiet)
+				  print(paste("'ExtractElevation_NED_USA' was extracted for n =", sum(i_good), "out of", sum(do_extract[[1]]), "sites"))
 			}
 	
 			rm(dir.ex.ned, g.elev, sites_ned, args_extract, i_good)
 		}
 		
-		if (!be.quiet) print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
 	}
 
 	#	- extract HWSD elevation data for sites with no elevation data
 	if (exinfo$ExtractElevation_HWSD_Global) {
-		if (!be.quiet) print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
 	
-		do_extract <- !complete.cases(elevation_m) | is.na(sites_elevation_source) |
+		do_extract[[2]] <- !complete.cases(elevation_m) | is.na(sites_elevation_source) |
 						sites_elevation_source == "Elevation_HWSD_Global"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & has_nodata(SWRunInformation[runIDs_sites, ], "ELEV_m")
+			do_extract[[2]] <- do_extract[[2]] & has_nodata(SWRunInformation[runIDs_sites, ], "ELEV_m")
 		}
 
-		if (any(do_extract)) {
-			if (!be.quiet) print(paste("'ExtractElevation_HWSD_Global' will be extracted for n =", sum(do_extract), "sites"))
+		if (any(do_extract[[2]])) {
+			if (!be.quiet)
+			  print(paste("'ExtractElevation_HWSD_Global' will be extracted for n =", sum(do_extract[[2]]), "sites"))
 			dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
 	
 			#read raster data
@@ -3313,7 +3345,7 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 			crs_data <- raster::crs(g.elev)
 	
 			#locations of simulation runs
-			sites_hwsd <- run_sites[do_extract, ]
+			sites_hwsd <- run_sites[do_extract[[2]], ]
 			# Align with data crs
 			if (!raster::compareCRS(crs_sites, crs_data)) {
 				sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform points to grid-coords
@@ -3324,57 +3356,68 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 
 			} else if (sim_cells_or_points == "cell") {
 				cell_res_hwsd <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-					sp = run_sites[do_extract, ], crs_sp = crs_sites, crs_to = crs_data)
+					sp = run_sites[do_extract[[2]], ], crs_sp = crs_sites, crs_to = crs_data)
 				args_extract <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block", probs = elev_probs)			
 			}
 
 			#extract data for locations
 			temp <- round(do.call("extract_from_external_raster", args = c(args_extract, data = list(g.elev))))	# elevation in m a.s.l.
 			if (is.vector(temp)) {
-				elevation_m[do_extract, "ELEV_m"] <- temp
+				elevation_m[do_extract[[2]], "ELEV_m"] <- temp
 			} else if (is.array(temp)) {
-				elevation_m[do_extract, ] <- temp[, 1, ]
+				elevation_m[do_extract[[2]], ] <- temp[, 1, ]
 			} else stop("Unknown object returned from 'extract_from_external_raster' when extracting elevation data.")
 
-			i_good <- complete.cases(elevation_m[do_extract, ]) #length(i_good) == sum(do_extract)
-			sites_elevation_source[which(do_extract)[!i_good]] <- NA
+			i_good <- complete.cases(elevation_m[do_extract[[2]], ]) #length(i_good) == sum(do_extract[[2]])
+			sites_elevation_source[which(do_extract[[2]])[!i_good]] <- NA
 			
 			if (any(i_good)) {
+				did_extract[2] <- TRUE
 				i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-				i_Done[which(do_extract)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+				i_Done[which(do_extract[[2]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_elevation_source[i_Done] <- "Elevation_HWSD_Global"
-				if (!be.quiet) print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+				if (!be.quiet)
+				  print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract[[2]]), "sites"))
 			}
 			rm(g.elev, sites_hwsd, cell_res_hwsd, dir.ex.hwsd)
 		}
 		
-		if (!be.quiet) print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
 	}
 
+	if (any(did_extract)) {
+    #write data to datafile.SWRunInformation
+    icolnew <- !(colnames(elevation_m) %in% colnames(SWRunInformation))
+    if (any(icolnew)) {
+      SWRunInformation <- cbind(SWRunInformation,
+        matrix(NA, nrow = nrow(SWRunInformation), ncol = sum(icolnew),
+          dimnames = list(NULL, colnames(elevation_m)[icolnew])))
+    }
+		
+		i_good <- complete.cases(elevation_m)
+    SWRunInformation[runIDs_sites[i_good], colnames(elevation_m)] <- elevation_m[i_good, ]
 
-	#write data to datafile.SWRunInformation
-	icolnew <- !(colnames(elevation_m) %in% colnames(SWRunInformation))
-	if (any(icolnew)) {
-		SWRunInformation <- cbind(SWRunInformation,
-			matrix(NA, nrow = nrow(SWRunInformation), ncol = sum(icolnew),
-				dimnames = list(NULL, colnames(elevation_m)[icolnew])))
-	}
-	SWRunInformation[runIDs_sites, colnames(elevation_m)] <- elevation_m
+    SWRunInformation$Elevation_source[runIDs_sites[i_good]] <- as.character(sites_elevation_source[i_good])
 
-	SWRunInformation$Elevation_source[runIDs_sites] <- as.character(sites_elevation_source)
+    notDone <- is.na(sites_elevation_source)
+    include_YN_elev <- rep(0, runsN_master)
+    include_YN_elev[runIDs_sites[!notDone]] <- 1
+    SWRunInformation$Include_YN_ElevationSources <- include_YN_elev
 
-	notDone <- is.na(sites_elevation_source)
-	include_YN_elev <- rep(0, runsN_master)
-	include_YN_elev[runIDs_sites[!notDone]] <- 1
-	SWRunInformation$Include_YN_ElevationSources <- include_YN_elev
-
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+    write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
+    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+  
+    if (any(notDone))
+      print(paste("Elevation wasn't found for ", sum(notDone), " sites"))
+    rm(i_good, notDone, include_YN_elev)
+    
+  } else {
+      print("'ExtractElevation': no data extracted because already available")
+  }
 	
-	if (any(notDone)) print(paste("Elevation wasn't found for ", sum(notDone), " sites"))
-	
-	rm(elevation_m, sites_elevation_source, notDone, include_YN_elev)
+	rm(elevation_m, sites_elevation_source, do_extract, did_extract)
 }
 
 #------END OF ELEVATION------
@@ -3392,23 +3435,28 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 	}
 
 	monthlyclim <- array(NA, dim = c(runsN_sites, 3, 12), dimnames = list(NULL, c("RH", "cover", "wind"), NULL))
+
+  do_extract <- list(ExtractSkyDataFromNOAAClimateAtlas_USA = FALSE,
+                     ExtractSkyDataFromNCEPCFSR_Global = FALSE)
+  did_extract <- c(ExtractSkyDataFromNOAAClimateAtlas_USA = FALSE,
+                   ExtractSkyDataFromNCEPCFSR_Global = FALSE)
 	
 	if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
 		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 	
-		do_extract <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
+		do_extract[[1]] <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
 						sites_monthlyclim_source == "ClimateNormals_NCDC2005_USA"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & (
+			do_extract[[1]] <- do_extract[[1]] & (
 								has_nodata(sw_input_cloud[runIDs_sites, ], "RH") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
 		}
-		names(do_extract) <- NULL
+		names(do_extract[[1]]) <- NULL
 		
-		i_extract <- as.integer(which(do_extract))
-		n_extract <- sum(do_extract)
+		i_extract <- as.integer(which(do_extract[[1]]))
+		n_extract <- sum(do_extract[[1]])
 
 		if (n_extract > 0) {
 			if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =", n_extract, "sites"))
@@ -3440,7 +3488,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 						colnames(monthlyclim) == names(var_codes))
 	
 			#locations of simulation runs
-			sites_noaaca <- run_sites[do_extract, ]
+			sites_noaaca <- run_sites[do_extract[[1]], ]
 			# Align with data crs
 			noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
 			crs_data <- raster::crs(noaaca)
@@ -3471,8 +3519,8 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			if (continueAfterAbort && file.exists(ftemp_noaaca)) {
 				prev_noaaca <- readRDS(ftemp_noaaca)
 				
-				if (identical(do_extract, prev_noaaca[["do_extract"]])) { # only continue if same extractions
-					monthlyclim[do_extract, , ] <- prev_noaaca[["monthlyclim"]][do_extract, , ]
+				if (identical(do_extract[[1]], prev_noaaca[["do_extract"]])) { # only continue if same extractions
+					monthlyclim[do_extract[[1]], , ] <- prev_noaaca[["monthlyclim"]][do_extract[[1]], , ]
 					
 					iv <- prev_noaaca[["iv"]]
 					m <- prev_noaaca[["m"]]
@@ -3518,7 +3566,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 				}
 
 				if (continueAfterAbort) saveRDS(list(monthlyclim = monthlyclim,
-													do_extract = do_extract,
+													do_extract = do_extract[[1]],
 													do_chunks = do_chunks,
 													iv = iv, m = m, ic = ic),
 											file = ftemp_noaaca)
@@ -3527,15 +3575,16 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			}
 			
 			#subtract from 100% as we want cover and not no-cover
-			monthlyclim[do_extract, "cover", ] <- 100 - monthlyclim[do_extract, "cover", ] 
+			monthlyclim[do_extract[[1]], "cover", ] <- 100 - monthlyclim[do_extract[[1]], "cover", ] 
 
 
 			# Save extracted data to disk
-			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == length(do_extract) == runsN_sites
-			i_notgood <- do_extract & has_incompletedata(monthlyclim) #length(i_good) == length(do_extract) == runsN_sites
+			i_good <- do_extract[[1]] & !has_incompletedata(monthlyclim) #length(i_good) == length(do_extract[[1]]) == runsN_sites
+			i_notgood <- do_extract[[1]] & has_incompletedata(monthlyclim) #length(i_good) == length(do_extract[[1]]) == runsN_sites
 			sites_monthlyclim_source[i_notgood] <- NA
 			
 			if (any(i_good)) {
+				did_extract[1] <- TRUE
 				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCDC2005_USA"
 				if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =", sum(i_good), "out of", n_extract, "sites"))
 	
@@ -3568,22 +3617,22 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 		
 		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
 
-		do_extract <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
+		do_extract[[2]] <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
 						sites_monthlyclim_source == "ClimateNormals_NCEPCFSR_Global"
 
 		if (continueAfterAbort) {
-			do_extract <- do_extract & (
+			do_extract[[2]] <- do_extract[[2]] & (
 								has_nodata(sw_input_cloud[runIDs_sites, ], "RH") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
 								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
 		}
-		names(do_extract) <- NULL
+		names(do_extract[[2]]) <- NULL
 	
-		if (any(do_extract)) {		
-			if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =", sum(do_extract), "sites"))
+		if (any(do_extract[[2]])) {		
+			if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =", sum(do_extract[[2]]), "sites"))
 
 			#locations of simulation runs
-			locations <- SWRunInformation[runIDs_sites[do_extract], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
+			locations <- SWRunInformation[runIDs_sites[do_extract[[2]]], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
 			# do the extractions
 			temp <- try(get_NCEPCFSR_data(
 							dat_sites = locations,
@@ -3603,18 +3652,19 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			res <- as.matrix(temp[["res_clim"]][, -1])
 			irow <- match(locations[, "WeatherFolder"], table = temp[["res_clim"]][, "WeatherFolder"], nomatch = 0)
 			irowL <- irow > 0
-			monthlyclim[do_extract, "RH", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
-			monthlyclim[do_extract, "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
-			monthlyclim[do_extract, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
+			monthlyclim[do_extract[[2]], "RH", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
+			monthlyclim[do_extract[[2]], "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
+			monthlyclim[do_extract[[2]], "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
 		
 			# Save extracted data to disk
-			i_good <- do_extract & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract) == runsN_sites
-			i_notgood <- do_extract & has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract) == runsN_sites
+			i_good <- do_extract[[2]] & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract[[2]]) == runsN_sites
+			i_notgood <- do_extract[[2]] & has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract[[2]]) == runsN_sites
 			sites_monthlyclim_source[i_notgood] <- NA
 			
 			if (any(i_good)) {
+				did_extract[2] <- TRUE
 				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCEPCFSR_Global"
-				if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract), "sites"))
+				if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract[[2]]), "sites"))
 
 				#add data to sw_input_cloud and set the use flags
 				i.temp <- grep("RH", names(sw_input_cloud_use))
@@ -3635,25 +3685,31 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			}
 			rm(locations, temp, i_good, i_notgood, irow, irowL)
 		}
-		rm(do_extract)
 	
 		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
 	}
 
-	#write data to datafile.SWRunInformation
-	SWRunInformation$ClimateNormals_source[runIDs_sites] <- as.character(sites_monthlyclim_source)
+	if (any(did_extract)) {
+    #write data to datafile.SWRunInformation
+    SWRunInformation$ClimateNormals_source[runIDs_sites] <- as.character(sites_monthlyclim_source)
 
-	notDone <- is.na(sites_monthlyclim_source)
-	include_YN_climnorm <- rep(0, runsN_master)
-	include_YN_climnorm[runIDs_sites[!notDone]] <- 1
-	SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
+    notDone <- is.na(sites_monthlyclim_source)
+    include_YN_climnorm <- rep(0, runsN_master)
+    include_YN_climnorm[runIDs_sites[!notDone]] <- 1
+    SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
 
-	write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
-	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-	
-	if (any(notDone)) print(paste("Climate normals weren't found for", sum(notDone), "sites"))
+    write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
+    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+  
+    if (any(notDone))
+      print(paste("Climate normals weren't found for", sum(notDone), "sites"))
+    rm(notDone, include_YN_climnorm)
 
-	rm(monthlyclim, sites_monthlyclim_source, notDone, include_YN_climnorm)
+  } else {
+      print("'ExtractClimateNormals': no data extracted because already available")
+  }
+
+	rm(monthlyclim, sites_monthlyclim_source, do_extract, did_extract)
 }
 
 #--------------------------------------------------------------------------------------------------#
