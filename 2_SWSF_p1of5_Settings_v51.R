@@ -124,7 +124,7 @@ if (!file.exists(ftemp) && continueAfterAbort) {
   detach("swsf_funs")
 }
 load(ftemp)
-
+print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
