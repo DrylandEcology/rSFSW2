@@ -351,50 +351,7 @@ if(do.ensembles){
 
 
 #------Determine simulation runs
-#	- Simulations are run over three nested loops
-#		- loop1 (1...expN) nested in loop2b (1...runsN_sites) nested in loop3 (1...scenario_No)
-#			- Note: loop3 (along scenarios) occurs within the function 'do_OneSite'
-#			- Note: loop2b is a subset of loop2a (1...runsN_master)
-#		- column 'include_YN' reduces 'site_id' to 'runIDs_sites'
-#		- 'site_id' and 'P_id' are invariant to 'include_YN'
-#
-#	- Master input file: column 'include_YN' selects rows which are included in the simulation
-#		Note: rows of the master input file correspond to rows of the treatment input file
-#		- column 'site_id'		== consecutive identification numbers of all rows in the master file; this is treated as a unique (and stable) identifier of a site
-#		- runsN_master			== number of rows in the master file 
-#		- runsN_sites			== number of rows in the master file that are included (runsN_sites <= max(site_id))  [previously, 'runs']
-#		- runIDs_sites			== identification of rows in the master file that are included  [previously, 'seq.tr']
-#
-#	- Experimental input file: each row defines a condition which is applied to every runIDs_sites
-#		- expN	== number of experimental treatments	[previously, 'trow']
-#
-#	- The function 'do_OneSite' will be called n-times with n = runsN_total
-#		- runsN_total		== (number of included sites) x (number of experimental treatments)	[previously, 'runsN.total']
-#		- runIDs_total		== consecutive identification numbers along runsN_total [previously, 'seq.todo']
-#		- runIDs_done		== values of runIDs_total that have already been processed by 'do_OneSite' [previously, 'seq.done']
-#		- runIDs_todo		== values of runIDs_total that await simulation by 'do_OneSite' [previously, 'seq.todo']
-#		- runsN_todo		== number of runIDs_total that await simulation by 'do_OneSite' [previously, 'runsN.todo']
-#
-#	- The function 'do_OneSite' could be called n-times with n = runsN_incl if all 'include_YN' were on
-#		- runsN_incl		== (number of sites) x (number of experimental treatments)
-#
-#	- The variable 'climate.conditions' defines climate conditions that are applied to each 'runIDs_total'
-#		- scenario_No		== number of climate conditions
-#
-#	- A grand total of n = runsN_Pid SoilWat runs could be carried out (n == number of rows in the output database)
-#		- runsN_Pid			== max(P_id) == runsN_incl x scenario_No
-#		- P_id				== a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database 
-#
-#	- Iterators:
-#		- i_sim					== A value out of the set of 'runIDs_todo' (as subset of 'runIDs_total') to be simulated
-#								== a consecutive index across loops 1+2b
-#		- i_site <- it_site()	== calculates the current value of 'runIDs_sites' based on 'i_sim'	[previously, 'i_tr']
-#								== position in loop 2 based on position across loops 1+2b
-#		- i_exp <- it_exp()		== position in loop 1 based on position across loops 1+2b
-#		- sc					== the iterator variable across 'scenario_No'
-#		- P_id <- it_Pid_old()	== a variable consecutive iterator across all loops 1+2b+3
-#		- P_id <- it_Pid()		== an invariant consecutive iterator across all loops 1+2a+3
-
+# see ?iterators, ?it_exp, ?it_site, ?it_Pid
 runsN_master <- nrow(SWRunInformation)
 runIDs_sites <- which(include_YN > 0)
 runsN_sites <- length(runIDs_sites)
@@ -2648,7 +2605,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {	# Read weather data from folder
 				i_sw_weatherList[[1]] <- try(getWeatherData_folders(
 						LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
-						weatherDirName = local_weatherDirName(i_sim, scenario_No, runsN_master, name.OutputDB),
+						weatherDirName = local_weatherDirName(i_sim, scenario_No, runsN_master, runIDs_sites, name.OutputDB),
 						filebasename = filebasename,
 						startYear = simstartyr,
 						endYear = endyr),
@@ -2657,7 +2614,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			
 		} else {
 			#---Extract weather data
-			weather_label_cur <- try(local_weatherDirName(i_sim, scenario_No, runsN_master, name.OutputDB), silent = TRUE)
+			weather_label_cur <- try(local_weatherDirName(i_sim, scenario_No, runsN_master, runIDs_sites, name.OutputDB), silent = TRUE)
 			if (is.na(weather_label_cur))
 				weather_label_cur <- try({function() stop("Output DB ", basename(name.OutputDB), " has no information about weather data for run ", i_sim)}(), silent = TRUE)
 
@@ -3374,7 +3331,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				Exclude_ClimateAmbient <- TRUE
 
 				#dbOverallColumns comes from database creation
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master)
+				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
 				temp <- paste(c(P_id, if (dbOverallColumns > 0) paste0(rep("NULL", dbOverallColumns), collapse = ",")), collapse = ",")
 				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
 				SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
@@ -6013,7 +5970,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#---Aggregation: done with options
 
 				#temporaly save aggregate data
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master)
+				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
 				
 				if (dbOverallColumns > 0 && dbOverallColumns == (nv - 1)) {
 					resMeans[!is.finite(resMeans)] <- "NULL"
@@ -6159,7 +6116,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							}
 						}
 						#temporary save daily data
-						P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master)
+						P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
 
 						#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
 						if(agg.analysis == 1){
@@ -6284,10 +6241,61 @@ if(actionWithSoilWat && runsN_todo > 0){
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
 
-	#objects to export
-	list.export <- c("filebasename","Tmax_crit_C","Tmin_crit_C", "increment_soiltemperature_deltaX_cm", "name.OutputDB","getScenarioWeatherDataFromDatabase","getCurrentWeatherDataFromDatabase","ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica", "create_filename_for_Maurer2002_NorthAmerica", "ExtractGriddedDailyWeatherFromDayMet_NorthAmerica", "dir.ex.daymet", "get_DayMet_NorthAmerica", "get_DayMet_cellID", "climate.conditions","dir.sw.in.tr","dbWeatherDataFile","dir.ex.maurer2002", "daily_lyr_agg","Depth_TopLayers","adjustLayersDepth", "getLayersWidth", "setLayerSequence", "sw_dailyC4_TempVar","sw_SiteClimate_Ambient","PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "AdjMonthlyBioMass","siteparamin","soilsin","weatherin","cloudin","prodin","estabin","tr_input_TranspCoeff_Code","transferExpDesignToInput","sw_input_experimentals","getStartYear","get.month","adjust.WindspeedHeight","circ.mean","circ.range","circ.sd","dir.create2","do_OneSite","endDoyAfterDuration","EstimateInitialSoilTemperatureForEachSoilLayer","get.LookupFromTable", "fill_empty", "done_prior", "max.duration","setAggSoilLayerForAggDailyResponses","simTiming","simTiming_ForEachUsedTimeUnit","startDoyOfDuration","SWPtoVWC","TranspCoeffByVegType","VWCtoSWP", "debug.dump.objects", "dir.prj",
-			"work", "do_OneSite", "transferExpDesignToInput", "accountNSHemispheres_veg", "daily_lyr_agg","be.quiet","bin.prcpfreeDurations","bin.prcpSizes","climate.conditions","continueAfterAbort","datafile.windspeedAtHeightAboveGround","adjust.soilDepth","DegreeDayBase","Depth_TopLayers","dir.out","dir.sw.runs","endyr","estabin","establishment.delay","establishment.duration","establishment.swp.surface","exec_c_prefix","filebasename.WeatherDataYear","germination.duration","germination.swp.surface","growing.season.threshold.tempC","makeInputForExperimentalDesign","ouput_aggregated_ts","output_aggregate_daily","parallel_backend","parallel_runs","print.debug","saveRsoilwatInput", "saveRsoilwatOutput","season.end","season.start","shrub.fraction.limit","simstartyr","simulation_timescales","startyr","sw_aet","sw_deepdrain","sw_evapsurface","sw_evsoil","sw_hd","sw_inf_soil","sw_interception","sw_percolation","sw_pet","sw_precip","sw_runoff","sw_snow","sw_soiltemp","sw_swcbulk","sw_swpmatric","sw_temp","sw_transp","sw_vwcbulk","sw_vwcmatric","sw.inputs","sw.outputs","swcsetupin","swFilesIn","swOutSetupIn","SWPcrit_MPa","yearsin","dbOverallColumns","aon","create_experimentals","create_treatments","daily_no","dir.out.temp","dirname.sw.runs.weather","do.GetClimateMeans","ExpInput_Seperator","lmax","no.species_regeneration","param.species_regeneration","pcalcs","runsN_sites","runsN_todo","runsN_total", "scenario_No","simTime","simTime_ForEachUsedTimeUnit_North","simTime_ForEachUsedTimeUnit_South","SoilLayer_MaxNo","SoilWat.windspeedAtHeightAboveGround","st_mo","sw_input_climscen_use","sw_input_climscen_values_use","sw_input_cloud_use","sw_input_experimentals_use","sw_input_prod_use","sw_input_site_use","sw_input_soils_use","sw_input_weather_use","swDataFromFiles","counter.digitsN","timerfile","tr_cloud","tr_files","tr_input_climPPT","tr_input_climTemp","tr_input_EvapCoeff","tr_input_shiftedPPT","tr_input_SnowD","tr_input_TranspCoeff","tr_input_TranspRegions","tr_prod","tr_site","tr_soil","tr_VegetationComposition","tr_weather","expN","workersN", "it_Pid", "it_exp", "it_site", "runsN_master",
-			"setDeepestTopLayer", "setTopLayer", "setBottomLayer", "local_weatherDirName", "finite01", "cor2", "cut0Inf", "tempError", "tol", "toln", "accountNSHemispheres_agg")
+	#objects to export (sorted alphabetically)
+	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg", "AdjMonthlyBioMass",
+		"adjust.soilDepth", "adjust.WindspeedHeight", "adjustLayersDepth", "aon",
+		"be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes", "circ.mean", "circ.range",
+		"circ.sd", "climate.conditions", "climate.conditions", "cloudin",
+		"continueAfterAbort", "cor2", "counter.digitsN", "create_experimentals",
+		"create_filename_for_Maurer2002_NorthAmerica", "create_treatments", "cut0Inf",
+		"daily_lyr_agg", "daily_lyr_agg", "daily_no",
+		"datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
+		"dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
+		"Depth_TopLayers", "dir.create2", "dir.ex.daymet", "dir.ex.maurer2002",
+		"dir.out.temp", "dir.out", "dir.prj", "dir.sw.in.tr", "dir.sw.runs",
+		"dirname.sw.runs.weather", "do_OneSite", "do_OneSite", "do.GetClimateMeans",
+		"done_prior", "endDoyAfterDuration", "endyr", "estabin", "estabin",
+		"establishment.delay", "establishment.duration", "establishment.swp.surface",
+		"EstimateInitialSoilTemperatureForEachSoilLayer", "exec_c_prefix",
+		"ExpInput_Seperator", "expN",
+		"ExtractGriddedDailyWeatherFromDayMet_NorthAmerica",
+		"ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica",
+		"filebasename.WeatherDataYear", "filebasename", "fill_empty", "finite01",
+		"germination.duration", "germination.swp.surface", "get_DayMet_cellID",
+		"get_DayMet_NorthAmerica", "get.LookupFromTable", "get.month",
+		"getCurrentWeatherDataFromDatabase", "getLayersWidth",
+		"getScenarioWeatherDataFromDatabase", "getStartYear",
+		"growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
+		"it_exp", "it_Pid", "it_site", "lmax", "local_weatherDirName",
+		"makeInputForExperimentalDesign", "max.duration", "name.OutputDB",
+		"no.species_regeneration", "ouput_aggregated_ts", "output_aggregate_daily",
+		"parallel_backend", "parallel_runs", "param.species_regeneration", "pcalcs",
+		"PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "print.debug",
+		"prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
+		"runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
+		"season.end", "season.start", "setAggSoilLayerForAggDailyResponses",
+		"setBottomLayer", "setDeepestTopLayer", "setLayerSequence", "setTopLayer",
+		"shrub.fraction.limit", "simstartyr", "simTime_ForEachUsedTimeUnit_North",
+		"simTime_ForEachUsedTimeUnit_South", "simTime", "simTiming_ForEachUsedTimeUnit",
+		"simTiming", "simulation_timescales", "siteparamin", "SoilLayer_MaxNo",
+		"soilsin", "SoilWat.windspeedAtHeightAboveGround", "st_mo",
+		"startDoyOfDuration", "startyr", "sw_aet", "sw_dailyC4_TempVar", "sw_deepdrain",
+		"sw_evapsurface", "sw_evsoil", "sw_hd", "sw_inf_soil", "sw_input_climscen_use",
+		"sw_input_climscen_values_use", "sw_input_cloud_use",
+		"sw_input_experimentals_use", "sw_input_experimentals", "sw_input_prod_use",
+		"sw_input_site_use", "sw_input_soils_use", "sw_input_weather_use",
+		"sw_interception", "sw_percolation", "sw_pet", "sw_precip", "sw_runoff",
+		"sw_SiteClimate_Ambient", "sw_snow", "sw_soiltemp", "sw_swcbulk",
+		"sw_swpmatric", "sw_temp", "sw_transp", "sw_vwcbulk", "sw_vwcmatric",
+		"sw.inputs", "sw.outputs", "swcsetupin", "swDataFromFiles", "swFilesIn",
+		"swOutSetupIn", "SWPcrit_MPa", "SWPtoVWC", "tempError", "timerfile",
+		"Tmax_crit_C", "Tmin_crit_C", "tol", "toln", "tr_cloud", "tr_files",
+		"tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+		"tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
+		"tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site",
+		"tr_soil", "tr_VegetationComposition", "tr_weather", "transferExpDesignToInput",
+		"transferExpDesignToInput", "TranspCoeffByVegType", "VWCtoSWP", "weatherin",
+		"work", "workersN", "yearsin")
 	list.export <- ls()[ls() %in% list.export]
 	#ETA calculation
 	if(!be.quiet) print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
@@ -6329,7 +6337,7 @@ tryCatch({
 					# are done if there are none.
 					if ((runs.completed <= length(runIDs_todo)) & (temp < MaxDoOneSiteTime)) {
 						# Send a task, and then remove it from the task list
-						i_site <- it_site(runIDs_todo[runs.completed], runsN_master)
+						i_site <- it_site(runIDs_todo[runs.completed], runsN_master, runIDs_sites)
 						i_labels <- labels[i_site]
 						i_SWRunInformation <- SWRunInformation[i_site, ]
 						i_sw_input_soillayers <- sw_input_soillayers[i_site, ]
@@ -6393,7 +6401,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
-				i_site <- it_site(i_sim, runsN_master)
+				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
 				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
 			}
 			snow::clusterEvalQ(cl, rm(list=ls()))
@@ -6401,7 +6409,7 @@ tryCatch({
 		}
 		if(identical(parallel_backend, "multicore")){
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
-				i_site <- it_site(i_sim, runsN_master)
+				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
 
 				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
 			}
@@ -6410,7 +6418,7 @@ tryCatch({
 	} else { #call the simulations in serial
 		runs.completed <- 0
 		runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %do% {
-			i_site <- it_site(i_sim, runsN_master)
+			i_site <- it_site(i_sim, runsN_master, runIDs_sites)
 			do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
 		}
 		#Best for debugging
@@ -6419,7 +6427,7 @@ tryCatch({
 #		for(n in list.export) assign(x=n,value=get(n,globalenv()), envir=exeEnv)
 #
 #		for(i_sim in runIDs_todo) {
-#			i_site <- it_site(i_sim, runsN_master)
+#			i_site <- it_site(i_sim, runsN_master, runIDs_sites)
 #
 #			assign(x="runs.completed", value=0, envir=exeEnv)
 #			assign(x="i_sim",value=i_sim,envir=exeEnv)
