@@ -118,7 +118,11 @@ if (createAndPopulateWeatherDatabase) {
 			end_year = endyr,
 			meta_cfsr = prepd_CFSR,
 			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
+			do_parallel = parallel_runs && parallel_init,
+			parallel_backend = parallel_backend,
+			cl = if (identical(parallel_backend, "snow")) cl else NULL,
 			rm_temp = deleteTmpSQLFiles,
+			continueAfterAbort = continueAfterAbort,
 			dir_temp = dir.out.temp,
 			dbW_compression_type = dbW_compression_type)
 	}
