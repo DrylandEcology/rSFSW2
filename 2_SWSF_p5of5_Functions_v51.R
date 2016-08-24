@@ -682,23 +682,25 @@ Grass_ANPP <- compiler::cmpfun(function(MAP_mm) 0.646 * MAP_mm - 102.5)
 #'    - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
 #'    - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
 adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs,
-         ShrubsMAP_mm, GrassMAP_mm, vegcomp_std_shrubs, vegcomp_std_grass, tol. = tol) {
+         map_mm_shrubs, map_mm_std_shrubs,
+         map_mm_grasses, map_mm_std_grasses,
+         vegcomp_std_shrubs, vegcomp_std_grass, tol. = tol) {
 
   #Intercepts to match outcomes of M & L 1993 equations under 'default' MAP with our previous default inputs for shrubs and sgs-grasslands
   #Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
   Shrub_ANPPintercept <- (vegcomp_std_shrubs[1] * biom_maxs["Sh.Amount.Live"] +
                           vegcomp_std_shrubs[2] * biom_maxs["C3.Amount.Live"] +
                           vegcomp_std_shrubs[3] * biom_maxs["C4.Amount.Live"]) - 
-                        Shrub_ANPP(StandardShrub_MAP_mm)
+                        Shrub_ANPP(map_mm_std_shrubs)
   Grasses_ANPPintercept <- (vegcomp_std_grass[1] * biom_maxs["Sh.Amount.Live"] +
                             vegcomp_std_grass[2] * biom_maxs["C3.Amount.Live"] +
                             vegcomp_std_grass[3] * biom_maxs["C4.Amount.Live"]) -
-                          Grass_ANPP(StandardGrasses_MAP_mm)
+                          Grass_ANPP(map_mm_std_grasses)
 
   #Get scaling values for scaled biomass; guarantee that > minimum.totalBiomass
   minimum.totalBiomass <- 0 #This is a SoilWat parameter
-  Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(ShrubsMAP_mm) + Shrub_ANPPintercept)
-  Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(GrassMAP_mm) + Grasses_ANPPintercept)
+  Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(map_mm_shrubs) + Shrub_ANPPintercept)
+  Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(map_mm_grasses) + Grasses_ANPPintercept)
 
   #Scale live biomass amount by productivity; assumption: ANPP = peak standing live biomass
   biom_shrubs$Sh.Amount.Live <- biom_shrubs$Sh.Amount.Live * Shrub_BiomassScaler
@@ -830,8 +832,10 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
   temp <- adjBiom_by_ppt(
     biom_shrubs, biom_C3, biom_C4, biom_annuals,
     biom_maxs = colmax,
-    ShrubsMAP_mm = if (do_adjBiom_by_ppt) MAP_mm else StandardShrub_MAP_mm,
-    GrassMAP_mm = if (do_adjBiom_by_ppt) MAP_mm else StandardGrasses_MAP_mm,
+    map_mm_shrubs = if (do_adjBiom_by_ppt) MAP_mm else StandardShrub_MAP_mm,
+    map_mm_std_shrubs = StandardShrub_MAP_mm,
+    map_mm_grasses = if (do_adjBiom_by_ppt) MAP_mm else StandardGrasses_MAP_mm,
+    map_mm_std_grasses = StandardGrasses_MAP_mm,
     vegcomp_std_shrubs = StandardShrub_VegComposition,
     vegcomp_std_grass = StandardGrasses_VegComposition)
 
@@ -866,7 +870,7 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 
   if (trco.code == "DepthCM") {
     temp <- sum(trco.raw, na.rm = TRUE)
-    trco_sum <- if(temp == 0 | is.na(temp), 1, temp)
+    trco_sum <- if (temp == 0 || is.na(temp)) 1L else temp
     lup <- 1
     for(l in 1:soillayer_no){
       llow <- as.numeric(layers_depth[l])
@@ -1062,34 +1066,30 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
   }
 })
 
+handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
+  if (length(na.index) > 0) {
+    napredict(na.act, x)
+  } else {
+    x
+  }
+})
+
 #' @section Note:
 #'  either swp or sand/clay needs be a single value
 #' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
-pdf_to_vwc <- compiler::cmpfun(function(swp, sand, clay, thetas, psis, b, do.na = TRUE, MPa_toBar = -10, bar_conversion = 1024) {
-  vwc <- ifelse(!is.na(swp) & swp <= 0,
-                thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100,
-                NA)
-  
-  if (do.na & length(na.index) > 0) {
-    vwc <- napredict(na.act, vwc)
-  }
-  
-  vwc
+pdf_to_vwc <- compiler::cmpfun(function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_conversion = 1024) {
+  ifelse(!is.na(swp) & swp <= 0,
+        thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100,
+        NA)
 })
 
 #' @section Note:
 #'  either vwc or sand/clay needs be a single value
 #' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
-pdf_to_swp <- compiler::cmpfun(function(vwc, sand, clay, thetas, psis, b, do.na = TRUE, bar_toMPa = -0.1, bar_conversion = 1024) {
-  swp <- ifelse(!is.na(vwc) & vwc <= 1,
-                psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa,
-                NA)
-  
-  if (do.na & length(na.index) > 0) {
-    swp <- napredict(na.act, swp)
-  }
-  
-  swp
+pdf_to_swp <- compiler::cmpfun(function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1, bar_conversion = 1024) {
+  ifelse(!is.na(vwc) & vwc <= 1,
+        psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa,
+        NA)
 })
 
 
@@ -1127,12 +1127,20 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
     if(is.null(dim(swp))){
       if(length(swp) == 1 & length(sand) >= 1 | length(swp) >= 1 & length(sand) == 1){ #cases 1-3
         vwc <- pdf_to_vwc(swp, sand, clay, thetas=thetas, psis=psis, b=b)
+        vwc <- handle_NAs(vwc, na.index, na.act)
+        
       } else if(length(swp) > 1 & length(sand) > 1){ #case 4
-        vwc <- t(sapply(1:length(swp), FUN=function(d) pdf_to_vwc(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)))
+        vwc <- t(sapply(seq_along(swp), function(d) {
+          temp <- pdf_to_vwc(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)
+          handle_NAs(temp, na.index, na.act)
+        }))
       }
     } else {
       if(length(sand) == 1){ #case 5
-        vwc <- sapply(1:ncol(swp), FUN=function(d) pdf_to_vwc(swp[, d], sand, clay, thetas=thetas, psis=psis, b=b))
+        vwc <- sapply(seq_len(ncol(swp)), function(d) {
+          temp <- pdf_to_vwc(swp[, d], sand, clay, thetas=thetas, psis=psis, b=b)
+          handle_NAs(temp, na.index, na.act)
+        })
       } else { #case 6
         sand <- napredict(na.act, sand)
         clay <- napredict(na.act, clay)
@@ -1140,7 +1148,8 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
         psis <- napredict(na.act, psis)
         thetas <- napredict(na.act, thetas)
         b <- napredict(na.act, b)
-        vwc <- sapply(1:ncol(swp), FUN=function(d) pdf_to_vwc(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
+        vwc <- sapply(seq_len(ncol(swp)), function(d) 
+          pdf_to_vwc(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d]))
       }
     }
   } else {
@@ -1185,12 +1194,20 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
     if(is.null(dim(vwc))){
       if(length(vwc) == 1 & length(sand) >= 1 | length(vwc) >= 1 & length(sand) == 1){ #cases 1-3
         swp <- pdf_to_swp(vwc, sand, clay, thetas=thetas, psis=psis, b=b)
+        swp <- handle_NAs(swp, na.index, na.act)
+        
       } else if(length(vwc) > 1 & length(sand) > 1){ #case 4
-        swp <- t(sapply(1:length(vwc), FUN=function(d) pdf_to_swp(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)))
+        swp <- t(sapply(seq_along(vwc), function(d) {
+          temp <- pdf_to_swp(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)
+          handle_NAs(temp, na.index, na.act)
+        }))
       }
     } else {
       if(length(sand) == 1){ #case 5
-        swp <- sapply(1:ncol(vwc), FUN=function(d) pdf_to_swp(vwc[, d], sand, clay, thetas=thetas, psis=psis, b=b))
+        swp <- sapply(seq_len(ncol(vwc)), function(d) {
+          temp <- pdf_to_swp(vwc[, d], sand, clay, thetas=thetas, psis=psis, b=b)
+          handle_NAs(temp, na.index, na.act)
+        })
       } else { #case 6
         sand <- napredict(na.act, sand)
         clay <- napredict(na.act, clay)
@@ -1198,7 +1215,7 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
         psis <- napredict(na.act, psis)
         thetas <- napredict(na.act, thetas)
         b <- napredict(na.act, b)
-        swp <- sapply(1:ncol(vwc), FUN=function(d) pdf_to_swp(vwc[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d], do.na=FALSE))
+        swp <- sapply(seq_len(ncol(vwc)), function(d) pdf_to_swp(vwc[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d]))
       }
     }
   } else {
@@ -1837,8 +1854,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- compiler::cmpfun(
 #' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
 #' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(function(dir_data, site_ids, coords_WGS84, start_year, end_year, dir_temp = tempdir(), dbW_compression_type = "gzip") {
-  if (!be.quiet)
-    print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+  print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
 
   # Check if weather data was previously partially extracted
   wtemp_file <- file.path(dir_temp, "DayMet_weather_temp.rds")
@@ -1853,8 +1869,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
     #TODO: re-write for parallel processing (does it make sense to download in parallel?)
     # Extract weather data sequentially for requested locations
     for (idm in seq_along(site_ids_todo)) {
-      if (!be.quiet)
-        print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
+      print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
 
       weatherData <- get_DayMet_NorthAmerica(
         dir_data = dir_data, 
@@ -1879,8 +1894,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
     }
   }
 
-  if (!be.quiet)
-    print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
+  print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
 
   invisible(0)
 })
@@ -1893,7 +1907,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   site_ids, coords_WGS84, start_year, end_year,
   dir_temp = tempdir(), dbW_compression_type = "gzip", do_parallel = FALSE, ncores = 1L) {
   
-  if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
+  print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
   NRC_years <- as.integer(list.dirs(path=dir_temp, recursive=FALSE, full.names=FALSE))
   NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
@@ -1926,8 +1940,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   # Extract weather data for all locations together for each day of each year
   pwd <- getwd()
   for(iy in seq_along(NRC_use_years)){ # Loop through years
-    if(!be.quiet)
-      print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
+    print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
     setwd(file.path(dir_temp, NRC_use_years[iy]))
     NRC_days <- list.files() #find all days for this year
     ndays <- length(NRC_days) / length(vars)
@@ -1955,7 +1968,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
   
   for (i in seq_along(site_ids)) {
-    if (!be.quiet && i %% 100 == 1)
+    if (i %% 100 == 1)
       print(paste(Sys.time(), "storing NRC weather data of site_id", site_ids[i], i, "of", length(site_ids), "sites in database"))
     
     weatherData <- list()
@@ -1979,8 +1992,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   }
   #unlink(file=wtemp_file)
 
-  if (!be.quiet)
-    print(paste("Finished 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
+  print(paste("Finished 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
   rm(NRC_weather, weatherData, data_blob)
   gc()
@@ -1988,9 +2000,236 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   invisible(0)
 })
 
+get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly = FALSE,
+                cfsr_so,
+                yearLow, yearHigh, dir.in.cfsr, dir_temp,
+                n_site_per_core = 100,
+                do_parallel = FALSE, parallel_backend = "snow", cl = NULL,
+                rm_mc_files = FALSE, continueAfterAbort = FALSE) {
+
+#str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
+# $ WeatherFolder: chr  ...
+# $ X_WGS84      : num  -117 -117 -117 -117 -120 ...
+# $ Y_WGS84      : num  32.8 32.8 32.8 32.8 38.9 ...
+  
+  years <- yearLow:yearHigh
+
+  # directory paths
+  dir_temp_cfsr <- file.path(dir_temp, "temp_NCEFCFSR")
+  dir_temp_sites <- file.path(dir_temp_cfsr, dat_sites[, "WeatherFolder"])
+  
+  # determine previous efforts		
+  if (continueAfterAbort) {
+    i_done <- file.exists(dir_temp_sites)
+    if (sum(i_done) > 0) {
+      for (i in which(i_done)) {
+        i_done[i] <- 
+          if (monthly) {
+            file.exists(file.path(dir_temp_sites[i], "mc.csv")) ||
+            {file.exists(file.path(dir_temp_sites[i], "cc.txt")) &&
+            file.exists(file.path(dir_temp_sites[i], "rh.txt")) &&
+            file.exists(file.path(dir_temp_sites[i], "ws.txt"))}
+          } else {
+            TRUE
+          } && if (daily) {
+            d_files <- list.files(dir_temp_sites[i], pattern = "weath.")
+            d_years <- as.integer(sapply(strsplit(d_files, ".", fixed = TRUE), function(x) x[2]))
+            all(d_years %in% years)
+          } else {
+            TRUE
+          }
+        if (!i_done[i])
+          unlink(dir_temp_sites[i], recursive = TRUE)
+      }
+    }
+    i_todo <- !i_done
+    
+  } else {
+    i_todo <- rep(TRUE, nrow(dat_sites))
+  }
+
+  # prepare tasks
+  # do the extractions, loop over chunks of sites
+  n_sites <- sum(i_todo)
+  n_sites_all <- nrow(dat_sites)
+  
+  if (n_sites > 0) {
+    dat_sites_todo <- dat_sites[i_todo, ]
+    
+    dir.create(dir_temp_cfsr, showWarnings = FALSE)
+    temp <- lapply(dir_temp_sites, dir.create, showWarnings = FALSE)
+    dir_temp.sitesC <- gsub("/", "//", normalizePath(dir_temp_sites)) # C-style paths; they cannot be relative to ~
+  
+    n_years <- length(years)
+    n_climvars <- n_dailyvars <- 3
+    do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
+    do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = st_mo, years = years)
+
+    dtemp <- getwd()
+    setwd(dir.in.cfsr)
+
+    # set up parallel
+    if (do_parallel) {
+      list.export <- c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr") #objects that need exporting to slaves
+      if (identical(parallel_backend, "mpi")) {
+        exportObjects(list.export)
+        Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
+        Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
+      }
+      if (identical(parallel_backend, "snow")) {
+        export_obj_local <- list.export[list.export %in% ls(name=environment())]
+        export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
+        export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
+        export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
+        export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
+        stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
+
+        if (length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
+        if (length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
+        if (length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+        snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
+        snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
+      }
+    }
+
+    for (k in seq_along(do_sites)) {
+      print(paste(Sys.time(), ": NCEP/CFSR extraction of",
+        if(daily) "daily",
+        if(daily && monthly) "and",
+        if(monthly) "monthly",
+        "data: chunk", k, "of", length(do_sites)))
+
+      nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
+      ntemp <- length(do_sites[[k]])
+      irows <- do_sites[[k]]
+      longs <- dat_sites_todo[irows, "X_WGS84"]
+      lats <- dat_sites_todo[irows, "Y_WGS84"]
+      dtemp <- dir_temp.sitesC[irows]
+
+#      if (print.debug)
+#        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command="lsof", args="-c R | wc -l", stdout=TRUE)))
+
+      if (do_parallel) {
+        if (identical(parallel_backend, "mpi")) {
+          if (daily) {
+            nDailyReads <- Rmpi::mpi.applyLB(x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+            nDailyReads <- do.call(sum, nDailyReads)
+
+            nDailyWrites <- Rmpi::mpi.applyLB(x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites_todo[irows, "WeatherFolder"], siteDirsC=dtemp)
+            nDailyWrites <- do.call(sum, nDailyWrites)
+          }
+          if (monthly) {
+            nMonthlyReads <- Rmpi::mpi.applyLB(x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+            nMonthlyReads <- do.call(sum, nMonthlyReads)
+          }
+          if (monthly && k == length(do_sites)) { # only do at the end
+            nMonthlyWrites <- Rmpi::mpi.applyLB(x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
+            nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+          }
+        } else if (identical(parallel_backend, "snow")) {
+          if (daily) {
+            nDailyReads <- snow::clusterApplyLB(cl, x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+            nDailyReads <- do.call(sum, nDailyReads)
+
+            nDailyWrites <- snow::clusterApplyLB(cl, x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+            nDailyWrites <- do.call(sum, nDailyWrites)
+          }
+          if (monthly) {
+            nMonthlyReads <- snow::clusterApplyLB(cl, x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+            nMonthlyReads <- do.call(sum, nMonthlyReads)
+          }
+          if (monthly && k == length(do_sites)) { # only do at the end
+            nMonthlyWrites <- snow::clusterApplyLB(cl, x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
+            nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+          }
+        } else if (identical(parallel_backend, "multicore")) {
+          if (daily) {
+            nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+              gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+            nDailyWrites <- foreach::foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+              writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+          }
+          if (monthly) {
+            nMonthlyReads <- foreach::foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+              gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+          }
+          if (monthly && k == length(do_sites)) { # only do at the end
+            nMonthlyWrites <- foreach::foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
+              writeMonthlyClimate(ic, siteDirsC=dir_temp.sitesC)
+          }
+        }
+      } else {
+        if (daily) {
+          nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+            gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+          nDailyWrites <- foreach::foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+            writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+        }
+        if (monthly) {
+          nMonthlyReads <- foreach::foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+            gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+        }
+        if (monthly && k == length(do_sites)) { # only do at the end
+          nMonthlyWrites <- foreach::foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
+            writeMonthlyClimate(ic, siteDirsC=dir_temp.sitesC)
+        }
+      }
+
+      # check that all was done
+      if (daily)
+        stopifnot(nDailyReads == nrow(do_daily), nDailyWrites == n_years)
+      if (monthly)
+        stopifnot(nMonthlyReads == n_climvars)
+    }
+
+    # check that all was done
+    if (monthly)
+      stopifnot(nMonthlyWrites == n_sites)
+
+    # clean up parallel
+    if (do_parallel) {
+      if (identical(parallel_backend, "mpi")) {
+        Rmpi::mpi.bcast.cmd(rm(list=ls()))
+        Rmpi::mpi.bcast.cmd(gc())
+      }
+      if (identical(parallel_backend, "snow")) {
+        snow::clusterEvalQ(cl, rm(list=ls()))
+        snow::clusterEvalQ(cl, gc())
+      }
+    }
+
+    setwd(dtemp)
+  }
+
+
+  # concatenating the monthlyClimate csv files
+  if (monthly) {
+    res_clim <- data.frame(matrix(NA, nrow = n_sites_all, ncol = 1 + n_climvars * 12))
+    colnames(res_clim) <- c("WeatherFolder", paste0("Cloud_m", st_mo), paste0("Wind_m", st_mo), paste0("RH_m", st_mo))
+    res_clim[, "WeatherFolder"] <- dat_sites[, "WeatherFolder"]
+
+    for (i in seq_len(n_sites_all)) {
+      ftemp <- file.path(dir_temp_sites[i], "mc.csv")
+      if (file.exists(ftemp)) {
+        table.mc <- read.csv(file=ftemp, comment="", stringsAsFactors=FALSE)
+        res_clim[i, 1 + st_mo] <- table.mc[, "Cloud_Cover"]
+        res_clim[i, 1 + 12 + st_mo] <- table.mc[, "Surface_Wind"]
+        res_clim[i, 1 + 24 + st_mo] <- table.mc[, "Rel_Humidity"]
+
+        if (rm_mc_files == TRUE) unlink(ftemp)
+      }
+    }
+  } else {
+    res_clim <- NULL
+  }
+
+  list(dir_temp_cfsr = dir_temp_cfsr, res_clim = res_clim)
+})
+
+
 GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year, 
-  meta_cfsr, n_site_per_core = 100,
-  rm_temp = TRUE, dir_temp = tempdir(),
+  meta_cfsr, n_site_per_core = 100, do_parallel = FALSE, parallel_backend = "snow", cl = NULL,
+  rm_temp = TRUE, continueAfterAbort = FALSE, dir_temp = tempdir(),
   dbW_compression_type = "gzip") {
   
   #Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
@@ -1999,17 +2238,20 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
   # do the extractions
   etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
     daily = TRUE, monthly =  FALSE,
-    yearLow = start_year, yearHigh = end_year,
-    n_site_per_core = n_site_per_core,
     cfsr_so = meta_cfsr$cfsr_so,
+    yearLow = start_year, yearHigh = end_year,
     dir.in.cfsr = meta_cfsr$dir.in.cfsr,
-    dir.temp = dir_temp,
-    rm_mc_files = TRUE)
+    dir_temp = dir_temp,
+    n_site_per_core = n_site_per_core,
+    do_parallel = do_parallel,
+    parallel_backend = parallel_backend, cl = cl,
+    rm_mc_files = TRUE,
+    continueAfterAbort = continueAfterAbort)
 
   # move the weather data into the database
   for (i in seq_along(site_ids)) {
     weatherData <- Rsoilwat31::getWeatherData_folders(
-      LookupWeatherFolder = etemp$dir.temp.cfsr,
+      LookupWeatherFolder = etemp$dir_temp_cfsr,
       weatherDirName = dat_sites[i, "WeatherFolder"],
       filebasename = "weath",
       startYear = start_year,
@@ -2025,12 +2267,11 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
   }
 
   if (rm_temp) {
-    dir.remove(etemp$dir.temp.cfsr)
+    dir.remove(etemp$dir_temp_cfsr)
     temp <- lapply(c("ppt", "tmax", "tmin"), FUN=function(x) dir.remove(file.path(meta_cfsr$dir.in.cfsr, "temporary_dy", x)))
   }
 
-  if (!be.quiet)
-    print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
+  print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
 
   invisible(0)
 })

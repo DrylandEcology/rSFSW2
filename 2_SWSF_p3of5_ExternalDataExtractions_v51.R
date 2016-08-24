@@ -3571,15 +3571,17 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			# do the extractions
 			temp <- try(get_NCEPCFSR_data(
 							dat_sites = locations,
-							daily = FALSE,
-							monthly = TRUE,
-							yearLow = startyr,
-							yearHigh = endyr,
-							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
-							cfsr_so = prepd_CFSR$cfsr_so,
+							daily = FALSE, monthly = TRUE,
+							yearLow = startyr, yearHigh = endyr,
 							dir.in.cfsr = prepd_CFSR$dir.in.cfsr,
-							dir.temp = dir.out.temp,
-							rm_mc_files = TRUE),
+							dir_temp = dir.out.temp,
+							cfsr_so = prepd_CFSR$cfsr_so,
+							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
+              do_parallel = parallel_runs && parallel_init,
+							parallel_backend = parallel_backend,
+							cl = if (identical(parallel_backend, "snow")) cl else NULL,
+							rm_mc_files = TRUE,
+              continueAfterAbort = continueAfterAbort),
 						silent = TRUE)
 			if (inherits(temp, "try-error")) stop(temp)
 
