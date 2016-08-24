@@ -125,7 +125,7 @@ check.blas <- FALSE
 
 #---Load functions
 ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (!file.exists(ftemp) && continueAfterAbort) {
+if (!file.exists(ftemp) || !continueAfterAbort) {
   sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
   save(list = ls(name = "swsf_funs"), file = ftemp)
   detach("swsf_funs")
