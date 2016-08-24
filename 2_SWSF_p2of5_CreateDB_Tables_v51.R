@@ -55,7 +55,9 @@ if (createAndPopulateWeatherDatabase) {
 									weatherfoldername = SWRunInformation$WeatherFolder[i_site])
 			
 			} else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
-				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname = Maurer[i],
+				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+				          dir_data = dir.ex.maurer2002,
+				          cellname = Maurer[i],
 									startYear = simstartyr,
 									endYear = endyr)
 			
@@ -81,30 +83,44 @@ if (createAndPopulateWeatherDatabase) {
 	# Extract weather data for all sites based on inclusion-invariant 'site_id'
 	ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
 	if (length(ids_DayMet_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
+		  dir_data = dir.ex.daymet,
+		  site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
 			coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_DayMet_extraction)
 
 	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
 	if (length(ids_NRCan_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
+		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
+		  dir_data = dir.ex.NRCan,
+		  site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
 			coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type,
+			do_parallel = parallel_runs && identical(parallel_backend, "snow"),
+			ncores = num_cores)
 	}
 	rm(ids_NRCan_extraction)
 
 	ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
 	if (length(ids_NCEPCFSR_extraction) > 0) {
-		GriddedDailyWeatherFromNCEPCFSR_Global(site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
+		GriddedDailyWeatherFromNCEPCFSR_Global(
+		  site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
 			dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
 			end_year = endyr,
+			meta_cfsr = prepd_CFSR,
 			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-			rm_temp = deleteTmpSQLFiles)
+			rm_temp = deleteTmpSQLFiles,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_NCEPCFSR_extraction)
 	

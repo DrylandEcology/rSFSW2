@@ -755,69 +755,14 @@ lwf_cond1 <- sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_t
 lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[runIDs_sites])) == 0) && !any(as.logical(c(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)))
 lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
 lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
-if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
-	#function to be executed for each SoilWat-run
-	#TODO replace with Rsoilwat31::getWeatherData_folders
-	ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername){
-		WeatherFolder <- file.path(dir.weather, weatherfoldername)
-		weath <- list.files(WeatherFolder, pattern="weath.")
-		stopifnot(!anyNA(years <- as.numeric(sub(pattern="weath.", replacement="", weath))))
 
-		weatherData <- list()
-		for(j in seq_along(weath)) {
-			data_sw <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header=FALSE, comment.char = "#", blank.lines.skip=TRUE, sep="\t"))
-			data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-			colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-			weatherData[[j]] <- new("swWeatherData", year=years[j], data = data.matrix(data_sw, rownames.force = FALSE))
-		}
-		names(weatherData) <- years
-		return(weatherData)
-	}
-}
 
 if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
 	#Citation: Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
 
-	dir.ex.maurer2002 <- file.path(dir.ex.weather,"Maurer+_2002updated","DAILY_FORCINGS")
+	dir.ex.maurer2002 <- file.path(dir.ex.weather, "Maurer+_2002updated", "DAILY_FORCINGS")
 	stopifnot(file.exists(dir.ex.maurer2002))
-
-
-	#function to be executed for each SoilWat-run
-	#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
-	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
-	ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(cellname, startYear=simstartyr, endYear=endyr){
-		#read data from Maurer et al. 2002
-		weath.data <- try(read.table(file=file.path(dir.ex.maurer2002, cellname), comment.char=""), silent=TRUE)
-		
-		if(!inherits(weath.data, "try-error")){
-			colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
-
-			#times
-			date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-					to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-					by="1 day")
-			
-			# conversion precipitation: mm/day -> cm/day
-			data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
-			colnames(data_all) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-
-			years <- startYear:endYear
-			n_years <- length(years)
-			if(!all(years %in% unique(weath.data$year)))
-				stop("simstartyr or endyr out of weather data range")
-			weathDataList <- list()
-			for(y in seq_along(years)) {
-				data_sw <- data_all[weath.data$year == years[y], ]
-				data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-				weathDataList[[y]]<-new("swWeatherData", data = data.matrix(data_sw, rownames.force = FALSE), year = years[y]) #strip row.names, otherwise they consume about 60% of file size
-			}
-			names(weathDataList) <- as.character(years)
-			weath.data <- weathDataList
-		}
-		
-		weathDataList
-	}
 }
 
 if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
@@ -829,141 +774,6 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 
 	stopifnot(file.exists(dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMet_NorthAmerica")))
 	stopifnot(require(DaymetR)) #https://bitbucket.org/khufkens/daymetr
-	stopifnot(require(raster))
-	stopifnot(require(rgdal))
-
-	get_DayMet_cellID <- function(coords_WGS84) {
-		# Determine 1-km cell that contains requested location
-		res_DayMet <- 1000L
-
-		proj_LCC <- CRS("+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5 +lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
-		proj_WGS84 <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
-
-		xy_LCC <- coordinates(spTransform(SpatialPoints(coords = coords_WGS84, proj4string = proj_WGS84), proj_LCC))
-		dm_LCC <- floor(xy_LCC / res_DayMet) # Origin at lower-lef corner (-2015000, -3037000)
-			## ==> (0, 0)- cell includes xlim = [0, 1000[ and ylim = [0, 1000[
-			## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
-
-		cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
-													if(chr[1] < 0) "-" else "+", formatC(abs(chr[1]), width=6, flag="0", format="d"), "_",
-													if(chr[2] < 0) "-" else "+", formatC(abs(chr[2]), width=6, flag="0", format="d")))
-
-		dm_LCC <- res_DayMet * dm_LCC + 500 # center of 1-km cells to avoid projection errors at cell margins
-		dm_WGS84 <- coordinates(spTransform(SpatialPoints(coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
-
-		return(list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84))
-	}
-
-	#' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
-	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
-	get_DayMet_NorthAmerica <- function(cellID, Xdm_WGS84, Ydm_WGS84, start_year=simstartyr, end_year=endyr){
-		# Filename for data of this 1-km cell
-		ftemp <- file.path(dir.ex.daymet, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
-
-		# Get data
-		pwd <- getwd()
-		get_from_ornl <- TRUE
-		if(file.exists(ftemp)){
-			dm_temp <- try(read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
-			if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
-		}
-		if(get_from_ornl){
-			setwd(dir.ex.daymet)
-			dm_temp <- try(DaymetR::download.daymet(site=cellID, lat=Ydm_WGS84, lon=Xdm_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
-		}
-
-		# Convert to Rsoilwat format
-		if(!inherits(dm_temp, "try-error")){
-			if(exists(cellID, envir=.GlobalEnv)){
-				temp <- get(cellID, envir=.GlobalEnv)$data
-			} else if(!get_from_ornl && inherits(dm_temp, "data.frame")){
-				temp <- dm_temp
-			} else stop(paste("Daymet data not successful", cellID))
-
-			data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
-			stopifnot(!anyNA(data_all), sum(data_all == -9999L) == 0)
-			template_sw <- data.frame(matrix(NA, nrow=366, ncol=4, dimnames=list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
-
-			years <- start_year:end_year
-			weathDataList <- list()
-			for(y in seq_along(years)){
-				data_sw <- template_sw
-				# All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
-				data_sw[1:365, ] <- data_all[data_all$year == years[y], -1]
-				if(isLeapYear(years[y])){
-					data_sw[366, ] <- c(366, data_sw[365, -1])
-				}
-				data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-				weathDataList[[y]] <- new("swWeatherData", data=data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE), year=years[y]) #strip row.names, otherwise they consume about 60% of file size
-			}
-			names(weathDataList) <- as.character(years)
-		} else {
-			weathDataList <- dm_temp
-		}
-
-		# Clean up
-		if(exists(cellID, envir=.GlobalEnv)) rm(list=cellID, envir=.GlobalEnv)
-		setwd(pwd)
-
-		weathDataList
-	}
-
-
-	if(getCurrentWeatherDataFromDatabase && createAndPopulateWeatherDatabase){
-		# Function to be executed for all SoilWat-sites together
-		#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
-		#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(site_ids, coords_WGS84, start_year, end_year) {
-			if (!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
-
-			# Check if weather data was previously partially extracted
-			wtemp_file <- file.path(dir.out.temp, "DayMet_weather_temp.rds")
-			site_ids_done <- if (file.exists(wtemp_file)) readRDS(wtemp_file) else NULL
-			iuse <- !(site_ids %in% site_ids_done)
-
-			if (sum(iuse) > 0) {
-				site_ids_todo <- site_ids[iuse]
-				xy_WGS84 <- coords_WGS84[iuse, , drop=FALSE]
-				dm <- get_DayMet_cellID(xy_WGS84)
-
-				#TODO: re-write for parallel processing (does it make sense to download in parallel?)
-				# Extract weather data sequentially for requested locations
-				for (idm in seq_along(site_ids_todo)) {
-					if (!be.quiet) print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
-
-					weatherData <- get_DayMet_NorthAmerica(cellID=dm$cellID[idm], Xdm_WGS84=dm$dm_WGS84[idm, 1], Ydm_WGS84=dm$dm_WGS84[idm, 2], start_year, end_year)
-					
-					if (!inherits(weatherData, "try-error")) {
-						# Store site weather data in weather database
-						data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-						Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
-							Scenario_id = 1,
-							StartYear = start_year,
-							EndYear = end_year,
-							weather_blob = data_blob)
-
-						site_ids_done <- c(site_ids_done, site_ids_todo[idm])
-						saveRDS(site_ids_done, file = wtemp_file)
-					} else {
-						warning(paste(Sys.time(), "DayMet data extraction NOT successful for site", site_ids_todo[idm]))
-					}
-				}
-			}
-
-			if (!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
-
-			invisible(0)
-		}
-		
-	} else {
-		# Function to be executed for each SoilWat-run
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica <- function(site_ids, coords_WGS84, start_year, end_year) {
-			xy_WGS84 <- matrix(unlist(coords_WGS84), ncol = 2)[1, , drop = FALSE]
-			dm <- get_DayMet_cellID(xy_WGS84)
-
-			get_DayMet_NorthAmerica(cellID=dm$cellID[1], Xdm_WGS84=dm$dm_WGS84[1, 1], Ydm_WGS84=dm$dm_WGS84[1, 2], start_year, end_year)
-		}
-	}
 }
 
 if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDatabase){
@@ -973,138 +783,6 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 	#	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
 	dir.ex.NRCan <- file.path(dir.ex.weather, "NRCan_10km_Canada", "DAILY_GRIDS")
 	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
-
-	# Function to be executed for all SoilWat-sites together
-	#' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
-	#' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
-	ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(site_ids, coords_WGS84, start_year, end_year) {
-		if(!be.quiet) print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
-
-		NRC_years <- as.integer(list.dirs(path=dir.ex.NRCan, recursive=FALSE, full.names=FALSE))
-		NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
-		stopifnot(start_year:end_year %in% NRC_target_years)
-
-		vars <- c("max", "min", "pcp") # units = C, C, mm/day
-		prj_geographicWGS84 <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
-		prj_geographicNAD83 <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
-
-		sp_locs <- SpatialPoints(coords=coords_WGS84, proj4string=prj_geographicWGS84)
-		sp_locs <- spTransform(sp_locs, CRSobj=prj_geographicNAD83)
-
-		#TODO: re-write for parallel processing with other backends
-		if(parallel_runs && identical(parallel_backend, "snow")) beginCluster(n=num_cores, type="SOCK")
-
-		#TODO: re-write for a more memory friendly approach
-
-		# Check if weather data was partially extracted already
-		wtemp_file <- file.path(dir.out.temp, "NRCan_weather_temp.RData")
-		if(file.exists(wtemp_file)){
-			load(wtemp_file) # NRC_weather, iy
-			yr_offset <- iy
-			NRC_use_years <- NRC_target_years[-(1:iy)]
-		} else {
-			NRC_weather <- array(NA, dim=c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames=list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(mm)")))
-			NRC_use_years <- NRC_target_years
-			yr_offset <- 0
-		}
-
-		# Extract weather data for all locations together for each day of each year
-		pwd <- getwd()
-		for(iy in seq_along(NRC_use_years)){ # Loop through years
-			if(!be.quiet) print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
-			setwd(file.path(dir.ex.NRCan, NRC_use_years[iy]))
-			NRC_days <- list.files() #find all days for this year
-			ndays <- length(NRC_days) / length(vars)
-			stopifnot(ndays == if(isLeapYear(NRC_use_years[iy])) 366 else 365)
-
-			# Stack rasters for each day and extract data
-			NRC_stack <- stack(NRC_days, RAT=FALSE, quick=TRUE)
-			projection(NRC_stack) <- prj_geographicNAD83
-			temp <- round(extract(NRC_stack, sp_locs), 2) #weather.digits; [sp_locs, NRC_days x vars]
-
-			# Convert extraction information to array
-			ivars <- substr(NRC_days, 1, 3) # sapply(vars, nchar) == 3
-			for(iv in seq_along(vars)){
-				idays <- as.integer(sapply(strsplit(NRC_days[vars[iv] == ivars], split="[_.]"), FUN=function(x) x[2]))
-				NRC_weather[, 1:ndays, yr_offset + iy, iv] <- temp[, which(vars[iv] == ivars)[order(idays)][1:ndays]]
-			}
-			save(NRC_weather, iy, file=wtemp_file)
-		}
-		setwd(pwd)
-		if(parallel_runs && identical(parallel_backend, "snow")) endCluster()
-
-
-		# Convert weather array to SoilWat weather objects for each sites
-		NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
-		
-		for (i in seq_along(site_ids)) {
-			if (!be.quiet && i %% 100 == 1)
-				print(paste(Sys.time(), "storing NRC weather data of site_id", site_ids[i], i, "of", length(site_ids), "sites in database"))
-			
-			weatherData <- list()
-			for (iy in seq_along(NRC_target_years)) {
-				doys <- if (isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
-				data_sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm) [ppt was converted from mm to cm]
-				colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-				weatherData[[iy]] <- new("swWeatherData", data = data.matrix(data_sw, rownames.force = FALSE), year = NRC_target_years[iy])
-			}
-			names(weatherData) <- as.character(NRC_target_years)
-
-			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
-				Scenario_id = 1,
-				StartYear = start_year,
-				EndYear = end_year,
-				weather_blob = data_blob)
-		}
-		#unlink(file=wtemp_file)
-
-		if (!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
-
-		rm(NRC_weather, weatherData, data_blob)
-		gc()
-
-		invisible(0)
-	}
-}
-
-if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && createAndPopulateWeatherDatabase){
-	#Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
-	# http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
-
-	# Function to be executed for all SoilWat-sites together
-	GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, start_year, end_year, n_site_per_core = 100, rm_temp = TRUE) {
-		# do the extractions
-		etemp <- get_NCEPCFSR_data(dat_sites = dat_sites, daily=TRUE, monthly=FALSE, yearLow=start_year, yearHigh=end_year, n_site_per_core=n_site_per_core, cfsr_so=prepd_CFSR$cfsr_so, dir.in.cfsr=prepd_CFSR$dir.in.cfsr, dir.temp=dir.out.temp, rm_mc_files=TRUE)
-
-		# move the weather data into the database
-		for (i in seq_along(site_ids)) {
-			weatherData <- getWeatherData_folders(LookupWeatherFolder = etemp$dir.temp.cfsr,
-				weatherDirName = dat_sites[i, "WeatherFolder"],
-				filebasename = "weath",
-				startYear = start_year,
-				endYear = end_year)
-
-			# Store site weather data in weather database
-			data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-			Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
-				Scenario_id = 1,
-				StartYear = start_year,
-				EndYear = end_year,
-				weather_blob = data_blob)
-		}
-
-		if (rm_temp) {
-			dir.remove(etemp$dir.temp.cfsr)
-			temp <- lapply(c("ppt", "tmax", "tmin"), FUN=function(x) dir.remove(file.path(prepd_CFSR$dir.in.cfsr, "temporary_dy", x)))
-		}
-
-		if (!be.quiet) print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
-
-		invisible(0)
-	}
-
 }
 
 
@@ -1458,57 +1136,6 @@ if (any(actions == "create")) {
   
     rm(do_prior_lookup)
   }
-
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile"))
-	{
-		#lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'
-		#first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
-		#second row of datafile is source of data
-		#the other rows contain the data for each distribution type = columns
-		TranspCoeffByVegType <- function(soillayer_no, trco_type, layers_depth, adjustType=c("positive", "inverse", "allToLast"))
-		{
-			#extract data from table by category
-			trco.code <- as.character(tr_input_TranspCoeff_Code[, which(colnames(tr_input_TranspCoeff_Code) == trco_type)])
-			trco <- rep(0, times=soillayer_no)
-			trco.raw <- na.omit(tr_input_TranspCoeff[, which(colnames(tr_input_TranspCoeff) == trco_type)])
-
-			if(trco.code == "DepthCM"){
-				trco_sum <- ifelse((temp <- sum(trco.raw, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-				lup <- 1
-				for(l in 1:soillayer_no){
-					llow <- as.numeric(layers_depth[l])
-					if(is.na(llow) | lup > length(trco.raw))
-					{
-						l <- l - 1
-						break
-					}
-					trco[l] <- sum(trco.raw[lup:llow], na.rm=TRUE) / trco_sum
-					lup <- llow + 1
-				}
-				usel <- l
-			} else if(trco.code == "Layer"){
-				usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
-				trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			}
-
-			if(identical(adjustType, "positive")){
-				trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
-			} else if(identical(adjustType, "inverse")){
-				irows <- 1:max(which(trco > 0))
-				trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
-			} else if(identical(adjustType, "allToLast")){
-				irow <- max(which(trco > 0))
-				if(irow > 1){
-					trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
-				} else {
-					trco[1] <- 1
-				}
-			}
-
-			return(trco)
-		}
-		#cannot write data from sw_input_soils to datafile.soils
-	}
 
 	if(!be.quiet) print(paste("SWSF obtains information prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 }
@@ -2170,7 +1797,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp || temp1) {
 				tasks$create <- 0L
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Grass"], layers_depth=layers_depth, adjustType="positive")
+				trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Grass"],
+          layers_depth = layers_depth,
+          adjustType = "positive")
+        
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){#trco does not have NA and sum is greater than 0.
 					#set the use flags
 					i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -2190,7 +1823,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp || temp1) {
 				tasks$create <- 0L
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Shrub"], layers_depth=layers_depth, adjustType="inverse")
+				trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Shrub"],
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+        
 				#set the use flags
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
 					i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
@@ -2210,7 +1849,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp || temp1) {
 				tasks$create <- 0L
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Tree"], layers_depth=layers_depth, adjustType="inverse")
+				trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Tree"],
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
 					i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
 					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
@@ -2229,7 +1874,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(temp || temp1) {
 				tasks$create <- 0L
 			} else {
-				trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=i_sw_input_treatments[1,"LookupTranspCoeffFromTable_Forb"], layers_depth=layers_depth, adjustType="inverse")
+				trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Forb"],
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+
 				if(!any(is.na(trco)) || sum(trco,na.rm=T) > 0){
 					i.temp <- grepl(pattern=paste("Forb", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
 					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
@@ -2597,10 +2248,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if (!getCurrentWeatherDataFromDatabase) {
 			if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
 				dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname=dirname.sw.runs.weather,startYear=simstartyr, endYear=endyr)
+				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+				          dir_data = dir.ex.maurer2002,
+				          cellname = dirname.sw.runs.weather,
+									startYear = simstartyr,
+									endYear = endyr)
 			
 			} else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
-				i_sw_weatherList[[1]] <- with(i_SWRunInformation, ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = NULL, coords_WGS84 = c(X_WGS84, Y_WGS84), start_year = simstartyr, end_year = endyr))
+				i_sw_weatherList[[1]] <- with(i_SWRunInformation,
+				  ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(
+				    dir_data = dir.ex.daymet,
+				    site_ids = NULL,
+				    coords_WGS84 = c(X_WGS84, Y_WGS84),
+				    start_year = simstartyr, end_year = endyr))
 			
 			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {	# Read weather data from folder
 				i_sw_weatherList[[1]] <- try(getWeatherData_folders(
@@ -2949,10 +2609,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 			if(print.debug) print("Start of biomass adjustments")
 			if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
-				adjTemp <- any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature
-				adjPrep <- any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation
 
-				temp<-AdjMonthlyBioMass(tr_VegetationComposition=tr_VegetationComposition, AdjMonthlyBioMass_Temperature=adjTemp, AdjMonthlyBioMass_Precipitation=adjPrep, grasses.c3c4ann.fractions=grasses.c3c4ann.fractions[[sc]],growing.season.threshold.tempC=growing.season.threshold.tempC,isNorth=isNorth,MAP_mm=MAP_mm,monthly.temp=monthly.temp)
+				temp <- AdjMonthlyBioMass(tr_VegBiom = tr_VegetationComposition,
+				  do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
+				  do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
+				  grasses.c3c4ann.fractions = grasses.c3c4ann.fractions[[sc]],
+				  growing_limit_C = growing.season.threshold.tempC,
+				  isNorth = isNorth,
+				  MAP_mm = MAP_mm,
+				  monthly.temp = monthly.temp)
+				
 				swProd_MonProd_grass(swRunScenariosData[[sc]])[,1:3] <- temp$grass[,1:3]
 				swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1:3] <- temp$shrub[,1:3]
 				rm(adjTemp,adjPrep)
@@ -2971,18 +2637,61 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#TODO: Adjust trco_type_forb?
 
 				if(grass.fraction==0) { #if grass.fraction is 0 then Grass.trco will be 0
-					Grass.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type="FILL", layers_depth=layers_depth, adjustType="positive")
-				} else {
-					C3.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C3, layers_depth=layers_depth, adjustType="positive")
-					C4.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_C4, layers_depth=layers_depth, adjustType="positive")
-					Annuals.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_annuals, layers_depth=layers_depth, adjustType="positive")
-					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] + C4.trco * grasses.c3c4ann.fractions[[sc]][2] + Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
-				}
-				if(is.na(sum(Grass.trco))) Grass.trco <- rep(0, d)
+					Grass.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = d,
+            trco_type = "FILL",
+            layers_depth = layers_depth,
+            adjustType = "positive")
 
-				Shrub.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=trco_type_shrubs, layers_depth=layers_depth, adjustType="inverse")
-				Tree.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_tree, layers_depth=layers_depth, adjustType="inverse")
-				Forb.trco <- TranspCoeffByVegType(soillayer_no=d, trco_type=tro_type_forb, layers_depth=layers_depth, adjustType="inverse")
+				} else {
+					C3.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = d,
+            trco_type = trco_type_C3,
+            layers_depth = layers_depth,
+            adjustType = "positive")
+          
+					C4.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = d,
+            trco_type = trco_type_C4,
+            layers_depth = layers_depth,
+            adjustType = "positive")
+
+					Annuals.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = d,
+            trco_type = trco_type_annuals,
+            layers_depth = layers_depth,
+            adjustType = "positive")
+					
+					Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] +
+					              C4.trco * grasses.c3c4ann.fractions[[sc]][2] +
+					              Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
+				}
+				if(is.na(sum(Grass.trco)))
+				  Grass.trco <- rep(0, d)
+
+        Shrub.trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = trco_type_shrubs,
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+        Tree.trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = tro_type_tree,
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+        Forb.trco <- TranspCoeffByVegType(
+          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+          soillayer_no = d,
+          trco_type = tro_type_forb,
+          layers_depth = layers_depth,
+          adjustType = "inverse")
+
 				swSoils_Layers(swRunScenariosData[[sc]])[,5] <- Grass.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,6] <- Shrub.trco
 				swSoils_Layers(swRunScenariosData[[sc]])[,7] <- Tree.trco
@@ -6258,7 +5967,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 		"establishment.delay", "establishment.duration", "establishment.swp.surface",
 		"EstimateInitialSoilTemperatureForEachSoilLayer", "exec_c_prefix",
 		"ExpInput_Seperator", "expN",
-		"ExtractGriddedDailyWeatherFromDayMet_NorthAmerica",
+		"ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather",
 		"ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica",
 		"filebasename.WeatherDataYear", "filebasename", "fill_empty", "finite01",
 		"germination.duration", "germination.swp.surface", "get_DayMet_cellID",
