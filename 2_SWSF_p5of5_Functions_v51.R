@@ -1,3 +1,6 @@
+#------ Remove when this becomes a R package
+slot <- methods::slot
+
 #------ Constants
 output_timescales_maxNo <- 4L
 SoilLayer_MaxNo <- 20L
