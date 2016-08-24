@@ -139,15 +139,71 @@ isLeapYear <- compiler::cmpfun(function(y) {
   y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)	
 })
 
-# iterator functions
-#' @param isim An integer value. A value of \code{runIDs_todo} as subset of \code{runIDs_total}.
-#' @details NOTE: Do not change the iterators without adjusting the design of the output databases!
+#' Iterator functions
+#'
+#' @param isim An integer value. A value of \code{runIDs_todo} as subset of \code{runIDs_total}, i.e., a consecutive index across loops 1+2b
+#' @param sc An integer value. The iterator position along \code{scenario_No}.
+#' @param scN An integer value. The number of (climate) scenarios used in the project, i.e., \eqn{scN == scenario_No}.
+#' @param runN An integer value. The number of runs/sites set up in the master input file, i.e., \eqn{runN == runsN_master}.
+#' @param runIDs An integer vector. The identification IDs of rows in the master file that are included, i.e., \eqn{runIDs == runIDs_sites}.
+#'
+#' @section NOTE:
+#'  Do not change the iterators without adjusting the design of the output databases!
+#'
+#' @section Simulation runs:
+#'  * Simulations are run over three nested loops
+#'    - loop1 (1...expN) nested in loop2b (1...runsN_sites) nested in loop3 (1...scenario_No)
+#'        - Note: loop3 (along scenarios) occurs within the function 'do_OneSite'
+#'        - Note: loop2b is a subset of loop2a (1...runsN_master)
+#'    - column 'include_YN' reduces 'site_id' to 'runIDs_sites'
+#'    - 'site_id' and 'P_id' are invariant to 'include_YN'
+#' 
+#'  * Master input file: column 'include_YN' selects rows which are included in the simulation
+#'    - Note: rows of the master input file correspond to rows of the treatment input file
+#'    - column 'site_id' == consecutive identification numbers of all rows in the master file; this is treated as a unique (and stable) identifier of a site
+#'    - runsN_master == number of rows in the master file 
+#'    - runsN_sites == number of rows in the master file that are included (runsN_sites <= max(site_id))
+#'    - runIDs_sites == identification of rows in the master file that are included
+#' 
+#'  * Experimental input file: each row defines a condition which is applied to every runIDs_sites
+#'    - expN == number of experimental treatments
+#' 
+#'  * The function 'do_OneSite' will be called n-times with n = runsN_total
+#'    - runsN_total == (number of included sites) x (number of experimental treatments)
+#'    - runIDs_total == consecutive identification numbers along runsN_total
+#'    - runIDs_done == values of runIDs_total that have already been processed by 'do_OneSite'
+#'    - runIDs_todo == values of runIDs_total that await simulation by 'do_OneSite'
+#'    - runsN_todo == number of runIDs_total that await simulation by 'do_OneSite'
+#' 
+#'  * The function 'do_OneSite' could be called n-times with n = runsN_incl if all 'include_YN' were on
+#'    - runsN_incl == (number of sites) x (number of experimental treatments)
+#' 
+#'  * The variable 'climate.conditions' defines climate conditions that are applied to each 'runIDs_total'
+#'    - scenario_No == number of climate conditions
+#' 
+#'  * A grand total of n = runsN_Pid SoilWat runs could be carried out (n == number of rows in the output database)
+#'    - runsN_Pid == max(P_id) == runsN_incl x scenario_No
+#'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database 
+#'
+#' @name iterators
+NULL
+#' @rdname iterators
+#' @return An integer value of the iterator position in loop 1 based on the position across loops 1+2b
 it_exp <- compiler::cmpfun(function(isim, runN) (isim - 1L) %/% runN + 1L)
-it_site <- compiler::cmpfun(function(isim, runN) runN[(isim - 1L) %% runN + 1L])
+#' @rdname iterators
+#' @return An integer value of the iterator position across 'runIDs_sites', i.e., the position in loop 2 based on position across loops 1+2b
+it_site <- compiler::cmpfun(function(isim, runN, runIDs) runIDs[(isim - 1L) %% runN + 1L])
+#' @rdname iterators
+#' @return An integer value of the iterator position across all loops 1+2a+3, dependent on \code{include_YN}.
 it_Pid_old <- compiler::cmpfun(function(isim, sc, scN) (isim - 1L) * scN + sc)
-it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN) {
-  ((it_exp(isim, runN) - 1L) * runN + it_site(isim, runN) - 1L) * scN + sc
+#' @rdname iterators
+#' @return An integer value of the iterator position across all loops 1+2a+3, invariant
+#'  to \code{include_YN}. A consecutive identification number for each possible SoilWat
+#'  simulation--used as the ID for the output database.
+it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN, runIDs) {
+  ((it_exp(isim, runN) - 1L) * runN + it_site(isim, runN, runIDs) - 1L) * scN + sc
 })
+
 
 ## Tests
 #include_YN <- c(0, 0, 1, 0, 0, 1, 1, 0)
@@ -1243,9 +1299,9 @@ setBottomLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
   }
 })
 
-local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, name.OutputDB) {	# Get name of weather file from output database
+local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name.OutputDB) {	# Get name of weather file from output database
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN)))[1,1]
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN, runIDs)))[1,1]
   DBI::dbDisconnect(con)
   temp
 })
