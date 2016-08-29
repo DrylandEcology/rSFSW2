@@ -15,7 +15,7 @@ if (length(tests) > 0) {
 	for (it in seq_along(tests)) {
 		print(paste0(Sys.time(), ": running test project '", basename(tests[it]), "'"))
 
-		test_code <- list.files(tests[it], pattern = "2_SWSF_p1of4_")
+		test_code <- list.files(tests[it], pattern = "2_SWSF_p1of")
 	
 		if (length(test_code) == 1L) {
 			setwd(tests[it])
@@ -34,10 +34,12 @@ if (length(tests) > 0) {
 		}
 
 	if (delete_output) for (it in seq_along(tests)) {
+	  ftemp <- list.files(tests[it])
 		try(unlink(file.path(tests[it], "1_Data_SWInput", "dbWeatherData_test.sqlite3")), silent = TRUE)
 		try(unlink(file.path(tests[it], "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.RData")), silent = TRUE)
-		try(unlink(file.path(tests[it], "last.dump.rda")), silent = TRUE)
 		try(unlink(file.path(tests[it], "1_Data_SWInput", "swrun", ".Rapp.history")), silent = TRUE)
+		try(unlink(file.path(tests[it], list.files(tests[it], pattern = "last.dump"))), silent = TRUE)
+		try(unlink(file.path(tests[it], ".Rapp.history")), silent = TRUE)
 		try(unlink(file.path(tests[it], "3_Runs"), recursive = TRUE), silent = TRUE)
 		try(unlink(file.path(tests[it], "4_Data_SWOutputAggregated"), recursive = TRUE), silent = TRUE)
 	}

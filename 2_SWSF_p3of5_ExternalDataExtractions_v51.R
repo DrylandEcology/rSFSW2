@@ -50,22 +50,6 @@ if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
 
 
 if (exinfo$use_sim_spatial) {
-	has_nodata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
-		if (is.null(tag)) {
-			apply(data, MARGIN, function(x) all(is.na(x)))
-		} else {
-			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, function(x) all(is.na(x)))
-		}
-	})
-	
-	has_incompletedata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
-		if (is.null(tag)) {
-			apply(data, MARGIN, anyNA)
-		} else {
-			apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, anyNA)
-		}
-	})
-	
 	# extraction functions
 	if (sim_cells_or_points == "point") {
 		#' extract raster data for sites
@@ -1415,12 +1399,12 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	      # "same extrapolation as Boe et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
 	      qid <- switch(linear_extrapolation, Boe=0, Thermessl2012CC.QMv1b=3)
 	      nq <- nrow(fobj$par$modq)
-	      largex <- x > fobj$par$modq[nq, 1] + sqrt(.Machine$double.eps)
+	      largex <- x > fobj$par$modq[nq, 1] + tol
 	      if (any(largex)) {
 	        max.delta <- fobj$par$modq[nq - qid, 1] - fobj$par$fitq[nq - qid, 1]
 	        out[largex] <- x[largex] - max.delta
 	      }
-	      smallx <- x < fobj$par$modq[1, 1] - sqrt(.Machine$double.eps)
+	      smallx <- x < fobj$par$modq[1, 1] - tol
 	      if (any(smallx)) {
 	        min.delta <- fobj$par$modq[1 + qid, 1] - fobj$par$fitq[1 + qid, 1]
 	        out[smallx] <- x[smallx] - min.delta
@@ -1475,7 +1459,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 			out <- doQmapQUANT.default_drs(x, fobj, type="linear", linear_extrapolation="Boe", monthly_extremes=monthly_extremes, correctSplineFun_type=correctSplineFun_type, ...)
 
-			target_range <- c(-Inf, fobj$par$modq[1, 1] -  sqrt(.Machine$double.eps), max(fobj$par$modq[, 1]) + sqrt(.Machine$double.eps), Inf) # -Inf, smallest observed value, largest observed value, Inf
+			target_range <- c(-Inf, fobj$par$modq[1, 1] -  tol, max(fobj$par$modq[, 1]) + tol, Inf) # -Inf, smallest observed value, largest observed value, Inf
 			out_of_range <- !(findInterval(x, target_range) == 2)
 
 			if (any(out_of_range)) {
@@ -2510,7 +2494,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				"downscale.raw", "downscale.delta", "downscale.deltahybrid", "downscale.deltahybrid3mod", "downscale.periods",
 				"in_GMC_box", "unique_times", "useSlices", "erf", "add_delta_to_PPT", "fix_PPTdata_length", "calc_Days_withLoweredPPT", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "stretch_values", 
 				"applyDeltas", "applyPPTdelta_simple", "applyPPTdelta_detailed", "applyDelta_oneYear", "applyDeltas2",
-				"doQmapQUANT.default_drs", "doQmapQUANT_drs", "applyDeltas2", "downscaling.options")
+				"doQmapQUANT.default_drs", "tol", "doQmapQUANT_drs", "applyDeltas2", "downscaling.options")
 		if (is_NEX) {
 			list.export <- c(list.export, "saveNEXtempfiles", "useRCurl",  
 				"mmPerSecond_to_cmPerMonth", "get.request")
@@ -2792,7 +2776,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			soil_data[, , "rockvol"] <- ifelse(is.finite(rockvol), rockvol, NA)
 			
 			# adjust soil depth by layers with 100% rock volume
-			solid_rock_nl <- apply(soil_data[, , "rockvol"] >= 1 - sqrt(.Machine$double.neg.eps), 1, sum, na.rm = TRUE)
+			solid_rock_nl <- apply(soil_data[, , "rockvol"] >= 1 - toln, 1, sum, na.rm = TRUE)
 			solid_rock_nl <- 1 + nl - solid_rock_nl
 			solid_rock_cm <- c(0, ldepth)[solid_rock_nl]
 			
@@ -3636,15 +3620,17 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 			# do the extractions
 			temp <- try(get_NCEPCFSR_data(
 							dat_sites = locations,
-							daily = FALSE,
-							monthly = TRUE,
-							yearLow = startyr,
-							yearHigh = endyr,
-							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
-							cfsr_so = prepd_CFSR$cfsr_so,
+							daily = FALSE, monthly = TRUE,
+							yearLow = startyr, yearHigh = endyr,
 							dir.in.cfsr = prepd_CFSR$dir.in.cfsr,
-							dir.temp = dir.out.temp,
-							rm_mc_files = TRUE),
+							dir_temp = dir.out.temp,
+							cfsr_so = prepd_CFSR$cfsr_so,
+							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
+              do_parallel = parallel_runs && parallel_init,
+							parallel_backend = parallel_backend,
+							cl = if (identical(parallel_backend, "snow")) cl else NULL,
+							rm_mc_files = TRUE,
+              continueAfterAbort = continueAfterAbort),
 						silent = TRUE)
 			if (inherits(temp, "try-error")) stop(temp)
 

@@ -55,7 +55,9 @@ if (createAndPopulateWeatherDatabase) {
 									weatherfoldername = SWRunInformation$WeatherFolder[i_site])
 			
 			} else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
-				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname = Maurer[i],
+				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+				          dir_data = dir.ex.maurer2002,
+				          cellname = Maurer[i],
 									startYear = simstartyr,
 									endYear = endyr)
 			
@@ -81,30 +83,48 @@ if (createAndPopulateWeatherDatabase) {
 	# Extract weather data for all sites based on inclusion-invariant 'site_id'
 	ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
 	if (length(ids_DayMet_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
+		  dir_data = dir.ex.daymet,
+		  site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
 			coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_DayMet_extraction)
 
 	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
 	if (length(ids_NRCan_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
+		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
+		  dir_data = dir.ex.NRCan,
+		  site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
 			coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type,
+			do_parallel = parallel_runs && identical(parallel_backend, "snow"),
+			ncores = num_cores)
 	}
 	rm(ids_NRCan_extraction)
 
 	ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
 	if (length(ids_NCEPCFSR_extraction) > 0) {
-		GriddedDailyWeatherFromNCEPCFSR_Global(site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
+		GriddedDailyWeatherFromNCEPCFSR_Global(
+		  site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
 			dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
 			end_year = endyr,
+			meta_cfsr = prepd_CFSR,
 			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-			rm_temp = deleteTmpSQLFiles)
+			do_parallel = parallel_runs && parallel_init,
+			parallel_backend = parallel_backend,
+			cl = if (identical(parallel_backend, "snow")) cl else NULL,
+			rm_temp = deleteTmpSQLFiles,
+			continueAfterAbort = continueAfterAbort,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_NCEPCFSR_extraction)
 	
@@ -131,12 +151,6 @@ PRAGMA_settings2 <- c(PRAGMA_settings1,
 					  "PRAGMA max_page_count=2147483646;", # returns the maximum page count
 					  "PRAGMA foreign_keys = ON;") #no return value
 
-set_PRAGMAs <- function(con, settings) {
-	temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
-
-	invisible(0)
-}
-
 if(length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2)
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
@@ -153,11 +167,6 @@ if (length(Tables) == 0 || do.clean) {
 			unlink(name.OutputDB)
 			con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			set_PRAGMAs(con, PRAGMA_settings2)
-		}
-
-		getSiteIds <- function(con, folderNames) {
-			wf_ids <- RSQLite::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
-			res <- wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
 		}
 
 		######################
@@ -575,24 +584,24 @@ if (length(Tables) == 0 || do.clean) {
 		}
 	#5.
 		if(aon$input_TranspirationCoeff){
-			if(AggLayer.daily){
-				ltemp <- paste("L0to", Depth_FirstAggLayer.daily, "cm", sep="")
-				if(is.null(Depth_SecondAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.numeric(Depth_SecondAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm", sep=""))
+			if(daily_lyr_agg[["do"]]){
+				ltemp <- paste("L0to", daily_lyr_agg[["first_cm"]], "cm", sep="")
+				if(is.null(daily_lyr_agg[["second_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "toSoilDepth", sep=""))
+				} else if(is.numeric(daily_lyr_agg[["second_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "to", daily_lyr_agg[["second_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_ThirdAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_ThirdAggLayer.daily)){
-				} else if(is.numeric(Depth_ThirdAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["third_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["third_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["third_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "to", daily_lyr_agg[["third_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_FourthAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_FourthAggLayer.daily)){
-				} else if(is.numeric(Depth_FourthAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["fourth_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["fourth_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["fourth_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "to", daily_lyr_agg[["fourth_cm"]], "cm", sep=""))
 				}
 				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SoilLayer_MaxNo, sep=""))
 			} else {
