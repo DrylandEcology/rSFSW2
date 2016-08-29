@@ -110,11 +110,21 @@ saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")
-map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
+map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "EvapCoeff", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
 check.blas <- FALSE
+
+#---Load functions
+ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (!file.exists(ftemp) || !continueAfterAbort) {
+  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = ftemp)
+  detach("swsf_funs")
+}
+load(ftemp)
+print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
@@ -210,7 +220,6 @@ do.PriorCalculations <- c(
 #	current simulation years = simstartyr:endyr
 #	years used for results = startyr:endyr
 simstartyr  <- 1979
-getStartYear <- function(simstartyr) simstartyr + 1
 startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
@@ -415,11 +424,12 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
-Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
-Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
-Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
-Depth_FourthAggLayer.daily  <- NULL	#cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
+daily_lyr_agg <- list(
+      do = FALSE,				# if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+      first_cm = 10, 	  # cm, distinguishes between first and second soil layer for average daily data aggregation
+      second_cm = 20, 	# cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
+      third_cm = 60, 	  # cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
+      fourth_cm = NULL) # cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
 
 #regeneration: germination and establishment
 season.start <- "LastSnow" # either doy or "LastSnow"
@@ -491,4 +501,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of4_Code_v51.R"), verbose = FALSE, chdir = FALSE)
+if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
