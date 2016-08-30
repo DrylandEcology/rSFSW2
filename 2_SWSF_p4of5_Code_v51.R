@@ -966,17 +966,19 @@ if (any(as.logical(pcalcs))) {
     req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
   
     # Available layers
-    temp <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
-    var_layers <- unique(sapply(temp, function(x) paste0(x[-length(x)], collapse = "_")))
-    temp <- unique(sapply(temp, function(x) x[length(x)]))
-    use_layers <- paste0("depth_", temp)
-    stopifnot(length(use_layers) > 0)
+    ids_depth <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
+    stopifnot(length(ids_depth) > 0)
+    var_layers <- unique(sapply(ids_depth, function(x) paste0(x[-length(x)], collapse = "_")))
+    ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
+    use_layers <- paste0("depth_", ids_depth2)
   
     layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_sites, use_layers, drop = FALSE]))
     i_nodata <- apply(is.na(layers_depth), 1, all)
     if (any(i_nodata)) {
       layers_depth <- layers_depth[!i_nodata, ]
       runIDs_sites_ws <- runIDs_sites[!i_nodata]
+    } else {
+      runIDs_sites_ws <- runIDs_sites
     }
     i_nodata <- apply(is.na(layers_depth), 2, all)
     if (any(i_nodata))
