@@ -5532,7 +5532,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             
               #Days where moists in half of the Lanh soil depth (and not soil layers!)
               n_Lanh <- length(i_Lanh)
-              width_Lanh <- diff(soildat[, "depth_cm"])[i_Lanh]
+              width_Lanh <- diff(c(0, soildat[, "depth_cm"]))[i_Lanh] # stopifnot(sum(width_Lanh) == Lanh_depth[2] - Lanh_depth[1])
               temp <- swp_dy_nrsc[wdays_index, i_Lanh, drop = FALSE] > SWP_dry
               temp <- temp * matrix(width_Lanh, nrow = sum(wdays_index), ncol = length(i_Lanh), byrow = TRUE)
               Lanh_Dry_Half <- .rowSums(temp, m = sum(wdays_index), n = n_Lanh) <= sum(width_Lanh) / 2
