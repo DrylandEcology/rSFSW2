@@ -11,6 +11,8 @@ if (basename(dir.old) != "Test_projects") {
 	dir.test <- dir.old
 }
 
+source(file.path(dir.test, "Delete_output_of_test_projects.R"), keep.source = FALSE)
+
 temp <- list.dirs(dir.test, full.names = FALSE, recursive = FALSE)
 tests <- file.path(dir.test, grep("[Test][[:digit:]+][_]", basename(temp), value = TRUE))
 
@@ -36,16 +38,8 @@ if (length(tests) > 0) {
 			delete_output_noninteractive
 		}
 
-	if (delete_output) for (it in seq_along(tests)) {
-	  ftemp <- list.files(tests[it])
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "dbWeatherData_test.sqlite3")), silent = TRUE)
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.RData")), silent = TRUE)
-		try(unlink(file.path(tests[it], "1_Data_SWInput", "swrun", ".Rapp.history")), silent = TRUE)
-		try(unlink(file.path(tests[it], list.files(tests[it], pattern = "last.dump"))), silent = TRUE)
-		try(unlink(file.path(tests[it], ".Rapp.history")), silent = TRUE)
-		try(unlink(file.path(tests[it], "3_Runs"), recursive = TRUE), silent = TRUE)
-		try(unlink(file.path(tests[it], "4_Data_SWOutputAggregated"), recursive = TRUE), silent = TRUE)
-	}
+	if (delete_output) for (test in tests)
+		delete_test_output(test)
 }
 
 print(paste0(Sys.time(), ": end of SWSF test projects"))
