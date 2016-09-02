@@ -1,7 +1,5 @@
 print(paste0(Sys.time(), ": running SWSF test projects"))
 
-delete_output_noninteractive <- FALSE
-
 dir.old <- getwd()
 
 if (basename(dir.old) != "Test_projects") {
@@ -11,8 +9,7 @@ if (basename(dir.old) != "Test_projects") {
 	dir.test <- dir.old
 }
 
-temp <- list.dirs(dir.test, full.names = FALSE, recursive = FALSE)
-tests <- file.path(dir.test, grep("[Test][[:digit:]+][_]", basename(temp), value = TRUE))
+tests <- list.dirs(dir.test, recursive = FALSE)
 
 if (length(tests) > 0) {
 	for (it in seq_along(tests)) {
@@ -33,7 +30,7 @@ if (length(tests) > 0) {
 			temp <- readline("Should the test output be deleted (y/n): ")
 			temp == "y" || temp == "Y" || grepl("yes", temp, ignore.case = TRUE)
 		} else {
-			delete_output_noninteractive
+			TRUE
 		}
 
 	if (delete_output) for (it in seq_along(tests)) {
