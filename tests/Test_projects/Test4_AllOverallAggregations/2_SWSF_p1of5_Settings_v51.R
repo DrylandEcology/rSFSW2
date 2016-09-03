@@ -509,4 +509,5 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
+#if (!interactive())
+  source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
