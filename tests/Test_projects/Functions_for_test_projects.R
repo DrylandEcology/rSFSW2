@@ -1,9 +1,156 @@
+#' Run test projects
+#'
+#' @param dir_test A character string. Path to overall test project folder.
+#' @param dir_tests A vector of character strings. Paths to individual test projects.
+#' @param which_tests_torun An integer vector. Indices of \code{dir_tests} which will be
+#'  carried out.
+#' @param delete_output A logical value. If \code{TRUE} then output will be deleted unless
+#'  problems showed up.
+#' @param force_delete_output A logical value. If \code{TRUE} then output will be deleted
+#'  even if problems showed up.
+#' @param make_new_ref A logical value. If \code{TRUE} then output database will be saved
+#'  as new reference.
+#'
+#' @return A logical, named vector with four items: \code{has_run}, \code{has_problems},
+#'  \code{made_new_refs}, \code{deleted_output}
+run_test_projects <- function(dir_test, dir_tests,
+                              which_tests_torun = seq_along(dir_tests),
+                              delete_output = FALSE,
+                              force_delete_output = FALSE,
+                              make_new_ref = FALSE) {
+
+  dir_prev <- getwd()
+  on.exit(setwd(dir_prev))
+
+  problems <- list()
+  fname_report <- "Test_project_report.txt"
+  has_run <- FALSE
+  
+  if (length(which_tests_torun) > 0) {
+    for (it in which_tests_torun) {
+      print(paste0(Sys.time(), ": running test project '", basename(dir_tests[it]), "'"))
+
+      test_code <- list.files(dir_tests[it], pattern = "2_SWSF_p1of")
+
+      if (length(test_code) == 1L) {
+        setwd(if (interactive()) file.path(dir_test, "..", "..") else dir_tests[it])
+        temp <- try(source(file.path(dir_tests[it], test_code), verbose = FALSE, chdir = FALSE))
+    
+        if (!inherits(temp, "try-error")) {
+          has_run <- TRUE
+          comp <- compare_test_output(dir_tests[it])
+          if (length(comp) > 0) {
+            problems <- c(problems, 
+              paste("Problem list for test project", shQuote(basename(dir_tests[it])), ":"),
+              comp)
+          }
+        } else {
+          problems <- c(problems, 
+            paste("Source code for test project", shQuote(basename(dir_tests[it])), "unsuccessful."))
+      }
+    
+      } else {
+          problems <- c(problems, 
+            paste("Source code for test project", shQuote(basename(dir_tests[it])), "not found."))
+      }
+    }
+
+    has_problems <- length(problems) > 0
+    if (has_problems) {
+        if (delete_output && !force_delete_output)
+          print("Test output will not be deleted because problems were detected.")
+        if (make_new_ref)
+          print("Test output will not be used as future reference because problems were detected.")
+
+        fname_report <- paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_", fname_report)
+        print(paste("See problem report in file", shQuote(fname_report)))
+        writeLines(unlist(problems), con = file.path(dir_test, fname_report))
+    }
+  
+    made_new_refs <- if (make_new_ref && !has_problems) {
+        all(sapply(dir_tests, function(test) make_test_output_reference(test)))
+      } else FALSE
+  
+    deleted_output <- if (force_delete_output ||
+                         (delete_output && !has_problems &&
+                            (!make_new_ref || (make_new_ref && made_new_refs)))) {
+        all(sapply(dir_tests, function(test) delete_test_output(test)))
+      } else FALSE
+      
+  } else {
+    has_problems <- made_new_refs <- deleted_output <- FALSE
+  }
+  
+  c(has_run = has_run,
+    has_problems = has_problems,
+    made_new_refs = made_new_refs,
+    deleted_output = deleted_output)
+}
+
+
+#' Copy output database of a test project to reference folder
+#'
+#' This function is called for its side effect of copying a file to the reference folder.
+#'
+#' @param dir_test A character string. Path to test project folder.
+#' @param dir_ref A character string. Path to folder with reference database.
+#' @param SWSF_version A character string. The version ID of the simulation framework as
+#'  reported by the file \code{DESCRIPTION}.
+#'
+#' @return A logical value. \code{TRUE} if successful.
+make_test_output_reference <- function(dir_test, dir_ref = NULL, SWSF_version = NULL) {
+  if (is.null(SWSF_version)) {
+    temp <- readLines(file.path(dir_test, "..", "..", "..", "DESCRIPTION"))
+    v <- grep("Version: ", temp, value = TRUE)
+    if (length(v) > 0) {
+      v <- strsplit(v[1], "Version: ", fixed = TRUE)[[1]][2]
+    } else {
+      print("'SWSF_version' cannot be detected.")
+      return(FALSE)
+    }
+  }
+
+	if (is.null(dir_ref))
+		dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
+	if (!file.exists(dir_ref))
+	  dir.create(dir_ref, recursive = TRUE, showWarnings = FALSE)
+  
+  fdb <- file.path(dir_test, "4_Data_SWOutputAggregated", "dbTables.sqlite3")
+  if (file.exists(fdb)) {
+    fdb_ref <- paste0("dbTables_", basename(dir_test), "_v", v, ".sqlite3")
+    res <- file.rename(fdb, file.path(dir_ref, fdb_ref))
+    
+  } else {
+    print(paste("Output DB of test project", shQuote(basename(dir_test)), "cannot be located"))
+    res <- FALSE
+  }
+  
+  res
+}
+
+
+
+#' Delete output of a test project
+delete_test_output <- function(dir_test) {
+		try(unlink(file.path(dir_test, "1_Data_SWInput", "dbWeatherData_test.sqlite3")), silent = TRUE)
+		try(unlink(file.path(dir_test, "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.RData")), silent = TRUE)
+		try(unlink(file.path(dir_test, "1_Data_SWInput", "swrun", ".Rapp.history")), silent = TRUE)
+		try(unlink(file.path(dir_test, list.files(dir_test, pattern = "last.dump"))), silent = TRUE)
+		try(unlink(file.path(dir_test, ".Rapp.history")), silent = TRUE)
+		try(unlink(file.path(dir_test, "3_Runs"), recursive = TRUE), silent = TRUE)
+		try(unlink(file.path(dir_test, "4_Data_SWOutputAggregated"), recursive = TRUE), silent = TRUE)
+
+  invisible(TRUE)
+}
+
+
+
 #' Compare test project output database with reference
 #'
 #' Reference database is identified by containing \code{basename(dir_test)} in the file name.
 #'
-#' @param dir_test A character vector. Path to test project folder.
-#' @param dir_ref A character vector. Path to folder with reference database.
+#' @param dir_test A character string. Path to test project folder.
+#' @param dir_ref A character string. Path to folder with reference database.
 #' @param tol A numeric value. Differences smaller than tolerance are not reported.
 #'  Passed to \link{\code{all.equal}}.
 #' @param comp_absolute A logical value. If \code{TRUE} then absolute comparisons will be
