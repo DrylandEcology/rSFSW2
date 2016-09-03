@@ -419,61 +419,62 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
   res
 })
 
-sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars=FALSE, simTime2=NULL) {
-  sw.weather.suffices <- as.numeric(names(weatherList))
-  itemp <- year.start <= sw.weather.suffices & year.end >= sw.weather.suffices
-  years <- sw.weather.suffices[itemp]
+sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
+  sw.weather.suffix <- as.numeric(names(weatherList))
+  itemp <- year.start <= sw.weather.suffix & year.end >= sw.weather.suffix
+  years <- sw.weather.suffix[itemp]
 
   tempMean <- tempMin <- tempMax <- ppt <- rep(0, times = 12)
   mat <- NULL
+  #map <- NULL
   if (do.C4vars) {
     dailyTempMin <- dailyTempMean <- NULL
   }
-  
+
   no.yrs <- length(years)
   if (no.yrs > 0) for (y in seq_len(no.yrs)) {
-  		x <- Rsoilwat31::get_swWeatherData(weatherList, years[y])@data[, c("Tmax_C", "Tmin_C", "PPT_cm"), drop = FALSE]
+      x <- Rsoilwat31::get_swWeatherData(weatherList, years[y])@data[, c("Tmax_C", "Tmin_C", "PPT_cm"), drop = FALSE]
       temp.dailyTempMean <- rowMeans(x[, c("Tmax_C", "Tmin_C")])
-      temp.dailyTempMin <- x[, "Tmin_C"]
-      temp.dailyTempMax <- x[, "Tmax_C"]
-      mat <- c(mat, mean(temp.dailyTempMean))
-      
+    
       if (do.C4vars) {
-        dailyTempMin <- c(dailyTempMin, temp.dailyTempMin)
+        dailyTempMin <- c(dailyTempMin, x[, "Tmin_C"])
         dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
       }
-      
+    
       month_forEachDoy <- as.POSIXlt(seq(from = as.POSIXlt(paste0(years[y], "-01-01")),
-      																	 to = as.POSIXlt(paste0(years[y], "-12-31")),
-      																	 by = "1 day"))$mon + 1
+                                         to = as.POSIXlt(paste0(years[y], "-12-31")),
+                                         by = "1 day"))$mon + 1
       if (years[y] == 1942) { #TODO: why? 1942 is not a leap year
         month_forEachDoy <- c(month_forEachDoy, 12)
       }
-      
-      tempMean <- tempMean + aggregate(temp.dailyTempMean, by = list(month_forEachDoy), mean)[, 2]
-      tempMin <- tempMin + aggregate(temp.dailyTempMin, by = list(month_forEachDoy), mean)[, 2]
-      tempMax <- tempMax + aggregate(temp.dailyTempMax, by = list(month_forEachDoy), mean)[, 2]
-      ppt <- ppt + aggregate(x[, "PPT_cm"], by = list(month_forEachDoy), sum)[, 2]
+    
+      tempMean <- tempMean + tapply(temp.dailyTempMean, month_forEachDoy, mean)
+      tempMin <- tempMin + tapply(x[, "Tmin_C"], month_forEachDoy, mean)
+      tempMax <- tempMax + tapply(x[, "Tmax_C"], month_forEachDoy, mean)
+      mat <- c(mat, mean(temp.dailyTempMean))
+    
+      ppt <- ppt + tapply(x[, "PPT_cm"], month_forEachDoy, sum)
+      #map <- c(map, sum(x[, "PPT_cm"]))
     }
-  
+
   res <- list()
   res[["meanMonthlyTempC"]] <- tempMean / no.yrs
   res[["minMonthlyTempC"]] <- tempMin / no.yrs
   res[["maxMonthlyTempC"]] <- tempMax / no.yrs
   res[["meanMonthlyPPTcm"]] <- ppt / no.yrs
-  
-  res[["MAP_cm"]] <- sum(ppt)
+
+  res[["MAP_cm"]] <- sum(res[["meanMonthlyPPTcm"]])	# sum(res[["meanMonthlyPPTcm"]]) == mean(map)
   res[["MAT_C"]] <- mean(mat)
 
   if (do.C4vars) {
     res[["dailyTempMin"]] <- dailyTempMin
     res[["dailyTempMean"]] <- dailyTempMean
     res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
-    
-  } else {
-  	res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
-  }
   
+  } else {
+    res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
+  }
+
   res
 })
 
