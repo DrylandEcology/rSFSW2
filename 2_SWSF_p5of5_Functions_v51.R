@@ -733,10 +733,15 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
        biom_annuals = biom_annuals)
 })
 
+calc_starts <- compiler::cmpfun(function(x) {
+  temp1 <- rle(as.logical(x))
+  temp2 <- cumsum(c(0, temp1$lengths)) + 1
+  temp2[-length(temp2)][temp1$values]
+})
 
 AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom, 
                 do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
-                grasses.c3c4ann.fractions, growing_limit_C = 4,
+                fgrass_c3c4ann, growing_limit_C = 4,
                 isNorth = TRUE, MAP_mm = 450, monthly.temp) {
 
   #Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
@@ -757,7 +762,8 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
   tr_VegBiom$Annual.Amount.Live <- tr_VegBiom$Annual.Biomass * tr_VegBiom$Annual.Perc.Live
 
   #Scale monthly values of litter and live biomass amount by column-max; total biomass will be back calculated from 'live biomass amount' / 'percent live'
-  colmax <- apply(tr_VegBiom[, itemp <- grepl("Litter", names(tr_VegBiom)) | grepl("Amount.Live", names(tr_VegBiom))], MARGIN=2, FUN=max)
+  itemp <- grepl("Litter", names(tr_VegBiom)) | grepl("Amount.Live", names(tr_VegBiom))
+  colmax <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=max)
 #  colmin <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=min)
   tr_VegBiom[, itemp] <- sweep(tr_VegBiom[, itemp], MARGIN=2, STATS=colmax, FUN="/")
 
@@ -769,7 +775,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
 
   #adjust phenology for mean monthly temperatures
   if (do_adjBiom_by_temp) {
-    growing.season <- monthly.temp >= growing_limit_C
+    growing.season <- as.vector(monthly.temp >= growing_limit_C)
     n_nonseason <- sum(!growing.season)
     n_season <- sum(growing.season)
 
@@ -782,7 +788,8 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         std.winter.padded <- (c(std.winter[1] - 1, std.winter, std.winter[length(std.winter)] + 1) - 1) %% 12 + 1
         std.winter.seq <- 0:(length(std.winter.padded) - 1)
         site.winter.seq <- seq(from = 1, to = length(std.winter), length = n_nonseason)
-        site.winter.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(!growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[length(temp3)] #Calculate first month of winter
+        starts <- calc_starts(!growing.season)
+        site.winter.start <- starts[length(starts)] #Calculate first month of winter == last start of non-growing season
         site.winter.months <- (site.winter.start + seq_len(n_nonseason) - 2) %% 12 + 1
 
         biom_shrubs[site.winter.months,] <- predict.season(biom_std_shrubs, std.winter.padded, std.winter.seq, site.winter.seq)
@@ -805,7 +812,8 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         std.growing.padded <- (c(std.growing[1] - 1, std.growing, std.growing[length(std.growing)] + 1) - 1) %% 12 + 1
         std.growing.seq <- 0:(length(std.growing.padded) - 1)
         site.growing.seq <- seq(from = 1, to = length(std.growing), length = n_season)
-        site.growing.start <- (temp3 <- (temp2 <- cumsum(c(0, (rtemp <- rle(growing.season))$lengths))+1)[-length(temp2)][rtemp$values])[1] #Calculate first month of growing season
+        starts <- calc_starts(growing.season)
+        site.growing.start <- starts[1] #Calculate first month of growing season == first start of growing season
         site.growing.months <- (site.growing.start + seq_len(n_season) - 2) %% 12 + 1
 
         biom_shrubs[site.growing.months,] <- predict.season(biom_std_shrubs, std.growing.padded, std.growing.seq, site.growing.seq)
@@ -821,7 +829,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
       }
     }
     
-    if (!isNorth) { #Adjustements were done as if on nothern hemisphere
+    if (!isNorth) { #Adjustements were done as if on northern hemisphere
       biom_shrubs <- rbind(biom_shrubs[7:12,], biom_shrubs[1:6,])
       biom_C3 <- rbind(biom_C3[7:12,], biom_C3[1:6,])
       biom_C4 <- rbind(biom_C4[7:12,], biom_C4[1:6,])
@@ -845,9 +853,9 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
   biom_C4 <- temp$biom_C4
   biom_annuals <- temp$biom_annuals
 
-  biom_grasses <- biom_C3 * grasses.c3c4ann.fractions[1] +
-                  biom_C4 * grasses.c3c4ann.fractions[2] +
-                  biom_annuals * grasses.c3c4ann.fractions[3]
+  biom_grasses <- biom_C3 * fgrass_c3c4ann[1] +
+                  biom_C4 * fgrass_c3c4ann[2] +
+                  biom_annuals * fgrass_c3c4ann[3]
   
   list(grass = as.matrix(biom_grasses),
        shrub = as.matrix(biom_shrubs))
