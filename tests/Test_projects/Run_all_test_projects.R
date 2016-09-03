@@ -69,8 +69,7 @@ source(file.path(dir.test, "Functions_for_test_projects.R"), keep.source = FALSE
 
 
 #---Run projects
-out <- run_test_projects(dir.test, tests,
-  which_tests_torun,
+out <- run_test_projects(dir.test, tests, which_tests_torun, 
   delete_output, force_delete_output, make_new_ref)
 
 print(out)
