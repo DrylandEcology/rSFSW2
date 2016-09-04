@@ -675,7 +675,8 @@ if(do_weather_source){
 	if(anyNA(sites_dailyweather_source)){
 		if(FALSE){# remove sites with no weather; code to run by hand
 			xy <- SpatialPoints(coords=t(sapply(strsplit(list.files(dir.ex.maurer2002), "_"), FUN=function(x) as.numeric(x[3:2]))), proj4string=CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
-
+			sp_locs2 <- spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))
+			
 			plot(sp_locs2, pch=19, cex=0.5, col=c("blue", "red", "green", "purple", "black")[ifelse(is.na(sites_dailyweather_source),5,sites_dailyweather_source)])
 			plot(nrc_test, col=adjustcolor("orange", alpha.f=0.5), add=TRUE)
 			if(require(maps)) map("state", add=TRUE)
