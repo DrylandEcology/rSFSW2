@@ -55,7 +55,9 @@ if (createAndPopulateWeatherDatabase) {
 									weatherfoldername = SWRunInformation$WeatherFolder[i_site])
 			
 			} else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
-				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(cellname = Maurer[i],
+				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+				          dir_data = dir.ex.maurer2002,
+				          cellname = Maurer[i],
 									startYear = simstartyr,
 									endYear = endyr)
 			
@@ -81,30 +83,48 @@ if (createAndPopulateWeatherDatabase) {
 	# Extract weather data for all sites based on inclusion-invariant 'site_id'
 	ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
 	if (length(ids_DayMet_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica(site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
+		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
+		  dir_data = dir.ex.daymet,
+		  site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
 			coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_DayMet_extraction)
 
 	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
 	if (length(ids_NRCan_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
+		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
+		  dir_data = dir.ex.NRCan,
+		  site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
 			coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
-			end_year = endyr)
+			end_year = endyr,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type,
+			do_parallel = parallel_runs && identical(parallel_backend, "snow"),
+			ncores = num_cores)
 	}
 	rm(ids_NRCan_extraction)
 
 	ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
 	if (length(ids_NCEPCFSR_extraction) > 0) {
-		GriddedDailyWeatherFromNCEPCFSR_Global(site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
+		GriddedDailyWeatherFromNCEPCFSR_Global(
+		  site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
 			dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
 			start_year = simstartyr,
 			end_year = endyr,
+			meta_cfsr = prepd_CFSR,
 			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-			rm_temp = deleteTmpSQLFiles)
+			do_parallel = parallel_runs && parallel_init,
+			parallel_backend = parallel_backend,
+			cl = if (identical(parallel_backend, "snow")) cl else NULL,
+			rm_temp = deleteTmpSQLFiles,
+			continueAfterAbort = continueAfterAbort,
+			dir_temp = dir.out.temp,
+			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_NCEPCFSR_extraction)
 	
@@ -117,8 +137,8 @@ if (createAndPopulateWeatherDatabase) {
 
 # NOTE: Do not change the design of the output database without adjusting the iterator functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
 
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-Tables <- dbListTables(con)
+con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+Tables <- RSQLite::dbListTables(con)
 
 # PRAGMA, see http://www.sqlite.org/pragma.html
 PRAGMA_settings1 <- c("PRAGMA cache_size = 400000;",
@@ -130,12 +150,6 @@ PRAGMA_settings2 <- c(PRAGMA_settings1,
 					  "PRAGMA page_size=65536;", # no return value
 					  "PRAGMA max_page_count=2147483646;", # returns the maximum page count
 					  "PRAGMA foreign_keys = ON;") #no return value
-
-set_PRAGMAs <- function(con, settings) {
-	temp <- lapply(settings, function(x) DBI::dbGetQuery(con, x))
-
-	invisible(0)
-}
 
 if(length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2)
 headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
@@ -151,95 +165,69 @@ if (length(Tables) == 0 || do.clean) {
 
 		if(do.clean && length(dbListTables(con)) > 0){
 			unlink(name.OutputDB)
-			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+			con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			set_PRAGMAs(con, PRAGMA_settings2)
 		}
 
-
-	#A. Header Tables
-	
-		####FUNCTIONS CONSIDER MOVING####
-		mapType <- function(type) {
-			if(type =="double")
-				return("REAL")
-			else if(type=="character")
-				return("TEXT")
-			else if(type=="logical")
-				return("INTEGER")
-			else if(type=="integer")
-				return("INTEGER")
-		}
-		columnType <- function(columnName) {
-			if(columnName %in% create_experimentals) {
-				mapType(typeof(sw_input_experimentals[,columnName]))
-			} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
-				mapType(typeof(sw_input_treatments[,columnName]))
-			}
-		}
-		getSiteIds <- function(folderNames) {
-			temp <- integer(0)
-			for(i in 1:length(folderNames)) {
-				id <- dbGetQuery(con, paste("SELECT id FROM weatherfolders WHERE folder='",folderNames[i],"'",sep=""))$id
-				if(length(id) == 0 | is.null(id))
-					temp <- c(temp, NA)
-				else
-					temp <- c(temp, id)
-			}
-			return(temp)
-		}
 		######################
 	
-		dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
-		dbBegin(con)
+		RSQLite::dbGetQuery(con, "CREATE TABLE weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL);")
 		
 		if (!(all(any((SWRunInformation$dailyweather_source[runIDs_sites] == "LookupWeatherFolder")),
 				  any(create_treatments == "LookupWeatherFolder")))) {
 			if (any(!is.na(SWRunInformation$WeatherFolder))) {
-				dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
+				RSQLite::dbBegin(con)
+				RSQLite::dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
 					bind.data = data.frame(folder = unique(na.exclude(SWRunInformation$WeatherFolder)), stringsAsFactors = FALSE))
+				RSQLite::dbCommit(con)
+
+				# Slightly slower alternative to RSQLite::dbGetPreparedQuery()
+#				temp <- unique(na.exclude(SWRunInformation$WeatherFolder))
+#				RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
+#					value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
+
 			} else {
-				stop("Weather Data in Master has NA's.") 
+				stop("All WeatherFolder names in master input file are NAs.") 
 			}
 		}
 		
-		dbCommit(con)
 	
 		#############Site Table############################
-		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
-		#This returns the SQLite Types of the columns
-		site_col_types <- sapply(X = seq_len(ncol(SWRunInformation)), function(x) mapType(typeof(SWRunInformation[[x]])))
-		site_columns <- colnames(SWRunInformation)
-		site_columns <- sub(pattern="WeatherFolder",replacement="WeatherFolder_id",site_columns)
-		site_col_types[which(colnames(SWRunInformation) == "WeatherFolder")] <- "INTEGER"
-		dbGetQuery(con, paste("CREATE TABLE sites(id INTEGER PRIMARY KEY AUTOINCREMENT,", paste(site_columns, site_col_types, collapse=","), ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));", sep=""))
-			# create table fails if 'WeatherFolder' contains spaces
+		# Note: invariant to 'include_YN', i.e., do not subset rows of 'SWRunInformation'
+		index_sites <- sort(unique(c(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
+				function(x) which(x == colnames(SWRunInformation))),
+			Index_RunInformation)))
+		sites_data <- data.frame(SWRunInformation[, index_sites], row.names = NULL, check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
+		# Get WeatherFolder_id from table weatherfolders
+		sites_data$WeatherFolder <- getSiteIds(con, sites_data$WeatherFolder)
+		colnames(sites_data) <- sub(pattern = "WeatherFolder", replacement = "WeatherFolder_id", colnames(sites_data))
+		site_col_types <- sapply(sites_data, function(x) RSQLite::dbDataType(con, x))
+		
+		RSQLite::dbGetQuery(con,
+			paste0("CREATE TABLE sites(\"id\" INTEGER PRIMARY KEY AUTOINCREMENT, ",
+				paste0('\"', colnames(sites_data), '\" ', site_col_types, collapse = ", "),
+				", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));"))
+		
+		RSQLite::dbWriteTable(con, "sites", append = TRUE,
+			value = cbind(id = NA, sites_data), row.names = FALSE)
 	
-		sites_data <- data.frame(SWRunInformation, row.names = NULL, check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
-	
-		#Consider a faster way than this....
-		colnames(sites_data) <- site_columns
-		sites_data$WeatherFolder_id <- getSiteIds(sites_data$WeatherFolder_id)
-		#This works fast
-		dbBegin(con)
-		dbGetPreparedQuery(con, paste("INSERT INTO sites VALUES(NULL,",paste(":",site_columns,collapse=",",sep=""),")",sep=""), bind.data=sites_data)
-		dbCommit(con)
-	
-		rm(site_col_types,site_columns,sites_data)
+		rm(site_col_types, sites_data)
 	
 		useExperimentals <- expN > 0 && length(create_experimentals) > 0
 		useTreatments <- !(length(create_treatments[!(create_treatments %in% create_experimentals)])==0)
 	
 		#############simulation_years table#########################
-		dbGetQuery(con, "CREATE TABLE simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT, simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL, EndYear INTEGER NOT NULL);")
+		RSQLite::dbGetQuery(con, "CREATE TABLE simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT, simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL, EndYear INTEGER NOT NULL);")
 		##################################################
 	
 	
 		##########Create table experimental_labels only if using experimentals
 		if(useExperimentals) {
-			dbGetQuery(con, "CREATE TABLE experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-			dbBegin(con)
-			dbGetPreparedQuery(con, "INSERT INTO experimental_labels VALUES(NULL, :label);", bind.data = data.frame(label=sw_input_experimentals[,1],stringsAsFactors=FALSE))
-			dbCommit(con)
+			RSQLite::dbGetQuery(con, "CREATE TABLE experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
+			RSQLite::dbBegin(con)
+			RSQLite::dbGetPreparedQuery(con, "INSERT INTO experimental_labels VALUES(NULL, :label);",
+				bind.data = data.frame(label = sw_input_experimentals[,1], stringsAsFactors = FALSE))
+			RSQLite::dbCommit(con)
 		}
 		################################
 	
@@ -267,17 +255,17 @@ if (length(Tables) == 0 || do.clean) {
 				#make a temp data.frame of a column NA's and a column of folder names
 				LookupWeatherFolder_index <- data.frame(id=rep(NA,length(treatments_lookupweatherfolders)), folder=treatments_lookupweatherfolders, stringsAsFactors = F)
 				#Get the id from sites table if the folder is in it
-				LookupWeatherFolder_index$id <- getSiteIds(LookupWeatherFolder_index$folder)
+				LookupWeatherFolder_index$id <- getSiteIds(con, LookupWeatherFolder_index$folder)
 				#if there are any NA's we need to add those to the weatherfolder db table and update its id in our lookuptable for weatherfolder
 				if(any(is.na(LookupWeatherFolder_index$id))) {
 					#get max id from weatherfolders table
 					temp<-is.na(LookupWeatherFolder_index$id)
-					weatherfolders_index <- as.numeric(dbGetQuery(con,"SELECT MAX(id) FROM weatherfolders;"))+1
+					weatherfolders_index <- as.numeric(RSQLite::dbGetQuery(con,"SELECT MAX(id) FROM weatherfolders;"))+1
 					LookupWeatherFolder_index$id[temp] <- weatherfolders_index:(weatherfolders_index+length(LookupWeatherFolder_index$id[temp])-1)
 					#Write those in
-					dbBegin(con)
-					dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[temp,])
-					dbCommit(con)
+					RSQLite::dbBegin(con)
+					RSQLite::dbGetPreparedQuery(con, "INSERT INTO weatherfolders VALUES(:id,:folder)", bind.data = LookupWeatherFolder_index[temp,])
+					RSQLite::dbCommit(con)
 				}
 			}
 		}
@@ -347,7 +335,13 @@ if (length(Tables) == 0 || do.clean) {
 		
 			######################	
 			#Get the column types from the proper tables
-			db_treatments_column_types[,2] <- sapply(db_treatments_column_types[,1], function(x) columnType(x))
+			db_treatments_column_types[,2] <- sapply(db_treatments_column_types[,1], function(columnName) {
+					if(columnName %in% create_experimentals) {
+						RSQLite::dbDataType(con, sw_input_experimentals[,columnName])
+					} else if(columnName %in% create_treatments[!(create_treatments %in% create_experimentals)]) {
+						RSQLite::dbDataType(con, sw_input_treatments[,columnName])
+					}
+				})
 		
 			#Finalize db_treatments_column_types
 			#remove YearStart or YearEnd
@@ -370,7 +364,7 @@ if (length(Tables) == 0 || do.clean) {
 				fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
 			}
 			#Create the table
-			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals || fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",if(fk_LookupWeatherFolder != "") ", ",fk_LookupWeatherFolder,");", sep=""))
+			RSQLite::dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",if(useExperimentals) "experimental_id INTEGER,", " simulation_years_id INTEGER, ", paste(db_treatments_column_types[,1], " ", db_treatments_column_types[,2], sep="", collapse =", "), if(useExperimentals || fk_LookupWeatherFolder!="") ", ", if(useExperimentals) "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",if(fk_LookupWeatherFolder != "") ", ",fk_LookupWeatherFolder,");", sep=""))
 		
 			#Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
 			if(useTreatments) {
@@ -397,7 +391,7 @@ if (length(Tables) == 0 || do.clean) {
 			}
 		} else {
 			db_combined_exp_treatments <- data.frame(matrix(data=c(1,1), nrow=1, ncol=2,dimnames=list(NULL, c("id","simulation_years_id"))),stringsAsFactors = FALSE)
-			dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, simulation_years_id INTEGER);", sep=""))
+			RSQLite::dbGetQuery(con, paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, simulation_years_id INTEGER);", sep=""))
 		}
 	
 		#if the column startYear or endYear are present move over to simulation_years
@@ -436,49 +430,49 @@ if (length(Tables) == 0 || do.clean) {
 				db_combined_exp_treatments$simulation_years_id <- sim_years_unique_map
 			}
 			#write to the database
-			dbBegin(con)
-			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(unique_simulation_years))
-			dbCommit(con)
+			RSQLite::dbBegin(con)
+			RSQLite::dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(unique_simulation_years))
+			RSQLite::dbCommit(con)
 		} else {#Treatment option for simulation Years is turned off. Get the default one from settings.
 			db_combined_exp_treatments$simulation_years_id <- 1
-			dbBegin(con)
-			dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(simulationStartYear=simstartyr, StartYear=startyr, EndYear=endyr))
-			dbCommit(con)
+			RSQLite::dbBegin(con)
+			RSQLite::dbGetPreparedQuery(con, "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);", bind.data = data.frame(simulationStartYear=simstartyr, StartYear=startyr, EndYear=endyr))
+			RSQLite::dbCommit(con)
 		}
 	
 		#Insert the data into the treatments table
-		dbBegin(con)
-		dbGetPreparedQuery(con, paste("INSERT INTO treatments VALUES(",paste(":",colnames(db_combined_exp_treatments),sep="",collapse=", "),")",sep=""), bind.data = db_combined_exp_treatments)
-		dbCommit(con)
+		RSQLite::dbBegin(con)
+		RSQLite::dbGetPreparedQuery(con, paste("INSERT INTO treatments VALUES(",paste(":",colnames(db_combined_exp_treatments),sep="",collapse=", "),")",sep=""), bind.data = db_combined_exp_treatments)
+		RSQLite::dbCommit(con)
 	
 		##############scenario_labels table###############
-		dbGetQuery(con, "CREATE TABLE scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBegin(con)
-		dbGetPreparedQuery(con, "INSERT INTO scenario_labels VALUES(NULL, :label);", bind.data = data.frame(label=climate.conditions,stringsAsFactors = FALSE))
-		dbCommit(con)
+		RSQLite::dbGetQuery(con, "CREATE TABLE scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
+		RSQLite::dbBegin(con)
+		RSQLite::dbGetPreparedQuery(con, "INSERT INTO scenario_labels VALUES(NULL, :label);", bind.data = data.frame(label=climate.conditions,stringsAsFactors = FALSE))
+		RSQLite::dbCommit(con)
 		##################################################
 	
 		#############run_labels table#########################
 		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
-		dbGetQuery(con, "CREATE TABLE run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
-		dbBegin(con)
+		RSQLite::dbGetQuery(con, "CREATE TABLE run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);")
+		RSQLite::dbBegin(con)
 		if(useExperimentals) {
-			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
+			RSQLite::dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
 				bind.data = data.frame(label = paste(formatC(SWRunInformation$site_id, width = counter.digitsN, format = "d", flag = "0"),
 													rep(sw_input_experimentals[, 1], each = runsN_master), labels,
 													sep = "_"),
 										stringsAsFactors = FALSE))
 		} else {
-			dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
+			RSQLite::dbGetPreparedQuery(con, "INSERT INTO run_labels VALUES(NULL, :label);",
 				bind.data = data.frame(label = labels, stringsAsFactors = FALSE))
 		}
-		dbCommit(con)
+		RSQLite::dbCommit(con)
 		##################################################
 	
 	
 		#####################runs table###################
 		# Note: invariant to 'include_YN', i.e., do not subset 'SWRunInformation'
-		dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
+		RSQLite::dbGetQuery(con, "CREATE TABLE runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL, site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL, scenario_id INTEGER NOT NULL, FOREIGN KEY(label_id) REFERENCES run_labels(id), FOREIGN KEY(site_id) REFERENCES sites(id), FOREIGN KEY(treatment_id) REFERENCES treatments(id), FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));")
 		db_runs <- data.frame(matrix(data = 0,
 									 nrow = runsN_Pid,
 									 ncol = 5,
@@ -504,9 +498,9 @@ if (length(Tables) == 0 || do.clean) {
 				db_runs$treatment_id <- 1
 			}
 		}
-		dbBegin(con)
-		dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
-		dbCommit(con)
+		RSQLite::dbBegin(con)
+		RSQLite::dbGetPreparedQuery(con, "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id);", bind.data=db_runs)
+		RSQLite::dbCommit(con)
 		##################################################
 	
 		################CREATE VIEW########################
@@ -525,11 +519,11 @@ if (length(Tables) == 0 || do.clean) {
 				"runs.P_id",
 				"run_labels.label AS Labels",
 				if (!is.null(sites_columns))
-					paste("sites", sites_columns, sep = ".", collapse = ", "),
+					paste0("sites.\"", sites_columns, "\"", collapse = ", "),
 				if (useExperimentals)
 					"experimental_labels.label AS Experimental_Label",
 				"weatherfolders.folder AS WeatherFolder",
-				if (useExperimentals | useTreatments)
+				if (useExperimentals || useTreatments)
 					paste("treatments", treatment_columns, sep = ".", collapse = ", "),
 				"simulation_years.StartYear",
 				"simulation_years.simulationStartYear AS SimStartYear",
@@ -537,12 +531,13 @@ if (length(Tables) == 0 || do.clean) {
 				"scenario_labels.label AS Scenario"),
 			collapse = ", ")
 	
-		dbGetQuery(con, paste(
+		RSQLite::dbGetQuery(con, paste0(
 			"CREATE VIEW header AS SELECT ", header_columns, " FROM runs, run_labels, sites, ",
 			if (useExperimentals)
 				"experimental_labels, ",
 			"treatments, scenario_labels, simulation_years, weatherfolders",
-			" WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
+			" WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND",
+			" runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
 			if (useTreatmentWeatherFolder) {
 				"treatments.LookupWeatherFolder_id=weatherfolders.id AND "
 			} else {
@@ -550,8 +545,8 @@ if (length(Tables) == 0 || do.clean) {
 			},
 			if (useExperimentals)
 				"treatments.experimental_id=experimental_labels.id AND ",
-			"treatments.simulation_years_id=simulation_years.id;",
-		sep = ""))
+			"treatments.simulation_years_id=simulation_years.id;"
+		))
 		##################################################
 	
 	#B. Aggregation_Overall
@@ -589,24 +584,24 @@ if (length(Tables) == 0 || do.clean) {
 		}
 	#5.
 		if(aon$input_TranspirationCoeff){
-			if(AggLayer.daily){
-				ltemp <- paste("L0to", Depth_FirstAggLayer.daily, "cm", sep="")
-				if(is.null(Depth_SecondAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.numeric(Depth_SecondAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_FirstAggLayer.daily, "to", Depth_SecondAggLayer.daily, "cm", sep=""))
+			if(daily_lyr_agg[["do"]]){
+				ltemp <- paste("L0to", daily_lyr_agg[["first_cm"]], "cm", sep="")
+				if(is.null(daily_lyr_agg[["second_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "toSoilDepth", sep=""))
+				} else if(is.numeric(daily_lyr_agg[["second_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["first_cm"]], "to", daily_lyr_agg[["second_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_ThirdAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_ThirdAggLayer.daily)){
-				} else if(is.numeric(Depth_ThirdAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_SecondAggLayer.daily, "to", Depth_ThirdAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["third_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["third_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["third_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["second_cm"]], "to", daily_lyr_agg[["third_cm"]], "cm", sep=""))
 				}
-				if(is.null(Depth_FourthAggLayer.daily)) {
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "toSoilDepth", sep=""))
-				} else if(is.na(Depth_FourthAggLayer.daily)){
-				} else if(is.numeric(Depth_FourthAggLayer.daily)){
-					ltemp <- c(ltemp, paste("L", Depth_ThirdAggLayer.daily, "to", Depth_FourthAggLayer.daily, "cm", sep=""))
+				if(is.null(daily_lyr_agg[["fourth_cm"]])) {
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "toSoilDepth", sep=""))
+				} else if(is.na(daily_lyr_agg[["fourth_cm"]])){
+				} else if(is.numeric(daily_lyr_agg[["fourth_cm"]])){
+					ltemp <- c(ltemp, paste("L", daily_lyr_agg[["third_cm"]], "to", daily_lyr_agg[["fourth_cm"]], "cm", sep=""))
 				}
 				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SoilLayer_MaxNo, sep=""))
 			} else {
@@ -1053,8 +1048,8 @@ if (length(Tables) == 0 || do.clean) {
 		SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_mean\" (", meanString, ");", sep="")
 		SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_sd\" (", sdString, ");", sep="")
 		
-		rs <- DBI::dbGetQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-		rs <- DBI::dbGetQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
+		rs <- RSQLite::dbGetQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
+		rs <- RSQLite::dbGetQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
 	
 		if(!is.null(output_aggregate_daily)) {
 			doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
@@ -1111,12 +1106,12 @@ if (length(Tables) == 0 || do.clean) {
 	
 			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
 			for(i in seq_along(dbEnsemblesFilePaths)) {
-				con<-DBI::dbConnect(RSQLite::SQLite(), dbEnsemblesFilePaths[i])
+				con<-RSQLite::dbConnect(RSQLite::SQLite(), dbEnsemblesFilePaths[i])
 				set_PRAGMAs(con, PRAGMA_settings2)
 			
 				if(do.clean && length(dbListTables(con)) > 0){
 					unlink(dbEnsemblesFilePaths[i])
-					con <- DBI::dbConnect(RSQLite::SQLite(), dbname=dbEnsemblesFilePaths[i])
+					con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname=dbEnsemblesFilePaths[i])
 					set_PRAGMAs(con, PRAGMA_settings2)
 				}
 			
@@ -1124,19 +1119,19 @@ if (length(Tables) == 0 || do.clean) {
 					for(k in seq_along(ensemble.levels)) {
 						EnsembleFamilyLevelTables<-paste(ensemble.families[j],"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
 						if(grepl(patter="overall",respName[i],ignore.case=TRUE)) {
-							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", meanString, ");", sep=""))
-							dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
-							if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
+							RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", meanString, ");", sep=""))
+							RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
+							if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
 						} else {
 							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
 							if(agg.analysis == 1){
-								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
-								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
-								if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailySQL), ");", sep=""))
+								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
+								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
+								if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailySQL), ");", sep=""))
 							} else {
-								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailyLayersSQL, ");", sep=""))
-								dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailyLayersSQL, ");", sep=""))
-								if(save.scenario.ranks) dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailyLayersSQL), ");", sep=""))
+								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailyLayersSQL, ");", sep=""))
+								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailyLayersSQL, ");", sep=""))
+								if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailyLayersSQL), ");", sep=""))
 							}
 						}
 					}

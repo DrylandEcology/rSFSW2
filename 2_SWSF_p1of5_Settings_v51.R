@@ -35,14 +35,15 @@ rm(list=ls(all=TRUE))
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
-print.debug <- if(interactive()) TRUE else FALSE
+print.debug <- interactive()
+debug.dump.objects <- interactive()
 
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
 minVersion_dbWeather <- "3.1.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
-parallel_runs <- if(interactive()) FALSE else TRUE
+parallel_runs <- !interactive()
 
 #------Rmpi Jobs finish within Wall Time------#
 MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
@@ -98,6 +99,7 @@ actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
+# - it doesn't lookup values from tables if already available in input datafiles, i.e., 'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and 'LookupSnowDensityFromTable'
 #	- it doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
 continueAfterAbort <- TRUE
 #use preprocessed input data if available
@@ -108,11 +110,21 @@ saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")
-map_vars <- c("SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "RH", "SkyC", "Wind", "snowd")
+map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "EvapCoeff", "RH", "SkyC", "Wind", "snowd")
 #check completeness of SoilWat simulation directories and of temporary output aggregation files; create a list with missing directories and files
 checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
 check.blas <- FALSE
+
+#---Load functions
+ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (!file.exists(ftemp) || !continueAfterAbort) {
+  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = ftemp)
+  detach("swsf_funs")
+}
+load(ftemp)
+print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
@@ -198,6 +210,7 @@ chunk_size.options <- list(
 )
 
 do.PriorCalculations <- c(
+		"ExtendSoilDatafileToRequestedSoilLayers", 0,
 		"EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 1,
 		"EstimateInitialSoilTemperatureForEachSoilLayer", 1,
 		"CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
@@ -207,7 +220,6 @@ do.PriorCalculations <- c(
 #	current simulation years = simstartyr:endyr
 #	years used for results = startyr:endyr
 simstartyr  <- 1979
-getStartYear <- function(simstartyr) simstartyr + 1
 startyr <- getStartYear(simstartyr)
 endyr <- 2010
 
@@ -230,6 +242,7 @@ rownames(future_yrs) <- make.names(paste0("d", future_yrs[, "delta"], "yrs"), un
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
 adjust.soilDepth <- FALSE # [FALSE] fill soil layer structure from shallower layer(s) or [TRUE] adjust soil depth if there is no soil texture information for the lowest layers
+requested_soil_layers <- seq(10, 100, by = 10)
 increment_soiltemperature_deltaX_cm <- 5	# If SOILWAT soil temperature is simulated and the solution instable, then the soil profile layer width is increased by this value until a stable solution can be found or total failure is determined
 
 #Climate conditions
@@ -310,7 +323,7 @@ simulation_timescales <- c("daily", "monthly", "yearly")
 output_aggregates <- c(
 					#---Aggregation: SoilWat inputs
 						"input_SoilProfile", 1,
-            			"input_FractionVegetationComposition", 1,
+            "input_FractionVegetationComposition", 1,
 						"input_VegetationBiomassMonthly", 1,
 						"input_VegetationPeak", 1,
 						"input_Phenology", 1,
@@ -411,11 +424,12 @@ DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are acc
 
 #soil layers
 Depth_TopLayers  <- 20 				#cm, distinguishes between top and bottom soil layer for overall data aggregation
-AggLayer.daily <- FALSE				#if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
-Depth_FirstAggLayer.daily  <- 10 	#cm, distinguishes between first and second soil layer for average daily data aggregation
-Depth_SecondAggLayer.daily  <- 20 	#cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
-Depth_ThirdAggLayer.daily  <- 60 	#cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
-Depth_FourthAggLayer.daily  <- NULL	#cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
+daily_lyr_agg <- list(
+      do = FALSE,				# if TRUE, then aggregate soil layers into 1-4 layers for mean/SD daily values; if FALSE, then use each soil layer
+      first_cm = 10, 	  # cm, distinguishes between first and second soil layer for average daily data aggregation
+      second_cm = 20, 	# cm or NULL(=deepest soil layer), distinguishes between first and second soil layer for average daily data aggregation
+      third_cm = 60, 	  # cm, NULL(=deepest soil layer), or NA(=only two aggregation layers), distinguishes between second and third soil layer for average daily data aggregation
+      fourth_cm = NULL) # cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
 
 #regeneration: germination and establishment
 season.start <- "LastSnow" # either doy or "LastSnow"
@@ -487,4 +501,5 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ##############################################################################
 ########################Source of the code base###############################
 
-if (!interactive()) source(file.path(dir.code, "2_SWSF_p4of4_Code_v51.R"), verbose = FALSE, chdir = FALSE)
+if (!interactive())
+  source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
