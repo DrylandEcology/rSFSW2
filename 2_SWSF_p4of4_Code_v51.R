@@ -2047,14 +2047,15 @@ identify_soillayers <- function(depths, sdepth) {
   }
 }
 
-adjustLayer_byImp <- function(depths, imp_depth) {
-  if(any(imp_depth < depths[1])){
+adjustLayer_byImp <- function(depths, imp_depth, sdepths) {
+  if (any(imp_depth < depths[1])) {
     depths <- imp_depth
-    if(dim(soildat)[1] >= 2){
-      if((temp <- findInterval(imp_depth, soildat[, "depth_cm"])) > 1){
-        depths <- c(soildat[temp - 1, "depth_cm"], imp_depth)
+    if (length(sdepths) >= 2) {
+      temp <- findInterval(imp_depth, sdepths)
+      if (temp > 1) {
+        depths <- c(sdepths[temp - 1], imp_depth)
       } else {
-        depths <- c(imp_depth, soildat[temp + 1, "depth_cm"])
+        depths <- c(imp_depth, sdepths[temp + 1])
       }
     }
   } else if(any(imp_depth < depths[2])){
@@ -5374,10 +5375,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               } else c(20, 60)
             #If 7.5 cm of water moistens the soil to a densic, lithic, paralithic, or petroferric contact or to a petrocalcic or petrogypsic horizon or a duripan, the contact or the upper boundary of the cemented horizon constitutes the lower boundary of the soil moisture control section. If a soil is moistened to one of these contacts or horizons by 2.5 cm of water, the soil moisture control section is the boundary of the contact itself. The control section of such a soil is considered moist if the contact or upper boundary of the cemented horizon has a thin film of water. If that upper boundary is dry, the control section is considered dry.
 
-            MCS_depth <- adjustLayer_byImp(depths = MCS_depth, imp_depth = imp_depth)
+            MCS_depth <- adjustLayer_byImp(depths = MCS_depth, imp_depth = imp_depth, sdepths = soildat[, "depth_cm"])
 
             #Soil layer 10-70 cm used for anhydrous layer definition; adjusted for impermeable layer
-            Lanh_depth <- adjustLayer_byImp(depths = c(10, 70), imp_depth = imp_depth)
+            Lanh_depth <- adjustLayer_byImp(depths = c(10, 70), imp_depth = imp_depth, sdepths = soildat[, "depth_cm"])
 
             #Permafrost (Soil Survey Staff 2014: p.28) is defined as a thermal condition in which a material (including soil material) remains below 0 C for 2 or more years in succession
             permafrost <- any(apply(soiltemp.yr.all$val[simTime$index.useyr, -1, drop = FALSE], 2, function(x) {
@@ -5441,7 +5442,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     "} and available are {",
                     paste(layers_depth, collapse = ", "), "}"))
 
-              swp_dy_nrsc <- get_SWPmatric_aggL(vwc_dy_nrsc,
+              swp_dy_nrsc <- get_SWPmatric_aggL(vwc_dy_nrsc, texture. = texture,
                 sand. = soildat[, "sand_frac"], clay. = soildat[, "clay_frac"])
             }
 
