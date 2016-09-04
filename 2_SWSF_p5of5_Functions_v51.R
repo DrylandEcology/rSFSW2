@@ -1392,6 +1392,35 @@ add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate
   x
 })
 
+identify_soillayers <- compiler::cmpfun(function(depths, sdepth) {
+  it <- findInterval(depths, sdepth)
+  if (any(is.na(it))) {
+    as.integer(na.exclude(it))
+  } else if (diff(it) > 0) {
+    (1 + it[1]):(it[2])
+  } else {
+    it[1]
+  }
+})
+
+adjustLayer_byImp <- compiler::cmpfun(function(depths, imp_depth, sdepths) {
+  if (any(imp_depth < depths[1])) {
+    depths <- imp_depth
+    if (length(sdepths) >= 2) {
+      temp <- findInterval(imp_depth, sdepths)
+      if (temp > 1) {
+        depths <- c(sdepths[temp - 1], imp_depth)
+      } else {
+        depths <- c(imp_depth, sdepths[temp + 1])
+      }
+    }
+  } else if(any(imp_depth < depths[2])){
+    depths <- c(depths[1], imp_depth)
+  }
+
+  depths
+})
+
 EstimateInitialSoilTemperatureForEachSoilLayer <- compiler::cmpfun(function(layers_depth, lower.Tdepth, soilTupper, soilTlower){
   sl <- c(0, lower.Tdepth)
   st <- c(soilTupper, soilTlower)
