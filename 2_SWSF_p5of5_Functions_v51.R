@@ -444,9 +444,6 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
       month_forEachDoy <- as.POSIXlt(seq(from = as.POSIXlt(paste0(years[y], "-01-01")),
                                          to = as.POSIXlt(paste0(years[y], "-12-31")),
                                          by = "1 day"))$mon + 1
-      if (years[y] == 1942) { #TODO: why? 1942 is not a leap year
-        month_forEachDoy <- c(month_forEachDoy, 12)
-      }
     
       tempMean <- tempMean + tapply(temp.dailyTempMean, month_forEachDoy, mean)
       tempMin <- tempMin + tapply(x[, "Tmin_C"], month_forEachDoy, mean)
