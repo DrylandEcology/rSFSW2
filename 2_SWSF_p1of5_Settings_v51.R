@@ -46,7 +46,7 @@ parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- !interactive()
 
 #------Rmpi Jobs finish within Wall Time------#
-MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
+MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database
 MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
 MinTimeConcat <- 10 * 60 * 60 #This is the minimum time remaining after execution needed to begin concat
 MaxConcatTime <- 35 * 60 #This will stop any new sql file concat job at 'x' seconds before MaxRunDuration expires.
@@ -84,7 +84,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 
 
 #------Define actions to be carried out by simulation framework
-#actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
+#actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate")
 #	- data preparation
 #		- "external": pulls data from 'external' data sources from 'dir.external' as specified by 'do.ExtractExternalDatasets'
 #		- "map_input": creates maps of input data as specified by 'map_vars'
@@ -94,7 +94,6 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #		- "aggregate": calculates aggregated response variables from the SoilWat output and writes results to temporary text files
 #	- output handling
 #		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
-#		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
 actions <- c("create", "execute", "aggregate", "concatenate")
 #continues with unfinished part of simulation after abort if TRUE, i.e., 
 #	- it doesn't delete an existing weather database, if a new one is requested
@@ -131,7 +130,6 @@ cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becare
 deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
-ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
@@ -274,11 +272,6 @@ downscaling.options <- list(
 	sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
 	PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
 )
-
-#Climate ensembles created across scenarios
-ensemble.families <- NULL #c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA1B", "SRESB1"); this variable defines the groups for which ensembles of climate scenarios are calculated; corresponds to first part of scenario name
-ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
-save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
 #------Names of files that contain input data or treatment codes
 datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
