@@ -5361,7 +5361,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						#Days of year (in normal count) of most frequent successes among years: #toDoy <- function(x) sort(ifelse((temp <- x+Doy_SeedDispersalStart-1) > 365, temp-365,temp)) #convert to normal doys
 						res1.dy <- aggregate(temp1, by=list(doy_ForEachUsedRYDay), FUN=sum)[, -1]
 						get.DoyMostFrequentSuccesses <- function(doys){
-							res1.max <- sapply(1:2, FUN=function(x) quantile(doys[doys[, x]>0, x], probs=c(0.1, 1), type=7))
+							res1.max <- sapply(1:2, function(x) quantile(doys[doys[, x] > 0, x], probs = c(0.1, 1), type = 3)) # must return one of the values because the quantiles are compared against the values in function 'get.DoyAtLevel'
 							get.DoyAtLevel <- function(x, level) which(x == level & x > 0)
 							if(all(!temp1[, 1])){#no successful germination
 								germ.doy <- list(NA, NA)
