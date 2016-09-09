@@ -952,6 +952,60 @@ circ.sd <- compiler::cmpfun(function(x, int, na.rm=FALSE){
   }
 })
 
+circ_median <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+  if (!all(is.na(x))) {
+    circ <- 2 * pi / int
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_int <- circular::median.circular(x_circ, na.rm = na.rm) / circ # The Definition in equations 2.32 & 2.33 from N.I. Fisher's 'Statistical Analysis of Circular Data', Cambridge Univ. Press 1993. is implemented.
+    as.numeric(x_int)
+  } else {
+    NA
+  }
+})
+
+circ_sum <- compiler::cmpfun(function(x, y, int) {
+	circ <- 2 * pi / int
+	as.numeric(circular::circular((x + y) * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi") / circ)
+})
+
+circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, low = FALSE, high = FALSE) {
+  if (na.rm) 
+      x <- x[!is.na(x)]
+  n <- length(x)
+  
+  if (n > 1) {
+    circ <- 2 * pi / int
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    m <- circular::median.circular(x_circ, na.rm = FALSE)
+		
+    d <- abs(x_circ - m)
+		
+    constant * if ((low || high) && n %% 2 == 0) {
+        if (low && high) 
+            stop("'low' and 'high' cannot be both TRUE")
+        n2 <- n %/% 2 + as.integer(high)
+        sort(as.numeric(d / circ), partial = n2)[n2]
+    } else {
+      as.numeric(circular::median.circular(d, na.rm = FALSE) / circ)
+    }
+
+  } else {
+    NA
+  }
+})
+
+circ_quantile <- compiler::cmpfun(function(x, probs, int, names = FALSE, type = 7, na.rm = FALSE) {
+  if (!all(is.na(x))) {
+    circ <- 2 * pi / int
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_int <- circular::quantile.circular(x_circ, probs = probs, names = names, type = type, na.rm = na.rm) / circ # The Definition in equations 2.32 & 2.33 from N.I. Fisher's 'Statistical Analysis of Circular Data', Cambridge Univ. Press 1993. is implemented.
+    as.numeric(x_int)
+  } else {
+    NA
+  }
+})
+
+
 
 #functions wet and dry periods
 
