@@ -5,7 +5,7 @@ if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "a
 
 #------
 actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
-actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")
+actionWithSWSFOutput <- any(actions == "concatenate")
 #--order output_aggregate_daily--#
 if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
@@ -372,25 +372,6 @@ climate.conditions <- c(climate.ambient, temp)
 scenario_No <- length(climate.conditions)
 scenario <- climate.conditions
 
-#------create ensembles
-if(length(ensemble.levels) > 0) ensemble.levels <- sort(ensemble.levels)
-do.ensembles <- any(actions=="ensemble") && !is.null(ensemble.families) && length(ensemble.levels) > 0 && is.numeric(ensemble.levels) && scenario_No > 1
-
-if(do.ensembles){
-	ensemble.families <- paste0(rownames(future_yrs), ".", rep(ensemble.families, each = nrow(future_yrs)))	#add (multiple) future_yrs
-	scenarios.ineach.ensemble <- sapply(ensemble.families, function(x) grepl(pattern=x, climate.conditions, ignore.case=TRUE), simplify=TRUE)
-	ensemble.families <- ensemble.families[temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=any)]
-	scenarios.ineach.ensemble <- scenarios.ineach.ensemble[, temp]
-	families_N <- length(ensemble.families)
-	if(families_N > 1){
-		scenariosPERensemble_N <- max(temp <- apply(scenarios.ineach.ensemble, MARGIN=2, FUN=sum))
-		stopifnot(any(ensemble.levels <= min(temp)))
-	} else{
-		scenariosPERensemble_N <- sum(scenarios.ineach.ensemble)
-		stopifnot(any(ensemble.levels <= scenariosPERensemble_N))
-	}
-}
-
 
 #------Determine simulation runs
 # see ?iterators, ?it_exp, ?it_site, ?it_Pid
@@ -491,11 +472,11 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------SET UP PARALLELIZATION
-#used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
+#used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite
 
 workersN <- 1
 parallel_init <- FALSE
-if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
+if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0)) {
 	if(parallel_runs){
 		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
 #		opt_we_cur <- options("warn", "error")
@@ -6219,231 +6200,6 @@ delta.check <- difftime(Sys.time(), t.check, units="secs")
 if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
 
 #--------------------------------------------------------------------------------------------------#
-#------------------------ENSEMBLE GENERATION
-t.ensembles <- Sys.time()	#timing of ensemble calculation
-
-if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN_todo || actionWithSWSFOutput && !actionWithSoilWat) ){
-
-	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
-
-	#save(ensembles.maker,ensemble.levels, ensemble.families, file=file.path(dir.out, "ensembleObjects.r"))
-
-	calc.ensembles <- function(dat, elevels){ #dat must be three-dimensional object with dims=(runs, outputs, scenarios); runs and/or scenarios can be 1 or larger
-		doRanks <- function(x){
-			temp <- sort.int(x, na.last=NA, index.return=TRUE)
-			return(c(temp$x[elevels], temp$ix[elevels]))
-		}
-
-		res <- NULL
-		col.names <- colnames(dat)
-		if(dim(dat)[3] == 1){ #only one scenario; i.e., all levels are identical to the scenario
-			temp <- array(data=rep(unlist(dat), each=3), dim=c(length(elevels), dim(dat)[1], dim(dat)[2]))
-			res <- array(data=1, dim=c(2*length(elevels), dim(dat)[1], dim(dat)[2]))
-			res[1:length(elevels),,] <- temp
-		} else {
-			if(dim(dat)[1] > 1){
-				res <- apply(dat[,,], MARGIN = c(1,2), doRanks)
-			} else { #only one run=site
-				res <- apply(dat[,,], MARGIN = 1, doRanks)
-				res <- array(data=res, dim=c(2*length(elevels), 1, dim(dat)[2]))
-			}
-		}
-		#returned object: array with 3 dims: 1. dim = 1:length(elevels) are the ensembles at the ensemble.levels; the second set of rows are the ranked GCMs; 2. dim = runs/sites; 3. dim = aggregated variables
-		dimnames(res) <- list(NULL, NULL, col.names)
-		return(res)
-	}
-
-	collect_EnsembleFromScenarios <- function(Table){
-		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-		#########TIMING#########
-		TableTimeStop <- Sys.time() - t.overall
-		units(TableTimeStop) <- "secs"
-		TableTimeStop <- as.double(TableTimeStop)
-		print(paste("Table: ",Table,": started at ",TableTime<-Sys.time(),sep=""))
-
-		#########FUNCTIONS######
-		doWrite <- function(dat, headerInfo, elevel, outfile){
-			#add info to
-			name <- ensemble.family
-			if(is.vector(dat)) {
-				dat <- cbind(headerInfo, t(dat))
-			} else {
-				dat <- cbind(headerInfo, dat)
-			}
-			dbBegin(conn=conEnsembleDB)
-			dbGetPreparedQuery(conEnsembleDB, paste("INSERT INTO ",outfile," VALUES (",paste(paste(":",colnames(dat),sep=""),collapse=", "),");",sep=""), bind.data=dat)
-			dbCommit(conn=conEnsembleDB)
-			written<-1
-			#written <- dbWriteTable(conEnsembleDB, name=outfile, dat, row.names=FALSE,append=TRUE)#
-			if(written)
-				return(1)
-			else
-				return(0)
-		}
-		read.scenarios <- function(Table, start, stop, ensemble.family, export.header=TRUE){
-			#Read first file
-			columns<-dbListFields(con,Table)[-1]
-			if(Layers<-any(temp<-grepl(pattern = "Soil_Layer",x=columns))) columns<-columns[-temp]
-			columns<-paste("\"",columns,"\"", sep="",collapse = ", ")
-			sqlString <- paste("SELECT '",Table,"'.P_id AS P_id, header.Scenario AS Scenario, ",columns," FROM '", Table, "' INNER JOIN header ON '",Table,"'.P_id=header.P_id WHERE header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;", sep="")
-			res <- dbSendQuery(con, sqlString)
-			dataScen.Mean <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
-			dbClearResult(res)
-
-			columnCutoff <- match("Scenario", colnames(dataScen.Mean))
-			if(export.header) {
-				sqlString <- paste("SELECT '", Table,"'.P_id AS P_id ",if(Layers) ", Soil_Layer ","FROM '",Table,"',header WHERE '",Table,"'.P_id=header.P_id AND header.P_id BETWEEN ",start," AND ",stop," AND header.Scenario = 'Current' ORDER BY P_id;",sep="")
-				res <- dbSendQuery(con, sqlString)
-				headerInfo <- fetch(res, n=-1) #dataToQuantilize get the data from the query n=-1 to get all rows
-				dbClearResult(res)
-			}
-			col.names <- colnames(dataScen.Mean[,-(1:columnCutoff)])
-			#We have all the scenarios in the family. We need to get unique scenario names and group them by that
-			data.temp <- lapply(unique(dataScen.Mean$Scenario), function (x) dataScen.Mean[dataScen.Mean$Scenario == x,-(1:columnCutoff)])
-			data.temp <- array(data=unlist(data.temp), dim=c(nrow(data.temp[[1]]), ncol(data.temp[[1]]), length(data.temp)) )
-			colnames(data.temp) <- col.names
-			class(data.temp) <- "numeric"
-
-			if(export.header) {
-				return(list(headerInfo=headerInfo, data.scen=data.temp))
-			} else {
-				return(list(data.scen=data.temp))
-			}
-		}
-
-		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
-			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
-			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
-
-			nfiles <- 0
-			#Grab x rows at a time
-			SQL <- paste("SELECT MAX(P_id) FROM '",Table,"';",sep="")
-			maxP_id <- as.integer(dbGetQuery(con,SQL))
-			maxRun_id <- (maxP_id/scenario_No)
-
-			for(j in 1:length(ensemble.families)) {
-				EnsembleTimeStop <- Sys.time() - t.overall
-				units(EnsembleTimeStop) <- "secs"
-				EnsembleTimeStop <- as.double(EnsembleTimeStop)
-				if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
-					break
-				}
-				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
-
-				ensemble.family=ensemble.families[j]
-				EnsembleFamilyLevelTables<-paste(ensemble.family,"_rank_",formatC(ensemble.levels, width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
-				LastPid <- integer(length=length(EnsembleFamilyLevelTables))
-				for(i in 1:length(LastPid)) {
-					SQL <- paste("SELECT MAX(P_id) FROM '",EnsembleFamilyLevelTables[i],"';",sep="")
-					LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB,SQL))+(scenario_No-1)#Need to add all the scenarios because last P_id will always be Current
-				}
-				if(any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
-					minRun_id <- 1
-				} else {
-					minRun_id <- (min(LastPid)/scenario_No)+1 #This is already done so we add one
-				}
-				#########################
-				for(i in seq(minRun_id,maxRun_id,ensembleCollectSize)) {
-					start <- (i-1)*scenario_No+1
-					stop <- (min(i+ensembleCollectSize-1,maxRun_id)-1)*scenario_No+scenario_No
-					dataScen.Mean <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=TRUE)
-					Table <- sub(pattern="Mean", replacement="SD", Table)
-					dataScen.SD <- read.scenarios(Table=Table,start=start,stop=stop, ensemble.family=ensemble.family, export.header=FALSE)
-					Table <- sub(pattern="SD", replacement="Mean", Table)
-					#get ensembles for non-SD file
-					dataEns.Mean <- calc.ensembles(dat=dataScen.Mean$data.scen, elevels=ensemble.levels)
-					#Lookup SD values from scenarios based on ranks determined from taking ensembles of the means
-					if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-						lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,1))
-						make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
-						dataEns.SD <- apply(make, MARGIN=1, FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[2]][lookANDscen[1:length(ensemble.levels)]])
-						dimnames(dataEns.SD)[2] <- dimnames(dataScen.SD$data.scen)[2]
-					} else {
-						lookup <- aperm(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,], perm=c(2,3,1))
-						make <- array(c(lookup, dataScen.SD$data.scen), dim=c(nrow(lookup), ncol(lookup), length(ensemble.levels) + dim(dataScen.SD$data.scen)[3]))
-						dataEns.SD <- apply(make, MARGIN=c(1,2), FUN=function(lookANDscen) lookANDscen[(length(ensemble.levels)+1):dim(make)[3]][lookANDscen[1:length(ensemble.levels)]])
-						dimnames(dataEns.SD)[3] <- dimnames(dataScen.SD$data.scen)[2]
-					}
-					#write ensemble files
-					ntemp <- 0
-					for(k in 1:length(ensemble.levels)){
-						outputs <- paste(ensemble.family,"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds","scenarioranks"),sep="")
-						ntemp <- ntemp + doWrite(dat=dataEns.Mean[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[1],"'",sep=""))
-						if(length(dim(dataEns.Mean[(length(ensemble.levels) + 1):(2*length(ensemble.levels)),,])) == 2) {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[2],"'",sep=""))
-						} else {
-							ntemp <- ntemp + doWrite(dat=dataEns.SD[k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[2],"'",sep=""))
-						}
-						if(save.scenario.ranks) ntemp <- ntemp + doWrite(dat=dataEns.Mean[length(ensemble.levels) + k,,], headerInfo=dataScen.Mean$headerInfo, elevel=ensemble.levels[k], outfile=paste("'",outputs[3],"'",sep=""))
-					}
-					if(i == 1) nfiles <- nfiles + ntemp
-					print(paste("          ",i,":",min(i+ensembleCollectSize-1,maxRun_id)," of ",maxRun_id," done.",sep=""))
-				}
-				#########################
-				temp2<-Sys.time() - EnsembleTime
-				units(temp2) <- "secs"
-				temp2 <- as.double(temp2)
-				print(paste("Table: ", Table, ", Ensemble: ", ensemble.families[j], " ended at ",Sys.time(),", after ", round(temp2)," s.",sep=""))
-			}
-		}
-		temp2<-Sys.time() - TableTime
-		units(temp2) <- "secs"
-		temp2 <- as.double(temp2)
-		print(paste("Table: ", Table, " ended at ",Sys.time(),", after ",round(temp2)," s.",sep=""))
-
-		return(nfiles)
-	}
-
-	library(RSQLite,quietly = TRUE)
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables)]
-	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
-
-	if(parallel_runs && parallel_init){
-		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
-		if(identical(parallel_backend, "mpi")) {
-			workersN <- (mpi.comm.size() - 1)
-			exportObjects(list.export)
-
-			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-
-			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
-			ensembles.completed <- sum(unlist(ensembles.completed))
-		} else if(identical(parallel_backend, "snow")) {
-			export_obj_local <- list.export[list.export %in% ls(name=environment())]
-			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
-			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
-			export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
-			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
-			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
-
-			if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
-			if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
-			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
-
-			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
-
-			ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
-		}
-	} else {
-		ensembles.completed <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-			collect_EnsembleFromScenarios(table)
-		}
-	}
-
-	if(ensembles.completed != (temp <- length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels))) print("SWSF calculates ensembles: something went wrong with ensemble output: ensembles.completed = ", ensembles.completed, " instead of ", temp,".")
-}
-
-
-#timing of ensemble calculation
-delta.ensembles <- difftime(Sys.time(), t.ensembles, units="secs")
-if(!be.quiet && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
-
-
-#--------------------------------------------------------------------------------------------------#
 #------------------------OVERALL TIMING
 delta.overall <- difftime(Sys.time(), t.overall, units="secs")
 if(!be.quiet) print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
@@ -6452,7 +6208,6 @@ write.timer <- function(label, time_sec="", number=""){ write.table(t(c(label, t
 
 write.timer("Time_Total", time_sec=delta.overall)
 write.timer("Time_Check", time_sec=delta.check)
-write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(actionWithSoilWat){
 	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
@@ -6466,7 +6221,6 @@ if(actionWithSoilWat){
 write.timer("N_cores", number=workersN)
 write.timer("N_Runs", number=runs.completed)
 write.timer("N_SWruns", number=runs.completed * scenario_No)
-write.timer("N_EnsembleFiles", number=ifelse(exists("ensembles.completed"), ensembles.completed, 0))
 
 
 if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))

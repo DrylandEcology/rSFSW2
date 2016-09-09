@@ -157,9 +157,6 @@ headerTables <- c("runs", "sqlite_sequence", "header", "run_labels", "scenario_l
                   "weatherfolders", "aggregation_functions", "aggregation_timewindows",
                   "Meta")
 
-#Only do this if the database is empty
-#number of tables without ensembles (daily_no*2 + 2)
-do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
 if (length(Tables) == 0 || cleanDB) {
 
@@ -1129,57 +1126,7 @@ if (length(Tables) == 0 || cleanDB) {
 
 		RSQLite::dbDisconnect(con)
 		
-		##########################################ENSEMBLE GENERATION#################################################
-		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
-		if(do.ensembles){
-	
-			Tables<-dbListTables(con)
-			dbDisconnect(con)
-			Tables<-Tables[!(Tables %in% headerTables)]
-			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
-			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
-			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
-			respName<-sub(pattern="doy_",replacement="",x=respName,ignore.case = T)
-			respName<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respName)
-	
-			dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
-			for(i in seq_along(dbEnsemblesFilePaths)) {
-				con<-RSQLite::dbConnect(RSQLite::SQLite(), dbEnsemblesFilePaths[i])
-				set_PRAGMAs(con, PRAGMA_settings2)
-			
-				if(do.clean && length(dbListTables(con)) > 0){
-					unlink(dbEnsemblesFilePaths[i])
-					con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname=dbEnsemblesFilePaths[i])
-					set_PRAGMAs(con, PRAGMA_settings2)
-				}
-			
-				for(j in seq_along(ensemble.families)) {
-					for(k in seq_along(ensemble.levels)) {
-						EnsembleFamilyLevelTables<-paste(ensemble.families[j],"_rank_",formatC(ensemble.levels[k], width=2, flag="0"),"_",c("means","sds",if(save.scenario.ranks) "scenarioranks"),sep="")
-						if(grepl(patter="overall",respName[i],ignore.case=TRUE)) {
-							RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", meanString, ");", sep=""))
-							RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", sdString, ");", sep=""))
-							if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=meanString), ");", sep=""))
-						} else {
-							agg.analysis <- switch(EXPR=respName[i], AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-							if(agg.analysis == 1){
-								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailySQL, ");", sep=""))
-								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailySQL, ");", sep=""))
-								if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailySQL), ");", sep=""))
-							} else {
-								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[1],"\" (", dailyLayersSQL, ");", sep=""))
-								RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[2],"\" (", dailyLayersSQL, ");", sep=""))
-								if(save.scenario.ranks) RSQLite::dbGetQuery(con,paste("CREATE TABLE \"",EnsembleFamilyLevelTables[3],"\" (", gsub(pattern="REAL",replacement="INTEGER",x=dailyLayersSQL), ");", sep=""))
-							}
-						}
-					}
-				}
-				dbDisconnect(con)
-			}
-		} else {
-			dbDisconnect(con)
-		}
-		return(dbOverallColumns)
+		dbOverallColumns
 	}
 	
 	dbOverallColumns <- try(.local(), silent=FALSE)
