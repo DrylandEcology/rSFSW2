@@ -152,6 +152,47 @@ aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates
 aon <- data.frame(t(as.numeric(aon.help[,-1])))
 names(aon) <- aon.help[,1]
 
+
+agg_fun_names <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
+if (length(agg_fun_names) == 0)
+	stop("There must be at least one aggregating function")
+
+it <- which("quantile" == agg_fun_names)
+if (length(it) > 0) {
+	probs <- agg_fun_options[["quantile"]][["probs"]]
+	if (length(probs) == 0 || any(probs < 0) || any(probs > 1) || !is.finite(probs))
+		stop("If the aggregating function 'quantile' is selected, then the 'probs' entry of ",
+				"the 'quantile' options in 'agg_fun_options' must be set correctly.")
+
+	agg_fun_names <- c(
+		if (it > 0) agg_fun_names[1:(it - 1)],
+		paste("quantile", format(probs), sep = "_"),
+		if (it < length(agg_fun_names)) agg_fun_names[(it + 1):length(agg_fun_names)]
+	)
+}
+
+sim_windows <- c(
+	current = list(simstartyr:endyr),
+	future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+)
+
+agg_years_bad <- sapply(agg_years, function(x) any(!(diff(x) == 1)))
+if (any(agg_years_bad))
+	stop("Aggregation time windows must be continuous sequences of years; ",
+			"check: ", paste0(names(agg_years)[agg_years_bad], collapse = ", "))
+agg_years_bad <- sapply(agg_years, function(x)
+	all(sapply(sim_windows, function(sw) length(setdiff(x, sw)) > 0)))
+if (any(agg_years_bad))
+	stop("Aggregation time windows are set outside simulation time windows; ",
+			"check: ", paste0(names(agg_years)[agg_years_bad], collapse = ", "))
+
+agg_windows <- as.data.frame(matrix(NA, nrow = length(agg_years), ncol = 3,
+													dimnames = list(NULL, c("label", "agg_start", "agg_end")))) # column names are used in part 2 to set up table 'aggregation_timewindows' of output DB
+agg_windows[, "label"] <- names(agg_years)
+agg_windows[, c("agg_start", "agg_end")] <- t(sapply(agg_years, function(x) range(x)))
+
+
+
 #------import data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
