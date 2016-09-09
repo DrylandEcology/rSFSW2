@@ -5779,7 +5779,6 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(circular,quietly = TRUE))
 			mpi.bcast.cmd(library(SPEI,quietly = TRUE))
 			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-			#mpi.bcast.cmd(con<-DBI::dbConnect(RSQLite::SQLite(),dbWeatherDataFile))
 
 			mpi.bcast.cmd(work())
 
@@ -5856,7 +5855,6 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
 			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
 			snow::clusterEvalQ(cl, library(Rsoilwat31,quietly=TRUE))
-			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
 			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
@@ -5870,6 +5868,7 @@ tryCatch({
 			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
 
 			snow::clusterEvalQ(cl, dbConnected <- FALSE)
+			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
 				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
