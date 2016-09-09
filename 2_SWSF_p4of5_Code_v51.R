@@ -1303,7 +1303,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #-----------------------Check for experimentals
 	if(expN > 0 && length(create_experimentals) > 0) {
 		i_exp <- it_exp(i_sim, runsN_master)
-		i_labels <- paste(flag.icounter, sw_input_experimentals[i_exp,1], i_labels, sep="_")
+		i_label <- paste(flag.icounter, sw_input_experimentals[i_exp,1], i_labels, sep="_")
 
 		#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 		i_sw_input_treatments <- transferExpDesignToInput(i_sw_input_treatments, i_exp,
@@ -1318,7 +1318,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 
 #------------------------Preparations for simulation run
-	if(!be.quiet) print(paste(i_sim, ":", i_labels, "started at ", time.sys))
+	if(!be.quiet) print(paste(i_sim, ":", i_label, "started at ", time.sys))
 
 
 	#Check what needs to be done
@@ -1337,7 +1337,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
 	if (saveRsoilwatInput || saveRsoilwatOutput) {
-		temp <- file.path(dir.sw.runs, i_labels)
+		temp <- file.path(dir.sw.runs, i_label)
 		dir.create2(temp, showWarnings = FALSE)
 		f_sw_input <- file.path(temp, "sw_input.RData")
 		f_sw_output <- file.path(temp, "sw_output.RData")
@@ -1963,7 +1963,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					this_soil <- soildat[l, ]
 				} else {
 					#swLog_setLine(swRunScenariosData[[1]]) <- missingtext
-					print(paste("Site", i_sim, i_labels, ": Layer ",l,": soil data missing for this layer -> data used from previous layer */"))
+					print(paste("Site", i_sim, i_label, ": Layer ",l,": soil data missing for this layer -> data used from previous layer */"))
 					this_soil <- c(soildat[l, "depth"], this_soil[2:3], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[l,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
 				}
 				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
@@ -1984,7 +1984,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		check_clay <- !is.na(temp) & temp > 0 & temp <= 1
 		
 		if (!all(check_depth, check_density, check_gravel, check_sand, check_clay)) {
-			print(paste("Run:", i_sim, i_labels, ": soil data didn't pass quality test."))
+			print(paste("Run:", i_sim, i_label, ": soil data didn't pass quality test."))
 			print(this_soil)
 			tasks$create <- 0L
 		}
@@ -2094,7 +2094,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		
 		#Check that extraction of weather data was successful
 		if(inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-			if(!be.quiet) print(paste(i_sim, i_labels, "i_sw_weatherList ERROR:", i_sw_weatherList))
+			if(!be.quiet) print(paste(i_sim, i_label, "i_sw_weatherList ERROR:", i_sw_weatherList))
 			tasks$create <- 0L
 		}
 
@@ -2319,7 +2319,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
 				#temporaly save data
-				#out.temp <- data.frame(i_sim, i_labels, soilTUpper, soilTlower)
+				#out.temp <- data.frame(i_sim, i_label, soilTUpper, soilTlower)
 				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_atLowerBoundary.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
 			if(sw_input_site_use$SoilTempC_atUpperBoundary) {
@@ -2332,7 +2332,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
 				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
-				#out.temp <- data.frame(i_sim, i_labels, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
+				#out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
 				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
 
@@ -2626,7 +2626,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			if(nrow(temp) > 0 && temp[1, 2] >= 1 ||
 				max(temp[, 2]) <= max.tri.root ) TRRG_done <- TRUE
 
-			if(print.debug) print(paste0(i_labels, " created scenario ", sc, ": tasks = ", paste(tasks, collapse=", "), ", evco = ", EVCO_done, ", trco = ", TRCO_done, ", trrg = ", TRRG_done))
+			if(print.debug) print(paste0(i_label, " created scenario ", sc, ": tasks = ", paste(tasks, collapse=", "), ", evco = ", EVCO_done, ", trco = ", TRCO_done, ", trrg = ", TRRG_done))
 		}#end do scenario creations
 
 		if(!EVCO_done){
@@ -2650,16 +2650,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	if(makeInputForExperimentalDesign && expN > 0 && length(create_experimentals) > 0) {
 		#This file will be used to remake the input files for experimentals
-		infiletext <- c(paste(i_labels, paste(i_SWRunInformation[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soillayers[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_treatments[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_cloud[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_prod[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_site[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_soils[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_weather[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
-		infiletext <- c(infiletext, paste(i_labels, paste(i_sw_input_climscen_values[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(paste(i_label, paste(i_SWRunInformation[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soillayers[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_treatments[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_cloud[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_prod[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_site[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soils[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_weather[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
+		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen_values[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
 
 		infilename <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "Experimental_InputData_All.csv", sep="")
 		infile <- file(infilename, "w+b")
@@ -2725,7 +2725,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
 						swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
-						if (print.debug) print(paste("Site", i_sim, i_labels, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met." ))
+						if (print.debug) print(paste("Site", i_sim, i_label, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met." ))
 						
 						runData[[sc]] <- try(sw_exec(inputData = swRunScenariosData[[sc]],
 											 weatherList = i_sw_weatherList[[scw]],
@@ -3804,7 +3804,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             }
 
             if (calc50 || any(calcMCS) || any(calcLanh)) {
-              if (!be.quiet) print(paste0(i_labels, " interpolated soil layers for NRCS soil regimes",
+              if (!be.quiet) print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
                   " because of insufficient soil layers: required would be {",
                     paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
                     "} and available are {",
@@ -4060,14 +4060,14 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
             } else {
               if (!be.quiet)
-                print(paste0(i_labels, "Number of normal years not long enough to calculate NRCS Soil Moisture Regimes. Try increasing length of simulation"))
+                print(paste0(i_label, "Number of normal years not long enough to calculate NRCS Soil Moisture Regimes. Try increasing length of simulation"))
               Sregime[] <- NA
               Tregime[] <- NA
             }
 
           } else {
             if (!be.quiet)
-              print(paste0(i_labels, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
+              print(paste0(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
 
             Tregime[] <- NA
             Sregime[] <- NA
@@ -5389,10 +5389,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 									paste("Days", colnames(SeedlingMortality_CausesByYear), sep="_"),
 									paste(rep(c("Start90%", "Median", "End90%"), times=2), rep(c("DoyMostFrequent_GerminationSuccess", "DoyMostFrequent_SeedlingSurvival1stSeason"), each=3), sep="_"))
 							colnames(res.yr) <- c("Year", temp.header2)
-							write.csv(res.yr, file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.csv", sep="")))
+							write.csv(res.yr, file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_label, "_", colnames(param.species_regeneration)[sp], "_Regeneration.csv", sep="")))
 
 							#Plot with data for every day
-							pdf(file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_labels, "_", colnames(param.species_regeneration)[sp], "_Regeneration.pdf", sep="")),
+							pdf(file=file.path(dir.at, paste("Scenario", formatC(sc-1, width=2, format="d", flag="0"), "_", climate.conditions[sc], "_", i_label, "_", colnames(param.species_regeneration)[sp], "_Regeneration.pdf", sep="")),
 									width=max(4, 2*length(simTime$index.useyr)), height=4.5)
 							op <- par(mar=c(1, 3, 0.1, 0.1), mgp=c(2, 0.5, 0), las=1)
 							ylim <- c(-17.5, max(max(snow, na.rm=TRUE), max(Germination_TimeToGerminate, na.rm=TRUE)))
@@ -5409,7 +5409,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							points(xp, ifelse(Germination_RestrictedByTimeToGerminate, -10, NA), col="black", pch=4, cex=p.cex)
 							points(xp, ifelse(!Germination_AtAboveTmin, -12.5, NA), col=gray(0.3), pch=4, cex=p.cex)
 							points(xp, ifelse(!Germination_AtMoreThanTopSWPmin, -15, NA), col=gray(0.7), pch=4, cex=p.cex)
-							mtext(i_labels)
+							mtext(i_label)
 							legend("topright", legend=c("SWE", "Time to germinate", "Seedling survival", "Emergence", "Too short favorable conditions", "Too cold", "Too dry"),
 									bty="n", lty=c(1, 1, -1, 1, -1, -1, -1), pch=c(-1, -1, 19, -1, 4, 4, 4), col=c("black", "red", "green", "blue", "black", gray(0.3), gray(0.7)), merge=TRUE)
 							par(op)
@@ -5612,10 +5612,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		#ETA estimation
 		dt <- difftime(Sys.time(), time.sys, units="secs")
 		times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
-		if(!be.quiet) print(paste(i_sim, ":", i_labels, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN_total*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN_total-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))
+		if(!be.quiet) print(paste(i_sim, ":", i_label, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN_total*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN_total-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))
 		write.table(data.frame(i=i_sim,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
 	} else {
-		print(paste(i_sim, ":", i_labels, " unsuccessful:", paste(names(tasks), "=", tasks, collapse=", ")))
+		print(paste(i_sim, ":", i_label, " unsuccessful:", paste(names(tasks), "=", tasks, collapse=", ")))
 	}
 	
 	on.exit()
