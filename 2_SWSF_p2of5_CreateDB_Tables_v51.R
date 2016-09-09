@@ -152,22 +152,33 @@ PRAGMA_settings2 <- c(PRAGMA_settings1,
 					  "PRAGMA foreign_keys = ON;") #no return value
 
 if(length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2)
-headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
+headerTables <- c("runs", "sqlite_sequence", "header", "run_labels", "scenario_labels",
+                  "sites", "experimental_labels", "treatments", "simulation_years",
+                  "weatherfolders", "aggregation_functions", "aggregation_timewindows",
+                  "Meta")
 
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
+if (length(Tables) == 0 || cleanDB) {
 
-if (length(Tables) == 0 || do.clean) {
+	.local <- function() {
 
-	.local <- function(){
-
-		if(do.clean && length(dbListTables(con)) > 0){
+		if (cleanDB && length(dbListTables(con)) > 0){
 			unlink(name.OutputDB)
 			con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 			set_PRAGMAs(con, PRAGMA_settings2)
 		}
+
+		#############meta-data table#########################
+    # Meta information
+    stopifnot(DBI::dbIsValid(con))
+    DBI::dbGetQuery(con, "CREATE TABLE \"Meta\" (\"Desc\" TEXT PRIMARY KEY, \"Value\" TEXT);")
+    RSQLite::dbGetPreparedQuery(con, "INSERT INTO Meta VALUES(:Desc, :Value)",
+      bind.data = data.frame(Desc = c("Version", "DateTime_Creation"),
+                  Value = c("2.0.0", format(Sys.time(), usetz = TRUE))))
+		##################################################
 
 		######################
 	
@@ -468,6 +479,23 @@ if (length(Tables) == 0 || do.clean) {
 		}
 		RSQLite::dbCommit(con)
 		##################################################
+
+		##############agg_fun table###############
+		RSQLite::dbGetQuery(con, "CREATE TABLE aggregation_functions(id INTEGER PRIMARY KEY AUTOINCREMENT, agg_fun TEXT UNIQUE NOT NULL);")
+		RSQLite::dbBegin(con)
+		RSQLite::dbGetPreparedQuery(con, "INSERT INTO aggregation_functions VALUES(NULL, :agg_fun);",
+			bind.data = data.frame(label = agg_fun_names, stringsAsFactors = FALSE))
+		RSQLite::dbCommit(con)
+		##################################################
+
+		##############aggregating time windows table###############
+		stopifnot(c("label", "agg_start", "agg_end") %in% names(agg_windows))
+		RSQLite::dbGetQuery(con, "CREATE TABLE aggregation_timewindows(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL, agg_start INTEGER, agg_end INTEGER);")
+		RSQLite::dbBegin(con)
+		RSQLite::dbGetPreparedQuery(con, "INSERT INTO aggregation_timewindows VALUES(NULL, :label, :agg_start, :agg_end);",
+			bind.data = agg_windows)
+		RSQLite::dbCommit(con)
+		##################################################
 	
 	
 		#####################runs table###################
@@ -548,6 +576,7 @@ if (length(Tables) == 0 || do.clean) {
 			"treatments.simulation_years_id=simulation_years.id;"
 		))
 		##################################################
+
 	
 	#B. Aggregation_Overall
 	
@@ -1034,62 +1063,71 @@ if (length(Tables) == 0 || do.clean) {
 
 		#---Aggregation: done with options
 	
+		#---Overall aggregation table
 		#Convert '.' to "_"
-		temp <- gsub(".", "_", temp, fixed=TRUE)
-		
+		temp <- gsub(".", "_", temp, fixed=TRUE)		
 		dbOverallColumns <- length(temp)
 	
-		if (dbOverallColumns > 0)
-			temp <- paste(paste("\"", temp, "\"",sep=""), " REAL", collapse = ", ")
-			
-		meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", temp), collapse = ", ")
-		sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", gsub("_mean", "_sd", temp)), collapse = ", ")
+		if (dbOverallColumns > 0) {
+			temp <- paste(paste0("\"", temp, "\""), "REAL", collapse = ", ")
+    
+      overallSQL <- paste0("CREATE TABLE \"aggregation_overall\" (",
+                      paste(c("\"P_id\" INTEGER",
+                            "\"aggfun_id\" INTEGER",
+                            "\"aggwindow_id\" INTEGER",
+                            temp,
+                            "PRIMARY KEY (\"P_id\", \"aggfun_id\",  \"aggwindow_id\")"),
+                          collapse = ", "),
+                      ");")
+    
+      rs <- RSQLite::dbGetQuery(con, overallSQL)
+    }
 	
-		SQL_Table_Definitions1 <- paste("CREATE TABLE \"aggregation_overall_mean\" (", meanString, ");", sep="")
-		SQL_Table_Definitions2 <- paste("CREATE TABLE \"aggregation_overall_sd\" (", sdString, ");", sep="")
+		#---Daily aggregation table(s)
+		if (!is.null(output_aggregate_daily)) {
+			doy_colnames <- paste0("doy", formatC(seq_len(366), width = 3, format = "d", flag = "0"))
+			doy_colnames <- paste(paste0("\"", doy_colnames, "\""), "REAL", collapse = ", ")
 		
-		rs <- RSQLite::dbGetQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-		rs <- RSQLite::dbGetQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
-	
-		if(!is.null(output_aggregate_daily)) {
-			doy_colnames <- paste("doy", formatC(1:366, width=3, format="d", flag="0"), sep="")
-			doy_colnames <- paste(paste("\"", doy_colnames, "\"",sep=""), " REAL", collapse = ", ")
+			dailySQL <- paste(c("\"P_id\" INTEGER",
+													"\"aggfun_id\" INTEGER",
+													"\"aggwindow_id\" INTEGER",
+													doy_colnames,
+													"PRIMARY KEY (\"P_id\", \"aggfun_id\",  \"aggwindow_id\")"),
+												collapse = ", ")
+			dailyLayersSQL <- paste(c("\"P_id\" INTEGER",
+													"\"aggfun_id\" INTEGER",
+													"\"aggwindow_id\" INTEGER",
+													"\"Soil_Layer\" INTEGER",
+													doy_colnames,
+													"PRIMARY KEY (\"P_id\", \"aggfun_id\",  \"aggwindow_id\", \"Soil_Layer\")"),
+												collapse = ", ")
 		
-			dailySQL <-paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
-			dailyLayersSQL <-paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER", doy_colnames,"PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
-		
-			if(any(simulation_timescales=="daily") && daily_no > 0) {
-				for(doi in 1:daily_no) {
+			if (any(simulation_timescales == "daily") && daily_no > 0) {
+				for (doi in seq_len(daily_no)) {
 					if(regexpr("SWAbulk", output_aggregate_daily[doi]) > 0){
 						agg.resp <- "SWAbulk"
 						#index.SWPcrit <- -as.numeric(sub("kPa", "", sub("SWAatSWPcrit", "", output_aggregate_daily[doi])))/1000
 					} else {
 						agg.resp <- output_aggregate_daily[doi]
 					}
-					#"VWCbulk","VWCmatric", "SWCbulk", "SWPmatric","SWAbulk"
-					agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-					tableName <- paste("aggregation_doy_", output_aggregate_daily[doi], sep="")
 				
-					if(agg.analysis == 1){
-						SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailySQL, ");", sep="")
-						SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailySQL, ");", sep="")
-						rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-						dbClearResult(rs)
-						rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
-						dbClearResult(rs)
-					} else {
-						SQL_Table_Definitions1 <- paste("CREATE TABLE \"",tableName,"_Mean\" (", dailyLayersSQL, ");", sep="")
-						SQL_Table_Definitions2 <- paste("CREATE TABLE \"",tableName,"_SD\" (", dailyLayersSQL, ");", sep="")
-						rs <- dbSendQuery(con, paste(SQL_Table_Definitions1, collapse = "\n"))
-						dbClearResult(rs)
-						rs <- dbSendQuery(con, paste(SQL_Table_Definitions2, collapse = "\n"))
-						dbClearResult(rs)
-					}
-				
+          def_dailySQL <- paste0("CREATE TABLE \"",
+            paste0("aggregation_doy_", output_aggregate_daily[doi]),
+            " (",
+            if (agg.resp %in% c("Transpiration", "SoilTemperature", "VWCbulk",
+                                "VWCmatric", "SWCbulk", "SWPmatric", "SWAbulk")) {
+              dailyLayersSQL
+            } else {
+              dailySQL
+            },
+            ");")
+          
+          rs <- RSQLite::dbGetQuery(con, def_dailySQL)				
 				}
 			}
 		}
 
+		RSQLite::dbDisconnect(con)
 		
 		##########################################ENSEMBLE GENERATION#################################################
 		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
@@ -1145,15 +1183,16 @@ if (length(Tables) == 0 || do.clean) {
 	}
 	
 	dbOverallColumns <- try(.local(), silent=FALSE)
-	if(inherits(dbOverallColumns, "try-error")){
-		temp <- list.files(dir.out, pattern=".sqlite3", full.names=TRUE)
+	
+	if (inherits(dbOverallColumns, "try-error")) {
+		temp <- list.files(dir.out, pattern = ".sqlite3", full.names = TRUE)
 		temp <- lapply(temp, unlink)
-		stop(paste("Creation of databases failed:", dbOverallColumns, collapse=", "))
+		stop(paste("Creation of databases failed:", dbOverallColumns, collapse = ", "))
 	}
+	
 } else {
-	dbOverallColumns <- length(dbListFields(con,"aggregation_overall_mean"))-1
+	dbOverallColumns <- length(dbListFields(con, "aggregation_overall")) - 3L # c("P_id", "aggfun_id",  "aggwindow_id")
 }
 
 
-
-rm(Tables, do.clean)
+rm(Tables)
