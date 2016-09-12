@@ -144,7 +144,7 @@ dir.remove <- compiler::cmpfun(function(dir){
 
 isLeapYear <- compiler::cmpfun(function(y) {
   #from package: tis
-  y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)	
+  y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)
 })
 
 #' Iterator functions
@@ -165,33 +165,33 @@ isLeapYear <- compiler::cmpfun(function(y) {
 #'        - Note: loop2b is a subset of loop2a (1...runsN_master)
 #'    - column 'include_YN' reduces 'site_id' to 'runIDs_sites'
 #'    - 'site_id' and 'P_id' are invariant to 'include_YN'
-#' 
+#'
 #'  * Master input file: column 'include_YN' selects rows which are included in the simulation
 #'    - Note: rows of the master input file correspond to rows of the treatment input file
 #'    - column 'site_id' == consecutive identification numbers of all rows in the master file; this is treated as a unique (and stable) identifier of a site
-#'    - runsN_master == number of rows in the master file 
+#'    - runsN_master == number of rows in the master file
 #'    - runsN_sites == number of rows in the master file that are included (runsN_sites <= max(site_id))
 #'    - runIDs_sites == identification of rows in the master file that are included
-#' 
+#'
 #'  * Experimental input file: each row defines a condition which is applied to every runIDs_sites
 #'    - expN == number of experimental treatments
-#' 
+#'
 #'  * The function 'do_OneSite' will be called n-times with n = runsN_total
 #'    - runsN_total == (number of included sites) x (number of experimental treatments)
 #'    - runIDs_total == consecutive identification numbers along runsN_total
 #'    - runIDs_done == values of runIDs_total that have already been processed by 'do_OneSite'
 #'    - runIDs_todo == values of runIDs_total that await simulation by 'do_OneSite'
 #'    - runsN_todo == number of runIDs_total that await simulation by 'do_OneSite'
-#' 
+#'
 #'  * The function 'do_OneSite' could be called n-times with n = runsN_incl if all 'include_YN' were on
 #'    - runsN_incl == (number of sites) x (number of experimental treatments)
-#' 
+#'
 #'  * The variable 'climate.conditions' defines climate conditions that are applied to each 'runIDs_total'
 #'    - scenario_No == number of climate conditions
-#' 
+#'
 #'  * A grand total of n = runsN_Pid SoilWat runs could be carried out (n == number of rows in the output database)
 #'    - runsN_Pid == max(P_id) == runsN_incl x scenario_No
-#'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database 
+#'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database
 #'
 #' @name iterators
 NULL
@@ -235,7 +235,7 @@ exportObjects <- compiler::cmpfun(function(allObjects) {
   }
   print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
 })
-    
+
 load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
   if(!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
   invisible(0)
@@ -333,7 +333,7 @@ simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
   temp <- as.POSIXlt(paste0(startyr, "-01-01"))
-  
+
   res[["useyrs"]] <- startyr:endyr
 
   res[["no.useyr"]] <- endyr - startyr + 1
@@ -353,7 +353,7 @@ simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
 
 simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, latitude = 90, account_NorthSouth = TRUE) {	#positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
   res <- list()
-  
+
   if (any(sim_tscales == "daily")) {
     temp <- as.POSIXlt(seq(from = as.POSIXlt(paste0(min(st$useyrs), "-01-01")),
                            to = as.POSIXlt(paste0(max(st$useyrs), "-12-31")),
@@ -362,7 +362,7 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
     res$doy_ForEachUsedDay <- res$doy_ForEachUsedDay_NSadj <- temp$yday + 1
     res$month_ForEachUsedDay <- res$month_ForEachUsedDay_NSadj <- temp$mon + 1
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
-    
+
     if (latitude < 0 && account_NorthSouth) {
       dshift <- as.POSIXlt(paste(st$useyrs, 6, 30, sep = "-"))$yday + 1	#new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy=366, there are two with doy=182
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
@@ -378,20 +378,20 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
       )
     }
   }
-  
+
   if (any(sim_tscales == "weekly")) {
 
   }
-  
+
   if (any(sim_tscales == "monthly")) {
     res$yearno_ForEachUsedMonth <- res$yearno_ForEachUsedMonth_NSadj <- rep(seq_len(st$no.useyr), each = 12)
     res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(st_mo, times = st$no.useyr)
-    
+
     if (latitude < 0 && account_NorthSouth) {
       res$month_ForEachUsedMonth_NSadj <- (res$month_ForEachUsedMonth + 5) %% 12 + 1
     }
   }
-  
+
   if (any(sim_tscales == "yearly")) {
 
   }
@@ -435,21 +435,21 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
   if (no.yrs > 0) for (y in seq_len(no.yrs)) {
       x <- Rsoilwat31::get_swWeatherData(weatherList, years[y])@data[, c("Tmax_C", "Tmin_C", "PPT_cm"), drop = FALSE]
       temp.dailyTempMean <- rowMeans(x[, c("Tmax_C", "Tmin_C")])
-    
+
       if (do.C4vars) {
         dailyTempMin <- c(dailyTempMin, x[, "Tmin_C"])
         dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
       }
-    
+
       month_forEachDoy <- as.POSIXlt(seq(from = as.POSIXlt(paste0(years[y], "-01-01")),
                                          to = as.POSIXlt(paste0(years[y], "-12-31")),
                                          by = "1 day"))$mon + 1
-    
+
       tempMean <- tempMean + tapply(temp.dailyTempMean, month_forEachDoy, mean)
       tempMin <- tempMin + tapply(x[, "Tmin_C"], month_forEachDoy, mean)
       tempMax <- tempMax + tapply(x[, "Tmax_C"], month_forEachDoy, mean)
       mat <- c(mat, mean(temp.dailyTempMean))
-    
+
       ppt <- ppt + tapply(x[, "PPT_cm"], month_forEachDoy, sum)
       #map <- c(map, sum(x[, "PPT_cm"]))
     }
@@ -467,7 +467,7 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
     res[["dailyTempMin"]] <- dailyTempMin
     res[["dailyTempMean"]] <- dailyTempMean
     res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
-  
+
   } else {
     res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
   }
@@ -664,7 +664,7 @@ predict.season <- compiler::cmpfun(function(biomass_Standard, std.season.padded,
   op <- options(c("warn", "error"))
   on.exit(options(op))
   options(warn = -1, error = traceback) #loess throws many warnings: 'pseudoinverse used', see calc.loess_coeff(), etc.
-  
+
   sapply(apply(biomass_Standard, 2, function(x) {
       lf <- loess(x[std.season.padded] ~ std.season.seq, span = lcoef$span, degree = lcoef$degree)
       predict(lf, newdata = data.frame(std.season.seq = site.season.seq))
@@ -688,7 +688,7 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
   #Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
   Shrub_ANPPintercept <- (vegcomp_std_shrubs[1] * biom_maxs["Sh.Amount.Live"] +
                           vegcomp_std_shrubs[2] * biom_maxs["C3.Amount.Live"] +
-                          vegcomp_std_shrubs[3] * biom_maxs["C4.Amount.Live"]) - 
+                          vegcomp_std_shrubs[3] * biom_maxs["C4.Amount.Live"]) -
                         Shrub_ANPP(map_mm_std_shrubs)
   Grasses_ANPPintercept <- (vegcomp_std_grass[1] * biom_maxs["Sh.Amount.Live"] +
                             vegcomp_std_grass[2] * biom_maxs["C3.Amount.Live"] +
@@ -736,7 +736,7 @@ calc_starts <- compiler::cmpfun(function(x) {
   temp2[-length(temp2)][temp1$values]
 })
 
-AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom, 
+AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
                 do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
                 fgrass_c3c4ann, growing_limit_C = 4,
                 isNorth = TRUE, MAP_mm = 450, monthly.temp) {
@@ -802,7 +802,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         biom_annuals[] <- matrix(apply(biom_std_annuals[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
       }
     }
-    
+
     #Adjust for timing and duration of growing season
     if (n_season > 0) {
       if (n_season < 12) {
@@ -825,7 +825,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         biom_annuals[] <- matrix(apply(biom_std_annuals[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
       }
     }
-    
+
     if (!isNorth) { #Adjustements were done as if on northern hemisphere
       biom_shrubs <- rbind(biom_shrubs[7:12,], biom_shrubs[1:6,])
       biom_C3 <- rbind(biom_C3[7:12,], biom_C3[1:6,])
@@ -833,7 +833,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
       biom_annuals <- rbind(biom_annuals[7:12,], biom_annuals[1:6,])
     }
   }
-  
+
   # if (do_adjBiom_by_ppt) then adjust biomass amounts by productivity relationship with MAP
   temp <- adjBiom_by_ppt(
     biom_shrubs, biom_C3, biom_C4, biom_annuals,
@@ -853,7 +853,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
   biom_grasses <- biom_C3 * fgrass_c3c4ann[1] +
                   biom_C4 * fgrass_c3c4ann[2] +
                   biom_annuals * fgrass_c3c4ann[3]
-  
+
   list(grass = as.matrix(biom_grasses),
        shrub = as.matrix(biom_shrubs))
 })
@@ -868,7 +868,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
 TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
   soillayer_no, trco_type, layers_depth,
   adjustType = c("positive", "inverse", "allToLast")) {
-  
+
   #extract data from table by category
   trco.code <- as.character(tr_input_code[, which(colnames(tr_input_code) == trco_type)])
   trco <- rep(0, times = soillayer_no)
@@ -913,31 +913,31 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+circ_mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
     x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
-  
+
     round(as.numeric(x_int) - 1, 13) %% int + 1	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
   } else {
     NA
   }
 })
 
-circ.range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+circ_range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
     x_int <- range(x_circ, na.rm = na.rm) / circ
     as.numeric(x_int)
-    
+
   } else {
     NA
   }
 })
 
-circ.sd <- compiler::cmpfun(function(x, int, na.rm=FALSE){
+circ_sd <- compiler::cmpfun(function(x, int, na.rm = FALSE){
   if (length(x) - sum(is.na(x)) > 1) {
     if (sd(x, na.rm = TRUE) > 0) {
       circ <- 2 * pi / int
@@ -969,19 +969,19 @@ circ_sum <- compiler::cmpfun(function(x, y, int) {
 })
 
 circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, low = FALSE, high = FALSE) {
-  if (na.rm) 
+  if (na.rm)
       x <- x[!is.na(x)]
   n <- length(x)
-  
+
   if (n > 1) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
     m <- circular::median.circular(x_circ, na.rm = FALSE)
-		
+
     d <- abs(x_circ - m)
-		
+
     constant * if ((low || high) && n %% 2 == 0) {
-        if (low && high) 
+        if (low && high)
             stop("'low' and 'high' cannot be both TRUE")
         n2 <- n %/% 2 + as.integer(high)
         sort(as.numeric(d / circ), partial = n2)[n2]
@@ -994,7 +994,7 @@ circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, 
   }
 })
 
-circ_quantile <- compiler::cmpfun(function(x, probs, int, names = FALSE, type = 7, na.rm = FALSE) {
+circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names = FALSE, type = 7) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
@@ -1012,7 +1012,7 @@ circ_quantile <- compiler::cmpfun(function(x, probs, int, names = FALSE, type = 
 #' Saturation vapor pressure
 #'
 #' @param T A numeric vector of temperature(s) (deg C)
-#' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at 
+#' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at
 #'    temperature T
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
 vp0 <- compiler::cmpfun(function(T) {
@@ -1043,7 +1043,7 @@ vpd <- compiler::cmpfun(function(Tmin, Tmax, RHmean = NULL) {
 #'    value will be used if 0 or negative.
 #' @param na.rm A logical value
 #' @param ... Optional arguments to be passed to \code{fun}
-#' 
+#'
 #' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},
 #'    otherwise the result of applying \code{fun} to the k-largest values.
 fun_kLargest <- compiler::cmpfun(function(x, fun = NULL, k = 10L, na.rm = FALSE, ...) {
@@ -1062,10 +1062,10 @@ max.duration <- compiler::cmpfun(function(x, target_val = 1L, return_doys = FALS
 
   if (length(igood) > 0) {
     len <- max(r$lengths[igood])
-  
+
     if (return_doys) {
       imax <- which(rgood & r$lengths == len)[1]
-    
+
       rdoys <- cumsum(r$lengths)
       doys <- if (imax == 1L) {
           c(start = 1L, end = rdoys[1])
@@ -1074,7 +1074,7 @@ max.duration <- compiler::cmpfun(function(x, target_val = 1L, return_doys = FALS
             end = rdoys[imax])
         }
     }
-  
+
   } else {
     len <- 0L
     doys <- c(start = NA, end = NA)
@@ -1188,7 +1188,7 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
       if(length(swp) == 1 & length(sand) >= 1 | length(swp) >= 1 & length(sand) == 1){ #cases 1-3
         vwc <- pdf_to_vwc(swp, sand, clay, thetas=thetas, psis=psis, b=b)
         vwc <- handle_NAs(vwc, na.index, na.act)
-        
+
       } else if(length(swp) > 1 & length(sand) > 1){ #case 4
         vwc <- t(sapply(seq_along(swp), function(d) {
           temp <- pdf_to_vwc(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)
@@ -1208,7 +1208,7 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
         psis <- napredict(na.act, psis)
         thetas <- napredict(na.act, thetas)
         b <- napredict(na.act, b)
-        vwc <- sapply(seq_len(ncol(swp)), function(d) 
+        vwc <- sapply(seq_len(ncol(swp)), function(d)
           pdf_to_vwc(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d]))
       }
     }
@@ -1216,7 +1216,7 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
     vwc <- swp
     vwc[!is.na(vwc)] <- NA
   }
-  
+
   vwc #fraction m3/m3 [0, 1]
 })
 
@@ -1255,7 +1255,7 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
       if(length(vwc) == 1 & length(sand) >= 1 | length(vwc) >= 1 & length(sand) == 1){ #cases 1-3
         swp <- pdf_to_swp(vwc, sand, clay, thetas=thetas, psis=psis, b=b)
         swp <- handle_NAs(swp, na.index, na.act)
-        
+
       } else if(length(vwc) > 1 & length(sand) > 1){ #case 4
         swp <- t(sapply(seq_along(vwc), function(d) {
           temp <- pdf_to_swp(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)
@@ -1282,7 +1282,7 @@ VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
     swp <- vwc
     swp[!is.na(swp)] <- NA
   }
-  
+
   swp #MPa [-Inf, 0]
 })
 
@@ -1393,7 +1393,7 @@ fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
 })
 
 #' Split soil layer in two layers
-#' 
+#'
 #' @details The method \code{interpolate} calculates the weighted mean of the columns/layers
 #'  \code{il} and \code{il + 1}.
 #'  The method \code{exhaust} distributes the value of \code{il + 1} according to the weights.
@@ -1412,30 +1412,30 @@ add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate
 
   if (ncols > il) {
     x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
-  
+
     if (method == "interpolate") {
       x[, il + 1] <- if (il > 0) {
         (x[, il] * w[1] + x[, il + 2] * w[2]) / sum(w)
       } else {
         x[, il + 2]
       }
-    
+
     } else if (method == "exhaust") {
       x[, il + 1] <- x[, il + 2] * w[1] / sum(w)
       x[, il + 2] <- x[, il + 2] * w[2] / sum(w)
     }
-  
+
   } else if (ncols == il) {
     x <- x[, c(seq_len(ncols), NA)]
-  
+
     if (method == "interpolate") {
       x[, il + 1] <- x[, il]
-    
+
     } else if (method == "exhaust") {
       x[, il + 1] <- x[, il] * w[2] / sum(w)
       x[, il] <- x[, il] * w[1] / sum(w)
     }
-  
+
   } else {
     stop("Object x has ", ncols, " columns; thus, a new ", il, "-th column cannot be created")
   }
@@ -1529,7 +1529,7 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
       1L
     }
 
-  temp1 <- scaler * slot(slot(x[[sc_i]], response), 
+  temp1 <- scaler * slot(slot(x[[sc_i]], response),
     switch(tscale,
       dy = "Day", dyAll = "Day",
       mo = "Month", moAll = "Month",
@@ -1563,9 +1563,9 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
     index.usetimestep <- seq_len(nrow(temp1))
     timestep_ForEachEntry <- NULL
   }
-  
+
   layers <- seq_len((ncol(temp1) - index.col) / responseRepeats)
-  
+
   #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
   if (max(layers) <= max(topL)) {
     topL <- layers
@@ -1573,7 +1573,7 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
   } else if (max(layers) < max(bottomL)) {
     bottomL <- min(bottomL):max(layers)
   }
-  
+
   res <- list()
   res[["top"]] <- if (length(topL) > 1) {
       if (is.null(weights)) {
@@ -1600,25 +1600,25 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
     res[["aggMean.top"]] <- aggregate(res[["top"]], by = list(timestep_ForEachEntry), mean)[,2]
     res[["aggMean.bottom"]] <- aggregate(res[["bottom"]], by = list(timestep_ForEachEntry), mean)[,2]
   }
-  
+
   if (tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll") {
      res[["val"]] <- temp1
   }
-  
+
   res
 })
 
 get_SWPmatric_aggL <- compiler::cmpfun(function(vwcmatric, texture, sand, clay) {
   res <- list()
-  
+
   res[["top"]] <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
   res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom, texture$clay.bottom)
-  
+
   if (!is.null(vwcmatric$aggMean.top)) {
     res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top, texture$clay.top)
     res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
   }
-  
+
   if (!is.null(vwcmatric$val)) {
     if (all(as.integer(vwcmatric$val[, 2]) == vwcmatric$val[, 2])) {
       index.header <- 1:2
@@ -1627,7 +1627,7 @@ get_SWPmatric_aggL <- compiler::cmpfun(function(vwcmatric, texture, sand, clay) 
     }
     res[["val"]] <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
   }
-  
+
   res
 })
 
@@ -1659,7 +1659,7 @@ get_VPD_mo <- compiler::cmpfun(function(sc, temp.mo, xin, st2) {
 get_VPD_dy <- compiler::cmpfun(function(sc, temp.dy, xin, st2) {
   rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
-  
+
   list(mean = vpd(temp.dy$min, temp.dy$max, rH))
 })
 
@@ -1805,7 +1805,7 @@ ExtractLookupWeatherFolder <- compiler::cmpfun(function(dir.weather, weatherfold
                             year = years[j],
                             data = data.matrix(data_sw, rownames.force = FALSE))
   }
-  
+
   names(weatherData) <- years
   weatherData
 })
@@ -1816,7 +1816,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
   #read data from Maurer et al. 2002
   weath.data <- try(read.table(file=file.path(dir_data, cellname), comment.char=""), silent=TRUE)
   weathDataList <- list()
-  
+
   if(!inherits(weath.data, "try-error")){
     colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 
@@ -1824,7 +1824,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
     date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
         to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
         by="1 day")
-    
+
     # conversion precipitation: mm/day -> cm/day
     data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
     colnames(data_all) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
@@ -1843,7 +1843,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
     names(weathDataList) <- as.character(years)
     weath.data <- weathDataList
   }
-  
+
   weathDataList
 })
 
@@ -1933,7 +1933,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- compiler::cmpfun(
   dm <- get_DayMet_cellID(xy_WGS84)
 
   get_DayMet_NorthAmerica(
-    dir_data = dir_data, 
+    dir_data = dir_data,
     cellID = dm$cellID[1],
     Xdm_WGS84 = dm$dm_WGS84[1, 1], Ydm_WGS84 = dm$dm_WGS84[1, 2],
     start_year, end_year)
@@ -1961,11 +1961,11 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
       print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at", paste(round(coords_WGS84[idm, ], 4), collapse="/")))
 
       weatherData <- get_DayMet_NorthAmerica(
-        dir_data = dir_data, 
+        dir_data = dir_data,
         cellID = dm$cellID[idm],
         Xdm_WGS84 = dm$dm_WGS84[idm, 1], Ydm_WGS84 = dm$dm_WGS84[idm, 2],
         start_year, end_year)
-      
+
       if (!inherits(weatherData, "try-error")) {
         # Store site weather data in weather database
         data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
@@ -1995,7 +1995,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir_data,
   site_ids, coords_WGS84, start_year, end_year,
   dir_temp = tempdir(), dbW_compression_type = "gzip", do_parallel = FALSE, ncores = 1L) {
-  
+
   print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
   NRC_years <- as.integer(list.dirs(path=dir_temp, recursive=FALSE, full.names=FALSE))
@@ -2055,11 +2055,11 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
 
   # Convert weather array to SoilWat weather objects for each sites
   NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
-  
+
   for (i in seq_along(site_ids)) {
     if (i %% 100 == 1)
       print(paste(Sys.time(), "storing NRC weather data of site_id", site_ids[i], i, "of", length(site_ids), "sites in database"))
-    
+
     weatherData <- list()
     for (iy in seq_along(NRC_target_years)) {
       doys <- if (isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
@@ -2100,19 +2100,19 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 # $ WeatherFolder: chr  ...
 # $ X_WGS84      : num  -117 -117 -117 -117 -120 ...
 # $ Y_WGS84      : num  32.8 32.8 32.8 32.8 38.9 ...
-  
+
   years <- yearLow:yearHigh
 
   # directory paths
   dir_temp_cfsr <- file.path(dir_temp, "temp_NCEFCFSR")
   dir_temp_sites <- file.path(dir_temp_cfsr, dat_sites[, "WeatherFolder"])
-  
-  # determine previous efforts		
+
+  # determine previous efforts
   if (continueAfterAbort) {
     i_done <- file.exists(dir_temp_sites)
     if (sum(i_done) > 0) {
       for (i in which(i_done)) {
-        i_done[i] <- 
+        i_done[i] <-
           if (monthly) {
             file.exists(file.path(dir_temp_sites[i], "mc.csv")) ||
             {file.exists(file.path(dir_temp_sites[i], "cc.txt")) &&
@@ -2132,7 +2132,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
       }
     }
     i_todo <- !i_done
-    
+
   } else {
     i_todo <- rep(TRUE, nrow(dat_sites))
   }
@@ -2141,14 +2141,14 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
   # do the extractions, loop over chunks of sites
   n_sites <- sum(i_todo)
   n_sites_all <- nrow(dat_sites)
-  
+
   if (n_sites > 0) {
     dat_sites_todo <- dat_sites[i_todo, ]
-    
+
     dir.create(dir_temp_cfsr, showWarnings = FALSE)
     temp <- lapply(dir_temp_sites, dir.create, showWarnings = FALSE)
     dir_temp.sitesC <- gsub("/", "//", normalizePath(dir_temp_sites)) # C-style paths; they cannot be relative to ~
-  
+
     n_years <- length(years)
     n_climvars <- n_dailyvars <- 3
     do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
@@ -2316,14 +2316,14 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 })
 
 
-GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year, 
+GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year,
   meta_cfsr, n_site_per_core = 100, do_parallel = FALSE, parallel_backend = "snow", cl = NULL,
   rm_temp = TRUE, continueAfterAbort = FALSE, dir_temp = tempdir(),
   dbW_compression_type = "gzip") {
-  
+
   #Citations: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
   # http://rda.ucar.edu/datasets/ds093.1/. Accessed 8 March 2012.
-  
+
   # do the extractions
   etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
     daily = TRUE, monthly =  FALSE,
