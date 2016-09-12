@@ -315,20 +315,21 @@ simulation_timescales <- c("daily", "monthly", "yearly")
 # functions to aggregate output across years
 #		don't delete names, only set \code{TRUE}/\code{FALSE}
 agg_funs <- list(
-	mean	= TRUE,
-	SD		= TRUE,
-	quantile = TRUE,
-	mad = TRUE,
-	yearly = TRUE
+  mean	= TRUE,
+  SD		= TRUE,
+  quantile = TRUE,
+  median = TRUE,
+  mad = TRUE,
+  yearly = TRUE
 )
 agg_fun_options <- list(
-	quantile = list(probs = c(0, 0.025, 0.5, 0.975, 1))
+  quantile = list(probs = c(0, 0.025, 0.5, 0.975, 1))
 )
 # named list of time windows to aggregate over
 agg_years <- c(
-	current1 = list(startyr:endyr),
-	current2 = list((endyr - 10):(endyr + 10)),
-	future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  current1 = list(startyr:endyr),
+  current2 = list((endyr - 10):(endyr + 10)),
+  future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
 )
 #turn aggregation for variable groups on (1) or off (0), don't delete any variable group labels
 output_aggregates <- c(
