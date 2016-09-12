@@ -155,6 +155,7 @@ names(aon) <- aon.help[,1]
 #------import data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
+do_check_include <- FALSE
 if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_preprocessed))) {
 	load(file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
 		envir = .GlobalEnv) # This however annihilates all objects in .GlobalEnv with the same names !
@@ -311,7 +312,7 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 		no.species_regeneration <- 0
 	}
 
-
+  do_check_include <- TRUE
 	save(SWRunInformation, include_YN, labels, sw_input_soillayers, sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, create_experimentals, sw_input_treatments_use_combined, create_treatments, sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use, sw_input_climscen_values, tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT, tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code, tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD, tr_VegetationComposition, param.species_regeneration, no.species_regeneration,
 		file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
 		compress = FALSE) # No compression for fast access; RDS may be slightly faster, but would require loop over assign(, envir = .GlobalEnv)
@@ -776,16 +777,23 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 	stopifnot(file.exists(dir.external))
 
 	source(file.path(dir.code, "2_SWSF_p3of5_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
+  do_check_include <- TRUE
+
+	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+}
 
 
-	# Check that include_YN* are inclusive
+
+#--------------------------------------------------------------------------------------------------#
+#------------------------CHECK THAT INCLUDE_YN* ARE INCLUSIVE
+if (do_check_include) {
 	includes_all_sources <- grep("Include_YN", colnames(SWRunInformation), ignore.case = TRUE, value = TRUE)
 	includes_sources <- includes_all_sources[-which(includes_all_sources == "Include_YN")]
 	if (length(includes_sources) > 0L) {
 		include_YN_sources <- apply(SWRunInformation[, includes_sources, drop = FALSE], 1, function(x) all(x > 0L))
 
 		if (all(include_YN_sources[include_YN > 0L])) {
-			if(!be.quiet) print(paste("External sources available for all requested SWSF simulation runs"))
+			if(!be.quiet) print(paste("Data sources available for all requested SWSF simulation runs"))
 
 		} else {
 			include_YN_available <- rep(0, runsN_master)
@@ -796,7 +804,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 			rm(include_YN_available)
 
-			stop("External sources not available for every requested SWSF simulation run. ",
+			stop("Data sources not available for every requested SWSF simulation run. ",
 				"New column 'include_YN_available' with updated information stored to MasterInput file 'SWRunInformation' on disk. ",
 				"SWSF is stopped so that you can bring 'include_YN' and 'include_YN_available' in agreement before running the simulations.")
 		}
@@ -805,8 +813,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 	}
 
 	rm(includes_all_sources, includes_sources)
-	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
 }
+#--------------------------------------------------------------------------------------------------#
 
 
 #--------------------------------------------------------------------------------------------------#
