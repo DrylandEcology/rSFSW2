@@ -96,7 +96,7 @@ dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated o
 #		- "concatenate": moves results from the simulation runs (temporary text files) to a SQL-database
 #		- "ensemble": calculates 'ensembles' across climate scenarios and stores the results in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
 actions <- c("create", "execute", "aggregate", "concatenate")
-#continues with unfinished part of simulation after abort if TRUE, i.e., 
+#continues with unfinished part of simulation after abort if TRUE, i.e.,
 #	- it doesn't delete an existing weather database, if a new one is requested
 #	- it doesn't re-extract external information (soils, elevation, climate normals, NCEPCFSR) if already extracted
 # - it doesn't lookup values from tables if already available in input datafiles, i.e., 'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and 'LookupSnowDensityFromTable'
@@ -147,7 +147,7 @@ dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this on
 
 #-Spatial setup of simulations
 # Should the locations of 'SWRunInformation' interpreted as 2D-cells of a raster/grid or as 1D-sites
-# sim_cells_or_points: currently, implemented for 
+# sim_cells_or_points: currently, implemented for
 # - actions == "map_inputs"
 # - external extractions:
 #	- soils: "ExtractSoilDataFromISRICWISEv12_Global", "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
