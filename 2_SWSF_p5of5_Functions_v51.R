@@ -409,15 +409,15 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
-  Month7th_MinTemp_C <- tapply(dailyTempMin[temp7], simTime2$year_ForEachUsedDay_NSadj[temp7]), min)
+  Month7th_MinTemp_C <- tapply(dailyTempMin[temp7], simTime2$year_ForEachUsedDay_NSadj[temp7], min)
   LengthFreezeFreeGrowingPeriod_Days <- tapply(dailyTempMin, simTime2$year_ForEachUsedDay_NSadj,
     function(x) {
       temp <- rle(x > 0)
       if (any(temp$values)) max(temp$lengths[temp$values], na.rm = TRUE) else 0
     })
-  temp_base65F <- x - (65 - 32) * 5 / 9
-  DegreeDaysAbove65F_DaysC <- tapply(dailyTempMean, simTime2$year_ForEachUsedDay_NSadj),
-    function(x) sum(ifelse(temp_base65F > 0, temp_base65F, 0)))
+  temp_base65F <- dailyTempMean - 18.333  # 18.333 C = 65 F with (65 - 32) * 5 / 9
+  temp_base65F[temp_base65F < 0] <- 0
+  DegreeDaysAbove65F_DaysC <- tapply(temp_base65F, simTime2$year_ForEachUsedDay_NSadj, sum)
 
   nyrs <- seq_along(Month7th_MinTemp_C) #if southern Hemisphere, then 7th month of last year is not included
   temp <- cbind(Month7th_MinTemp_C[nyrs],
@@ -1567,7 +1567,7 @@ get_Response_aggL <- compiler::cmpfun(function(sc_i, response,
 
   if (!is.null(timestep_ForEachEntry)) {
     res[["aggMean.top"]] <- tapply(res[["top"]], timestep_ForEachEntry, mean)
-    res[["aggMean.bottom"]] <- tapply(res[["bottom"]], timestep_ForEachEntry), mean)
+    res[["aggMean.bottom"]] <- tapply(res[["bottom"]], timestep_ForEachEntry, mean)
   }
 
   if (tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll") {

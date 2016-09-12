@@ -4355,22 +4355,22 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						res.wet <- matrix(0, nrow = simTime$no.useyr, ncol = 8)
 						res.wet[, 1] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
 						res.wet[, 2] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
-						res.wet[, 3] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj), max.duration) # maximum number of continous days when at least one top layers is wet
-						res.wet[, 4] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj), max.duration) # maximum number of continous days when at least one top layers is wet
-						res.wet[, 5] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj), sum) # total number of days per year when all top layer are wet
-						res.wet[, 6] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj), sum) # total number of days per year when all top layer are wet
-						res.wet[, 7] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj), max.duration) # maximum number of continous days when all top layers are wet
-						res.wet[, 8] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj), max.duration) # maximum number of continous days when all top layers are wet
+						res.wet[, 3] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when at least one top layers is wet
+						res.wet[, 4] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when at least one top layers is wet
+						res.wet[, 5] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
+						res.wet[, 6] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
+						res.wet[, 7] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when all top layers are wet
+						res.wet[, 8] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when all top layers are wet
 
 						#dry periods
 						res.dry <- matrix(0, nrow = simTime$no.useyr, ncol = 8)
-						res.dry[,3] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj), sum) #total number of days/year when all top layers are dry
+						res.dry[,3] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all top layers are dry
             res.dry[,7] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all bottom layers are dry
-						res.dry[,4] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj), max.duration) #maximum number of continous days when all top layers are dry
+						res.dry[,4] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) #maximum number of continous days when all top layers are dry
             res.dry[,8] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) #maximum number of continous days when all bottom layers are dry
-						res.dry[,1] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj), startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of top layers are dry for at least ten days
+						res.dry[,1] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of top layers are dry for at least ten days
             res.dry[,5] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of bottom layers are dry for at least ten days
-						res.dry[,2] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj), endDoyAfterDuration, duration = durationDryPeriods.min)	# end days/year when at least one of top layers have been dry for at least ten days
+						res.dry[,2] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min)	# end days/year when at least one of top layers have been dry for at least ten days
             res.dry[,6] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min) # end days/year when at least one of bottom layers have been dry for at least ten days
 						res.dry[, c(1:2, 5:5)] <- res.dry[, c(1:2, 5:5)] - adjDays
 						res.dry[res.dry[, 1] > res.dry[, 2], 3] <- 0 #correct [,c(3,7)] for years when start<end otherwise set 0
