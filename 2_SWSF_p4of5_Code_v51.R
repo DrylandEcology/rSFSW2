@@ -155,7 +155,7 @@ names(aon) <- aon.help[,1]
 
 agg_fun_names1 <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
 if (length(agg_fun_names) == 0)
-	stop("There must be at least one aggregating function")
+	stop("There must be at least one aggregating function included in 'agg_funs'")
 
 it <- which("quantile" == agg_fun_names1)
 if (length(it) > 0) {
@@ -172,6 +172,21 @@ if (length(it) > 0) {
 } else {
   agg_fun_names <- agg_fun_names1
 }
+
+agg_fun_types <- rep(NA, length(agg_fun_names))
+agg_fun_types[grepl("yearly", agg_fun_names, ignore.case = TRUE)] <- "yearly"
+agg_fun_types[grepl("(mean)|(median)", agg_fun_names, ignore.case = TRUE)] <- "central"
+agg_fun_types[grepl("(sd)|(mad)|(quantile)", agg_fun_names, ignore.case = TRUE)] <- "variation"
+itemp <- grep("quantile", agg_fun_names, ignore.case = TRUE)
+if (length(itemp) > 0) {
+  probs <- as.numeric(gsub("quantile_", "", agg_fun_names[itemp], fixed = TRUE))
+  i50 <- which(abs(probs - 0.5) < tol)
+  if (length(i50) > 0) {
+    agg_fun_types[itemp[i50]] <- "central"
+  }
+}
+
+agg_fun_defs <- data.frame(agg_fun = agg_fun_names, type = agg_fun_types)
 
 sim_windows <- c(
 	current = list(simstartyr:endyr),

@@ -478,10 +478,11 @@ if (length(Tables) == 0 || cleanDB) {
 		##################################################
 
 		##############agg_fun table###############
-		RSQLite::dbGetQuery(con, "CREATE TABLE aggregating_functions(id INTEGER PRIMARY KEY AUTOINCREMENT, agg_fun TEXT UNIQUE NOT NULL);")
+		stopifnot(c("agg_fun", "type") %in% names(agg_fun_defs))
+		RSQLite::dbGetQuery(con, "CREATE TABLE aggregating_functions(id INTEGER PRIMARY KEY AUTOINCREMENT, agg_fun TEXT UNIQUE NOT NULL, type TEXT);")
 		RSQLite::dbBegin(con)
-		RSQLite::dbGetPreparedQuery(con, "INSERT INTO aggregating_functions VALUES(NULL, :agg_fun);",
-			bind.data = data.frame(agg_fun = agg_fun_names, stringsAsFactors = FALSE))
+		RSQLite::dbGetPreparedQuery(con, "INSERT INTO aggregating_functions VALUES(NULL, :agg_fun, :type);",
+			bind.data = agg_fun_defs))
 		RSQLite::dbCommit(con)
 		##################################################
 
