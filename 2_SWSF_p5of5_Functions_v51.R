@@ -926,7 +926,7 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+circ_mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
@@ -938,7 +938,7 @@ circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   }
 })
 
-circ.range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+circ_range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
@@ -950,7 +950,7 @@ circ.range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   }
 })
 
-circ.sd <- compiler::cmpfun(function(x, int, na.rm=FALSE){
+circ_sd <- compiler::cmpfun(function(x, int, na.rm = FALSE){
   if (length(x) - sum(is.na(x)) > 1) {
     if (sd(x, na.rm = TRUE) > 0) {
       circ <- 2 * pi / int
@@ -982,19 +982,19 @@ circ_sum <- compiler::cmpfun(function(x, y, int) {
 })
 
 circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, low = FALSE, high = FALSE) {
-  if (na.rm) 
+  if (na.rm)
       x <- x[!is.na(x)]
   n <- length(x)
-  
+
   if (n > 1) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
     m <- circular::median.circular(x_circ, na.rm = FALSE)
-		
+
     d <- abs(x_circ - m)
-		
+
     constant * if ((low || high) && n %% 2 == 0) {
-        if (low && high) 
+        if (low && high)
             stop("'low' and 'high' cannot be both TRUE")
         n2 <- n %/% 2 + as.integer(high)
         sort(as.numeric(d / circ), partial = n2)[n2]
@@ -1007,7 +1007,7 @@ circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, 
   }
 })
 
-circ_quantile <- compiler::cmpfun(function(x, probs, int, names = FALSE, type = 7, na.rm = FALSE) {
+circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names = FALSE, type = 7) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
