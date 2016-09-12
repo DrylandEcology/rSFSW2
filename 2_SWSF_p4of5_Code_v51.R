@@ -153,11 +153,11 @@ aon <- data.frame(t(as.numeric(aon.help[,-1])))
 names(aon) <- aon.help[,1]
 
 
-agg_fun_names <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
+agg_fun_names1 <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
 if (length(agg_fun_names) == 0)
 	stop("There must be at least one aggregating function")
 
-it <- which("quantile" == agg_fun_names)
+it <- which("quantile" == agg_fun_names1)
 if (length(it) > 0) {
 	probs <- agg_fun_options[["quantile"]][["probs"]]
 	if (length(probs) == 0 || any(probs < 0) || any(probs > 1) || !is.finite(probs))
@@ -165,10 +165,12 @@ if (length(it) > 0) {
 				"the 'quantile' options in 'agg_fun_options' must be set correctly.")
 
 	agg_fun_names <- c(
-		if (it > 0) agg_fun_names[1:(it - 1)],
+		if (it > 0) agg_fun_names1[1:(it - 1)],
 		paste("quantile", format(probs), sep = "_"),
-		if (it < length(agg_fun_names)) agg_fun_names[(it + 1):length(agg_fun_names)]
+		if (it < length(agg_fun_names1)) agg_fun_names1[(it + 1):length(agg_fun_names1)]
 	)
+} else {
+  agg_fun_names <- agg_fun_names1
 }
 
 sim_windows <- c(
@@ -752,7 +754,10 @@ if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.Ou
 setwd(dir.prj)
 source(file.path(dir.code, "2_SWSF_p2of5_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
 
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname=name.OutputDB)
+con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname=name.OutputDB)
+
+agg_fun_defs <- RSQLite::dbReadTable(con, "aggregating_functions")
+agg_windows <- RSQLite::dbReadTable(con, "aggregating_timewindows")
 
 if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 	# Check that version of dbWeather suffices
@@ -5708,6 +5713,10 @@ if(actionWithSoilWat && runsN_todo > 0){
 		swDataFromFiles@weatherHistory <- list(swClear(swDataFromFiles@weatherHistory[[1]])) # we don't need the example weather data; the code will get weather data separately
 	#Used for weather from files
 	filebasename <- basename(swFiles_WeatherPrefix(swDataFromFiles))
+
+  # Prepare aggregation function
+  agg_fun <- create_aggregation_function(agg_fun_defs, circular = FALSE)
+  agg_fun_circular <- create_aggregation_function(agg_fun_defs, circular = TRUE)
 
 	#objects to export (sorted alphabetically)
 	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg", "AdjMonthlyBioMass",
