@@ -1035,11 +1035,14 @@ circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names =
 #'  'aggregating_functions' of the output database.
 #'
 #' @return
-#'  A function/closure with arguments \code{x, na.rm, ...} or,
-#'  if \code{circular}, \code {x, int, na.rm, ...} which returns a data.frame object
-#'  with two columns \code{aggfun_id, x}. The column \code{aggfun_id} contains the identifier
-#'  'id' and the column \code{x} contains the return value(s) of the aggregating functions
-#'  applied to the input argument \code{x}.
+#'  A function/closure with arguments \code{x, na.rm, return_ids, ...} or,
+#'  if \code{circular}, \code {x, int, na.rm, return_ids, ...}.
+#'  If \code{return_ids}, then the function returns a data.frame object
+#'  with two columns \code{aggfun_id} and \code{x}. The column \code{aggfun_id} contains
+#'  the values of the identifier 'id' and the column \code{x} contains the returned
+#'  value(s) of the aggregating functions applied to the input argument \code{x}.
+#'  If \code{return_ids} is \code{FALSE}, then the function returns what would be
+#'  otherwise be the column \code{x} as numeric vector.
 #'
 #' @examples
 #' d <- data.frame(id = 1:3, agg_fun = c("mean", "quantile_0.5", "median"))
@@ -1099,7 +1102,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   itemp <- grepl("median", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
-      list(mad = list(
+      list(median = list(
         fun = if (circular) {
             function(x, int, na.rm = FALSE, ...) circ_median(x, int = int, na.rm = na.rm, ...)
           } else {
@@ -1129,10 +1132,10 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
 
 
   if (circular) {
-    f <- function(x, int, na.rm = FALSE, ...) {}
+    f <- function(x, int, na.rm = FALSE, return_ids = FALSE, ...) {}
     fargs <- quote(list(x = x, int = int, na.rm = na.rm, ...))
   } else {
-    f <- function(x, na.rm = FALSE, ...) {}
+    f <- function(x, na.rm = FALSE, return_ids = FALSE, ...) {}
     fargs <- quote(list(x = x, na.rm = na.rm, ...))
   }
   assign("fargs", fargs, envir = envf)
@@ -1148,11 +1151,16 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
       list(aggfun_id = id, x = agg)
     })
 
-    data.frame(
-      aggfun_id = unlist(sapply(res, function(x) x$aggfun_id)),
-      x = unlist(sapply(res, function(x) x$x)),
-      row.names = NULL
-    )
+    out <- unlist(sapply(res, function(x) x$x), use.names = FALSE)
+    if (return_ids) {
+      data.frame(
+        aggfun_id = unlist(sapply(res, function(x) x$aggfun_id)),
+        x = out,
+        row.names = NULL
+      )
+    } else {
+      out
+    }
 
   }, envf)
 
