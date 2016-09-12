@@ -482,7 +482,7 @@ if (length(Tables) == 0 || cleanDB) {
 		RSQLite::dbGetQuery(con, "CREATE TABLE aggregating_functions(id INTEGER PRIMARY KEY AUTOINCREMENT, agg_fun TEXT UNIQUE NOT NULL, type TEXT);")
 		RSQLite::dbBegin(con)
 		RSQLite::dbGetPreparedQuery(con, "INSERT INTO aggregating_functions VALUES(NULL, :agg_fun, :type);",
-			bind.data = agg_fun_defs))
+			bind.data = agg_fun_defs)
 		RSQLite::dbCommit(con)
 		##################################################
 
