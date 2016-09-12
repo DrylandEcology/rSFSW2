@@ -1005,6 +1005,146 @@ circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names =
   }
 })
 
+#' Function to produce an aggregating function
+#'
+#' @param agg_fun_defs A data.frame with two columns: 'id' of type integer and 'agg_fun'
+#'  of type character. See \code{Details}.
+#' @param circular A logical value. If \code{TRUE} then circular functions are used.
+#'
+#' @details
+#'  The aggregation functions are determined based on the entries in the column 'agg_fun'.
+#'  Currently, implemented functions are \code{mean}, \code{sd}, \code{quantile},
+#'  \code{median}, \code{mad}, and \code{yearly}, respectively, their circular counterparts.
+#'  The probability values, e.g., \code{X1, X2}, at which quantiles are calculated,
+#'  are entered as "quantile_X1", and "quantile_X2". \code{yearly} will return the values
+#'  of each year, i.e., no aggregation across years.
+#'  The column 'id' is the identifier which connects the aggregated output to the table
+#'  'aggregating_functions' of the output database.
+#'
+#' @return
+#'  A function/closure with arguments \code{x, na.rm, ...} or,
+#'  if \code{circular}, \code {x, int, na.rm, ...} which returns a data.frame object
+#'  with two columns \code{aggfun_id, x}. The column \code{aggfun_id} contains the identifier
+#'  'id' and the column \code{x} contains the return value(s) of the aggregating functions
+#'  applied to the input argument \code{x}.
+#'
+#' @examples
+#' d <- data.frame(id = 1:3, agg_fun = c("mean", "quantile_0.5", "median"))
+#' f <- create_aggregation_function(d)
+#' x <- c(1:10, 1, NA)
+#' f(x, na.rm = TRUE)
+create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
+  envf <- new.env()
+  listf <- list()
+
+  itemp <- grepl("mean", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp))
+    listf <- c(listf,
+      list(mean = list(
+        fun = if (circular) {
+            function(x, int, na.rm = FALSE, ...) circ_mean(x, int = int, na.rm = na.rm, ...)
+          } else {
+            function(x, na.rm = FALSE, ...) mean(x, na.rm = na.rm, ...)
+          },
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+
+  itemp <- grepl("SD", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp))
+    listf <- c(listf,
+      list(SD = list(
+        fun = if (circular) {
+            function(x, int, na.rm = FALSE, ...) circ_sd(x, int = int, na.rm = na.rm, ...)
+          } else {
+            function(x, na.rm = FALSE, ...) sd(x, na.rm = na.rm, ...)
+          },
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+
+  itemp <- grepl("quantile", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp)) {
+    probs <- grep("quantile", agg_fun_defs[, "agg_fun"], ignore.case = TRUE, value = TRUE)
+    probs <- as.numeric(gsub("quantile_", "", probs, fixed = TRUE))
+    assign("probs", probs, envir = envf)
+
+    if (circular) {
+      tempf <- function(x, int, na.rm = FALSE, ...) {}
+      body(tempf) <- substitute({
+        circ_quantile(x, int = int, na.rm = na.rm, probs = probs, ...)
+      }, envf)
+    } else {
+      tempf <- function(x, na.rm = FALSE, ...) {}
+      body(tempf) <- substitute({
+        quantile(x, na.rm = na.rm, probs = probs, ...)
+      }, envf)
+    }
+
+    listf <- c(listf,
+      list(quantile = list(
+        fun = tempf,
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+  }
+
+  itemp <- grepl("median", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp))
+    listf <- c(listf,
+      list(mad = list(
+        fun = if (circular) {
+            function(x, int, na.rm = FALSE, ...) circ_median(x, int = int, na.rm = na.rm, ...)
+          } else {
+            function(x, na.rm = FALSE, ...) median(x, na.rm = na.rm, ...)
+          },
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+
+  itemp <- grepl("mad", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp))
+    listf <- c(listf,
+      list(mad = list(
+        fun = if (circular) {
+            function(x, int, na.rm = FALSE, ...) circ_mad(x, int = int, na.rm = na.rm, ...)
+          } else {
+            function(x, na.rm = FALSE, ...) mad(x, na.rm = na.rm, ...)
+          },
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+
+  itemp <- grepl("yearly", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
+  if (any(itemp))
+    listf <- c(listf,
+      list(yearly = list(
+        fun = function(x, na.rm = FALSE, ...) x,
+        aggfun_id = agg_fun_defs[itemp, "id"])))
+
+  assign("listf", listf, envir = envf)
+
+
+  if (circular) {
+    f <- function(x, int, na.rm = FALSE, ...) {}
+    fargs <- quote(list(x = x, int = int, na.rm = na.rm, ...))
+  } else {
+    f <- function(x, na.rm = FALSE, ...) {}
+    fargs <- quote(list(x = x, na.rm = na.rm, ...))
+  }
+  assign("fargs", fargs, envir = envf)
+  environment(f) <- new.env()
+  body(f) <- substitute({
+    res <- lapply(listf, function(f) {
+      agg <- do.call(f$fun, args = fargs)
+      id <- if (length(f$aggfun_id) == 1) {
+          rep(f$aggfun_id, length(agg))
+        } else {
+          f$aggfun_id
+        }
+      list(aggfun_id = id, x = agg)
+    })
+
+    data.frame(
+      aggfun_id = unlist(sapply(res, function(x) x$aggfun_id)),
+      x = unlist(sapply(res, function(x) x$x)),
+      row.names = NULL
+    )
+
+  }, envf)
+
+  compiler::cmpfun(f)
+}
 
 
 #functions wet and dry periods
