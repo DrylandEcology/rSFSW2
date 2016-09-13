@@ -4385,8 +4385,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					}
 					nv <- nv+16*length(SWPcrit_MPa)
 
-					rm(res.dry, wet.top, wet_crit, AtLeastOneWet.top, AllWet.top, AllDry.top)
-					if(length(bottomL) > 0 && !identical(bottomL, 0)) rm(wet.bottom, AtLeastOneWet.bottom, AllWet.bottom, AllDry.bottom)
+					rm(res.dry, wet, wet_crit, AtLeastOneWet, AllWet, AllDry)
 				}
 			#38
 				if(any(simulation_timescales=="daily") & aon$dailySuitablePeriodsDuration){
