@@ -3739,7 +3739,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           names(Sregime) <- Sregime_names
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
-          annual_means <- rep(NA, 9)
           Fifty_depth <- permafrost <- CSPartSummer <- NA
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
@@ -3958,8 +3957,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               SoilAbove0C <- with(LanhConditionalDF, tapply(T50_at0C, Years, sum))
               LanhConditionalDF$SoilAbove0C <- rep(SoilAbove0C, days_per_wyear)
               LanhConditionalDF$COND3 <- LanhConditionalDF$HalfDryDaysCumAbove0C > .5 * LanhConditionalDF$SoilAbove0C #TRUE = Half of soil layers are dry greater than half the days where MAST >0c
-              LanhConditionalDF3 <- apply(unique(LanhConditionalDF[, c('COND1', 'COND2', 'COND3')]), 2, function(x) sum(x) >= sum(!x))
-
+              LanhConditionalDF3 <- apply(aggregate(LanhConditionalDF[, c('COND1', 'COND2', 'COND3')],
+                                                    by=list(LanhConditionalDF$Years),
+                                                    function(x) sum(x) >= sum(!x)),
+                                          2, 
+                                          function(x) sum(x) >= sum(!x))
+              
               #Structures used for MCS delineation
               #days where T @ 50cm exceeds 5C and 8C
               T50_at5C <- T50[wdays_index] > 5
@@ -4032,9 +4035,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               ConditionalDF$MoistDaysConsecWinter <- rep(MoistDaysConsecWinter, days_per_wyear)
               ConditionalDF$COND9 <- ConditionalDF$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
 
-              ConditionalDF3 <- apply(unique(ConditionalDF[, c('COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')]),
+              ConditionalDF3 <- apply(aggregate(ConditionalDF[, c('COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')],
+                                                by=list(Year=ConditionalDF$Years), 
+                                                function(x) sum(x) > sum(!x)),
                 2,
-                function(x) sum(x) >= sum(!x))
+                function(x) sum(x) > sum(!x))
 
               #---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31
               #we ignore 'Aquic'
@@ -4082,12 +4087,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   Sregime["Xeric"] <- 1L
               }
 
-              annual_means <- c(
+                annual_means <- c(
                 mean(LanhConditionalDF$SoilAbove0C),
                 .colMeans(as.matrix(ConditionalDF[, c("SoilAbove5C", "DryDaysCumAbove5C",
-                  "MoistDaysConsecAbove8C", "DryDaysConsecSummer", "MoistDaysConsecAny",
-                  "MoistDaysCumAny", "DryDaysCumAny", "MoistDaysConsecWinter")]),
-                  sum(wdays_index), 8))
+                                                      "AnyMoistDaysCumAbove5C","MoistDaysConsecAbove8C", "DryDaysCumAny","DryDaysConsecSummer", 
+                                                      "MoistDaysConsecAny","MoistDaysCumAny", "MoistDaysConsecWinter")]),
+                  sum(wdays_index), 9))
 
               regimes_done <- TRUE
 
@@ -4106,7 +4111,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             Sregime[] <- NA
           }
 
-          nv_new <- nv + 4 + 15 + length(Tregime_names) + length(Sregime_names) + 1
+          nv_new <- nv + 4 + 16 + length(Tregime_names) + length(Sregime_names) + 1
           res <- resMeans[nv:(nv_new - 1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost),
             mean(MATLanh), mean(MAT50), mean(T50jja), mean(T50djf), CSPartSummer,
             annual_means, Tregime, Sregime)
