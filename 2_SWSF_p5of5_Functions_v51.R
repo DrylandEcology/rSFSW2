@@ -496,9 +496,9 @@ NAto0 <- compiler::cmpfun(function(x) {
   x[is.na(x)] <- 0
   x
 })
-finite01 <- compiler::cmpfun(function(x) {
-  x[x < 0 | is.na(x)] <- 0
-  x[x > 1] <- 1
+finite01 <- compiler::cmpfun(function(x, val_low = 0, val_high = 1) {
+  x[x < 0 | is.na(x)] <- val_low
+  x[x > 1] <- val_high
   x
 })
 
@@ -1103,157 +1103,145 @@ handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
   }
 })
 
+#' Pedotransfer functions to convert between soil moisture (volumetric water content, VWC)
+#'  and soil water potential (SWP)
+#'
+#' @param sand A numeric value or vector. Sand content of the soil layer(s) (fraction 0-1).
+#' @param clay A numeric value or vector. Clay content of the soil layer(s) (fraction 0-1).
+#'
+#' @references
+#'  Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
+#'
+#' @name pedotransfer
+NULL
+
+#' @rdname pedotransfer
 #' @section Note:
 #'  either swp or sand/clay needs be a single value
-#' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
 pdf_to_vwc <- compiler::cmpfun(function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_conversion = 1024) {
-  ifelse(!is.na(swp) & swp <= 0,
-        thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100,
-        NA)
+  thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100
 })
 
+#' @rdname pedotransfer
 #' @section Note:
 #'  either vwc or sand/clay needs be a single value
-#' @references Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
 pdf_to_swp <- compiler::cmpfun(function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1, bar_conversion = 1024) {
-  ifelse(!is.na(vwc) & vwc <= 1,
-        psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa,
-        NA)
+  psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa
 })
 
+pedotransfer <- compiler::cmpfun(function(x, sand, clay, pdf) {
+  stopifnot(length(sand) && length(sand) == length(clay))
+  sand <- finite01(sand, NA, NA)
+  clay <- finite01(clay, NA, NA)
 
-#convert SWP(matric) to VWC(matric), e.g., to calculate field capacity and wilting point
+  if (any(complete.cases(sand, clay))) {
+    thetas <- -14.2 * sand - 3.7 * clay + 50.5
+    psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
+    b <- -0.3 * sand + 15.7 * clay + 3.10
+    if (any(b <= 0, na.rm = TRUE))
+      stop("Pedotransfer for soil texture with b <= 0 is not possible.")
+
+    np_x <- NROW(x) * NCOL(x) # NROW(x) * NCOL(x) != prod(dim(x)) != length(x), e.g., for a data.frame with one column
+
+    if (NROW(x) == 1 || NCOL(x) == 1) {
+      # cases 1-4
+      if (np_x == 1 || length(sand) == 1) {
+        # cases 1-3
+        res <- pdf(x, sand, clay, thetas, psis, b)
+
+      } else {
+        # case 4; Note: case 3 could also be calculated with the code for case 4, but is much slower, unless x is a data.frame with one column
+        temp <- lapply(x, function(v) pdf(v, sand, clay, thetas, psis, b))
+        res <- matrix(unlist(temp), nrow = np_x, byrow = TRUE)
+      }
+
+    } else {
+      # cases 5-6
+      dx <- dim(x)
+
+      if (length(sand) == 1) {
+        # case 5
+        res <- vapply(seq_len(dx[2]), function(d) {
+          temp <- pdf(x[, d], sand, clay, thetas, psis, b)
+        }, rep(1, dx[1]), USE.NAMES = FALSE)
+
+      } else {
+        # case 6
+        stopifnot(dx[2] == length(sand))
+        res <- vapply(seq_len(dx[2]), function(d) {
+            pdf(x[, d], sand[d], clay[d], thetas[d], psis[d], b[d])
+         }, rep(1, dx[1]), USE.NAMES = FALSE)
+      }
+    }
+
+  } else {
+    res <- x
+    res[] <- NA
+  }
+
+  res #if SWP then in units of MPa [-Inf, 0]; if VWC then in units of m3/m3 [0, 1]
+})
+
+#' @rdname pedotransfer
+#' @param swp A numeric value, vector, or 2-dimensional object (matrix or data.frame).
+#'  The soil water potential (of the soil matrix) in units of MPa, i.e.,
+#'  the soil without the volume of rock and gravel.
+#'
+#' @return Volumetric water content in units of m^3 (of water) / m^3 (of soil) [0, 1].
+#'  There are six use cases:\enumarate{
+#'    \item 1) \itemize{
+#'                \item Input: SWP [single value]; sand and clay [single values]
+#'                \item Output: VWC [single value]}
+#'    \item 2) \itemize{
+#'                \item Input: SWP [single value]; sand and clay [vectors of length d]
+#'                \item Output: VWC [vector of length d]}
+#'    \item 3) \itemize{
+#'                \item Input: SWP [vector of length l]; sand and clay in fraction [single values]
+#'                \item Output: VWC [vector of length l]}
+#'    \item 4) \itemize{
+#'                \item Input: SWP [vector of length l]; sand and clay [vectors of length d]
+#'                \item Output: VWC [l x d matrix] where SWP is repeated for each column}
+#'    \item 5) \itemize{
+#'                \item Input: SWP [l x d matrix]; sand and clay [single values]
+#'                \item Output: VWC [l x d matrix]}
+#'    \item 6) \itemize{
+#'                \item Input: SWP [l x d matrix]; sand and clay [vectors of length d]
+#'                \item Output: VWC [l x d matrix], sand and clay vectors are repeated for each row}
+#'  }
 SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
-#Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
-
-  #1. SWP in MPa [single value] + sand and clay in fraction [single values] --> VWC in fraction [single value]
-  #2. SWP in MPa [single value] + sand and clay in fraction [vectors of length d] --> VWC in fraction [vector of length d]
-  #3. SWP in MPa [vector of length l] + sand and clay in fraction [single values] --> VWC in fraction [vector of length l]
-  #4. SWP in MPa [vector of length l] + sand and clay in fraction [vectors of length d] --> VWC in fraction [matrix with nrow=l and ncol=d, SWP vector repeated for each column]: probably not used
-  #5. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values] --> VWC in fraction [matrix with nrow=l and ncol=d]
-  #6. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d] --> VWC in fraction [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
-
-#input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
-
-  stopifnot(length(sand) && length(sand) == length(clay))
-  sand[sand > 1 | sand < 0] <- NA
-  clay[clay > 1 | clay < 0] <- NA
-  na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
-
-  if(length(sand) > length(na.act)){
-    na.index <- as.vector(na.act)
-
-    if(length(na.index) > 0){
-      sand <- sand[-na.index]
-      clay <- clay[-na.index]
-    }
-
-    thetas <- -14.2 * sand - 3.7 * clay + 50.5
-    psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
-    b <- -0.3 * sand + 15.7 * clay + 3.10
-    if(any(b <= 0)) stop("b <= 0")
-
-    if(is.null(dim(swp))){
-      if(length(swp) == 1 & length(sand) >= 1 | length(swp) >= 1 & length(sand) == 1){ #cases 1-3
-        vwc <- pdf_to_vwc(swp, sand, clay, thetas=thetas, psis=psis, b=b)
-        vwc <- handle_NAs(vwc, na.index, na.act)
-
-      } else if(length(swp) > 1 & length(sand) > 1){ #case 4
-        vwc <- t(sapply(seq_along(swp), function(d) {
-          temp <- pdf_to_vwc(swp[d], sand, clay, thetas=thetas, psis=psis, b=b)
-          handle_NAs(temp, na.index, na.act)
-        }))
-      }
-    } else {
-      if(length(sand) == 1){ #case 5
-        vwc <- sapply(seq_len(ncol(swp)), function(d) {
-          temp <- pdf_to_vwc(swp[, d], sand, clay, thetas=thetas, psis=psis, b=b)
-          handle_NAs(temp, na.index, na.act)
-        })
-      } else { #case 6
-        sand <- napredict(na.act, sand)
-        clay <- napredict(na.act, clay)
-        stopifnot(ncol(swp) == length(sand))
-        psis <- napredict(na.act, psis)
-        thetas <- napredict(na.act, thetas)
-        b <- napredict(na.act, b)
-        vwc <- sapply(seq_len(ncol(swp)), function(d)
-          pdf_to_vwc(swp[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d]))
-      }
-    }
-  } else {
-    vwc <- swp
-    vwc[!is.na(vwc)] <- NA
-  }
-
-  vwc #fraction m3/m3 [0, 1]
+  pedotransfer(swp, sand, clay, pdf = pdf_to_vwc)
 })
 
-#convert VWC(matric) to SWP(matric)
+
+#' @rdname pedotransfer
+#' @param vwc A numeric value, vector, or 2-dimensional object (matrix or data.frame).
+#'  The matric soil moisture, i.e., reduced by the volume of rock and gravel.
+#'
+#' @return Soil water potential in units of MPa [-Inf, 0]. There are six use cases:
+#'  \enumarate{
+#'    \item 1) \itemize{
+#'                \item Input: VWC [single value]; sand and clay [single values]
+#'                \item Output: SWP [single value]}
+#'    \item 2) \itemize{
+#'                \item Input: VWC [single value]; sand and clay [vectors of length d]
+#'                \item Output: SWP [vector of length d]}
+#'    \item 3) \itemize{
+#'                \item Input: VWC [vector of length l]; sand and clay in fraction [single values]
+#'                \item Output: SWP [vector of length l]}
+#'    \item 4) \itemize{
+#'                \item Input: VWC [vector of length l]; sand and clay [vectors of length d]
+#'                \item Output: SWP [l x d matrix] where VWC is repeated for each column}
+#'    \item 5) \itemize{
+#'                \item Input: VWC [l x d matrix]; sand and clay [single values]
+#'                \item Output: SWP [l x d matrix]}
+#'    \item 6) \itemize{
+#'                \item Input: VWC [l x d matrix]; sand and clay [vectors of length d]
+#'                \item Output: SWP [l x d matrix], sand and clay vectors are repeated for each row}
+#'  }
 VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
-#Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
-
-  #1. VWC in fraction [single value] + sand and clay in fraction [single values] --> SWP in MPa [single value]
-  #2. VWC in fraction [single value] + sand and clay in fraction [vectors of length d] --> SWP in MPa [vector of length d]
-  #3. VWC in fraction [vector of length l] + sand and clay in fraction [single values] --> SWP in MPa [vector of length l]
-  #4. VWC in fraction [vector of length l] + sand and clay in fraction [vectors of length d] --> SWP in MPa [matrix with nrow=l and ncol=d, VWC vector repeated for each column]: probably not used
-  #5. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values] --> SWP in MPa [matrix with nrow=l and ncol=d]
-  #6. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d] --> SWP in MPa [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
-
-#input: sand and clay as fraction of matric volume, i.e, they don't need to be scaled with gravel
-
-  stopifnot(length(sand) && length(sand) == length(clay))
-  sand[sand > 1 | sand < 0] <- NA
-  clay[clay > 1 | clay < 0] <- NA
-  na.act <- na.action(na.exclude(apply(data.frame(sand, clay), MARGIN=1, FUN=sum)))
-
-  if(length(sand) > length(na.act)){
-    na.index <- as.vector(na.act)
-
-    if(length(na.index) > 0){
-      sand <- sand[-na.index]
-      clay <- clay[-na.index]
-    }
-
-    thetas <- -14.2 * sand - 3.7 * clay + 50.5
-    psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
-    b <- -0.3 * sand + 15.7 * clay + 3.10
-    if(any(b <= 0)) stop("b <= 0")
-
-    if(is.null(dim(vwc))){
-      if(length(vwc) == 1 & length(sand) >= 1 | length(vwc) >= 1 & length(sand) == 1){ #cases 1-3
-        swp <- pdf_to_swp(vwc, sand, clay, thetas=thetas, psis=psis, b=b)
-        swp <- handle_NAs(swp, na.index, na.act)
-
-      } else if(length(vwc) > 1 & length(sand) > 1){ #case 4
-        swp <- t(sapply(seq_along(vwc), function(d) {
-          temp <- pdf_to_swp(vwc[d], sand, clay, thetas=thetas, psis=psis, b=b)
-          handle_NAs(temp, na.index, na.act)
-        }))
-      }
-    } else {
-      if(length(sand) == 1){ #case 5
-        swp <- sapply(seq_len(ncol(vwc)), function(d) {
-          temp <- pdf_to_swp(vwc[, d], sand, clay, thetas=thetas, psis=psis, b=b)
-          handle_NAs(temp, na.index, na.act)
-        })
-      } else { #case 6
-        sand <- napredict(na.act, sand)
-        clay <- napredict(na.act, clay)
-        stopifnot(ncol(vwc) == length(sand))
-        psis <- napredict(na.act, psis)
-        thetas <- napredict(na.act, thetas)
-        b <- napredict(na.act, b)
-        swp <- sapply(seq_len(ncol(vwc)), function(d) pdf_to_swp(vwc[, d], sand[d], clay[d], thetas=thetas[d], psis=psis[d], b=b[d]))
-      }
-    }
-  } else {
-    swp <- vwc
-    swp[!is.na(swp)] <- NA
-  }
-
-  swp #MPa [-Inf, 0]
+  pedotransfer(vwc, sand, clay, pdf = pdf_to_swp)
 })
+
 
 #two, three, or four layer aggregation for average daily aggregation output
 setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, daily_lyr_agg){
