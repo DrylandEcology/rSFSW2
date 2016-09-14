@@ -1022,8 +1022,8 @@ circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names =
 #'  'aggregating_functions' of the output database.
 #'
 #' @return
-#'  A function/closure with arguments \code{x, na.rm, return_ids, ...} or,
-#'  if \code{circular}, \code {x, int, na.rm, return_ids, ...}.
+#'  A function/closure with arguments \code{x, na.rm, omit_yearly, return_ids, ...} or,
+#'  if \code{circular}, \code {x, int, na.rm, omit_yearly, return_ids, ...}.
 #'  If \code{return_ids}, then the function returns a data.frame object
 #'  with two columns \code{aggfun_id} and \code{x}. The column \code{aggfun_id} contains
 #'  the values of the identifier 'id' and the column \code{x} contains the returned
@@ -1038,8 +1038,11 @@ circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names =
 #' f(x, na.rm = TRUE)
 create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   envf <- new.env()
+
+  #--- Create list of functions to be applied to data
   listf <- list()
 
+  # Aggregation: mean
   itemp <- grepl("mean", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
@@ -1051,6 +1054,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
+  # Aggregation: sd
   itemp <- grepl("SD", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
@@ -1062,6 +1066,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
+  # Aggregation: quantiles
   itemp <- grepl("quantile", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp)) {
     probs <- grep("quantile", agg_fun_defs[, "agg_fun"], ignore.case = TRUE, value = TRUE)
@@ -1086,6 +1091,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
         aggfun_id = agg_fun_defs[itemp, "id"])))
   }
 
+  # Aggregation: median
   itemp <- grepl("median", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
@@ -1097,6 +1103,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
+  # Aggregation: mad
   itemp <- grepl("mad", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
@@ -1108,25 +1115,36 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
+  # Aggregation: yearly
+  yearly_id <- -1L
   itemp <- grepl("yearly", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
-  if (any(itemp))
+  if (any(itemp)) {
+    yearly_id <- agg_fun_defs[itemp, "id"]
+
     listf <- c(listf,
       list(yearly = list(
         fun = function(x, na.rm = FALSE, ...) x,
-        aggfun_id = agg_fun_defs[itemp, "id"])))
+        aggfun_id = yearly_id)))
+  }
+  assign("yearly_id", yearly_id, envir = envf)
 
+  # Copy list of aggregation functions to environment used in substitute call to create closure
   assign("listf", listf, envir = envf)
 
 
+  #---Create the function/closure
+  # 1) part: formals, i.e. input arguments
   if (circular) {
-    f <- function(x, int, na.rm = FALSE, return_ids = FALSE, ...) {}
+    f <- function(x, int, na.rm = FALSE, omit_yearly = FALSE, return_ids = FALSE, ...) {}
     fargs <- quote(list(x = x, int = int, na.rm = na.rm, ...))
   } else {
-    f <- function(x, na.rm = FALSE, return_ids = FALSE, ...) {}
+    f <- function(x, na.rm = FALSE, omit_yearly = FALSE, return_ids = FALSE, ...) {}
     fargs <- quote(list(x = x, na.rm = na.rm, ...))
   }
   assign("fargs", fargs, envir = envf)
+  # 2) part: environment; make it empty to have as little baggage as possible
   environment(f) <- new.env()
+  # 3) part: body
   body(f) <- substitute({
     res <- lapply(listf, function(f) {
       agg <- do.call(f$fun, args = fargs)
@@ -1138,13 +1156,19 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
       list(aggfun_id = id, x = agg)
     })
 
-    out <- unlist(sapply(res, function(x) x$x), use.names = FALSE)
+    out <- unlist(lapply(res, function(x) x$x), use.names = FALSE)
+    if (omit_yearly || return_ids) {
+      aggfun_ids <- unlist(lapply(res, function(x) x$aggfun_id))
+    }
+
+    if (omit_yearly && yearly_id > 0) {
+      temp <- !(yearly_id == aggfun_ids)
+      out <- out[temp]
+      aggfun_ids <- aggfun_ids[temp]
+    }
+
     if (return_ids) {
-      data.frame(
-        aggfun_id = unlist(sapply(res, function(x) x$aggfun_id)),
-        x = out,
-        row.names = NULL
-      )
+      cbind(aggfun_id = aggfun_ids, x = out)
     } else {
       out
     }
@@ -1593,7 +1617,7 @@ add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate
 
 identify_soillayers <- compiler::cmpfun(function(depths, sdepth) {
   it <- findInterval(depths, sdepth)
-  if (any(is.na(it))) {
+  if (anyNA(it)) {
     as.integer(na.exclude(it))
   } else if (diff(it) > 0) {
     (1 + it[1]):(it[2])
@@ -1934,6 +1958,23 @@ EventDistribution <- compiler::cmpfun(function(data, N, size) {
   }
   bins
 })
+
+daily_spells_permonth <- compiler::cmpfun(function(x, simTime2) {
+  temp <- tapply(x,
+    simTime2$month_ForEachUsedDay_NSadj + 100 * simTime2$year_ForEachUsedDay_NSadj,
+    function(xm) {
+      temp <- rle(xm)
+      if (any(temp$values)) {
+        mean(temp$lengths[temp$values], na.rm = TRUE)
+      } else {
+        NA
+      }
+    })
+
+  matrix(temp, nrow = 12)
+})
+
+
 
 
 #------------------------DAILY WEATHER
