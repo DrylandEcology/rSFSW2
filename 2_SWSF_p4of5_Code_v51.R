@@ -3244,6 +3244,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           di.ts <- calc_drylandindices(annualPPT = prcp.yr$ppt, annualPET = PET.yr$val,
                                       monthlyTemp = temp.mo$mean)
+          di.ts <- calc_drylandindices(annualPPT = prcp.yr$ppt, annualPET = PET.yr$val,
+                                      monthlyTemp = temp.mo$mean)
 
           meanmonthlyTemp <- tapply(temp.mo$mean, simTime2$month_ForEachUsedMonth, mean)
           di.normals <- calc_drylandindices(annualPPT = mean(prcp.yr$ppt),
@@ -4792,12 +4794,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					for (icrit in SWPcrit_MPa) {
 						temp_top_mo <- 10 * sum(layers_width[topL]) * (vwcmatric.mo$top - VWCcritsT[icrit])
 						temp_top_mean <- tapply(temp_top_mo, simTime2$month_ForEachUsedMonth, mean)
-						temp_top_sd <- tapply(temp_top_mo, simTime2$month_ForEachUsedMonth, mean)
+						temp_top_sd <- tapply(temp_top_mo, simTime2$month_ForEachUsedMonth, sd)
 
 						if (length(bottomL) > 0 && !identical(bottomL, 0)) {
 							temp_bottom_mo <- 10 * sum(layers_width[bottomL]) * (vwcmatric.mo$bottom - VWCcritsB[icrit])
 							temp_bottom_mean <- tapply(temp_bottom_mo, simTime2$month_ForEachUsedMonth, mean)
-							temp_bottom_sd <- tapply(temp_bottom_mo, simTime2$month_ForEachUsedMonth, mean)
+							temp_bottom_sd <- tapply(temp_bottom_mo, simTime2$month_ForEachUsedMonth, sd)
 						} else {
 							temp_bottom_mo <- temp_bottom_mean <- temp_bottom_sd <- rep(NA, 12)
 						}

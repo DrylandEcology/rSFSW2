@@ -1359,6 +1359,7 @@ extreme_values_and_doys <- compiler::cmpfun(function(x, tol = sqrt(.Machine$doub
 })
 
 
+
 handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
   if (length(na.index) > 0) {
     napredict(na.act, x)
@@ -2063,6 +2064,7 @@ tabulate_values_in_bins <- compiler::cmpfun(function(x, method = c("duration", "
 
   list(eventsPerYear = eventsPerYear, freq.summary = freq.summary)
 })
+
 
 
 #------------------------DAILY WEATHER
