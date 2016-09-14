@@ -165,7 +165,7 @@ if (length(it) > 0) {
 				"the 'quantile' options in 'agg_fun_options' must be set correctly.")
 
 	agg_fun_names <- c(
-		if (it > 0) agg_fun_names1[1:(it - 1)],
+		if (it > 1) agg_fun_names1[1:(it - 1)],
 		paste("quantile", format(probs), sep = "_"),
 		if (it < length(agg_fun_names1)) agg_fun_names1[(it + 1):length(agg_fun_names1)]
 	)
