@@ -913,11 +913,11 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 
 
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ_mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
+circ_mean <- compiler::cmpfun(function(x, int, na.rm = FALSE, ...) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
-    x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
+    x_int <- circular::mean.circular(x_circ, na.rm = na.rm, ...) / circ
 
     round(as.numeric(x_int) - 1, 13) %% int + 1	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
   } else {
@@ -994,11 +994,11 @@ circ_mad <- compiler::cmpfun(function(x, int, constant = 1.4826, na.rm = FALSE, 
   }
 })
 
-circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names = FALSE, type = 7) {
+circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names = FALSE, type = 7, ...) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
-    x_int <- circular::quantile.circular(x_circ, probs = probs, names = names, type = type, na.rm = na.rm) / circ # The Definition in equations 2.32 & 2.33 from N.I. Fisher's 'Statistical Analysis of Circular Data', Cambridge Univ. Press 1993. is implemented.
+    x_int <- circular::quantile.circular(x_circ, probs = probs, names = names, type = type, na.rm = na.rm, ...) / circ # The Definition in equations 2.32 & 2.33 from N.I. Fisher's 'Statistical Analysis of Circular Data', Cambridge Univ. Press 1993. is implemented.
     as.numeric(x_int)
   } else {
     NA
@@ -1017,13 +1017,14 @@ circ_quantile <- compiler::cmpfun(function(x, int, probs, na.rm = FALSE, names =
 #'  \code{median}, \code{mad}, and \code{yearly}, respectively, their circular counterparts.
 #'  The probability values, e.g., \code{X1, X2}, at which quantiles are calculated,
 #'  are entered as "quantile_X1", and "quantile_X2". \code{yearly} will return the values
-#'  of each year, i.e., no aggregation across years.
+#'  of each year, i.e., \code{x} without aggregation (across years).
 #'  The column 'id' is the identifier which connects the aggregated output to the table
 #'  'aggregating_functions' of the output database.
 #'
 #' @return
 #'  A function/closure with arguments \code{x, na.rm, omit_yearly, return_ids, ...} or,
 #'  if \code{circular}, \code {x, int, na.rm, omit_yearly, return_ids, ...}.
+#'  If \code{omit_yearly}, then the output of the \code{yearly} function is not returned.
 #'  If \code{return_ids}, then the function returns a data.frame object
 #'  with two columns \code{aggfun_id} and \code{x}. The column \code{aggfun_id} contains
 #'  the values of the identifier 'id' and the column \code{x} contains the returned
@@ -1048,7 +1049,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     listf <- c(listf,
       list(mean = list(
         fun = if (circular) {
-            function(x, int, na.rm = FALSE, ...) circ_mean(x, int = int, na.rm = na.rm, ...)
+            function(x, int, na.rm = FALSE, ...) circ_mean(x, int = int, na.rm = na.rm)
           } else {
             function(x, na.rm = FALSE, ...) mean(x, na.rm = na.rm, ...)
           },
@@ -1060,9 +1061,9 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     listf <- c(listf,
       list(SD = list(
         fun = if (circular) {
-            function(x, int, na.rm = FALSE, ...) circ_sd(x, int = int, na.rm = na.rm, ...)
+            function(x, int, na.rm = FALSE, ...) circ_sd(x, int = int, na.rm = na.rm)
           } else {
-            function(x, na.rm = FALSE, ...) sd(x, na.rm = na.rm, ...)
+            function(x, na.rm = FALSE, ...) sd(x, na.rm = na.rm)
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
@@ -1076,12 +1077,22 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     if (circular) {
       tempf <- function(x, int, na.rm = FALSE, ...) {}
       body(tempf) <- substitute({
-        circ_quantile(x, int = int, na.rm = na.rm, probs = probs, ...)
+        fargs <- list(x = x, int = int, na.rm = na.rm, probs = probs)
+        dots <- list(...)
+        if (!any("type" == names(dots)))
+          dots[["type"]] <- 8
+        fargs <- c(fargs, dots)
+        do.call("circ_quantile", args = fargs)
       }, envf)
     } else {
       tempf <- function(x, na.rm = FALSE, ...) {}
       body(tempf) <- substitute({
-        quantile(x, na.rm = na.rm, probs = probs, ...)
+        fargs <- list(x = x, na.rm = na.rm, probs = probs)
+        dots <- list(...)
+        if (!any("type" == names(dots)))
+          dots[["type"]] <- 8
+        fargs <- c(fargs, dots)
+        do.call("quantile", args = fargs)
       }, envf)
     }
 
@@ -1097,9 +1108,9 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     listf <- c(listf,
       list(median = list(
         fun = if (circular) {
-            function(x, int, na.rm = FALSE, ...) circ_median(x, int = int, na.rm = na.rm, ...)
+            function(x, int, na.rm = FALSE, ...) circ_median(x, int = int, na.rm = na.rm)
           } else {
-            function(x, na.rm = FALSE, ...) median(x, na.rm = na.rm, ...)
+            function(x, na.rm = FALSE, ...) median(x, na.rm = na.rm)
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
@@ -1109,9 +1120,9 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     listf <- c(listf,
       list(mad = list(
         fun = if (circular) {
-            function(x, int, na.rm = FALSE, ...) circ_mad(x, int = int, na.rm = na.rm, ...)
+            function(x, int, na.rm = FALSE, ...) circ_mad(x, int = int, na.rm = na.rm)
           } else {
-            function(x, na.rm = FALSE, ...) mad(x, na.rm = na.rm, ...)
+            function(x, na.rm = FALSE, ...) mad(x, na.rm = na.rm)
           },
         aggfun_id = agg_fun_defs[itemp, "id"])))
 
