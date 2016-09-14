@@ -1744,6 +1744,21 @@ EventDistribution <- compiler::cmpfun(function(data, N, size) {
   bins
 })
 
+daily_spells_permonth <- compiler::cmpfun(function(x, simTime2) {
+  temp <- tapply(x,
+    simTime2$month_ForEachUsedDay_NSadj + 100 * simTime2$year_ForEachUsedDay_NSadj,
+    function(xm) {
+      temp <- rle(xm)
+      if (any(temp$values)) {
+        mean(temp$lengths[temp$values], na.rm = TRUE)
+      } else {
+        NA
+      }
+    })
+
+  matrix(temp, nrow = 12)
+})
+
 
 #------------------------DAILY WEATHER
 #TODO replace with Rsoilwat31::getWeatherData_folders

@@ -3254,25 +3254,23 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc, runData, simTime)
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 
-					dws <- sapply(st_mo, FUN=function(m)
-								return(list(mean=mean(temp <- unlist(sapply(simTime$useyrs, FUN=function(y) ((temp <- rle(prcp.dy$ppt[simTime2$month_ForEachUsedDay == m & simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]) )), na.rm=TRUE),
-												sd=sd(temp, na.rm=TRUE))))
+          # until SWSF v1.4.4: dws, dds, and tv were calculated as mean of all months
+          # pooled across years
+          # now: they are aggregated across years on the means for each month x year
+          dws <- daily_spells_permonth(prcp.dy$ppt > 0, simTime2) # wet spells
+          dds <- daily_spells_permonth(prcp.dy$ppt < tol, simTime2) # dry spells
 
-					dds <- sapply(st_mo, FUN=function(m)
-								return(list(mean=mean(temp <- unlist(sapply(simTime$useyrs, FUN=function(y) ((temp <- rle(prcp.dy$ppt[simTime2$month_ForEachUsedDay == m & simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]) )), na.rm=TRUE),
-												sd=sd(temp, na.rm=TRUE))))
+          temp <- tapply(temp.dy$mean,
+            simTime2$month_ForEachUsedDay_NSadj + 100 * simTime2$year_ForEachUsedDay_NSadj,
+            sd)
+          tv <- matrix(temp, nrow = 12)
 
-					#tv <- sapply(st_mo, FUN=function(m) sd(temp.dy$mean[simTime2$month_ForEachUsedDay == m], na.rm=TRUE) )
-					tv <- sapply(st_mo, FUN=function(m)
-								return(list(mean=mean(temp <- unlist(sapply(simTime$useyrs, FUN=function(y) sd(temp.dy$mean[simTime2$month_ForEachUsedDay == m & simTime2$year_ForEachUsedDay == y], na.rm=TRUE) )), na.rm=TRUE),
-												sd=sd(temp, na.rm=TRUE))))
-
-					resMeans[nv+st_mo-1] <- unlist(dws[1, ])
-					resSDs[nv+st_mo-1] <- unlist(dws[2, ])
-					resMeans[nv+st_mo-1+12] <- unlist(dds[1, ])
-					resSDs[nv+st_mo-1+12] <- unlist(dds[2, ])
-					resMeans[nv+st_mo-1+24] <- unlist(tv[1, ])
-					resSDs[nv+st_mo-1+24] <- unlist(tv[2, ])
+					resMeans[nv+st_mo-1] <- apply(dws, 1, mean, na.rm = TRUE)
+					resSDs[nv+st_mo-1] <- apply(dws, 1, sd, na.rm = TRUE)
+					resMeans[nv+st_mo-1+12] <- apply(dds, 1, mean, na.rm = TRUE)
+					resSDs[nv+st_mo-1+12] <- apply(dds, 1, sd, na.rm = TRUE)
+					resMeans[nv+st_mo-1+24] <- apply(tv, 1, mean, na.rm = TRUE)
+					resSDs[nv+st_mo-1+24] <- apply(tv, 1, sd, na.rm = TRUE)
 					nv <- nv+36
 
 					rm(dws, dds, tv)
