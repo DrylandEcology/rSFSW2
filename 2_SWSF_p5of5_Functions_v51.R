@@ -1309,6 +1309,33 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
   }
 })
 
+#' Calculates temperate dryland criteria
+#'
+#' @param annualPPT A numeric vector. Annual precipitation values.
+#' @param annualPET A numeric vector. Annual potential evapotranspiration values.
+#'  The values must be in the same units as those of \code{annualPPT}, e.g., \code{mm}.
+#' @monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius for each
+#'  year for which precipitation and PET values are provided.
+#' @param ai_limit A numeric value. Used for return item \code{criteria_12}.
+#'
+#' @references
+#' Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+#' Trewartha GT, Horn LH (1980) An introduction to climate. McGraw-Hill, New York, page 284: Temperate Areas
+#'
+#' @return
+#'  A list with three items: UN-aridity index (numeric value), temperateness (logical value),
+#'  and temperate drylands (logical value).
+calc_drylandindices <- compiler::cmpfun(function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
+  ai <- annualPPT / annualPET	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+  temp <- matrix(monthlyTemp >= 10, nrow = 12)
+  temp <- .colSums(temp, nrow(temp), ncol(temp))
+  TD <- temp >= 4 & temp < 8 #Trewartha & Horn 1980, page 284: temperate areas
+  criteria12 <- as.integer(TD & ai < ai_limit)
+
+  list(ai = ai, temperateness = TD, criteria12 = criteria12)
+})
+
+
 handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
   if (length(na.index) > 0) {
     napredict(na.act, x)

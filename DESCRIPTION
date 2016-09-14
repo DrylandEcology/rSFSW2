@@ -6,7 +6,7 @@ Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch
 			person("Ryan", "Murphy", role = "ctb", email = "not@available.com"))
 Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
-    R (>= 3.3.0)
+    R (>= 3.1.0)
 Imports:
     Rsoilwat31 (>= 1.1.0),
     RSQLite (>= 1.0.0),
