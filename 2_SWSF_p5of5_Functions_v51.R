@@ -1787,6 +1787,46 @@ daily_spells_permonth <- compiler::cmpfun(function(x, simTime2) {
   matrix(temp, nrow = 12)
 })
 
+tabulate_values_in_bins <- compiler::cmpfun(function(x, method = c("duration", "values"),
+  vcrit = NULL, bins, nbins, simTime, simTime2) {
+  method <- match.arg(method)
+
+  bins.summary <- (seq_len(nbins) - 1) * bins
+
+  dat <- if (method == "duration" && is.logical(x)) {
+      # bin duration of TRUE runs
+      lapply(simTime$useyrs, function(y) {
+        temp <- rle(x[simTime2$year_ForEachUsedDay == y])
+        temp <- floor((temp$lengths[temp$values] - 1) / bins) * bins
+        findInterval(temp, vec = bins.summary)
+      })
+    } else if (method == "values") {
+      # bin values
+      lapply(simTime$useyrs, function(y) {
+        temp <- x[simTime2$year_ForEachUsedDay == y]
+        if (!is.null(vcrit)) temp <- temp[temp > vcrit]
+        floor(temp / bins) * bins
+        findInterval(temp, vec = bins.summary)
+      })
+    } else {
+      print("'tabulate_values_in_bins' cannot be calculated")
+      NULL
+    }
+
+  if (length(unlist(dat)) > 0) {
+    counts.summary <- sapply(dat, function(x)
+      tabulate(x, nbins = length(bins.summary)))
+    eventsPerYear <- apply(counts.summary, 2, sum)
+    freq.summary <- sweep(counts.summary, 2, STATS = eventsPerYear, FUN = "/")
+    rm(counts.summary)
+
+  } else {
+    freq.summary <- matrix(0, nrow = length(bins.summary), ncol = simTime$no.useyr)
+    eventsPerYear <- rep(0, simTime$no.useyr)
+  }
+
+  list(eventsPerYear = eventsPerYear, freq.summary = freq.summary)
+})
 
 #------------------------DAILY WEATHER
 #TODO replace with Rsoilwat31::getWeatherData_folders
