@@ -1322,7 +1322,6 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
   }
 })
 
-
 #' Calculates temperate dryland criteria
 #'
 #' @param annualPPT A numeric vector. Annual precipitation values.

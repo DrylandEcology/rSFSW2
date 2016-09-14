@@ -431,6 +431,9 @@ Tmin_crit_C <- c(-15, -9, 0)	#e.g., 0 or c(-15, -9, 0)
 Tmax_crit_C <- c(34, 40)	#e.g., 34 or c(34, 40)
 Tmean_crit_C <- c(5, 15, 25, 35)
 
+# Calculation of the Standardized Precipitation-Evapotranspiration Index (SPEI)
+SPEI_tscales_months <- c(1, 12, 24, 48) # time scales for SPEI::spei in units of months
+
 #degree-days and suitable temperature
 DegreeDayBase <- 0 # (degree C) base temperature above which degree-days are accumulated
 
