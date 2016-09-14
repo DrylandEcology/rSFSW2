@@ -3215,20 +3215,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("PET.yr")) PET.yr <- get_PET_yr(sc, runData, simTime)
 					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc, runData, simTime)
 
-					get.drylandindices <- function(annualPPT, annualPET, monthlyTemp){
-						ai <- annualPPT/annualPET	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
-						TD <- ifelse((temp <- apply(matrix(data=monthlyTemp, ncol=12, byrow=TRUE), MARGIN=1, FUN=function(x) sum(x >= 10))) >= 4 & temp < 8, 1, 0) #Trewartha & Horn 1980, page 284: temperate areas
-						criteria12 <- ifelse(TD == 1 & ai < 0.5, 1, 0)
+          di.ts <- calc_drylandindices(annualPPT = prcp.yr$ppt, annualPET = PET.yr$val,
+                                      monthlyTemp = temp.mo$mean)
 
-						return(list(ai=ai, TD=TD, criteria12=criteria12))
-					}
-
-					di.ts <- get.drylandindices(annualPPT = prcp.yr$ppt,
-					                            annualPET = PET.yr$val,
-					                            monthlyTemp = temp.mo$mean)
-					di.normals <- get.drylandindices(annualPPT = mean(prcp.yr$ppt),
-					                            annualPET = mean(PET.yr$val),
-					                            monthlyTemp = tapply(temp.mo$mean, simTime2$month_ForEachUsedMonth, mean))
+          meanmonthlyTemp <- tapply(temp.mo$mean, simTime2$month_ForEachUsedMonth, mean)
+          di.normals <- calc_drylandindices(annualPPT = mean(prcp.yr$ppt),
+                                      annualPET = mean(PET.yr$val),
+                                      monthlyTemp = meanmonthlyTemp)
 
 					resMeans[nv:(nv+2)] <- unlist(di.normals)
 					resMeans[(nv+3):(nv+5)] <- apply(temp <- cbind(di.ts$ai, di.ts$TD, di.ts$criteria12), MARGIN=2, FUN=mean, na.rm=TRUE)
