@@ -3144,30 +3144,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailyPrecipitationEventSizeDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc, runData, simTime)
 
-					#prcp-event sizes in bins
-					events <- lapply(simTime$useyrs, FUN=function(y) floor((temp <- prcp.dy$ppt[simTime2$year_ForEachUsedDay == y])[temp>0]/bin.prcpSizes)*bin.prcpSizes)
-					bins.summary <- (0:6) * bin.prcpSizes	#aggregate to maximal 7 bins
-					bins.available <- sort(unique(unlist(events))) #bins present
-					counts.available <- as.matrix(sapply(simTime$useyrs - startyr + 1, FUN=function(y) sapply(bins.available, FUN=function(b) sum(events[[y]] == b))))
-					counts.summary <- matrix(data=0, ncol=simTime$no.useyr, nrow=length(bins.summary))
-					counts.summary[bins.summary %in% bins.available, ] <- counts.available[bins.available %in% bins.summary, ]
-					if(max(bins.summary) < max(bins.available)){ #if bins available that are outside the summary bins, then sum them up into the highest summary bin
-						if(length(bins.suming <- which(bins.available >= max(bins.summary))) > 1){
-							counts.summary[length(bins.summary), ] <- apply(counts.available[bins.suming, ], MARGIN=2, FUN=sum)
-						} else {
-							counts.summary[length(bins.summary), ] <- counts.available[bins.suming, ]
-						}
-					}
-					eventsPerYear <- apply(counts.summary, MARGIN=2, FUN=sum)
-					freq.summary <- sweep(counts.summary, MARGIN=2, STATS=eventsPerYear, FUN="/")
+          #prcp-event sizes in bins
+          ppt_sizes <- tabulate_values_in_bins(
+            x = prcp.dy$ppt, method = "values", vcrit = 0,
+            bins = bin.prcpSizes, nbins = 7,
+            simTime = simTime, simTime2 = simTime2)
 
-					resMeans[nv] <- mean(eventsPerYear)
-					resSDs[nv] <- sd(eventsPerYear)
-					resMeans[(nv+1):(nv+7)] <- apply(freq.summary, MARGIN=1, FUN=mean)
-					resSDs[(nv+1):(nv+7)] <- apply(freq.summary, MARGIN=1, FUN=sd)
+					resMeans[nv] <- mean(ppt_sizes$eventsPerYear)
+					resSDs[nv] <- sd(ppt_sizes$eventsPerYear)
+					resMeans[(nv+1):(nv+7)] <- apply(ppt_sizes$freq.summary, 1, mean)
+					resSDs[(nv+1):(nv+7)] <- apply(ppt_sizes$freq.summary, 1, sd)
 					nv <- nv+8
 
-					rm(events, counts.available, counts.summary, freq.summary, eventsPerYear)
+					rm(ppt_sizes)
 				}
 			#15
 				if(any(simulation_timescales=="yearly") & aon$yearlyPET){
@@ -3224,8 +3213,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                                       monthlyTemp = meanmonthlyTemp)
 
 					resMeans[nv:(nv+2)] <- unlist(di.normals)
-					resMeans[(nv+3):(nv+5)] <- apply(temp <- cbind(di.ts$ai, di.ts$TD, di.ts$criteria12), MARGIN=2, FUN=mean, na.rm=TRUE)
-					resSDs[(nv+3):(nv+5)] <- apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE)
+					resMeans[(nv+3):(nv+5)] <- sapply(di.ts, mean, na.rm = TRUE)
+					resSDs[(nv+3):(nv+5)] <- sapply(di.ts, sd, na.rm = TRUE)
 					nv <- nv+6
 
 					rm(di.ts, di.normals)
@@ -3273,33 +3262,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailyPrecipitationFreeEventDistribution")
 					if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(sc, runData, simTime)
 
-					#duration of prcp-free days in bins
-					durations <- lapply(simTime$useyrs, FUN=function(y) floor(((temp <- rle(prcp.dy$ppt[simTime2$year_ForEachUsedDay == y] == 0))$lengths[temp$values]-1)/bin.prcpfreeDurations)*bin.prcpfreeDurations )
-					if(length(unlist(durations))==0) {if(!be.quiet) print("Unable to complete aggregation of dailyPrecipitationFreeEventDistribution")
-						}else{
-					bins.summary <- (0:3) * bin.prcpfreeDurations	#aggregate to maximal 4 bins
-					bins.available <- sort(unique(unlist(durations)))	#bins present
-					counts.available <- as.matrix(sapply(simTime$useyrs - startyr + 1, FUN=function(y) sapply(bins.available, FUN=function(b) sum(durations[[y]] == b))))
-					counts.summary <- matrix(data=0, ncol=simTime$no.useyr, nrow=length(bins.summary))
-					counts.summary[bins.summary %in% bins.available, ] <- counts.available[bins.available %in% bins.summary, ]
-					if(max(bins.summary) < max(bins.available)){ #if bins available that are outside the summary bins, then sum them up into the highest summary bin
-						if(length(bins.suming <- which(bins.available >= max(bins.summary))) > 1){
-							counts.summary[length(bins.summary), ] <- apply(counts.available[bins.suming, ], MARGIN=2, FUN=sum)
-						} else {
-							counts.summary[length(bins.summary), ] <- counts.available[bins.suming, ]
-						}
-					}
-					eventsPerYear <- apply(counts.summary, MARGIN=2, FUN=sum)
-					freq.summary <- sweep(counts.summary, MARGIN=2, STATS=eventsPerYear, FUN="/")
+          #duration of prcp-free days in bins
+          ppt_free <- tabulate_values_in_bins(
+            x = prcp.dy$ppt <= tol, method = "duration",
+            bins = bin.prcpfreeDurations, nbins = 4,
+            simTime = simTime, simTime2 = simTime2)
 
-					resMeans[nv] <- mean(eventsPerYear)
-					resSDs[nv] <- sd(eventsPerYear)
-					resMeans[(nv+1):(nv+4)] <- apply(freq.summary, MARGIN=1, FUN=mean)
-					resSDs[(nv+1):(nv+4)] <- apply(freq.summary, MARGIN=1, FUN=sd)
+					resMeans[nv] <- mean(ppt_free$eventsPerYear)
+					resSDs[nv] <- sd(ppt_free$eventsPerYear)
+					resMeans[(nv+1):(nv+4)] <- apply(ppt_free$freq.summary, 1, mean)
+					resSDs[(nv+1):(nv+4)] <- apply(ppt_free$freq.summary, 1, sd)
 					nv <- nv+5
 
-					rm(durations, counts.available, counts.summary, freq.summary, eventsPerYear)
-				}
+					rm(ppt_free)
 				}
 			#21
 				if(any(simulation_timescales=="monthly") & aon$monthlySPEIEvents){
