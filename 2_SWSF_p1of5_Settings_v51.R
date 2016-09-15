@@ -36,7 +36,7 @@ rm(list=ls(all=TRUE))
 t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- interactive()
-debug.warn.level <- if (interactive()) 2 else 1
+debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
 
 #------Mode of framework
