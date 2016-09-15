@@ -44,14 +44,6 @@ has_incompletedata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
   }
 })
 
-.Last <- compiler::cmpfun(function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
-  if (is.loaded("mpi_initialize") && exists("mpi.comm.size")) {
-    if (Rmpi::mpi.comm.size(1) > 0)
-      Rmpi::mpi.close.Rslaves()
-    .Call("mpi_finalize")
-  }
-})
-
 #custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
 #note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
 list.dirs2 <- compiler::cmpfun(function(path, full.names=TRUE, recursive=TRUE) {
@@ -219,22 +211,135 @@ it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN, runIDs) {
 #t(sapply(runIDs_todo, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
 #t(sapply(runIDs_total, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
 
-exportObjects <- compiler::cmpfun(function(allObjects) {
-  print("exporting objects from master node to slave nodes")
+
+#' Export R objects to MPI slaves or SNOW workers
+#'
+#' @param varlist A vector of R object names to export
+#' @param list_envs A list of environments in which to search for the R objects
+#' @param parallel_backend A character vector, either 'mpi' or 'snow'
+#' @param cl A snow cluster object
+#'
+#' @return A logical value. \code{TRUE} if every object was exported successfully.
+export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, parallel_backend = c("mpi", "snow"), cl = NULL) {
   t.bcast <- Sys.time()
-  for(obj in 1:length(allObjects)) {
-    bcast.tempString <- allObjects[obj]
-    bcast.tempValue <- try(eval(as.name(allObjects[obj])))
-    if(!inherits(bcast.tempValue, "try-error")){
-      Rmpi::mpi.bcast.Robj2slave(bcast.tempString)
-      Rmpi::mpi.bcast.Robj2slave(bcast.tempValue)
-      Rmpi::mpi.bcast.cmd(cmd=try(assign(bcast.tempString, bcast.tempValue)))
-    } else {
-      print(paste(obj, bcast.tempString, "not successful"))
+  parallel_backend <- match.arg(parallel_backend)
+  print(paste("Exporting", length(varlist), "objects from master process to workers/slaves"))
+
+  #---Determine environments
+  export_oe <- list()
+  vtemp <- NULL
+
+  for (k in seq_along(list_envs)) {
+    temp <- varlist[varlist %in% ls(pos = list_envs[[k]])]
+    export_oe[[k]] <- list(
+        varlist = temp[!(temp %in% vtemp)],
+        envir = list_envs[[k]]
+      )
+    vtemp <- c(vtemp, export_oe[[k]][["varlist"]])
+  }
+
+  cannot_export <- !(varlist %in% vtemp)
+  if (any(cannot_export))
+    print(paste("Objects in 'varlist' that cannot be located:",
+          paste(varlist[cannot_export], collapse = ", ")))
+
+
+  #---Export objects from environments
+  success <- TRUE
+
+  for (k in seq_along(export_oe)) {
+    if (!is.null(export_oe[[k]][["varlist"]]) &&
+        !is.null(export_oe[[k]][["envir"]])) {
+
+      if (identical(parallel_backend, "snow")) {
+        temp <- try(snow::clusterExport(cl, export_oe[[k]][["varlist"]],
+                            envir = export_oe[[k]][["envir"]]))
+
+        if (inherits(temp, "try-error"))
+          success <- FALSE
+
+      } else if (identical(parallel_backend, "mpi")) {
+
+        if (any(c("obj__", "x__") %in% export_oe[[k]][["varlist"]]))
+          stop("R objects with names 'obj__' and 'x__' cannot be exported to workers/slaves")
+
+        temp <- try(lapply(export_oe[[k]][["varlist"]], function(obj__) {
+            Rmpi::mpi.bcast.Robj2slave(obj__)
+            x__ <- get(obj__, pos = export_oe[[k]][["envir"]])
+            Rmpi::mpi.bcast.Robj2slave(x__)
+            Rmpi::mpi.bcast.cmd(assign(obj__, x__))
+          }))
+
+        if (inherits(temp, "try-error")) {
+          success <- FALSE
+        } else {
+          Rmpi::mpi.bcast.cmd(rm(obj__, x__))
+        }
+      }
     }
   }
-  print(paste("object export took", round(difftime(Sys.time(), t.bcast, units="secs"), 2), "secs"))
+
+  if (success) {
+    print(paste("Exporting", length(vtemp), "objects took",
+              round(difftime(Sys.time(), t.bcast, units = "secs"), 2),
+              "secs"))
+  } else {
+    print("Export not successful")
+  }
+
+  success
 })
+
+
+#' Rmpi work function for calling \code{do_OneSite}
+#'
+#' @references
+#'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
+#'
+work <- compiler::cmpfun(function() {
+  # Note the use of the tag for sent messages:
+  #     1=ready_for_task, 2=done_task, 3=exiting
+  # Note the use of the tag for received messages:
+  #     1=task, 2=done_tasks
+
+  junk <- 0L
+  done <- 0L
+  while (done != 1L) {
+    # Signal being ready to receive a new task
+    Rmpi::mpi.send.Robj(junk, 0, 1)
+
+    # Receive a task
+    dat <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
+    task_info <- Rmpi::mpi.get.sourcetag()
+    tag <- task_info[2]
+
+    if (tag == 1L) {
+      if (dat$do_OneSite) {
+        result <- do_OneSite(i_sim = dat$i_sim,
+          i_labels = dat$labels,
+          i_SWRunInformation = dat$SWRunInformation,
+          i_sw_input_soillayers = dat$sw_input_soillayers,
+          i_sw_input_treatments = dat$sw_input_treatments,
+          i_sw_input_cloud = dat$sw_input_cloud,
+          i_sw_input_prod = dat$sw_input_prod,
+          i_sw_input_site = dat$sw_input_site,
+          i_sw_input_soils = dat$sw_input_soils,
+          i_sw_input_weather = dat$sw_input_weather,
+          i_sw_input_climscen = dat$sw_input_climscen,
+          i_sw_input_climscen_values = dat$sw_input_climscen_values)
+
+        # Send a results message back to the master
+        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
+      }
+
+    } else if (tag == 2L) {
+      done <- 1L
+    }
+    # We'll just ignore any unknown messages
+  }
+  Rmpi::mpi.send.Robj(junk, 0, 3)
+})
+
 
 load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
   if(!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
@@ -2200,22 +2305,15 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
     # set up parallel
     if (do_parallel) {
       list.export <- c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr") #objects that need exporting to slaves
+	    list_envs <- list(local = environment(), parent = parent.frame(), global = .GlobalEnv)
+
       if (identical(parallel_backend, "mpi")) {
-        exportObjects(list.export)
+        export_objects_to_workers(list.export, list_envs, "mpi")
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
         Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
-      }
-      if (identical(parallel_backend, "snow")) {
-        export_obj_local <- list.export[list.export %in% ls(name=environment())]
-        export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
-        export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
-        export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
-        export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
-        stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
 
-        if (length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
-        if (length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
-        if (length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+      } else if (identical(parallel_backend, "snow")) {
+        export_objects_to_workers(list.export, list_envs, "snow", cl)
         snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
         snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
       }
