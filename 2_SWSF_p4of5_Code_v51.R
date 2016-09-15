@@ -10,33 +10,38 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
 ow <- options("warn", "error")
-if (print.debug) {
-	# turns all warnings into errors, dumps (if requested) objects and frames to files, and (if not interactive) quits
-	options(warn = 2, error = quote({
-		if (debug.dump.objects) {
-			dump_objs <- new.env()
+#    - warn < 0: warnings are ignored
+#    - warn = 0: warnings are stored until the top–level function returns
+#    - warn = 1: warnings are printed as they occur
+#    - warn = 2: all warnings are turned into errors
+options(warn = debug.warn.level)
 
-			for (p in sys.parents()) {
-				if (inherits(try(sys.frame(p), silent = TRUE), "try-error"))
-					next
-				items <- setdiff(ls(name = sys.frame(p)), ls(name = dump_objs))
-				for (it in items)
-					assign(it, get(it, pos = sys.frame(p)), envir = dump_objs)
-			}
-
-			save(list = ls(name = dump_objs), envir = dump_objs,
-				file = file.path(dir.prj, "last.dump.save.RData"))
-		}
-		dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
-		if (!interactive())
-			q("no")
-	}))
+if (debug.dump.objects) {
+	# dumps objects and frames to files, and (if not interactive) quits
 	# Note: view dumped frames with
 	# load(file.path(dir.prj, "last.dump.rda"))
 	# debugger(`path/to/file/last.dump.rda`)
+	options(error = quote({
+    dump_objs <- new.env()
+
+    for (p in sys.parents()) {
+      if (inherits(try(sys.frame(p), silent = TRUE), "try-error"))
+        next
+      items <- setdiff(ls(name = sys.frame(p)), ls(name = dump_objs))
+      for (it in items)
+        assign(it, get(it, pos = sys.frame(p)), envir = dump_objs)
+    }
+
+    save(list = ls(name = dump_objs), envir = dump_objs,
+      file = file.path(dir.prj, "last.dump.save.RData"))
+
+		dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
+
+		if (!interactive())
+			q("no")
+	}))
 } else {
-	# catches and prints all warnings and on error returns a traceback()
-	options(warn = 1, error = traceback)
+	options(error = traceback)
 }
 
 
@@ -1304,9 +1309,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	flag.icounter <- formatC(i_sim, width=counter.digitsN, format = "d", flag="0")
 
-	if (print.debug && debug.dump.objects) on.exit({
-		save(list = ls(), file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
-	})
+  if (debug.dump.objects)
+    on.exit(save(list = ls(), file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData"))))
 
 #-----------------------Check for experimentals
 	if(expN > 0 && length(create_experimentals) > 0) {
