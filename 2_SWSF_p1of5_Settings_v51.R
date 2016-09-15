@@ -36,6 +36,7 @@ rm(list=ls(all=TRUE))
 t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- interactive()
+debug.warn.level <- if (interactive()) 2 else 1
 debug.dump.objects <- interactive()
 
 #------Mode of framework
@@ -125,6 +126,7 @@ if (!file.exists(ftemp) || !continueAfterAbort) {
 }
 load(ftemp)
 print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
+
 
 #------Define how aggregated output should be handled:
 cleanDB <- FALSE #This will wipe all the Tables at the begining of a run. Becareful not to wipe your data.
