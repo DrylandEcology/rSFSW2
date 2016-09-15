@@ -2116,7 +2116,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 			# extract the GCM data depending on parallel backend
 			if (identical(parallel_backend, "mpi")) {
-				exportObjects(list.export)
+				export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
 				if (is_NEX && useRCurl && !saveNEXtempfiles)
 					Rmpi::mpi.bcast.cmd(library("RCurl", quietly=TRUE))
 				if (is_GDODCPUCLLNL)
@@ -2147,7 +2147,8 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				Rmpi::mpi.bcast.cmd(gc())
 
 			} else if (identical(parallel_backend, "snow")) {
-				snow::clusterExport(cl, list.export, envir=parent.frame())
+				export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
+
 				if (is_NEX && useRCurl && !saveNEXtempfiles)
 					snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
 				if (is_GDODCPUCLLNL)
@@ -2965,7 +2966,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
-						exportObjects(list.export)
+				    export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
 						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 
 						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
@@ -2973,8 +2974,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 						Rmpi::mpi.bcast.cmd(rm(list=ls()))
 						Rmpi::mpi.bcast.cmd(gc())
+
 					} else if (identical(parallel_backend, "snow")) {
-						snow::clusterExport(cl, list.export, envir=parent.frame())
+				    export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
 
 						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
@@ -2982,6 +2984,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 						snow::clusterEvalQ(cl, rm(list=ls()))
 						snow::clusterEvalQ(cl, gc())
+
 					} else if (identical(parallel_backend, "multicore")) {
 						packages.export <- "raster"
 						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar%
@@ -3092,7 +3095,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
-					exportObjects(list.export)
+				  export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
 
 					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
@@ -3102,8 +3105,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
 					Rmpi::mpi.bcast.cmd(gc())
+
 				} else if (identical(parallel_backend, "snow")) {
-					snow::clusterExport(cl, list.export, envir=parent.frame())
+				  export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
 
 					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
@@ -3113,12 +3117,14 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 					snow::clusterEvalQ(cl, rm(list=ls()))
 					snow::clusterEvalQ(cl, gc())
+
 				} else if (identical(parallel_backend, "multicore")) {
 					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
 						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep)
 				}
+
 			} else {
 				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .errorhandling="remove", .inorder=FALSE) %do%
 					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,

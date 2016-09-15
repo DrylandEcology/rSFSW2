@@ -126,7 +126,12 @@ if(!require(RSQLite,quietly = TRUE)) {
 }
 
 if(parallel_runs && identical(parallel_backend, "mpi")) {
-	if(!require(Rmpi,quietly = TRUE)) {
+	if(!require(Rmpi, quietly = TRUE)) {
+	  print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI available from",
+	              "https://www.open-mpi.org/software/ompi/",
+	              "with install instructions at https://www.open-mpi.org/faq/?category=building#easy-build"))
+	  print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print the",
+	              "error message: 'Cannot find mpi.h header file'"))
 		tryCatch(install.packages("Rmpi",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
 		stopifnot(require(Rmpi, quietly = TRUE))
 	}
@@ -462,13 +467,18 @@ parallel_init <- FALSE
 if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
 	if(parallel_runs){
 		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
-#		opt_we_cur <- options("warn", "error")
 
 		if(identical(parallel_backend, "mpi")) {
-			mpi.spawn.Rslaves(nslaves=num_cores)
+      Rmpi::mpi.spawn.Rslaves(nslaves = num_cores)
 
-#			exportObjects(opt_we_cur)
-#			mpi.bcast.cmd(cmd = options(warn = opt_we_cur[["warn"]], error = opt_we_cur[["error"]]))
+      .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
+        # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+        if (is.loaded("mpi_initialize")) {
+          if (isNamespaceLoaded("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
+            Rmpi::mpi.close.Rslaves()
+          .Call("mpi_finalize")
+        }
+      }
 		}
 
 		if(identical(parallel_backend, "snow")){
@@ -478,9 +488,6 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 			clusterApply(cl, seq_len(num_cores), function(x) .nodeNumber <<- x) # need a .x object that does not get deleted with rm(list = ls())
 			#snow::clusterSetupRNG(cl) #random numbers setup
 			doSNOW::registerDoSNOW(cl) 	# register foreach backend
-
-#			snow::clusterExport(cl, "opt_we_cur")
-#			snow::clusterEvalQ(cl, options(warn = opt_we_cur[["warn"]], error = opt_we_cur[["error"]]))
 		}
 
 		if(identical(parallel_backend, "multicore")) {
@@ -488,11 +495,11 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 			registerDoMC(num_cores)
 		}
 
-		if(identical(parallel_backend, "mpi")){
-			workersN <- (mpi.comm.size() - 1)
-		} else {
-			workersN <- foreach::getDoParWorkers()
-		}
+    workersN <- if (identical(parallel_backend, "mpi")) {
+        Rmpi::mpi.comm.size() - 1
+      } else {
+        foreach::getDoParWorkers()
+      }
 
 		parallel_init <- TRUE
 		if(!be.quiet) print(paste("SWSF prepares parallelization: initialization of", workersN, "workers ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -5618,39 +5625,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	return(1)
 } #end do_OneSite()
-
-#------------------------
-
-	work <- function() {
-		# Note the use of the tag for sent messages:
-		#     1=ready_for_task, 2=done_task, 3=exiting
-		# Note the use of the tag for received messages:
-		#     1=task, 2=done_tasks
-
-		junk <- 0
-		done <- 0
-		while (done != 1) {
-			# Signal being ready to receive a new task
-			mpi.send.Robj(junk,0,1)
-
-			# Receive a task
-			dataForRun <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
-			task_info <- mpi.get.sourcetag()
-			tag <- task_info[2]
-
-			if (tag == 1) {
-				print(dataForRun$i_sim)
-				if(dataForRun$do_OneSite) result <- do_OneSite(i_sim=dataForRun$i_sim, i_labels=dataForRun$labels, i_SWRunInformation=dataForRun$SWRunInformation, i_sw_input_soillayers=dataForRun$sw_input_soillayers, i_sw_input_treatments=dataForRun$sw_input_treatments, i_sw_input_cloud=dataForRun$sw_input_cloud, i_sw_input_prod=dataForRun$sw_input_prod, i_sw_input_site=dataForRun$sw_input_site, i_sw_input_soils=dataForRun$sw_input_soils, i_sw_input_weather=dataForRun$sw_input_weather, i_sw_input_climscen=dataForRun$sw_input_climscen, i_sw_input_climscen_values=dataForRun$sw_input_climscen_values)
-				# Send a results message back to the master
-				#print(results)
-				mpi.send.Robj(list(i=dataForRun$i_sim,r=result),0,2)
-			} else if (tag == 2) {
-				done <- 1
-			}
-			# We'll just ignore any unknown messages
-		}
-		mpi.send.Robj(junk,0,3)
-	}
 }
 #--------------------------------------------------------------------------------------------------#
 #------------------------RUN RSOILWAT
@@ -5695,16 +5669,16 @@ if(actionWithSoilWat && runsN_todo > 0){
 	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg", "AdjMonthlyBioMass",
 		"adjust.soilDepth", "adjust.WindspeedHeight", "adjustLayersDepth", "aon",
 		"be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes", "circ.mean", "circ.range",
-		"circ.sd", "climate.conditions", "climate.conditions", "cloudin",
+		"circ.sd", "climate.conditions", "cloudin",
 		"continueAfterAbort", "cor2", "counter.digitsN", "create_experimentals",
 		"create_filename_for_Maurer2002_NorthAmerica", "create_treatments", "cut0Inf",
-		"daily_lyr_agg", "daily_lyr_agg", "daily_no",
+		"daily_lyr_agg", "daily_no",
 		"datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
-		"dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
+		"dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase",
 		"Depth_TopLayers", "dir.create2", "dir.ex.daymet", "dir.ex.maurer2002",
 		"dir.out.temp", "dir.out", "dir.prj", "dir.sw.in.tr", "dir.sw.runs",
 		"dirname.sw.runs.weather", "do_OneSite", "do.GetClimateMeans",
-		"done_prior", "endDoyAfterDuration", "endyr", "estabin", "estabin",
+		"done_prior", "endDoyAfterDuration", "endyr", "estabin",
 		"establishment.delay", "establishment.duration", "establishment.swp.surface",
 		"EstimateInitialSoilTemperatureForEachSoilLayer", "exec_c_prefix",
 		"ExpInput_Seperator", "expN",
@@ -5743,49 +5717,53 @@ if(actionWithSoilWat && runsN_todo > 0){
 		"tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
 		"tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
 		"tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site",
-		"tr_soil", "tr_VegetationComposition", "tr_weather", "transferExpDesignToInput",
+		"tr_soil", "tr_VegetationComposition", "tr_weather",
 		"transferExpDesignToInput", "TranspCoeffByVegType", "VWCtoSWP", "weatherin",
 		"work", "workersN", "yearsin")
-	list.export <- ls()[ls() %in% list.export]
+	list.export <- list.export[!duplicated(list.export)]
+	list_envs <- list(local = environment(), parent = parent.frame(), global = .GlobalEnv)
+
 	#ETA calculation
-	if(!be.quiet) print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
+	if (!be.quiet)
+	  print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
 
 	inputDataToSave <- list()
 
-	if(parallel_runs && parallel_init){
+	if (parallel_runs && parallel_init) {
 		#call the simulations depending on parallel backend
-		if(identical(parallel_backend, "mpi")) {
-			workersN <- (mpi.comm.size() - 1)
-			exportObjects(list.export)
+		if (identical(parallel_backend, "mpi")) {
+			mpi.bcast.cmd(library(Rsoilwat31, quietly = TRUE))
+			mpi.bcast.cmd(library(circular, quietly = TRUE))
+			mpi.bcast.cmd(library(SPEI, quietly = TRUE))
+			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
-			mpi.bcast.cmd(library(Rsoilwat31,quietly = TRUE))
-			mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
-			mpi.bcast.cmd(library(circular,quietly = TRUE))
-			mpi.bcast.cmd(library(SPEI,quietly = TRUE))
-			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
-
+      export_objects_to_workers(list.export, list_envs, "mpi")
+      if (print.debug)
+        mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
+      mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 			mpi.bcast.cmd(work())
 
-			junk <- 0
-			closed_slaves <- 0
-			runs.completed <- 1
+			junk <- 0L
+			closed_slaves <- 0L
+			runs.completed <- 1L
 			#sTag <- c("Ready for task", "Done with Task", "Exiting")
-			while(closed_slaves < workersN) {
+			while (closed_slaves < workersN) {
 tryCatch({
-				complete <- mpi.recv.Robj(mpi.any.source(),mpi.any.tag())
+				complete <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
 				complete_info <- mpi.get.sourcetag()
 				slave_id <- complete_info[1]
 				tag <- complete_info[2]
-				#print(paste("From:", slave_id, "tag:", tag, "Message:", complete))
+				if (print.debug)
+				  print(paste("From:", slave_id, "tag:", tag, "Message:", complete))
 
-				if (tag == 1) {
+				if (tag == 1L) {
 					temp <- Sys.time() - t.overall
 					units(temp) <- "secs"
 					temp <- as.double(temp)
 
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
-					if ((runs.completed <= length(runIDs_todo)) & (temp < MaxDoOneSiteTime)) {
+          if ((runs.completed <= length(runIDs_todo)) & (temp < MaxDoOneSiteTime)) {
 						# Send a task, and then remove it from the task list
 						i_site <- it_site(runIDs_todo[runs.completed], runsN_master, runIDs_sites)
 						i_labels <- labels[i_site]
@@ -5801,25 +5779,36 @@ tryCatch({
 						i_sw_input_climscen_values <- sw_input_climscen_values[i_site, ]
 
 						dataForRun <- list(do_OneSite=TRUE, i_sim=runIDs_todo[runs.completed], labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
-						mpi.send.Robj(dataForRun, slave_id, 1);
-						print(paste("Slave:", slave_id, "Run:", runIDs_todo[runs.completed], "started at", Sys.time()))
-						runs.completed <- runs.completed + 1
+						mpi.send.Robj(dataForRun, slave_id, 1)
+						if (print.debug) {
+						  print(paste("Slave:", slave_id,
+						              "Run:", runIDs_todo[runs.completed],
+						              "started at", Sys.time()))
+						}
+						runs.completed <- runs.completed + 1L
+
 					} else {
 						mpi.send.Robj(junk, slave_id, 2)
 					}
-				} else if (tag == 2) {
-					# The message contains results. Do something with the results.
-					# Store them in the data structure
+
+				} else if (tag == 2L) {
+					# The message contains results: store result in a data structure
 					inputDataToSave[[complete$i]] <- complete$r
-					#print(paste("Run: ", complete, "at", Sys.time()))
-				} else if (tag == 3) {
+					if (print.debug)
+					  print(paste("Run:", complete, "at", Sys.time()))
+
+				} else if (tag == 3L) {
 					# A slave has closed down.
-					closed_slaves <- closed_slaves + 1
-					print(paste("Slave Closed:", slave_id))
-				} else if (tag == 4) {
+					closed_slaves <- closed_slaves + 1L
+					if (print.debug)
+					  print(paste("Slave:", slave_id, "closed at", Sys.time()))
+
+				} else if (tag == 4L) {
 					#The slave had a problem with Soilwat record Slave number and the Run number.
-					print("Problem with run")
-					write.csv(x=data.frame(Slave=slave_id,Run=complete), file=file.path(dir.out, "ProblemRuns.csv"), append=TRUE,row.names<-FALSE,col.names=TRUE)
+					print("Problem with run:", complete, "on slave:", save_id, "at", Sys.time())
+					write.csv(data.frame(Slave = slave_id, Run = complete),
+					          file = file.path(dir.out, "ProblemRuns.csv"),
+					          append = TRUE, row.names = FALSE, col.names = TRUE)
 				}
 }, interrupt=function(interrupt) {
 	print("Ctrl-C caught bringing work to an end.")
@@ -5834,24 +5823,13 @@ tryCatch({
 			print(runs.completed)
 		}
 
-		if(identical(parallel_backend, "snow")){
-			snow::clusterEvalQ(cl, library(circular,quietly=TRUE)) 	#load any packages necessary for do_OneSite(): none as of July 24, 2012
-			snow::clusterEvalQ(cl, library(SPEI,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(RSQLite,quietly=TRUE))
-			snow::clusterEvalQ(cl, library(Rsoilwat31,quietly=TRUE))
+		if (identical(parallel_backend, "snow")) {
+			snow::clusterEvalQ(cl, library(Rsoilwat31, quietly = TRUE))
+			snow::clusterEvalQ(cl, library(circular, quietly = TRUE))
+			snow::clusterEvalQ(cl, library(SPEI, quietly = TRUE))
+			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
-			export_obj_local <- list.export[list.export %in% ls(name=environment())]
-			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
-			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
-			export_obj_in_globenv <- list.export[list.export %in% ls(name=.GlobalEnv)]
-			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
-			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
-
-			if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
-			if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
-			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
-
-			snow::clusterEvalQ(cl, dbConnected <- FALSE)
+      export_objects_to_workers(list.export, list_envs, "snow", cl)
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
@@ -6136,8 +6114,6 @@ if(checkCompleteness){
 	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
 		if(identical(parallel_backend, "mpi")) {
-			workersN <- (mpi.comm.size() - 1)
-
 			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
 			numberMissing <- mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDB)
@@ -6368,8 +6344,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 		#call the simulations depending on parallel backend
 		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
-			workersN <- (mpi.comm.size() - 1)
-			exportObjects(list.export)
+			export_objects_to_workers(list.export, list(global = .GlobalEnv), "mpi")
 
 			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
