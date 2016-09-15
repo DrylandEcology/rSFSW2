@@ -295,7 +295,9 @@ export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, paral
 #'
 #' @references
 #'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
-#'
+#' @section Note:
+#'  In case an error occurs, the slave will like not report back to master because
+#'  it hangs in miscommunication, and reminds idle (check activity, e.g., with \code{top}).
 work <- compiler::cmpfun(function() {
   # Note the use of the tag for sent messages:
   #     1=ready_for_task, 2=done_task, 3=exiting
@@ -315,7 +317,8 @@ work <- compiler::cmpfun(function() {
 
     if (tag == 1L) {
       if (dat$do_OneSite) {
-        result <- do_OneSite(i_sim = dat$i_sim,
+        #print(paste("MPI slave", Rmpi::mpi.comm.rank(), "works on:", dat$i_sim, dat$labels))
+        result <- match.fun("do_OneSite")(i_sim = dat$i_sim,
           i_labels = dat$labels,
           i_SWRunInformation = dat$SWRunInformation,
           i_sw_input_soillayers = dat$sw_input_soillayers,

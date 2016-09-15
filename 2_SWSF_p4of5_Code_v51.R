@@ -1337,8 +1337,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 
 #------------------------Preparations for simulation run
-	if(!be.quiet) print(paste(i_sim, ":", i_label, "started at ", time.sys))
-
+  if (!be.quiet)
+    print(paste(i_sim, ":", i_label, "started at ", time.sys))
 
 	#Check what needs to be done
 	#TODO this currently doesn't work in the database setup
@@ -5754,12 +5754,18 @@ if(actionWithSoilWat && runsN_todo > 0){
 			#sTag <- c("Ready for task", "Done with Task", "Exiting")
 			while (closed_slaves < workersN) {
 tryCatch({
+        if (print.debug)
+          print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
+
 				complete <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
 				complete_info <- mpi.get.sourcetag()
 				slave_id <- complete_info[1]
 				tag <- complete_info[2]
-				if (print.debug)
-				  print(paste("From:", slave_id, "tag:", tag, "Message:", complete))
+        if (print.debug)
+          print(paste(Sys.time(),
+                      ": master has received communication from slave", slave_id,
+                      "with tag", tag,
+                      "and message", paste(complete, collapse = ", ")))
 
 				if (tag == 1L) {
 					temp <- Sys.time() - t.overall
@@ -5815,6 +5821,7 @@ tryCatch({
 					          file = file.path(dir.out, "ProblemRuns.csv"),
 					          append = TRUE, row.names = FALSE, col.names = TRUE)
 				}
+
 }, interrupt=function(interrupt) {
 	print("Ctrl-C caught bringing work to an end.")
 	print(interrupt)
