@@ -405,7 +405,7 @@ adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_dep
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
 
-sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, simTime2) {
+sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, simTime, simTime2, return_yearly = FALSE) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
@@ -420,19 +420,37 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
   DegreeDaysAbove65F_DaysC <- tapply(temp_base65F, simTime2$year_ForEachUsedDay_NSadj, sum)
 
   nyrs <- seq_along(Month7th_MinTemp_C) #if southern Hemisphere, then 7th month of last year is not included
-  temp <- cbind(Month7th_MinTemp_C[nyrs],
+  ydat <- cbind(Month7th_MinTemp_C[nyrs],
                 LengthFreezeFreeGrowingPeriod_Days[nyrs],
                 DegreeDaysAbove65F_DaysC[nyrs])
-  res <- c(apply(temp, 2, mean), apply(temp, 2, sd))
-  temp <- c("Month7th_NSadj_MinTemp_C",
-            "LengthFreezeFreeGrowingPeriod_NSadj_Days",
-            "DegreeDaysAbove65F_NSadj_DaysC")
-  names(res) <- c(temp, paste0(temp, ".sd"))
+  dimnames(ydat) <- list(NULL,
+                        c("Month7th_NSadj_MinTemp_C",
+                          "LengthFreezeFreeGrowingPeriod_NSadj_Days",
+                          "DegreeDaysAbove65F_NSadj_DaysC")
+                        )
+
+  if (return_yearly) {
+    yrs_have <- as.integer(names(Month7th_MinTemp_C[nyrs]))
+
+    if (all(yrs_have == simTime$useyrs)) {
+      res <- cbind(Years = yrs_have, ydat)
+
+    } else {
+      res <- matrix(NA, nrow = simTime$no.useyr, ncol = 4,
+                    dimnames = list(NULL, c("Years", colnames(ydat))))
+      res[, "Years"] <- simTime$useyrs
+      res[, -1] <- ydat[match(simTime$useyrs, yrs_have), ]
+    }
+
+  } else {
+    res <- c(apply(ydat, 2, mean), apply(ydat, 2, sd))
+    names(res) <- c(colnames(ydat), paste0(colnames(ydat), ".sd"))
+  }
 
   res
 })
 
-sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
+sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime = NULL, simTime2 = NULL) {
   sw.weather.suffix <- as.numeric(names(weatherList))
   itemp <- year.start <= sw.weather.suffix & year.end >= sw.weather.suffix
   years <- sw.weather.suffix[itemp]
@@ -479,7 +497,7 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
   if (do.C4vars) {
     res[["dailyTempMin"]] <- dailyTempMin
     res[["dailyTempMean"]] <- dailyTempMean
-    res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime2)
+    res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime, simTime2)
 
   } else {
     res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
