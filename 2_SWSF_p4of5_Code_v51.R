@@ -4941,6 +4941,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#accountNSHemispheres_agg: param$Doy_SeedDispersalStart0 must be set correctly\
 			#63
 				if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_GISSM & no.species_regeneration > 0){
+					# Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions. Ecol Model, 286, 66-77.
 					if(print.debug) print("Aggregation of dailyRegeneration_GISSM")
 					#---Access daily data, which do not depend on specific species parameters, i.e., start of season
 
@@ -4955,212 +4956,57 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
 					}
 
-					#---Functional relationships
-					#Function to convert soil depth to soil layer
-					SoilLayer_at_SoilDepth <- function(depth_cm){
-						return( pmax(1, pmin(length(layers_depth), 1+findInterval(depth_cm-0.01, layers_depth))) )
-					}
-
-
-					#Function to calculate for each day of the year, duration in days of upcoming favorable conditions accounting for consequences.unfavorable=0 (if conditions become unfavorable, then restart the count), =1 (resume)
-					calculate_DurationFavorableConditions <- function(RYyear, consequences.unfavorable){
-						conditions <- Germination_DuringFavorableConditions[index.year <- RYyear_ForEachUsedDay==RYyear]
-						doys <- 1:sum(index.year)
-						doys[!conditions] <- NA	#calculate only for favorable days
-						out <- rep(NA, times=sum(index.year))
-						if(consequences.unfavorable == 0){#if conditions become unfavorable, then restart the count afterwards
-							temp.rle <- rle(conditions)
-							if(sum(!temp.rle$values) > 0){
-								temp.unfavorable_startdoy <- c((1 + c(0, cumsum(temp.rle$lengths)))[!temp.rle$values], 1 + sum(index.year)) #add starts for odd- and even-lengthed rle
-								if(temp.rle$values[1]){#first rle period is favorable
-									temp.rle$values <- rep(temp.unfavorable_startdoy, each=2)
-								} else {#first rle period is unfavorable
-									temp.rle$values <- rep(temp.unfavorable_startdoy[-1], each=2)
-								}
-								temp.rle$values <- temp.rle$values[1:length(temp.rle$lengths)]
-							} else {#every day is favorable
-								temp.rle$values <- length(conditions)+1
-							}
-							out <- inverse.rle(temp.rle) - doys	#difference to next following start of a period of unfavorable conditions
-						} else if(consequences.unfavorable == 1){#if conditions become unfavorable, then resume the count afterwards
-							if((temp <- sum(conditions)) > 0){
-								count <- temp:1
-							} else {#every day is unfavorable
-								count <- vector("numeric", length=0)
-							}
-							out <- napredict(na.action(na.exclude(doys)), count)	#sum of following favorable conditions in this year
-						}
-						return(out)
-					}
-
-
-					#Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
-					calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear){
-						#values for current year
-						conditions <- Germination_DuringFavorableConditions[index.year <- RYyear_ForEachUsedDay==RYyear]
-						Tgerm.year <- soilTmeanSnow[index.year]
-						SWPgerm.year <- swp.TopMean[index.year]
-						durations <- LengthDays_FavorableConditions[index.year]	#consequences of unfavorable conditions coded in here
-						doys.favorable <- (doys.padded <- 1:sum(index.year))[conditions]
-						doys.padded[!conditions] <- NA
-
-						#function determining time to germinate for a given day
-						nrec.max <- 10
-						rec.delta <- 1
-
-						a <- max(tol, param$Hardegree_a)
-						b <- param$Hardegree_b
-						d <- max(tol, ifelse((temp <- param$Hardegree_d) == 1, ifelse(runif(1) > 0.5, 1 + tol, 1 - toln), temp))
-						temp.c <- ifelse(param$Hardegree_c != 0, param$Hardegree_c, sign(runif(1)-0.5) * tol)
-
-						get_modifiedHardegree2006NLR <- function(RYdoy, Estimate_TimeToGerminate){
-							for(nrec in 1:nrec.max){
-								Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate, 0))
-
-								Tgerm <- mean(Tgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm=TRUE)
-								SWPgerm <- mean(SWPgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm=TRUE)
-
-								temp.c.lim <- -(Tgerm-b)*(d^2-1)/d
-								if(temp.c > 0){
-									c <- ifelse(temp.c > temp.c.lim, temp.c, temp.c.lim + tol)
-								} else if(temp.c < 0){
-									c <- ifelse(temp.c < temp.c.lim, temp.c, temp.c.lim - tol)
-								}
-
-								#NLR model (eq.5) in Hardegree SP (2006) Predicting Germination Response to Temperature. I. Cardinal-temperature Models and Subpopulation-specific Regression. Annals of Botany, 97, 1115-1125.
-								temp <- a * exp(-log(2)/log(d)^2 * log(1 + (Tgerm - b)*(d^2 - 1)/(c * d))^2)
-								#drs addition to time to germinate dependent on mean January temperature and soil water potential
-								temp <- 1/temp + param$TimeToGerminate_k1_meanJanTemp * TmeanJan + param$TimeToGerminate_k2_meanJanTempXIncubationTemp * TmeanJan * Tgerm + param$TimeToGerminate_k3_IncubationSWP * SWPgerm
-								Estimate_TimeToGerminate <- max(1, round(temp, 0) )
-
-								#break if convergence or not enough time in this year
-								if(abs(Estimate_TimeToGerminate - Estimate_TimeToGerminate.oldEstimate) <= rec.delta | RYdoy + Estimate_TimeToGerminate - 1 > 365) break
-							}
-
-							if(nrec >= nrec.max){
-								out <- round(mean(c(Estimate_TimeToGerminate, Estimate_TimeToGerminate.oldEstimate)), 0)
-							} else {
-								out <- Estimate_TimeToGerminate
-							}
-							out <- ifelse(out <= durations[RYdoy] & RYdoy + out <= 365, out, NA) #test whether enough time to germinate
-							return(out)
-						}
-
-						TimeToGerminate.favorable <- sapply(doys.favorable, FUN=function(fd) get_modifiedHardegree2006NLR(RYdoy=fd, Estimate_TimeToGerminate=1))
-						if(length(TimeToGerminate.favorable) == 0){
-							TimeToGerminate.favorable <- vector("numeric", length=0)
-						}
-						return(napredict(na.action(na.exclude(doys.padded)), TimeToGerminate.favorable))
-					}
-
-
-					#Function to calculate mortality under conditions and checks survival limit
-					calculate_SeedlingMortality_ByCondition <- function(kill.conditions, max.duration.before.kill){
-						do.vector <- function(kill.vector, max.duration.before.kill){
-							doys <- 1:length(kill.vector)
-							doys[!kill.vector] <- NA	#calculate only for kill days
-							temp.rle <- rle(kill.vector)
-							if(sum(!temp.rle$values) > 0){
-								temp.startdoy <- (1 + c(0, cumsum(temp.rle$lengths)))[!temp.rle$values]
-								if(temp.rle$values[1]){
-									temp.rle$values <- rep(temp.startdoy, each=2)
-								} else {
-									temp.rle$values <- rep(temp.startdoy[-1], each=2)
-								}
-								temp.rle$values <- temp.rle$values[1:length(temp.rle$lengths)]
-							} else {#every day is kill free
-								temp.rle$values <- length(kill.vector)+1
-							}
-							kill.durations <- inverse.rle(temp.rle) - doys
-							mortality <- rep(FALSE, times=length(kill.vector))
-							mortality[kill.durations > max.duration.before.kill] <- TRUE
-							return(mortality)
-						}
-						if(length(dim(kill.conditions)) > 0){ #i.e., is.matrix, columns=soil layers
-							out <- apply(kill.conditions, MARGIN=2, FUN=function(x) do.vector(kill.vector=x, max.duration.before.kill))
-						} else {
-							out <- do.vector(kill.conditions, max.duration.before.kill)
-						}
-						return(out)
-					}
-
-
-
-					#Function to calculate favorable conditions for seedling growth for each day of a given year
-					calculate_SuitableGrowthThisYear_UnderCondition <- function(favorable.conditions, consequences.unfavorable){
-						out <- rep(NA, times=length(favorable.conditions))
-						if(consequences.unfavorable == 0){#if conditions become unfavorable, then stop growth for rest of season
-							temp.rle <- rle(favorable.conditions)
-							temp.firstFavorable.index <- which(temp.rle$values)[1]
-							if(!is.na(temp.firstFavorable.index) && temp.firstFavorable.index < length(temp.rle$values)){
-								temp.rle$values[(temp.firstFavorable.index+1):length(temp.rle$values)] <- FALSE
-								out <- inverse.rle(temp.rle)
-							} else { #nothing changed, either because all days are either favorable or unfavorable or because first favorable period is also the last in the season
-								out <- favorable.conditions
-							}
-						} else if(consequences.unfavorable == 1){#if conditions become unfavorable, then resume growth afterwards
-							out <- favorable.conditions
-						}
-						return(out)
-					}
-
-
-					#Function to calculate rooting depth at given age
-					SeedlingRootingDepth <- function(age, P0, K, r){
-						depth <- K * P0 * exp(r * age) / (K + P0 * (exp(r * age) - 1))	#[age] = days, [P0, K, r] = mm
-						depth <- pmax(0, depth)
-						return(depth/10)	#cm
-					}
-
-
-					#Function that checks whether all relevant (those with roots) soil layers are under conditions of mortality (kill.conditions) for each day of a given year
-					get_KilledBySoilLayers <- function(relevantLayers, kill.conditions){
-						temp <- data.frame(relevantLayers, kill.conditions)
-						return( apply(temp, MARGIN=1, FUN=function(x) {if(!is.na(x[1])){return(all(as.logical(x[2:(2 + x[1] - 1)])))} else {return(NA)} } ) )
-					}
-
-
 					#Loop through each species
 					prev.Doy_SeedDispersalStart <- 0
-					for(sp in 1:no.species_regeneration){
+					for (sp in seq_len(no.species_regeneration)) {
 						param <- data.frame(t(param.species_regeneration[,sp]))
 
 						#Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
 						Doy_SeedDispersalStart <- max(round(param$Doy_SeedDispersalStart0 + param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan, 0) %% 365, 1)
 						moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(as.POSIXlt(paste(simTime$useyrs[1] - 1, "-12-31", sep="")) - as.POSIXlt(paste(simTime$useyrs[1] - 1, "-01-01", sep=""))) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
 						#Calculate regeneration year dates
-						if(startyr > simstartyr){#start earlier to complete RY
+						if (startyr > simstartyr) {
+						  #start earlier to complete RY
 							RY.index.usedy <- c(((st <- simTime$index.usedy[1])-moveByDays):(st-1), simTime$index.usedy[-(((et <- length(simTime$index.usedy))-moveByDays+1):et)]) #index indicating which rows of the daily SoilWat output is used
 							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay	#'regeneration year' for each used day
 							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay	#'doy of the regeneration year' for each used day
-						} else if(!(startyr > simstartyr)){#start later to get a complete RY
+
+						} else if (!(startyr > simstartyr)) {
+						  #start later to get a complete RY
 							RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), (((et <- length(simTime$index.usedy))-moveByDays+1):et))]
 							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
 							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
 						}
-						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, times=moveByDays), RYyear_ForEachUsedDay[-(((et <- length(RYyear_ForEachUsedDay))-moveByDays+1):et)])	#normal year for each used 'doy of the regeneration year'
-						doy_ForEachUsedRYDay <- c(((st <- simTime$index.usedy[1])-moveByDays):(st-1), RYdoy_ForEachUsedDay[-(((et <- length(RYdoy_ForEachUsedDay))-moveByDays+1):et)])	#normal doy for each used 'doy of the regeneration year'
+						# normal year for each used 'doy of the regeneration year'
+						et <- length(RYyear_ForEachUsedDay)
+						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, times = moveByDays),
+						                            RYyear_ForEachUsedDay[-((et - moveByDays + 1):et)])
+            # normal doy for each used 'doy of the regeneration year'
+						st <- simTime$index.usedy[1]
+						et <- length(RYdoy_ForEachUsedDay)
+						doy_ForEachUsedRYDay <- c((st - moveByDays):(st - 1),
+						                          RYdoy_ForEachUsedDay[-((et - moveByDays + 1):et)])
 						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
 
 						#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
-						if(sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart){
+						if (sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart) {
 							swp <- swpmatric.dy.all$val[RY.index.usedy, 2 + ld]
-							if(length(ld) == 1) swp <- matrix(swp, ncol=1)
+							if (length(ld) == 1)
+							  swp <- matrix(swp, ncol=1)
 							snow <- temp.snow[RY.index.usedy, 3]*10 #mm swe in snowpack
 							airTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 4])
 							airTmax <- temp.temp[RY.index.usedy, 3]
-							if(use.soiltemp){
+							if (use.soiltemp) {
 								soilTmeanSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.soiltemp[RY.index.usedy, 3])
 								soilTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.soiltemp[RY.index.usedy, 3])
 								soilTmax <- temp.soiltemp[RY.index.usedy, 3]
+
 							} else {
 								soilTmeanSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 5])
 								soilTminSnow <- airTminSnow
 								soilTmax <- airTmax
 							}
 						}
-
-
 
 						#----GERMINATION
 
@@ -5172,8 +5018,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						Germination_AtAboveTmin <- soilTminSnow >= param$Temp_MinimumForGermination
 
 						#Minimum soil water for germination in relevant soil layer
-						SoilLayers_RelevantToGermination <- SoilLayer_at_SoilDepth(param$SoilDepth_RelevantToGermination)
-						if(length(SoilLayers_RelevantToGermination) == 1){
+						SoilLayers_RelevantToGermination <- SoilLayer_at_SoilDepth(param$SoilDepth_RelevantToGermination, layers_depth)
+						if (length(SoilLayers_RelevantToGermination) == 1) {
 							Germination_AtMoreThanTopSWPmin <- swp[, SoilLayers_RelevantToGermination] >= param$SWP_MinimumForGermination
 							swp.TopMean <- swp[, SoilLayers_RelevantToGermination]
 						} else {
@@ -5186,27 +5032,36 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---2. Time to germinate
 						#for each day with favorable conditions, determine whether period of favorable conditions (resumed or reset if broken) is long enough for successful completion of germination under current mean conditions
-						LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN=function(y) calculate_DurationFavorableConditions(RYyear=y, consequences.unfavorable=param$GerminationPeriods_0ResetOr1Resume)))
-						Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN=function(y) calculate_TimeToGerminate_modifiedHardegree2006NLR(RYyear=y)))
+						LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN = calculate_DurationFavorableConditions,
+						    consequences.unfavorable = param$GerminationPeriods_0ResetOr1Resume,
+						    Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+						    RYyear_ForEachUsedDay = RYyear_ForEachUsedDay))
+						Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN = calculate_TimeToGerminate_modifiedHardegree2006NLR,
+						    Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+						    LengthDays_FavorableConditions = LengthDays_FavorableConditions,
+						    RYyear_ForEachUsedDay = RYyear_ForEachUsedDay,
+						    soilTmeanSnow = soilTmeanSnow,
+						    swp.TopMean = swp.TopMean,
+						    TmeanJan = TmeanJan, param = param))
 
-						Germination_RestrictedByTimeToGerminate <- rep(FALSE, times=length(Germination_TimeToGerminate))
+						Germination_RestrictedByTimeToGerminate <- rep(FALSE, times = length(Germination_TimeToGerminate))
 						Germination_RestrictedByTimeToGerminate[Germination_DuringFavorableConditions & is.na(Germination_TimeToGerminate)] <- TRUE
 
 						#---3. Successful germinations
 						GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
 						temp <- padded <- rep(FALSE, times=length(GerminationSuccess_Initiated))
-						germ.starts <- (1:length(temp))[GerminationSuccess_Initiated]
+						germ.starts <- seq_along(temp)[GerminationSuccess_Initiated]
 						germ.durs <- Germination_TimeToGerminate[GerminationSuccess_Initiated] - 1
-						if(param$GerminationPeriods_0ResetOr1Resume == 1){
-							temp.wait <- na.exclude(unlist(lapply(1:length(temp), FUN=function(t)
-													{
-														if(!is.na(Germination_TimeToGerminate[t])){
-															t3 <- which((t2 <- na.exclude(t1 <- LengthDays_FavorableConditions[t:length(LengthDays_FavorableConditions)]))[Germination_TimeToGerminate[t]] == t1)[1]
-															out <- sum(is.na(t1[1:t3]))
+						if (param$GerminationPeriods_0ResetOr1Resume == 1) {
+							temp.wait <- na.exclude(unlist(lapply(seq_along(temp), function(t) {
+														if (!is.na(Germination_TimeToGerminate[t])) {
+														  t1 <- LengthDays_FavorableConditions[t:length(LengthDays_FavorableConditions)]
+														  t2 <- na.exclude(t1)
+															t3 <- which(t2[Germination_TimeToGerminate[t]] == t1)[1]
+															sum(is.na(t1[1:t3]))
 														} else {
-															out <- NA
+															NA
 														}
-														return(out)
 													})))
 							germ.durs <- germ.durs + temp.wait
 						}
@@ -5238,9 +5093,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						SeedlingMortality_CausesByYear <- matrix(data=0, nrow=length(RY.useyrs), ncol=9)
 						colnames(SeedlingMortality_CausesByYear) <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
-						for(y in seq_along(RY.useyrs)){#for each year
+						for (y in seq_along(RY.useyrs)) {#for each year
 							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]])
-							if(length(RYDoys_SeedlingStarts_ThisYear) > 0){#if there are any germinations
+							if (length(RYDoys_SeedlingStarts_ThisYear) > 0) {#if there are any germinations
 								#init values for this year
 								no.days <- sum(index.thisYear)
 								thisYear_SeedlingMortality_UnderneathSnowCover <- SeedlingMortality_UnderneathSnowCover[index.thisYear]
@@ -5253,87 +5108,112 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								thisYear_SeedlingGrowth_AtAboveTmin <- SeedlingGrowth_AtAboveTmin[index.thisYear]
 								thisYear_SeedlingGrowth_AtBelowTmax <- SeedlingGrowth_AtBelowTmax[index.thisYear]
 
-								for(sg_RYdoy in RYDoys_SeedlingStarts_ThisYear){#for each seedling indexed by day of germination
+								for (sg_RYdoy in RYDoys_SeedlingStarts_ThisYear) {#for each seedling indexed by day of germination
 									#init values for this seedling and season
-									index.thisSeedlingSeason <- (temp <- (1:no.days))[temp > sg_RYdoy]
-									killed_byCauses_onRYdoy <- rep(NA, times=6)	#book-keeping of mortality causes
+									temp <- seq_len(no.days)
+									index.thisSeedlingSeason <- temp[temp > sg_RYdoy]
+									killed_byCauses_onRYdoy <- rep(NA, times = 6)	#book-keeping of mortality causes
 									names(killed_byCauses_onRYdoy) <- colnames(SeedlingMortality_CausesByYear)[1:6]
-									stopped_byCauses_onRYdoy <- rep(NA, times=3)	#book-keeping of causes why growth stopped
+									stopped_byCauses_onRYdoy <- rep(NA, times = 3)	#book-keeping of causes why growth stopped
 									names(stopped_byCauses_onRYdoy) <- colnames(SeedlingMortality_CausesByYear)[7:9]
 
 									#Establish days of growth (=TRUE) and surviving, but no growth (=FALSE)
 									thisSeedlingGrowing <- rep(TRUE, no.days)
-									if(sg_RYdoy > 1) thisSeedlingGrowing[1:(sg_RYdoy-1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot grow before germination day
+									if (sg_RYdoy > 1)
+									  thisSeedlingGrowing[seq_len(sg_RYdoy - 1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot grow before germination day
 
 									#Check growth under above-ground conditions
 									#Snow cover
 									thisSeedlingGrowth_AbsenceOfSnowCover <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-									if(sum(temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
+									temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
 									#Minimum temperature
 									thisSeedlingGrowth_AtAboveTmin <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-									if(sum(temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
+									temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
 									#Maximum temperature
 									thisSeedlingGrowth_AtBelowTmax <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
-									if(sum(temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]) > 0) stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
+									temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
 									#Updated days of growth or surviving
 									thisSeedlingGrowing <- thisSeedlingGrowing & thisSeedlingGrowth_AbsenceOfSnowCover & thisSeedlingGrowth_AtAboveTmin & thisSeedlingGrowth_AtBelowTmax
 									thisSeedlingLivingButNotGrowing <- !thisSeedlingGrowing
-									if(sg_RYdoy > 1) thisSeedlingLivingButNotGrowing[1:(sg_RYdoy-1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot live before germination day
+									if (sg_RYdoy > 1) thisSeedlingLivingButNotGrowing[seq_len(sg_RYdoy - 1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot live before germination day
 
 									#Book-keeping survival under above-ground conditions
-									if(sum(temp <- thisYear_SeedlingMortality_UnderneathSnowCover[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.UnderneathSnowCover"] <- sg_RYdoy + which(temp)[1] - 1
-									if(sum(temp <- thisYear_SeedlingMortality_ByTmin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmin"] <- sg_RYdoy + which(temp)[1] - 1
-									if(sum(temp <- thisYear_SeedlingMortality_ByTmax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmax"] <- sg_RYdoy + which(temp)[1] - 1
+									temp <- thisYear_SeedlingMortality_UnderneathSnowCover[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.UnderneathSnowCover"] <- sg_RYdoy + which(temp)[1] - 1
+									temp <- thisYear_SeedlingMortality_ByTmin[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmin"] <- sg_RYdoy + which(temp)[1] - 1
+									temp <- thisYear_SeedlingMortality_ByTmax[index.thisSeedlingSeason]
+									if (sum(temp) > 0)
+									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmax"] <- sg_RYdoy + which(temp)[1] - 1
 
 									#If not killed (yet) then grow and check survival below-ground
-									if(all(is.na(killed_byCauses_onRYdoy))){
+									if (all(is.na(killed_byCauses_onRYdoy))) {
 										#Grow: estimate rooting depth for this seedling for each day of this year
-										thisSeedling_thisYear_RootingDepth <- rep(NA, times=no.days)
-										if((temp <- sum(thisSeedlingGrowing)) > 0){
-											thisSeedlingGrowing_AgeDays <- 1:temp
+										thisSeedling_thisYear_RootingDepth <- rep(NA, times = no.days)
+										temp <- sum(thisSeedlingGrowing)
+										if (temp > 0) {
+											thisSeedlingGrowing_AgeDays <- seq_len(temp)
 											thisSeedlingGrowing_RootingDepth <- SeedlingRootingDepth(thisSeedlingGrowing_AgeDays, param$Seedling_SoilDepth.PO, param$Seedling_SoilDepth.K, param$Seedling_SoilDepth.r)
 											thisSeedling_thisYear_RootingDepth[thisSeedlingGrowing] <- thisSeedlingGrowing_RootingDepth
-											if(sum(thisSeedlingLivingButNotGrowing, na.rm=TRUE) > 0){ #for days when growth stopped then copy relevant soil depth
+											if (sum(thisSeedlingLivingButNotGrowing, na.rm = TRUE) > 0) {
+											  #for days when growth stopped then copy relevant soil depth
 												stopg <- addDepths <- rle(thisSeedlingLivingButNotGrowing)
 												RYDoys_stopg <- c(1, cumsum(stopg$lengths))
-												for(p in seq(along=stopg$values)[stopg$values]){
-													if(is.na(thisSeedling_thisYear_RootingDepth[RYDoys_stopg[p]])){
-														if(is.na(thisSeedling_thisYear_RootingDepth[1 + RYDoys_stopg[p+1]])){
-															add.values <- param$Seedling_SoilDepth.K
-														} else {
-															add.values <- thisSeedling_thisYear_RootingDepth[1 + RYDoys_stopg[p+1]]
-														}
-													} else {
-														add.values <- thisSeedling_thisYear_RootingDepth[RYDoys_stopg[p]]
-													}
-													addDepths$values[p] <- add.values
+												for (p in seq_along(stopg$values)[stopg$values]) {
+													addDepths$values[p] <- if (is.na(thisSeedling_thisYear_RootingDepth[RYDoys_stopg[p]])) {
+                              if (is.na(thisSeedling_thisYear_RootingDepth[1 + RYDoys_stopg[p+1]])) {
+                                  param$Seedling_SoilDepth.K
+                                } else {
+                                  thisSeedling_thisYear_RootingDepth[1 + RYDoys_stopg[p+1]]
+                                }
+                            } else {
+                              thisSeedling_thisYear_RootingDepth[RYDoys_stopg[p]]
+                            }
 												}
 												RYDoys_addDepths <- inverse.rle(addDepths)
 												thisSeedling_thisYear_RootingDepth <- ifelse(RYDoys_addDepths > 0, RYDoys_addDepths, thisSeedling_thisYear_RootingDepth)
 											}
+
 										} else {
 											thisSeedling_thisYear_RootingDepth[thisSeedlingLivingButNotGrowing] <- param$Seedling_SoilDepth.PO/10
 										}
-										thisSeedling_thisYear_RootingSoilLayers <- SoilLayer_at_SoilDepth(thisSeedling_thisYear_RootingDepth)
+										thisSeedling_thisYear_RootingSoilLayers <- SoilLayer_at_SoilDepth(thisSeedling_thisYear_RootingDepth, layers_depth)
 
 										#Check survival under chronic SWPMax
 										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMax)
-										if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
+										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]
+										if (sum(temp) > 0)
+										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under chronic SWPMin
 										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMin)
-										if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
+										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]
+										if (sum(temp) > 0)
+										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under acute SWPMin
 										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByAcuteSWPMin)
-										if(sum(temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]) > 0) killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
+										temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]
+										if (sum(temp) > 0)
+										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 									}
 
 									#If killed then establish which factor killed first and if and how growth was stopped before kill
-									if(any(!is.na(killed_byCauses_onRYdoy))){
+									if (any(!is.na(killed_byCauses_onRYdoy))) {
 										kill.factor <- which.min(killed_byCauses_onRYdoy)
 										SeedlingMortality_CausesByYear[y, kill.factor] <- SeedlingMortality_CausesByYear[y, kill.factor] + 1
-										if(any(!is.na(stopped_byCauses_onRYdoy)) && (killed_byCauses_onRYdoy[kill.factor] > stopped_byCauses_onRYdoy[(stop.factor <- which.min(stopped_byCauses_onRYdoy))])){
+										stop.factor <- which.min(stopped_byCauses_onRYdoy)
+										if (any(!is.na(stopped_byCauses_onRYdoy)) &&
+										    killed_byCauses_onRYdoy[kill.factor] > stopped_byCauses_onRYdoy[(stop.factor)]) {
 											SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
 										}
+
 										SeedlingSurvival_1stSeason[RYyear_ForEachUsedDay == RY.useyrs[y]][sg_RYdoy] <- FALSE
 									}
 								}
@@ -5343,55 +5223,49 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						}#end of year loop of seedling growth
 
 						#---Aggregate output
-						temp1 <- data.frame(Germination_Emergence, SeedlingSurvival_1stSeason)
-						temp2 <- data.frame(!Germination_AtBelowTmax, !Germination_AtAboveTmin, !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions, Germination_RestrictedByTimeToGerminate)
+						dat_gissm1 <- cbind(Germination_Emergence, SeedlingSurvival_1stSeason)
+						dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin, !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions, Germination_RestrictedByTimeToGerminate)
 
 						#Fraction of years with success
-						resMeans[nv:(nv+1)] <- apply(temp <- (res1.yr <- aggregate(temp1, by=list(year_ForEachUsedRYDay), FUN=sum))[simTime$index.useyr, -1] > 0, MARGIN=2, FUN=mean)
-						resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+						res1.yr <- aggregate(dat_gissm1, by = list(year_ForEachUsedRYDay), FUN = sum)
+						stemp <- res1.yr[simTime$index.useyr, -1] > 0
+						resMeans[nv:(nv+1)] <- apply(stemp, 2, mean)
+						resSDs[nv:(nv+1)] <- apply(stemp, 2, sd)
 						#Periods with no successes
-						resMeans[(nv+2):(nv+4)] <- quantile((rleGerm <- rle(temp[, 1]))$lengths[!rleGerm$values], probs=c(0.05, 0.5, 0.95), type=7)
-						resMeans[(nv+5):(nv+7)] <- quantile((rleSling <- rle(temp[, 2]))$lengths[!rleSling$values], probs=c(0.05, 0.5, 0.95), type=7)
+						rleGerm <- rle(stemp[, 1])
+						if (any(!rleGerm$values))
+						  resMeans[(nv+2):(nv+4)] <- quantile(rleGerm$lengths[!rleGerm$values],
+						                                      probs = c(0.05, 0.5, 0.95), type = 7)
+						rleSling <- rle(stemp[, 2])
+						if (any(!rleSling$values))
+						  resMeans[(nv+5):(nv+7)] <- quantile(rleSling$lengths[!rleSling$values],
+						                                      probs = c(0.05, 0.5, 0.95), type = 7)
 						#Mean number of days per year with success
-						resMeans[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], MARGIN=2, FUN=mean)
-						resSDs[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], MARGIN=2, FUN=sd)
+						resMeans[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, mean)
+						resSDs[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, sd)
 						#Days of year (in normal count) of most frequent successes among years: #toDoy <- function(x) sort(ifelse((temp <- x+Doy_SeedDispersalStart-1) > 365, temp-365,temp)) #convert to normal doys
-						res1.dy <- aggregate(temp1, by=list(doy_ForEachUsedRYDay), FUN=sum)[, -1]
-						get.DoyMostFrequentSuccesses <- function(doys){
-							res1.max <- sapply(1:2, function(x) quantile(doys[doys[, x] > 0, x], probs = c(0.1, 1), type = 3)) # must return one of the values because the quantiles are compared against the values in function 'get.DoyAtLevel'
-							get.DoyAtLevel <- function(x, level) which(x == level & x > 0)
-							if(all(!temp1[, 1])){#no successful germination
-								germ.doy <- list(NA, NA)
-							} else {
-								germ.doy <- lapply(1:2, FUN=function(x) get.DoyAtLevel(doys[, 1], res1.max[x, 1]))
-							}
-							if(all(!temp1[, 2])){#no successful seedlings
-								sling.doy <- list(NA, NA)
-							} else {
-								sling.doy <- lapply(1:2, FUN=function(x) get.DoyAtLevel(doys[, 2], res1.max[x, 2]))
-							}
-							res1.max <- list(germ.doy, sling.doy)
-							return( unlist(lapply(res1.max, FUN=function(x) c(min(x[[1]]), median(x[[2]]), max(x[[1]])))) )
-						}
-						resMeans[(nv+10):(nv+15)] <- get.DoyMostFrequentSuccesses(res1.dy)
+						res1.dy <- aggregate(dat_gissm1, by = list(doy_ForEachUsedRYDay), FUN = sum)
+						resMeans[(nv+10):(nv+15)] <- get.DoyMostFrequentSuccesses(res1.dy, dat_gissm1)
 						#Mean number of days when germination is restricted due to conditions
-						resMeans[(nv+16):(nv+20)] <- apply((res2.yr <- aggregate(temp2, by=list(year_ForEachUsedRYDay), FUN=sum))[simTime$index.useyr, -1], MARGIN=2, FUN=mean)
-						resSDs[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], MARGIN=2, FUN=sd)
+						res2.yr <- aggregate(dat_gissm2, by = list(year_ForEachUsedRYDay), sum)
+						resMeans[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, mean)
+						resSDs[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, sd)
 						#Mean time to germinate in days
-						resMeans[nv+21] <- mean((res3.yr <- aggregate(Germination_TimeToGerminate, by=list(year_ForEachUsedRYDay), FUN=mean, na.rm=TRUE))[simTime$index.useyr, -1], na.rm=TRUE)
-						resSDs[nv+21] <- sd(res3.yr[simTime$index.useyr, -1], na.rm=TRUE)
+						res3.yr <- tapply(Germination_TimeToGerminate, year_ForEachUsedRYDay, mean, na.rm = TRUE)
+						resMeans[nv+21] <- mean(res3.yr[simTime$index.useyr], na.rm = TRUE)
+						resSDs[nv+21] <- sd(res3.yr[simTime$index.useyr], na.rm = TRUE)
 						#Mean number of days per year of different types of mortalities
-						resMeans[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, MARGIN=2, FUN=mean, na.rm=TRUE) #if value==NA, then no germinations that year
-						resSDs[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, MARGIN=2, FUN=sd, na.rm=TRUE) #if value==NA, then no germinations that year
+						resMeans[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, mean, na.rm = TRUE) #if value==NA, then no germinations that year
+						resSDs[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, sd, na.rm = TRUE) #if value==NA, then no germinations that year
 
 						nv <- nv+31
 
 						#---Aggregate time series output
 						if(any(ouput_aggregated_ts=="Regeneration")){
 							#Table with data for every year
-							res1.yr.doy <- t(simplify2array(by(temp1, INDICES=year_ForEachUsedRYDay, FUN=function(x) get.DoyMostFrequentSuccesses(x))))[simTime$index.useyr, ]
+							res1.yr.doy <- t(simplify2array(by(dat_gissm1, INDICES=year_ForEachUsedRYDay, FUN=function(x) get.DoyMostFrequentSuccesses(x, dat_gissm1))))[simTime$index.useyr, ]
 
-							res.yr <- data.frame(data.frame(res1.yr, res2.yr[, -1], res3.yr[, -1])[simTime$index.useyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
+							res.yr <- data.frame(data.frame(res1.yr, res2.yr[, -1], res3.yr)[simTime$index.useyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
 							temp.header2 <- c("DaysWith_GerminationSuccess", "DaysWith_SeedlingSurvival1stSeason",
 									"Days_GerminationRestrictedByTmax", "Days_GerminationRestrictedByTmin", "Days_GerminationRestrictedBySWPmin", "Days_GerminationRestrictedByAnyCondition", "Days_GerminationRestrictedByTimeToGerminate",
 									"MeanDays_TimeToGerminate",
@@ -5757,7 +5631,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "sw_pet", "sw_precip", "sw_runoff", "sw_snow", "sw_soiltemp",
     "sw_swcbulk", "sw_swpmatric", "sw_temp", "sw_transp", "sw_vwcbulk",
     "sw_vwcmatric", "sw.inputs", "sw.outputs", "swcsetupin", "swDataFromFiles",
-    "swFilesIn", "swOutSetupIn", "SWPcrit_MPa", "timerfile", "Tmax_crit_C",
+    "swFilesIn", "swOutSetupIn", "SWPcrit_MPa", "timerfile", "Tmean_crit_C", "Tmax_crit_C",
     "Tmin_crit_C", "tr_cloud", "tr_files", "tr_input_climPPT", "tr_input_climTemp",
     "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
     "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
@@ -5789,8 +5663,9 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "mpi")
-      if (print.debug)
+      if (print.debug) {
         mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
+      }
       mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 			mpi.bcast.cmd(mpi_work())
 
@@ -5800,18 +5675,19 @@ if(actionWithSoilWat && runsN_todo > 0){
 			#sTag <- c("Ready for task", "Done with Task", "Exiting")
 			while (closed_slaves < workersN) {
 tryCatch({
-        if (print.debug)
+        if (print.debug) {
           print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
-
+        }
 				complete <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
 				complete_info <- mpi.get.sourcetag()
 				slave_id <- complete_info[1]
 				tag <- complete_info[2]
-        if (print.debug)
+        if (print.debug) {
           print(paste(Sys.time(),
                       ": master has received communication from slave", slave_id,
                       "with tag", tag,
                       "and message", paste(complete, collapse = ", ")))
+        }
 
 				if (tag == 1L) {
 					temp <- Sys.time() - t.overall
@@ -5851,14 +5727,16 @@ tryCatch({
 				} else if (tag == 2L) {
 					# The message contains results: store result in a data structure
 					inputDataToSave[[complete$i]] <- complete$r
-					if (print.debug)
+					if (print.debug) {
 					  print(paste("Run:", complete, "at", Sys.time()))
+          }
 
 				} else if (tag == 3L) {
 					# A slave has closed down.
 					closed_slaves <- closed_slaves + 1L
-					if (print.debug)
+					if (print.debug) {
 					  print(paste("Slave:", slave_id, "closed at", Sys.time()))
+          }
 
 				} else if (tag == 4L) {
 					#The slave had a problem with Soilwat record Slave number and the Run number.
