@@ -118,13 +118,13 @@ checkCompleteness <- FALSE
 check.blas <- FALSE
 
 #---Load functions
-ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (!file.exists(ftemp) || !continueAfterAbort) {
-  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
-  save(list = ls(name = "swsf_funs"), file = ftemp)
+rSWSF <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (!file.exists(rSWSF) || !continueAfterAbort) {
+  sys.source(sub(".RData", ".R", rSWSF), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = rSWSF)
   detach("swsf_funs")
 }
-load(ftemp)
+load(rSWSF)
 print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
 
 
