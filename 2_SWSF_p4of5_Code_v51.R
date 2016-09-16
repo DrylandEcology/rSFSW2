@@ -485,7 +485,8 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 			if(!be.quiet) setDefaultClusterOptions(outfile="")
 			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
 			cl <- snow::makeSOCKcluster(num_cores)
-			clusterApply(cl, seq_len(num_cores), function(x) .nodeNumber <<- x) # need a .x object that does not get deleted with rm(list = ls())
+			# Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
+			clusterApply(cl, seq_len(num_cores), function(x) .nodeNumber <<- x)
 			#snow::clusterSetupRNG(cl) #random numbers setup
 			doSNOW::registerDoSNOW(cl) 	# register foreach backend
 		}
@@ -2952,7 +2953,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#4
 				if(any(simulation_timescales=="monthly") && aon$input_Phenology) {
 					if(print.debug) print("Aggregation of input_Phenology")
-					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc, runData, simTime) #see if we have data
+					if(!exists("temp.mo")) temp.mo <- get_Temp_mo(sc, runData, simTime)
 					monthly.temp <- tapply(temp.mo$mean, simTime2$month_ForEachUsedMonth, mean) #get mean monthly temp
 					if(i_SWRunInformation$Y_WGS84 < 0) { #check for Southern Hemi
 						monthly.temp <- c(monthly.temp[7:12], monthly.temp[1:6]) #rearrange temp
@@ -5724,9 +5725,54 @@ if(actionWithSoilWat && runsN_todo > 0){
 		"tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site",
 		"tr_soil", "tr_VegetationComposition", "tr_weather",
 		"transferExpDesignToInput", "TranspCoeffByVegType", "VWCtoSWP", "weatherin",
-		"work", "workersN", "yearsin")
-	list.export <- list.export[!duplicated(list.export)]
-	list_envs <- list(local = environment(), parent = parent.frame(), global = .GlobalEnv)
+		"mpi_work", "workersN", "yearsin")
+	# List of objects required by do_OneSite which are not in rSWSF
+	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg",
+    "adjust.soilDepth", "aon", "be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes",
+    "climate.conditions", "cloudin", "continueAfterAbort", "counter.digitsN",
+    "create_experimentals", "create_treatments", "daily_lyr_agg",
+    "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
+    "dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
+    "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
+    "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
+    "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
+    "establishment.delay", "establishment.duration", "establishment.swp.surface",
+    "exec_c_prefix", "ExpInput_Seperator", "expN", "filebasename",
+    "filebasename.WeatherDataYear", "germination.duration", "germination.swp.surface",
+    "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
+    "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
+    "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
+    "ouput_aggregated_ts", "output_aggregate_daily", "parallel_backend",
+    "parallel_runs", "param.species_regeneration", "pcalcs", "print.debug",
+    "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
+    "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
+    "season.end", "season.start", "shrub.fraction.limit", "simstartyr",
+    "simTime", "simTime_ForEachUsedTimeUnit_North", "simTime_ForEachUsedTimeUnit_South",
+    "simulation_timescales", "siteparamin", "soilsin", "startyr",
+    "sw_aet", "sw_deepdrain", "sw_evapsurface", "sw_evsoil", "sw_hd",
+    "sw_inf_soil", "sw_input_climscen_use", "sw_input_climscen_values_use",
+    "sw_input_cloud_use", "sw_input_experimentals", "sw_input_experimentals_use",
+    "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
+    "sw_input_weather_use", "sw_interception", "sw_percolation",
+    "sw_pet", "sw_precip", "sw_runoff", "sw_snow", "sw_soiltemp",
+    "sw_swcbulk", "sw_swpmatric", "sw_temp", "sw_transp", "sw_vwcbulk",
+    "sw_vwcmatric", "sw.inputs", "sw.outputs", "swcsetupin", "swDataFromFiles",
+    "swFilesIn", "swOutSetupIn", "SWPcrit_MPa", "timerfile", "Tmax_crit_C",
+    "Tmin_crit_C", "tr_cloud", "tr_files", "tr_input_climPPT", "tr_input_climTemp",
+    "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
+    "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
+    "tr_prod", "tr_site", "tr_soil", "tr_VegetationComposition",
+    "tr_weather", "weatherin", "workersN", "yearsin")
+  list.export <- list.export[!duplicated(list.export)]
+
+  swsf_env <- new.env(parent = emptyenv())
+  load(rSWSF, envir = swsf_env)
+  list.export <- unique(c(ls(envir = swsf_env), list.export))
+
+  list_envs <- list(rSWSF = swsf_env,
+                    local = environment(),
+                    parent = parent.frame(),
+                    global = .GlobalEnv)
 
 	#ETA calculation
 	if (!be.quiet)
@@ -5746,7 +5792,7 @@ if(actionWithSoilWat && runsN_todo > 0){
       if (print.debug)
         mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
       mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
-			mpi.bcast.cmd(work())
+			mpi.bcast.cmd(mpi_work())
 
 			junk <- 0L
 			closed_slaves <- 0L
