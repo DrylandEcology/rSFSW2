@@ -3035,8 +3035,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					rainOnSnow <- tapply(rainOnSnow, simTime2$year_ForEachUsedDay, sum)
 					rainOnSnow <- rainOnSnow / prcp.yr$ppt
 
-					resMeans[nv] <- mean(rainOnSnow, na.rm=TRUE)
-					resSDs[nv] <- sd(temp, na.rm=TRUE)
+					resMeans[nv] <- mean(rainOnSnow, na.rm = TRUE)
+					resSDs[nv] <- sd(rainOnSnow, na.rm = TRUE)
 					nv <- nv+1
 
 					rm(rainOnSnow)
