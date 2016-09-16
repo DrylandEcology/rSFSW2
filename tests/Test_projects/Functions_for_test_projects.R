@@ -23,6 +23,8 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
   if (is.null(dir_prev))
     dir_prev <- getwd()
   on.exit(setwd(dir_prev))
+  op_prev <- options(c("warn", "error"))
+  on.exit(options(op_prev), add = TRUE)
 
   problems <- list()
   fname_report <- "Test_project_report.txt"
