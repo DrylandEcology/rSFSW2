@@ -1,0 +1,2 @@
+Label,SWC_min,SWC_init,SWC_wet,SWC_YearlyReset,SWC_Deepdrain,PET_multiplier,SoilTemp_Flag,SoilTempC_atUpperBoundary,SoilTempC_atLowerBoundary,Latitude,Altitude,Slope,Aspect,RunoffPercent_fromPondedWater,Param_UnsaturatedPercolation
+UseInformationToCreateSoilWatRuns,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

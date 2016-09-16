@@ -36,14 +36,14 @@
 t.overall <- Sys.time()
 be.quiet <- FALSE
 print.debug <- interactive()
-debug.warn.level <- if (interactive()) 2 else 1
+debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
 
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
 minVersion_dbWeather <- "3.1.0"
 num_cores <- 4
-parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
+parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- !interactive()
 
 #------Rmpi Jobs finish within Wall Time------#
@@ -65,7 +65,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #	if !interactive: current working directory must be folder of test projects,
 #		e.g., SoilWat_R_Wrapper/tests/Test_projects/Test4_AllOverallAggregations
 if(interactive()) {
-	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test4_AllOverallAggregations"))
+	dir.prj <- normalizePath(file.path(".", "tests", "Test_projects", "Test5_AllOverallAggregations_mpi"))
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
@@ -125,13 +125,13 @@ checkCompleteness <- FALSE
 check.blas <- FALSE
 
 #---Load functions
-ftemp <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
-if (!file.exists(ftemp) || !continueAfterAbort) {
-  sys.source(sub(".RData", ".R", ftemp), envir = attach(NULL, name = "swsf_funs"))
-  save(list = ls(name = "swsf_funs"), file = ftemp)
+rSWSF <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+if (!file.exists(rSWSF) || !continueAfterAbort) {
+  sys.source(sub(".RData", ".R", rSWSF), envir = attach(NULL, name = "swsf_funs"))
+  save(list = ls(name = "swsf_funs"), file = rSWSF)
   detach("swsf_funs")
 }
-load(ftemp)
+load(rSWSF)
 print("The following warning can be safely ignored: ''package:stats' may not be available when loading'. It will disappear once the wrapper has been transformed to a package")
 
 
