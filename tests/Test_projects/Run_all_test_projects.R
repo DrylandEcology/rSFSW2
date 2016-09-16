@@ -7,7 +7,7 @@ dir.test <- if (grepl("SoilWat_R_Wrapper", dir.old)) {
     temp <- strsplit(dir.old, .Platform$file.sep, fixed = TRUE)[[1]]
     temp <- do.call("file.path", as.list(temp[seq_len(which(temp == "SoilWat_R_Wrapper"))]))
     file.path(temp, "tests", "Test_projects")
-    
+
   } else {
     temp <- if (interactive()) {
       readline("Enter path to folder of test projects 'Test_projects': ")
@@ -69,7 +69,7 @@ source(file.path(dir.test, "Functions_for_test_projects.R"), keep.source = FALSE
 
 
 #---Run projects
-out <- run_test_projects(dir.test, tests, which_tests_torun, 
+out <- run_test_projects(dir.test, tests, dir.old, which_tests_torun,
   delete_output, force_delete_output, make_new_ref)
 
 print(out)
