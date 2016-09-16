@@ -795,30 +795,42 @@ if (length(Tables) == 0 || cleanDB) {
 
 	#24
 		if(any(simulation_timescales=="daily") & aon$dailyDegreeDays){
-			temp <- c(temp, paste("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays_mean", sep=""))
+			temp <- c(temp, paste0("DegreeDays.Base", DegreeDayBase, "C.dailyTmean_Cdays"))
 		}
 
 		##############################################################---Aggregation: Yearly water balance---##############################################################
 
 	#27.0
 		if(any(simulation_timescales=="yearly") & aon$yearlyAET){
-			temp <- c(temp, "AET_mm_mean")
+			temp <- c(temp, "AET_mm")
 		}
 
 	#27
 		if(any(simulation_timescales=="yearly") & aon$yearlyWaterBalanceFluxes) {
-			temp <- c(temp, paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
-									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
+			temp <- c(temp,
+				c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm",
+					"Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm",
+					"Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm",
+					"Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm",
+					"Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
+					"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm",
+					"Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm",
+					"HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm",
+					"DeepDrainage_mm", "SWC.StorageChange_mm",
+					"TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET",
+					"AETtoPET", "TtoPET", "EStoPET"))
 		}
 
 
 	#27.2
 		if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
-			temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", lmax, "_days_mean"),
-							paste0("WaterExtractionSpell_AnnualSummedExtraction_L", lmax, "_mm_mean"))
+			temp <- c(temp,
+								paste0("WaterExtractionSpell_MeanContinuousDuration_L", lmax, "_days"),
+								paste0("WaterExtractionSpell_AnnualSummedExtraction_L", lmax, "_mm"))
 		}
 
 		##############################################################---Aggregation: Daily extreme values---##############################################################
+#TODO(drs): progress state
 	#28
 		if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
 			temp <- c(temp, paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))

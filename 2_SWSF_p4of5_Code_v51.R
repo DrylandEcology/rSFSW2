@@ -154,7 +154,7 @@ names(aon) <- aon.help[,1]
 
 
 agg_fun_names1 <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
-if (length(agg_fun_names) == 0)
+if (length(agg_fun_names1) == 0)
 	stop("There must be at least one aggregating function included in 'agg_funs'")
 
 it <- which("quantile" == agg_fun_names1)
@@ -3131,7 +3131,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						frostWithoutSnow <- tapply(frostWithoutSnow, simTime2$year_ForEachUsedDay, sum)  #Numbers of days with min.temp < 0 and snow == 0
 
 						resAgg[nv, ] <- agg_fun(frostWithoutSnow, na.rm = TRUE)
-\						nv <- nv+1
+						nv <- nv+1
 					}
 
 					rm(frostWithoutSnow)
@@ -3154,7 +3154,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							FUN = sum)
 
 					nv_new <- nv + nv_add
-					resAgg[nv:(nv_new - 1), ] <- t(apply(HotDays, 2, agg_fun)
+					resAgg[nv:(nv_new - 1), ] <- t(apply(HotDays, 2, agg_fun, na.rm = TRUE))
 					nv <- nv_new
 
 					rm(HotDays, dailyExcess)
@@ -3177,7 +3177,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							FUN = sum)
 
 					nv_new <- nv + nv_add
-					resAgg[nv:(nv_new - 1), ] <- t(apply(WarmDays, 2, agg_fun)
+					resAgg[nv:(nv_new - 1), ] <- t(apply(WarmDays, 2, agg_fun, na.rm = TRUE))
 					nv <- nv_new
 
 					rm(WarmDays, dailyExcess)
@@ -3386,7 +3386,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 					rm(DayNumber_ForEachUsedMonth, DayNumber_ForEachUsedYear, control_temp, control_water, control_radiation, aridity, temp, cloudiness)
 				}
-#TODO(drs): progress state
 			#23
 				if(any(simulation_timescales=="daily") & aon$dailyC4_TempVar){
 					# Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
@@ -3398,8 +3397,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                                     simTime, simTime2,
                                     return_yearly = TRUE)
 
-					resMeans[nv:(nv+2)] <- temp[1:3]
-					resSDs[nv:(nv+2)] <- temp[4:6]
+					resAgg[nv:(nv+2), ] <- t(apply(temp[, -1], 2, agg_fun, na.rm = TRUE))
 					nv <- nv+3
 				}
 			#24
@@ -3407,11 +3405,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailyDegreeDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 
-					degday <- ifelse(temp.dy$mean > DegreeDayBase, temp.dy$mean - DegreeDayBase, 0) #degree days
+					degday <- temp.dy$mean - DegreeDayBase
+					degday[degday < 0] <- 0
 					temp <- tapply(degday, simTime2$year_ForEachUsedDay, sum)
 
-					resMeans[nv] <- mean(temp)
-					resSDs[nv] <- sd(temp)
+					resAgg[nv, ] <- agg_fun(temp)
 					nv <- nv+1
 
 					rm(degday)
@@ -3424,8 +3422,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of yearlyAET")
 					if(!exists("AET.yr")) AET.yr <- get_AET_yr(sc, runData, simTime)
 
-					resMeans[nv] <- mean(AET.yr$val)
-					resSDs[nv] <- sd(AET.yr$val)
+					resAgg[nv, ] <- agg_fun(AET.yr$val)
 					nv <- nv+1
 				}
 
@@ -3476,32 +3473,30 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						}
 						swc.flux <- tapply(swcdyflux, temp1[index.usedyPlusOne, 1], sum)
 					} else {
-						swc.flux <- NA
+						swc.flux <- rep(NA, simTime$no.useyr)
 					}
 
-					#mean fluxes
-					resMeans[nv:(nv+22)] <- apply(fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux), 2, mean)
-					resMeans[nv+23] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
-					resMeans[nv+24] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
-					resMeans[nv+25] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
-					resMeans[nv+26] <- if (sum(PET.yr$val) > 0) mean(AET.yr$val/PET.yr$val) else 0
-					resMeans[nv+27] <- if (sum(PET.yr$val) > 0) mean(transp.tot/PET.yr$val) else 0
-					resMeans[nv+28] <- if (sum(PET.yr$val) > 0) mean(evap_soil.tot/PET.yr$val) else 0
-
-					#sd of fluxes
-					resSDs[nv:(nv+22)] <- apply(fluxtemp, 2, sd)
-					resSDs[nv+23] <- if (sum(transp.tot) > 0) sd(transp.yr$bottom/transp.tot) else 0
-					resSDs[nv+24] <- if (sum(AET.yr$val) > 0) sd(transp.tot/AET.yr$val) else 0
-					resSDs[nv+25] <- if (sum(AET.yr$val) > 0) sd(evap_soil.tot/AET.yr$val) else 0
-					resSDs[nv+26] <- if (sum(PET.yr$val) > 0) sd(AET.yr$val/PET.yr$val) else 0
-					resSDs[nv+27] <- if (sum(PET.yr$val) > 0) sd(transp.tot/PET.yr$val) else 0
-					resSDs[nv+28] <- if (sum(PET.yr$val) > 0) sd(evap_soil.tot/PET.yr$val) else 0
+					# fluxes
+					fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux)
+					resAgg[nv:(nv+22), ] <- t(apply(fluxtemp, 2, agg_fun, na.rm = TRUE))
+					if (any(transp.tot > 0))
+						resAgg[nv+23, ] <- agg_fun(transp.yr$bottom / transp.tot, na.rm = TRUE)
+					if (any(AET.yr$val > 0)) {
+						resAgg[nv+24, ] <- agg_fun(transp.tot / AET.yr$val, na.rm = TRUE)
+						resAgg[nv+25, ] <- agg_fun(evap_soil.tot / AET.yr$val, na.rm = TRUE)
+					}
+					if (any(PET.yr$val > 0)) {
+						resAgg[nv+26, ] <- agg_fun(AET.yr$val / PET.yr$val, na.rm = TRUE)
+						resAgg[nv+27, ] <- agg_fun(transp.tot / PET.yr$val, na.rm = TRUE)
+						resAgg[nv+28, ] <- agg_fun(evap_soil.tot / PET.yr$val, na.rm = TRUE)
+					}
 
 					nv <- nv+29
 
-					rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
+					rm(fluxtemp, rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
 				}
 
+#TODO(drs): progress state
 			#27.2
 				if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
 					if(print.debug) print("Aggregation of dailySoilWaterPulseVsStorage")
@@ -3514,7 +3509,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
 
 					# Water balance
-					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow=length(simTime$index.usedy), ncol=length(ld))
+					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow = length(simTime$index.usedy), ncol = length(ld))
 					# Inputs: infiltration + received hydraulic redistribution + received percolation
 					inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
 					inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
@@ -3533,37 +3528,40 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					# balance
 					balance <- inputs_by_layer - outputs_by_layer
 					extraction <- balance < 0
-					storage_use <- by(cbind(extraction, outputs_by_layer), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=function(x) {
-						res1 <- apply(x[, ld], MARGIN=2, FUN=rle)
-						res2 <- apply(x[, max(ld) + ld], MARGIN=2, FUN=function(y) list(out=y))
-						return(modifyList(res1, res2))})
+					storage_use <- by(cbind(extraction, outputs_by_layer),
+														INDICES = simTime2$year_ForEachUsedDay_NSadj,
+														FUN = function(x) {
+						res1 <- apply(x[, ld], 2, rle)
+						res2 <- apply(x[, max(ld) + ld], 2, function(y) list(out = y))
+						modifyList(res1, res2)
+					})
 
-					# median duration among extracting spells for each layer and each year
-					extraction_duration_days <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) mean(dat$lengths[as.logical(dat$values)])))
+					# mean duration among extracting spells for each layer and each year
+					extraction_duration_days <- vapply(storage_use, function(ydat)
+							vapply(ydat, function(dat) mean(dat$lengths[as.logical(dat$values)]),
+										FUN.VALUE = NA_real_),
+							FUN.VALUE = rep(NA_real_, dim(outputs_by_layer)[2]))
 
 					# median annual sum of all extracted water during extracting spells for each layer and each year
-					extraction_summed_mm <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) {
+					extraction_summed_mm <- vapply(storage_use, function(x) vapply(x, function(dat) {
 							dat$values <- as.logical(dat$values)
 							temp <- dat
-							if(any(dat$values)) temp$values[dat$values] <- 1:sum(dat$values) # give unique ID to each extraction spell
-							if(any(!dat$values)){
+							if (any(dat$values))
+								temp$values[dat$values] <- seq_len(sum(dat$values)) # give unique ID to each extraction spell
+							has_zero <- any(!dat$values)
+							if (has_zero)
 								temp$values[!dat$values] <- 0 # we are not interested in positive spells
-								has_zero <- TRUE
-							} else {
-								has_zero <- FALSE
-							}
 							storage_ids <- inverse.rle(temp)
-							x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
-							if(has_zero && length(x) > 0) x <- x[-1] # remove first element because this represents the positive spells (id = 0)
-							return(sum(x))
-						}))
+							x <- tapply(dat$out, storage_ids, sum) # sum up extracted water for each extraction spell
+							if (has_zero && length(x) > 0)
+								x <- x[-1] # remove first element because this represents the positive spells (id = 0)
+							sum(x)
+						}, FUN.VALUE = NA_real_), FUN.VALUE = rep(NA_real_, dim(outputs_by_layer)[2]))
 
 					# aggregate across years for each soil layer
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
+					resAgg[nv:(nv+max(ld)-1), ] <- t(round(apply(extraction_duration_days, 1, agg_fun, na.rm = TRUE), 1))
 					nv <- nv+SoilLayer_MaxNo
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
+					resAgg[nv:(nv+max(ld)-1), ] <- t(round(apply(extraction_summed_mm, 1, agg_fun, na.rm = TRUE), 1))
 					nv <- nv+SoilLayer_MaxNo
 
 					rm(percolation, hydred, inputs_by_layer, outputs_by_layer, balance, extraction, storage_use, extraction_duration_days, extraction_summed_mm)
