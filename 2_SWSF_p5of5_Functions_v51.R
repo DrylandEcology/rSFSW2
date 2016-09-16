@@ -267,7 +267,7 @@ export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, paral
             Rmpi::mpi.bcast.Robj2slave(obj__)
             x__ <- get(obj__, pos = export_oe[[k]][["envir"]])
             Rmpi::mpi.bcast.Robj2slave(x__)
-            Rmpi::mpi.bcast.cmd(assign(obj__, x__))
+            Rmpi::mpi.bcast.cmd(assign(obj__, x__, pos = .GlobalEnv))
           }))
 
         if (inherits(temp, "try-error")) {
@@ -298,7 +298,7 @@ export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, paral
 #' @section Note:
 #'  In case an error occurs, the slave will like not report back to master because
 #'  it hangs in miscommunication, and reminds idle (check activity, e.g., with \code{top}).
-work <- compiler::cmpfun(function() {
+mpi_work <- compiler::cmpfun(function() {
   # Note the use of the tag for sent messages:
   #     1=ready_for_task, 2=done_task, 3=exiting
   # Note the use of the tag for received messages:
