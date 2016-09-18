@@ -3718,6 +3718,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- CSPartSummer <- NA
+          MATLanh <- MAT50 <- T50jja <- T50djf <- CSPartSummer <- NA
+          Lanh_annual_means <- rep(NA, 3)
+          Cond_annual_means <- rep(NA, 17)
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "yrAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3770,16 +3773,14 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             soiltemp_nrsc[["mo"]] <- list(data = soiltemp.mo.all$val, nheader = 2)
             soiltemp_nrsc[["dy"]] <- list(data = soiltemp.dy.all$val, nheader = 2)
             vwc_dy_nrsc <- vwcmatric.dy.all
-            swp_dy_nrsc <- swpmatric.dy.all
 
             ##Calculate soil temperature at necessary depths using a weighted mean
             i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
             calc50 <- !(Fifty_depth == soildat[i_depth50, "depth_cm"])
             if (calc50) {
-              i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
               weights50 <- abs(Fifty_depth - soildat[i_depth50 + c(1, 0), "depth_cm"])
               soildat <- t(add_layer_to_soil(t(soildat), i_depth50, weights50))
-              i_depth50 <- i_depth50
+              i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
 
               soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st)
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_depth50, weights50),
@@ -3792,7 +3793,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             if (any(calcMCS)) for (k in which(calcMCS)) {
               weightsMCS <- abs(MCS_depth[k] - soildat[i_MCS[k] + c(1, 0), "depth_cm"])
               soildat <- t(add_layer_to_soil(t(soildat), i_MCS[k], weightsMCS))
-              i_MCS[k] <- i_MCS[k]
+              i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
 
               soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st)
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_MCS[k], weightsMCS),
@@ -3805,7 +3806,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             if (any(calcLanh)) for (k in which(calcLanh)) {
               weightsLanh <- abs(Lanh_depth[k] - soildat[i_Lanh[k] + c(1, 0), "depth_cm"])
               soildat <- t(add_layer_to_soil(t(soildat), i_Lanh[k], weightsLanh))
-              i_Lanh[k] <- i_Lanh[k]
+              i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
 
               soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st)
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_Lanh[k], weightsLanh),
@@ -3822,6 +3823,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               swp_dy_nrsc <- get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
                 sand = soildat[, "sand_frac"], clay = soildat[, "clay_frac"])
+
+            } else {
+              swp_dy_nrsc <- swpmatric.dy.all
             }
 
             soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st) st[["data"]])
@@ -3853,12 +3857,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
             #CSPartSummer: Is the soil saturated with water during some part of the summer June1 (=regular doy 244) - Aug31 (=regular doy 335)
             isummer <- simTime2$doy_ForEachUsedDay_NSadj >= 244 & simTime2$doy_ForEachUsedDay_NSadj <= 335
-            CSPartSummer <- mean(sapply(wyears, function(yr) {
+            CSPartSummer <- mean(vapply(wyears, function(yr) {
               temp <- apply(swp_dy_nrsc[wateryears == yr & isummer, ], 1,
                 function(x) all(x >= SWP_sat))
               rtemp <- rle(temp)
               if(any(rtemp$values)) max(rtemp$lengths[rtemp$values]) else 0
-            }))
+            }, FUN.VALUE = NA_real_))
 
             #---Soil temperature regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.28/Soil Survey Staff 2014: p.31
             #we ignore distinction between iso- and not iso-
@@ -3890,12 +3894,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             #Should have a time period of 30 years to determine normal years
             MAP <- c(mean(prcp.yr$ppt), sd(prcp.yr$ppt))
             normal1 <- (prcp.yr$ppt >= MAP[1] - MAP[2]) & (prcp.yr$ppt <= MAP[1] + MAP[2])
-            MMP <- aggregate(prcp.mo$ppt,
-              by = list(simTime2$month_ForEachUsedMonth_NSadj),
-              function(x) c(mean(x), sd(x)))[, -1]
-            normal2 <- aggregate(prcp.mo$ppt,
-              by = list(simTime2$yearno_ForEachUsedMonth_NSadj),
-              function(x) sum((x >= MMP[,1] - MMP[,2]) & (x <= MMP[,1] + MMP[,2])) >= 8)[, -1]
+            MMP <- tapply(prcp.mo$ppt,
+              simTime2$month_ForEachUsedMonth_NSadj,
+              function(x) c(mean(x), sd(x)))
+            MMP <- matrix(unlist(MMP), nrow = 2, ncol = 12)
+            normal2 <- tapply(prcp.mo$ppt, simTime2$yearno_ForEachUsedMonth_NSadj,
+              function(x) sum((x >= MMP[1, ] - MMP[2, ]) & (x <= MMP[1, ] + MMP[2, ])) >= 8)
             # Normal years =
             #   - Annual precipitation that is plus or minus one standard precipitation
             #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
@@ -3906,10 +3910,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
             if (length(wyears_normal) > 2) {
               #Structures used Lanh delinieation
-              #days where T @ 50 is > 0c
-              T50_at0C <- T50[wdays_index] > 0
-
-              #Days where moists in half of the Lanh soil depth (and not soil layers!)
+              #Days are moists in half of the Lanh soil depth (and not soil layers!)
               n_Lanh <- length(i_Lanh)
               width_Lanh <- diff(c(0, soildat[, "depth_cm"]))[i_Lanh] # stopifnot(sum(width_Lanh) == Lanh_depth[2] - Lanh_depth[1])
               temp <- swp_dy_nrsc[wdays_index, i_Lanh, drop = FALSE] > SWP_dry
@@ -3919,7 +3920,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               #Conditions for Anhydrous soil delineation
               LanhConditionalDF <- data.frame(
                 Years = rep(wyears_normal, days_per_wyear),
-                T50_at0C = T50_at0C,
+                T50_at0C = T50[wdays_index] > 0, # days where T @ 50 is > 0 C
                 Lanh_Dry_Half = Lanh_Dry_Half,
                 MAT50 = rep(MAT50[wyears_index], days_per_wyear),
                 MATLanh = rep(MATLanh[wyears_index], days_per_wyear)
@@ -3930,61 +3931,52 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               LanhConditionalDF$COND2 <- LanhConditionalDF$MATLanh <= 5
               #In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
               LanhConditionalDF$COND3_Test <- LanhConditionalDF$Lanh_Dry_Half == LanhConditionalDF$T50_at0C #TRUE = where are both these conditions met
-              HalfDryDaysCumAbove0C <- with(LanhConditionalDF, tapply(COND3_Test, Years, sum))
-              LanhConditionalDF$HalfDryDaysCumAbove0C <- rep(HalfDryDaysCumAbove0C, days_per_wyear)
-              SoilAbove0C <- with(LanhConditionalDF, tapply(T50_at0C, Years, sum))
-              LanhConditionalDF$SoilAbove0C <- rep(SoilAbove0C, days_per_wyear)
+              temp <- with(LanhConditionalDF, tapply(COND3_Test, Years, sum))
+              LanhConditionalDF$HalfDryDaysCumAbove0C <- rep(temp, days_per_wyear)
+              temp <- with(LanhConditionalDF, tapply(T50_at0C, Years, sum))
+              LanhConditionalDF$SoilAbove0C <- rep(temp, days_per_wyear)
               LanhConditionalDF$COND3 <- LanhConditionalDF$HalfDryDaysCumAbove0C > .5 * LanhConditionalDF$SoilAbove0C #TRUE = Half of soil layers are dry greater than half the days where MAST >0c
               LanhConditionalDF3 <- apply(aggregate(LanhConditionalDF[, c('COND1', 'COND2', 'COND3')],
-                                                    by=list(LanhConditionalDF$Years),
+                                                    by = list(LanhConditionalDF$Years),
                                                     function(x) sum(x) >= sum(!x)),
-                                          2, 
-                                          function(x) sum(x) >= sum(!x))
-              
+                                          2, function(x) sum(x) >= sum(!x))
+
               #Structures used for MCS delineation
-              #days where T @ 50cm exceeds 5C and 8C
-              T50_at5C <- T50[wdays_index] > 5
-              T50_at8C <- T50[wdays_index] > 8
-              #days where any or  all soil layers are moist
-              MCS_Moist_All <- apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] > SWP_dry, 1, all)
-              MCS_Dry_All <- apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] < SWP_dry, 1, all)
-              #Build Conditional Data.frame
               ConditionalDF <- data.frame(
                 Years = rep(wyears_normal, days_per_wyear),
                 DOY = simTime2$doy_ForEachUsedDay_NSadj[wdays_index],
                 MAT50 = rep(MAT50[wyears_index], days_per_wyear),
-                T50_at5C = T50_at5C,
-                T50_at8C = T50_at8C,
-                MCS_Moist_All = MCS_Moist_All,
-                MCS_Dry_All = MCS_Dry_All,
+                T50_at5C = T50[wdays_index] > 5, # days where T @ 50cm exceeds 5C
+                T50_at8C = T50[wdays_index] > 8, # days where T @ 50cm exceeds 8C
+                MCS_Moist_All = apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] > SWP_dry, 1, all),
+                MCS_Dry_All = apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] < SWP_dry, 1, all),
                 T50jja = rep(T50jja[wyears_index], days_per_wyear),
                 T50djf = rep(T50djf[wyears_index], days_per_wyear)
               )
 
-              #COND1 - Dry in ALL parts for more than half of the CUMLATIVE days per year when the soil temperature at a depth of 50cm is above 5C
+              #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
               ConditionalDF$COND1_Test <- ConditionalDF$MCS_Dry_All & ConditionalDF$T50_at5C	#TRUE = where are both these conditions met
-              DryDaysCumAbove5C <- with(ConditionalDF, tapply(COND1_Test, Years, sum))
-              ConditionalDF$DryDaysCumAbove5C <- rep(DryDaysCumAbove5C, days_per_wyear)
-              SoilAbove5C <- with(ConditionalDF, tapply(T50_at5C, Years, sum))
-              ConditionalDF$SoilAbove5C <- rep(SoilAbove5C, days_per_wyear)
+              temp <- with(ConditionalDF, tapply(COND1_Test, Years, sum))
+              ConditionalDF$DryDaysCumAbove5C <- rep(temp, days_per_wyear)
+              temp <- with(ConditionalDF, tapply(T50_at5C, Years, sum))
+              ConditionalDF$SoilAbove5C <- rep(temp, days_per_wyear)
               ConditionalDF$COND1 <- ConditionalDF$DryDaysCumAbove5C > .5 * ConditionalDF$SoilAbove5C #TRUE =Soils are dry greater than 1/2 cumulative days/year
 
               #COND1.1 - Moist in SOME or ALL parts for more than half of the CUMMULATIVE days per year when the soil temperature at a depth of 50cm is above 5
-              #!MCs_Dry_All = MCS_ Moist Any
+              #!MCS_Dry_All = MCS_ Moist Any; !MCS_Moist_All = MCS_Dry Any
               #This Test is kind of redundant basically if COND1 is TRUE than
               ConditionalDF$COND1_1_Test <- !ConditionalDF$MCS_Dry_All & ConditionalDF$T50_at5C	#TRUE = where are both these conditions met
-              AnyMoistDaysCumAbove5C <-  with(ConditionalDF, tapply(COND1_1_Test, Years, sum))
-              ConditionalDF$AnyMoistDaysCumAbove5C <- rep(AnyMoistDaysCumAbove5C, days_per_wyear)
+              temp <-  with(ConditionalDF, tapply(COND1_1_Test, Years, sum))
+              ConditionalDF$AnyMoistDaysCumAbove5C <- rep(temp, days_per_wyear)
               ConditionalDF$COND1_1 <- ConditionalDF$AnyMoistDaysCumAbove5C > .5 * ConditionalDF$SoilAbove5C
               #Cond2 - Moist in SOME or all parts for less than 90 CONSECUTIVE days when the the soil temperature at a depth of 50cm is above 8C
               ConditionalDF$COND2_Test <- !ConditionalDF$MCS_Dry_All & ConditionalDF$T50_at8C	#TRUE = where are both these conditions met
-              MoistDaysConsecAbove8C <- with(ConditionalDF, tapply(COND2_Test, Years, max.duration))				      #Consecutive days of Moist soil @ Conditions
-              ConditionalDF$MoistDaysConsecAbove8C <- rep(MoistDaysConsecAbove8C, days_per_wyear)
-              ConditionalDF$COND2 <- ConditionalDF$MoistDaysConsecAbove8C < 90 & ConditionalDF$MoistDaysConsecAbove8C > 0 # TRUE = moist less than 90 consecutive days , FALSE = moist more than 90 consecutive days
+              temp <- with(ConditionalDF, tapply(COND2_Test, Years, max.duration)) # Maximum consecutive days
+              ConditionalDF$COND2 <- rep(temp < 90, days_per_wyear) # TRUE = moist less than 90 consecutive days during >8 C soils, FALSE = moist more than 90 consecutive days
 
-              #COND3 - MCS is Not dry in ANY part as long as 90 CUMLATIVE days - Can't be dry longer than 90 cum days
-              DryDaysCumAny <- with(ConditionalDF, tapply(MCS_Moist_All,Years,function(x) sum(!x)))#Number of days where any soils are dry
-              ConditionalDF$DryDaysCumAny <- rep(DryDaysCumAny, days_per_wyear)
+              #COND3 - MCS is Not dry in ANY part as long as 90 CUMULATIVE days - Can't be dry longer than 90 cum days
+              temp <- with(ConditionalDF, tapply(!MCS_Moist_All, Years, sum)) #Number of days where any soils are dry
+              ConditionalDF$DryDaysCumAny <- rep(temp, days_per_wyear)
               ConditionalDF$COND3 <- ConditionalDF$DryDaysCumAny < 90 #TRUE = Not Dry for as long 90 cumlative days,FALSE = Dry as long as as 90 Cumlative days
 
               #COND4 - The means annual soil temperature at 50cm is < or > 22C
@@ -3994,30 +3986,29 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               ConditionalDF$COND5 <- abs(ConditionalDF$T50djf - ConditionalDF$T50jja) > 6 #TRUE - Greater than 6, FALSE - Less than 6
 
               #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
-              DryDaysConsecSummer <- with(ConditionalDF[ConditionalDF$DOY %in% c(172:293),], tapply(MCS_Dry_All, Years, max.duration))  #Consecutive days of dry soil after summer solsitice
-              ConditionalDF$DryDaysConsecSummer <- rep(DryDaysConsecSummer, days_per_wyear)
+              temp <- with(ConditionalDF[ConditionalDF$DOY %in% c(172:293),], tapply(MCS_Dry_All, Years, max.duration))  #Consecutive days of dry soil after summer solsitice
+              ConditionalDF$DryDaysConsecSummer <- rep(temp, days_per_wyear)
               ConditionalDF$COND6 <- ConditionalDF$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days
 
-              #COND7 - MCS is MOIST in SOME parts for more than 180 CUMLATIVE days
-              MoistDaysCumAny <- with(ConditionalDF, tapply(MCS_Dry_All, Years, function(x) sum(!x)))#Number of days where any soils are moist
-              ConditionalDF$MoistDaysCumAny <- rep(MoistDaysCumAny, days_per_wyear)
+              #COND7 - MCS is MOIST in SOME parts for more than 180 CUMULATIVE days
+              temp <- with(ConditionalDF, tapply(!MCS_Dry_All, Years, function(x) sum(x)))#Number of days where any soils are moist
+              ConditionalDF$MoistDaysCumAny <- rep(temp, days_per_wyear)
               ConditionalDF$COND7 <- ConditionalDF$MoistDaysCumAny > 180 #TRUE = Not Dry or Moist for as long 180 cumlative days
 
               #Cond8 - MCS is MOIST in SOME parts for more than 90 CONSECUTIVE days
-              MoistDaysConsecAny <- with(ConditionalDF, tapply(MCS_Dry_All,Years, function(x) max.duration(!x))) #Consecutive days of Moist soil
-              ConditionalDF$MoistDaysConsecAny <- rep(MoistDaysConsecAny, days_per_wyear)
+              temp <- with(ConditionalDF, tapply(!MCS_Dry_All,Years, max.duration)) #Consecutive days of Moist soil
+              ConditionalDF$MoistDaysConsecAny <- rep(temp, days_per_wyear)
               ConditionalDF$COND8 <- ConditionalDF$MoistDaysConsecAny > 90 # TRUE = Moist more than 90 Consecutive Days
 
               #COND9 - Moist in ALL parts MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
-              MoistDaysConsecWinter <- with(ConditionalDF[ConditionalDF$DOY %in% c(355:365, 1:111), ], tapply(MCS_Moist_All, Years, max.duration))#Consecutive days of moist soil after winter solsitice
-              ConditionalDF$MoistDaysConsecWinter <- rep(MoistDaysConsecWinter, days_per_wyear)
+              temp <- with(ConditionalDF[ConditionalDF$DOY %in% c(355:365, 1:111), ], tapply(MCS_Moist_All, Years, max.duration))#Consecutive days of moist soil after winter solsitice
+              ConditionalDF$MoistDaysConsecWinter <- rep(temp, days_per_wyear)
               ConditionalDF$COND9 <- ConditionalDF$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
 
               ConditionalDF3 <- apply(aggregate(ConditionalDF[, c('COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')],
-                                                by=list(Year=ConditionalDF$Years), 
+                                                by=list(Year=ConditionalDF$Years),
                                                 function(x) sum(x) > sum(!x)),
-                2,
-                function(x) sum(x) > sum(!x))
+                2, function(x) sum(x) > sum(!x))
 
               #---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31
               #we ignore 'Aquic'
@@ -4065,52 +4056,57 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   Sregime["Xeric"] <- 1L
               }
 
-                annual_means <- c(
-                mean(LanhConditionalDF$SoilAbove0C),
-                .colMeans(as.matrix(ConditionalDF[, c("SoilAbove5C", "DryDaysCumAbove5C",
-                                                      "AnyMoistDaysCumAbove5C","MoistDaysConsecAbove8C", "DryDaysCumAny","DryDaysConsecSummer", 
-                                                      "MoistDaysConsecAny","MoistDaysCumAny", "MoistDaysConsecWinter")]),
-                  sum(wdays_index), 9))
+              Lanh_annual_means <- .colMeans(as.matrix(
+                  aggregate(LanhConditionalDF[, c('T50_at0C', 'Lanh_Dry_Half',
+                                                  'HalfDryDaysCumAbove0C')],
+                            by = list(LanhConditionalDF$Years), mean)[, -1]),
+                length(wyears_normal), 3)
+              Cond_annual_means <- .colMeans(as.matrix(
+                  aggregate(ConditionalDF[, c("T50_at5C", "T50_at8C", "MCS_Moist_All",
+                                              "MCS_Dry_All", "COND1_Test", "COND1_1_Test",
+                                              "COND2", "COND3", "COND4", "COND5",
+                                              "DryDaysConsecSummer", "COND6", "COND7",
+                                              "MoistDaysConsecAny", "COND8",
+                                              "MoistDaysConsecWinter", "COND9")],
+                            by = list(ConditionalDF$Years), mean)[, -1]),
+                length(wyears_normal), 17)
 
               regimes_done <- TRUE
 
             } else {
               if (!be.quiet)
                 print(paste0(i_label, "Number of normal years not long enough to calculate NRCS Soil Moisture Regimes. Try increasing length of simulation"))
-              Sregime[] <- NA
-              Tregime[] <- NA
+              Tregime[] <- Sregime[] <- NA
             }
 
           } else {
             if (!be.quiet)
               print(paste0(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-
-            Tregime[] <- NA
-            Sregime[] <- NA
+              Tregime[] <- Sregime[] <- NA
           }
 
-          nv_new <- nv + 4 + 16 + length(Tregime_names) + length(Sregime_names) + 1
-          res <- resMeans[nv:(nv_new - 1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost),
-            mean(MATLanh), mean(MAT50), mean(T50jja), mean(T50djf), CSPartSummer,
-            annual_means, Tregime, Sregime)
+          nv_new <- nv + 11 + 3 + 17 + length(Tregime_names) + length(Sregime_names)
+          resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
+            MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost),
+            mean(MATLanh, na.rm = TRUE), mean(MAT50, na.rm = TRUE),
+            mean(T50jja, na.rm = TRUE), mean(T50djf, na.rm = TRUE), CSPartSummer,
+            Lanh_annual_means, Cond_annual_means, Tregime, Sregime)
           nv <- nv_new
 
-          to_del <- c("annual_means", "AnyMoistDaysCumAbove5C", "calc50", "calcLanh",
+
+          to_del <- c("Lanh_annual_means", "Cond_annual_means", "calc50", "calcLanh",
             "calcMCS", "clay_temp", "ConditionalDF", "ConditionalDF3", "CSPartSummer",
-            "days_per_wyear", "DryDaysConsecSummer", "DryDaysCumAbove5C",
-            "DryDaysCumAny", "Fifty_depth", "HalfDryDaysCumAbove0C", "i_depth50",
-            "i_Lanh", "i_MCS", "imp_depth", "impermeability", "isummer",
-            "Lanh_depth", "Lanh_Dry_Half", "LanhConditionalDF", "LanhConditionalDF3",
-            "MAP", "MAT50", "MATLanh", "MCS_depth", "MCS_Dry_All", "MCS_Moist_All",
-            "MMP", "MoistDaysConsecAbove8C", "MoistDaysConsecAny", "MoistDaysConsecWinter",
-            "MoistDaysCumAny", "n_Lanh", "normal1", "normal2",
-            "permafrost", "sand_temp", "SoilAbove0C", "SoilAbove5C", "soildat", "soiltemp_nrsc",
-            "SWP_dry", "swp_dy_nrsc", "SWP_sat", "T50", "T50_at0C", "T50_at5C", "T50_at8C",
-            "T50djf", "T50jja", "vwc_dy_nrsc", "wateryears",
-            "wdays_index", "weights50", "weightsLanh", "weightsMCS", "width_Lanh",
+            "days_per_wyear",  "Fifty_depth", "i_depth50", "i_Lanh", "i_MCS", "imp_depth",
+            "impermeability", "isummer", "Lanh_depth", "Lanh_Dry_Half",
+            "LanhConditionalDF", "LanhConditionalDF3", "MAP", "MAT50", "MATLanh",
+            "MCS_depth", "MMP", "n_Lanh", "normal1", "normal2", "permafrost", "sand_temp",
+            "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc", "SWP_sat", "T50",
+            "T50djf", "T50jja", "vwc_dy_nrsc", "wateryears", "wdays_index", "weights50",
+            "weightsLanh", "weightsMCS", "width_Lanh",
             "wyears", "wyears_index", "wyears_normal")
-          to_del <- to_del[to_del %in% ls()]
-          if (length(to_del) > 0) try(rm(list = to_del), silent = TRUE)
+          # to_del <- to_del[to_del %in% ls()]
+          if (length(to_del) > 0)
+            try(rm(list = to_del), silent = TRUE)
         }
 
 			#35b
