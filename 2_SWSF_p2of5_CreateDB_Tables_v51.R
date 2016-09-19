@@ -830,43 +830,53 @@ if (length(Tables) == 0 || cleanDB) {
 		}
 
 		##############################################################---Aggregation: Daily extreme values---##############################################################
-#TODO(drs): progress state
 	#28
 		if(any(simulation_timescales=="daily") & aon$dailyTranspirationExtremes) {
-			temp <- c(temp, paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
+      temp <- c(temp, paste0("Transpiration.", c("DailyMax", "DailyMin"), "_mm"),
+                      paste0("Transpiration.", c("DailyMax", "DailyMin"), "_doy"))
 		}
 
 	#29
 		if(any(simulation_timescales=="daily") & aon$dailyTotalEvaporationExtremes) {
-			temp <- c(temp, paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
+			temp <- c(temp, paste0("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm"),
+			                paste0("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy"))
 		}
 
 	#30
 		if(any(simulation_timescales=="daily") & aon$dailyDrainageExtremes) {
-			temp <- c(temp, paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
+			temp <- c(temp, paste0("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm"),
+			                paste0("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy"))
 		}
 
 	#31
 		if(any(simulation_timescales=="daily") & aon$dailyInfiltrationExtremes) {
-			temp <- c(temp, paste("Infiltration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Infiltration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
+			temp <- c(temp, paste0("Infiltration.", c("DailyMax", "DailyMin"), "_mm"),
+			                paste0("Infiltration.", c("DailyMax", "DailyMin"), "_doy"))
 		}
 
 	#32
 		if(any(simulation_timescales=="daily") & aon$dailyAETExtremes) {
-			temp <- c(temp, paste("AET.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("AET.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
+			temp <- c(temp, paste0("AET.", c("DailyMax", "DailyMin"), "_mm"),
+			                paste0("AET.", c("DailyMax", "DailyMin"), "_doy"))
 		}
 
 	#33
 		if(any(simulation_timescales=="daily") & aon$dailySWPextremes){
-			temp <- c(temp, paste(paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_MPa_mean", "_doy_mean"), each=4), sep=""))
+			temp <- c(temp, paste0("SWP.",
+                              rep(c("topLayers.", "bottomLayers."), each = 2),
+			                        rep(c("DailyMax", "DailyMin"), times = 2),
+			                        rep(c("_MPa", "_doy"), each = 4)))
 		}
 	#34
 		if(any(simulation_timescales=="daily") & aon$dailyRechargeExtremes){
-			temp <- c(temp, paste(paste("RelRecharge.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_Fraction_mean", "_doy_mean"), each=4), sep=""))
+			temp <- c(temp, paste0("RelRecharge.",
+                              rep(c("topLayers.", "bottomLayers."), each = 2),
+                              rep(c("DailyMax", "DailyMin"), times = 2),
+                              rep(c("_Fraction", "_doy"), each = 4)))
 		}
 
-
 		##############################################################---Aggregation: Ecological dryness---##############################################################
+#TODO(drs): progress state
 
 	#35a
 		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){

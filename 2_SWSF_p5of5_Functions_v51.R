@@ -1480,8 +1480,8 @@ extreme_values_and_doys <- compiler::cmpfun(function(x, tol = sqrt(.Machine$doub
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ.mean(which(abs(x - tmax) < tol), int = 365, na.rm = na.rm),
-    circ.mean(which(abs(x - tmin) < tol), int = 365, na.rm = na.rm))
+    circ_mean(which(abs(x - tmax) < tol), int = 365, na.rm = na.rm),
+    circ_mean(which(abs(x - tmin) < tol), int = 365, na.rm = na.rm))
 })
 
 

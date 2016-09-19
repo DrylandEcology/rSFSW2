@@ -3508,7 +3508,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					rm(fluxtemp, rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
 				}
 
-#TODO(drs): progress state
 			#27.2
 				if(any(simulation_timescales=="daily") & aon$dailySoilWaterPulseVsStorage){
 					if(print.debug) print("Aggregation of dailySoilWaterPulseVsStorage")
@@ -3591,13 +3590,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					extremes <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           temp <- extremes[, 1:2, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.mean, int = 365)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.sd, int = 365)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+2
 
 					rm(extremes)
@@ -3613,13 +3610,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					extremes <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           temp <- extremes[, 1:2, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.mean, int = 365)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.sd, int = 365)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+2
 
 					rm(extremes)
@@ -3633,13 +3628,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					extremes <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           temp <- extremes[, 1:2, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.mean, int = 365)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.sd, int = 365)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+2
 
 					rm(extremes)
@@ -3653,13 +3646,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					extremes <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           temp <- extremes[, 1:2, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.mean, int = 365)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.sd, int = 365)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+2
 
 					rm(extremes)
@@ -3673,13 +3664,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					extremes <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           temp <- extremes[, 1:2, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=mean)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, FUN=sd)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-					resMeans[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.mean, int = 365)
-					resSDs[nv:(nv+1)] <- apply(temp, MARGIN=2, circ.sd, int = 365)
+					resAgg[nv:(nv+1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+2
 
 					rm(extremes)
@@ -3699,13 +3688,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           }
 
           temp <- extremes[, c(1:2, 5:6), drop = FALSE]
-					resMeans[nv:(nv+3)] <- apply(temp, MARGIN=2, FUN=mean, na.rm=TRUE)
-					resSDs[nv:(nv+3)] <- apply(temp, MARGIN=2, FUN=sd, na.rm=TRUE)
+					resAgg[nv:(nv+3), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+4
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
-					resMeans[nv:(nv+3)] <- apply(temp, MARGIN=2, circ.mean, int = 365, na.rm = TRUE)
-					resSDs[nv:(nv+3)] <- apply(temp, MARGIN=2, circ.sd, int = 365, na.rm = TRUE)
+					resAgg[nv:(nv+3), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+4
 
 					rm(extremes)
@@ -3726,21 +3713,22 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             temp <- tapply(recharge.dy$bottom, simTime2$year_ForEachUsedDay, extreme_values_and_doys)
             extremes[, 5:8] <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 					}
+					for (k in c(1:2, 5:6))
+						extremes[, k] <- pmin(1, extremes[, k])
 
           temp <- extremes[, c(1:2, 5:6), drop = FALSE]
-					resMeans[nv:(nv+3)] <- apply(temp, MARGIN=2, FUN=function(x) mean(pmin(1, x), na.rm=TRUE))
-					resSDs[nv:(nv+3)] <- apply(temp, MARGIN=2, FUN=function(x) sd(pmin(1, x), na.rm=TRUE))
+					resAgg[nv:(nv+3), ] <- t(apply(temp, 2, agg_fun, na.rm = TRUE))
 					nv <- nv+4
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
-					resMeans[nv:(nv+3)] <- apply(temp, MARGIN=2, circ.mean, int = 365, na.rm=TRUE)
-					resSDs[nv:(nv+3)] <- apply(temp, MARGIN=2, circ.sd, int = 365, na.rm=TRUE)
+					resAgg[nv:(nv+3), ] <- t(apply(temp, 2, agg_fun_circular, int = 365, na.rm = TRUE))
 					nv <- nv+4
 
 					rm(recharge.dy, extremes)
 				}
 
 				#---Aggregation: Ecological dryness
+#TODO(drs): progress state
 
 			#35a
         regimes_done <- FALSE
