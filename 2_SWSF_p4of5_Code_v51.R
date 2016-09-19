@@ -572,10 +572,14 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
 	#Citation
 	#	- article: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
-	#	- dataset: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
+	#	- dataset v2: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
+  # - dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S. Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
 
-	stopifnot(file.exists(dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMet_NorthAmerica")))
-	stopifnot(require(DaymetR)) #https://bitbucket.org/khufkens/daymetr
+  #dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv2_NorthAmerica")
+  dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
+	if (!file.exists(dir.ex.daymet))
+	  stop("Directory for external dataset 'DayMet' does not exist:", shQuote(dir.ex.daymet))
+	stopifnot(require(DaymetR)) #https://github.com/khufkens/daymetr
 }
 
 if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDatabase){
@@ -591,99 +595,125 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 
 if(do_weather_source){
 	#Functions to determine sources of daily weather; they write to global 'sites_dailyweather_source' and 'sites_dailyweather_names', i.e., the last entry is the one that will be used
-	dw_LookupWeatherFolder <- function(){
-		if(any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)){
+	dw_LookupWeatherFolder <- function(sites_dailyweather_source) {
+		if (any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)) {
 			# Check which requested lookup weather folders are available
 			pwd <- getwd()
 			setwd(file.path(dir.sw.in.tr, "LookupWeatherFolder"))
 			there <- rep(FALSE, times = runsN_sites)
-			if(lwf_cond1)
+			if (lwf_cond1)
 				there <- there | sapply(runIDs_sites, FUN=function(ix) if(!is.na(sw_input_treatments$LookupWeatherFolder[ix])) file.exists(sw_input_treatments$LookupWeatherFolder[ix]) else FALSE)
-			if(lwf_cond2)
+			if (lwf_cond2)
 				there <- there | sapply(runIDs_sites, FUN=function(ix) if(!is.na(SWRunInformation$WeatherFolder[ix])) file.exists(SWRunInformation$WeatherFolder[ix]) else FALSE)
-			if(lwf_cond3)
+			if (lwf_cond3)
 				there <- there | rep(any(sapply(sw_input_experimentals$LookupWeatherFolder, FUN=function(ix) file.exists(sw_input_experimentals$LookupWeatherFolder))), times = runsN_sites)
 			setwd(pwd)
-			if(sum(there) > 0)
+			if (any(there))
 				sites_dailyweather_source[there] <<- "LookupWeatherFolder"
 
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'LookupWeatherFolder'"))
+			if (!be.quiet)
+			  print(paste("Data for", sum(there), "sites will come from 'LookupWeatherFolder'"))
 		}
-		invisible(0)
+
+		sites_dailyweather_source
 	}
 
-	dw_Maurer2002_NorthAmerica <- function(){
-		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica && (simstartyr >= 1949 && endyr <= 2010)){
+	dw_Maurer2002_NorthAmerica <- function(sites_dailyweather_source) {
+		if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 			# Check which requested Maurer weather data are available
-			Maurer <- with(SWRunInformation[runIDs_sites, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-			there <- sapply(Maurer, FUN=function(im) file.exists(file.path(dir.ex.maurer2002, im)))
-			if(sum(there) > 0){
-				sites_dailyweather_source[there] <<- "Maurer2002_NorthAmerica"
-				sites_dailyweather_names[there] <<- paste0(SWRunInformation$Label[runIDs_sites][there], "_", Maurer[there])
-			}
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'Maurer2002_NorthAmerica'"))
+			there <- simstartyr >= 1949 && endyr <= 2010
+			if (any(there)) {
+			  Maurer <- with(SWRunInformation[runIDs_sites, ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+			  there <- vapply(Maurer, function(im) file.exists(file.path(dir.ex.maurer2002, im)), FUN.VALUE = NA)
+        if (any(there)) {
+          sites_dailyweather_source[there] <- "Maurer2002_NorthAmerica"
+          sites_dailyweather_names[there] <- paste0(SWRunInformation$Label[runIDs_sites][there], "_", Maurer[there])
+        }
+      }
+			if (!be.quiet)
+			  print(paste("Data for", sum(there), "sites will come from 'Maurer2002_NorthAmerica'"))
 		}
-		invisible(0)
+
+		sites_dailyweather_source
 	}
 
-	dw_DayMet_NorthAmerica <- function(){
-		if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica && (simstartyr >= 1980 && endyr <= as.POSIXlt(Sys.time())$year+1900 - 1)){
+	dw_DayMet_NorthAmerica <- function(sites_dailyweather_source) {
+		if (exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica) {
 			# Check which of the DayMet weather data are available
 			#	- Temperature: 2-meter air temperature in Celsius degrees
 			#	- Precipitation: mm/day; Daily total precipitation in millimeters per day, sum of all forms converted to water-equivalent. Precipitation occurrence on any given day may be ascertained.
-			#	- Grids domain: -131.104 	-52.95 	52.000 	14.53
+			#	- Grids domain v2: -131.104 -52.95  52.00 14.53
+			#	- Grids domain v3: -179     -52     83    14
 			#	- Grids: Geographic Coordinate Reference: WGS_1984; Projection: Lambert Conformal Conic
 			#	- Cells size: 1000 x 1000 m
 			#	- All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
-			there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= -131.104 & SWRunInformation[runIDs_sites, "X_WGS84"] <= -52.95) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= 14.53 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 52)
-			if(sum(there) > 0){
-				sites_dailyweather_source[there] <<- "DayMet_NorthAmerica"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_DayMet", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
-			}
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'DayMet_NorthAmerica'"))
+			there <- simstartyr >= 1980 && endyr <= as.POSIXlt(Sys.time())$year+1900 - 1
+			if (any(there)) {
+        there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= -179 &
+                  SWRunInformation[runIDs_sites, "X_WGS84"] <= -5) &
+                (SWRunInformation[runIDs_sites, "Y_WGS84"] >= 14 &
+                  SWRunInformation[runIDs_sites, "Y_WGS84"] <= 83)
+        if (any(there)) {
+          sites_dailyweather_source[there] <- "DayMet_NorthAmerica"
+          sites_dailyweather_names[there] <- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_DayMet", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
+        }
+      }
+			if (!be.quiet)
+			  print(paste("Data for", sum(there), "sites will come from 'DayMet_NorthAmerica'"))
 		}
-		invisible(0)
+
+		sites_dailyweather_source
 	}
 
-	dw_NRCan_10km_Canada <- function(){
-		if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && (simstartyr >= 1950 && endyr <= 2013)){
+	dw_NRCan_10km_Canada <- function(sites_dailyweather_source) {
+		if (exinfo$GriddedDailyWeatherFromNRCan_10km_Canada) {
 			# Check which of the NRCan weather data are available
 			#	- Temperature: Celsius degrees
 			#	- Precipitation: mm
 			#	- Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
 			#	- Grids datum: geographic NAD83
 			#	- Columns: 1068, Rows: 510, Cells size: 0.083333333
-			nrc_test <- raster(file.path(dir.ex.NRCan, "1950", "max1950_1.asc"))
-			projection(nrc_test) <- CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0") #	see http://spatialreference.org/ref/epsg/4269/
-			sp_locs <- SpatialPoints(coords=SWRunInformation[runIDs_sites, c("X_WGS84", "Y_WGS84")], proj4string=CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
-			there <- !is.na(extract(nrc_test, y=spTransform(sp_locs, CRSobj=CRS(projection(nrc_test)))))
-			if(sum(there) > 0){
-				sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
-			}
+			there <- simstartyr >= 1950 && endyr <= 2013
+			if (any(there)) {
+        nrc_test <- raster::raster(file.path(dir.ex.NRCan, "1950", "max1950_1.asc"))
+        raster::CRS(nrc_test) <- raster::CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0") #	see http://spatialreference.org/ref/epsg/4269/
+        sp_locs <- sp::SpatialPoints(coords = SWRunInformation[runIDs_sites, c("X_WGS84", "Y_WGS84")], proj4string = CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+        there <- !is.na(raster::extract(nrc_test, y = spTransform(sp_locs, CRSobj = raster::CRS(projection(nrc_test)))))
+        if (any(there)) {
+          sites_dailyweather_source[there] <<- "NRCan_10km_Canada"
+          sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
+        }
+      }
 			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
-		invisible(0)
+
+		sites_dailyweather_source
 	}
 
-	dw_NCEPCFSR_Global <- function(){
+	dw_NCEPCFSR_Global <- function(sites_dailyweather_source) {
 		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && (simstartyr >= 1979 && endyr <= 2010)){
 			# Check which of the NCEPCFSR_Global weather data are available
 			#	- Grids domain: 0E to 359.688E and 89.761N to 89.761S
-			there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= 0 - 180 & SWRunInformation[runIDs_sites, "X_WGS84"] <= 360 - 180) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= -89.761 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 89.761)
-			if(sum(there) > 0){
-				sites_dailyweather_source[there] <<- "NCEPCFSR_Global"
-				sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
-			}
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
+			there <- simstartyr >= 1950 && endyr <= 2013
+			if (any(there)) {
+        there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= 0 - 180 & SWRunInformation[runIDs_sites, "X_WGS84"] <= 360 - 180) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= -89.761 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 89.761)
+        if (any(there)) {
+          sites_dailyweather_source[there] <- "NCEPCFSR_Global"
+          sites_dailyweather_names[there] <- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
+        }
+      }
+			if (!be.quiet)
+			  print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
 		}
-		invisible(0)
+
+		sites_dailyweather_source
 	}
 
 	#Determine order of priorities (highest priority comes last)
-	sites_dailyweather_names <- rep(NA, times=length(sites_dailyweather_source))
-	dailyweather_priorities <- rev(paste("dw", dailyweather_options, sep="_"))
-	for(idw in dailyweather_priorities) get(idw)()
+	sites_dailyweather_names <- rep(NA, times = length(sites_dailyweather_source))
+	dailyweather_priorities <- rev(paste("dw", dailyweather_options, sep = "_"))
+	for (idw in dailyweather_priorities)
+	  sites_dailyweather_source <- get(idw)(sites_dailyweather_source)
 
 
 	if(anyNA(sites_dailyweather_source)){
