@@ -2277,6 +2277,11 @@ get_DayMet_cellID <- compiler::cmpfun(function(coords_WGS84) {
 
 #' @return A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}.
 #' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+#' @references
+#'  \href{https://daymet.ornl.gov/}{daymet website}
+#'  publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
+#'  dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S. Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
+#'  \hred{https://github.com/khufkens/daymetr}{DaymetR package}
 get_DayMet_NorthAmerica <- compiler::cmpfun(function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year = simstartyr, end_year = endyr) {
   # Filename for data of this 1-km cell
   ftemp <- file.path(dir_data, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
@@ -2290,6 +2295,7 @@ get_DayMet_NorthAmerica <- compiler::cmpfun(function(dir_data, cellID, Xdm_WGS84
   }
   if(get_from_ornl){
     setwd(dir_data)
+    # DaymetR package: https://bitbucket.org/khufkens/daymetr
     dm_temp <- try(DaymetR::download.daymet(site=cellID, lat=Ydm_WGS84, lon=Xdm_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
   }
 
@@ -2325,8 +2331,8 @@ get_DayMet_NorthAmerica <- compiler::cmpfun(function(dir_data, cellID, Xdm_WGS84
   }
 
   # Clean up
-  if (exists(cellID, envir=.GlobalEnv))
-    rm(list=cellID, envir=.GlobalEnv)
+  if (exists(cellID, envir = .GlobalEnv))
+    rm(list = cellID, envir = .GlobalEnv)
   setwd(pwd)
 
   weathDataList
@@ -2347,6 +2353,10 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- compiler::cmpfun(
 # Function to be executed for all SoilWat-sites together
 #' @return An invisible zero. A list of which each element represents one year of daily weather data of class \linkS4class{swWeatherData}. The list is copied to the weather database.
 #' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
+#' @references
+#'  \href{https://daymet.ornl.gov/}{daymet website}
+#'  publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
+#'  dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S. Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(function(dir_data, site_ids, coords_WGS84, start_year, end_year, dir_temp = tempdir(), dbW_compression_type = "gzip") {
   print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
 
@@ -2383,7 +2393,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
         site_ids_done <- c(site_ids_done, site_ids_todo[idm])
         saveRDS(site_ids_done, file = wtemp_file)
       } else {
-        warning(paste(Sys.time(), "DayMet data extraction NOT successful for site", site_ids_todo[idm]))
+        print(paste(Sys.time(), "DayMet data extraction NOT successful for site", site_ids_todo[idm], weatherData))
       }
     }
   }

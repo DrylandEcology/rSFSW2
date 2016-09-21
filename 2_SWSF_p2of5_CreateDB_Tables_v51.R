@@ -879,13 +879,45 @@ if (length(Tables) == 0 || cleanDB) {
 #TODO(drs): progress state
 
 	#35a
-		if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
-			temp <- c(temp, paste0("NRCS_", c(c("Depth50cmOrImpermeable_cm", "MoistureControlSection_Upper_cm", "MoistureControlSection_Lower_cm", "AnhydrousControlSection_Upper_cm", "AnhydrousControlSection_Lower_cm", "Permafrost_TF"),
-							paste0(c(c("SoilTemp_AnhydrousDepth_C","SoilTemp_50cmDepth_Annual_C", "SoilTemp_50cmDepth_JJA_C", "SoilTemp_50cmDepth_DJF_C", "Saturation_ConsecutiveMaxDuration_JJA_days"),
-							c("Cumlative_Days_Above_0C", "Cumlative_Days_Above_5C", "Cumlative_DryDays_whenT50Above5C", "Consecutive_MoistDays_whenT50Above8C","Consecutive_DryDays_Summer", "Consecutive_MoistDays_AllYear_AnyLayer", "Cumlative_MoistDays_AllYear_AnyLayer", "Cumlative_DryDays_AllYear_AnyLayer","Consecutive_MoistDays_Winter")), "_mean"),
-							paste0("SoilTemperatureRegime_", c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-							paste0("SoilMoistureRegime_", c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
-		}
+if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+      # abbreviations:
+      #     - GT = greater than; LT = less than; EQ = equal
+      #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
+      #     - consec = consecutive
+      temp <- c(temp,
+        paste0("NRCS_",
+          c(c("Depth50cmOrImpermeable_cm",
+              "MCS_Upper_cm", "MCS_Lower_cm",
+              "ACS_Upper_cm", "ACS_Lower_cm",
+              "Permafrost_TF"),
+            paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
+                      "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C",
+                      "Saturation_ConsecutiveMaxDuration_JJA_days",
+                     # Lanh_annual_means:
+                     "Days_at50cm_GT0C_prob", "Days_ACS_MoreThanHalfDry_prob",
+                     "Days_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob",
+                     # Cond_annual_means:
+                     "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
+                     "Days_MCS_AllWet_prob", "Days_MCS_AllDry_prob",
+                     "MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
+                     "MCS_AnyWet_and_at50cm_GT5C_prob", # COND1_1_Test
+                     "MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
+                     "MCS_AnyDryTotal_LT90Days_prob", # COND3
+                     "MCS_at50cm_GT22C_prob", # COND4
+                     "MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
+                     "Days_MCS_AllDry_Summer_days",
+                     "MCS_AllDry_Summer_LT45Days_prob", # COND6
+                     "MCS_AnyMoist_GT180Days_prob", # COND7
+                     "Days_MCS_AnyWetConsec_days",
+                     "MCS_AnyWetConsec_GT90Days_prob", # COND8
+                     "Days_MCS_AllWet_Winter_days",
+                     "MCS_AllWet_Winter_GT45days_prob"), # COND9
+                   "_mean"),
+              paste0("SoilTemperatureRegime_",
+                    c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
+              paste0("SoilMoistureRegime_",
+                    c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
+    }
 	#35b
 		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Chambers2014_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
 			cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
