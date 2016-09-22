@@ -1055,28 +1055,29 @@ if (any(as.logical(pcalcs))) {
         if (length(req_sd_toadd) == 0) next
 
         # Add identified layers
+        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+          sw_input_soils_data[[iv]][il_set, ])
+
         for (lnew in req_sd_toadd) {
           ilnew <- findInterval(lnew, ldset)
           il_weight <- abs(lnew - ldset[ilnew + 1:0])
-          sw_input_soils_data <- lapply(seq_along(var_layers), function(iv)
-            add_layer_to_soil(sw_input_soils_data[[iv]],
-              il = ilnew, w = il_weight,
+          sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+            add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
               method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
           ldset <- sort(c(ldset, lnew))
         }
 
         # Update soil datafiles
         lyrs <- seq_along(ldset)
-
         for (iv in seq_along(var_layers)) {
           i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
           sw_input_soils[runIDs_sites_ws[il_set], i.temp] <-
-            round(sw_input_soils_data[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
+            round(sw_input_soils_data2[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
           sw_input_soils_use[i.temp] <- 1L
         }
 
         sw_input_soillayers[runIDs_sites_ws[il_set],
-          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = length(il_set), ncol = length(ldset), byrow = TRUE)
+          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
         has_changed <- TRUE
       }
 
@@ -1090,6 +1091,8 @@ if (any(as.logical(pcalcs))) {
 
         print("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to adjust lookup tables with per-layer values if applicable for this project")
       }
+
+      rm(sw_input_soils_data, sw_input_soils_data2)
     }
 
     if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
