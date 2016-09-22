@@ -3097,7 +3097,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
-				  export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
+          export_objects_to_workers(list.export,
+            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+            "mpi")
 
 					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
@@ -3110,7 +3112,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 					Rmpi::mpi.bcast.cmd(gc())
 
 				} else if (identical(parallel_backend, "snow")) {
-				  export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
+          export_objects_to_workers(list.export,
+            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+            "snow", cl)
 
 					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
