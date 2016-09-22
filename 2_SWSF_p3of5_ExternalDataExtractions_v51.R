@@ -2904,7 +2904,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			layer_N <- 5	#WISE contains five soil layers for each prid
 			layer_Nsim <- 6	#WISE contains five soil layers for each prid; I added one layer to account for lithosols (Ix), which have a soildepth of 10 cm; for all other soil types, my layers 0-10 cm and 10-20 cm contain the same wise information
 			layer_TopDep <- c(0, 10, 20, 40, 60, 80)	#in cm
-			layer_BotDep <- c(10, 20, 40, 60, 80)	#in cm
+			layer_BotDep <- c(10, 20, 40, 60, 80, 100)	#in cm
 
 			dir.ex.dat <- file.path(dir.ex.soil, "wise5by5min_v1b")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
@@ -2914,7 +2914,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			is_ToDo <- seq_along(run_sites_wise)
 
 			#---extract data
-			grid_wise <- raster::raster(x=file.path(dir.ex.dat, "Grid", "smw5by5min"))
+			grid_wise <- raster::raster(file.path(dir.ex.dat, "Grid", "smw5by5min"))
 
 			#- List all the wise cells that are covered by the grid cell or point location
 			if (sim_cells_or_points == "point") {
@@ -3171,10 +3171,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
 
 				#set and save soil layer structure
-				lys <- 1:layer_Nsim
+				lys <- seq_len(layer_Nsim)
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
 				i.temp <- grep("depth_L", colnames(sw_input_soillayers))
-				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(data=rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
+				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				sw_input_soillayers[runIDs_sites[i_Done], i.temp[-lys]] <- NA
 				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
