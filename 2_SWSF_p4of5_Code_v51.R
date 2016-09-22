@@ -1170,7 +1170,7 @@ if (any(as.logical(pcalcs))) {
       icols_bse_notused <- icol_bsE[-icol]
 
       sw_input_soils_use[icols_bsE_used] <- 1
-      sw_input_soils[runIDs_sites, icols_bsE_used] <- coeff_bs_evap[, icol]
+      sw_input_soils[runIDs_sites, icols_bsE_used] <- round(coeff_bs_evap[, icol], 4)
 
       sw_input_soils_use[icols_bse_notused] <- 0
       sw_input_soils[runIDs_sites, icols_bse_notused] <- 0
