@@ -1896,151 +1896,142 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
 		if(is.finite(i_SWRunInformation$ELEV_m))	swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m
 
-		#add soil information to soilsin
-		if(print.debug) print("Start of soilsin")
-		done.Imperm_L1 <- FALSE
-		if(sw_input_soils_use$Imperm_L1 == 1 && any(create_treatments == "soilsin")){
-			tempdat <- swSoils_Layers(swRunScenariosData[[1]])
-			tempdat[1, "impermeability_frac"] <- i_sw_input_soils$Imperm_L1
-			swSoils_Layers(swRunScenariosData[[1]]) <- tempdat
-			done.Imperm_L1 <- TRUE
-		}
-		if(sum(sw_input_soils_use[-1] + ifelse(done.Imperm_L1, -1, 0)) - sum(use_transpregion <- as.numeric(sw_input_soils_use[paste("TranspRegion_L", ld, sep="")])) > 0){
-			tempdat <- matrix(data=NA, nrow=SoilLayer_MaxNo, ncol=12)
-			colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
+    #add soil information to soilsin
+    if (print.debug)
+      print("Start of soilsin")
+    # Use fixed column names
+    soil_cols <- c("depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
+                    "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
+                    "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c")
+    soil_swdat <- swSoils_Layers(swRunScenariosData[[1]])
+    dimnames(soil_swdat)[[2]] <- soil_cols
 
-			#recalculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
-			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
-			layers_depth.soilsin <- swSoils_Layers(swRunScenariosData[[1]])[,1]
-			mergeDatafileWithSoilsin <- FALSE
+    done.Imperm_L1 <- FALSE
+    if (sw_input_soils_use$Imperm_L1 == 1 && any(create_treatments == "soilsin")) {
+      soil_swdat[1, "imperm"] <- i_sw_input_soils$Imperm_L1
+      done.Imperm_L1 <- TRUE
+    }
 
-			if(identical(layers_depth.datafile, layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
-				#soil texture data from SoilWat input file
-				tempdat <- swSoils_Layers(swRunScenariosData[[1]])
-				colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")#names might be diff
-				mergeDatafileWithSoilsin <- TRUE
+    use_transpregion <- as.numeric(sw_input_soils_use[paste0("TranspRegion_L", ld)])
+    if (sum(sw_input_soils_use[-1]) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
 
-			} else { #different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
-				d <- max(1, min(length(layers_depth.datafile), findInterval(i_sw_input_soillayers$SoilDepth_cm - toln, c(0, layers_depth.datafile)), na.rm=TRUE), na.rm=TRUE)
-				layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
-				layers_width <- getLayersWidth(layers_depth)
-				ld <- setLayerSequence(d)
+      # Calculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
+      temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", seq_len(SoilLayer_MaxNo))])))
+      layers_depth.datafile <- temp[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
 
-				DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
-				topL <- setTopLayer(d, DeepestTopLayer)
-				bottomL <- setBottomLayer(d, DeepestTopLayer)
-			}
+      if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
+        # different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
+        d <- max(1, min(length(layers_depth.datafile),
+          findInterval(i_sw_input_soillayers["SoilDepth_cm"] - toln,
+                        c(0, layers_depth.datafile)),
+          na.rm = TRUE), na.rm = TRUE)
+        layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
+        layers_width <- getLayersWidth(layers_depth)
+        ld <- setLayerSequence(d)
 
-			#flags for use of texture data from datafile
-			use_matricd <- as.numeric(sw_input_soils_use[paste("Matricd_L", ld, sep="")])
-			use_gravelC <- as.numeric(sw_input_soils_use[paste("GravelContent_L", ld, sep="")])
-			#use_pwp <- as.numeric(sw_input_soils_use[paste("WiltP_L", ld, sep="")])
-			sum_use_evco <- sum(sw_input_soils_use[paste("EvapCoeff_L", ld, sep="")])
-			sum_use_trco_grass <- sum(sw_input_soils_use[paste("Grass_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_shrub <- sum(sw_input_soils_use[paste("Shrub_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_tree <- sum(sw_input_soils_use[paste("Tree_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_forb <- sum(sw_input_soils_use[paste("Forb_TranspCoeff_L", ld, sep="")])
-			use_sand <- as.numeric(sw_input_soils_use[paste("Sand_L", ld, sep="")])
-			use_clay <- as.numeric(sw_input_soils_use[paste("Clay_L", ld, sep="")])
-			use_imperm <- as.numeric(sw_input_soils_use[paste("Imperm_L", ld, sep="")])
+        DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
+        topL <- setTopLayer(d, DeepestTopLayer)
+        bottomL <- setBottomLayer(d, DeepestTopLayer)
+      }
 
-			if(mergeDatafileWithSoilsin || sum_use_evco > 0) EVCO_done <- TRUE
-			if(mergeDatafileWithSoilsin || (sum_use_trco_grass > 0 && sum_use_trco_shrub > 0 && sum_use_trco_tree > 0)) TRCO_done <- TRUE
+      #compile soil information from both sources
+      soildat <- matrix(0, nrow = d, ncol = length(soil_cols),
+                        dimnames = list(NULL, soil_cols))
+      soildat[, "depth_cm"] <- layers_depth.datafile[ld]
+      infile_cols <- names(sw_input_soils_use)
 
-			#tr and ev coefficients data from datafile
-			evco <- as.numeric(i_sw_input_soils[paste("EvapCoeff_L", ld, sep="")])
-			trco_grass <- as.numeric(i_sw_input_soils[paste("Grass_TranspCoeff_L", ld, sep="")])
-			trco_shrub <- as.numeric(i_sw_input_soils[paste("Shrub_TranspCoeff_L", ld, sep="")])
-			trco_tree <- as.numeric(i_sw_input_soils[paste("Tree_TranspCoeff_L", ld, sep="")])
-			trco_forb <- as.numeric(i_sw_input_soils[paste("Forb_TranspCoeff_L", ld, sep="")])
+      coefs <- list(infile = c("Matricd", "GravelContent", "EvapCoeff", "Grass_TranspCoeff",
+                                "Shrub_TranspCoeff", "Tree_TranspCoeff", "Forb_TranspCoeff",
+                                "Sand", "Clay", "Imperm", "SoilTemp"),
+                    sw = soil_cols[-1])
+      for (iv in seq_along(coefs[[1]])) {
+        icol <- grep(coefs[["infile"]][iv], infile_cols, ignore.case = TRUE, value = TRUE)
+        if (length(icol) > d)
+          icol <- icol[ld]
 
-			#normalize transpiration and evaporation coefficients from datafile
-			if(sum_use_evco) evco <- evco / ifelse((temp <- sum(evco, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_grass) trco_grass <- trco_grass / ifelse((temp <- sum(trco_grass, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_shrub) trco_shrub <- trco_shrub / ifelse((temp <- sum(trco_shrub, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_tree) trco_tree <- trco_tree / ifelse((temp <- sum(trco_tree, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_forb) trco_forb <- trco_forb / ifelse((temp <- sum(trco_forb, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+        if (length(temp) > 0) {
+          luse <- list(use = which(as.logical(sw_input_soils_use[icol])),
+                        other = intersect(
+                                  which(!as.logical(sw_input_soils_use[icol])),
+                                  seq_len(dim(soil_swdat)[1])))
+          for (k in 1:2) if (any(luse[[k]])) {
+            temp <- if (k == 1L) {
+                as.numeric(i_sw_input_soils[, icol[luse[[k]]]])
+              } else {
+                soil_swdat[luse[[k]], coefs[["sw"]][iv]]
+              }
+            if (isTRUE(grepl("coeff", coefs[["infile"]][iv], ignore.case = TRUE)))
+              temp <- scale_by_sum(temp)
+            soildat[luse[[k]], coefs[["sw"]][iv]] <- temp
+          }
+        }
+      }
 
-			#compile soil information from both sources
-			#changed ncol to 12, and added "soil_temp" to colnames...
-			soildat <- matrix(data=NA, nrow=d, ncol=12)
-			colnames(soildat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
-			for (l in ld){
-				soildat[l, ] <- c(	layers_depth.datafile[l],
-						ifelse(use_matricd[l], as.numeric(i_sw_input_soils[paste("Matricd_L", l, sep="")]), tempdat[l, "matricd"]),
-						ifelse(use_gravelC[l], as.numeric(i_sw_input_soils[paste("GravelContent_L", l, sep="")]), tempdat[l, "gravelContent"]),
-						ifelse(!is.na(temp <- ifelse(sum_use_evco, evco[l], tempdat[l, "evco"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_grass, trco_grass[l], tempdat[l, "trco_grass"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_shrub, trco_shrub[l], tempdat[l, "trco_shrub"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_tree, trco_tree[l], tempdat[l, "trco_tree"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_forb, trco_forb[l], tempdat[l, "trco_forb"])), temp, 0),
-						ifelse(use_sand[l], as.numeric(i_sw_input_soils[paste("Sand_L", l, sep="")]), tempdat[l, "sand"]),
-						ifelse(use_clay[l], as.numeric(i_sw_input_soils[paste("Clay_L", l, sep="")]), tempdat[l, "clay"]),
-						ifelse(!is.na(temp <- ifelse(use_imperm[l], as.numeric(i_sw_input_soils[paste("Imperm_L", l, sep="")]), tempdat[l, "imperm"])), temp, 0),
-						0	#soiltemp information may depend on climatic conditions; it will be only added after weather/climate scenarios are completed
-				)
-			}
+      # Adjust deepest soil layer if there is no soil information
+      if (adjust.soilDepth) {
+        for (k in d:1) {
+          temp <- soildat[k, c("matricd", "sand", "clay")]
+          if (any(!is.na(temp)))
+            break
+        }
+        if (d != k) {
+          d <- k
+          layers_depth <- adjustLayersDepth(layers_depth, d)
+          layers_width <- getLayersWidth(layers_depth)
+          ld <- setLayerSequence(d)
 
-			if(adjust.soilDepth){#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
-				for(temp in d:1){
-					#TODO: bulkd to matricd?
-					if(all(!is.na(soildat[temp, "matricd"]), soildat[temp, "matricd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
-				}
-				if(d != temp){
-					d <- temp
-					layers_depth <- adjustLayersDepth(layers_depth, d)
-					layers_width <- getLayersWidth(layers_depth)
-					ld <- setLayerSequence(d)
+          DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
+          topL <- setTopLayer(d, DeepestTopLayer)
+          bottomL <- setBottomLayer(d, DeepestTopLayer)
 
-					DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
-					topL <- setTopLayer(d, DeepestTopLayer)
-					bottomL <- setBottomLayer(d, DeepestTopLayer)
-				}
-			}
+          soildat <- soildat[ld, , drop = FALSE]
+        }
+      }
 
-			# Resize swSoils Layers to proper size
-			if(length(ld)==1) {
-				swSoils_Layers(swRunScenariosData[[1]]) <- matrix(data=swSoils_Layers(swRunScenariosData[[1]])[ld,], nrow=length(ld), ncol=12, byrow=TRUE, dimnames=list(numeric(),c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")))
-			} else {
-				if(nrow(swSoils_Layers(swRunScenariosData[[1]])) != d) {
-					if(nrow(swSoils_Layers(swRunScenariosData[[1]])) > d) {
-						swSoils_Layers(swRunScenariosData[[1]]) <- swSoils_Layers(swRunScenariosData[[1]])[ld,]
-					} else {
-						swSoils_Layers(swRunScenariosData[[1]]) <- rbind( swSoils_Layers(swRunScenariosData[[1]]), matrix(NA,nrow=d-nrow(swSoils_Layers(swRunScenariosData[[1]])), ncol=ncol(swSoils_Layers(swRunScenariosData[[1]]))) )
-					}
-				}
-			}
-			this_soil <- soildat[1, ]
-			for (l in ld){
-				if(all(soildat[l, c("matricd", "sand", "clay")] > 0, soildat[l, "gravelContent"] >= 0, !is.na(soildat[l, ]))){
-					this_soil <- soildat[l, ]
-				} else {
-					#swLog_setLine(swRunScenariosData[[1]]) <- missingtext
-					print(paste("Site", i_sim, i_label, ": Layer ",l,": soil data missing for this layer -> data used from previous layer */"))
-					this_soil <- c(soildat[l, "depth"], this_soil[2:3], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[l,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
-				}
-				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
-			}
-		}
+      # Impute missing/bad soil data from previous layer
+      icol_excl <- which(soil_cols %in% "soilTemp_c")
+      icols <- seq_along(soil_cols)[-icol_excl]
+      bad_data <- !check_soil_data(soildat[, -icol_excl])
 
-		# Check soil
-		this_soil <- swSoils_Layers(swRunScenariosData[[1]])
-		temp <- this_soil[, grep("depth", colnames(this_soil), ignore.case = TRUE)]
-		check_depth <- !is.na(temp) & temp > 0 & diff(c(0, temp)) > 0
-		temp <- this_soil[, grep("density", colnames(this_soil), ignore.case = TRUE)]
-		check_density <- !is.na(temp) & temp > 0.3 & temp <= 2.65
-		temp <- this_soil[, grep("gravel", colnames(this_soil), ignore.case = TRUE)]
-		check_gravel <- !is.na(temp) & temp >= 0 & temp < 1
-		temp <- this_soil[, grep("sand", colnames(this_soil), ignore.case = TRUE)]
-		check_sand <- !is.na(temp) & temp > 0 & temp <= 1
-		temp <- this_soil[, grep("clay", colnames(this_soil), ignore.case = TRUE)]
-		check_clay <- !is.na(temp) & temp > 0 & temp <= 1
+      if (any(bad_data)) for (l in ld) {
+        lbad <- bad_data[l, ]
+        if (any(lbad)) {
+          if (l > 1L) {
+            soildat[l, icols[lbad]] <- soildat[l - 1L, icols[lbad]]
+            print(paste("Site", i_sim, shQuote(i_label), "Layer", l,
+                        ": data imputed from previous layer:",
+                        paste(names(lbad)[lbad], collapse = ", ")))
 
-		if (!all(check_depth, check_density, check_gravel, check_sand, check_clay)) {
-			print(paste("Run:", i_sim, i_label, ": soil data didn't pass quality test."))
-			print(this_soil)
-			tasks$create <- 0L
-		}
+          } else {
+            print(paste("Site", i_sim, shQuote(i_label), ": data missing for 1st layer",
+                        "-> no data to impute: simulation will fail"))
+            print(soildat[l, icols])
+            tasks$create <- 0L
+            break
+          }
+        }
+      }
+
+      soil_swdat <- soildat
+
+    } else {
+      # Check soil
+      check_soil <- check_soil_data(soil_swdat)
+
+      if (!all(check_soil)) {
+        print(paste("Run:", i_sim, shQuote(i_label), ": soil data didn't pass quality checks for:",
+                    paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
+        print(soil_swdat)
+        tasks$create <- 0L
+      }
+
+    }
+
+    EVCO_done <- sum(soil_swdat[, "EvapBareSoil_frac"]) > 0
+    TRCO_done <- all(colSums(soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
+                                            "transpTree_frac", "transpForb_frac")]) > 0)
+
+    swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
 
 		#add transpiration regions information to siteparamin
@@ -2062,7 +2053,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 			tr_rows<-rowSums(is.na(TranspirationRegions))!=2 #used to get rid of NA rows
 			if(sum(tr_rows) == 0) {
-				stop("Transpiration Regions in Site can not be empty")
+				print("Transpiration Regions in Site can not be empty")
 			} else if(sum(tr_rows) == 1) {
 				swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data=TranspirationRegions[tr_rows,],nrow=1,ncol=2,byrow=T,dimnames=list(numeric(),c("ndx","layer")))
 				TRRG_done <- TRUE
@@ -5525,7 +5516,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		dt <- difftime(Sys.time(), time.sys, units="secs")
 		times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
 		if(!be.quiet) print(paste(i_sim, ":", i_label, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN_total*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN_total-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))
-		write.table(data.frame(i=i_sim,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
+		write.table(data.frame(i=i_sim,dt=round(dt, 2)), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
 	} else {
 		print(paste(i_sim, ":", i_label, " unsuccessful:", paste(names(tasks), "=", tasks, collapse=", ")))
 	}
