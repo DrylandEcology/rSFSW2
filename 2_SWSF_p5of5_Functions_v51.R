@@ -1033,6 +1033,24 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 })
 
 
+check_soil_data <- compiler::cmpfun(function(data) {
+    check_soil <- is.finite(data)
+    check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] & data[, "depth_cm"] > 0 &
+      diff(c(0, data[, "depth_cm"])) > 0
+    check_soil[, "matricd"] <- check_soil[, "matricd"] & data[, "matricd"] > 0.3 &
+      data[, "matricd"] <= 2.65
+    check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
+      data[, "gravel_content"] >= 0 & data[, "gravel_content"] < 1
+    itemp <- c("sand", "clay")
+    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] > 0 & data[, itemp] <= 1
+    itemp <- c("EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
+              "transpTree_frac", "transpForb_frac", "imperm")
+    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 & data[, itemp] <= 1
+
+    check_soil
+})
+
+
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
 circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
@@ -1238,6 +1256,16 @@ handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
     x
   }
 })
+
+scale_by_sum <- compiler::cmpfun(function(x) {
+  temp <- sum(x, na.rm = TRUE)
+  if (temp > 0 && is.finite(temp)) {
+    x / temp
+  } else {
+    x
+  }
+})
+
 
 #' Pedotransfer functions to convert between soil moisture (volumetric water content, VWC)
 #'  and soil water potential (SWP)
