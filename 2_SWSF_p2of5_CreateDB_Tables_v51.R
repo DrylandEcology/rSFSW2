@@ -240,7 +240,7 @@ if (length(Tables) == 0 || do.clean) {
 			#first add any from the experimentals table if its turned on
 			#next add any from the treatments table if its turned on
 			treatments_lookupweatherfolders <- character(0)
-			if(any(names(sw_input_treatments_use[-1][which(sw_input_treatments_use[-1] > 0 & is.finite(as.numeric(sw_input_treatments_use[-1])))])=="LookupWeatherFolder")) {
+			if(any(names(sw_input_treatments_use[sw_input_treatments_use])=="LookupWeatherFolder")) {
 				treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders, sw_input_treatments$LookupWeatherFolder[runIDs_sites])
 			}
 			if(any(create_experimentals=="LookupWeatherFolder")) {
