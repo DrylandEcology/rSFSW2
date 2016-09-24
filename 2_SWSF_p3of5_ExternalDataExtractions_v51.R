@@ -2116,7 +2116,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 			# extract the GCM data depending on parallel backend
 			if (identical(parallel_backend, "mpi")) {
-				export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
+        export_objects_to_workers(list.export,
+          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+          "mpi")
 				if (is_NEX && useRCurl && !saveNEXtempfiles)
 					Rmpi::mpi.bcast.cmd(library("RCurl", quietly=TRUE))
 				if (is_GDODCPUCLLNL)
@@ -2147,7 +2149,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				Rmpi::mpi.bcast.cmd(gc())
 
 			} else if (identical(parallel_backend, "snow")) {
-				export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
+        export_objects_to_workers(list.export,
+          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+          "snow", cl)
 
 				if (is_NEX && useRCurl && !saveNEXtempfiles)
 					snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
@@ -2637,18 +2641,22 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 					#temp value in C
 					#ppt value in mm
 					#add data to sw_input_climscen and set the use flags
-					sw_input_climscen_values_use[i.temp <- match(paste("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
+					i.temp <- paste0("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+					sw_input_climscen_values_use[i.temp] <- TRUE
 					sw_input_climscen_values[, i.temp] <- sc.ppt
-					sw_input_climscen_values_use[i.temp <- match(paste("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_values_use))] <- 1
+					i.temp <- paste0("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+					sw_input_climscen_values_use[i.temp] <- TRUE
 					sw_input_climscen_values[, i.temp] <- sc.temp
 				}
 				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
 					sc.temp <- sc.temp * 5/9	#temp addand in C
 					sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
 					#add data to sw_input_climscen and set the use flags
-					sw_input_climscen_use[i.temp <- match(paste("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
+					i.temp <- paste0("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+					sw_input_climscen_use[i.temp] <- TRUE
 					sw_input_climscen[, i.temp] <- sc.ppt
-					sw_input_climscen_use[i.temp <- match(paste("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"), sep=""), colnames(sw_input_climscen_use))] <- 1
+					i.temp <- paste0("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+					sw_input_climscen_use[i.temp] <- TRUE
 					sw_input_climscen[, i.temp] <- sc.temp
 				}
 			}
@@ -2657,11 +2665,11 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 			if (res > 0) print(paste(res, "sites didn't extract climate scenario information by 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'"))
 
 			#write data to datafile.climatescenarios_values
-			tempdat <- rbind(sw_input_climscen_values_use, sw_input_climscen_values)
-			write.csv(tempdat, file=file.path(dir.sw.dat, datafile.climatescenarios_values), row.names=FALSE)
+			write.csv(reconstitute_inputfile(sw_input_climscen_values_use, sw_input_climscen_values),
+				file = file.path(dir.sw.dat, datafile.climatescenarios_values), row.names = FALSE)
 			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-			rm(list.scenarios.datafile, list.scenarios.external, tempdat, sc.temp, sc.ppt, res, locations)
+			rm(list.scenarios.datafile, list.scenarios.external, sc.temp, sc.ppt, res, locations)
 		} else {
 			print("Not all scenarios requested in 'datafile.SWRunInformation' are available in with 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles'")
 		}
@@ -2850,23 +2858,27 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#add data to sw_input_soils and set the use flags
 				i.temp <- grep("Matricd_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "matricd"]
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("GravelContent_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "rockvol"]
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("Sand_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "sand"]
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("Clay_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- soil_data[i_good, lys, "clay"]
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
-				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+					file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-				rm(tempdat, i.temp, i_Done)
+				rm(i.temp, i_Done)
 			}
 
 			if (!be.quiet)
@@ -2966,7 +2978,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
-				    export_objects_to_workers(list.export, list(parent = parent.frame()), "mpi")
+            export_objects_to_workers(list.export,
+              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+              "mpi")
 						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 
 						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
@@ -2976,7 +2990,9 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						Rmpi::mpi.bcast.cmd(gc())
 
 					} else if (identical(parallel_backend, "snow")) {
-				    export_objects_to_workers(list.export, list(parent = parent.frame()), "snow", cl)
+            export_objects_to_workers(list.export,
+              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
+              "snow", cl)
 						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
 
 						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
@@ -3183,23 +3199,27 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				#add data to sw_input_soils and set the use flags
 				i.temp <- grep("Matricd_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("bulk_L", lys)], 2)
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("GravelContent_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("cfrag_L", lys)]) / 100
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("Sand_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("sand_L", lys)]) / 100
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 				i.temp <- grep("Clay_L", names(sw_input_soils_use))
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
-				sw_input_soils_use[i.temp][lys] <- 1
+				sw_input_soils_use[i.temp[lys]] <- TRUE
+				sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
-				tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-				write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
+				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+					file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-				rm(lys, tempdat, i.temp, i_Done)
+				rm(lys, i.temp, i_Done)
 			}
 
 			if (!be.quiet) print(paste("'ExtractSoilDataFromISRICWISEv12_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract[[2]]), "sites"))
@@ -3590,17 +3610,18 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 				#add data to sw_input_cloud and set the use flags
 				i.temp <- grep("RH", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "RH", ], 2)
 				i.temp <- grep("SkyC", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "cover", ], 2)
 				i.temp <- grep("wind", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "wind", ], 2)
 
 				#write data to datafile.cloud
-				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
+				write.csv(reconstitute_inputfile(sw_input_cloud_use, sw_input_cloud),
+					file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 				rm(i.temp)
@@ -3670,17 +3691,18 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 				#add data to sw_input_cloud and set the use flags
 				i.temp <- grep("RH", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "RH", ], 2)
 				i.temp <- grep("SkyC", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
 				i.temp <- grep("wind", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- 1
+				sw_input_cloud_use[i.temp] <- TRUE
 				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
 
 				#write data to datafile.cloud
-				write.csv(rbind(sw_input_cloud_use, sw_input_cloud), file=file.path(dir.sw.dat, datafile.cloud), row.names=FALSE)
+				write.csv(reconstitute_inputfile(sw_input_cloud_use, sw_input_cloud),
+					file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
 				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
 				rm(i.temp)

@@ -35,6 +35,7 @@
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
+eta.estimate <- interactive()
 print.debug <- interactive()
 debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
@@ -402,7 +403,7 @@ output_aggregates <- c(
 						"monthlySoilEvaporation", 0,
 						"monthlyAET", 0,
 						"monthlyPET", 0,
-						"monthlyVPD", 1,
+						"monthlyVPD", 0,
 						"monthlyAETratios", 0,
 						"monthlyPETratios", 0,
 					#---Aggregation: Potential regeneration

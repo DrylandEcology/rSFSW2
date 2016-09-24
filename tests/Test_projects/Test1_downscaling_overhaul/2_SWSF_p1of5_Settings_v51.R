@@ -35,6 +35,7 @@
 #------Overall timing
 t.overall <- Sys.time()
 be.quiet <- FALSE
+eta.estimate <- interactive()
 print.debug <- interactive()
 debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
