@@ -58,22 +58,18 @@ dirname.sw.runs.weather <- "WeatherData"
 
 #timing: basis for estimated time of arrival, ETA
 timerfile <- "temp_timer.csv"
-temp <- file.path(dir.out, timerfile)
-if (file.exists(temp) && !continueAfterAbort) {
-	try(file.remove(temp), silent=TRUE)
-}
-if (!file.exists(temp)) {
-	write.table(t(c(0,NA)), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
-	runIDs_done <- NULL
-} else {
-	ttemp <- read.csv(file = temp, header = FALSE)
-	runIDs_done <- if (nrow(ttemp) > 1) sort(ttemp[-1, 1]) else NULL
-	rm(ttemp)
-}
+ftemp <- file.path(dir.out, timerfile)
+times <- if (!file.exists(ftemp) || !continueAfterAbort) {
+    cat("0,NA", file = ftemp, sep = "\n")
+  } else {
+   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("NULL", "numeric"))[[1]]
+  }
+runIDs_done <- if (length(times) > 1) sort(times[-1]) else NULL
+
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
-if(file.exists(temp <- file.path(dir.out, timerfile2))) try(file.remove(temp), silent=TRUE)
-write.table(t(c("", "Time_s", "Number")), file=temp, append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE)
+ftemp <- file.path(dir.out, timerfile2)
+cat(",Time_s,Number", file = ftemp, sep = "\n")
 
 #concatenate file keeps track of sql files inserted into data
 concatFile <- "sqlFilesInserted.csv"
@@ -158,9 +154,9 @@ if(!parallel_runs) {
 #if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
 
 #------prepare output
-aon.help <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
-aon <- data.frame(t(as.numeric(aon.help[,-1])))
-names(aon) <- aon.help[,1]
+temp <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
+aon <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
+names(aon) <- temp[, 1]
 
 
 agg_fun_names1 <- names(agg_funs)[as.logical(agg_funs[sapply(agg_funs, is.logical)])]
@@ -222,101 +218,120 @@ agg_windows[, c("agg_start", "agg_end")] <- t(sapply(agg_years, function(x) rang
 #------import data
 if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
+# Read data from files
 do_check_include <- FALSE
 if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_preprocessed))) {
 	load(file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
 		envir = .GlobalEnv) # This however annihilates all objects in .GlobalEnv with the same names !
 
 } else {
-	# Read data from files
-	SWRunInformation <- tryCatch(read.csv(file.path(dir.in, datafile.SWRunInformation), as.is=TRUE),error=function(e) { print("datafile.SWRunInformation: Bad Path"); print(e)})
-	stopifnot(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
-		function(x) x %in% colnames(SWRunInformation)),		# required columns
-		all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
-		!grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
-		!grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
-	)
-	include_YN <- SWRunInformation$Include_YN
-	labels <- SWRunInformation$Label
+  SWRunInformation <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.SWRunInformation)),
+    error = print)
+  stopifnot(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
+    function(x) x %in% names(SWRunInformation)),		# required columns
+    all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
+    !grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
+    !grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
+  )
+  include_YN <- SWRunInformation$Include_YN
+  labels <- SWRunInformation$Label
 
-	sw_input_soillayers <- tryCatch(read.csv(file.path(dir.in, datafile.soillayers)),error=function(e) { print("datafile.soillayers: Bad Path"); print(e)})
+  sw_input_soillayers <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.soillayers)),
+    error = print)
 
-	sw_input_treatments_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.treatments), nrows=1),error=function(e) { print("datafile.treatments: Bad Path"); print(e)})
-	sw_input_treatments <- read.csv(temp, skip=1, as.is=TRUE)
-	colnames(sw_input_treatments) <- colnames(sw_input_treatments_use)
-	stopifnot(
-		!grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
-	)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.treatments)),
+    error = print)
+  sw_input_treatments_use <- temp[["use"]]
+  sw_input_treatments <- temp[["data"]]
+  stopifnot(
+    !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
+  )
 
-	sw_input_experimentals_use <- tryCatch(read.csv(temp <- file.path(dir.in, datafile.Experimentals), nrows=1),error=function(e) { print("datafile.Experimentals: Bad Path"); print(e)})
-	sw_input_experimentals <- read.csv(temp, skip=1, as.is=TRUE)
-	colnames(sw_input_experimentals) <- colnames(sw_input_experimentals_use)
-	create_experimentals <- names(sw_input_experimentals_use[-1][which(sw_input_experimentals_use[-1] > 0 & is.finite(as.numeric(sw_input_experimentals_use[-1])))])
-	stopifnot(
-		!grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)	# no space-characters in weather-data names
-	)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.Experimentals)),
+    error = print)
+  sw_input_experimentals_use <- temp[["use"]]
+  sw_input_experimentals <- temp[["data"]]
+  create_experimentals <- names(sw_input_experimentals_use[sw_input_experimentals_use])
+  stopifnot(
+    !grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)	# no space-characters in weather-data names
+  )
 
-	#update treatment specifications based on experimental design
-	sw_input_treatments_use_combined <- ifelse(sw_input_treatments_use[-1] == 1 | names(sw_input_treatments_use[-1]) %in% create_experimentals, 1, 0)
-	temp<-which(!(create_experimentals %in% names(sw_input_treatments_use[-1])))
-	if(length(temp) != 0) sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined, matrix(data=1,nrow=1,ncol=length(temp),dimnames=list(NA, c(create_experimentals[temp]))))
-	create_treatments <- names(sw_input_treatments_use_combined[,which(sw_input_treatments_use_combined > 0 & is.finite(as.numeric(sw_input_treatments_use_combined)))])
+  #update treatment specifications based on experimental design
+  sw_input_treatments_use_combined <- sw_input_treatments_use |
+  	names(sw_input_treatments_use) %in% create_experimentals
+  temp <- which(!(create_experimentals %in% names(sw_input_treatments_use)))
+  if (length(temp) > 0) {
+    sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined,
+      matrix(1, nrow = 1, ncol = length(temp), dimnames = list(NA, c(create_experimentals[temp]))))
+  }
+  create_treatments <- names(sw_input_treatments_use_combined)[sw_input_treatments_use_combined]
 
-	if(dim(SWRunInformation)[2] == 1) stop("SWRunInformation might be tab separated instead of comma.")
-	if(dim(sw_input_soillayers)[2] == 1) stop("SoilLayers might be tab separated instead of comma.")
-	if(dim(sw_input_treatments_use)[2] == 1) stop("Treatments might be tab separated instead of comma.")
-	if(dim(sw_input_experimentals_use)[2] == 1) stop("Experimentals might be tab separated instead of comma.")
+  if (dim(SWRunInformation)[2] == 1)
+    stop("SWRunInformation might be tab separated instead of comma.")
+  if (dim(sw_input_soillayers)[2] == 1)
+    stop("SoilLayers might be tab separated instead of comma.")
+  if (dim(sw_input_treatments)[2] == 1)
+    stop("Treatments might be tab separated instead of comma.")
+  if (dim(sw_input_experimentals)[2] == 1)
+    stop("Experimentals might be tab separated instead of comma.")
 
-	sw_input_cloud_use <- sw_input_cloud <- list()
-	sw_input_prod_use <- sw_input_prod <- list()
-	sw_input_site_use <- sw_input_site <- list()
-	sw_input_soils_use <- sw_input_soils <- list()
-	sw_input_weather_use <- sw_input_weather <- list()
-	sw_input_climscen_use <- sw_input_climscen <- list()
-	sw_input_climscen_values_use <- sw_input_climscen_values <- list()
-	tr_files <- tr_prod <- tr_site <- tr_soil <- tr_weather <- tr_cloud <- list()
-	tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.cloud)),
+    error = print)
+  sw_input_cloud_use <- temp[["use"]]
+  sw_input_cloud <- temp[["data"]]
 
-	sw_input_cloud_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.cloud), nrows=1),error=function(e) { print("datafile.cloud: Bad Path"); print(e)})
-	sw_input_cloud <- read.csv(temp, skip=1)
-	colnames(sw_input_cloud) <- colnames(sw_input_cloud_use)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.prod)),
+    error = print)
+  sw_input_prod <- temp[["data"]]
+  sw_input_prod_use <- temp[["use"]]
+  sw_input_prod_use <- sw_input_prod_use | names(sw_input_prod_use) %in% create_experimentals	#update specifications based on experimental design
 
-	sw_input_prod_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.prod), nrows=1),error=function(e) { print("datafile.prod: Bad Path"); print(e)})
-	sw_input_prod <- read.csv(temp, skip=1)
-	colnames(sw_input_prod) <- colnames(sw_input_prod_use)
-	sw_input_prod_use[-1] <- ifelse(sw_input_prod_use[-1] == 1 | names(sw_input_prod_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.siteparam)),
+    error = print)
+  sw_input_site <- temp[["data"]]
+  sw_input_site_use <- temp[["use"]]
+  sw_input_site_use <- sw_input_site_use | names(sw_input_site_use) %in% create_experimentals	#update specifications based on experimental design
 
-	sw_input_site_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.siteparam), nrows=1),error=function(e) { print("datafile.siteparam: Bad Path"); print(e)})
-	sw_input_site <- read.csv(temp, skip=1)
-	colnames(sw_input_site) <- colnames(sw_input_site_use)
-	sw_input_site_use[-1] <- ifelse(sw_input_site_use[-1] == 1 | names(sw_input_site_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.soils)),
+    error = print)
+  sw_input_soils <- temp[["data"]]
+  sw_input_soils_use <- temp[["use"]]
+  sw_input_soils_use <- sw_input_soils_use | names(sw_input_soils_use) %in% create_experimentals	#update specifications based on experimental design
 
-	sw_input_soils_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.soils), nrows=1),error=function(e) { print("datafile.soils: Bad Path"); print(e)})
-	sw_input_soils <- read.csv(temp, skip=1)
-	colnames(sw_input_soils) <- colnames(sw_input_soils_use)
-	sw_input_soils_use[-1] <- ifelse(sw_input_soils_use[-1] == 1 | names(sw_input_soils_use[-1]) %in% create_experimentals, 1, 0)	#update specifications based on experimental design
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.weathersetup)),
+    error = print)
+  sw_input_weather_use <- temp[["use"]]
+  sw_input_weather <- temp[["data"]]
 
-	sw_input_weather_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.weathersetup), nrows=1),error=function(e) { print("datafile.weathersetup: Bad Path"); print(e)})
-	sw_input_weather <- read.csv(temp, skip=1)
-	colnames(sw_input_weather) <- colnames(sw_input_weather_use)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios)),
+    error = print)
+  sw_input_climscen_use <- temp[["use"]]
+  sw_input_climscen <- temp[["data"]]
 
-	sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios), nrows=1),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
-	sw_input_climscen <- read.csv(temp, skip=1)
-	colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios_values)),
+    error = print)
+  sw_input_climscen_values_use <- temp[["use"]]
+  sw_input_climscen_values <- temp[["data"]]
 
-	sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(dir.sw.dat, datafile.climatescenarios_values), nrows=1),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
-	sw_input_climscen_values <- read.csv(temp, skip=1)
-	colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
+  if (dim(sw_input_cloud)[2] == 1)
+    stop("Cloud datafile might be tab separated instead of comma.")
+  if (dim(sw_input_prod)[2] == 1)
+    stop("Prod datafile might be tab separated instead of comma.")
+  if (dim(sw_input_site)[2] == 1)
+    stop("Site datafile might be tab separated instead of comma.")
+  if (dim(sw_input_soils)[2] == 1)
+    stop("Soils datafile might be tab separated instead of comma.")
+  if (dim(sw_input_weather)[2] == 1)
+    stop("Weather datafile might be tab separated instead of comma.")
+  if (dim(sw_input_climscen)[2] == 1)
+    stop("Climate Use datafile datafile might be tab separated instead of comma.")
+  if (dim(sw_input_climscen_values)[2] == 1)
+    stop("Climate Values datafile datafile might be tab separated instead of comma.")
 
-	if(dim(sw_input_cloud_use)[2] == 1) stop("Cloud datafile might be tab separated instead of comma.")
-	if(dim(sw_input_prod_use)[2] == 1) stop("Prod datafile might be tab separated instead of comma.")
-	if(dim(sw_input_site_use)[2] == 1) stop("Site datafile might be tab separated instead of comma.")
-	if(dim(sw_input_soils_use)[2] == 1) stop("Soils datafile might be tab separated instead of comma.")
-	if(dim(sw_input_weather_use)[2] == 1) stop("Weather datafile might be tab separated instead of comma.")
-	if(dim(sw_input_climscen_use)[2] == 1) stop("Climate Use datafile datafile might be tab separated instead of comma.")
-	if(dim(sw_input_climscen_values_use)[2] == 1) stop("Climate Values datafile datafile might be tab separated instead of comma.")
+  #Create a list of possible treatment files with data.
+  tr_files <- tr_prod <- tr_site <- tr_soil <- tr_weather <- tr_cloud <- list()
+  tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
-	#Create a list of possible treatment files with data.
 	if(any(create_treatments=="sw"))
 		print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
 	if(any(create_treatments=="filesin")) {
@@ -344,11 +359,15 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
 	}
 
-	if(any(create_treatments == "LookupClimatePPTScenarios")) tr_input_climPPT <- read.csv( file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
-	if(any(create_treatments == "LookupClimateTempScenarios")) tr_input_climTemp <- read.csv( file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
-	if(any(create_treatments == "LookupShiftedPPTScenarios")) tr_input_shiftedPPT <- read.csv( file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
-	if(any(create_treatments == "LookupEvapCoeffFromTable")) tr_input_EvapCoeff <- read.csv( file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-	if(any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")){
+	if (any(create_treatments == "LookupClimatePPTScenarios"))
+	  tr_input_climPPT <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
+	if (any(create_treatments == "LookupClimateTempScenarios"))
+	  tr_input_climTemp <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
+	if (any(create_treatments == "LookupShiftedPPTScenarios"))
+	  tr_input_shiftedPPT <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
+	if (any(create_treatments == "LookupEvapCoeffFromTable"))
+	  tr_input_EvapCoeff <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
+	if (any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")) {
 		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
 		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
 		tr_input_TranspCoeff <- read.csv(temp, skip=2)
@@ -380,7 +399,7 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	}
 
   do_check_include <- TRUE
-	save(SWRunInformation, include_YN, labels, sw_input_soillayers, sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, create_experimentals, sw_input_treatments_use_combined, create_treatments, sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use, sw_input_climscen_values, tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT, tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code, tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD, tr_VegetationComposition, param.species_regeneration, no.species_regeneration,
+	save(SWRunInformation, include_YN, labels, sw_input_soillayers, sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, create_experimentals, create_treatments, sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use, sw_input_climscen_values, tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT, tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code, tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD, tr_VegetationComposition, param.species_regeneration, no.species_regeneration,
 		file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
 		compress = FALSE) # No compression for fast access; RDS may be slightly faster, but would require loop over assign(, envir = .GlobalEnv)
 }
@@ -396,7 +415,6 @@ if(length(temp) > 0){
 }
 climate.conditions <- c(climate.ambient, temp)
 scenario_No <- length(climate.conditions)
-scenario <- climate.conditions
 
 
 #------Determine simulation runs
@@ -452,8 +470,9 @@ if(any(simulation_timescales=="daily")){
 
 #------------------------FLAGS FOR EXTERNAL DATA
 temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractExternalDatasets)/2, byrow=TRUE)
-exinfo <- data.frame(t(as.numeric(temp[,-1])))
-names(exinfo) <- temp[,1]
+exinfo <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
+names(exinfo) <- temp[, 1]
+
 
 exinfo$use_sim_spatial <-
 	exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA	||
@@ -591,9 +610,9 @@ if (extract_determine_database == "SWRunInformation" && "dailyweather_source" %i
 
 weather.digits <- 2
 
-lwf_cond1 <- sw_input_treatments_use$LookupWeatherFolder && sum(is.na(sw_input_treatments$LookupWeatherFolder[runIDs_sites])) == 0
-lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[runIDs_sites])) == 0) && !any(as.logical(c(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)))
-lwf_cond3 <- sw_input_experimentals_use$LookupWeatherFolder && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
+lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] && sum(is.na(sw_input_treatments$LookupWeatherFolder[runIDs_sites])) == 0
+lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[runIDs_sites])) == 0) && !any(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)
+lwf_cond3 <- sw_input_experimentals_use["LookupWeatherFolder"] && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
 lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
 
 
@@ -729,10 +748,10 @@ if(do_weather_source){
 	}
 
 	dw_NCEPCFSR_Global <- function(sites_dailyweather_source) {
-		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global && (simstartyr >= 1979 && endyr <= 2010)){
+		if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global){
 			# Check which of the NCEPCFSR_Global weather data are available
 			#	- Grids domain: 0E to 359.688E and 89.761N to 89.761S
-			there <- simstartyr >= 1950 && endyr <= 2013
+			there <- simstartyr >= 1979 && endyr <= 2010
 			if (any(there)) {
         there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= 0 - 180 & SWRunInformation[runIDs_sites, "X_WGS84"] <= 360 - 180) & (SWRunInformation[runIDs_sites, "Y_WGS84"] >= -89.761 & SWRunInformation[runIDs_sites, "Y_WGS84"] <= 89.761)
         if (any(there)) {
@@ -799,7 +818,7 @@ if(getCurrentWeatherDataFromDatabase){
 	if(!(createAndPopulateWeatherDatabase || file.exists(dbWeatherDataFile)))
 		stop("Create or use existing Weather database with Scenario data inside.")
 } else {
-	if(!any(create_treatments == "LookupWeatherFolder", as.logical(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica), as.logical(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica)))
+	if(!any(create_treatments == "LookupWeatherFolder", exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica))
 		stop("Daily weather data must be provided through 'LookupWeatherFolder', 'Maurer2002_NorthAmerica', or 'DayMet_NorthAmerica' since no weather database is used")
 }
 
@@ -953,9 +972,8 @@ if (any(actions == "create")) {
     for (pc in do_prior_lookup) {
       if (any(create_treatments == pc$flag)) {
         #lookup values per category for each simulation run and copy values to datafile
-        if (!(sw_input_experimentals_use[pc$flag]) ||
-            (as.logical(sw_input_experimentals_use[pc$flag]) &&
-            length(unique(sw_input_experimentals[, pc$flag])) == 1L)) {
+        temp <- sw_input_experimentals_use[pc$flag]
+        if (!temp || (temp && (length(unique(sw_input_experimentals[, pc$flag])) == 1L))) {
           # Lookup prior to do_OneSite() only if option is off in sw_input_experimentals or constant
 
           if (continueAfterAbort) {
@@ -963,7 +981,7 @@ if (any(actions == "create")) {
             sw_input_use <- get(pc$sw_input_use)
 
             icols <- grep(pc$pattern, names(sw_input_use))
-            icols <- icols[sw_input_use[icols] > 0]
+            icols <- icols[sw_input_use[icols]]
             temp <- get(pc$sw_input)[, icols, drop = FALSE]
 
             if (all(!apply(is.na(temp), 2, all))) {
@@ -976,7 +994,7 @@ if (any(actions == "create")) {
           if (!be.quiet)
             print(paste(Sys.time(), ": performing", shQuote(pc$flag)))
 
-          trtype <- if (as.logical(sw_input_experimentals_use[pc$flag])) {
+          trtype <- if (sw_input_experimentals_use[pc$flag]) {
             unique(sw_input_experimentals[, pc$flag])
           } else {
             sw_input_treatments[, pc$flag]
@@ -1004,7 +1022,8 @@ if (any(actions == "create")) {
             assign(pc$sw_input, tempdat$sw_input, envir = .GlobalEnv)
 
             #write data to datafile
-            write.csv(rbind(tempdat$sw_input_use, tempdat$sw_input), file = pc$datafile, row.names = FALSE)
+            write.csv(reconstitute_inputfile(tempdat$sw_input_use, tempdat$sw_input),
+              file = pc$datafile, row.names = FALSE)
             unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
           }
 
@@ -1026,14 +1045,14 @@ if (any(actions == "create")) {
 
 #------flags
 temp <- matrix(data=do.PriorCalculations, ncol=2, nrow=length(do.PriorCalculations)/2, byrow=TRUE)
-pcalcs <- data.frame(t(as.numeric(temp[,-1])))
-names(pcalcs) <- temp[,1]
+pcalcs <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
+names(pcalcs) <- temp[, 1]
 
 if (actionWithSoilWat) {
-	do.GetClimateMeans <- (sum(sw_input_climscen_values_use[-1]) > 0) ||
+	do.GetClimateMeans <- any(sw_input_climscen_values_use) ||
 			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature ||
-			sw_input_site_use$SoilTempC_atLowerBoundary ||
-			sw_input_site_use$SoilTempC_atUpperBoundary ||
+			sw_input_site_use["SoilTempC_atLowerBoundary"] ||
+			sw_input_site_use["SoilTempC_atUpperBoundary"] ||
 			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer ||
 			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
 			any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
@@ -1041,7 +1060,7 @@ if (actionWithSoilWat) {
 			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
 }
 
-if (any(as.logical(pcalcs))) {
+if (any(unlist(pcalcs))) {
   if (!be.quiet)
     print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
 
@@ -1058,7 +1077,7 @@ if (any(as.logical(pcalcs))) {
     req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
 
     # Available layers
-    ids_depth <- strsplit(names(sw_input_soils_use)[-1][as.logical(sw_input_soils_use)[-1]], "_", fixed = TRUE)
+    ids_depth <- strsplit(names(sw_input_soils_use)[sw_input_soils_use], "_", fixed = TRUE)
     stopifnot(length(ids_depth) > 0)
     var_layers <- unique(sapply(ids_depth, function(x) paste0(x[-length(x)], collapse = "_")))
     ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
@@ -1096,28 +1115,29 @@ if (any(as.logical(pcalcs))) {
         if (length(req_sd_toadd) == 0) next
 
         # Add identified layers
+        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+          sw_input_soils_data[[iv]][il_set, ])
+
         for (lnew in req_sd_toadd) {
           ilnew <- findInterval(lnew, ldset)
           il_weight <- abs(lnew - ldset[ilnew + 1:0])
-          sw_input_soils_data <- lapply(seq_along(var_layers), function(iv)
-            add_layer_to_soil(sw_input_soils_data[[iv]],
-              il = ilnew, w = il_weight,
+          sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+            add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
               method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
           ldset <- sort(c(ldset, lnew))
         }
 
         # Update soil datafiles
         lyrs <- seq_along(ldset)
-
         for (iv in seq_along(var_layers)) {
           i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
           sw_input_soils[runIDs_sites_ws[il_set], i.temp] <-
-            round(sw_input_soils_data[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
-          sw_input_soils_use[i.temp] <- 1L
+            round(sw_input_soils_data2[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
+          sw_input_soils_use[i.temp] <- TRUE
         }
 
         sw_input_soillayers[runIDs_sites_ws[il_set],
-          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = length(il_set), ncol = length(ldset), byrow = TRUE)
+          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
         has_changed <- TRUE
       }
 
@@ -1125,12 +1145,14 @@ if (any(as.logical(pcalcs))) {
         #write data to datafile.soillayers
         write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
         #write data to datafile.soils
-        tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-        write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+        write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+          file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
         unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
         print("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to adjust lookup tables with per-layer values if applicable for this project")
       }
+
+      rm(sw_input_soils_data, sw_input_soils_data2)
     }
 
     if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
@@ -1148,13 +1170,13 @@ if (any(as.logical(pcalcs))) {
     icol_bsE <- grep("EvapCoeff", names(sw_input_soils_use))
     icol_sand <- grep("Sand_L", names(sw_input_soils_use))
     icol_clay <- grep("Clay_L", names(sw_input_soils_use))
-    use_layers <- which(sw_input_soils_use[icol_sand] == 1 & sw_input_soils_use[icol_clay] == 1)
+    use_layers <- which(sw_input_soils_use[icol_sand] & sw_input_soils_use[icol_clay])
     stopifnot(length(use_layers) > 0)
 
     do_calc <- TRUE
     if (continueAfterAbort) {
       temp <- icol_bsE[use_layers]
-      icols <- temp[sw_input_soils_use[temp] > 0]
+      icols <- temp[sw_input_soils_use[temp]]
       if (length(icols) > 0L) {
         do_calc <- !all(rowSums(sw_input_soils[runIDs_sites, icols, drop = FALSE], na.rm = TRUE) > 0)
       }
@@ -1207,18 +1229,18 @@ if (any(as.logical(pcalcs))) {
       icols_bsE_used <- icol_bsE[icol]
       icols_bse_notused <- icol_bsE[-icol]
 
-      sw_input_soils_use[icols_bsE_used] <- 1
-      sw_input_soils[runIDs_sites, icols_bsE_used] <- coeff_bs_evap[, icol]
+      sw_input_soils_use[icols_bsE_used] <- TRUE
+      sw_input_soils[runIDs_sites, icols_bsE_used] <- round(coeff_bs_evap[, icol], 4)
 
-      sw_input_soils_use[icols_bse_notused] <- 0
+      sw_input_soils_use[icols_bse_notused] <- FALSE
       sw_input_soils[runIDs_sites, icols_bse_notused] <- 0
 
       #write data to datafile.soils
-      tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-      write.csv(tempdat, file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+      write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+        file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
       unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-      rm(tempdat, icol, icols_bsE_used, icols_bse_notused, coeff_bs_evap, temp_coeff,
+      rm(icol, icols_bsE_used, icols_bse_notused, coeff_bs_evap, temp_coeff,
         lyrs_bs_evap, depth_bs_evap, temp_depth, ldepth_max_bs_evap, sand, clay, sand_mean,
         clay_mean, depth_min_bs_evap, layers_depth)
     }
@@ -1229,45 +1251,20 @@ if (any(as.logical(pcalcs))) {
       print(paste(Sys.time(), "completed 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
   }
 
-# SoilWat >=v31 calculates field capacity and wilting point internally; they are no longer required as inputs and this option has become obsolete
-#	if(pcalcs$CalculateFieldCapacityANDWiltingPointFromSoilTexture){
-#		#lookup soil texture data from 'datafile.soils' for those that the use flag of sand and clay is set, and calculate field capacity and wilting point
-#		ld <- 1:SoilLayer_MaxNo
-#		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
-#		sand <- sw_input_soils[, match(paste("Sand_L", use.layers, sep=""), colnames(sw_input_soils_use))]
-#		clay <- sw_input_soils[, match(paste("Clay_L", use.layers, sep=""), colnames(sw_input_soils_use))]
-#
-#		fieldc <- sapply(1:ncol(sand), FUN=function(i) SWPtoVWC(-0.033, sand[, i], clay[, i]))
-#		wiltp <- sapply(1:ncol(sand), FUN=function(i) SWPtoVWC(-1.5, sand[, i], clay[, i]))
-#
-#		#add data to sw_input_cloud and set the use flags
-#		sw_input_soils_use[i.fieldc <- match(paste("FieldC_L", use.layers, sep=""), colnames(sw_input_soils_use))] <- 1
-#		sw_input_soils_use[i.wiltp <- match(paste("WiltP_L", use.layers, sep=""), colnames(sw_input_soils_use))] <- 1
-#		sw_input_soils[, i.fieldc] <- fieldc
-#		sw_input_soils[, i.wiltp] <- wiltp
-#
-#		#write data to datafile.soils
-#		tempdat <- rbind(sw_input_soils_use, sw_input_soils)
-#		write.csv(tempdat, file=file.path(dir.sw.dat, datafile.soils), row.names=FALSE)
-#		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-#
-#		rm(use.layers, sand, clay, fieldc, wiltp, tempdat, i.fieldc, i.wiltp)
-#	}
-
 	#------used during each simulation run: define functions here
 	if(any(actions == "create") && pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
-		sw_input_site_use$SoilTempC_atLowerBoundary <- 1 #set use flag
-		sw_input_site_use$SoilTempC_atUpperBoundary <- 1
+		sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
+		sw_input_site_use["SoilTempC_atUpperBoundary"] <- TRUE
 		#call function 'SiteClimate' in each SoilWat-run
 	}
 
 	if(any(actions == "create") && pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
 		#set use flags
-		ld <- 1:SoilLayer_MaxNo
-		use.layers <- which(sw_input_soils_use[match(paste("Sand_L", ld, sep=""), colnames(sw_input_soils_use))] == 1)
-		index.soilTemp <- match(paste("SoilTemp_L", ld, sep=""), colnames(sw_input_soils_use))[use.layers]
+		ld <- seq_len(SoilLayer_MaxNo)
+		use.layers <- which(sw_input_soils_use[paste0("Sand_L", ld)])
+		index.soilTemp <- paste0("SoilTemp_L", ld)[use.layers]
 		soilTemp <- sw_input_soils[runIDs_sites, index.soilTemp, drop = FALSE]
-		sw_input_soils_use[index.soilTemp] <- 1
+		sw_input_soils_use[index.soilTemp] <- TRUE
 	}
 
 	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -1279,15 +1276,15 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 	if (!be.quiet) print(paste("SWSF generates maps of input variables for quality control: started at", t1 <- Sys.time()))
 	dir.create(dir.inmap <- file.path(dir.out, "Input_maps"), showWarnings = FALSE)
 
-	input_avail <- list(SWRunInformation = list(cols = colnames(SWRunInformation), use = rep(TRUE, ncol(SWRunInformation))),
-						sw_input_soillayers = list(cols = colnames(sw_input_soillayers), use = rep(TRUE, ncol(sw_input_soillayers))),
-						sw_input_cloud = list(cols = colnames(sw_input_cloud), use = as.logical(sw_input_cloud_use)),
-						sw_input_prod = list(cols = colnames(sw_input_prod), use = as.logical(sw_input_prod_use)),
-						sw_input_site = list(cols = colnames(sw_input_site), use = as.logical(sw_input_site_use)),
-						sw_input_soils = list(cols = colnames(sw_input_soils), use = as.logical(sw_input_soils_use)),
-						sw_input_weather = list(cols = colnames(sw_input_weather), use = as.logical(sw_input_weather_use)),
-						sw_input_climscen = list(cols = colnames(sw_input_climscen), use = as.logical(sw_input_climscen_use)),
-						sw_input_climscen_values = list(cols = colnames(sw_input_climscen_values), use = as.logical(sw_input_climscen_use))
+	input_avail <- list(SWRunInformation = list(cols = names(SWRunInformation), use = rep(TRUE, ncol(SWRunInformation))),
+						sw_input_soillayers = list(cols = names(sw_input_soillayers), use = rep(TRUE, ncol(sw_input_soillayers))),
+						sw_input_cloud = list(cols = names(sw_input_cloud), use = sw_input_cloud_use),
+						sw_input_prod = list(cols = names(sw_input_prod), use = sw_input_prod_use),
+						sw_input_site = list(cols = names(sw_input_site), use = sw_input_site_use),
+						sw_input_soils = list(cols = names(sw_input_soils), use = sw_input_soils_use),
+						sw_input_weather = list(cols = names(sw_input_weather), use = sw_input_weather_use),
+						sw_input_climscen = list(cols = names(sw_input_climscen), use = sw_input_climscen_use),
+						sw_input_climscen_values = list(cols = names(sw_input_climscen_values), use = sw_input_climscen_use)
 					)
 
 	for (iv in seq_along(map_vars)) {
@@ -1479,7 +1476,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 		} else {# needs to be read from soilsin file
 			if(tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
-			layers_depth <- swSoils_Layers(tr_soil[[soilsin]])[,1]
+			layers_depth <- swSoils_Layers(tr_soil[[soilsin]])[, 1]
 			d <- length(layers_depth)
 			soildepth <- max(layers_depth)
 		}
@@ -1545,8 +1542,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
 		#Make a local copy of the swInput object do not want to destroy orignal
-		swRunScenariosData<-list(scenario_No)
-		swRunScenariosData[[1]]<-swDataFromFiles
+		swRunScenariosData <- list()
+		swRunScenariosData[[1]] <- swDataFromFiles
 
 		#get folder and file names
 		outsetupin <- swOutSetupIn
@@ -1639,9 +1636,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       )
 
       for (pc in do_lookup) {
-        if (as.logical(sw_input_experimentals_use[pc$flag]) && !done_prior[pc$flag]) {
+        if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
           if (anyNA(i_sw_input_treatments[pc$flag]) ||
-             !all(unique(i_sw_input_treatments[pc$flag]) %in% rownames(pc$tr_input))) {
+             !all(unique(i_sw_input_treatments[[pc$flag]]) %in% rownames(pc$tr_input))) {
             print(paste("ERROR:", shQuote(pc$flag), "column in expirementals cannot have any NAs or name is not in tr_input table."))
             tasks$create <- 0L
 
@@ -1670,109 +1667,51 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
     }
 
 		#Treatment chunks
-		if(print.debug) print("Start of LookupTranspCoeff")
-		if(print.debug) print(".........grass")
-		if(any(create_treatments == "LookupTranspCoeffFromTable_Grass")){
-			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass)) print("LookupTranspCoeffFromTable_Grass for this run cannot be NA.")
-			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Grass %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Grass name for this run are not in tr_input_TranspCoeff table column names.")
-			if(temp || temp1) {
-				tasks$create <- 0L
-			} else {
-				trco <- TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
-          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Grass"],
-          layers_depth = layers_depth,
-          adjustType = "positive")
+    if (print.debug)
+      print("Start of LookupTranspCoeff")
 
-				if(!anyNA(trco) || sum(trco,na.rm=T) > 0){#trco does not have NA and sum is greater than 0.
-					#set the use flags
-					i.temp <- grepl(pattern=paste("Grass", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-					#add data to sw_input_soils
-					i_sw_input_soils[i.temp][1:length(trco)] <- trco
-				} else {
-					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type grass.")
-					tasks$create <- 0L
-				}
-			}
-		}
-		if(print.debug) print(".........shrub")
-		if(any(create_treatments == "LookupTranspCoeffFromTable_Shrub")){
-			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub)) print("LookupTranspCoeffFromTable_Shrub for this run cannot be NA.")
-			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Shrub %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Shrub name for this run are not in tr_input_TranspCoeff table column names.")
-			if(temp || temp1) {
-				tasks$create <- 0L
-			} else {
-				trco <- TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
-          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Shrub"],
-          layers_depth = layers_depth,
-          adjustType = "inverse")
+    do_vegs <- list(
+      veg = c("Grass", "Shrub", "Tree", "Forb"),
+      flag = c("LookupTranspCoeffFromTable_Grass", "LookupTranspCoeffFromTable_Shrub",
+                "LookupTranspCoeffFromTable_Tree", "LookupTranspCoeffFromTable_Forb"),
+      adjustType = c("positive", "inverse", "inverse", "inverse"))
 
-				#set the use flags
-				if(!anyNA(trco) || sum(trco,na.rm=T) > 0){
-					i.temp <- grepl(pattern=paste("Shrub", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-					#add data to sw_input_soils
-					i_sw_input_soils[i.temp][1:length(trco)] <- trco
-				}  else {
-					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type shrub.")
-					tasks$create <- 0L
-				}
-			}
-		}
-		if(print.debug) print(".........tree")
-		if(any(create_treatments == "LookupTranspCoeffFromTable_Tree")){
-			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) print("LookupTranspCoeffFromTable_Tree for this run cannot be NA.")
-			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Tree name for this run are not in tr_input_TranspCoeff table column names.")
-			if(temp || temp1) {
-				tasks$create <- 0L
-			} else {
-				trco <- TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
-          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Tree"],
-          layers_depth = layers_depth,
-          adjustType = "inverse")
+		for (k in seq_along(do_vegs[["veg"]])) {
+      if (print.debug)
+        print(paste0(".........", do_vegs[["veg"]][k]))
 
-				if(!anyNA(trco) || sum(trco,na.rm=T) > 0){
-					i.temp <- grepl(pattern=paste("Tree", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-					#add data to sw_input_soils
-					i_sw_input_soils[i.temp][1:length(trco)] <- trco
-				} else {
-					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Tree.")
-					tasks$create <- 0L
-				}
-			}
-		}
-		if(print.debug) print(".........forb")
-		if(any(create_treatments == "LookupTranspCoeffFromTable_Forb")){
-			if(temp<-is.na(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb)) print("LookupTranspCoeffFromTable_Forb for this run cannot be NA.")
-			if(temp1<-!all(i_sw_input_treatments$LookupTranspCoeffFromTable_Forb %in% colnames(tr_input_TranspCoeff))) print("LookupTranspCoeffFromTable_Forb name for this run are not in tr_input_TranspCoeff table column names.")
-			if(temp || temp1) {
-				tasks$create <- 0L
-			} else {
-				trco <- TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
-          trco_type = i_sw_input_treatments[1, "LookupTranspCoeffFromTable_Forb"],
-          layers_depth = layers_depth,
-          adjustType = "inverse")
+      if (any(create_treatments == do_vegs[["flag"]][k])) {
+        temp <- is.na(i_sw_input_treatments[1, do_vegs[["flag"]][k]])
+        temp1 <- !all(i_sw_input_treatments[1, do_vegs[["flag"]][k]] %in% colnames(tr_input_TranspCoeff))
+        if (temp || temp1) {
+          if (temp)
+            print(paste(do_vegs[["flag"]][k], "for this run cannot be NA."))
+          if (temp1)
+            print(paste(do_vegs[["flag"]][k], "name for this run are not in tr_input_TranspCoeff table column names."))
+          tasks$create <- 0L
+        } else {
+          trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = d,
+            trco_type = i_sw_input_treatments[1, do_vegs[["flag"]][k]],
+            layers_depth = layers_depth,
+            adjustType = do_vegs[["adjustType"]][k])
 
-				if(!anyNA(trco) || sum(trco,na.rm=T) > 0){
-					i.temp <- grepl(pattern=paste("Forb", "_TranspCoeff", sep=""), x=names(sw_input_soils_use))
-					sw_input_soils_use[i.temp][1:length(trco)] <- rep(1, times=length(trco))
-					#add data to sw_input_soils
-					i_sw_input_soils[i.temp][1:length(trco)] <- trco
-				} else {
-					print("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type Forb.")
-					tasks$create <- 0L
-				}
-			}
-		}
+          if (!anyNA(trco) || sum(trco, na.rm = TRUE) > 0) {#trco does not have NA and sum is greater than 0.
+            #set the use flags
+            i.temp <- grep(paste0(do_vegs[["veg"]][k], "_TranspCoeff"), names(sw_input_soils_use))
+            sw_input_soils_use[i.temp[seq_along(trco)]] <- TRUE
+            if (length(i.temp) > length(trco))
+              sw_input_soils_use[i.temp[(length(trco) + 1):length(i.temp)]] <- FALSE
+            #add data to sw_input_soils
+            i_sw_input_soils[i.temp[seq_along(trco)]] <- trco
+          } else {
+            print(paste("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type", do_vegs[["adjustType"]][k]))
+            tasks$create <- 0L
+          }
+        }
+      }
+    }
 
 		#the monthly ppt-shifts are extracted, but written to the weathersetup input file only at the end of the create section 'copy and make climate scenarios from datafiles', because they are multiplied with any climate change factors
 		ppt_scShift <- rep(1, times=12)
@@ -1805,23 +1744,23 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if(do.wind <- datafile.windspeedAtHeightAboveGround != SoilWat.windspeedAtHeightAboveGround)
 			wind <- adjust.WindspeedHeight(uz=wind, height=datafile.windspeedAtHeightAboveGround)
 
-		if(sum(sw_input_cloud_use[-1]) > 0 | do.wind){
+		if (any(sw_input_cloud_use) | do.wind) {
 			#sky cover
-			if(sum(sw_input_cloud_use[grepl(pattern="SkyC", x=names(sw_input_cloud_use))]) > 0) {
+			if (any(sw_input_cloud_use[grepl("SkyC", names(sw_input_cloud_use))])) {
 				sky <- with(i_sw_input_cloud, data.frame(SkyC_1, SkyC_2, SkyC_3, SkyC_4, SkyC_5, SkyC_6, SkyC_7, SkyC_8, SkyC_9, SkyC_10, SkyC_11, SkyC_12))
 				swCloud_SkyCover(swRunScenariosData[[1]]) <- round(as.double(sky), 0)
 			}
 			#wind speed
-			if(sum(sw_input_cloud_use[grepl(pattern="wind", x=names(sw_input_cloud_use))]) > 0 | do.wind) {
+			if (any(sw_input_cloud_use[grepl("wind", names(sw_input_cloud_use))]) | do.wind) {
 				swCloud_WindSpeed(swRunScenariosData[[1]]) <- round(as.double(wind), 2)
 			}
 			#relative humidity
-			if(sum(sw_input_cloud_use[grepl(pattern="RH", x=names(sw_input_cloud_use))]) > 0) {
+			if (any(sw_input_cloud_use[grepl("RH", names(sw_input_cloud_use))])) {
 				rh <- with(i_sw_input_cloud, data.frame(RH_1, RH_2, RH_3, RH_4, RH_5, RH_6, RH_7, RH_8, RH_9, RH_10, RH_11, RH_12))
 				swCloud_Humidity(swRunScenariosData[[1]]) <- round(as.double(rh), 0)
 			}
 			#snow density
-			if(sum(sw_input_cloud_use[grepl(pattern="snowd", x=names(sw_input_cloud_use))]) > 0) {
+			if (any(sw_input_cloud_use[grepl("snowd", names(sw_input_cloud_use))])) {
 				snowd <- with(i_sw_input_cloud, data.frame(snowd_1, snowd_2, snowd_3, snowd_4, snowd_5, snowd_6, snowd_7, snowd_8, snowd_9, snowd_10, snowd_11, snowd_12))
 				if(i_SWRunInformation$Y_WGS84 < 0 && i_sw_input_cloud$SnowD_Hemisphere == "N" || i_SWRunInformation$Y_WGS84 > 0 && i_sw_input_cloud$SnowD_Hemisphere == "S"){	#adjust for hemisphere only if location and data are opposite
 					snowd <- c(snowd[7:12], snowd[1:6])
@@ -1832,253 +1771,233 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#add vegetation information	from datafile to prodin
 		if(print.debug) print("Start of prodin")
-		if(sum(sw_input_prod_use[-1]) > 0){
+
+		if (any(sw_input_prod_use)) {
 			#composition
-			if(sum(use_comp <- unlist(sw_input_prod_use[grepl(pattern="Composition", x=names(sw_input_prod_use))])) > 0) {
-				comp.datfile <- with(i_sw_input_prod, data.frame(Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction, Composition_ForbFraction, Composition_BareGround))
-				comp.datfile[is.na(comp.datfile)]<-0
-				swRunScenariosData[[1]]@prod@Composition[1:5]<- as.numeric(comp.datfile[1:length(use_comp)])
+			use_it <- sw_input_prod_use[grepl("Composition", names(sw_input_prod_use))]
+			if (any(use_it)) {
+        temp <- with(i_sw_input_prod, cbind(
+          Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction,
+          Composition_ForbFraction, Composition_BareGround))
+        temp[is.finite(temp) | !use_it] <- 0 # if one is is requested, then put others to 0
+				swRunScenariosData[[1]]@prod@Composition <- temp
 			}
 			#albedo
-			if(sum(use_albedo <- unlist(sw_input_prod_use[grepl(pattern="Albedo", x=names(sw_input_prod_use))])) > 0) {
-				albedo.datfile <- with(i_sw_input_prod, data.frame(Grass_Albedo, Shrub_Albedo, Tree_Albedo, Forb_Albedo, BareGround_Albedo))
-				swProd_Albedo(swRunScenariosData[[1]])[use_albedo] <- albedo.datfile[use_albedo]
+			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
+			if (any(use_it)) {
+        temp <- with(i_sw_input_prod, cbind(Grass_Albedo, Shrub_Albedo, Tree_Albedo,
+          Forb_Albedo, BareGround_Albedo))
+        temp[is.finite(temp)] <- 0
+				swProd_Albedo(swRunScenariosData[[1]])[use_it] <- temp[use_it]
 			}
 			#constant canopy height
-			if(sum(use_height <- unlist(sw_input_prod_use[grepl(pattern="CanopyHeight_Constant", x=names(sw_input_prod_use))])) > 0) {
-				height.datfile <- with(i_sw_input_prod, data.frame(Grass_CanopyHeight_Constant_cm, Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,Forb_CanopyHeight_Constant_cm))
-				height.datfile[is.na(height.datfile)]<-0
-				swRunScenariosData[[1]]@prod@CanopyHeight[5,] <- as.numeric(height.datfile[1:length(use_height)])
+			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
+			if (any(use_it)) {
+        temp <- with(i_sw_input_prod, cbind(Grass_CanopyHeight_Constant_cm,
+          Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,
+          Forb_CanopyHeight_Constant_cm))
+        temp[is.finite(temp)] <- 0
+				swRunScenariosData[[1]]@prod@CanopyHeight[5, use_it] <- height.datfile[use_it]
 			}
 			#flag for hydraulic redistribution
-			if(sum(use_HD <- unlist(sw_input_prod_use[grepl(pattern="HydRed", x=names(sw_input_prod_use))])) > 0) {
-				HD.datfile <- with(i_sw_input_prod, data.frame(Grass_HydRed_OnOff, Shrub_HydRed_OnOff, Tree_HydRed_OnOff, Forb_HydRed_OnOff))
-				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_HD] <- as.logical(HD.datfile[use_HD])
+			use_it <- sw_input_prod_use[grepl("HydRed", names(sw_input_prod_use))]
+			if (any(use_it)) {
+				temp <- with(i_sw_input_prod, cbind(Grass_HydRed_OnOff, Shrub_HydRed_OnOff,
+				  Tree_HydRed_OnOff, Forb_HydRed_OnOff))
+        temp[is.finite(temp)] <- 0
+				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <- temp[use_it]
 			}
-			#biomass components TODO Check This
-			biomassComponents <- function(FunctGroup){
-				if(	sum(litt <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Litter", sep=""), x=names(sw_input_prod_use))]) +
-						sum(biom <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_Biomass", sep=""), x=names(sw_input_prod_use))]) +
-						sum(live <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_FractionLive", sep=""), x=names(sw_input_prod_use))]) +
-						sum(laiconv <- sw_input_prod_use[grepl(pattern=paste(FunctGroup, "_LAIconv", sep=""), x=names(sw_input_prod_use))])			> 0) {
 
-					for (m in st_mo){
-					  input_in_veg<-with(i_sw_input_prod,eval(parse(text=paste0("swRunScenariosData[[1]]@prod@MonthlyProductionValues_",tolower(FunctGroup),"[m,]"))))
-						mo.dat <- with(i_sw_input_prod, c(	ifelse(litt[m], eval(parse(text=paste(FunctGroup, "_Litter_m", m, sep=""))),input_in_veg[1]),
-						        ifelse(biom[m], eval(parse(text=paste(FunctGroup, "_Biomass_m", m, sep=""))), input_in_veg[2]),
-										ifelse(live[m], eval(parse(text=paste(FunctGroup, "_FractionLive_m", m, sep=""))), input_in_veg[3]),
-										ifelse(laiconv[m], eval(parse(text=paste(FunctGroup, "_LAIconv_m", m, sep=""))), input_in_veg[4])))
-						if(FunctGroup=="Grass")
-						swRunScenariosData[[1]]@prod@MonthlyProductionValues_grass[m,]  <- mo.dat
-						if(FunctGroup=="Shrub")
-						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_shrub[m,]  <- mo.dat
-						if(FunctGroup=="Tree")
-						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_tree[m,]  <- mo.dat
-						if(FunctGroup=="Forb")
-						  swRunScenariosData[[1]]@prod@MonthlyProductionValues_forb[m,]  <- mo.dat
-					}
-				}
-				if(FunctGroup=="Grass")
-					return(swProd_MonProd_grass(swRunScenariosData[[1]]))
-				if(FunctGroup=="Shrub")
-					return(swProd_MonProd_shrub(swRunScenariosData[[1]]))
-				if(FunctGroup=="Tree")
-					return(swProd_MonProd_tree(swRunScenariosData[[1]]))
-				if(FunctGroup=="Forb")
-					return(swProd_MonProd_forb(swRunScenariosData[[1]]))
-			}
-			swProd_MonProd_grass(swRunScenariosData[[1]]) <- biomassComponents(FunctGroup="Grass")
-			swProd_MonProd_shrub(swRunScenariosData[[1]]) <- biomassComponents(FunctGroup="Shrub")
-			swProd_MonProd_tree(swRunScenariosData[[1]])  <- biomassComponents(FunctGroup="Tree")
-			swProd_MonProd_forb(swRunScenariosData[[1]])  <- biomassComponents(FunctGroup="Forb")
+      swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
+        funct_veg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        prod_default = swRunScenariosData[[1]]@prod)
+      swProd_MonProd_shrub(swRunScenariosData[[1]]) <- update_biomass(
+        funct_veg = "Shrub", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        prod_default = swRunScenariosData[[1]]@prod)
+      swProd_MonProd_tree(swRunScenariosData[[1]]) <- update_biomass(
+        funct_veg = "Tree", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        prod_default = swRunScenariosData[[1]]@prod)
+      swProd_MonProd_forb(swRunScenariosData[[1]]) <- update_biomass(
+        funct_veg = "Forb", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        prod_default = swRunScenariosData[[1]]@prod)
 		}
 		#Moved adjust to southern Hemi
 
 		#add site information to siteparamin
 		if(print.debug) print("Start of siteparamin")
-		if(sum(sw_input_site_use[-1]) > 0){
-			site_swc_use <- as.logical(c(sw_input_site_use$SWC_min,sw_input_site_use$SWC_init,sw_input_site_use$SWC_wet))
-			if(any(site_swc_use)){
-				swSite_SWClimits(swRunScenariosData[[1]])[temp] <- c(i_sw_input_site$SWC_min,i_sw_input_site$SWC_init,i_sw_input_site$SWC_wet)[temp]
-			}
-			site_modelflag_use <- as.logical(c(sw_input_site_use$SWC_YearlyReset,sw_input_site_use$SWC_Deepdrain))
-			if(any(site_modelflag_use)){
-				swSite_ModelFlags(swRunScenariosData[[1]])[site_modelflag_use] <- c(i_sw_input_site$SWC_YearlyReset,i_sw_input_site$SWC_Deepdrain)[site_modelflag_use]
-			}
-			site_modelcoef_use <- as.logical(c(sw_input_site_use$PET_multiplier,sw_input_site_use$RunoffPercent_fromPondedWater))
-			if(any(site_modelcoef_use)){
-				swSite_ModelCoefficients(swRunScenariosData[[1]])[site_modelcoef_use] <- c(i_sw_input_site$PET_multiplier, i_sw_input_site$RunoffPercent_fromPondedWater)[site_modelcoef_use]
-			}
-			#replace if in treatment file
-			if(sw_input_site_use$Param_UnsaturatedPercolation){
-				swSite_DrainageCoefficient(swRunScenariosData[[1]]) <- i_sw_input_site$Param_UnsaturatedPercolation
-			}
-			if(sw_input_site_use$Latitude) {
-				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_sw_input_site$Latitude
-			}
-			if(sw_input_site_use$Altitude) {
-				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_sw_input_site$Altitude
-			}
-			if(sw_input_site_use$Slope){
-				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[3] <- i_sw_input_site$Slope
-			}
-			if(sw_input_site_use$Aspect){
-				swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[4] <- i_sw_input_site$Aspect
-			}
-			#Moved sw_input_site_use$SoilTempC_atLowerBoundary
-			if(sw_input_site_use$SoilTemp_Flag){
-				swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <- i_sw_input_site$SoilTemp_Flag
-			}
-			rm(site_swc_use,site_modelflag_use,site_modelcoef_use)
-		}
-		swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
-		if(is.finite(i_SWRunInformation$ELEV_m))	swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m
+		if (any(sw_input_site_use)) {
+      flags <- c("SWC_min", "SWC_init", "SWC_wet")
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use))
+        swSite_SWClimits(swRunScenariosData[[1]])[site_use] <-
+          as.numeric(i_sw_input_site[flags][site_use])
 
-		#add soil information to soilsin
-		if(print.debug) print("Start of soilsin")
-		done.Imperm_L1 <- FALSE
-		if(sw_input_soils_use$Imperm_L1 == 1 && any(create_treatments == "soilsin")){
-			tempdat <- swSoils_Layers(swRunScenariosData[[1]])
-			tempdat[1, "impermeability_frac"] <- i_sw_input_soils$Imperm_L1
-			swSoils_Layers(swRunScenariosData[[1]]) <- tempdat
-			done.Imperm_L1 <- TRUE
-		}
-		if(sum(sw_input_soils_use[-1] + ifelse(done.Imperm_L1, -1, 0)) - sum(use_transpregion <- as.numeric(sw_input_soils_use[paste("TranspRegion_L", ld, sep="")])) > 0){
-			tempdat <- matrix(data=NA, nrow=SoilLayer_MaxNo, ncol=12)
-			colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
+      flags <- c("SWC_YearlyReset", "SWC_Deepdrain")
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use))
+        swSite_ModelFlags(swRunScenariosData[[1]])[site_use] <-
+          as.numeric(i_sw_input_site[flags][site_use])
 
-			#recalculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
-			layers_depth.datafile <- (temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[match(paste("depth_L", 1:SoilLayer_MaxNo, sep=""), colnames(i_sw_input_soillayers))]))))[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
-			layers_depth.soilsin <- swSoils_Layers(swRunScenariosData[[1]])[,1]
-			mergeDatafileWithSoilsin <- FALSE
+      flags <- c("PET_multiplier", "RunoffPercent_fromPondedWater")
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use))
+        swSite_ModelCoefficients(swRunScenariosData[[1]])[site_use] <-
+          as.numeric(i_sw_input_site[flags][site_use])
 
-			if(identical(layers_depth.datafile, layers_depth.soilsin)){	#same soil layer structure in soilsin and datafile => combine data
-				#soil texture data from SoilWat input file
-				tempdat <- swSoils_Layers(swRunScenariosData[[1]])
-				colnames(tempdat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")#names might be diff
-				mergeDatafileWithSoilsin <- TRUE
+      if (sw_input_site_use["Param_UnsaturatedPercolation"]) {
+        swSite_DrainageCoefficient(swRunScenariosData[[1]]) <- i_sw_input_site$Param_UnsaturatedPercolation
+      }
 
-			} else { #different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
-				d <- max(1, min(length(layers_depth.datafile), findInterval(i_sw_input_soillayers$SoilDepth_cm - toln, c(0, layers_depth.datafile)), na.rm=TRUE), na.rm=TRUE)
-				layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
-				layers_width <- getLayersWidth(layers_depth)
-				ld <- setLayerSequence(d)
+      flags <- c("Latitude", "Altitude", "Slope", "Aspect")
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use))
+        swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[site_use] <-
+          as.numeric(i_sw_input_site[flags][site_use])
 
-				DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
-				topL <- setTopLayer(d, DeepestTopLayer)
-				bottomL <- setBottomLayer(d, DeepestTopLayer)
-			}
+      if (sw_input_site_use["SoilTemp_Flag"]) {
+        swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <- i_sw_input_site$SoilTemp_Flag
+      }
+    }
+    swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
+    if (is.finite(i_SWRunInformation$ELEV_m))
+      swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m
 
-			#flags for use of texture data from datafile
-			use_matricd <- as.numeric(sw_input_soils_use[paste("Matricd_L", ld, sep="")])
-			use_gravelC <- as.numeric(sw_input_soils_use[paste("GravelContent_L", ld, sep="")])
-			#use_pwp <- as.numeric(sw_input_soils_use[paste("WiltP_L", ld, sep="")])
-			sum_use_evco <- sum(sw_input_soils_use[paste("EvapCoeff_L", ld, sep="")])
-			sum_use_trco_grass <- sum(sw_input_soils_use[paste("Grass_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_shrub <- sum(sw_input_soils_use[paste("Shrub_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_tree <- sum(sw_input_soils_use[paste("Tree_TranspCoeff_L", ld, sep="")])
-			sum_use_trco_forb <- sum(sw_input_soils_use[paste("Forb_TranspCoeff_L", ld, sep="")])
-			use_sand <- as.numeric(sw_input_soils_use[paste("Sand_L", ld, sep="")])
-			use_clay <- as.numeric(sw_input_soils_use[paste("Clay_L", ld, sep="")])
-			use_imperm <- as.numeric(sw_input_soils_use[paste("Imperm_L", ld, sep="")])
+    #add soil information to soilsin
+    if (print.debug)
+      print("Start of soilsin")
+    # Use fixed column names
+    soil_cols <- c("depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
+                    "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
+                    "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c")
+    soil_swdat <- swSoils_Layers(swRunScenariosData[[1]])
+    dimnames(soil_swdat)[[2]] <- soil_cols
 
-			if(mergeDatafileWithSoilsin || sum_use_evco > 0) EVCO_done <- TRUE
-			if(mergeDatafileWithSoilsin || (sum_use_trco_grass > 0 && sum_use_trco_shrub > 0 && sum_use_trco_tree > 0)) TRCO_done <- TRUE
+    done.Imperm_L1 <- FALSE
+    if (sw_input_soils_use["Imperm_L1"] && any(create_treatments == "soilsin")) {
+      soil_swdat[1, "imperm"] <- i_sw_input_soils$Imperm_L1
+      done.Imperm_L1 <- TRUE
+    }
 
-			#tr and ev coefficients data from datafile
-			evco <- as.numeric(i_sw_input_soils[paste("EvapCoeff_L", ld, sep="")])
-			trco_grass <- as.numeric(i_sw_input_soils[paste("Grass_TranspCoeff_L", ld, sep="")])
-			trco_shrub <- as.numeric(i_sw_input_soils[paste("Shrub_TranspCoeff_L", ld, sep="")])
-			trco_tree <- as.numeric(i_sw_input_soils[paste("Tree_TranspCoeff_L", ld, sep="")])
-			trco_forb <- as.numeric(i_sw_input_soils[paste("Forb_TranspCoeff_L", ld, sep="")])
+    use_transpregion <- sw_input_soils_use[paste0("TranspRegion_L", ld)]
+    if (sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
 
-			#normalize transpiration and evaporation coefficients from datafile
-			if(sum_use_evco) evco <- evco / ifelse((temp <- sum(evco, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_grass) trco_grass <- trco_grass / ifelse((temp <- sum(trco_grass, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_shrub) trco_shrub <- trco_shrub / ifelse((temp <- sum(trco_shrub, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_tree) trco_tree <- trco_tree / ifelse((temp <- sum(trco_tree, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
-			if(sum_use_trco_forb) trco_forb <- trco_forb / ifelse((temp <- sum(trco_forb, na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+      # Calculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
+      temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", seq_len(SoilLayer_MaxNo))])))
+      layers_depth.datafile <- temp[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
 
-			#compile soil information from both sources
-			#changed ncol to 12, and added "soil_temp" to colnames...
-			soildat <- matrix(data=NA, nrow=d, ncol=12)
-			colnames(soildat) <- c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")
-			for (l in ld){
-				soildat[l, ] <- c(	layers_depth.datafile[l],
-						ifelse(use_matricd[l], as.numeric(i_sw_input_soils[paste("Matricd_L", l, sep="")]), tempdat[l, "matricd"]),
-						ifelse(use_gravelC[l], as.numeric(i_sw_input_soils[paste("GravelContent_L", l, sep="")]), tempdat[l, "gravelContent"]),
-						ifelse(!is.na(temp <- ifelse(sum_use_evco, evco[l], tempdat[l, "evco"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_grass, trco_grass[l], tempdat[l, "trco_grass"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_shrub, trco_shrub[l], tempdat[l, "trco_shrub"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_tree, trco_tree[l], tempdat[l, "trco_tree"])), temp, 0),
-						ifelse(!is.na(temp <- ifelse(sum_use_trco_forb, trco_forb[l], tempdat[l, "trco_forb"])), temp, 0),
-						ifelse(use_sand[l], as.numeric(i_sw_input_soils[paste("Sand_L", l, sep="")]), tempdat[l, "sand"]),
-						ifelse(use_clay[l], as.numeric(i_sw_input_soils[paste("Clay_L", l, sep="")]), tempdat[l, "clay"]),
-						ifelse(!is.na(temp <- ifelse(use_imperm[l], as.numeric(i_sw_input_soils[paste("Imperm_L", l, sep="")]), tempdat[l, "imperm"])), temp, 0),
-						0	#soiltemp information may depend on climatic conditions; it will be only added after weather/climate scenarios are completed
-				)
-			}
+      if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
+        # different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
+        d <- max(1, min(length(layers_depth.datafile),
+          findInterval(i_sw_input_soillayers["SoilDepth_cm"] - toln,
+                        c(0, layers_depth.datafile)),
+          na.rm = TRUE), na.rm = TRUE)
+        layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
+        layers_width <- getLayersWidth(layers_depth)
+        ld <- setLayerSequence(d)
 
-			if(adjust.soilDepth){#adjust deepest soil layer if there is no soil information for the lowest layers, but needs to recalculate soil layer structure
-				for(temp in d:1){
-					#TODO: bulkd to matricd?
-					if(all(!is.na(soildat[temp, "matricd"]), soildat[temp, "matricd"] > 0, !is.na(soildat[temp, "sand"]), soildat[temp, "sand"] > 0, !is.na(soildat[temp, "clay"]), soildat[temp, "clay"] > 0)) break
-				}
-				if(d != temp){
-					d <- temp
-					layers_depth <- adjustLayersDepth(layers_depth, d)
-					layers_width <- getLayersWidth(layers_depth)
-					ld <- setLayerSequence(d)
+        DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
+        topL <- setTopLayer(d, DeepestTopLayer)
+        bottomL <- setBottomLayer(d, DeepestTopLayer)
+      }
 
-					DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
-					topL <- setTopLayer(d, DeepestTopLayer)
-					bottomL <- setBottomLayer(d, DeepestTopLayer)
-				}
-			}
+      #compile soil information from both sources
+      soildat <- matrix(0, nrow = d, ncol = length(soil_cols),
+                        dimnames = list(NULL, soil_cols))
+      soildat[, "depth_cm"] <- layers_depth.datafile[ld]
+      infile_cols <- names(sw_input_soils_use)
 
-			# Resize swSoils Layers to proper size
-			if(length(ld)==1) {
-				swSoils_Layers(swRunScenariosData[[1]]) <- matrix(data=swSoils_Layers(swRunScenariosData[[1]])[ld,], nrow=length(ld), ncol=12, byrow=TRUE, dimnames=list(numeric(),c("depth", "matricd", "gravelContent", "evco", "trco_grass", "trco_shrub", "trco_tree", "trco_forb", "sand", "clay", "imperm", "soiltemp")))
-			} else {
-				if(nrow(swSoils_Layers(swRunScenariosData[[1]])) != d) {
-					if(nrow(swSoils_Layers(swRunScenariosData[[1]])) > d) {
-						swSoils_Layers(swRunScenariosData[[1]]) <- swSoils_Layers(swRunScenariosData[[1]])[ld,]
-					} else {
-						swSoils_Layers(swRunScenariosData[[1]]) <- rbind( swSoils_Layers(swRunScenariosData[[1]]), matrix(NA,nrow=d-nrow(swSoils_Layers(swRunScenariosData[[1]])), ncol=ncol(swSoils_Layers(swRunScenariosData[[1]]))) )
-					}
-				}
-			}
-			this_soil <- soildat[1, ]
-			for (l in ld){
-				if(all(soildat[l, c("matricd", "sand", "clay")] > 0, soildat[l, "gravelContent"] >= 0, !is.na(soildat[l, ]))){
-					this_soil <- soildat[l, ]
-				} else {
-					#swLog_setLine(swRunScenariosData[[1]]) <- missingtext
-					print(paste("Site", i_sim, i_label, ": Layer ",l,": soil data missing for this layer -> data used from previous layer */"))
-					this_soil <- c(soildat[l, "depth"], this_soil[2:3], soildat[l, "evco"], soildat[l, "trco_grass"], soildat[l, "trco_shrub"], soildat[l, "trco_tree"], soildat[l,"trco_forb"], this_soil[9:10], soildat[l, "imperm"], soildat[l, "soiltemp"])
-				}
-				swSoils_Layers(swRunScenariosData[[1]])[l,] <- this_soil
-			}
-		}
+      coefs <- list(infile = c("Matricd", "GravelContent", "EvapCoeff", "Grass_TranspCoeff",
+                                "Shrub_TranspCoeff", "Tree_TranspCoeff", "Forb_TranspCoeff",
+                                "Sand", "Clay", "Imperm", "SoilTemp"),
+                    sw = soil_cols[-1])
+      for (iv in seq_along(coefs[[1]])) {
+        icol <- grep(coefs[["infile"]][iv], infile_cols, ignore.case = TRUE, value = TRUE)
+        if (length(icol) > d)
+          icol <- icol[ld]
 
-		# Check soil
-		this_soil <- swSoils_Layers(swRunScenariosData[[1]])
-		temp <- this_soil[, grep("depth", colnames(this_soil), ignore.case = TRUE)]
-		check_depth <- !is.na(temp) & temp > 0 & diff(c(0, temp)) > 0
-		temp <- this_soil[, grep("density", colnames(this_soil), ignore.case = TRUE)]
-		check_density <- !is.na(temp) & temp > 0.3 & temp <= 2.65
-		temp <- this_soil[, grep("gravel", colnames(this_soil), ignore.case = TRUE)]
-		check_gravel <- !is.na(temp) & temp >= 0 & temp < 1
-		temp <- this_soil[, grep("sand", colnames(this_soil), ignore.case = TRUE)]
-		check_sand <- !is.na(temp) & temp > 0 & temp <= 1
-		temp <- this_soil[, grep("clay", colnames(this_soil), ignore.case = TRUE)]
-		check_clay <- !is.na(temp) & temp > 0 & temp <= 1
+        if (length(temp) > 0) {
+          luse <- list(use = which(sw_input_soils_use[icol]),
+                        other = intersect(
+                                  which(!sw_input_soils_use[icol]),
+                                  seq_len(dim(soil_swdat)[1])))
+          for (k in 1:2) if (any(luse[[k]])) {
+            temp <- if (k == 1L) {
+                as.numeric(i_sw_input_soils[, icol[luse[[k]]]])
+              } else {
+                soil_swdat[luse[[k]], coefs[["sw"]][iv]]
+              }
+            if (isTRUE(grepl("coeff", coefs[["infile"]][iv], ignore.case = TRUE)))
+              temp <- scale_by_sum(temp)
+            soildat[luse[[k]], coefs[["sw"]][iv]] <- temp
+          }
+        }
+      }
 
-		if (!all(check_depth, check_density, check_gravel, check_sand, check_clay)) {
-			print(paste("Run:", i_sim, i_label, ": soil data didn't pass quality test."))
-			print(this_soil)
-			tasks$create <- 0L
-		}
+      # Adjust deepest soil layer if there is no soil information
+      if (adjust.soilDepth) {
+        for (k in d:1) {
+          temp <- soildat[k, c("matricd", "sand", "clay")]
+          if (any(!is.na(temp)))
+            break
+        }
+        if (d != k) {
+          d <- k
+          layers_depth <- adjustLayersDepth(layers_depth, d)
+          layers_width <- getLayersWidth(layers_depth)
+          ld <- setLayerSequence(d)
+
+          DeepestTopLayer <- setDeepestTopLayer(layers_depth, Depth_TopLayers)
+          topL <- setTopLayer(d, DeepestTopLayer)
+          bottomL <- setBottomLayer(d, DeepestTopLayer)
+
+          soildat <- soildat[ld, , drop = FALSE]
+        }
+      }
+
+      # Impute missing/bad soil data from previous layer
+      icol_excl <- which(soil_cols %in% "soilTemp_c")
+      icols <- seq_along(soil_cols)[-icol_excl]
+      bad_data <- !check_soil_data(soildat[, -icol_excl])
+
+      if (any(bad_data)) for (l in ld) {
+        lbad <- bad_data[l, ]
+        if (any(lbad)) {
+          if (l > 1L) {
+            soildat[l, icols[lbad]] <- soildat[l - 1L, icols[lbad]]
+            print(paste("Site", i_sim, shQuote(i_label), "Layer", l,
+                        ": data imputed from previous layer:",
+                        paste(names(lbad)[lbad], collapse = ", ")))
+
+          } else {
+            print(paste("Site", i_sim, shQuote(i_label), ": data missing for 1st layer",
+                        "-> no data to impute: simulation will fail"))
+            print(soildat[l, icols])
+            tasks$create <- 0L
+            break
+          }
+        }
+      }
+
+      soil_swdat <- soildat
+
+    } else {
+      # Check soil
+      check_soil <- check_soil_data(soil_swdat)
+
+      if (!all(check_soil)) {
+        print(paste("Run:", i_sim, shQuote(i_label), ": soil data didn't pass quality checks for:",
+                    paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
+        print(soil_swdat)
+        tasks$create <- 0L
+      }
+
+    }
+
+    EVCO_done <- sum(soil_swdat[, "EvapBareSoil_frac"]) > 0
+    TRCO_done <- all(colSums(soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
+                                            "transpTree_frac", "transpForb_frac")]) > 0)
+
+    swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
 
 		#add transpiration regions information to siteparamin
@@ -2100,7 +2019,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 			tr_rows<-rowSums(is.na(TranspirationRegions))!=2 #used to get rid of NA rows
 			if(sum(tr_rows) == 0) {
-				stop("Transpiration Regions in Site can not be empty")
+				print("Transpiration Regions in Site can not be empty")
 			} else if(sum(tr_rows) == 1) {
 				swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data=TranspirationRegions[tr_rows,],nrow=1,ncol=2,byrow=T,dimnames=list(numeric(),c("ndx","layer")))
 				TRRG_done <- TRUE
@@ -2111,11 +2030,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		}
 
 		#add weather setup information to weatherin
-		if(sw_input_weather_use$SnowFlag)
+		if (sw_input_weather_use["SnowFlag"])
 			swWeather_UseSnow(swRunScenariosData[[1]]) <- as.logical(i_sw_input_weather$SnowFlag)
-		if(sw_input_weather_use$SnowDrift_Percent)
+		if (sw_input_weather_use["SnowDrift_Percent"])
 			swWeather_pct_SnowDrift(swRunScenariosData[[1]]) <- i_sw_input_weather$SnowDrift_Percent
-		if(sw_input_weather_use$RunOffOnPerSnowmelt_Percent)
+		if (sw_input_weather_use["RunOffOnPerSnowmelt_Percent"])
 			swWeather_pct_SnowRunoff(swRunScenariosData[[1]]) <- i_sw_input_weather$RunOffOnPerSnowmelt_Percent
 		swWeather_FirstYearHistorical(swRunScenariosData[[1]]) <- simstartyr
 
@@ -2191,22 +2110,22 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[1]], year.start=min(simTime$useyrs), year.end=max(simTime$useyrs), do.C4vars=do.C4vars, simTime = simTime, simTime2=simTime2)
 				}
 			}
-			if(!getScenarioWeatherDataFromDatabase) {
-				#get climate change information
-				use_pptValscen <- sw_input_climscen_values_use[, pptVal.colnames <- paste("PPTmm_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
-				use_tempValMinScen <- sw_input_climscen_values_use[, tempValMin.colnames <- paste("TempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
-				use_tempValMaxScen <- sw_input_climscen_values_use[, tempValMax.colnames <- paste("TempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+			if (!getScenarioWeatherDataFromDatabase) {
+        #get climate change information
+        cols_climscen_val <- lapply(c("PPTmm_m", "TempC_min_m", "TempC_max_m"), function(flag)
+          paste0(flag, st_mo, "_sc", formatC(sc - 1, width = 2, format = "d", flag = "0")))
+        use_climscen_val <- any(unlist(sw_input_climscen_values_use[unlist(cols_climscen_val)]))
 
-				use_pptscen <- sw_input_climscen_use[, ppt.colnames <- paste("PPTfactor_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
-				use_tempMinScen <- sw_input_climscen_use[, tempMin.colnames <- paste("deltaTempC_min_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
-				use_tempMaxScen <- sw_input_climscen_use[, tempMax.colnames <- paste("deltaTempC_max_m", st_mo, "_sc", formatC(sc-1, width=2, format="d", flag="0"), sep="")]
+        cols_climscen_delta <- lapply(c("PPTfactor_m", "deltaTempC_min_m", "deltaTempC_max_m"), function(flag)
+          paste0(flag, st_mo, "_sc", formatC(sc - 1, width = 2, format = "d", flag = "0")))
+        use_climscen_delta <- any(unlist(sw_input_climscen_use[unlist(cols_climscen_delta)]))
 
-				if(	sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) > 0){
+				if (any(use_climscen_val)) {
 					#convert climate change values to factors
 					#read values from datafile
-					pptVal_sc <- unlist(i_sw_input_climscen_values[, pptVal.colnames])
-					tVal_min_sc <- unlist(i_sw_input_climscen_values[, tempValMin.colnames])
-					tVal_max_sc <- unlist(i_sw_input_climscen_values[, tempValMax.colnames])
+					pptVal_sc <- unlist(i_sw_input_climscen_values[, cols_climscen_val[[1]]])
+					tVal_min_sc <- unlist(i_sw_input_climscen_values[, cols_climscen_val[[2]]])
+					tVal_max_sc <- unlist(i_sw_input_climscen_values[, cols_climscen_val[[3]]])
 					#calculate change factors
 					ppt_sc <- pptVal_sc / (10 * SiteClimate_Ambient$meanMonthlyPPTcm)
 					if(sum(abs(tVal_max_sc - tVal_min_sc)) > tol){
@@ -2215,22 +2134,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					} else { #no information for tmin, tmax by GCM -> tmin=tmax=tmean
 						t_min_sc <- t_max_sc <- tVal_min_sc - SiteClimate_Ambient$meanMonthlyTempC
 					}
-				} else if(	sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
+				} else if (any(use_climscen_delta)) {
 					#read climate change factors from datafile
-					ppt_sc <- unlist(i_sw_input_climscen[, ppt.colnames])
-					t_min_sc <- unlist(i_sw_input_climscen[, tempMin.colnames])
-					t_max_sc <- unlist(i_sw_input_climscen[, tempMax.colnames])
+					ppt_sc <- unlist(i_sw_input_climscen[, cols_climscen_delta[[1]]])
+					t_min_sc <- unlist(i_sw_input_climscen[, cols_climscen_delta[[2]]])
+					t_max_sc <- unlist(i_sw_input_climscen[, cols_climscen_delta[[3]]])
 				} else {
-					ppt_sc <- rep(1, times=12)
-					t_min_sc <- rep(0, times=12)
-					t_max_sc <- rep(0, times=12)
+					ppt_sc <- rep(1, times = 12)
+					t_min_sc <- t_max_sc <- rep(0, times=12)
 				}
 				#guarantee that all entries are finite: this may not be the case for instance if any(meanMonthlyClimate$meanMonthlyPPTcm == 0)
 				ppt_sc <- temp_ppt_sc <- ifelse(is.finite(ppt_sc), ppt_sc, 1)
 				t_min_sc <- ifelse(is.finite(t_min_sc), t_min_sc, 0)
 				t_max_sc <- ifelse(is.finite(t_max_sc), t_max_sc, 0)
 
-				if(sc > 1){
+				if (sc > 1) {
 					if(any(create_treatments=="ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
 						if(grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
 							t_min_sc <- rep(mean(t_min_sc), times=12)
@@ -2241,8 +2159,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							t_max_sc <- t_max_sc - mean(t_max_sc)
 						}
 						if(grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)) {
-							t_min_sc <- rep(0, times=12)
-							t_max_sc <- rep(0, times=12)
+							t_min_sc <- t_max_sc <- rep(0, times=12)
 						}
 					}
 					if(any(create_treatments=="ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case=T)){
@@ -2253,12 +2170,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					}
 				}
 
-				ppt_old <- (temp <- swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
+				temp <- swWeather_MonScalingParams(swRunScenariosData[[sc]])
+				ppt_old <- temp[, 1]
 				t_max_old <- temp[,2]
 				t_min_old <- temp[,3]
 
 				#write information into weatherin
-				if(sum(use_pptValscen) + sum(use_tempValMinScen) + sum(use_tempValMaxScen) + sum(use_pptscen) + sum(use_tempMinScen) + sum(use_tempMaxScen) > 0){
+				if (any(use_climscen_val, use_climscen_delta)) {
 					ppt_f <- ppt_sc
 					t_min_f <- t_min_sc
 					t_max_f <- t_max_sc
@@ -2273,9 +2191,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				rownames(MonthlyScalingParams)<-c("January","February","March","April","May","June","July","August","September","October","November","December")
 
 				swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1:3] <- MonthlyScalingParams
-				ClimatePerturbationsVals[sc,1:12] <- MonthlyScalingParams[,1]
-				ClimatePerturbationsVals[sc,13:24] <- MonthlyScalingParams[,2]
-				ClimatePerturbationsVals[sc,25:36] <- MonthlyScalingParams[,3]
+				ClimatePerturbationsVals[sc,1:12] <- MonthlyScalingParams[, 1]
+				ClimatePerturbationsVals[sc,13:24] <- MonthlyScalingParams[, 2]
+				ClimatePerturbationsVals[sc,25:36] <- MonthlyScalingParams[, 3]
 
 				#Update climate data with climate scenario information
 				if(do.GetClimateMeans){
@@ -2403,14 +2321,14 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#out.temp <- data.frame(i_sim, i_label, soilTUpper, soilTlower)
 				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_atLowerBoundary.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
-			if(sw_input_site_use$SoilTempC_atUpperBoundary) {
-				soilTUpper <- ifelse(exists("soilTUpper"), soilTUpper, i_sw_input_site$SoilTempC_atUpperBoundary)
+			if (sw_input_site_use["SoilTempC_atUpperBoundary"]) {
+				soilTUpper <- if (exists("soilTUpper")) soilTUpper else i_sw_input_site$SoilTempC_atUpperBoundary
 			}
-			if(sw_input_site_use$SoilTempC_atLowerBoundary){
-				soilTlower <- ifelse(exists("soilTlower"), soilTlower, i_sw_input_site$SoilTempC_atLowerBoundary)
+			if (sw_input_site_use["SoilTempC_atLowerBoundary"]) {
+				soilTlower <- if (exists("soilTlower")) soilTlower else i_sw_input_site$SoilTempC_atLowerBoundary
 				swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])[8] <- soilTlower
 			}
-			if(pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
+			if (pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer) {
 				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
 				#out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
@@ -2418,8 +2336,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 
 			#adjust init soil temperatures to climatic conditions
-			if(any(use_soil_temp <- as.logical(sw_input_soils_use[paste("SoilTemp_L", ld, sep="")]))){
-
+			use_soil_temp <- sw_input_soils_use[paste0("SoilTemp_L", ld)]
+			if (any(use_soil_temp)) {
 				temp <- 1:nrow(swSoils_Layers(swRunScenariosData[[sc]]))
 				if(exists("init.soilTprofile")) {
 					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- init.soilTprofile
@@ -3796,9 +3714,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             impermeability <- 0.9 #impermeable layer
 
             #Required soil layers
-            soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand_frac", "clay_frac", "impermeability_frac")]
+            soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm")]
             #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
-            imp_depth <- which(soildat[, "impermeability_frac"] >= impermeability)
+            imp_depth <- which(soildat[, "imperm"] >= impermeability)
             imp_depth <- min(imp_depth, max(soildat[, "depth_cm"]))	#Interpret maximum soil depth as possible impermeable layer
             Fifty_depth <- min(50, imp_depth)
 
@@ -3881,7 +3799,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     paste(layers_depth, collapse = ", "), "}"))
 
               swp_dy_nrsc <- get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
-                sand = soildat[, "sand_frac"], clay = soildat[, "clay_frac"])
+                sand = soildat[, "sand"], clay = soildat[, "clay"])
 
             } else {
               swp_dy_nrsc <- swpmatric.dy.all
@@ -5545,21 +5463,49 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 	} #end if do aggregate
 
-	if(tasks$aggregate > 0L && (length(SQL) > 0 || length(SQLcurrent) > 0)){
-		tasks$aggregate <- 2L
-		if(length(SQLcurrent) > 0) write(SQLcurrent, dbTempFileCurrent, append=TRUE)
-		if(length(SQL) > 0) write(SQL, dbTempFile, append=TRUE)
-	}
+  if (tasks$aggregate > 0L && (length(SQL) > 0 || length(SQLcurrent) > 0)) {
+    tasks$aggregate <- 2L
+    if (length(SQLcurrent) > 0)
+      cat(SQLcurrent, file = dbTempFileCurrent, append = TRUE, sep = "\n")
+    if (length(SQL) > 0)
+      cat(SQL, file = dbTempFile, append = TRUE, sep = "\n")
+  }
 
-	if(all(unlist(tasks) != 0)){
-		#ETA estimation
-		dt <- difftime(Sys.time(), time.sys, units="secs")
-		times <- read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"))
-		if(!be.quiet) print(paste(i_sim, ":", i_label, "done in", round(dt, 2), units(dt), ":", round(nrow(times)/runsN_total*100, 2), "% complete, ETA =", Sys.time()+ceiling((runsN_total-(nrow(times)-1))/workersN)*mean(unlist(c(times, dt)), na.rm=TRUE) ))
-		write.table(data.frame(i=i_sim,dt=dt), file=file.path(dir.out, timerfile), append=TRUE, sep=",", dec=".", col.names=FALSE,row.names=FALSE)
-	} else {
-		print(paste(i_sim, ":", i_label, " unsuccessful:", paste(names(tasks), "=", tasks, collapse=", ")))
-	}
+  if (all(unlist(tasks) != 0)) {
+    #ETA estimation
+    dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
+    ftemp <- file.path(dir.out, timerfile)
+    cat(paste(i_sim, dt, sep = ","), file = ftemp, append = TRUE, sep = "\n")
+    times <- swsf_read_csv(file = ftemp, header = FALSE,
+          nrows = runsN_total + 1, colClasses = c("NULL", "numeric"))[[1]]
+
+    if (!be.quiet) {
+      n <- length(times) - 1
+      temp <- paste0(i_sim, ": ", i_label, " done in ", dt, " ", units(dt), ": ",
+                    round(n / runsN_total * 100, 2), "% complete")
+
+      if (eta.estimate) {
+        deta <- round(ceiling((runsN_total - n) / workersN) *
+          sapply(list(mean, sd), function(f) f(times, na.rm = TRUE)))
+        pi95 <- deta[2] * sqrt(1 + 1 / n) * qt(0.975, n) # 95% prediction interval
+        pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
+            paste(round(pi95 / 3600), "h")
+          } else if (pi95 > 60) {
+            paste(round(pi95 / 60), "min")
+          } else {
+            paste(round(pi95), "s")
+          }
+        temp <- paste0(temp, ", ETA (mean ± 95%-PI) = ",
+                      Sys.time() + deta[1], " ± ", pi95)
+      }
+
+      print(temp)
+    }
+
+  } else {
+    print(paste0(i_sim, ": ", i_label, " unsuccessful: ",
+          paste(names(tasks), "=", tasks, collapse = ", ")))
+  }
 
 	on.exit()
 
@@ -5610,65 +5556,10 @@ if(actionWithSoilWat && runsN_todo > 0){
   agg_fun <- create_aggregation_function(agg_fun_defs, circular = FALSE)
   agg_fun_circular <- create_aggregation_function(agg_fun_defs, circular = TRUE)
 
-	#objects to export (sorted alphabetically)
-	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg", "AdjMonthlyBioMass",
-		"adjust.soilDepth", "adjust.WindspeedHeight", "adjustLayersDepth",
-		"agg_fun_defs", "agg_windows", "agg_fun", "agg_fun_circular", "aon",
-		"be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes", "circ_mean", "circ_range",
-		"circ_sd", "climate.conditions", "climate.conditions", "cloudin",
-		"continueAfterAbort", "cor2", "counter.digitsN", "create_experimentals",
-		"create_filename_for_Maurer2002_NorthAmerica", "create_treatments", "cut0Inf",
-		"daily_lyr_agg", "daily_lyr_agg", "daily_no", "daily_spells_permonth",
-		"datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
-		"dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase",
-		"Depth_TopLayers", "dir.create2", "dir.ex.daymet", "dir.ex.maurer2002",
-		"dir.out.temp", "dir.out", "dir.prj", "dir.sw.in.tr", "dir.sw.runs",
-		"dirname.sw.runs.weather", "do_OneSite", "do.GetClimateMeans",
-		"done_prior", "endDoyAfterDuration", "endyr", "estabin",
-		"establishment.delay", "establishment.duration", "establishment.swp.surface",
-		"EstimateInitialSoilTemperatureForEachSoilLayer", "EventDistribution", "exec_c_prefix",
-		"ExpInput_Seperator", "expN",
-		"ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather",
-		"ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica",
-		"filebasename.WeatherDataYear", "filebasename", "fill_empty", "finite01",
-		"germination.duration", "germination.swp.surface", "get_DayMet_cellID",
-		"get_DayMet_NorthAmerica", "get.LookupFromTable", "get.month",
-		"getCurrentWeatherDataFromDatabase", "getLayersWidth",
-		"getScenarioWeatherDataFromDatabase", "getStartYear",
-		"growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
-		"it_exp", "it_Pid", "it_site", "lmax", "local_weatherDirName",
-		"makeInputForExperimentalDesign", "max.duration", "name.OutputDB",
-		"no.species_regeneration", "ouput_aggregated_ts", "output_aggregate_daily",
-		"parallel_backend", "parallel_runs", "param.species_regeneration", "pcalcs",
-		"PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996", "print.debug",
-		"prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
-		"runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
-		"season.end", "season.start", "setAggSoilLayerForAggDailyResponses",
-		"setBottomLayer", "setDeepestTopLayer", "setLayerSequence", "setTopLayer",
-		"shrub.fraction.limit", "simstartyr", "simTime_ForEachUsedTimeUnit_North",
-		"simTime_ForEachUsedTimeUnit_South", "simTime", "simTiming_ForEachUsedTimeUnit",
-		"simTiming", "simulation_timescales", "siteparamin", "SoilLayer_MaxNo",
-		"soilsin", "SoilWat.windspeedAtHeightAboveGround", "SPEI_tscales_months", "st_mo",
-		"startDoyOfDuration", "startyr", "sw_aet", "sw_dailyC4_TempVar", "sw_deepdrain",
-		"sw_evapsurface", "sw_evsoil", "sw_hd", "sw_inf_soil", "sw_input_climscen_use",
-		"sw_input_climscen_values_use", "sw_input_cloud_use",
-		"sw_input_experimentals_use", "sw_input_experimentals", "sw_input_prod_use",
-		"sw_input_site_use", "sw_input_soils_use", "sw_input_weather_use",
-		"sw_interception", "sw_percolation", "sw_pet", "sw_precip", "sw_runoff",
-		"sw_SiteClimate_Ambient", "sw_snow", "sw_soiltemp", "sw_swcbulk",
-		"sw_swpmatric", "sw_temp", "sw_transp", "sw_vwcbulk", "sw_vwcmatric",
-		"sw.inputs", "sw.outputs", "swcsetupin", "swDataFromFiles", "swFilesIn",
-		"swOutSetupIn", "SWPcrit_MPa", "SWPtoVWC", "tempError", "timerfile",
-		"Tmax_crit_C", "Tmin_crit_C", "tol", "toln", "tr_cloud", "tr_files",
-		"tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
-		"tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
-		"tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site",
-		"tr_soil", "tr_VegetationComposition", "tr_weather",
-		"transferExpDesignToInput", "TranspCoeffByVegType", "VWCtoSWP", "weatherin",
-		"mpi_work", "workersN", "yearsin")
-	# List of objects required by do_OneSite which are not in rSWSF
-	list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg",
-    "adjust.soilDepth", "aon", "be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes",
+  # List of objects to export which are required by do_OneSite and are not in rSWSF (sorted alphabetically)
+  list.export <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg",
+    "adjust.soilDepth", "agg_fun_defs", "agg_windows", "agg_fun", "agg_fun_circular",
+    "aon", "be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes",
     "climate.conditions", "cloudin", "continueAfterAbort", "counter.digitsN",
     "create_experimentals", "create_treatments", "daily_lyr_agg",
     "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
@@ -5677,7 +5568,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
     "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
     "establishment.delay", "establishment.duration", "establishment.swp.surface",
-    "exec_c_prefix", "ExpInput_Seperator", "expN", "filebasename",
+    "eta.estimate", "exec_c_prefix", "ExpInput_Seperator", "expN", "filebasename",
     "filebasename.WeatherDataYear", "germination.duration", "germination.swp.surface",
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
@@ -5688,7 +5579,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
     "season.end", "season.start", "shrub.fraction.limit", "simstartyr",
     "simTime", "simTime_ForEachUsedTimeUnit_North", "simTime_ForEachUsedTimeUnit_South",
-    "simulation_timescales", "siteparamin", "soilsin", "startyr",
+    "simulation_timescales", "siteparamin", "soilsin", "SPEI_tscales_months", "startyr",
     "sw_aet", "sw_deepdrain", "sw_evapsurface", "sw_evsoil", "sw_hd",
     "sw_inf_soil", "sw_input_climscen_use", "sw_input_climscen_values_use",
     "sw_input_cloud_use", "sw_input_experimentals", "sw_input_experimentals_use",
@@ -5808,9 +5699,10 @@ tryCatch({
 				} else if (tag == 4L) {
 					#The slave had a problem with Soilwat record Slave number and the Run number.
 					print("Problem with run:", complete, "on slave:", save_id, "at", Sys.time())
-					write.csv(data.frame(Slave = slave_id, Run = complete),
-					          file = file.path(dir.out, "ProblemRuns.csv"),
-					          append = TRUE, row.names = FALSE, col.names = TRUE)
+					ftemp <- file.path(dir.out, "ProblemRuns.csv")
+					if (!file.exists(ftemp))
+            cat("Slave,Run", file = ftemp, sep = "\n")
+          cat(paste(slave_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
 				}
 
 }, interrupt=function(interrupt) {
@@ -6012,7 +5904,8 @@ if (any(actions == "concatenate")) {
 
 			# Clean up and report
 			if (OK) {
-				write(file.path(dir.out.temp, theFileList[j]), file = file.path(dir.out.temp,concatFile), append = TRUE)
+				cat(file.path(dir.out.temp, theFileList[j]),
+				    file = file.path(dir.out.temp,concatFile), append = TRUE, sep = "\n")
 				if (deleteTmpSQLFiles)
 					try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
 			}
@@ -6162,10 +6055,14 @@ if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and outpu
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------OVERALL TIMING
-delta.overall <- difftime(Sys.time(), t.overall, units="secs")
-if(!be.quiet) print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
+delta.overall <- difftime(Sys.time(), t.overall, units = "secs")
+if (!be.quiet)
+ print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
-write.timer <- function(label, time_sec="", number=""){ write.table(t(c(label, time_sec, number)), file=file.path(dir.out, timerfile2), append=TRUE, sep=",", dec=".", col.names=FALSE, row.names=FALSE) }
+write.timer <- function(label, time_sec = "", number = "") {
+  cat(paste(label, time_sec, number, sep = ","), file = file.path(dir.out, timerfile2),
+    append = TRUE, sep = "\n")
+}
 
 write.timer("Time_Total", time_sec=delta.overall)
 write.timer("Time_Check", time_sec=delta.check)

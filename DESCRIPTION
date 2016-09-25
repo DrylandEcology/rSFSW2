@@ -1,7 +1,7 @@
 Package: SWSF
 Title: SOILWAT Simulation Framework
-Version: 1.6.0
-Date: 2016-09-18
+Version: 1.6.2
+Date: 2016-09-24
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
 			person("Caitlin", "Andrews", role = "ctb", email = "not@available.com"))
 			person("Ryan", "Murphy", role = "ctb", email = "not@available.com"))
@@ -20,6 +20,7 @@ Suggests:
 	rgdal (>= 1.1.10), rgeos (>= 0.3.19), raster (>= 2.5.8), sp (>= 1.2.3), ncdf4 (>= 1.15), maps (>= 3.1.0),
 	RCurl (>= 1.95.4.8),
 	fastmatch (>= 1.0.4),
+	iotools (>= 0.1-12),
 	Hmisc (>= 3.17.4),
 	qmap (>= 1.0.4),
 	DaymetR (>= 0.1)

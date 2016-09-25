@@ -4,8 +4,6 @@
 
 slot <- methods::slot
 
-
-
 #------ Constants
 output_timescales_maxNo <- 4L
 SoilLayer_MaxNo <- 20L
@@ -16,6 +14,42 @@ tol <- sqrt(.Machine$double.eps)
 toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
+swsf_read_csv <- compiler::cmpfun(function(file, ...) {
+  if (requireNamespace("iotools", quietly = TRUE)) {
+    # faster than utils::read.csv
+    temp <- try(iotools::read.csv.raw(file = file, ...), silent = TRUE)
+    if (inherits(temp, "try-error")) {
+      read.csv(file = file, ...)
+    } else {
+      names(temp) <- gsub("\"", "", names(temp))
+      temp
+    }
+
+  } else {
+    read.csv(file = file, ...)
+  }
+})
+
+swsf_read_inputfile <- compiler::cmpfun(function(file, header_rows = 1) {
+  sw_use <- tryCatch(swsf_read_csv(file, nrows = header_rows),
+    error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
+  sw <- swsf_read_csv(file, skip = header_rows)
+  names(sw) <- names(sw_use)
+  sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
+  sw_use[is.na(sw_use)] <- FALSE
+  names(sw_use) <- names(sw)
+
+  list(use = sw_use, data = sw)
+})
+
+reconstitute_inputfile <- compiler::cmpfun(function(sw_use, data) {
+  temp <- as.data.frame(matrix(as.integer(sw_use), nrow = 1L))
+  colnames(temp) <- names(sw_use)
+  temp[1, 1] <- "UseInformationToCreateSoilWatRuns"
+  rbind(temp, data)
+})
+
+
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
 set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
@@ -1051,6 +1085,24 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
 })
 
 
+check_soil_data <- compiler::cmpfun(function(data) {
+    check_soil <- is.finite(data)
+    check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] & data[, "depth_cm"] > 0 &
+      diff(c(0, data[, "depth_cm"])) > 0
+    check_soil[, "matricd"] <- check_soil[, "matricd"] & data[, "matricd"] > 0.3 &
+      data[, "matricd"] <= 2.65
+    check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
+      data[, "gravel_content"] >= 0 & data[, "gravel_content"] < 1
+    itemp <- c("sand", "clay")
+    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] > 0 & data[, itemp] <= 1
+    itemp <- c("EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
+              "transpTree_frac", "transpForb_frac", "imperm")
+    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 & data[, itemp] <= 1
+
+    check_soil
+})
+
+
 #Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
 circ_mean <- compiler::cmpfun(function(x, int, na.rm = FALSE, ...) {
   if (!all(is.na(x))) {
@@ -1494,6 +1546,16 @@ handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
   }
 })
 
+scale_by_sum <- compiler::cmpfun(function(x) {
+  temp <- sum(x, na.rm = TRUE)
+  if (temp > 0 && is.finite(temp)) {
+    x / temp
+  } else {
+    x
+  }
+})
+
+
 #' Pedotransfer functions to convert between soil moisture (volumetric water content, VWC)
 #'  and soil water potential (SWP)
 #'
@@ -1711,11 +1773,11 @@ get.LookupFromTable <- compiler::cmpfun(function(pattern, trtype, tr_input, sw_i
 
   # add data to datafiles and set the use flags
   sw_input[, seq1_icols_in] <- res[, icols_res]
-  sw_input_use[seq1_icols_in] <- 1L
+  sw_input_use[seq1_icols_in] <- TRUE
 
   if (length(seq2_icols_in) > 0) {
     sw_input[, seq2_icols_in] <- NA
-    sw_input_use[seq2_icols_in] <- 0L
+    sw_input_use[seq2_icols_in] <- FALSE
   }
 
   list(sw_input_use = sw_input_use,
@@ -1733,7 +1795,7 @@ fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
     iempty <- is.na(data$sw_input[, ic]) | abs(data$sw_input[, ic]) < tol
     if (any(iempty)) {
       data$sw_input[iempty, ic] <- fill
-      data$sw_input_use[icols[k, "sw_input_use"]] <- 1L
+      data$sw_input_use[icols[k, "sw_input_use"]] <- TRUE
     }
   }
 
@@ -1828,7 +1890,7 @@ EstimateInitialSoilTemperatureForEachSoilLayer <- compiler::cmpfun(function(laye
 
 #--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 transferExpDesignToInput <- compiler::cmpfun(function(x, i_exp, df_exp, df_exp_use) {
-  temp <- match(names(df_exp)[df_exp_use == 1], names(x), nomatch = 0)
+  temp <- match(names(df_exp)[df_exp_use], names(x), nomatch = 0)
   ctemp <- temp[!(temp == 0)]
   if (length(ctemp) > 0) {
     cexp <- match(names(x)[ctemp], names(df_exp), nomatch = 0)
@@ -2119,7 +2181,7 @@ get_Runoff_yr <- compiler::cmpfun(function(sc, x, st) {
 })
 
 cor2  <- compiler::cmpfun(function(y) {
-	res <- try(cor(y[,1], y[,2]), silent = TRUE)
+	res <- try(cor(y[, 1], y[, 2]), silent = TRUE)
 	if (inherits(res, "try-error")) NA else res
 })
 
@@ -2771,6 +2833,24 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
   print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
 
   invisible(0)
+})
+
+
+update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input, prod_default) {
+  funct_veg <- match.arg(funct_veg)
+
+  comps <- c("_Litter", "_Biomass", "_FractionLive", "_LAIconv")
+  veg_ids = lapply(comps, function(x)
+    grep(paste0(funct_veg, x), names(use)))
+  veg_incl = lapply(vegs_ids, function(x) use[x])
+
+  temp <- slot(prod_default, paste0("MonthlyProductionValues_", tolower(funct_veg)))
+  if (any(unlist(veg_incl))) {
+    for (k in seq_along(comps)) if (any(veg_incl[[k]]))
+      temp[veg_incl[[k]], k] <- prod_input[, veg_ids[[k]][veg_incl[[k]]]]
+  }
+
+  temp
 })
 
 
