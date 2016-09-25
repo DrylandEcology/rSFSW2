@@ -358,7 +358,6 @@ if(length(temp) > 0){
 }
 climate.conditions <- c(climate.ambient, temp)
 scenario_No <- length(climate.conditions)
-scenario <- climate.conditions
 
 #------create ensembles
 if(length(ensemble.levels) > 0) ensemble.levels <- sort(ensemble.levels)
