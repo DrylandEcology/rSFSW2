@@ -182,16 +182,8 @@ do.ExtractExternalDatasets <- c(
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
 
-		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
-		#CMIP3
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 0, #50-km resolution for mean of 2070-2099
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA", 0, #12-km resolution for mean change between 2070-2099 and 1971-2000
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
-		#CMIP5
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
+		#Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
+		"ExtractClimateChangeScenarios", 0,
 
 		#Mean monthly wind, relative humidity, and 100% - sunshine
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
@@ -210,6 +202,23 @@ chunk_size.options <- list(
 		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
 		ExtractSkyDataFromNCEPCFSR_Global = 100,	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
 		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
+)
+
+opt_climsc_extr <- list(
+  # for each climate data set from which to extract, add an item that is structured like 'source1'
+  # priority of extraction: source1, source2, ... if multiple sources provide data for a location
+  source1 = list(
+    # dataset = 'project_source' with
+    #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
+    #   - source = one string out of:
+    #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
+    #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
+    #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
+    #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
+    #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
+    dataset = "CMIP5_BCSD_SageSeer_USA",
+    ds_fname_str = c(id_var = 2L, id_gcm = 4L, id_scen = 5L, id_run = 6L, id_time = 7L)
+  )
 )
 
 do.PriorCalculations <- c(
@@ -245,7 +254,7 @@ rownames(future_yrs) <- make.names(paste0("d", future_yrs[, "delta"], "yrs"), un
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
 adjust.soilDepth <- FALSE # [FALSE] fill soil layer structure from shallower layer(s) or [TRUE] adjust soil depth if there is no soil texture information for the lowest layers
-requested_soil_layers <- seq(10, 100, by = 10)
+requested_soil_layers <- c(5, 10, 20, 30, 40, 50, 60, 70, 80, 100, 150)
 increment_soiltemperature_deltaX_cm <- 5	# If SOILWAT soil temperature is simulated and the solution instable, then the soil profile layer width is increased by this value until a stable solution can be found or total failure is determined
 
 #Climate conditions
