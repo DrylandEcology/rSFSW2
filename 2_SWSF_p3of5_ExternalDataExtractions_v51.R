@@ -1,54 +1,6 @@
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 
-exinfo$GDODCPUCLLNL <-  exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA ||
-		exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global ||
-		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA ||
-		exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global
-
-#------Load required packages
-if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
-	if (!require(rgdal, quietly=TRUE)) {
-		tryCatch(install.packages("rgdal", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("rgdal failed to install"); stop("Stopping") })
-		stopifnot(require(rgdal, quietly=TRUE))
-	}
-}
-
-if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
-		exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA ||
-		exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
-		exinfo$ExtractElevation_NED_USA ||
-		exinfo$ExtractElevation_HWSD_Global) {
-
-	if (!require(raster, quietly=TRUE)) {
-		tryCatch(install.packages("raster", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("raster failed to install"); stop("Stopping") })
-		stopifnot(require(raster, quietly=TRUE))
-	}
-}
-
-if (exinfo$GDODCPUCLLNL) {
-	if (!require(ncdf4, quietly=TRUE)) {
-		tryCatch(install.packages("ncdf4", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("ncdf4 failed to install"); stop("Stopping") })
-		stopifnot(require(ncdf4, quietly=TRUE))
-	}
-
-	if (!require("compiler", quietly=TRUE)) {
-		tryCatch(install.packages("compiler", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("'compiler' failed to install"); stop("Stopping") })
-		stopifnot(require("compiler", quietly=TRUE))
-	}
-
-	useRCurl <- FALSE
-}
-
-if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
-	useRCurl <- FALSE
-	if (!require(RCurl, quietly=TRUE)) {
-		tryCatch(install.packages("RCurl", repos=url.Rrepos, lib=dir.libraries), warning=function(w) { print(w); print("RCurl failed to install, using 'download.files' instead") })
-	}
-	if (require(RCurl, quietly=TRUE)) useRCurl <- TRUE
-}
-
-
 if (exinfo$use_sim_spatial) {
 	# extraction functions
 	if (sim_cells_or_points == "point") {
@@ -584,9 +536,104 @@ if (exinfo$use_sim_spatial) {
 }
 
 #--------------------------------------------------------------------------------------------------#
+#------ Climate scenarios
+exinfo$which_NEX <- sapply(opt_climsc_extr,
+  function(x) grepl("NEX", x[["dataset"]]))
+exinfo$which_netCDF <- sapply(opt_climsc_extr,
+  function(x) grepl("(GDODCPUCLLNL)|(SageSeer)", x[["dataset"]]))
+exinfo$which_ClimateWizard <- sapply(opt_climsc_extr,
+  function(x) grepl("ClimateWizardEnsembles", x[["dataset"]]))
+
+
+#--- Data bounding boxes of climate datasets
+template_bbox <- data.frame(matrix(NA, nrow = 2, ncol = 2,
+  dimnames = list(NULL, c("lat", "lon"))))
+template_tbox <- data.frame(matrix(NA, nrow = 2, ncol = 2,
+  dimnames = list(c("start", "end"), c("first", "second"))))
+
+fill_bounding_box <- function(box, vals) {
+  box[] <- vals
+  box
+}
+
+clim_boxes <- list(
+  CMIP3_ClimateWizardEnsembles_Global = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(-55, 84), x = c(-180, 180))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099)))),
+
+  CMIP3_ClimateWizardEnsembles_USA = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 49.375), x = c(-124.75, -67))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099)))),
+
+  CMIP3_BCSD_GDODCPUCLLNL_Global = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(-55.25-0.25, 83.25+0.25), x = c(-179.75-0.25, 179.75+0.25))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 1999), t2 = c(2000, 2099)))),
+
+  CMIP5_BCSD_GDODCPUCLLNL_Global = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(-55.25-0.25, 83.25+0.25), x = c(-179.75-0.25, 179.75+0.25))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099)))),
+
+  CMIP3_BCSD_GDODCPUCLLNL_USA = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 52.875), x = c(-124.625, -67))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 1999), t2 = c(2000, 2099)))),
+
+  CMIP5_BCSD_GDODCPUCLLNL_USA = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 52.875), x = c(-124.625, -67))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099)))),
+
+  CMIP5_BCSD_NEX_USA = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(24.0625, 49.9375), x = c(-125.02083333, -66.47916667))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099)))),
+
+  CMIP5_BCSD_SageSeer_USA = list(
+    bbox = fill_bounding_box(template_bbox, list(y = c(31.75333, 49.00701), x = c(-124.2542, -102.2534))),
+    tbox = fill_bounding_box(template_tbox, list(t1 = c(1980, 1999), t2 = c(2070, 2099))))
+)
+
+
+#---Allow for multiple data sources
+#	- among sites but not multiple sources per site (for that you need a new row in the MasterInput spreadsheet)
+#	- The data source is used that is the first in 'opt_climsc_extr' and covers a location
+
+if (exinfo$ExtractClimateChangeScenarios) {
+	xy <- with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84))
+
+	if (extract_determine_database == "SWRunInformation" && "GCM_sources" %in% colnames(SWRunInformation)) {
+		sites_GCM_source <- SWRunInformation$GCM_sources[runIDs_sites]
+
+	} else if (extract_determine_database == "order" || !("GCM_sources" %in% colnames(SWRunInformation))) {
+		sites_GCM_source <- rep(NA, times = runsN_sites)
+    i_use <- rep(FALSE, times = runsN_sites)
+
+    # determine which data product to use for each site based on bounding boxes of datasets
+    for (k in seq_along(opt_climsc_extr)) {
+      temp <- opt_climsc_extr[[k]][["dataset"]]
+
+      i_use <- in_box(xy, clim_boxes[[temp]][["bbox"]]$lon,
+        clim_boxes[[temp]][["bbox"]]$lat, i_use)
+
+      sites_GCM_source[i_use] <- temp
+    }
+
+		#write data to datafile.SWRunInformation
+		SWRunInformation$GCM_sources[runIDs_sites] <- as.character(sites_GCM_source)
+		write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
+		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+	} else {
+
+		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
+	}
+
+	if (anyNA(sites_GCM_source))
+	  print(paste("No climate change data available for", sum(is.na(sites_GCM_source)), "sites"))
+}
+
+
 #------Load additional parameters and functions for data from the Lawrence Livermore National Lab and from USGS NEX
 
-if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
+if (exinfo$ExtractClimateChangeScenarios &&
+    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 
 	dbW_setConnection(dbFilePath=dbWeatherDataFile)
@@ -594,13 +641,17 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	dbW_iScenarioTable <- dbW_getScenariosTable()
 	dbW_compression_type <- Rsoilwat31:::dbW_compression()
 
-	climScen <- data.frame(matrix(unlist(strsplit(temp <- climate.conditions[!grepl(climate.ambient, climate.conditions)], split=".", fixed=TRUE)), ncol=4, byrow=TRUE), stringsAsFactors=FALSE)
-	climScen$imap_todbW <- match(temp, table=dbW_iScenarioTable$Scenario, nomatch=0)
+	sctemp <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
+	temp <- strsplit(sctemp, split = ".", fixed = TRUE)
+	if (!all(lengths(temp) == 4L))
+		stop("'climate.conditions' are mal-formed: they must contain 4 elements that are concatenated by '.'")
+	climScen <- data.frame(matrix(unlist(temp), ncol = 4, byrow = TRUE), stringsAsFactors = FALSE)
+	climScen$imap_todbW <- match(sctemp, table = dbW_iScenarioTable$Scenario, nomatch = 0)
 	dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
 	reqGCMs <- unique(climScen[, 4])
 	reqRCPs <- unique(climScen[, 3])
-	reqRCPsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 3]))
-	reqDownscalingsPerGCM <- lapply(reqGCMs, FUN=function(x) unique(climScen[x == climScen[, 4], 1]))
+	reqRCPsPerGCM <- lapply(reqGCMs, function(x) unique(climScen[x == climScen[, 4], 3]))
+	reqDownscalingsPerGCM <- lapply(reqGCMs, function(x) unique(climScen[x == climScen[, 4], 1]))
 
 	for (i in seq_along(reqGCMs)) {
 		dir.create2(file.path(dir.out.temp, reqGCMs[i]), showWarnings=FALSE, recursive=TRUE)
@@ -609,10 +660,6 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	#---Downscaling/bias-correction functions
 	#Helper functions
-	in_GMC_box <- compiler::cmpfun(function(xy, lats, longs, i_use) {
-		!i_use & (xy[, 1] >= longs[1] & xy[, 1] <= longs[2]) & (xy[, 2] >= lats[1] & xy[, 2] <= lats[2])
-	})
-
 	unique_times <- compiler::cmpfun(function(timeSlices, slice) {
 		starts <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
 		ends <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
@@ -1589,15 +1636,19 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 
 	#-------DB access functions
-	if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
+  mmPerDay_to_cmPerMonth <- compiler::cmpfun(function(prcp_mmPerDay, dpm) {
+    prcp_mmPerDay / 10 * dpm
+  })
 
-		mmPerSecond_to_cmPerMonth <- compiler::cmpfun(function(prcp_mmPerSecond, dpm) {
-			prcp_mmPerSecond * dpm * 8640	# 24 * 60 * 60 / 10 == 8640
-		})
+  mmPerSecond_to_cmPerMonth <- compiler::cmpfun(function(prcp_mmPerSecond, dpm) {
+    prcp_mmPerSecond * dpm * 8640	# 24 * 60 * 60 / 10 == 8640
+  })
 
-		get.request <- compiler::cmpfun(function(service, request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp, useRCurl, saveNEXtempfiles) {
-			if (useRCurl && !saveNEXtempfiles) {
-				success <- try(getURL(request, .opts=list(timeout=5*60, connecttimeout=60)), silent=TRUE)
+	if (any(exinfo$which_NEX)) {
+
+		get.request <- compiler::cmpfun(function(service, request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp) {
+			if (requireNamespace("RCurl")) {
+				success <- try(RCurl::getURL(request, .opts=list(timeout=5*60, connecttimeout=60)), silent=TRUE)
 				if (!inherits(success, "try-error")) {
 					if (isTRUE(grepl("Not Found", success, ignore.case=TRUE))) {
 						class(success) <- "try-error"
@@ -1627,7 +1678,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				} else if (service == "opendap") {
 					vtemp <- read.csv(ftemp, colClasses=c("NULL", "numeric"), header=FALSE)[-1, ] #columns = Index, Variable
 				}
-				if (!saveNEXtempfiles && !useRCurl && file.exists(ftemp)) unlink(ftemp)
+				if (file.exists(ftemp)) unlink(ftemp)
 				if (length(vtemp) < 12*yearsN) { #some GCMs only have values up to Nov 2099
 					tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep="_")
 					targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
@@ -1644,7 +1695,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		})
 
 
-		get.DBvariable <- compiler::cmpfun(function(i, variable, scen, gcm, lon, lat, bbox, startyear, endyear, dir.out.temp, useRCurl, saveNEXtempfiles) {
+		get.DBvariable <- compiler::cmpfun(function(i, variable, scen, gcm, lon, lat, bbox, tbox, startyear, endyear, dir.out.temp) {
 			gcmrun <- "r1i1p1"
 			#1st attempt: TRHEDDS ncss/netCDF subsetting service
 			request <- paste0(paste("http://dataserver.nccs.nasa.gov", "thredds/ncss/grid/bypass/NEX-DCP30/bcsd", scen, gcmrun,
@@ -1652,7 +1703,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								"&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
 								paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
 								"&accept=csv")
-			dat <- get.request(service="ncss", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp, useRCurl, saveNEXtempfiles)
+			dat <- get.request(service="ncss", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp)
 			if (inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5, na.rm=TRUE)) { #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
 				#2nd attempt: TRHEDDS opendap/dodsC
 				lat.index <- round((lat - bbox$lat[1]) / 0.0083333333, 0)
@@ -1669,7 +1720,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 								"?lat[", lat.index, "],lon[", lon.index, "],",
 								gcm, "_", variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][", lon.index, "]")
 
-				dat <- get.request(service="opendap", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp, useRCurl, saveNEXtempfiles)
+				dat <- get.request(service="opendap", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp)
 				stopifnot(!inherits(dat, "try-error"), all(dat < 1e5 & dat > -1e5, na.rm=TRUE))
 			}
 
@@ -1680,19 +1731,30 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
 		#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
 		get_GCMdata <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear, varTags, ...) {
-			dots <- list(...) # bbox, dir.out.temp, useRCurl, saveNEXtempfiles
+			dots <- list(...) # bbox, tbox, dir.out.temp
 
-			clim <- vector("list", length=3)
-			names(clim) <- varTags
+			clim <- vector("list", length = 3)
+			names(clim) <- row.names(varTags)[1:3]
 
-			for (iv in seq_along(varTags)) {
+			for (iv in seq_along(clim)) {
 				#Extract data
-				clim[[iv]] <- get.DBvariable(i, variable=varTags[iv], scen=scen, gcm=gcm, lon=lon, lat=lat, bbox = dots[["bbox"]], startyear=startyear, endyear=endyear, dir.out.temp = dots[["dir.out.temp"]], useRCurl = dots[["useRCurl"]], saveNEXtempfiles = dots[["saveNEXtempfiles"]])
+				clim[[iv]] <- get.DBvariable(i, variable = varTags[iv, "tag"], scen = scen,
+				  gcm = gcm, lon = lon, lat = lat, bbox = dots[["bbox"]], tbox = dots[["tbox"]],
+				  startyear = startyear, endyear = endyear, dir.out.temp = dots[["dir.out.temp"]])
 				#Adjust units
 				if (varTags[iv] == "pr") {#convert kg/m2/s -> cm/month
-					clim[[iv]] <- mmPerSecond_to_cmPerMonth(prcp_mmPerSecond=clim[[iv]], dpm)
+					clim[[iv]] <- if (varTags["prcp", "unit"] %in% c("mm/d", "mm d-1")) {
+              mmPerDay_to_cmPerMonth(clim[[iv]], dpm)
+            } else if (varTags["prcp", "unit"] %in% c("kg/m2/s", "kg m-2 s-1")) {
+              mmPerSecond_to_cmPerMonth(clim[[iv]], dpm)
+            }
+
 				} else if (grepl("tas", varTags[iv])) {	#convert K -> C
-					clim[[iv]] <- clim[[iv]] - 273.15
+					clim[[iv]] <- if (varTags["prcp", "unit"] == "K") {
+					    clim[[iv]] - 273.15
+					  } else {
+					    clim[[iv]]
+					  }
 				}
 			}
 
@@ -1701,21 +1763,23 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		})
 	}
 
-	if (exinfo$GDODCPUCLLNL) {
+  if (any(exinfo$which_netCDF)) {
 		whereNearest <- compiler::cmpfun(function(val, matrix) {
 			#this returns the index of the closest value in the matrix to the passed in value.
 			which.min(abs(matrix - val))
 		})
 
 		get.SpatialIndices <- compiler::cmpfun(function(filename, lon, lat) {
-			nc <- nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
+			stopifnot(requireNamespace("ncdf4"))
+
+			nc <- ncdf4::nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
 
 			#Get latitudes/longitudes from the netCDF files...; they are the same for each CMIP x extent
 			#	- these are used to get the correct indices in the whereNearest function
 			lats <- nc$dim$lat$vals
 			lons <- nc$dim$lon$vals
 			#close the netCDF file
-			nc_close(nc)
+			ncdf4::nc_close(nc)
 
 			if (any(lons > 180)) lons <- ifelse(lons > 180, lons - 360, lons)
 			#Calculate the spatial indices
@@ -1727,27 +1791,80 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		})
 
 		get.TimeIndices <- compiler::cmpfun(function(filename, startyear, endyear) {
-			nc <- nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
+			stopifnot(requireNamespace("ncdf4"))
+
+			nc <- ncdf4::nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
 
 			utemp <- nc$dim$time$units
 			tvals <- nc$dim$time$vals
-			nc_close(nc)
+			calendar <- nc$dim$time$calendar
+			ncdf4::nc_close(nc)
 
 			N <- length(tvals)
-			temp <- lapply(strsplit(utemp, split=" ", fixed=TRUE)[[1]], function(x) as.Date(x, format="%Y-%m-%d"))
-			baseYear <- temp[sapply(temp, function(x) !is.na(x))][[1]]
-			stopifnot(length(baseYear) == 1)
+			# Start of time axis
+			utemp <- strsplit(utemp, split = " ", fixed = TRUE)[[1]]
+			temp <- lapply(utemp, function(x) as.Date(x, format = "%Y-%m-%d"))
+			tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]] # class 'Date' = # of days since Jan 1, 1970 in Gregorian calendar
+			stopifnot(length(tbase) == 1)
 
-			firstDate <- as.POSIXlt(baseYear + tvals[1])
-			lastDate <- as.POSIXlt(baseYear + tvals[N])
+      tunit <- utemp[1]
+      # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#time-coordinate
+      tunit <- if (grepl("(day)|(d)", tunit)) {
+          1
+        } else if (grepl("(hour)|(h)", tunit)) {
+          24
+        } else if (grepl("(minute)|(min)", tunit)) {
+          1440
+        } else if (grepl("(second)|(sec)", tunit) || "s" == tunit) {
+          86400
+        } else stop("time unit of netCDF not recognized")
 
-			startYear <- firstDate$year + 1900
-			startMonth <- firstDate$mon + 1
-			endYear <- lastDate$year + 1900
-			endMonth <- lastDate$mon + 1
+      # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
+      cdays <- switch(calendar,
+        noleap = 365, `365_day` = 365, `all_leap` = 366, `366_day` = 366, `360_day` = 360,
+        -1)
 
-			stopifnot(startYear <= startyear || (startMonth == 1 && startYear == startyear)) 	#we only extract full years and require data from the startyear on
-			timeStartIndex <- (startyear - startYear) * 12 + 2 - startMonth #we extract beginning with January of startyear
+      if (calendar == "proleptic_gregorian" || calendar == "gregorian" ||
+          calendar == "standard" || is.null(calendar)) {
+
+        temp <- as.POSIXlt(tbase + tvals[1] / tunit)
+        start <- c(year = temp$year + 1900, month = temp$mon + 1)
+
+        temp <- as.POSIXlt(tbase + tvals[N] / tunit)
+        end <- c(year = temp$year + 1900, month = temp$mon + 1)
+
+      } else if (cdays > 0) {
+        # all years are of a constant fixed duration
+        temp <- tvals[c(1, N)] / tunit
+        to_add_years <- temp %/% cdays
+        to_add_days <- temp %% cdays
+
+        if (cdays > 360) {
+          temp <- as.POSIXlt(tbase)
+          temp_start <- strptime(paste(temp$year + 1900 + to_add_years[1],
+            to_add_days[1], sep = "-"), format = "%Y-%j")
+          temp_end <- strptime(paste(temp$year + 1900 + to_add_years[2],
+            to_add_days[2], sep = "-"), format = "%Y-%j")
+
+          start <- c(year = temp_start$year + 1900, month = temp_start$mon + 1)
+          end <- c(year = temp_end$year + 1900, month = temp_end$mon + 1)
+
+        } else if (cdays == 360) {
+          # all years are 360 days divided into 30 day months
+          to_add_months <- floor(to_add_days / 30)
+
+          temp <- as.POSIXlt(tbase)
+          start <- c(year = temp$year + 1900 + to_add_years[1],
+            month = temp$mon + 1 + to_add_months[1])
+          end <- c(year = temp$year + 1900 + to_add_years[2],
+            month = temp$mon + 1 + to_add_months[2])
+        }
+
+      } else stop("calendar of netCDF not recognized")
+
+
+			stopifnot(start["year"] <= startyear || (start["month"] == 1 && start["year"] == startyear)) 	#we only extract full years and require data from the start["year"] on
+			timeStartIndex <- (startyear - start["year"]) * 12 + 2 - start["month"] #we extract beginning with January of start["year"]
 
 			#account for missing months: assume all are at the end; e.g., precipitation of 'HadGEM2-ES' has values only until Nov 2099 instead Dec 2100
 			timeCount_should <- (endyear - startyear + 1) * 12 #timeCount must include a count at timeStartIndex; to extract two values at 1:2, have timeStartIndex=1 and timeCount=2
@@ -1766,41 +1883,50 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		})
 
 		do_ncvar_get <- compiler::cmpfun(function(nc, nc_perm, variable, ncg, nct) {
+			stopifnot(requireNamespace("ncdf4"))
+
 			index <- which("time" == nc_perm)
 
-			if (index == 3L) { #if file is in order of (lat, lon, time)
-				ncvar_get(nc, variable, start=c(ncg$ix, ncg$iy, nct$timeStartIndex), count=c(1, 1, nct$timeCount))
-			} else if (index == 1L) { #if file is optimized for time series extraction and permutated to order (time, lat, lon)
-				ncvar_get(nc, variable, start=c(nct$timeStartIndex, ncg$ix, ncg$iy), count=c(nct$timeCount, 1, 1))
+      if (index == 3L) {
+			  # if file is in order of (lat, lon, time)
+				ncdf4::ncvar_get(nc, variable, start = c(ncg$ix, ncg$iy, nct$timeStartIndex),
+				  count = c(1, 1, nct$timeCount))
+
+			} else if (index == 1L) {
+			  # if file is optimized for time series extraction and permutated to order (time, lat, lon)
+				ncdf4::ncvar_get(nc, variable, start = c(nct$timeStartIndex, ncg$ix, ncg$iy),
+				  count = c(nct$timeCount, 1, 1))
+
 			} else {
 				stop("do_ncvar_get: dimension 'time' must be either in first or third place, but is instead at ", index)
 			}
 		})
 
-		mmPerDay_to_cmPerMonth <- compiler::cmpfun(function(prcp_mmPerDay, dpm) {
-			prcp_mmPerDay / 10 * dpm
-		})
-
 		get.DBvariable <- compiler::cmpfun(function(filepath, variable, unit, ncg, nct, lon, lat, startyear, endyear) {
+			stopifnot(requireNamespace("ncdf4"))
 			# the 'raster' package (version <= '2.5.2') cannot handle non-equally spaced cells
-			nc <- nc_open(filename = filepath, write = FALSE, readunlim = TRUE, verbose = FALSE)
+			nc <- ncdf4::nc_open(filename = filepath, write = FALSE, readunlim = TRUE, verbose = FALSE)
 			stopifnot(grepl(unit, nc$var[[variable]]$units, fixed = TRUE))
 
 			# getting the values from the netCDF files...
 			nc_perm <- sapply(nc$var[[variable]]$dim, function(x) x$name)
 			res <- try(do_ncvar_get(nc, nc_perm, variable, ncg, nct), silent = TRUE)
-			if (inherits(res, "try-error")) { #in case of 'HadGEM2-ES x RCP45' where pr and tasmax/tasmin have different timings
+			if (inherits(res, "try-error")) {
+			  # in case of 'HadGEM2-ES x RCP45' where pr and tasmax/tasmin have different timings
 				ncg <- get.SpatialIndices(filename = filepath, lon, lat)
 				nct <- get.TimeIndices(filename = filepath, startyear, endyear)
-				res <- try(do_ncvar_get(nc, nc_perm, variable, ncg, nct), silent = TRUE)
+				res <- try(do_ncvar_get(nc, nc_perm, variable, ncg, nct))
 			}
-			nc_close(nc) #close the netCDF file
+			ncdf4::nc_close(nc) #close the netCDF file
 
 			#adjust for missing months
-			if (nct$addMissingMonthAtEnd > 0) res <- c(res, rep(NA, times = nct$addMissingMonthAtEnd))
+			if (nct$addMissingMonthAtEnd > 0)
+			  res <- c(res, rep(NA, times = nct$addMissingMonthAtEnd))
 
-			#no data: most likely cell location is not terrestrial
-			if (all(is.na(res))) stop("get.DBvariable: all data are NAs; cell location (", round(lon, 5), ", ", round(lat, 5), ") is likely not terrestrial")
+			if (all(is.na(res)) || inherits(res, "try-error"))
+			  stop("get.DBvariable at (", round(lon, 5), ", ", round(lat, 5), "): ",
+			      "extraction failed or no data available. Error message: ",
+			      paste(head(res), collapse = "/"))
 
 			res
 		})
@@ -1810,38 +1936,74 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		#' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
 		#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
 		get_GCMdata <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear, varTags, ...) {
-			dots <- list(...) # fileVarTags, ncFiles, ncg, nct
+			dots <- list(...) # fileVarTags, ncFiles, ncg, nct, clim_source
 
 			#Get precipitation data
 			temp1 <- grepl(dots[["fileVarTags"]]["prcp"], dots[["ncFiles"]])
+
 			if (any(temp1)) {
-				prcp <- get.DBvariable(filepath = dots[["ncFiles"]][temp1][1], variable = varTags["prcp"], unit = "mm/d", ncg = dots[["ncg"]], nct = dots[["ncg"]], lon = lon, lat = lat, startyear = startyear, endyear = endyear)
-				prcp <- mmPerDay_to_cmPerMonth(prcp, dpm)
-			} else {
-				stop("No suitable netCDF file with precipitation data found for ", i, gcm, scen, varTags["prcp"])
+        prcp <- get.DBvariable(filepath = dots[["ncFiles"]][temp1][1],
+          variable = varTags["prcp", "tag"], unit = varTags["prcp", "unit"],
+          ncg = dots[["ncg"]], nct = dots[["nct"]], lon = lon, lat = lat,
+          startyear = startyear, endyear = endyear)
+
+        # Convert units to cm / month
+        prcp <- if (grepl("SageSeer", dots[["clim_source"]])) {
+            prcp
+          } else if (varTags["prcp", "unit"] %in% c("mm/d", "mm d-1")) {
+            mmPerDay_to_cmPerMonth(prcp, dpm)
+          } else if (varTags["prcp", "unit"] %in% c("kg/m2/s", "kg m-2 s-1")) {
+            mmPerSecond_to_cmPerMonth(prcp, dpm)
+          }
+      } else {
+        stop("No suitable netCDF file with precipitation data found for ", i, gcm, scen, varTags["prcp"])
 			}
+
 			#Get temperature data
 			temp3 <- grepl(dots[["fileVarTags"]]["tmin"], dots[["ncFiles"]])
 			temp4 <- grepl(dots[["fileVarTags"]]["tmax"], dots[["ncFiles"]])
 			if (any(temp3) && any(temp4)) {
-				tmin <- get.DBvariable(filepath = dots[["ncFiles"]][temp3][1], variable = varTags["tmin"], unit = "C", ncg = dots[["ncg"]], nct = dots[["ncg"]], lon = lon, lat = lat, startyear = startyear, endyear = endyear)
-				tmax <- get.DBvariable(filepath = dots[["ncFiles"]][temp4][1], variable = varTags["tmax"], unit = "C", ncg = dots[["ncg"]], nct = dots[["ncg"]], lon = lon, lat = lat, startyear = startyear, endyear = endyear)
+				tmin <- get.DBvariable(filepath = dots[["ncFiles"]][temp3][1],
+				  variable = varTags["tmin", "tag"], unit = varTags["tmin", "unit"],
+				  ncg = dots[["ncg"]], nct = dots[["nct"]], lon = lon, lat = lat,
+				  startyear = startyear, endyear = endyear)
+				tmax <- get.DBvariable(filepath = dots[["ncFiles"]][temp4][1],
+				  variable = varTags["tmax", "tag"], unit = varTags["tmax", "unit"],
+				  ncg = dots[["ncg"]], nct = dots[["nct"]], lon = lon, lat = lat,
+				  startyear = startyear, endyear = endyear)
+
 			} else {
 				temp2 <- grepl(dots[["fileVarTags"]]["tmean"], dots[["ncFiles"]])
 				if (any(temp2)) {
-					tmean <- get.DBvariable(filepath = dots[["ncFiles"]][temp2][1], variable = varTags["tmean"], unit = "C", ncg = dots[["ncg"]], nct = dots[["ncg"]], lon = lon, lat = lat, startyear = startyear, endyear = endyear)
+					tmean <- get.DBvariable(filepath = dots[["ncFiles"]][temp2][1],
+					  variable = varTags["tmean"], unit = varTags["tmean", "unit"],
+					  ncg = dots[["ncg"]], nct = dots[["nct"]], lon = lon, lat = lat,
+					  startyear = startyear, endyear = endyear)
 					tmin <- tmax <- tmean
 				} else {
 					stop("No suitable netCDF file with temperature data found for ", i, gcm, scen, varTags["prcp"])
 				}
 			}
 
-			list(cbind(year = ts_mons$year + 1900, month = ts_mons$mon + 1, tmax = tmax, tmin = tmin, prcp = prcp))
+      if (grepl("SageSeer", dots[["clim_source"]])) {
+        # even though units say Kelvin values are in Celsius
+
+      } else if (varTags["prcp", "unit"] == "K") {
+        tmin <- tmin - 273.15
+        tmax <- tmax - 273.15
+      }
+
+			list(cbind(year = ts_mons$year + 1900,
+			          month = ts_mons$mon + 1,
+			          tmax = tmax, tmin = tmin, prcp = prcp))
 		})
 	}
 
 	#----Extraction function
-	calc.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) {
+	calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, tbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, print.debug) {
+    on.exit({save(ls(),
+      file = file.path(dir.out.temp, paste0("ClimScen_failed_", i, "_l2.RData")))})
+
 		#Identify index for site and scenario
 		ig <- (i - 1) %% length(reqGCMs) + 1
 		il <- (i - 1) %/% length(reqGCMs) + 1
@@ -1853,64 +2015,80 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		lat <- locations[il, "Y_WGS84"]
 		site_id <- locations[il, "site_id"]
 #		site_id <- dbW_iSiteTable[dbW_iSiteTable[, "Label"] == locations[il, "WeatherFolder"], "Site_id"]
-		ncFiles_gcm <- if (is_GDODCPUCLLNL) gcmFiles[grepl(paste0("_", as.character(gcm), "_"), gcmFiles)] else NULL
-		if (!be.quiet) print(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "for", gcm, "(", paste(rcps, collapse=", "), ") at", lon, lat))
 
-		# Data Bounding Box
-		if (!(lat >= bbox$lat[1] && lat <= bbox$lat[2] && lon >= bbox$lon[1] && lon <= bbox$lon[2])) {
-			stop(paste(i, "th extraction of '", GCM_source, "' at", Sys.time(), "at", lon, lat, ": outside of bounding data box"))
-		}
+		ncFiles_gcm <- if (is_netCDF) {
+		    gcmFiles[grepl(paste0("_", as.character(gcm), "_"), gcmFiles)]
+		  } else NULL
+
+    if (!be.quiet)
+      print(paste0(i, "-th extraction of ", shQuote(clim_source), " at ", Sys.time(),
+            " for ", gcm, " (", paste(rcps, collapse = ", "), ") at ", lon, " / ", lat))
 
 		#Scenario monthly weather time-series: Get GCM data for each scenario and time slice
 		scen.monthly <- matrix(data=vector("list", length=(getYears$n_first+getYears$n_second)*(1 + length(rcps))), ncol=getYears$n_first+getYears$n_second, dimnames=list(c("Current", as.character(rcps)), c(paste0("first", 1:getYears$n_first), paste0("second", 1:getYears$n_second))))
-		#First slice ('historical'): 1950-2005
+		if (print.debug)
+		  print(paste0(i, "-th extraction: first slice ('historical'): ",
+		        paste(getYears$first, collapse = "-")))
+
 		args_extract1 <- list(i = i, gcm = gcm, scen = "historical", lon = lon, lat = lat, varTags = varTags)
-		if (is_GDODCPUCLLNL) {
+		if (is_netCDF) {
 			ncFiles <- ncFiles_gcm[grepl(args_extract1[["scen"]], ncFiles_gcm)]
 			ncg <- get.SpatialIndices(filename = ncFiles[1], lon = lon, lat = lat)
 		}
-		if (is_GDODCPUCLLNL) {
-			args_extract1 <- c(args_extract1, fileVarTags = list(fileVarTags), ncFiles = list(ncFiles), ncg = list(ncg))
+		if (is_netCDF) {
+			args_extract1 <- c(args_extract1, fileVarTags = list(fileVarTags), ncFiles = list(ncFiles), ncg = list(ncg), clim_source = clim_source)
 		} else if (is_NEX) {
-			args_extract1 <- c(args_extract1, bbox = list(bbox), dir.out.temp = dir.out.temp, useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
+			args_extract1 <- c(args_extract1, bbox = list(bbox), tbox = list(tbox), dir.out.temp = dir.out.temp)
 		}
-		for (it in 1:getYears$n_first) {
+
+		for (it in seq_len(getYears$n_first)) {
 			args_first <- c(args_extract1,
 								ts_mons = list(getYears$first_dates[[it]]),
 								dpm = list(getYears$first_dpm[[it]]),
 								startyear = getYears$first[it, 1],
 								endyear = getYears$first[it, 2])
-			if (is_GDODCPUCLLNL) {
+			if (is_netCDF) {
 				# Time index: differs among variables from the same GCMxRCP: in only once case: HadGEM2-ES x RCP45
 				args_first <- c(args_first, nct = list(get.TimeIndices(filename = ncFiles[1], startyear = getYears$first[it, 1], endyear = getYears$first[it, 2])))
 			}
 			scen.monthly[1, it] <- do.call(get_GCMdata, args = args_first)
 		}
 
-		#Second slice ('future scenarios'): 2006-2099
-		for (it in 1:getYears$n_second) {
+		if (print.debug)
+		  print(paste0(i, "-th extraction: second slice ('future'): ",
+		        paste(getYears$second, collapse = "-")))
+
+		for (it in seq_len(getYears$n_second)) {
 			args_extract2 <- c(args_extract1,
 								ts_mons = list(getYears$second_dates[[it]]),
 								dpm = list(getYears$second_dpm[[it]]),
 								startyear = getYears$second[it, 1],
 								endyear = getYears$second[it, 2])
-			# Time index: differs among variables from the same GCMxRCP: in only once case: HadGEM2-ES x RCP45
-			if (is_GDODCPUCLLNL) {
-				args_extract2[["nct"]] <- get.TimeIndices(filename=ncFiles_gcm[grep(as.character(rcps)[1], ncFiles_gcm)[1]], startyear=getYears$second[it, 1], endyear=getYears$second[it, 2])
+			if (is_netCDF) {
+			  # Assume that netCDF file structure is identical among RCPs within a variable
+			  #   - differs among variables from the same GCMxRCP: HadGEM2-ES x RCP45
+			  temp <- ncFiles_gcm[grep(as.character(rcps)[1], ncFiles_gcm)[1]]
+				args_extract2[["nct"]] <- get.TimeIndices(filename = temp,
+				  startyear = getYears$second[it, 1], endyear = getYears$second[it, 2])
 			}
 			for (isc in 2:nrow(scen.monthly)) {
 				args_second <- args_extract2
 				args_second[["scen"]] <- as.character(rcps[isc - 1])
-				if (is_GDODCPUCLLNL) {
+				if (is_netCDF) {
 					args_second[["ncFiles"]] <- ncFiles_gcm[grepl(args_second[["scen"]], ncFiles_gcm)]
 				}
 				scen.monthly[isc, getYears$n_first + it] <- do.call(get_GCMdata, args = args_second)
 			}
 		}
 
-
 		#Observed historic daily weather from weather database
-		obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id=site_id, startYear=simstartyr, endYear=endyr, Scenario=climate.ambient)
+		if (print.debug)
+		  print(paste0(i, "-th extraction: observed historic daily weather from weather DB: ",
+		        simstartyr, "-", endyr))
+
+		obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id = site_id,
+		  startYear = simstartyr, endYear = endyr, Scenario = climate.ambient)
+
 		if (obs.hist.daily[[1]]@year < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
 			print("Note: subsetting years 'obs.hist.daily' because 'simstartyr < 1950'")
 			start_yr <- obs.hist.daily[[length(obs.hist.daily)]]@year - 1950
@@ -1933,18 +2111,24 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs because some GCMs do not provide data for the last month of a time slice (e.g. December 2005 may be NA)
 			if (!all(downs == "raw")) {
 				scen.hist.monthly <- NULL
-				for (itt in which(assocYears[["historical"]]$first)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
-				for (itt in which(assocYears[["historical"]]$second)) scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+				for (itt in which(assocYears[["historical"]]$first))
+				  scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
+
+				for (itt in which(assocYears[["historical"]]$second))
+				  scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 			}
 
 			types <- list()
-			for (it in 1:nrow(future_yrs)) {
+			for (it in seq_len(nrow(future_yrs))) {
 				tag <- paste0(rownames(future_yrs)[it], ".", rcps[ir])
 
 				#Put future data together
 				scen.fut.monthly <- NULL
-				for (itt in which(assocYears[[tag]]$first)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
-				for (itt in which(assocYears[[tag]]$second)) scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+				for (itt in which(assocYears[[tag]]$first))
+				  scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
+
+				for (itt in which(assocYears[[tag]]$second))
+				  scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 
 				# Comment: The variables are expected to cover the following time periods
 				# 'obs.hist.daily' = simstartyr:endyr
@@ -1956,6 +2140,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 				#Apply downscaling
 				if ("raw" %in% downs) {
+          if (print.debug)
+            print(paste0(i, "-th extraction: ", tag, " downscaling with method 'raw'"))
+
 					scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("raw", tag, gcm, sep=".")), "id"]
 					scen.fut.daily <- downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly,
 											years = sim_years,
@@ -1982,6 +2169,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				}
 
 				if ("delta" %in% downs) {
+          if (print.debug)
+            print(paste0(i, "-th extraction: ", tag, " downscaling with method 'delta'"))
+
 					scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("delta", tag, gcm, sep=".")), "id"]
 					scen.fut.daily <- downscale.delta(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
 											years = sim_years,
@@ -2007,6 +2197,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				}
 
 				if ("hybrid-delta" %in% downs) {
+          if (print.debug)
+            print(paste0(i, "-th extraction: ", tag, " downscaling with method 'delta-hybrid'"))
+
 					scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta", tag, gcm, sep=".")), "id"]
 					scen.fut.daily <- downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
 											years = sim_years,
@@ -2031,6 +2224,9 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				}
 
 				if ("hybrid-delta-3mod" %in% downs) {
+          if (print.debug)
+            print(paste0(i, "-th extraction: ", tag, " downscaling with method 'delta-hybrid-3mod'"))
+
 					scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("hybrid-delta-3mod", tag, gcm, sep=".")), "id"]
 
 					scen.fut.daily <- downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
@@ -2058,10 +2254,14 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 					types[[length(types)+1]] <- list(Site_id=site_id, Scenario_id=scenario_id, StartYear=years[1], EndYear=years[length(years)], weatherData=data_blob)
 				}
 			}
+
 			wdataOut[[ir]] <- types
 		}
-		saveRDS(wdataOut, file=file.path(dir.out.temp, gcm, paste(GCM_source, "_", i, ".rds", sep="")))
+
+		saveRDS(wdataOut,
+		  file = file.path(dir.out.temp, gcm, paste0(clim_source, "_", i, ".rds")))
 		res <- i
+		on.exit()
 
 		res
 	})
@@ -2071,13 +2271,13 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#' A wrapper function for \code{calc.ScenarioWeather} with error control.
 	#'
 	#' @inheritParams calc.ScenarioWeather
-	try.ScenarioWeather <- compiler::cmpfun(function(i, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, useRCurl, saveNEXtempfiles) {
+	try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, tbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, print.debug) {
 		temp <- try(calc.ScenarioWeather(i = i,
-						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
 						climate.ambient = climate.ambient,
-						bbox = bbox,
+						bbox = bbox, tbox = tbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
 						compression_type = compression_type,
@@ -2087,13 +2287,17 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
 						downscaling.options = downscaling.options,
 						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet,
-						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles),
+						be.quiet = be.quiet, print.debug = print.debug),
 					silent = FALSE)
 
 		if (inherits(temp, "try-error")) {
 			print(paste(Sys.time(), temp))
-			save(i, temp, file = file.path(dir.out.temp, paste0("failed_", i, ".RData")))
+      save(i, temp, clim_source, is_netCDF, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM,
+          reqDownscalingsPerGCM, climate.ambient, bbox, tbox, locations, dbW_iSiteTable,
+          compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs,
+          simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options,
+          dir.out.temp, be.quiet,
+          file = file.path(dir.out.temp, paste0("ClimScen_failed_", i, "_l1.RData")))
 			res <- NULL
 		} else {
 			res <- i
@@ -2105,7 +2309,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	#' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 	#'
 	#' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, locations, varTags, fileVarTags, getYears, assocYears, saveNEXtempfiles) {
+	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, tbox, locations, varTags, fileVarTags, getYears, assocYears) {
 		#requests is_ToDo: fastest if nc file is
 		#	- DONE: permutated to (lat, lon, time) instead (time, lat, lon)
 		#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2119,19 +2323,15 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
         export_objects_to_workers(list.export,
           list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
           "mpi")
-				if (is_NEX && useRCurl && !saveNEXtempfiles)
-					Rmpi::mpi.bcast.cmd(library("RCurl", quietly=TRUE))
-				if (is_GDODCPUCLLNL)
-					Rmpi::mpi.bcast.cmd(library("ncdf4", quietly=TRUE))
 				Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
 				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
 				i_Done <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather,
-						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
 						climate.ambient = climate.ambient,
-						bbox = bbox,
+						bbox = bbox, tbox = tbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
 						compression_type = dbW_compression_type,
@@ -2141,8 +2341,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
 						downscaling.options = downscaling.options,
 						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet,
-						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
+						be.quiet = be.quiet, print.debug = print.debug)
 
 				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
 				Rmpi::mpi.bcast.cmd(rm(list=ls()))
@@ -2153,19 +2352,15 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
           list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
           "snow", cl)
 
-				if (is_NEX && useRCurl && !saveNEXtempfiles)
-					snow::clusterEvalQ(cl, library("RCurl", quietly = TRUE))
-				if (is_GDODCPUCLLNL)
-					snow::clusterEvalQ(cl, library("ncdf4", quietly=TRUE))
 				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
 				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
 				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
-						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
 						climate.ambient = climate.ambient,
-						bbox = bbox,
+						bbox = bbox, tbox = tbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
 						compression_type = dbW_compression_type,
@@ -2175,8 +2370,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
 						downscaling.options = downscaling.options,
 						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet,
-						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
+						be.quiet = be.quiet, print.debug = print.debug)
 
 				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
 				snow::clusterEvalQ(cl, rm(list=ls()))
@@ -2184,18 +2378,14 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 			} else if (identical(parallel_backend, "multicore")) {
 				packages.export <- "Rsoilwat31"
-				if (is_NEX && useRCurl && !saveNEXtempfiles)
-					packages.export <- c(packages.export, "RCurl")
-				if (is_GDODCPUCLLNL)
-					packages.export <- c(packages.export, "ncdf4")
 				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
 					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 					temp <- try.ScenarioWeather(i,
-						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
 						climate.ambient = climate.ambient,
-						bbox = bbox,
+						bbox = bbox, tbox = tbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
 						compression_type = dbW_compression_type,
@@ -2205,8 +2395,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
 						downscaling.options = downscaling.options,
 						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet,
-						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
+						be.quiet = be.quiet, print.debug = print.debug)
 					Rsoilwat31::dbW_disconnectConnection()
 					return(temp)
 				}
@@ -2217,11 +2406,11 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		} else {
 			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i,
-						GCM_source = GCM_source, is_GDODCPUCLLNL = is_GDODCPUCLLNL, is_NEX = is_NEX,
+						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						gcmFiles = gcmFiles,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
 						climate.ambient = climate.ambient,
-						bbox = bbox,
+						bbox = bbox, tbox = tbox,
 						locations = locations,
 						dbW_iSiteTable = dbW_iSiteTable,
 						compression_type = dbW_compression_type,
@@ -2231,15 +2420,15 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
 						downscaling.options = downscaling.options,
 						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet,
-						useRCurl = useRCurl, saveNEXtempfiles = saveNEXtempfiles)
+						be.quiet = be.quiet, print.debug = print.debug)
 			Rsoilwat31::dbW_disconnectConnection()
 		}
 
 
-		if (!be.quiet) print(paste("Started adding temporary files into database '", GCM_source, "' at", Sys.time()))
+
+		if (!be.quiet) print(paste("Started adding temporary files into database '", clim_source, "' at", Sys.time()))
 		Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-		temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+		temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if (length(temp.files) > 0) {
 			for (k in seq_along(temp.files)) {
 				ftemp <- file.path(dir.out.temp, temp.files[k])
@@ -2275,77 +2464,28 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 #--------------------------------------------------------------------------------------------------#
 #------EXTRACT CLIMATE CHANGE DATA------
-# Allow for multiple data sources
-#	- among sites but not multiple sources per site (for that you need a new row in the MasterInput spreadsheet)
-#	- NEX USA data has highest priority, then LLNL USA products, then global LLNL products
 
-if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
-
-	xy <- with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84))
-	i_use <- rep(FALSE, times = runsN_sites)
-
-	if (extract_determine_database == "SWRunInformation" && "GCM_sources" %in% colnames(SWRunInformation)) {
-		sites_GCM_source <- SWRunInformation$GCM_sources[runIDs_sites]
-
-	} else if (extract_determine_database == "order" || !("GCM_sources" %in% colnames(SWRunInformation))) {
-		sites_GCM_source <- rep(NA, times = runsN_sites)
-
-		# determine which data product to use for each site based on bounding boxes of datasets
-		if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
-			i_use <- in_GMC_box(xy = xy, lats=c(24.0625, 49.9375), longs=c(-125.02083333, -66.47916667), i_use=i_use)
-			sites_GCM_source[i_use] <- "CMIP5_BCSD_NEX_USA"
-		}
-		if (exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA) {
-			i_use <- in_GMC_box(xy = xy, lats=c(25.125, 52.875), longs=c(-124.625, -67), i_use=i_use)
-			sites_GCM_source[i_use] <- "CMIP3_BCSD_GDODCPUCLLNL_USA"
-		}
-		if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA) {
-			i_use <- in_GMC_box(xy = xy, lats=c(25.125, 52.875), longs=c(-124.625, -67), i_use=i_use)
-			sites_GCM_source[i_use] <- "CMIP5_BCSD_GDODCPUCLLNL_USA"
-		}
-		if (exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global) {
-			i_use <- in_GMC_box(xy = xy, lats=c(-55.25-0.25, 83.25+0.25), longs=c(-179.75-0.25, 179.75+0.25), i_use=i_use)
-			sites_GCM_source[i_use] <- "CMIP3_BCSD_GDODCPUCLLNL_Global"
-		}
-		if (exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global) {
-			i_use <- in_GMC_box(xy = xy, lats=c(-55.25-0.25, 83.25+0.25), longs=c(-179.75-0.25, 179.75+0.25), i_use=i_use)
-			sites_GCM_source[i_use] <- "CMIP5_BCSD_GDODCPUCLLNL_Global"
-		}
-
-		#write data to datafile.SWRunInformation
-		SWRunInformation$GCM_sources[runIDs_sites] <- as.character(sites_GCM_source)
-		write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-	} else {
-		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
-	}
-
-	if (anyNA(sites_GCM_source)) print("No climate change data available for ", sum(is.na(sites_GCM_source)), " sites")
+if (exinfo$ExtractClimateChangeScenarios &&
+    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
 
 	#access climate change data
-	get_climatechange_data <- compiler::cmpfun(function(GCM_source, is_GDODCPUCLLNL, is_NEX, do_SWRun_sites, include_YN_climscen) {
-	#	GCM_source <- if (GCM_source == "CMIP5_BCSD_NEX_USA") {
-	#					"CMIP5-BCSD-NEX-USA"
-	#				} else if (grepl("CMIP3_BCSD_GDODCPUCLLNL", GCM_source)) {
-	#					"CMIP3-BCSD-GDO-DCP-UC-LLNL"
-	#				} else if (grepl("CMIP5_BCSD_GDODCPUCLLNL", GCM_source)) {
-	#					"CMIP5-BCSD-GDO-DCP-UC-LLNL"
-	#				} else {
-	#					stop("No dataset for climate change conditions set")
-	#				}
-		if (!be.quiet) print(paste0("Started '", GCM_source, "' at ", Sys.time()))
+	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, opts, bbox, tbox) {
+		if (!be.quiet) print(paste0("Started", shQuote(clim_source), "at ", Sys.time()))
 
 		#Global flags
 		repeatExtractionLoops_maxN <- 3
+    temp <- strsplit(opts[["dataset"]], split = "_", fixed = TRUE)[[1]]
+    dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios",
+      temp[1], paste(temp[-1], collapse = "_"))
+
 		#Specific flags
-		if (is_GDODCPUCLLNL) {
+		if (is_netCDF) {
 			##gdo-dcp.ucllnl.org/downscaled_cmip_projections
-			dir.ex.dat <- file.path(dir.ex.fut, "GDO_DCP_UCLLNL_DownscaledClimateData")
-			if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
-			if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
-			if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
-			if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
+#			dir.ex.dat <- file.path(dir.ex.fut, "GDO_DCP_UCLLNL_DownscaledClimateData")
+#			if (clim_source == "CMIP3_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "CONUS_0.125degree")
+#			if (clim_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP3_BCSD", "Global_0.5degree_MaurerEd")
+#			if (clim_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "CONUS_0.125degree_r1i1p1")
+#			if (clim_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") dir.ex.dat <- file.path(dir.ex.dat, "CMIP5_BCSD", "Global_0.5degree_r1i1p1")
 
 			#CMIP3 Global and USA
 			#	- obs: 1950 Jan to 1999 Dec
@@ -2362,74 +2502,63 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			#	=> ignore missing Dec value; ignore 2005 Dec value if that is the start
 			#	- all same spatial coordinates
 
-			scenariosDB <- list.dirs(dir.ex.dat, full.names=FALSE, recursive=FALSE)
-			if (any((temp <- sapply(scenariosDB, FUN=function(x) length(list.files(file.path(dir.ex.dat, x))))) == 0)) scenariosDB <- scenariosDB[temp > 0]
-
-			gcmsDB <- unique(unlist(sapply(scenariosDB, FUN=function(x) sapply(strsplit(list.files(file.path(dir.ex.dat, x)), split="_", fixed=TRUE), FUN=function(x) x[5]))))
-			gcmFiles <- list.files(dir.ex.dat, recursive=TRUE, full.names=TRUE)
+      climDB_files <- list.files(dir.ex.dat, pattern = ".nc", full.names = TRUE, recursive = TRUE)
+      split_char <- if (grepl("CMIP3", clim_source)) "." else if (grepl("CMIP5", clim_source)) "_" else "_"
+      climDB_meta <- strsplit(basename(climDB_files), split = split_char, fixed = TRUE)
+      stopifnot(diff(lengths(climDB_meta)) == 0L)
+      temp <- matrix(unlist(climDB_meta), ncol = length(climDB_meta))
+      climDB_struct <- lapply(opts[["ds_fname_str"]], function(id) unique(temp[id, ]))
 
 			print_int <- 100
-			saveNEXtempfiles <- FALSE
 		}
 		if (is_NEX) {
 			##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
 			opt <- options("timeout")
 			options(timeout=5*60)
 
-			dir.ex.dat <- NULL
-			if (useRCurl) {
-				stopifnot(RCurl::url.exists("https://portal.nccs.nasa.gov/portal_home/published/NEX.html")) #check whether we are online
-				saveNEXtempfiles <- FALSE
+			if (requireNamespace("RCurl")) {
+			  if (!RCurl::url.exists("https://portal.nccs.nasa.gov/portal_home/published/NEX.html")) {
+			    # check whether we are online
+			    stop("We and/or the 'NEX' server are offline")
+			  }
 			} else {
-				saveNEXtempfiles <- TRUE
+			  print("We assume that we and the 'NEX' server are online.")
 			}
 
-			gcmsDB <- c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3", "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM", "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES", "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G", "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0", "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM", "ACCESS1-0")
-			scenariosDB <- c("historical", "rcp26", "rcp45", "rcp60", "rcp85")
-			gcmFiles <- NULL
+      climDB_struct <- list(
+        id_var = NULL,
+        id_gcm = c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3",
+                  "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM",
+                  "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES",
+                  "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G",
+                  "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0",
+                  "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM",
+                  "ACCESS1-0"),
+        id_scen = c("historical", "rcp26", "rcp45", "rcp60", "rcp85"),
+        id_run = NULL,
+        id_time = NULL
+      )
+      climDB_files <- NULL
 
 			print_int <- 1
 		}
 
-		#Force dataset specific lower/uper case for GCMs and RCPs
-		reqGCMs <- gcmsDB[match(tolower(reqGCMs), tolower(gcmsDB), nomatch=NA)]
-		reqRCPs <- scenariosDB[match(tolower(reqRCPs), tolower(scenariosDB), nomatch=NA)]
-		reqRCPsPerGCM <- lapply(reqRCPsPerGCM, FUN=function(r) scenariosDB[match(tolower(r), tolower(scenariosDB), nomatch=NA)])
+    #Force dataset specific lower/uper case for GCMs and RCPs, i.e., use values from climbDB_struct and not reqGCMs and reqRCPs
+    reqGCMs <- climDB_struct[["id_gcm"]][match(tolower(reqGCMs), tolower(climDB_struct[["id_gcm"]]), nomatch = NA)]
+    reqRCPs <- climDB_struct[["id_scen"]][match(tolower(reqRCPs), tolower(climDB_struct[["id_scen"]]), nomatch = NA)]
+    reqRCPsPerGCM <- lapply(reqRCPsPerGCM, function(r)
+      climDB_struct[["id_scen"]][match(tolower(r), tolower(climDB_struct[["id_scen"]]), nomatch = NA)])
 
-		#Tests that all requested conditions will be extracted
-		stopifnot(length(reqGCMs) > 0, all(!is.na(reqGCMs)))
-		stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)), any(grepl("historical", scenariosDB, ignore.case=TRUE)))
+    #Tests that all requested conditions will be extracted
+    stopifnot(length(reqGCMs) > 0, all(!is.na(reqGCMs)))
+    stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)),
+              any(grepl("historical", climDB_struct[["id_scen"]], ignore.case = TRUE)))
 
 		#put requests together
 		locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
 		requestN <- length(reqGCMs) * nrow(locations)
-		if (!be.quiet) print(paste("'", GCM_source, "' will run", requestN, "times"))
+		if (!be.quiet) print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
-		#bounding box
-		bbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(NULL, c("lat", "lon"))))
-		if (is_NEX) {
-			bbox$lat <- c(24.0625, 49.9375)
-			bbox$lon <- c(-125.02083333, -66.47916667)
-		}
-		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA") {
-			bbox$lat <- c(25.125, 52.875)
-			bbox$lon <- c(-124.625, -67)
-		}
-		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
-			bbox$lat <- c(-55.25-0.25, 83.25+0.25)
-			bbox$lon <- c(-179.75-0.25, 179.75+0.25)
-		}
-
-		#time box
-		tbox <- data.frame(matrix(NA, nrow=2, ncol=2, dimnames=list(c("start", "end"), c("first", "second"))))
-		if (is_NEX || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
-			tbox$first <- c(1950, 2005)
-			tbox$second <- c(2006, 2099)
-		}
-		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") {
-			tbox$first <- c(1950, 1999)
-			tbox$second <- c(2000, 2099)
-		}
 		#timing: time slices: data is organized into 'historical' runs 1950-2005 (="first") and future 'rcp' runs 2006-2099 (="second")
 		timeSlices <- data.frame(matrix(NA, ncol=4, nrow = 4 + 4 * nrow(future_yrs), dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))))
 		timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", rownames(future_yrs)))[, 3:1]
@@ -2477,60 +2606,81 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 		print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(na.omit(timeSlices[,4]))))
 		#Variable tags
-		if (is_NEX) {
-			varTags <- c(prcp = "pr", tmin = "tasmin", tmax = "tasmax") #units c("kg/m2/s", "K", "K") --> SoilWat required units c("cm/day", "C", "C")
-			fileVarTags <- NULL
-		}
-		if (GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP3_BCSD_GDODCPUCLLNL_Global") {
-			varTags <- c(prcp = "Prcp", tmean = "Tavg", tmin = "Tmin", tmax = "Tmax")
-			fileVarTags <- paste("monthly", varTags, sep=".")
-			names(fileVarTags) <- names(varTags)
-		}
-		if (GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_USA" || GCM_source == "CMIP5_BCSD_GDODCPUCLLNL_Global") {
-			varTags <- c(prcp = "pr", tmean = "tas", tmin = "tasmin", tmax = "tasmax")
-			fileVarTags <- paste0("_", varTags, "_")
-			names(fileVarTags) <- names(varTags)
-		}
-
+		# SoilWat required units are c("cm/day", "C", "C")
+    units <- if (grepl("GDODCPUCLLNL", clim_source)) {
+        c("mm/d", "C", "C", "C")
+      } else if (grepl("NEX", clim_source)) {
+        c("kg/m2/s", "K", "K", "K")
+      } else if (grepl("SageSeer", clim_source)) {
+        # even though temperature is really in C and not K
+        # and prcp is really in mm/month and not mm/s
+        c("kg m-2 s-1", "K", "K", "K")
+      }
+    if (grepl("CMIP5", clim_source)) {
+      varTags <- data.frame(tag = c("pr", "tasmin", "tasmax", "tas"),
+                            unit = units,
+                            row.names = c("prcp", "tmin", "tmax", "tmean"),
+                            stringsAsFactors = FALSE)
+      fileVarTags <- paste0("_", varTags$tag, "_")
+      names(fileVarTags) <- row.names(varTags)
+    }
+    if (grepl("CMIP3", clim_source)) {
+      varTags <- data.frame(tag = c("Prcp", "Tmin", "Tmax", "Tavg"),
+                            unit = units,
+                            row.names = c("prcp", "tmin", "tmax", "tmean"),
+                            stringsAsFactors = FALSE)
+      varTags <- c(prcp = "Prcp", tmean = "Tavg", tmin = "Tmin", tmax = "Tmax")
+      fileVarTags <- paste("monthly", varTags$tag, sep = ".")
+      names(fileVarTags) <- row.names(varTags)
+    }
 
 		#objects that need exporting to workers
-		list.export <- c("dir.out.temp", "GCM_source", "is_GDODCPUCLLNL", "is_NEX", "reqGCMs", "reqRCPsPerGCM", "reqDownscalingsPerGCM", "locations", "climScen", "varTags", "be.quiet", "getYears", "assocYears", "future_yrs", "DScur_startyr", "DScur_endyr", "simstartyr", "endyr", "dbWeatherDataFile", "climate.ambient", "dbW_iSiteTable", "dbW_iScenarioTable", "dbW_compression_type", "bbox", "print_int",
-				"calc.ScenarioWeather", "get_GCMdata", "get.DBvariable",
-				"downscale.raw", "downscale.delta", "downscale.deltahybrid", "downscale.deltahybrid3mod", "downscale.periods",
-				"in_GMC_box", "unique_times", "useSlices", "erf", "add_delta_to_PPT", "fix_PPTdata_length", "calc_Days_withLoweredPPT", "controlExtremePPTevents", "test_sigmaNormal", "test_sigmaGamma", "stretch_values",
-				"applyDeltas", "applyPPTdelta_simple", "applyPPTdelta_detailed", "applyDelta_oneYear", "applyDeltas2",
-				"doQmapQUANT.default_drs", "tol", "doQmapQUANT_drs", "applyDeltas2", "downscaling.options")
+		list.export <- c("add_delta_to_PPT", "applyDelta_oneYear", "applyDeltas", "applyDeltas2",
+      "applyDeltas2", "applyPPTdelta_detailed", "applyPPTdelta_simple",
+      "assocYears", "bbox", "be.quiet", "calc_Days_withLoweredPPT",
+      "calc.ScenarioWeather", "clim_source", "climate.ambient", "climScen",
+      "controlExtremePPTevents", "dbW_compression_type", "dbW_iScenarioTable",
+      "dbW_iSiteTable", "dbWeatherDataFile", "dir.out.temp", "doQmapQUANT_drs",
+      "doQmapQUANT.default_drs", "downscale.delta", "downscale.deltahybrid",
+      "downscale.deltahybrid3mod", "downscale.periods", "downscale.raw",
+      "downscaling.options", "DScur_endyr", "DScur_startyr", "endyr",
+      "erf", "fix_PPTdata_length", "future_yrs", "get_GCMdata", "get.DBvariable",
+      "getYears", "is_netCDF", "is_NEX", "locations", "mmPerDay_to_cmPerMonth",
+      "mmPerSecond_to_cmPerMonth", "print.debug", "print_int", "reqDownscalingsPerGCM",
+      "reqGCMs", "reqRCPsPerGCM", "simstartyr", "stretch_values", "test_sigmaGamma",
+      "test_sigmaNormal", "tol", "unique_times", "useSlices", "varTags")
 		if (is_NEX) {
-			list.export <- c(list.export, "saveNEXtempfiles", "useRCurl",
-				"mmPerSecond_to_cmPerMonth", "get.request")
+			list.export <- c(list.export, "get.request")
 		}
-		if (is_GDODCPUCLLNL) {
-			list.export <- c(list.export, "fileVarTags", "gcmFiles",
-				"mmPerDay_to_cmPerMonth", "whereNearest", "get.TimeIndices", "get.SpatialIndices", "do_ncvar_get")
+		if (is_netCDF) {
+			list.export <- c(list.export, "fileVarTags", "climDB_files",
+				"whereNearest", "get.TimeIndices", "get.SpatialIndices", "do_ncvar_get")
 		}
-
 
 		#Repeat call to get climate data for all requests until complete
 		repeatN <- 0
 		i_AllToDo <- seq_len(requestN)
 		i_Done <- NULL
 
-		logFile <- file.path(dir.out, paste0("extractionsDone_", GCM_source, ".rds"))
+		logFile <- file.path(dir.out, paste0("extractionsDone_", clim_source, ".rds"))
 		if (file.exists(logFile)) {
 			i_Done <- sort(unique(c(i_Done, readRDS(file=logFile))))
 		}
-		temp.files <- list.files(path=dir.out.temp, pattern=GCM_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+		temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if (length(temp.files) > 0) {
-			i_Done <- sort(unique(c(i_Done, as.integer(unlist(strsplit(unlist(strsplit(temp.files, split="_", fixed=TRUE))[c(FALSE, TRUE)], split=".", fixed=TRUE))[c(TRUE, FALSE)]))))
+		  # extract i_done number from file name
+		  temp <- lapply(strsplit(temp.files, split = "_", fixed = TRUE), function(x) x[length(x)])
+		  temp <- lapply(strsplit(unlist(temp), split = ".", fixed = TRUE), function(x) x[1])
+			i_Done <- sort(unique(c(i_Done, as.integer(unlist(temp)))))
 		}
 
 		while (repeatExtractionLoops_maxN > repeatN && length(i_ToDo <- if (length(i_Done) > 0) i_AllToDo[-i_Done] else i_AllToDo) > 0) {
 			repeatN <- repeatN + 1
-			if (!be.quiet) print(paste("'", GCM_source, "' will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
+			if (!be.quiet) print(paste(shQuote(clim_source), "will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
 
 			out <- tryToGet_ClimDB(is_ToDo = i_ToDo,
 				list.export = list.export,
-				GCM_source, is_GDODCPUCLLNL, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, locations, varTags, fileVarTags, getYears, assocYears, saveNEXtempfiles)
+				clim_source, is_netCDF, is_NEX, gcmFiles = climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, bbox, tbox, locations, varTags, fileVarTags, getYears, assocYears)
 
 			i_Done <- sort(unique(c(i_Done, out)))
 			saveRDS(i_Done, file = logFile)
@@ -2539,7 +2689,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 		# Determine progress
 		if (length(i_Done) > 0) {
-			if (!be.quiet) print(paste(GCM_source, "was extracted for n =", length(i_Done), "out of", length(i_AllToDo), "downscaling requests"))
+			if (!be.quiet) print(paste(clim_source, "was extracted for n =", length(i_Done), "out of", length(i_AllToDo), "downscaling requests"))
 
 			ils_done <- unique((i_Done - 1) %/% length(reqGCMs) + 1)
 			include_YN_climscen[do_SWRun_sites][ils_done] <- 1
@@ -2551,20 +2701,20 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 		#Clean up: report unfinished locations, etc.
 		if (length(i_ToDo) > 0) {
-			print(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", GCM_source, "'"))
+			print(paste(length(i_ToDo), "sites didn't extract climate scenario information by '", clim_source, "'"))
 			ils_notdone <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1)
 			failedLocations_DB <- locations[ils_notdone, ]
 
 			include_YN_updateFailed <- include_YN
 			include_YN_updateFailed[do_SWRun_sites][ils_notdone] <- 0
-			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("ClimDB_failedLocations_", GCM_source, ".RData")))
+			save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("ClimDB_failedLocations_", clim_source, ".RData")))
 
 			rm(failedLocations_DB, include_YN_updateFailed, ils_notdone)
 		}
 
-		if (!be.quiet) print(paste("Finished '", GCM_source, "' at", Sys.time()))
+		if (!be.quiet) print(paste("Finished '", clim_source, "' at", Sys.time()))
 
-		rm(locations, requestN, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, getYears, assocYears, gcmsDB, scenariosDB)
+		rm(locations, requestN, i_Done, i_ToDo, i_AllToDo, varTags, timeSlices, getYears, assocYears, climDB_struct)
 
 		include_YN_climscen
 	})
@@ -2572,40 +2722,48 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	# keep track of successful/unsuccessful climate scenarios
 	include_YN_climscen <- rep(0, runsN_master)
 
-	# loop through data sources
-	for (isource in sort(unique(sites_GCM_source))) {
-		include_YN_climscen <- get_climatechange_data(GCM_source = isource,
-								is_GDODCPUCLLNL = grepl("BCSD_GDODCPUCLLNL", isource),
-								is_NEX = isource == "CMIP5_BCSD_NEX_USA",
-								do_SWRun_sites = runIDs_sites[sites_GCM_source == isource],
-								include_YN_climscen = include_YN_climscen)
-	}
+  # loop through data sources
+  for (k in seq_along(opt_climsc_extr)) {
+    clim_source <- opt_climsc_extr[[k]][["dataset"]]
+    do_SWRun_sites <- runIDs_sites[sites_GCM_source == clim_source]
+
+    if (length(do_SWRun_sites) > 0)
+      include_YN_climscen <- get_climatechange_data(clim_source = clim_source,
+                  is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", clim_source),
+                  is_NEX = grepl("NEX", clim_source),
+                  do_SWRun_sites = do_SWRun_sites,
+                  include_YN_climscen = include_YN_climscen,
+                  opts = opt_climsc_extr[[k]],
+                  bbox = clim_boxes[[clim_source]][["bbox"]],
+                  tbox = clim_boxes[[clim_source]][["tbox"]])
+  }
 
 	SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
 	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
 
-	rm(sites_GCM_source, xy, i_use, include_YN_climscen)
+	rm(sites_GCM_source, xy, i_use, include_YN_climscen, do_SWRun_sites, clim_source)
 }
 
 
 #-CMIP3_ClimateWizardEnsembles does not allow for multiple sources
-if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global || exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
+if (exinfo$ExtractClimateChangeScenarios && any(exinfo$which_ClimateWizard)) {
+  stopifnot(require("raster"))
 
 	if (!be.quiet) print(paste("Started 'ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles' at", Sys.time()))
 
 	list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 	if (length(list.scenarios.datafile) > 0) { #extracts only information requested in the 'datafile.SWRunInformation'
 
-		if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
+		if ("CMIP3_ClimateWizardEnsembles_Global" == opt_climsc_extr[["dataset"]]) {
 			#Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
 			#accessed via climatewizard.org on July 10, 2012
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "Global")
+			dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios", "ClimateWizardEnsembles_Global")
 		}
-		if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
+		if ("CMIP3_ClimateWizardEnsembles_USA" == opt_climsc_extr[["dataset"]]) {
 			#Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
 			#accessed via climatewizard.org
-			dir.ex.dat <- file.path(dir.external, "ExtractClimateChangeScenarios", "ClimateWizard_CMIP3", "USA")
+			dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios", "ClimateWizardEnsembles_USA")
 		}
 
 		list.scenarios.external <- basename(list.dirs2(path=dir.ex.dat, full.names=FALSE, recursive=FALSE))
@@ -2617,11 +2775,11 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 			for (sc in seq_along(list.scenarios.datafile)) {
 				dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
 				temp <- basename(list.dirs2(path=dir.ex.dat.sc, full.names=FALSE, recursive=FALSE))
-				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
+				if ("CMIP3_ClimateWizardEnsembles_Global" == opt_climsc_extr[["dataset"]]) {
 					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Value", x=temp)])
 					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Value", x=temp)])
 				}
-				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
+				if ("CMIP3_ClimateWizardEnsembles_USA" == opt_climsc_extr[["dataset"]]) {
 					dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Precipitation_Change", x=temp)])
 					dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, temp[grepl(pattern="Tmean_Change", x=temp)])
 				}
@@ -2637,7 +2795,7 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 				sc.temp <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.temp, grid=list.temp.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
 				sc.ppt <- sapply(st_mo, FUN=function(m) get.month(path=dir.ex.dat.sc.ppt, grid=list.ppt.asc[grepl(pattern=paste("_", m, "_", sep=""), x=list.temp.asc)]))
 
-				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global) {
+				if ("CMIP3_ClimateWizardEnsembles_Global" == opt_climsc_extr[["dataset"]]) {
 					#temp value in C
 					#ppt value in mm
 					#add data to sw_input_climscen and set the use flags
@@ -2648,7 +2806,7 @@ if (	exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global ||
 					sw_input_climscen_values_use[i.temp] <- TRUE
 					sw_input_climscen_values[, i.temp] <- sc.temp
 				}
-				if (exinfo$ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA) {
+				if ("CMIP3_ClimateWizardEnsembles_USA" == opt_climsc_extr[["dataset"]]) {
 					sc.temp <- sc.temp * 5/9	#temp addand in C
 					sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
 					#add data to sw_input_climscen and set the use flags
@@ -2703,6 +2861,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 		#Miller, D. A. and R. A. White. 1998. A conterminous United States multilayer soil characteristics dataset for regional climate and hydrology modeling. Earth Interactions 2:1-26.
 		#CONUS-SOIL: rasterized and controlled STATSGO data; information for 11 soil layers available
 		# Note(drs): it appears that NODATA values are recorded as 0
+		stopifnot(require("raster"))
 
 		do_extract[[1]] <- is.na(sites_externalsoils_source) |
 						sites_externalsoils_source == "CONUSSOILFromSTATSGO_USA"
@@ -3261,6 +3420,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 #--------------------------------------------------------------------------------------------------#
 #------EXTRACT ELEVATION------
 if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
+  stopifnot(require("raster"))
+
 	#allow for multiple sources
 	if (extract_determine_database == "SWRunInformation" && "Elevation_source" %in% colnames(SWRunInformation)) {
 		sites_elevation_source <- SWRunInformation$Elevation_source[runIDs_sites]
@@ -3463,6 +3624,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 
 	if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
 		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+    stopifnot(require("rgdal"))
 
 		do_extract[[1]] <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
 						sites_monthlyclim_source == "ClimateNormals_NCDC2005_USA"

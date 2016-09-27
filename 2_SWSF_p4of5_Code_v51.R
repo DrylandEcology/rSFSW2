@@ -769,7 +769,7 @@ if(anyNA(sites_dailyweather_source)){
 	stop("There are sites without daily weather. Provide data for all runs")
 }
 
-if(exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA) {
+if (exinfo$ExtractClimateChangeScenarios) {
 	getScenarioWeatherDataFromDatabase <- TRUE
 	getCurrentWeatherDataFromDatabase <- TRUE
 }
