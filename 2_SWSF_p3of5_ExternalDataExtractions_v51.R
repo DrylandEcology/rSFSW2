@@ -2001,7 +2001,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 	#----Extraction function
 	calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX, gcmFiles, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, bbox, tbox, locations, dbW_iSiteTable, compression_type, varTags, fileVarTags, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, downscaling.options, dir.out.temp, be.quiet, print.debug) {
-    on.exit({save(ls(),
+    on.exit({save(list = ls(),
       file = file.path(dir.out.temp, paste0("ClimScen_failed_", i, "_l2.RData")))})
 
 		#Identify index for site and scenario
