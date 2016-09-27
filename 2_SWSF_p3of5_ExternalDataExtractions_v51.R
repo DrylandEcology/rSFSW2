@@ -636,9 +636,9 @@ if (exinfo$ExtractClimateChangeScenarios &&
     any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 
-	dbW_setConnection(dbFilePath=dbWeatherDataFile)
-	dbW_iSiteTable <- dbW_getSiteTable()
-	dbW_iScenarioTable <- dbW_getScenariosTable()
+	Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+	dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
+	dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
 	dbW_compression_type <- Rsoilwat31:::dbW_compression()
 
 	sctemp <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
@@ -1081,8 +1081,9 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	})
 
 
-	applyDelta_oneYear <- compiler::cmpfun(function(obs, delta_ts, ppt_fun, daily, monthly, ppt_type = c("simple", "detailed"), dailyPPTceiling, sigmaN, do_checks) {
-		ppt_type <- match.arg(ppt_type)
+	applyDelta_oneYear <- compiler::cmpfun(function(obs, delta_ts, ppt_fun, daily, monthly, ppt_type, dailyPPTceiling, sigmaN, do_checks) {
+		stopifnot(!is.null(ppt_type))
+		ppt_type <- match.arg(ppt_type, c("detailed", "simple"))
 
 		month <- 1 + as.POSIXlt(seq(ISOdate(obs@year, 1, 1), ISOdate(obs@year, 12, 31), by = "day"))$mon
 		ydeltas <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
@@ -1128,8 +1129,9 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	})
 
 
-	applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_fun, ppt_type = c("simple", "detailed"), dailyPPTceiling, sigmaN, do_checks = FALSE) {
-		ppt_type <- match.arg(ppt_type)
+	applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_fun, ppt_type, dailyPPTceiling, sigmaN, do_checks = FALSE) {
+		stopifnot(!is.null(ppt_type))
+		ppt_type <- match.arg(ppt_type, c("detailed", "simple"))
 		# daily_months <- 1 + as.POSIXlt(seq(ISOdate(years[1], 1, 1), ISOdate(years[length(years)], 12, 31), by = "day"))$mon
 
 		sw_list <- list()
@@ -1235,7 +1237,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	#'
 	#' @references Lenderink, G., A. Buishand, and W. van Deursen. 2007. Estimates of future discharges of the river Rhine using two scenario methodologies: direct versus delta approach. Hydrology and Earth System Sciences 11:1145-1159.
 	#' @export
-	downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(applyPPT_type = "detailed", sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks=TRUE) {
+	downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks=TRUE) {
 		# Time periods
 		tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL, scen.fut.monthly, years, DScur_startyear, DScur_endyear, DSfut_startyear, DSfut_endyear)
 		if (any(!tp$iuse_obs_hist_d)) obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
@@ -1265,7 +1267,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		temp_add <- delta_ppts < 1 / (10 * downscaling.options[["PPTratioCutoff"]]) | delta_ppts > downscaling.options[["PPTratioCutoff"]]
 		if (any(temp_add)) {
 			ppt_fun[temp_add] <- "+"
-			delta_ppts[temp_add] <- scen.fut.mean_ppt - obs.hist.mean_ppt
+			delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
 		}
 		delta_ts[, "PPT_cm"] <- delta_ppts
 
@@ -1273,7 +1275,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		# 3. Apply deltas to historic daily weather
 		try(applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
 				years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
-				ppt_type = downscaling.options[["applyPPT_type"]], dailyPPTceiling = dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = TRUE)
+				ppt_type = downscaling.options[["ppt_type"]], dailyPPTceiling = dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = TRUE)
 	})
 
 	#' Downscale with the 'delta approach'
@@ -1283,7 +1285,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	#' @references Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta change and downscaled gcm scenarios for three mountainous basins in the United States. Journal of the American Water Resources Association 36:387-397.
 	#' @references Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 	#' @export
-	downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(applyPPT_type = "detailed", sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks = TRUE) {
+	downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years = NULL, DScur_startyear = NULL, DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL, downscaling.options = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks = TRUE) {
 		# Time periods
 		tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years, DScur_startyear, DScur_endyear, DSfut_startyear, DSfut_endyear)
 		if (any(!tp$iuse_obs_hist_d)) obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
@@ -1324,7 +1326,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		# 3. Apply deltas to historic daily weather
 		try(applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
 				years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
-				ppt_type = downscaling.options[["applyPPT_type"]], dailyPPTceiling = dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = TRUE)
+				ppt_type = downscaling.options[["ppt_type"]], dailyPPTceiling = dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = TRUE)
 	})
 
 	#' Downscale with the 'delta-hybrid approach' old version (prior to May 2016)
@@ -1425,13 +1427,16 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	})
 
 	#------------------------
-	doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type = c("linear", "tricub"), linear_extrapolation=c("Boe", "Thermessl2012CC.QMv1b", "none"), spline_method=c("monoH.FC", "fmm", "natural"), monthly_extremes=NULL, correctSplineFun_type=c("fail", "none", "attempt"), ...) {
+	doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type, linear_extrapolation, spline_method, monthly_extremes = NULL, correctSplineFun_type, ...) {
 	  # Note: differs from call to call if jitter correction is used
+		stopifnot(!is.null(type), !is.null(linear_extrapolation), !is.null(spline_method),
+		  !is.null(correctSplineFun_type))
 
-	  type <- match.arg(type)
-	  linear_extrapolation <- match.arg(linear_extrapolation)
-	  spline_method <- match.arg(spline_method)
-	  correctSplineFun_type <- match.arg(correctSplineFun_type)
+		type <- match.arg(type, c("linear", "tricub"))
+		linear_extrapolation <- match.arg(linear_extrapolation,
+		  c("Boe", "Thermessl2012CC.QMv1b", "none"))
+	  spline_method <- match.arg(spline_method, c("monoH.FC", "fmm", "natural"))
+	  correctSplineFun_type <- match.arg(correctSplineFun_type, c("fail", "none", "attempt"))
 
 	  wet <- if (!is.null(fobj$wet.day)) {
 	    x >= fobj$wet.day
@@ -1541,7 +1546,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	                                      DScur_startyear = NULL, DScur_endyear = NULL,
 	                                      DSfut_startyear = NULL, DSfut_endyear = NULL,
 	                                      downscaling.options = list(extrapol_type = "linear_Thermessl2012CC.QMv1b",
-	                                      		applyPPT_type = "detailed",
+	                                      		ppt_type = "detailed",
 	                                      		sigmaN = 6,
 												PPTratioCutoff = 10,
 												correctSplineFun_type = "attempt"),
@@ -1588,12 +1593,12 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			qm_fit <- qmap::fitQmapQUANT.default(obs=obs.hist.monthly[, 2 + iv], mod=scen.hist.monthly[, 2 + iv], qstep=qstep, nboot=nboot, wet.day=FALSE)
 
 			# 2nd part: bias correcting historic data ("then using quantile mapping techniques to remove the systematic bias in the GCM simulations relative to the observed probability distributions")
-			temp <- try(doQmapQUANT_drs(x=scen.hist.monthly[, 2 + iv], fobj=qm_fit, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correctSplineFun_type"]]), silent = TRUE)
+			temp <- try(doQmapQUANT_drs(x=scen.hist.monthly[, 2 + iv], fobj=qm_fit, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correct_spline"]]), silent = TRUE)
 			if (inherits(temp, "try-error")) return(temp)
 			sbc.hist.monthly[, 2 + iv] <- temp
 
 			# 3rd part: bias correcting future data ("the same quantile map between simulations and observations is used to transform the future simulations from the GCM")
-			temp <- try(doQmapQUANT_drs(x=scen.fut.monthly[, 2 + iv], fobj=qm_fit, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correctSplineFun_type"]]), silent = TRUE)
+			temp <- try(doQmapQUANT_drs(x=scen.fut.monthly[, 2 + iv], fobj=qm_fit, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correct_spline"]]), silent = TRUE)
 			if (inherits(temp, "try-error")) return(temp)
 			sbc.fut.monthly[, 2 + iv] <- temp
 
@@ -1607,7 +1612,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 				id_sim_months <- obs.hist.monthly[, "Month"] == im	#identical(obs.hist.monthly[, 2], hd.fut.monthly[, 2])
 
 				qm_fitm <- qmap::fitQmapQUANT.default(obs=sbc.fut.monthly[sbc.fut.monthly[, 2] == im, 2 + iv], mod=obs.hist.monthly[id_sim_months, 2 + iv], qstep=qstep, nboot=nboot, wet.day=FALSE)
-				temp <- try(doQmapQUANT_drs(x=obs.hist.monthly[id_sim_months, 2 + iv], fobj=qm_fitm, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correctSplineFun_type"]]), silent = TRUE)
+				temp <- try(doQmapQUANT_drs(x=obs.hist.monthly[id_sim_months, 2 + iv], fobj=qm_fitm, type=downscaling.options[["extrapol_type"]], montly_obs_base=obs.hist.monthly[, 2 + iv], monthly_extremes=monthly_extremes[[iv]], correctSplineFun_type=downscaling.options[["correct_spline"]]), silent = TRUE)
 				if (inherits(temp, "try-error")) return(temp)
 				hd.fut.monthly[id_sim_months, 2 + iv] <- temp
 			}
@@ -1630,7 +1635,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	    # Apply deltas to historic daily weather
 	    # Note: PPT differs from call to call to applyDeltas() because of controlExtremePPTevents (if dailyPPTceiling > 0)
 		try(applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
-	    						years = tp$years, delta_ts, ppt_fun, ppt_type = downscaling.options[["applyPPT_type"]], dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = FALSE)
+	    						years = tp$years, delta_ts, ppt_fun, ppt_type = downscaling.options[["ppt_type"]], dailyPPTceiling, sigmaN = downscaling.options[["sigmaN"]], do_checks = do_checks), silent = FALSE)
 	})
 
 
