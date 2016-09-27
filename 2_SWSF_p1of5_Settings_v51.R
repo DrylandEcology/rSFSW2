@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 #--------------------------------------------------------------------------------------------------#
 
 #------------------------FRAMEWORK FOR SOILWAT SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
