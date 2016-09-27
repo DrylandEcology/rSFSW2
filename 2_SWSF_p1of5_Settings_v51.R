@@ -204,21 +204,18 @@ chunk_size.options <- list(
 		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
 )
 
-opt_climsc_extr <- list(
-  # for each climate data set from which to extract, add an item that is structured like 'source1'
-  # priority of extraction: source1, source2, ... if multiple sources provide data for a location
-  source1 = list(
-    # dataset = 'project_source' with
-    #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
-    #   - source = one string out of:
-    #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
-    #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
-    #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
-    #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
-    #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
-    dataset = "CMIP5_BCSD_SageSeer_USA",
-    ds_fname_str = c(id_var = 2L, id_gcm = 4L, id_scen = 5L, id_run = 6L, id_time = 7L)
-  )
+opt_climsc_extr <- c(
+  # for each climate data set from which to extract, add an element like 'dataset1'
+  # priority of extraction: dataset1, dataset2, ... if multiple sources provide data for a location
+  # dataset = 'project_source' with
+  #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
+  #   - source = one string out of:
+  #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
+  #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
+  #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
+  #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
+  #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
+    dataset1 = "CMIP5_BCSD_SageSeer_USA"
 )
 
 do.PriorCalculations <- c(
