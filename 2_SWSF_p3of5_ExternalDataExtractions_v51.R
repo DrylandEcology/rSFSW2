@@ -1318,7 +1318,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 		if (any(temp_add)) {
 			ppt_fun[temp_add] <- "+"
-			delta_ppts[temp_add] <- scen.fut.mean_ppt - scen.hist.mean_ppt
+			delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - scen.hist.mean_ppt[temp_add]
 		}
 		delta_ts[, "PPT_cm"] <- delta_ppts
 
