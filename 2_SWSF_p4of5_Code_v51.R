@@ -666,7 +666,7 @@ if(do_weather_source){
 			#	- Grids: Geographic Coordinate Reference: WGS_1984; Projection: Lambert Conformal Conic
 			#	- Cells size: 1000 x 1000 m
 			#	- All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
-			there <- simstartyr >= 1980 && endyr <= as.POSIXlt(Sys.time())$year+1900 - 1
+			there <- simstartyr >= 1980 && endyr <= as.POSIXlt(Sys.time(), tz = "UTC")$year+1900 - 1
 			if (any(there)) {
         there <- (SWRunInformation[runIDs_sites, "X_WGS84"] >= -179 &
                   SWRunInformation[runIDs_sites, "X_WGS84"] <= -5) &
@@ -4907,7 +4907,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
 						Doy_SeedDispersalStart <- max(round(param$Doy_SeedDispersalStart0 + param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan, 0) %% 365, 1)
-						moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(as.POSIXlt(paste(simTime$useyrs[1] - 1, "-12-31", sep="")) - as.POSIXlt(paste(simTime$useyrs[1] - 1, "-01-01", sep=""))) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
+						moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(ISOdate(simTime$useyrs[1] - 1, 12, 31, tz = "UTC") - ISOdate(simTime$useyrs[1] - 1, 1, 1, tz = "UTC")) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
 						#Calculate regeneration year dates
 						if (startyr > simstartyr) {
 						  #start earlier to complete RY
