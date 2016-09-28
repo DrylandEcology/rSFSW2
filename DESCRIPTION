@@ -1,7 +1,7 @@
 Package: SWSF
 Title: SOILWAT Simulation Framework
-Version: 1.6.2
-Date: 2016-09-24
+Version: 1.6.3
+Date: 2016-09-28
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
 			person("Caitlin", "Andrews", role = "ctb", email = "not@available.com"))
 			person("Ryan", "Murphy", role = "ctb", email = "not@available.com"))
