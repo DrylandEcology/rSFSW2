@@ -474,17 +474,17 @@ simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
   res <- list()
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
-  temp <- as.POSIXlt(paste0(startyr, "-01-01"))
+  temp <- ISOdate(startyr, 1, 1, tz = "UTC")
 
   res[["useyrs"]] <- startyr:endyr
 
   res[["no.useyr"]] <- endyr - startyr + 1
   res[["no.usemo"]] <- res[["no.useyr"]] * 12
-  res[["no.usedy"]] <- as.numeric(as.POSIXlt(paste0(endyr, "-12-31")) - temp) + 1
+  res[["no.usedy"]] <- as.numeric(ISOdate(endyr, 12, 31, tz = "UTC") - temp) + 1
 
   res[["discardyr"]] <- startyr - simstartyr
   res[["discardmo"]] <- res[["discardyr"]] * 12
-  res[["discarddy"]] <- as.numeric(temp - as.POSIXlt(paste0(simstartyr, "-01-01")))
+  res[["discarddy"]] <- as.numeric(temp - ISOdate(simstartyr, 1, 1, tz = "UTC"))
 
   res[["index.useyr"]] <- res[["discardyr"]] + seq_len(res[["no.useyr"]])
   res[["index.usemo"]] <- res[["discardmo"]] + seq_len(res[["no.usemo"]])
@@ -497,8 +497,8 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
   res <- list()
 
   if (any(sim_tscales == "daily")) {
-    temp <- as.POSIXlt(seq(from = as.POSIXlt(paste0(min(st$useyrs), "-01-01")),
-                           to = as.POSIXlt(paste0(max(st$useyrs), "-12-31")),
+    temp <- as.POSIXlt(seq(from = ISOdate(min(st$useyrs), 1, 1, tz = "UTC"),
+                           to = ISOdate(max(st$useyrs), 12, 31, tz = "UTC"),
                            by = "1 day"))
 
     res$doy_ForEachUsedDay <- res$doy_ForEachUsedDay_NSadj <- temp$yday + 1
@@ -506,7 +506,7 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
 
     if (latitude < 0 && account_NorthSouth) {
-      dshift <- as.POSIXlt(paste(st$useyrs, 6, 30, sep = "-"))$yday + 1	#new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy=366, there are two with doy=182
+      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1	#new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy=366, there are two with doy=182
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
         temp <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
         c(temp[-(1:dshift[x])], temp[1:dshift[x]])
@@ -596,8 +596,8 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
         dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
       }
 
-      month_forEachDoy <- as.POSIXlt(seq(from = as.POSIXlt(paste0(years[y], "-01-01")),
-                                         to = as.POSIXlt(paste0(years[y], "-12-31")),
+      month_forEachDoy <- as.POSIXlt(seq(from = ISOdate(years[y], 1, 1, tz = "UTC"),
+                                         to = ISOdate(years[y], 12, 31, tz = "UTC"),
                                          by = "1 day"))$mon + 1
 
       tempMean <- tempMean + tapply(temp.dailyTempMean, month_forEachDoy, mean)
@@ -2031,13 +2031,13 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
     colnames(weath.data) <- c("year", "month", "day", "prcp_mm", "Tmax_C", "Tmin_C", "Wind_mPERs")
 
     #times
-    date <- seq(from=as.Date(with(weath.data[1, ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-        to=as.Date(with(weath.data[nrow(weath.data), ], paste(year, month, day, sep="-")), format="%Y-%m-%d"),
-        by="1 day")
+    doy <- 1 + as.POSIXlt(seq(from = with(weath.data[1, ], ISOdate(year, month, day, tz = "UTC")),
+        to = with(weath.data[nrow(weath.data), ], ISOdate(year, month, day, tz = "UTC")),
+        by = "1 day"))$yday
 
     # conversion precipitation: mm/day -> cm/day
-    data_all <- with(weath.data, data.frame(doy=1 + as.POSIXlt(date)$yday, Tmax_C, Tmin_C, prcp_mm/10))
-    colnames(data_all) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+    data_all <- with(weath.data, data.frame(
+      DOY = doy, Tmax_C = Tmax_C, Tmin_C = Tmin_C, PPT_cm = prcp_mm / 10))
 
     years <- startYear:endYear
     n_years <- length(years)
@@ -2046,7 +2046,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
     for(y in seq_along(years)) {
       data_sw <- data_all[weath.data$year == years[y], ]
       data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-      weathDataList[[y]]<-new("swWeatherData",
+      weathDataList[[y]] <- new("swWeatherData",
                               year = years[y],
                               data = data.matrix(data_sw, rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
     }

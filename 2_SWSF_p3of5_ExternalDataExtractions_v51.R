@@ -847,7 +847,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
 
 		res <- try(lapply(obs.hist.daily, FUN=function(obs) {
-					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+					month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j", tz = "UTC")$mon + 1
 					ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
 					tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
 
@@ -871,7 +871,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 																if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) { #sample from the same historic month in an other with rainy days instead
 																	#Locate data of same month in other year
 																	i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
-																	newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+																	newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j", tz = "UTC")$mon + 1
 																	newMonthData <- newObs@data[, "PPT_cm"][newMonth == m]
 																	#Adjust data
 																	newMonthData <- fix_PPTdata_length(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a leap year February issue
@@ -880,7 +880,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 																	#Locate data of any month in any year
 																	i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
 																	i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
-																	newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j")$mon + 1
+																	newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep="-"), format="%Y-%j", tz = "UTC")$mon + 1
 																	newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
 																	#Adjust data
 																	newMonthData <- fix_PPTdata_length(data=newMonthData, targetLength=sum(im_month)) #adjust number of days in case we got a month with a different number of days
@@ -1037,7 +1037,8 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 	applyDelta_oneYear <- compiler::cmpfun(function(obs, delta_ts, ppt_fun, daily, monthly, ppt_type = c("simple", "detailed"), dailyPPTceiling, sigmaN, do_checks) {
 		ppt_type <- match.arg(ppt_type)
 
-		month <- 1 + as.POSIXlt(seq(ISOdate(obs@year, 1, 1), ISOdate(obs@year, 12, 31), by = "day"))$mon
+		month <- 1 + as.POSIXlt(seq(ISOdate(obs@year, 1, 1, tz = "UTC"),
+														ISOdate(obs@year, 12, 31, tz = "UTC"), by = "day"))$mon
 		ydeltas <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
 		add_days <- ppt_fun[month] == "+"
 		mult_days <- !add_days
@@ -1083,7 +1084,6 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 
 	applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_fun, ppt_type = c("simple", "detailed"), dailyPPTceiling, sigmaN, do_checks = FALSE) {
 		ppt_type <- match.arg(ppt_type)
-		# daily_months <- 1 + as.POSIXlt(seq(ISOdate(years[1], 1, 1), ISOdate(years[length(years)], 12, 31), by = "day"))$mon
 
 		sw_list <- list()
 		totalPPT_to_remove <- 0
@@ -1606,7 +1606,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 							ftemp <- textConnection(success)
 						} else if (service == "opendap") {
 							ftemp <- textConnection((temp <- strsplit(success, split="\n\n", fixed=TRUE))[[1]][3])
-							ttemp <- as.POSIXlt("1950-01-01") + 86400 * as.numeric(scan(text=sub("\n", ",", temp[[1]][4], fixed=TRUE), what="character", sep=",", quiet=TRUE)[-1])
+							ttemp <- as.POSIXlt("1950-01-01", tz = "UTC") + 86400 * as.numeric(scan(text=sub("\n", ",", temp[[1]][4], fixed=TRUE), what="character", sep=",", quiet=TRUE)[-1])
 						}
 						success <- 0
 					}
@@ -1623,7 +1623,7 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 				if (service == "ncss") {
 					temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
 					vtemp <- temp[, 2]
-					ttemp <- as.POSIXlt(temp[, 1])
+					ttemp <- as.POSIXlt(temp[, 1], tz = "UTC")
 				} else if (service == "opendap") {
 					vtemp <- read.csv(ftemp, colClasses=c("NULL", "numeric"), header=FALSE)[-1, ] #columns = Index, Variable
 				}
@@ -1738,8 +1738,8 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 			baseYear <- temp[sapply(temp, function(x) !is.na(x))][[1]]
 			stopifnot(length(baseYear) == 1)
 
-			firstDate <- as.POSIXlt(baseYear + tvals[1])
-			lastDate <- as.POSIXlt(baseYear + tvals[N])
+			firstDate <- as.POSIXlt(baseYear + tvals[1], tz = "UTC")
+			lastDate <- as.POSIXlt(baseYear + tvals[N], tz = "UTC")
 
 			startYear <- firstDate$year + 1900
 			startMonth <- firstDate$mon + 1
@@ -2459,11 +2459,11 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		getYears <- list(n_first = nrow(temp1), first = temp1, n_second = nrow(temp2), second = temp2)
 
 		#Monthly time-series
-		getYears$first_dates <- lapply(1:getYears$n_first, FUN=function(it) as.POSIXlt(seq(from=as.POSIXlt(paste0(getYears$first[it, 1], "-01-01")), to=as.POSIXlt(paste0(getYears$first[it, 2], "-12-31")), by="1 month")))
-		getYears$second_dates <- lapply(1:getYears$n_second, FUN=function(it) as.POSIXlt(seq(from=as.POSIXlt(paste0(getYears$second[it, 1], "-01-01")), to=as.POSIXlt(paste0(getYears$second[it, 2], "-12-31")), by="1 month")))
+		getYears$first_dates <- lapply(1:getYears$n_first, FUN=function(it) as.POSIXlt(seq(from=ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC"), by="1 month")))
+		getYears$second_dates <- lapply(1:getYears$n_second, FUN=function(it) as.POSIXlt(seq(from=ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC")), by="1 month")))
 		#Days per month
-		getYears$first_dpm <- lapply(1:getYears$n_first, FUN=function(it) rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(getYears$first[it, 1], "-01-01")), to=as.POSIXlt(paste0(getYears$first[it, 2], "-12-31")), by="1 day"))$mon)$lengths)
-		getYears$second_dpm <- lapply(1:getYears$n_second, FUN=function(it) rle(as.POSIXlt(seq(from=as.POSIXlt(paste0(getYears$second[it, 1], "-01-01")), to=as.POSIXlt(paste0(getYears$second[it, 2], "-12-31")), by="1 day"))$mon)$lengths)
+		getYears$first_dpm <- lapply(1:getYears$n_first, FUN=function(it) rle(as.POSIXlt(seq(from=ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC")), by="1 day"))$mon)$lengths)
+		getYears$second_dpm <- lapply(1:getYears$n_second, FUN=function(it) rle(as.POSIXlt(seq(from=ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC")), by="1 day"))$mon)$lengths)
 
 		#Logical on how to select from getYears
 		assocYears <- vector("list", length = 1 + length(reqRCPs) * nrow(future_yrs))
