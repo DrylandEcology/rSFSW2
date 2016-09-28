@@ -267,21 +267,21 @@ climate.conditions <- c(climate.ambient)
 #Will be applied to each climate.conditions
 downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
 
-downscaling.options <- list(
-	daily_ppt_limit = 1.5,							#
-	monthly_limit = 1.5,							#
-	ppt_type = "detailed",							# either "detailed" or "simple"
-	correct_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
-		#	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
-		#	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
-		#	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
-	extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
-		#	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
-		#	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
-		#	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
-		# 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
-	sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
-	PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
+opt_DS <- list(
+  daily_ppt_limit = 1.5,							#
+  monthly_limit = 1.5,							#
+  ppt_type = "detailed",							# either "detailed" or "simple"
+  fix_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
+    #	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
+    #	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
+    #	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
+  extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
+    #	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
+    #	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+    #	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
+    # 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+  sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
+  PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
 )
 
 #Climate ensembles created across scenarios
