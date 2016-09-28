@@ -9,7 +9,7 @@ Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
     R (>= 3.3.0)
 Imports:
-    Rsoilwat31 (>= 1.1.0),
+    Rsoilwat31 (>= 1.1.2),
     RSQLite (>= 1.0.0),
     DBI (>= 0.4.1),
     circular (>= 0.4.7),
