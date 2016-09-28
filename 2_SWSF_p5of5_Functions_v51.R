@@ -2854,6 +2854,67 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
 })
 
 
+dailyRegeneration_bySWPSnow_ThisYear_YN <- compiler::cmpfun(function(x, opts_regen_bySWPSnow) {
+  # calculate season doys
+  snowcover <- ifelse(x[,2] > 0, 1, 0)
+  r <- rle(snowcover)
+  rseries <- ifelse(r$values==0, 1:length(r$values), 0)
+  then <- which(rseries==rseries[rseries>0][which.max(r$lengths[rseries>0])])
+
+  sstart <- if (inherits(opts_regen_bySWPSnow[["season.start"]], "character")) {
+      # calculate last day of the longest snowpack
+      if (then == 1) 1 else cumsum(r$lengths)[then - 1]
+    } else {
+      opts_regen_bySWPSnow[["season.start"]]
+    }
+  send <- if (inherits(opts_regen_bySWPSnow[["season.end"]], "character")) {
+      # calculate first day of the longest snowpack
+      min(c(cumsum(r$lengths)[then]+1, length(snowcover)))
+    } else {
+      opts_regen_bySWPSnow[["season.end"]]
+    }
+
+  i_season <- sstart:send
+  if(length(i_season) > 0){
+    swp.season <- x[i_season,1]
+    gs <- rle(ifelse(swp.season >= opts_regen_bySWPSnow[["germination.swp.surface"]], 1, 0))
+    es <- rle(ifelse(swp.season >= opts_regen_bySWPSnow[["establishment.swp.surface"]] , 1, 0))
+
+    reg <- 0
+    # get vector of establishment starts and ends
+    establishment.start.dos <- establishment.end.dos <- NULL
+    for(esi in 1:length(es$lengths)){
+      if(es$lengths[esi] >= opts_regen_bySWPSnow[["establishment.duration"]] & es$values[esi] > 0){
+        establishment.start.dos <- c(establishment.start.dos, ifelse(esi == 1, 1, cumsum(es$lengths)[esi-1]+1))
+        establishment.end.dos <- c(establishment.end.dos, cumsum(es$lengths)[esi])
+      }
+    }
+
+    # check if any germination period matches up with an establishment period
+    if(length(establishment.end.dos) > 0){
+      for(gsi in 1:length(gs$lengths)){
+        if(gs$lengths[gsi] >= opts_regen_bySWPSnow[["germination.duration"]] & gs$values[gsi] > 0){
+          germination.start.dos <- ifelse(gsi == 1, 1, cumsum(gs$lengths)[gsi-1]+1)
+          germination.end.dos <- cumsum(gs$lengths)[gsi]
+          if( any( ((germination.start.dos + opts_regen_bySWPSnow[["germination.duration"]] >= establishment.start.dos) &
+                    (germination.start.dos + opts_regen_bySWPSnow[["germination.duration"]] + opts_regen_bySWPSnow[["establishment.duration"]] <= establishment.end.dos)) |
+                  ((germination.end.dos + opts_regen_bySWPSnow[["establishment.swp.surface"]]  >= establishment.start.dos) &
+                    (germination.end.dos + opts_regen_bySWPSnow[["establishment.swp.surface"]]  + opts_regen_bySWPSnow[["establishment.duration"]] <= establishment.end.dos)) ) ){
+            reg <- reg + 1
+          }
+        }
+      }
+    }
+
+  } else {
+    reg <- 0
+  }
+
+  reg > 0
+})
+
+
+
 ########################
 #------ GISSM functions
 # Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions. Ecol Model, 286, 66-77.

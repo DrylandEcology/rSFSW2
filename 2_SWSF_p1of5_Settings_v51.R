@@ -450,13 +450,15 @@ daily_lyr_agg <- list(
       fourth_cm = NULL) # cm, NULL(=deepest soil layer), or NA(=only three aggregation layers), distinguishes between third and fourth soil layer for average daily data aggregation
 
 #regeneration: germination and establishment
-season.start <- "LastSnow" # either doy or "LastSnow"
-season.end <- "FirstSnow" # either doy or "FirstSnow"
-germination.duration <- 7 # in days
-germination.swp.surface <- -0.2 # in MPa, duration must have at least x MPa
-establishment.duration <- 14 # in days
-establishment.swp.surface <- -0.4 # in MPa, duration must have at least x MPa
-establishment.delay <- 1 # start of establishment needs to occur latest x days after end of germination
+opts_regen_bySWPSnow <- list(
+  season.start = "LastSnow" # either doy or "LastSnow"
+  season.end = "FirstSnow" # either doy or "FirstSnow"
+  germination.duration = 7 # in days
+  germination.swp.surface = -0.2 # in MPa, duration must have at least x MPa
+  establishment.duration = 14 # in days
+  establishment.swp.surface = -0.4 # in MPa, duration must have at least x MPa
+  establishment.delay = 1 # start of establishment needs to occur latest x days after end of germination
+)
 
 #daily weather frequency distributions
 bin.prcpSizes <- 5	#bins of x mm precipitation event sizes

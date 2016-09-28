@@ -924,33 +924,37 @@ if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureR
 			                      "_", cats))
 			rm(cats)
 		}
-#TODO(drs): progress state
 	#35.2
 		if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){
-			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
+      temp <- c(temp, paste0("WetDegreeDays.SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, times = 3),
+                            rep(c(".topLayers", ".bottomLayers", ".anyLayer"),
+                                each = length(SWPcrit_MPa)), "_Cdays"))
 		}
 
 	#35.3
-		if(any(simulation_timescales=="daily") && aon$dailyThermalDrynessStartEnd){
-		  temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
-							rep(fieldtag_SWPcrit_MPa, each = 4),
-							"_NSadj_",
-							rep(c("topLayers", "bottomLayers"), each = 2), "_",
-							rep(c("Start", "End"), times = 2),
-							"_LongestContinuous_days_mean"))
+    if(any(simulation_timescales=="daily") && aon$dailyThermalDrynessStartEnd){
+      temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, each = 2),
+                            "_NSadj_",
+                            rep(c("topLayers", "bottomLayers"),
+                                each = length(SWPcrit_MPa) * 2), "_",
+                            c("Start", "End"),
+                            "_LongestContinuous_days"))
 		}
 
 	#35.4
 		if(any(simulation_timescales=="daily") && aon$dailyThermalSWPConditionCount){
 		  temp <- c(temp, paste0("SoilPeriods_Warm",
-							rep(paste0(rep(c("Dry", "Wet"), times = 3), "_",
-								rep(c("allLayers", "topLayer", "bottomLayer"), each = 2)),
-								each = length(Tmean_crit_C) * length(SWPcrit_MPa)),
-							"_Tcrit", rep(fieldtag_Tmean_crit_C, times = length(SWPcrit_MPa)),
-							"_SWPcrit", rep(fieldtag_SWPcrit_MPa, each = length(Tmean_crit_C)),
-							"_Count_days_mean"))
+                      rep(paste0(rep(c("Dry", "Wet"), times = 3), "_",
+                        rep(c("allLayers", "topLayer", "bottomLayer"), each = 2)),
+                        each = length(Tmean_crit_C) * length(SWPcrit_MPa)),
+                      "_Tcrit", rep(fieldtag_Tmean_crit_C, times = length(SWPcrit_MPa)),
+                      "_SWPcrit", rep(fieldtag_SWPcrit_MPa, each = length(Tmean_crit_C)),
+                      "_Count_days"))
 		}
 
+#TODO(drs): progress state
 	#36
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){
 			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""),
@@ -1039,104 +1043,120 @@ if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureR
 
 	#44
 		if(any(simulation_timescales=="monthly") & aon$monthlyTemp){
-			temp <- c(temp, paste("TempAir.m", st_mo, "_C_mean", sep=""))
+			temp <- c(temp, paste0("TempAir.m", st_mo, "_C"))
 		}
 
 	#45
 		if(any(simulation_timescales=="monthly") & aon$monthlyPPT){
-			temp <- c(temp, paste("Precip.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("Precip.m", st_mo, "_mm"))
 		}
 
 	#46
 		if(any(simulation_timescales=="monthly") & aon$monthlySnowpack){
-			temp <- c(temp, paste("Snowpack.m", st_mo, "_mmSWE_mean", sep=""))
+			temp <- c(temp, paste0("Snowpack.m", st_mo, "_mmSWE"))
 		}
 
 	#47
 		if(any(simulation_timescales == "monthly") & aon$monthlySoilTemp) {
-			temp <- c(temp, paste("TempSoil.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_C_mean", sep=""))
+      temp <- c(temp, paste0("TempSoil.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_C"))
 		}
 
 	#48
 		if(any(simulation_timescales=="monthly") & aon$monthlyRunoff){
-			temp <- c(temp, paste("Runoff.Total.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("Runoff.Total.m", st_mo, "_mm"))
 		}
 
 	#49
 		if(any(simulation_timescales=="monthly") & aon$monthlyHydraulicRedistribution){
-			temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+      temp <- c(temp, paste0("HydraulicRedistribution.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mm"))
 		}
 
 	#50
 		if(any(simulation_timescales=="monthly") & aon$monthlyInfiltration){
-			temp <- c(temp, paste("Infiltration.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("Infiltration.m", st_mo, "_mm"))
 		}
 
 	#51
 		if(any(simulation_timescales=="monthly") & aon$monthlyDeepDrainage){
-			temp <- c(temp, paste("DeepDrainage.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("DeepDrainage.m", st_mo, "_mm"))
 		}
 
 	#52
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPmatric){
-			temp <- c(temp, paste("SWPmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_MPa_FromVWCmean", sep=""))
+      temp <- c(temp, paste0("SWPmatric.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_MPa_FromVWCmean"))
 		}
 
 	#53 a.)
 		if(any(simulation_timescales=="monthly") & aon$monthlyVWCbulk){
-			temp <- c(temp, paste("VWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
+      temp <- c(temp, paste0("VWCbulk.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mPERm"))
 		}
 	#53 b.)
 		if(any(simulation_timescales=="monthly") & aon$monthlyVWCmatric){
-			temp <- c(temp, paste("VWCmatric.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mPERm_mean", sep=""))
+      temp <- c(temp, paste0("VWCmatric.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mPERm"))
 		}
 
 	#54
 		if(any(simulation_timescales=="monthly") & aon$monthlySWCbulk){
-			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+      temp <- c(temp, paste0("SWCbulk.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mm"))
 		}
 
 	#55
 		if(any(simulation_timescales=="monthly") & aon$monthlySWAbulk){
-			temp <- c(temp, paste0("SWAbulk_",
-								"SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
-								c(paste0("topLayers_m", st_mo), paste0("bottomLayers_m", st_mo)),
-								"_mm_mean"))
+      temp <- c(temp, paste0("SWAbulk_",
+                            "SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mm"))
 		}
 
 	#56
 		if(any(simulation_timescales=="monthly") & aon$monthlyTranspiration){
-			temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", st_mo, sep=""), paste("bottomLayers.m", st_mo, sep="")), "_mm_mean", sep=""))
+      temp <- c(temp, paste0("Transpiration.",
+                            paste0(rep(c("top", "bottom"), each = 12), "Layers.m", st_mo),
+                            "_mm"))
 		}
 
 	#57
 		if(any(simulation_timescales=="monthly") & aon$monthlySoilEvaporation){
-			temp <- c(temp, paste("Evaporation.Soil.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("Evaporation.Soil.m", st_mo, "_mm"))
 		}
 
 	#58
 		if(any(simulation_timescales=="monthly") & aon$monthlyAET){
-			temp <- c(temp, paste("AET.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("AET.m", st_mo, "_mm"))
 		}
 
 	#59
 		if(any(simulation_timescales=="monthly") & aon$monthlyPET){
-			temp <- c(temp, paste("PET.m", st_mo, "_mm_mean", sep=""))
+			temp <- c(temp, paste0("PET.m", st_mo, "_mm"))
 		}
 
 	#59.2
 		if (any(simulation_timescales == "monthly") && aon$monthlyVPD) {
-			temp <- c(temp, paste0("VPD_m", st_mo, "_kPa_mean"))
+			temp <- c(temp, paste0("VPD_m", st_mo, "_kPa"))
 		}
 
 	#60
 		if(any(simulation_timescales=="monthly") & aon$monthlyAETratios){
-			temp <- c(temp, paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), st_mo, "_fraction_mean", sep=""))
+      temp <- c(temp, paste0(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each = 12),
+                              st_mo, "_fraction"))
 		}
 
 	#61
 		if(any(simulation_timescales=="monthly") & aon$monthlyPETratios){
-			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), st_mo, "_fraction_mean", sep=""))
+      temp <- c(temp, paste0(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each = 12),
+                              st_mo, "_fraction"))
 		}
 
 		##############################################################---Aggregation: Potential regeneration---##############################################################
