@@ -2772,10 +2772,6 @@ if (exinfo$ExtractClimateChangeScenarios &&
       rle(as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 day"))$mon)$lengths)
     getYears$second_dpm <- lapply(seq_len(getYears$n_second), function(it)
       rle(as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 day"))$mon)$lengths)
-    getYears$second_dpm <- lapply(seq_len(getYears$n_second), function(it)
-      rle(as.POSIXlt(seq(from = ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"),
-                           to = ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC"),
-                           by = "1 day"))$mon)$lengths)
 
 		#Logical on how to select from getYears
 		assocYears <- vector("list", length = 1 + length(reqRCPs) * nrow(future_yrs))
