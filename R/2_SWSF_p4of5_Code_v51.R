@@ -1275,9 +1275,11 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 			dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
 			for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-				dat <- as.numeric(get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]])
+				dat <- get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]]
+				dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
 
-				if (any(is.finite(dat))) {
+        # this code plots only numeric maps
+				if (any(is.finite(dat)) && !inherits(dat, "try-error")) {
 					names(dat) <- iv_locs[[it1]][it2]
 
 					map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2], sim_cells_or_points, sep = "_")
