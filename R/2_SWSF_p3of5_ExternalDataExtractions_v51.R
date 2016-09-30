@@ -2459,11 +2459,23 @@ if (exinfo$GDODCPUCLLNL || exinfo$ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_U
 		getYears <- list(n_first = nrow(temp1), first = temp1, n_second = nrow(temp2), second = temp2)
 
 		#Monthly time-series
-		getYears$first_dates <- lapply(1:getYears$n_first, FUN=function(it) as.POSIXlt(seq(from=ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC"), by="1 month")))
-		getYears$second_dates <- lapply(1:getYears$n_second, FUN=function(it) as.POSIXlt(seq(from=ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC")), by="1 month")))
-		#Days per month
-		getYears$first_dpm <- lapply(1:getYears$n_first, FUN=function(it) rle(as.POSIXlt(seq(from=ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC")), by="1 day"))$mon)$lengths)
-		getYears$second_dpm <- lapply(1:getYears$n_second, FUN=function(it) rle(as.POSIXlt(seq(from=ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"), to=ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC")), by="1 day"))$mon)$lengths)
+    getYears$first_dates <- lapply(seq_len(getYears$n_first), function(it)
+      as.POSIXlt(seq(from = ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"),
+                       to = ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC"),
+                      by = "1 month")))
+    getYears$second_dates <- lapply(seq_len(getYears$n_second), function(it)
+      as.POSIXlt(seq(from = ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"),
+                       to = ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC"),
+                       by = "1 month")))
+    #Days per month
+    getYears$first_dpm <- lapply(seq_len(getYears$n_first), function(it)
+      rle(as.POSIXlt(seq(from = ISOdate(getYears$first[it, 1], 1, 1, tz = "UTC"),
+                           to = ISOdate(getYears$first[it, 2], 12, 31, tz = "UTC"),
+                           by = "1 day"))$mon)$lengths)
+    getYears$second_dpm <- lapply(seq_len(getYears$n_second), function(it)
+      rle(as.POSIXlt(seq(from = ISOdate(getYears$second[it, 1], 1, 1, tz = "UTC"),
+                           to = ISOdate(getYears$second[it, 2], 12, 31, tz = "UTC"),
+                           by = "1 day"))$mon)$lengths)
 
 		#Logical on how to select from getYears
 		assocYears <- vector("list", length = 1 + length(reqRCPs) * nrow(future_yrs))
