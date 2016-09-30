@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 #--------------------------------------------------------------------------------------------------#
 
 #------------------------FRAMEWORK FOR SOILWAT SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
@@ -41,7 +43,7 @@ debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
 
 #------Mode of framework
-minVersionRsoilwat <- "1.1.0"
+minVersionRsoilwat <- "1.1.2"
 minVersion_dbWeather <- "3.1.0"
 num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
@@ -62,9 +64,10 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 dir.prj <- "~/YOURPROJECT"
-dir.code <- "~/YOURCODE/SoilWat_R_Wrapper"
-if(interactive()) setwd(dir.prj)
+if (interactive()) setwd(dir.prj)
 dir.prj <- dir.big <- getwd()
+dir.code <- file.path(dir.prj, "R")
+
 
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
