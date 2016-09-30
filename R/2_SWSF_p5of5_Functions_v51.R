@@ -14,19 +14,19 @@ tol <- sqrt(.Machine$double.eps)
 toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
-swsf_read_csv <- compiler::cmpfun(function(file, ...) {
+swsf_read_csv <- compiler::cmpfun(function(file, stringsAsFactors = FALSE, ...) {
   if (requireNamespace("iotools", quietly = TRUE)) {
     # faster than utils::read.csv
     temp <- try(iotools::read.csv.raw(file = file, ...), silent = TRUE)
     if (inherits(temp, "try-error")) {
-      read.csv(file = file, ...)
+      read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
     } else {
       names(temp) <- gsub("\"", "", names(temp))
       temp
     }
 
   } else {
-    read.csv(file = file, ...)
+    read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
   }
 })
 
