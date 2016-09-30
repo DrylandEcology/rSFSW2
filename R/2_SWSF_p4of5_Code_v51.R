@@ -302,23 +302,44 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
 	}
 
-	if (any(create_treatments == "LookupClimatePPTScenarios"))
-	  tr_input_climPPT <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios))
-	if (any(create_treatments == "LookupClimateTempScenarios"))
-	  tr_input_climTemp <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios))
-	if (any(create_treatments == "LookupShiftedPPTScenarios"))
-	  tr_input_shiftedPPT <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios), row.names=1)
-	if (any(create_treatments == "LookupEvapCoeffFromTable"))
-	  tr_input_EvapCoeff <- swsf_read_csv(file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable), row.names=1)
-	if (any(create_treatments == "LookupTranspCoeffFromTable_Grass", create_treatments == "LookupTranspCoeffFromTable_Shrub", create_treatments == "LookupTranspCoeffFromTable_Tree", create_treatments == "LookupTranspCoeffFromTable_Forb", create_treatments == "AdjRootProfile")) {
-		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable), nrows=2), error=function(e) { print("LookupTranspCoeffFromTable.csv: Bad Path"); print(e)})
+	if (any(create_treatments == "LookupClimatePPTScenarios")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios)
+	  tr_input_climPPT <- swsf_read_csv(temp)
+	}
+	if (any(create_treatments == "LookupClimateTempScenarios")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios)
+	  tr_input_climTemp <- swsf_read_csv(temp)
+	}
+	if (any(create_treatments == "LookupShiftedPPTScenarios")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios)
+	  tr_input_shiftedPPT <- swsf_read_csv(temp, row.names = 1)
+	}
+	if (any(create_treatments == "LookupEvapCoeffFromTable")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable)
+	  tr_input_EvapCoeff <- swsf_read_csv(temp, row.names = 1)
+	}
+
+	if (any(grepl("LookupTranspCoeffFromTable_", create_treatments),
+	    create_treatments == "AdjRootProfile")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable)
+		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp, nrows = 2, stringsAsFactors = FALSE), error = print)
 		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
-		tr_input_TranspCoeff <- read.csv(temp, skip=2)
+		tr_input_TranspCoeff <- read.csv(temp, skip = 2, stringsAsFactors = FALSE)
 		colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
 	}
-	if(any(create_treatments == "LookupTranspRegionsFromTable")) tr_input_TranspRegions <- read.csv( file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable), row.names=1)
-	if(any(create_treatments == "LookupSnowDensityFromTable")) tr_input_SnowD <- read.csv( file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable), row.names=1)
-	if(any(create_treatments == "AdjMonthlyBioMass_Temperature")) tr_VegetationComposition <- read.csv(file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition), skip=1, row.names=1)
+
+	if (any(create_treatments == "LookupTranspRegionsFromTable")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable)
+	  tr_input_TranspRegions <- read.csv(temp, row.names = 1, stringsAsFactors = FALSE)
+	}
+	if (any(create_treatments == "LookupSnowDensityFromTable")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable)
+	  tr_input_SnowD <- read.csv(temp, row.names = 1, stringsAsFactors = FALSE)
+	}
+	if (any(create_treatments == "AdjMonthlyBioMass_Temperature")) {
+	  temp <- file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition)
+	  tr_VegetationComposition <- read.csv(temp, skip = 1, row.names = 1, stringsAsFactors = FALSE)
+	}
 
 	#-import regeneration data
 	param.species_regeneration <- list()
@@ -326,13 +347,13 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 		list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
 		no.species_regeneration <- length(list.species_regeneration)
 		if(no.species_regeneration > 0){
-			f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[1]))
+			f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[1]), stringsAsFactors = FALSE)
 			param.species_regeneration <- matrix(NA, ncol=no.species_regeneration, nrow=nrow(f.temp))
 			colnames(param.species_regeneration) <- sub(".csv", "", list.species_regeneration)
 			rownames(param.species_regeneration) <- f.temp[, 1]
 			param.species_regeneration[, 1] <- f.temp[, 2]
 			if(no.species_regeneration > 1) for(f in 2:no.species_regeneration){
-					f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[f]))
+					f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[f]), stringsAsFactors = FALSE)
 					param.species_regeneration[, f] <- f.temp[, 2]
 				}
 			rm(f.temp)
@@ -2372,18 +2393,58 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 
 			#adjust Root Profile - need composition fractions set above
-			if(print.debug) print("Start of AdjRootProfile")
-			if(any(create_treatments == "AdjRootProfile") && i_sw_input_treatments$AdjRootProfile && any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
+			if (print.debug)
+			  print("Start of AdjRootProfile")
 
-				trco_type_C3 <- ifelse(any(create_treatments == "RootProfile_C3") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3), i_sw_input_treatments$RootProfile_C3, "SchenkJackson2003_PCdry_grasses")
-				trco_type_C4 <- ifelse(any(create_treatments == "RootProfile_C4") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C4), i_sw_input_treatments$RootProfile_C4, "SchenkJackson2003_PCdry_grasses")
-				trco_type_annuals <- ifelse(any(create_treatments == "RootProfile_Annuals") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Annuals), i_sw_input_treatments$RootProfile_Annuals, "Jacksonetal1996_crops")
-				trco_type_shrubs <- ifelse(any(create_treatments == "RootProfile_Shrubs") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Shrubs), i_sw_input_treatments$RootProfile_Shrubs, "SchenkJackson2003_PCdry_shrubs")
-				tro_type_forb <- ifelse(any(create_treatments == "RootProfile_Forbs") && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Forbs), i_sw_input_treatments$RootProfile_Forbs, "SchenkJackson2003_PCdry_forbs")
-				#TODO: add 'SchenkJackson2003_PCdry_forbs' to 'TranspirationCoefficients_v2.csv'
-				tro_type_tree <- ifelse(any(create_treatments == "LookupTranspCoeffFromTable_Tree") && is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) && any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree), i_sw_input_treatments$LookupTranspCoeffFromTable_Tree, "FILL")
+			if (any(create_treatments == "AdjRootProfile") &&
+			    i_sw_input_treatments$AdjRootProfile &&
+			    any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
+			    i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
 
-				if(grass.fraction==0) { #if grass.fraction is 0 then Grass.trco will be 0
+        trco_type_C3 <- if (any(create_treatments == "RootProfile_C3") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3)) {
+            i_sw_input_treatments$RootProfile_C3
+          } else {
+            "SchenkJackson2003_PCdry_grasses"
+          }
+
+        trco_type_C4 <- if (any(create_treatments == "RootProfile_C4") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C4)) {
+            i_sw_input_treatments$RootProfile_C4
+          } else {
+            "SchenkJackson2003_PCdry_grasses"
+          }
+
+        trco_type_annuals <- if (any(create_treatments == "RootProfile_Annuals") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Annuals)) {
+            i_sw_input_treatments$RootProfile_Annuals
+          } else {
+            "Jacksonetal1996_crops"
+          }
+
+        trco_type_shrubs <- if (any(create_treatments == "RootProfile_Shrubs") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Shrubs)) {
+            i_sw_input_treatments$RootProfile_Shrubs
+          } else {
+            "SchenkJackson2003_PCdry_shrubs"
+          }
+
+        tro_type_forb <- if (any(create_treatments == "RootProfile_Forbs") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Forbs)) {
+            i_sw_input_treatments$RootProfile_Forbs
+          } else {
+            "SchenkJackson2003_PCdry_forbs"
+          }
+
+        tro_type_tree <- if (any(create_treatments == "LookupTranspCoeffFromTable_Tree") &&
+          is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) {
+            i_sw_input_treatments$LookupTranspCoeffFromTable_Tree
+          } else {
+            "FILL"
+          }
+
+				if (grass.fraction == 0) { #if grass.fraction is 0 then Grass.trco will be 0
 					Grass.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = d,
