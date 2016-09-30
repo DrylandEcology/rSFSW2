@@ -823,6 +823,12 @@ if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureR
 			temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
 			rm(cats)
 		}
+		#35c
+		if(any(simulation_timescales=="daily") && aon$dailyNRCS_Maestas2016_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){
+		  cats <- c("Low", "Moderate","High")
+		  temp <- c(temp, paste0("NRCS_Sagebrush", rep(c("Resilience", "Resistance"), each=length(cats)), "_", cats))
+		  rm(cats)
+		}		
 	#35.2
 		if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){
 			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=length(SWPcrit_MPa)), "_Cdays_mean", sep=""))
