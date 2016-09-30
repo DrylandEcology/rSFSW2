@@ -70,7 +70,7 @@ if(interactive()) {
 	setwd(dir.prj)
 }
 dir.prj <- dir.big <- getwd()
-dir.code <- normalizePath(file.path("..", "..", "..")) # "github/SoilWat_R_Wrapper"
+dir.code <- normalizePath(file.path("..", "..", "..", "R")) # "github/SoilWat_R_Wrapper/R"
 
 #parent folder containing external data
 #drs dir.external <- "/Volumes/YOURBIGDATA/BigData/GIS/Data"

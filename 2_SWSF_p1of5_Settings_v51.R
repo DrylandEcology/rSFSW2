@@ -64,9 +64,10 @@ url.Rrepos <- "https://cran.us.r-project.org"
 #------Set paths to simulation framework folders
 #parent folder of simulation project
 dir.prj <- "~/YOURPROJECT"
-dir.code <- "~/YOURCODE/SoilWat_R_Wrapper"
-if(interactive()) setwd(dir.prj)
+if (interactive()) setwd(dir.prj)
 dir.prj <- dir.big <- getwd()
+dir.code <- file.path(dir.prj, "R")
+
 
 #parent folder containing external data
 dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
