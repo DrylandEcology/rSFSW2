@@ -593,11 +593,6 @@ if (extract_determine_database == "SWRunInformation" && "dailyweather_source" %i
 
 weather.digits <- 2
 
-lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] && sum(is.na(sw_input_treatments$LookupWeatherFolder[runIDs_sites])) == 0
-lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[runIDs_sites])) == 0) && !any(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)
-lwf_cond3 <- sw_input_experimentals_use["LookupWeatherFolder"] && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
-lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
-
 
 if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
@@ -633,7 +628,15 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 
 
 
-if(do_weather_source){
+if (do_weather_source) {
+  lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] &&
+                !anyNA(sw_input_treatments$LookupWeatherFolder[runIDs_sites])
+  lwf_cond2 <- !anyNA(SWRunInformation$WeatherFolder[runIDs_sites]) &&
+                !any(grepl("GriddedDailyWeatherFrom", names(exinfo)[unlist(exinfo)]))
+  lwf_cond3 <- sw_input_experimentals_use["LookupWeatherFolder"] &&
+                !anyNA(sw_input_treatments$LookupWeatherFolder)
+  lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
+
 	#Functions to determine sources of daily weather; they write to global 'sites_dailyweather_source' and 'sites_dailyweather_names', i.e., the last entry is the one that will be used
 	dw_LookupWeatherFolder <- function(sites_dailyweather_source) {
 		if (any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)) {
