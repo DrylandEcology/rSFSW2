@@ -62,9 +62,9 @@ ftemp <- file.path(dir.out, timerfile)
 times <- if (!file.exists(ftemp) || !continueAfterAbort) {
     cat("0,NA", file = ftemp, sep = "\n")
   } else {
-   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("NULL", "numeric"))[[1]]
+   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("integer", "NULL"), skip = 1)[[1]]
   }
-runIDs_done <- if (length(times) > 1) sort(times[-1]) else NULL
+runIDs_done <- if (length(times) > 0) sort(times) else NULL
 
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
