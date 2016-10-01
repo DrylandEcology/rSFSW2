@@ -4968,32 +4968,48 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					for (sp in seq_len(no.species_regeneration)) {
 						param <- data.frame(t(param.species_regeneration[,sp]))
 
-						#Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
-						Doy_SeedDispersalStart <- max(round(param$Doy_SeedDispersalStart0 + param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan, 0) %% 365, 1)
-						moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(ISOdate(simTime$useyrs[1] - 1, 12, 31, tz = "UTC") - ISOdate(simTime$useyrs[1] - 1, 1, 1, tz = "UTC")) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
+            #Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
+            temp <- param$Doy_SeedDispersalStart0 +
+              param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan
+            Doy_SeedDispersalStart <- as.integer(max(round(temp, 0) %% 365, 1))
+
+            moveByDays <- if (Doy_SeedDispersalStart > 1) {
+                temp <- ISOdate(simTime$useyrs[1] - 1, 12, 31, tz = "UTC") -
+                        ISOdate(simTime$useyrs[1] - 1, 1, 1, tz = "UTC") + 1 -
+                        (Doy_SeedDispersalStart - 1)
+                as.integer(max(c(as.numeric(temp) %% 365, 1)))
+              } else {
+                1L
+              }
+
 						#Calculate regeneration year dates
+            et <- length(simTime$index.usedy)
+						itail <- (et - moveByDays + 1):et
 						if (startyr > simstartyr) {
 						  #start earlier to complete RY
-							RY.index.usedy <- c(((st <- simTime$index.usedy[1])-moveByDays):(st-1), simTime$index.usedy[-(((et <- length(simTime$index.usedy))-moveByDays+1):et)]) #index indicating which rows of the daily SoilWat output is used
+						  st <- simTime$index.usedy[1]
+							RY.index.usedy <- c((st - moveByDays):(st - 1), simTime$index.usedy[-itail]) #index indicating which rows of the daily SoilWat output is used
 							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay	#'regeneration year' for each used day
 							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay	#'doy of the regeneration year' for each used day
 
 						} else if (!(startyr > simstartyr)) {
 						  #start later to get a complete RY
-							RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), (((et <- length(simTime$index.usedy))-moveByDays+1):et))]
-							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
-							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
+							RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), itail)]
+							temp <- which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])
+							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-temp]
+							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-temp]
 						}
+						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
+
 						# normal year for each used 'doy of the regeneration year'
-						et <- length(RYyear_ForEachUsedDay)
+						et <- length(RY.index.usedy)
+						itail <- (et - moveByDays + 1):et
 						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, times = moveByDays),
-						                            RYyear_ForEachUsedDay[-((et - moveByDays + 1):et)])
+						                            RYyear_ForEachUsedDay[-itail])
             # normal doy for each used 'doy of the regeneration year'
 						st <- simTime$index.usedy[1]
-						et <- length(RYdoy_ForEachUsedDay)
 						doy_ForEachUsedRYDay <- c((st - moveByDays):(st - 1),
-						                          RYdoy_ForEachUsedDay[-((et - moveByDays + 1):et)])
-						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
+						                          RYdoy_ForEachUsedDay[-itail])
 
 						#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
 						if (sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart) {
@@ -5101,7 +5117,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						colnames(SeedlingMortality_CausesByYear) <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
 						for (y in seq_along(RY.useyrs)) {#for each year
-							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]])
+						  index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]
+							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear])
 							if (length(RYDoys_SeedlingStarts_ThisYear) > 0) {#if there are any germinations
 								#init values for this year
 								no.days <- sum(index.thisYear)
@@ -5231,13 +5248,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---Aggregate output
 						dat_gissm1 <- cbind(Germination_Emergence, SeedlingSurvival_1stSeason)
-						dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin, !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions, Germination_RestrictedByTimeToGerminate)
+						dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin,
+						  !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions,
+						  Germination_RestrictedByTimeToGerminate)
 
 						#Fraction of years with success
-						res1.yr <- aggregate(dat_gissm1, by = list(year_ForEachUsedRYDay), FUN = sum)
-						stemp <- res1.yr[simTime$index.useyr, -1] > 0
-						resMeans[nv:(nv+1)] <- apply(stemp, 2, mean)
-						resSDs[nv:(nv+1)] <- apply(stemp, 2, sd)
+						index_RYuseyr <- unique(year_ForEachUsedRYDay) %in% simTime$useyr
+						res1.yr_v0 <- aggregate(dat_gissm1, by = list(year_ForEachUsedRYDay), FUN = sum)
+						res1.yr <- res1.yr_v0[index_RYuseyr, -1]
+						stemp <- res1.yr > 0
+						resMeans[nv:(nv+1)] <- apply(stemp, 2, mean, na.rm = TRUE)
+						resSDs[nv:(nv+1)] <- apply(stemp, 2, sd, na.rm = TRUE)
 						#Periods with no successes
 						rleGerm <- rle(stemp[, 1])
 						if (any(!rleGerm$values))
@@ -5248,19 +5269,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						  resMeans[(nv+5):(nv+7)] <- quantile(rleSling$lengths[!rleSling$values],
 						                                      probs = c(0.05, 0.5, 0.95), type = 7)
 						#Mean number of days per year with success
-						resMeans[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, mean)
-						resSDs[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, sd)
+						resMeans[(nv+8):(nv+9)] <- apply(res1.yr, 2, mean)
+						resSDs[(nv+8):(nv+9)] <- apply(res1.yr, 2, sd)
 						#Days of year (in normal count) of most frequent successes among years: #toDoy <- function(x) sort(ifelse((temp <- x+Doy_SeedDispersalStart-1) > 365, temp-365,temp)) #convert to normal doys
 						res1.dy <- aggregate(dat_gissm1, by = list(doy_ForEachUsedRYDay), FUN = sum)
 						resMeans[(nv+10):(nv+15)] <- get.DoyMostFrequentSuccesses(res1.dy, dat_gissm1)
 						#Mean number of days when germination is restricted due to conditions
-						res2.yr <- aggregate(dat_gissm2, by = list(year_ForEachUsedRYDay), sum)
-						resMeans[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, mean)
-						resSDs[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, sd)
+						res2.yr_v0 <- aggregate(dat_gissm2, by = list(year_ForEachUsedRYDay), sum)
+						res2.yr <- res2.yr_v0[index_RYuseyr, -1]
+						resMeans[(nv+16):(nv+20)] <- apply(res2.yr, 2, mean)
+						resSDs[(nv+16):(nv+20)] <- apply(res2.yr, 2, sd)
 						#Mean time to germinate in days
-						res3.yr <- tapply(Germination_TimeToGerminate, year_ForEachUsedRYDay, mean, na.rm = TRUE)
-						resMeans[nv+21] <- mean(res3.yr[simTime$index.useyr], na.rm = TRUE)
-						resSDs[nv+21] <- sd(res3.yr[simTime$index.useyr], na.rm = TRUE)
+						res3.yr_v0 <- tapply(Germination_TimeToGerminate, year_ForEachUsedRYDay, mean, na.rm = TRUE)
+						res3.yr <- res3.yr_v0[index_RYuseyr]
+						resMeans[nv+21] <- mean(res3.yr, na.rm = TRUE)
+						resSDs[nv+21] <- sd(res3.yr, na.rm = TRUE)
 						#Mean number of days per year of different types of mortalities
 						resMeans[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, mean, na.rm = TRUE) #if value==NA, then no germinations that year
 						resSDs[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, sd, na.rm = TRUE) #if value==NA, then no germinations that year
@@ -5272,7 +5295,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							#Table with data for every year
 							res1.yr.doy <- t(simplify2array(by(dat_gissm1, INDICES=year_ForEachUsedRYDay, FUN=function(x) get.DoyMostFrequentSuccesses(x, dat_gissm1))))[simTime$index.useyr, ]
 
-							res.yr <- data.frame(data.frame(res1.yr, res2.yr[, -1], res3.yr)[simTime$index.useyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
+							res.yr <- data.frame(data.frame(res1.yr_v0, res2.yr_v0[, -1], res3.yr_v0)[index_RYuseyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
 							temp.header2 <- c("DaysWith_GerminationSuccess", "DaysWith_SeedlingSurvival1stSeason",
 									"Days_GerminationRestrictedByTmax", "Days_GerminationRestrictedByTmin", "Days_GerminationRestrictedBySWPmin", "Days_GerminationRestrictedByAnyCondition", "Days_GerminationRestrictedByTimeToGerminate",
 									"MeanDays_TimeToGerminate",
