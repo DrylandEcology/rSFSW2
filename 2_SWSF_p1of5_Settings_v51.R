@@ -454,12 +454,12 @@ daily_lyr_agg <- list(
 
 #regeneration: germination and establishment
 opts_regen_bySWPSnow <- list(
-  season.start = "LastSnow" # either doy or "LastSnow"
-  season.end = "FirstSnow" # either doy or "FirstSnow"
-  germination.duration = 7 # in days
-  germination.swp.surface = -0.2 # in MPa, duration must have at least x MPa
-  establishment.duration = 14 # in days
-  establishment.swp.surface = -0.4 # in MPa, duration must have at least x MPa
+  season.start = "LastSnow", # either doy or "LastSnow"
+  season.end = "FirstSnow", # either doy or "FirstSnow"
+  germination.duration = 7, # in days
+  germination.swp.surface = -0.2, # in MPa, duration must have at least x MPa
+  establishment.duration = 14, # in days
+  establishment.swp.surface = -0.4, # in MPa, duration must have at least x MPa
   establishment.delay = 1 # start of establishment needs to occur latest x days after end of germination
 )
 

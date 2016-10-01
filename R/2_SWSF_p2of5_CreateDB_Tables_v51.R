@@ -957,8 +957,14 @@ if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureR
 #TODO(drs): progress state
 	#36
 		if(any(simulation_timescales=="monthly") & aon$monthlySWPdryness){
-			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""),
-					paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep=""))
+			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.",
+                            rep(c("topLayers", "bottomLayers"), each = length(SWPcrit_MPa)),
+                            ".Duration.Total_months_mean"),
+                      paste0("DrySoilPeriods.SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.",
+                            rep(c("topLayers", "bottomLayers"), each = length(SWPcrit_MPa)),
+                            ".Start_month_mean"))
 		}
 
 	#37
@@ -1163,7 +1169,7 @@ if(any(simulation_timescales=="daily") && aon$dailyNRCS_SoilMoistureTemperatureR
 
 	#62
 		if(any(simulation_timescales=="daily")  & aon$dailyRegeneration_bySWPSnow) {
-			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction_mean")
+			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction")
 		}
 
 	#63

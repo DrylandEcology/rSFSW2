@@ -547,6 +547,28 @@ adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_dep
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
 
+degree_days <- compiler::cmpfun(function(temp_C, base_C = 0) {
+  res <- temp_C - base_C
+  res[res < 0] <- 0
+
+  res
+})
+
+soil_status <- compiler::cmpfun(function(..., swp_crit, time_N, is_dry = TRUE) {
+  swp <- list(...)
+  if (is.null(names(swp)))
+    names(swp) <- paste0("V", seq_along(swp))
+
+  mat_crit <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
+
+  if (is_dry) {
+    lapply(swp, function(x) x < mat_crit)
+  } else {
+    lapply(swp, function(x) x >= mat_crit)
+  }
+})
+
+
 sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, simTime, simTime2, return_yearly = FALSE) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
