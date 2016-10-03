@@ -1532,15 +1532,15 @@ get.LookupFromTable <- compiler::cmpfun(function(pattern, trtype, tr_input, sw_i
 fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
   stopifnot(names(data) %in% c("sw_input", "sw_input_use"))
 
-  icols <- sapply(data, function(x) grep(pattern, colnames(x)))
-  stopifnot(dim(icols)[2L] == 2L)
+  icols <- sapply(data, function(x) grep(pattern, names(x)))
+  stopifnot(identical(icols[, "sw_input_use"], icols[, "sw_input"]))
+  icols <- icols[, "sw_input_use"]
 
-  for (k in seq_len(dim(icols)[1L])) {
-    ic <- icols[k, "sw_input"]
-    iempty <- is.na(data$sw_input[, ic]) | abs(data$sw_input[, ic]) < tol
+  for (k in icols) {
+    iempty <- is.na(data$sw_input[, k])
     if (any(iempty)) {
-      data$sw_input[iempty, ic] <- fill
-      data$sw_input_use[icols[k, "sw_input_use"]] <- TRUE
+      data$sw_input[iempty, k] <- fill
+      data$sw_input_use[k] <- TRUE
     }
   }
 
