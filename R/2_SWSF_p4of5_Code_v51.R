@@ -4205,7 +4205,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             rm(Table1)
           }
 
-          nv_new <- nv + length(cats)
+          nv_new <- nv + length(RR)
           resMeans[nv:(nv_new - 1)] <- RR
           nv <- nv_new
 
