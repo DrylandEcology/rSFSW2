@@ -3813,6 +3813,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_depth50, weights50),
                      nheader = st[["nheader"]]))
               vwc_dy_nrsc$val <- add_layer_to_soil(vwc_dy_nrsc$val, 2 + i_depth50, weights50)
+              rm(weights50)
             }
 
             i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
@@ -3826,6 +3827,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_MCS[k], weightsMCS),
                      nheader = st[["nheader"]]))
               vwc_dy_nrsc$val <- add_layer_to_soil(vwc_dy_nrsc$val, 2 + i_MCS[k], weightsMCS)
+              rm(weightsMCS)
             }
 
             i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
@@ -3839,6 +3841,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 list(data = add_layer_to_soil(st[["data"]], st[["nheader"]] + i_Lanh[k], weightsLanh),
                      nheader = st[["nheader"]]))
               vwc_dy_nrsc$val <- add_layer_to_soil(vwc_dy_nrsc$val, 2 + i_Lanh[k], weightsLanh)
+              rm(weightsLanh)
             }
 
             if (calc50 || any(calcMCS) || any(calcLanh)) {
@@ -4128,8 +4131,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             "LanhConditionalDF", "LanhConditionalDF3", "MAP", "MAT50", "MATLanh",
             "MCS_depth", "MMP", "n_Lanh", "normal1", "normal2", "permafrost", "sand_temp",
             "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc", "SWP_sat", "T50",
-            "T50djf", "T50jja", "vwc_dy_nrsc", "wateryears", "wdays_index", "weights50",
-            "weightsLanh", "weightsMCS", "width_Lanh",
+            "T50djf", "T50jja", "vwc_dy_nrsc", "wateryears", "wdays_index",
+            "width_Lanh",
             "wyears", "wyears_index", "wyears_normal")
           # to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)
@@ -5031,7 +5034,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               }
 
 						#Calculate regeneration year dates
-            et <- length(simTime$index.usedy)
+            et <- simTime$no.usedy
 						itail <- (et - moveByDays + 1):et
 						if (startyr > simstartyr) {
 						  #start earlier to complete RY
@@ -5050,9 +5053,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
 
 						# normal year for each used 'doy of the regeneration year'
-						et <- length(RY.index.usedy)
-						itail <- (et - moveByDays + 1):et
-						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, times = moveByDays),
+						RY_N_usedy <- length(RY.index.usedy)
+						itail <- (RY_N_usedy - moveByDays + 1):RY_N_usedy
+						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, moveByDays),
 						                            RYyear_ForEachUsedDay[-itail])
             # normal doy for each used 'doy of the regeneration year'
 						st <- simTime$index.usedy[1]
@@ -5063,7 +5066,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						if (sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart) {
 							swp <- swpmatric.dy.all$val[RY.index.usedy, 2 + ld]
 							if (length(ld) == 1)
-							  swp <- matrix(swp, ncol=1)
+							  swp <- matrix(swp, ncol = 1)
 							snow <- temp.snow[RY.index.usedy, 3]*10 #mm swe in snowpack
 							airTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 4])
 							airTmax <- temp.temp[RY.index.usedy, 3]
@@ -5115,18 +5118,18 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						    swp.TopMean = swp.TopMean,
 						    TmeanJan = TmeanJan, param = param))
 
-						Germination_RestrictedByTimeToGerminate <- rep(FALSE, times = length(Germination_TimeToGerminate))
+						Germination_RestrictedByTimeToGerminate <- rep(FALSE, RY_N_usedy)
 						Germination_RestrictedByTimeToGerminate[Germination_DuringFavorableConditions & is.na(Germination_TimeToGerminate)] <- TRUE
 
 						#---3. Successful germinations
 						GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
-						temp <- padded <- rep(FALSE, times=length(GerminationSuccess_Initiated))
-						germ.starts <- seq_along(temp)[GerminationSuccess_Initiated]
-						germ.durs <- Germination_TimeToGerminate[GerminationSuccess_Initiated] - 1
+						temp <- padded <- rep(FALSE, RY_N_usedy)
+						germ.starts <- which(GerminationSuccess_Initiated)
+						germ.durs <- Germination_TimeToGerminate[germ.starts] - 1
 						if (param$GerminationPeriods_0ResetOr1Resume == 1) {
-							temp.wait <- na.exclude(unlist(lapply(seq_along(temp), function(t) {
-														if (!is.na(Germination_TimeToGerminate[t])) {
-														  t1 <- LengthDays_FavorableConditions[t:length(LengthDays_FavorableConditions)]
+							temp.wait <- na.exclude(unlist(lapply(seq_len(RY_N_usedy), function(t) {
+														if (is.finite(Germination_TimeToGerminate[t])) {
+														  t1 <- LengthDays_FavorableConditions[t:RY_N_usedy]
 														  t2 <- na.exclude(t1)
 															t3 <- which(t2[Germination_TimeToGerminate[t]] == t1)[1]
 															sum(is.na(t1[1:t3]))
@@ -5161,9 +5164,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---2. Grow and kill the seedlings
 						SeedlingSurvival_1stSeason <- Seedling_Starts <- Germination_Emergence #TRUE=seedling that germinated on that day and survives until end of season; FALSE=no germination or seedling dies during the first season
-						SeedlingMortality_CausesByYear <- matrix(data=0, nrow=length(RY.useyrs), ncol=9)
-						colnames(SeedlingMortality_CausesByYear) <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
-										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
+						SeedlingMortality_CausesByYear <- matrix(0, nrow = length(RY.useyrs), ncol = 9)
+						colnames(SeedlingMortality_CausesByYear) <- paste0("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
+										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"))
 						for (y in seq_along(RY.useyrs)) {#for each year
 						  index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]
 							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear])
@@ -5198,32 +5201,33 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 									#Snow cover
 									thisSeedlingGrowth_AbsenceOfSnowCover <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
 									temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
 									#Minimum temperature
 									thisSeedlingGrowth_AtAboveTmin <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
 									temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
 									#Maximum temperature
 									thisSeedlingGrowth_AtBelowTmax <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions=thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable=param$SeedlingGrowth_0StopOr1Resume)
 									temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
 									#Updated days of growth or surviving
 									thisSeedlingGrowing <- thisSeedlingGrowing & thisSeedlingGrowth_AbsenceOfSnowCover & thisSeedlingGrowth_AtAboveTmin & thisSeedlingGrowth_AtBelowTmax
 									thisSeedlingLivingButNotGrowing <- !thisSeedlingGrowing
-									if (sg_RYdoy > 1) thisSeedlingLivingButNotGrowing[seq_len(sg_RYdoy - 1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot live before germination day
+									if (sg_RYdoy > 1)
+									  thisSeedlingLivingButNotGrowing[seq_len(sg_RYdoy - 1)] <- FALSE	#seedling germinated on sg_RYdoy, hence it cannot live before germination day
 
 									#Book-keeping survival under above-ground conditions
 									temp <- thisYear_SeedlingMortality_UnderneathSnowCover[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.UnderneathSnowCover"] <- sg_RYdoy + which(temp)[1] - 1
 									temp <- thisYear_SeedlingMortality_ByTmin[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmin"] <- sg_RYdoy + which(temp)[1] - 1
 									temp <- thisYear_SeedlingMortality_ByTmax[index.thisSeedlingSeason]
-									if (sum(temp) > 0)
+									if (any(temp))
 									  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByTmax"] <- sg_RYdoy + which(temp)[1] - 1
 
 									#If not killed (yet) then grow and check survival below-ground
@@ -5235,7 +5239,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 											thisSeedlingGrowing_AgeDays <- seq_len(temp)
 											thisSeedlingGrowing_RootingDepth <- SeedlingRootingDepth(thisSeedlingGrowing_AgeDays, param$Seedling_SoilDepth.PO, param$Seedling_SoilDepth.K, param$Seedling_SoilDepth.r)
 											thisSeedling_thisYear_RootingDepth[thisSeedlingGrowing] <- thisSeedlingGrowing_RootingDepth
-											if (sum(thisSeedlingLivingButNotGrowing, na.rm = TRUE) > 0) {
+											if (any(thisSeedlingLivingButNotGrowing, na.rm = TRUE)) {
 											  #for days when growth stopped then copy relevant soil depth
 												stopg <- addDepths <- rle(thisSeedlingLivingButNotGrowing)
 												RYDoys_stopg <- c(1, cumsum(stopg$lengths))
@@ -5262,17 +5266,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										#Check survival under chronic SWPMax
 										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMax)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]
-										if (sum(temp) > 0)
+										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under chronic SWPMin
 										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]
-										if (sum(temp) > 0)
+										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under acute SWPMin
 										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByAcuteSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]
-										if (sum(temp) > 0)
+										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 									}
 
@@ -5282,7 +5286,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										SeedlingMortality_CausesByYear[y, kill.factor] <- SeedlingMortality_CausesByYear[y, kill.factor] + 1
 										stop.factor <- which.min(stopped_byCauses_onRYdoy)
 										if (any(!is.na(stopped_byCauses_onRYdoy)) &&
-										    killed_byCauses_onRYdoy[kill.factor] > stopped_byCauses_onRYdoy[(stop.factor)]) {
+										    killed_byCauses_onRYdoy[kill.factor] > stopped_byCauses_onRYdoy[stop.factor]) {
 											SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
 										}
 
