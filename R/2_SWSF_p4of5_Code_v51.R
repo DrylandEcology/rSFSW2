@@ -4097,49 +4097,43 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resMeans[nv:(nv+2*length(cats)-1)] <- c(resilience, resistance)
 					nv <- nv + 2*length(cats)
 
-					rm(cats, resilience, resistance) # Tregime, Sregime)
-					
+					rm(cats, resilience, resistance)
+
 				}
-        
+
         #35c
         if(any(simulation_timescales=="daily") && aon$dailyNRCS_Maestas2016_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
-          #Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
-          if(print.debug) print("Aggregation of dailyNRCS_Maestas2016_ResilienceResistance")
-          # if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc, runData, simTime)
-          
-          #Result containers
-          cats <- c("Low", "Moderate","High")
-          resilience <- resistance <- rep(0, times=length(cats))
-          names(resilience) <- names(resistance) <- cats
-          
-          if(regimes_done){
-            #---Table 1 in Chambers et al. 2014
-            rows_resistance <- rows_resilience <- c("High","High","Moderate","Moderate","Moderate","Low","Low")
-            #Ecological type
-            Table1_EcologicalType <- matrix(c("Cryic", "Xeric", "Frigid", "Xeric","Cryic","Aridic", "Mesic", "Xeric", "Frigid", "Aridic", "Mesic", "Aridic"), ncol=2, byrow=TRUE)
-            Type <- as.logical(Tregime[Table1_EcologicalType[, 1]]) & as.logical(Sregime[Table1_EcologicalType[, 2]])
-            
-            #Resilience and Resistance
-            RR <- which(Type)
-            for(ir in RR){
-              resilience[rows_resilience[ir]] <- 1
-              resistance[rows_resistance[ir]] <- 1
-            }
-            
-            rm(rows_resilience, rows_resistance, Table1_EcologicalType, Type,
-               MAP, Table1_Characteristics_mm, Characteristics, RR)
-          } else {
-            resilience <- resistance <- rep(NA, times=length(cats))
+          #Based on Maestas, J.D., Campbell, S.B., Chambers, J.C., Pellant, M. & Miller, R.F. (2016). Tapping Soil Survey Information for Rapid Assessment of Sagebrush Ecosystem Resilience and Resistance. Rangelands, 38, 120-128.
+          if (print.debug)
+            print("Aggregation of dailyNRCS_Maestas2016_ResilienceResistance")
+
+          RR <- c(Low = 0, Moderate = 0, High = 0)
+
+          if (regimes_done) {
+            #---Table 1 in Maestas et al. 2016
+            Table1 <- matrix(c(
+                "Cryic", "Xeric", "High",
+                "Frigid", "Xeric", "High",
+                "Cryic", "Aridic", "Moderate",
+                "Frigid", "Aridic", "Moderate",
+                "Mesic", "Xeric", "Moderate",
+                "Mesic", "Aridic", "Low"),
+              ncol = 3, byrow = TRUE)
+
+            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
+            RR[temp] <- 1
+
+            rm(Table1)
           }
-          
-          resMeans[nv:(nv+2*length(cats)-1)] <- c(resilience, resistance)
-          nv <- nv + 2*length(cats)
-          
-          rm(cats, resilience, resistance, Tregime, Sregime)
-          
+
+          nv_new <- nv + length(cats)
+          resMeans[nv:(nv_new - 1)] <- RR
+          nv <- nv_new
+
+          rm(RR)
         }
-        rm(regimes_done)
-        
+        rm(regimes_done, Tregime, Sregime)
+
 			#35.2
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
 					if(print.debug) print("Aggregation of dailyWetDegreeDays")
