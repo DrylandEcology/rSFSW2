@@ -4176,10 +4176,42 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resMeans[nv:(nv+2*length(cats)-1)] <- c(resilience, resistance)
 					nv <- nv + 2*length(cats)
 
-					rm(cats, resilience, resistance, Tregime, Sregime)
+					rm(cats, resilience, resistance)
 
 				}
-				rm(regimes_done)
+
+        #35c
+        if(any(simulation_timescales=="daily") && aon$dailyNRCS_Maestas2016_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+          #Based on Maestas, J.D., Campbell, S.B., Chambers, J.C., Pellant, M. & Miller, R.F. (2016). Tapping Soil Survey Information for Rapid Assessment of Sagebrush Ecosystem Resilience and Resistance. Rangelands, 38, 120-128.
+          if (print.debug)
+            print("Aggregation of dailyNRCS_Maestas2016_ResilienceResistance")
+
+          RR <- c(Low = 0, Moderate = 0, High = 0)
+
+          if (regimes_done) {
+            #---Table 1 in Maestas et al. 2016
+            Table1 <- matrix(c(
+                "Cryic", "Xeric", "High",
+                "Frigid", "Xeric", "High",
+                "Cryic", "Aridic", "Moderate",
+                "Frigid", "Aridic", "Moderate",
+                "Mesic", "Xeric", "Moderate",
+                "Mesic", "Aridic", "Low"),
+              ncol = 3, byrow = TRUE)
+
+            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
+            RR[temp] <- 1
+
+            rm(Table1)
+          }
+
+          nv_new <- nv + length(cats)
+          resMeans[nv:(nv_new - 1)] <- RR
+          nv <- nv_new
+
+          rm(RR)
+        }
+        rm(regimes_done, Tregime, Sregime)
 
 			#35.2
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
