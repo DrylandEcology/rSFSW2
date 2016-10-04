@@ -379,6 +379,7 @@ output_aggregates <- c(
 					#---Aggregation: Ecological dryness
 						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
 						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+					  "dailyNRCS_Maestas2016_ResilienceResistance", 0,
 						"dailyWetDegreeDays", 0,
 						"dailyThermalDrynessStartEnd", 0,
 						"dailyThermalSWPConditionCount", 0,

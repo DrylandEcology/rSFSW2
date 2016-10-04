@@ -309,10 +309,11 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
 
 	  #---Compare field data and report if differences were found
 		ident <- all.equal(x_ref, x_test, tol = tol, scale = if (comp_absolute) 1 else NULL)
-		if (!isTRUE(ident))
+		if (!isTRUE(ident)) {
 		  temp <- list(ident)
 		  names(temp) <- tocomp_tables[k]
 		  diff_msgs <- c(diff_msgs, temp)
+		}
 	}
 
 	diff_msgs

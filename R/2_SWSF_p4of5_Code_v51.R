@@ -62,9 +62,9 @@ ftemp <- file.path(dir.out, timerfile)
 times <- if (!file.exists(ftemp) || !continueAfterAbort) {
     cat("0,NA", file = ftemp, sep = "\n")
   } else {
-   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("NULL", "numeric"))[[1]]
+   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("integer", "NULL"), skip = 1)[[1]]
   }
-runIDs_done <- if (length(times) > 1) sort(times[-1]) else NULL
+runIDs_done <- if (length(times) > 0) sort(times) else NULL
 
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
@@ -593,11 +593,6 @@ if (extract_determine_database == "SWRunInformation" && "dailyweather_source" %i
 
 weather.digits <- 2
 
-lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] && sum(is.na(sw_input_treatments$LookupWeatherFolder[runIDs_sites])) == 0
-lwf_cond2 <- (sum(is.na(SWRunInformation$WeatherFolder[runIDs_sites])) == 0) && !any(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica, exinfo$GriddedDailyWeatherFromDayMet_USA, exinfo$GriddedDailyWeatherFromNRCan_10km_Canada, exinfo$GriddedDailyWeatherFromNCEPCFSR_Global)
-lwf_cond3 <- sw_input_experimentals_use["LookupWeatherFolder"] && sum(is.na(sw_input_experimentals$LookupWeatherFolder)) == 0
-lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
-
 
 if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
@@ -633,7 +628,15 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 
 
 
-if(do_weather_source){
+if (do_weather_source) {
+  lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] &&
+                !anyNA(sw_input_treatments$LookupWeatherFolder[runIDs_sites])
+  lwf_cond2 <- !anyNA(SWRunInformation$WeatherFolder[runIDs_sites]) &&
+                !any(grepl("GriddedDailyWeatherFrom", names(exinfo)[unlist(exinfo)]))
+  lwf_cond3 <- sw_input_experimentals_use["LookupWeatherFolder"] &&
+                !anyNA(sw_input_treatments$LookupWeatherFolder)
+  lwf_cond4 <- any(create_treatments == "LookupWeatherFolder")
+
 	#Functions to determine sources of daily weather; they write to global 'sites_dailyweather_source' and 'sites_dailyweather_names', i.e., the last entry is the one that will be used
 	dw_LookupWeatherFolder <- function(sites_dailyweather_source) {
 		if (any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)) {
@@ -901,9 +904,240 @@ if (do_check_include) {
 
 
 #--------------------------------------------------------------------------------------------------#
+#------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
+
+temp <- matrix(data=do.PriorCalculations, ncol=2, nrow=length(do.PriorCalculations)/2, byrow=TRUE)
+pcalcs <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
+names(pcalcs) <- temp[, 1]
+
+if (actionWithSoilWat) {
+	do.GetClimateMeans <- any(sw_input_climscen_values_use) ||
+			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature ||
+			sw_input_site_use["SoilTempC_atLowerBoundary"] ||
+			sw_input_site_use["SoilTempC_atUpperBoundary"] ||
+			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer ||
+			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
+			any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
+			any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
+			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
+}
+
+if (any(unlist(pcalcs))) {
+  if (!be.quiet)
+    print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
+
+    runIDs_adjust <- seq_len(runsN_master)  # if not all, then runIDs_sites
+
+  if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
+    if (!be.quiet)
+      print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of", paste0(requested_soil_layers, collapse = ", "), "cm"))
+    # How to add different soil variables
+    sl_vars_mean <- c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp") # values will be interpolated
+    sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm") # values will be exhausted
+
+    # Requested layers
+    requested_soil_layers <- as.integer(round(requested_soil_layers))
+    stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
+    req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
+
+    # Available layers
+    ids_depth <- strsplit(names(sw_input_soils_use)[sw_input_soils_use], "_", fixed = TRUE)
+    stopifnot(length(ids_depth) > 0)
+    var_layers <- unique(sapply(ids_depth, function(x) paste0(x[-length(x)], collapse = "_")))
+    ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
+    use_layers <- paste0("depth_", ids_depth2)
+
+    layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_adjust, use_layers, drop = FALSE]))
+    i_nodata <- apply(is.na(layers_depth), 1, all)
+    if (any(i_nodata)) {
+      layers_depth <- layers_depth[!i_nodata, ]
+      runIDs_adjust_ws <- runIDs_adjust[!i_nodata]
+    } else {
+      runIDs_adjust_ws <- runIDs_adjust
+    }
+    i_nodata <- apply(is.na(layers_depth), 2, all)
+    if (any(i_nodata))
+      layers_depth <- layers_depth[, !i_nodata]
+    ids_layers <- seq_len(dim(layers_depth)[2])
+    avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
+
+    # Loop through runs with same layer profile and adjust
+    layer_sets <- unique(avail_sl_ids)
+    if (length(layer_sets) > 0) {
+      has_changed <- FALSE
+      sw_input_soils_data <- lapply(var_layers, function(x)
+        as.matrix(sw_input_soils[runIDs_adjust_ws, grep(x, names(sw_input_soils))[ids_layers]]))
+
+      for (ils in seq_along(layer_sets)) {
+        il_set <- avail_sl_ids == layer_sets[ils]
+        if (sum(il_set, na.rm = TRUE) == 0) next
+
+        # Identify which requested layers to add
+        ldset <- na.exclude(layers_depth[which(il_set)[1], ])
+        req_sl_toadd <- setdiff(requested_soil_layers, ldset)
+        req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
+        if (length(req_sd_toadd) == 0) next
+
+        # Add identified layers
+        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+          sw_input_soils_data[[iv]][il_set, ])
+
+        for (lnew in req_sd_toadd) {
+          ilnew <- findInterval(lnew, ldset)
+          il_weight <- abs(lnew - ldset[ilnew + 1:0])
+          sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+            add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
+              method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
+          ldset <- sort(c(ldset, lnew))
+        }
+
+        # Update soil datafiles
+        lyrs <- seq_along(ldset)
+        for (iv in seq_along(var_layers)) {
+          i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
+          sw_input_soils[runIDs_adjust_ws[il_set], i.temp] <-
+            round(sw_input_soils_data2[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
+          sw_input_soils_use[i.temp] <- TRUE
+        }
+
+        sw_input_soillayers[runIDs_adjust_ws[il_set],
+          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
+        has_changed <- TRUE
+      }
+
+      if (has_changed) {
+        #write data to datafile.soillayers
+        write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
+        #write data to datafile.soils
+        write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+          file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+        unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+        print("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to adjust lookup tables with per-layer values if applicable for this project")
+      }
+
+      rm(sw_input_soils_data, sw_input_soils_data2)
+    }
+
+    if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
+  }
+
+  if (pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture) {
+    #calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
+    # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
+
+    if (!be.quiet)
+      print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
+
+    depth_max_bs_evap <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
+
+    icol_bsE <- grep("EvapCoeff", names(sw_input_soils_use))
+    icol_sand <- grep("Sand_L", names(sw_input_soils_use))
+    icol_clay <- grep("Clay_L", names(sw_input_soils_use))
+    use_layers <- which(sw_input_soils_use[icol_sand] & sw_input_soils_use[icol_clay])
+    stopifnot(length(use_layers) > 0)
+
+    do_calc <- TRUE
+    if (continueAfterAbort) {
+      temp <- icol_bsE[use_layers]
+      icols <- temp[sw_input_soils_use[temp]]
+      if (length(icols) > 0L) {
+        do_calc <- !all(rowSums(sw_input_soils[runIDs_adjust, icols, drop = FALSE], na.rm = TRUE) > 0)
+      }
+    }
+
+    if (do_calc) {
+      layers_depth <- as.matrix(sw_input_soillayers[runIDs_adjust, grep("depth_L", names(sw_input_soillayers))[use_layers], drop = FALSE])
+      depth_min_bs_evap <- min(layers_depth[, 1])
+      stopifnot(na.exclude(depth_min_bs_evap < depth_max_bs_evap))
+
+      lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
+        xdm <- depth_max_bs_evap - x
+        i0 <- abs(xdm) < tol
+        ld <- if (any(i0, na.rm = TRUE)) {
+          which(i0)
+        } else {
+          temp <- which(xdm < 0)
+          if (length(temp) > 0) temp[1] else length(x)
+        }
+        c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
+      }))
+      ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
+
+      #TODO: add influence of gravel
+      sand <- sw_input_soils[runIDs_adjust, icol_sand, drop = FALSE]
+      clay <- sw_input_soils[runIDs_adjust, icol_clay, drop = FALSE]
+      sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) / ldepth_max_bs_evap
+      clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) / ldepth_max_bs_evap
+
+      temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
+      depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE), depth_max_bs_evap, na.rm = TRUE)
+      lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
+        i0 <- abs(x) < tol
+        ld <- if (any(i0, na.rm = TRUE)) {
+          which(i0)
+        } else {
+          temp <- which(x < 0)
+          if (length(temp) > 0) temp[1] else sum(!is.na(x))
+        }
+        c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
+      }))
+
+      temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)	# function made up to match previous cummulative distributions
+      temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
+      coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
+      coeff_bs_evap <- coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
+
+      #add data to sw_input_soils and set the use flags
+      icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > tol))))
+      icols_bsE_used <- icol_bsE[icol]
+      icols_bse_notused <- icol_bsE[-icol]
+
+      sw_input_soils_use[icols_bsE_used] <- TRUE
+      sw_input_soils[runIDs_adjust, icols_bsE_used] <- round(coeff_bs_evap[, icol], 4)
+
+      sw_input_soils_use[icols_bse_notused] <- FALSE
+      sw_input_soils[runIDs_adjust, icols_bse_notused] <- 0
+
+      #write data to datafile.soils
+      write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+        file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
+      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+      rm(icol, icols_bsE_used, icols_bse_notused, coeff_bs_evap, temp_coeff,
+        lyrs_bs_evap, depth_bs_evap, temp_depth, ldepth_max_bs_evap, sand, clay, sand_mean,
+        clay_mean, depth_min_bs_evap, layers_depth)
+    }
+
+    rm(depth_max_bs_evap, icol_bsE, icol_sand, icol_clay, use_layers, do_calc)
+
+    if (!be.quiet)
+      print(paste(Sys.time(), "completed 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
+  }
+
+	#------used during each simulation run: define functions here
+	if(any(actions == "create") && pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
+		sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
+		sw_input_site_use["SoilTempC_atUpperBoundary"] <- TRUE
+		#call function 'SiteClimate' in each SoilWat-run
+	}
+
+	if(any(actions == "create") && pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
+		#set use flags
+		ld <- seq_len(SoilLayer_MaxNo)
+		use.layers <- which(sw_input_soils_use[paste0("Sand_L", ld)])
+		index.soilTemp <- paste0("SoilTemp_L", ld)[use.layers]
+		soilTemp <- sw_input_soils[runIDs_adjust, index.soilTemp, drop = FALSE]
+		sw_input_soils_use[index.soilTemp] <- TRUE
+	}
+
+	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+}
+
+
+#--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS TO CREATE THEM
 
-#------obtain information prior to simulation runs
 if (any(actions == "create")) {
   if (!be.quiet)
     print(paste("SWSF obtains information prior to simulation runs: started at", t1 <- Sys.time()))
@@ -1020,235 +1254,6 @@ if (any(actions == "create")) {
 }
 
 
-#--------------------------------------------------------------------------------------------------#
-#------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
-
-#------flags
-temp <- matrix(data=do.PriorCalculations, ncol=2, nrow=length(do.PriorCalculations)/2, byrow=TRUE)
-pcalcs <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
-names(pcalcs) <- temp[, 1]
-
-if (actionWithSoilWat) {
-	do.GetClimateMeans <- any(sw_input_climscen_values_use) ||
-			pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature ||
-			sw_input_site_use["SoilTempC_atLowerBoundary"] ||
-			sw_input_site_use["SoilTempC_atUpperBoundary"] ||
-			pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer ||
-			any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
-			any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
-			any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
-			any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
-}
-
-if (any(unlist(pcalcs))) {
-  if (!be.quiet)
-    print(paste("SWSF makes calculations prior to simulation runs: started at", t1 <- Sys.time()))
-
-  if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
-    if (!be.quiet)
-      print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of", paste0(requested_soil_layers, collapse = ", "), "cm"))
-    # How to add different soil variables
-    sl_vars_mean <- c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp") # values will be interpolated
-    sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm") # values will be exhausted
-
-    # Requested layers
-    requested_soil_layers <- as.integer(round(requested_soil_layers))
-    stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
-    req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
-
-    # Available layers
-    ids_depth <- strsplit(names(sw_input_soils_use)[sw_input_soils_use], "_", fixed = TRUE)
-    stopifnot(length(ids_depth) > 0)
-    var_layers <- unique(sapply(ids_depth, function(x) paste0(x[-length(x)], collapse = "_")))
-    ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
-    use_layers <- paste0("depth_", ids_depth2)
-
-    layers_depth <- round(as.matrix(sw_input_soillayers[runIDs_sites, use_layers, drop = FALSE]))
-    i_nodata <- apply(is.na(layers_depth), 1, all)
-    if (any(i_nodata)) {
-      layers_depth <- layers_depth[!i_nodata, ]
-      runIDs_sites_ws <- runIDs_sites[!i_nodata]
-    } else {
-      runIDs_sites_ws <- runIDs_sites
-    }
-    i_nodata <- apply(is.na(layers_depth), 2, all)
-    if (any(i_nodata))
-      layers_depth <- layers_depth[, !i_nodata]
-    ids_layers <- seq_len(dim(layers_depth)[2])
-    avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
-
-    # Loop through runs with same layer profile and adjust
-    layer_sets <- unique(avail_sl_ids)
-    if (length(layer_sets) > 0) {
-      has_changed <- FALSE
-      sw_input_soils_data <- lapply(var_layers, function(x)
-        as.matrix(sw_input_soils[runIDs_sites_ws, grep(x, names(sw_input_soils))[ids_layers]]))
-
-      for (ils in seq_along(layer_sets)) {
-        il_set <- avail_sl_ids == layer_sets[ils]
-        if (sum(il_set, na.rm = TRUE) == 0) next
-
-        # Identify which requested layers to add
-        ldset <- na.exclude(layers_depth[which(il_set)[1], ])
-        req_sl_toadd <- setdiff(requested_soil_layers, ldset)
-        req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
-        if (length(req_sd_toadd) == 0) next
-
-        # Add identified layers
-        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-          sw_input_soils_data[[iv]][il_set, ])
-
-        for (lnew in req_sd_toadd) {
-          ilnew <- findInterval(lnew, ldset)
-          il_weight <- abs(lnew - ldset[ilnew + 1:0])
-          sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-            add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
-              method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
-          ldset <- sort(c(ldset, lnew))
-        }
-
-        # Update soil datafiles
-        lyrs <- seq_along(ldset)
-        for (iv in seq_along(var_layers)) {
-          i.temp <- grep(var_layers[iv], names(sw_input_soils_use))[lyrs]
-          sw_input_soils[runIDs_sites_ws[il_set], i.temp] <-
-            round(sw_input_soils_data2[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
-          sw_input_soils_use[i.temp] <- TRUE
-        }
-
-        sw_input_soillayers[runIDs_sites_ws[il_set],
-          grep("depth_", names(sw_input_soillayers))[lyrs]] <- matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
-        has_changed <- TRUE
-      }
-
-      if (has_changed) {
-        #write data to datafile.soillayers
-        write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers), row.names = FALSE)
-        #write data to datafile.soils
-        write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-          file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-        unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-        print("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to adjust lookup tables with per-layer values if applicable for this project")
-      }
-
-      rm(sw_input_soils_data, sw_input_soils_data2)
-    }
-
-    if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
-  }
-
-  if (pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture) {
-    #calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
-    # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
-
-    if (!be.quiet)
-      print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
-
-    depth_max_bs_evap <- 15	# max = 15 cm: Torres EA, Calera A (2010) Bare soil evaporation under high evaporation demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-Journal Des Sciences Hydrologiques, 55, 303-315.
-
-    icol_bsE <- grep("EvapCoeff", names(sw_input_soils_use))
-    icol_sand <- grep("Sand_L", names(sw_input_soils_use))
-    icol_clay <- grep("Clay_L", names(sw_input_soils_use))
-    use_layers <- which(sw_input_soils_use[icol_sand] & sw_input_soils_use[icol_clay])
-    stopifnot(length(use_layers) > 0)
-
-    do_calc <- TRUE
-    if (continueAfterAbort) {
-      temp <- icol_bsE[use_layers]
-      icols <- temp[sw_input_soils_use[temp]]
-      if (length(icols) > 0L) {
-        do_calc <- !all(rowSums(sw_input_soils[runIDs_sites, icols, drop = FALSE], na.rm = TRUE) > 0)
-      }
-    }
-
-    if (do_calc) {
-      layers_depth <- as.matrix(sw_input_soillayers[runIDs_sites, grep("depth_L", names(sw_input_soillayers))[use_layers], drop = FALSE])
-      depth_min_bs_evap <- min(layers_depth[, 1])
-      stopifnot(na.exclude(depth_min_bs_evap < depth_max_bs_evap))
-
-      lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
-        xdm <- depth_max_bs_evap - x
-        i0 <- abs(xdm) < tol
-        ld <- if (any(i0, na.rm = TRUE)) {
-          which(i0)
-        } else {
-          temp <- which(xdm < 0)
-          if (length(temp) > 0) temp[1] else length(x)
-        }
-        c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
-      }))
-      ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
-
-      #TODO: add influence of gravel
-      sand <- sw_input_soils[runIDs_sites, icol_sand, drop = FALSE]
-      clay <- sw_input_soils[runIDs_sites, icol_clay, drop = FALSE]
-      sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) / ldepth_max_bs_evap
-      clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) / ldepth_max_bs_evap
-
-      temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
-      depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE), depth_max_bs_evap, na.rm = TRUE)
-      lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
-        i0 <- abs(x) < tol
-        ld <- if (any(i0, na.rm = TRUE)) {
-          which(i0)
-        } else {
-          temp <- which(x < 0)
-          if (length(temp) > 0) temp[1] else sum(!is.na(x))
-        }
-        c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
-      }))
-
-      temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)	# function made up to match previous cummulative distributions
-      temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
-      coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
-      coeff_bs_evap <- coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
-
-      #add data to sw_input_soils and set the use flags
-      icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > tol))))
-      icols_bsE_used <- icol_bsE[icol]
-      icols_bse_notused <- icol_bsE[-icol]
-
-      sw_input_soils_use[icols_bsE_used] <- TRUE
-      sw_input_soils[runIDs_sites, icols_bsE_used] <- round(coeff_bs_evap[, icol], 4)
-
-      sw_input_soils_use[icols_bse_notused] <- FALSE
-      sw_input_soils[runIDs_sites, icols_bse_notused] <- 0
-
-      #write data to datafile.soils
-      write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-        file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-      rm(icol, icols_bsE_used, icols_bse_notused, coeff_bs_evap, temp_coeff,
-        lyrs_bs_evap, depth_bs_evap, temp_depth, ldepth_max_bs_evap, sand, clay, sand_mean,
-        clay_mean, depth_min_bs_evap, layers_depth)
-    }
-
-    rm(depth_max_bs_evap, icol_bsE, icol_sand, icol_clay, use_layers, do_calc)
-
-    if (!be.quiet)
-      print(paste(Sys.time(), "completed 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
-  }
-
-	#------used during each simulation run: define functions here
-	if(any(actions == "create") && pcalcs$EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature){
-		sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
-		sw_input_site_use["SoilTempC_atUpperBoundary"] <- TRUE
-		#call function 'SiteClimate' in each SoilWat-run
-	}
-
-	if(any(actions == "create") && pcalcs$EstimateInitialSoilTemperatureForEachSoilLayer){
-		#set use flags
-		ld <- seq_len(SoilLayer_MaxNo)
-		use.layers <- which(sw_input_soils_use[paste0("Sand_L", ld)])
-		index.soilTemp <- paste0("SoilTemp_L", ld)[use.layers]
-		soilTemp <- sw_input_soils[runIDs_sites, index.soilTemp, drop = FALSE]
-		sw_input_soils_use[index.soilTemp] <- TRUE
-	}
-
-	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
-}
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------MAP INPUT VARIABLES (FOR QUALITY CONTROL)
@@ -1275,9 +1280,11 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 			dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
 			for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-				dat <- as.numeric(get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]])
+				dat <- get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]]
+				dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
 
-				if (any(is.finite(dat))) {
+        # this code plots only numeric maps
+				if (any(is.finite(dat)) && !inherits(dat, "try-error")) {
 					names(dat) <- iv_locs[[it1]][it2]
 
 					map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2], sim_cells_or_points, sep = "_")
@@ -1366,7 +1373,18 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 	flag.icounter <- formatC(i_sim, width=counter.digitsN, format = "d", flag="0")
 
   if (debug.dump.objects)
-    on.exit(save(list = ls(), file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData"))))
+    print(paste0("'last.dump.do_OneSite_", i_sim, ".RData' will be produced if 'do_OneSite' fails"))
+    on.exit({
+      op_prev <- options("warn")
+      options(warn = 0)
+      env_tosave <- new.env()
+      list2env(as.list(environment()), envir = env_tosave)
+      list2env(as.list(parent.frame()), envir = env_tosave)
+      list2env(as.list(.GlobalEnv), envir = env_tosave)
+      save(list = ls(envir = env_tosave), envir = env_tosave,
+          file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
+      options(op_prev)
+    })
 
 #-----------------------Check for experimentals
 	if(expN > 0 && length(create_experimentals) > 0) {
@@ -4158,10 +4176,42 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resMeans[nv:(nv+2*length(cats)-1)] <- c(resilience, resistance)
 					nv <- nv + 2*length(cats)
 
-					rm(cats, resilience, resistance, Tregime, Sregime)
+					rm(cats, resilience, resistance)
 
 				}
-				rm(regimes_done)
+
+        #35c
+        if(any(simulation_timescales=="daily") && aon$dailyNRCS_Maestas2016_ResilienceResistance && aon$dailyNRCS_SoilMoistureTemperatureRegimes){	#Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+          #Based on Maestas, J.D., Campbell, S.B., Chambers, J.C., Pellant, M. & Miller, R.F. (2016). Tapping Soil Survey Information for Rapid Assessment of Sagebrush Ecosystem Resilience and Resistance. Rangelands, 38, 120-128.
+          if (print.debug)
+            print("Aggregation of dailyNRCS_Maestas2016_ResilienceResistance")
+
+          RR <- c(Low = 0, Moderate = 0, High = 0)
+
+          if (regimes_done) {
+            #---Table 1 in Maestas et al. 2016
+            Table1 <- matrix(c(
+                "Cryic", "Xeric", "High",
+                "Frigid", "Xeric", "High",
+                "Cryic", "Aridic", "Moderate",
+                "Frigid", "Aridic", "Moderate",
+                "Mesic", "Xeric", "Moderate",
+                "Mesic", "Aridic", "Low"),
+              ncol = 3, byrow = TRUE)
+
+            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
+            RR[temp] <- 1
+
+            rm(Table1)
+          }
+
+          nv_new <- nv + length(RR)
+          resMeans[nv:(nv_new - 1)] <- RR
+          nv <- nv_new
+
+          rm(RR)
+        }
+        rm(regimes_done, Tregime, Sregime)
 
 			#35.2
 				if(any(simulation_timescales=="daily") & aon$dailyWetDegreeDays){	#Wet degree days on daily temp and swp
@@ -4966,32 +5016,48 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					for (sp in seq_len(no.species_regeneration)) {
 						param <- data.frame(t(param.species_regeneration[,sp]))
 
-						#Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
-						Doy_SeedDispersalStart <- max(round(param$Doy_SeedDispersalStart0 + param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan, 0) %% 365, 1)
-						moveByDays <- ifelse(Doy_SeedDispersalStart ==  1, 1, max(as.numeric(ISOdate(simTime$useyrs[1] - 1, 12, 31, tz = "UTC") - ISOdate(simTime$useyrs[1] - 1, 1, 1, tz = "UTC")) + 1 - (Doy_SeedDispersalStart - 1) %% 365, 1))
+            #Regeneration year=RY: RYdoy=1 == start of seed dispersal = start of 'regeneration year'
+            temp <- param$Doy_SeedDispersalStart0 +
+              param$SeedDispersalStart_DependencyOnMeanTempJanuary * TmeanJan
+            Doy_SeedDispersalStart <- as.integer(max(round(temp, 0) %% 365, 1))
+
+            moveByDays <- if (Doy_SeedDispersalStart > 1) {
+                temp <- ISOdate(simTime$useyrs[1] - 1, 12, 31, tz = "UTC") -
+                        ISOdate(simTime$useyrs[1] - 1, 1, 1, tz = "UTC") + 1 -
+                        (Doy_SeedDispersalStart - 1)
+                as.integer(max(c(as.numeric(temp) %% 365, 1)))
+              } else {
+                1L
+              }
+
 						#Calculate regeneration year dates
+            et <- length(simTime$index.usedy)
+						itail <- (et - moveByDays + 1):et
 						if (startyr > simstartyr) {
 						  #start earlier to complete RY
-							RY.index.usedy <- c(((st <- simTime$index.usedy[1])-moveByDays):(st-1), simTime$index.usedy[-(((et <- length(simTime$index.usedy))-moveByDays+1):et)]) #index indicating which rows of the daily SoilWat output is used
+						  st <- simTime$index.usedy[1]
+							RY.index.usedy <- c((st - moveByDays):(st - 1), simTime$index.usedy[-itail]) #index indicating which rows of the daily SoilWat output is used
 							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay	#'regeneration year' for each used day
 							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay	#'doy of the regeneration year' for each used day
 
 						} else if (!(startyr > simstartyr)) {
 						  #start later to get a complete RY
-							RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), (((et <- length(simTime$index.usedy))-moveByDays+1):et))]
-							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
-							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])]
+							RY.index.usedy <- simTime$index.usedy[-c(1:(Doy_SeedDispersalStart - 1), itail)]
+							temp <- which(simTime2$year_ForEachUsedDay == simTime2$year_ForEachUsedDay[1])
+							RYyear_ForEachUsedDay <- simTime2$year_ForEachUsedDay[-temp]
+							RYdoy_ForEachUsedDay <- simTime2$doy_ForEachUsedDay[-temp]
 						}
+						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
+
 						# normal year for each used 'doy of the regeneration year'
-						et <- length(RYyear_ForEachUsedDay)
+						et <- length(RY.index.usedy)
+						itail <- (et - moveByDays + 1):et
 						year_ForEachUsedRYDay <- c(rep(simTime$useyrs[1] - 1, times = moveByDays),
-						                            RYyear_ForEachUsedDay[-((et - moveByDays + 1):et)])
+						                            RYyear_ForEachUsedDay[-itail])
             # normal doy for each used 'doy of the regeneration year'
 						st <- simTime$index.usedy[1]
-						et <- length(RYdoy_ForEachUsedDay)
 						doy_ForEachUsedRYDay <- c((st - moveByDays):(st - 1),
-						                          RYdoy_ForEachUsedDay[-((et - moveByDays + 1):et)])
-						RY.useyrs <- unique(RYyear_ForEachUsedDay)	#list of 'regeneration years' that are used for aggregation
+						                          RYdoy_ForEachUsedDay[-itail])
 
 						#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
 						if (sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart) {
@@ -5099,7 +5165,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						colnames(SeedlingMortality_CausesByYear) <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
 						for (y in seq_along(RY.useyrs)) {#for each year
-							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]])
+						  index.thisYear <- RYyear_ForEachUsedDay == RY.useyrs[y]
+							RYDoys_SeedlingStarts_ThisYear <- which(Seedling_Starts[index.thisYear])
 							if (length(RYDoys_SeedlingStarts_ThisYear) > 0) {#if there are any germinations
 								#init values for this year
 								no.days <- sum(index.thisYear)
@@ -5229,13 +5296,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---Aggregate output
 						dat_gissm1 <- cbind(Germination_Emergence, SeedlingSurvival_1stSeason)
-						dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin, !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions, Germination_RestrictedByTimeToGerminate)
+						dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin,
+						  !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions,
+						  Germination_RestrictedByTimeToGerminate)
 
 						#Fraction of years with success
-						res1.yr <- aggregate(dat_gissm1, by = list(year_ForEachUsedRYDay), FUN = sum)
-						stemp <- res1.yr[simTime$index.useyr, -1] > 0
-						resMeans[nv:(nv+1)] <- apply(stemp, 2, mean)
-						resSDs[nv:(nv+1)] <- apply(stemp, 2, sd)
+						index_RYuseyr <- unique(year_ForEachUsedRYDay) %in% simTime$useyr
+						res1.yr_v0 <- aggregate(dat_gissm1, by = list(year_ForEachUsedRYDay), FUN = sum)
+						res1.yr <- res1.yr_v0[index_RYuseyr, -1]
+						stemp <- res1.yr > 0
+						resMeans[nv:(nv+1)] <- apply(stemp, 2, mean, na.rm = TRUE)
+						resSDs[nv:(nv+1)] <- apply(stemp, 2, sd, na.rm = TRUE)
 						#Periods with no successes
 						rleGerm <- rle(stemp[, 1])
 						if (any(!rleGerm$values))
@@ -5246,19 +5317,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						  resMeans[(nv+5):(nv+7)] <- quantile(rleSling$lengths[!rleSling$values],
 						                                      probs = c(0.05, 0.5, 0.95), type = 7)
 						#Mean number of days per year with success
-						resMeans[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, mean)
-						resSDs[(nv+8):(nv+9)] <- apply(res1.yr[simTime$index.useyr, -1], 2, sd)
+						resMeans[(nv+8):(nv+9)] <- apply(res1.yr, 2, mean)
+						resSDs[(nv+8):(nv+9)] <- apply(res1.yr, 2, sd)
 						#Days of year (in normal count) of most frequent successes among years: #toDoy <- function(x) sort(ifelse((temp <- x+Doy_SeedDispersalStart-1) > 365, temp-365,temp)) #convert to normal doys
 						res1.dy <- aggregate(dat_gissm1, by = list(doy_ForEachUsedRYDay), FUN = sum)
 						resMeans[(nv+10):(nv+15)] <- get.DoyMostFrequentSuccesses(res1.dy, dat_gissm1)
 						#Mean number of days when germination is restricted due to conditions
-						res2.yr <- aggregate(dat_gissm2, by = list(year_ForEachUsedRYDay), sum)
-						resMeans[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, mean)
-						resSDs[(nv+16):(nv+20)] <- apply(res2.yr[simTime$index.useyr, -1], 2, sd)
+						res2.yr_v0 <- aggregate(dat_gissm2, by = list(year_ForEachUsedRYDay), sum)
+						res2.yr <- res2.yr_v0[index_RYuseyr, -1]
+						resMeans[(nv+16):(nv+20)] <- apply(res2.yr, 2, mean)
+						resSDs[(nv+16):(nv+20)] <- apply(res2.yr, 2, sd)
 						#Mean time to germinate in days
-						res3.yr <- tapply(Germination_TimeToGerminate, year_ForEachUsedRYDay, mean, na.rm = TRUE)
-						resMeans[nv+21] <- mean(res3.yr[simTime$index.useyr], na.rm = TRUE)
-						resSDs[nv+21] <- sd(res3.yr[simTime$index.useyr], na.rm = TRUE)
+						res3.yr_v0 <- tapply(Germination_TimeToGerminate, year_ForEachUsedRYDay, mean, na.rm = TRUE)
+						res3.yr <- res3.yr_v0[index_RYuseyr]
+						resMeans[nv+21] <- mean(res3.yr, na.rm = TRUE)
+						resSDs[nv+21] <- sd(res3.yr, na.rm = TRUE)
 						#Mean number of days per year of different types of mortalities
 						resMeans[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, mean, na.rm = TRUE) #if value==NA, then no germinations that year
 						resSDs[(nv+22):(nv+30)] <- apply(SeedlingMortality_CausesByYear, 2, sd, na.rm = TRUE) #if value==NA, then no germinations that year
@@ -5270,7 +5343,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							#Table with data for every year
 							res1.yr.doy <- t(simplify2array(by(dat_gissm1, INDICES=year_ForEachUsedRYDay, FUN=function(x) get.DoyMostFrequentSuccesses(x, dat_gissm1))))[simTime$index.useyr, ]
 
-							res.yr <- data.frame(data.frame(res1.yr, res2.yr[, -1], res3.yr)[simTime$index.useyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
+							res.yr <- data.frame(data.frame(res1.yr_v0, res2.yr_v0[, -1], res3.yr_v0)[index_RYuseyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
 							temp.header2 <- c("DaysWith_GerminationSuccess", "DaysWith_SeedlingSurvival1stSeason",
 									"Days_GerminationRestrictedByTmax", "Days_GerminationRestrictedByTmin", "Days_GerminationRestrictedBySWPmin", "Days_GerminationRestrictedByAnyCondition", "Days_GerminationRestrictedByTimeToGerminate",
 									"MeanDays_TimeToGerminate",
