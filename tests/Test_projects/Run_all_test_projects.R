@@ -93,7 +93,8 @@ temp <- if (interactive()) {
     readline(paste("Which of the",
                     length(tests),
                     "tests should be run",
-                    "('all'; a single number; several numbers separated by commas): "))
+                    "('all'; a single number; several numbers separated by commas; ",
+                    "zero or a negative number to delete any temporary objects): "))
   } else which_tests_torun
 
 which_tests_torun <- if (!is.na(temp)) {
@@ -101,7 +102,11 @@ which_tests_torun <- if (!is.na(temp)) {
       seq_along(tests)
     } else {
       temp <- unique(as.integer(strsplit(gsub("[[:space:]]", "", temp), ",")[[1]]))
-      intersect(temp, seq_along(tests))
+      if (all(temp < 1)) {
+        -1
+      } else {
+        intersect(temp, seq_along(tests))
+      }
     }
   } else {
     seq_along(tests)
@@ -113,10 +118,16 @@ source(file.path(dir.test, "Functions_for_test_projects.R"), keep.source = FALSE
 
 
 #---Run projects
-out <- run_test_projects(dir.test, tests, dir.old, which_tests_torun,
-  delete_output, force_delete_output, make_new_ref)
+if (any(which_tests_torun > 0)) {
+  out <- run_test_projects(dir.test, tests, dir.old, which_tests_torun,
+    delete_output, force_delete_output, make_new_ref)
+  print(out)
 
-print(out)
+} else if (which_tests_torun < 1) {
+  print(paste0(Sys.time(), ": delete temporary disk files of SWSF test projects"))
+  lapply(tests, delete_test_output)
+}
+
 
 setwd(dir.old)
 print(paste0(Sys.time(), ": end of SWSF test projects"))
