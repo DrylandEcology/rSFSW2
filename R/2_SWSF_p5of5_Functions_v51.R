@@ -2803,7 +2803,24 @@ SeedlingRootingDepth <- compiler::cmpfun(function(age, P0, K, r) {
 })
 
 
+#' Determine if all conditions across rooted soil layers are deadly
+#'
 #' Function that checks whether all relevant (those with roots) soil layers are under conditions of mortality (kill.conditions) for each day of a given year
+#'
+#'  \code{relevantLayers} takes either \code{NA} if no soil layers should be considered
+#'  (e.g., because not yet germinated), or an integer number between 1 and the number of
+#'  simulated soil layers. The number indicates the depth to which a seedling has grown
+#'  roots and over which layers \code{kill.conditions} will be evaluated.
+#'
+#' @param relevantLayers An integer vector, usually of length 365 or 366 (days).
+#' @param kill.conditions A m x p logical matrix with \code{m >= length(relevantLayers)}
+#'  and p represents the number of simulated soil layers, i.e.,
+#'  \code{p >= max(relevantLayers, na.rm = TRUE)}.
+#'
+#' @return A logical vector of the length of \code{relevantLayers} with values containing
+#'  \code{NA} for days when conditions were not evaluated, \code{TRUE} if all
+#'  relevant soil layers (columns) of \code{kill.conditions} were \code{TRUE}, and with
+#'  \code{FALSE} otherwise
 get_KilledBySoilLayers <- compiler::cmpfun(function(relevantLayers, kill.conditions) {
   vapply(seq_along(relevantLayers), function(k)
       all(as.logical(kill.conditions[k, if (is.finite(relevantLayers[k])) seq_len(relevantLayers[k]) else NA])),
