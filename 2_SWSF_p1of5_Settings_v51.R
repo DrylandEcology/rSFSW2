@@ -185,16 +185,8 @@ do.ExtractExternalDatasets <- c(
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
 
-		#Mean monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
-		#CMIP3
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_Global", 0, #50-km resolution for mean of 2070-2099
-		"ExtractClimateChangeScenarios_CMIP3_ClimateWizardEnsembles_USA", 0, #12-km resolution for mean change between 2070-2099 and 1971-2000
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP3_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
-		#CMIP5
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_USA", 0,	#1/8-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_GDODCPUCLLNL_Global", 0,	#1/2-degree resolution
-		"ExtractClimateChangeScenarios_CMIP5_BCSD_NEX_USA", 0,	#30-arcsec resolution; requires live internet access
+		#Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
+		"ExtractClimateChangeScenarios", 0,
 
 		#Mean monthly wind, relative humidity, and 100% - sunshine
 		"ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
@@ -213,6 +205,20 @@ chunk_size.options <- list(
 		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
 		ExtractSkyDataFromNCEPCFSR_Global = 100,	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
 		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
+)
+
+opt_climsc_extr <- c(
+  # for each climate data set from which to extract, add an element like 'dataset1'
+  # priority of extraction: dataset1, dataset2, ... if multiple sources provide data for a location
+  # dataset = 'project_source' with
+  #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
+  #   - source = one string out of:
+  #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
+  #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
+  #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
+  #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
+  #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
+    dataset1 = "CMIP5_BCSD_SageSeer_USA"
 )
 
 do.PriorCalculations <- c(
@@ -248,7 +254,7 @@ rownames(future_yrs) <- make.names(paste0("d", future_yrs[, "delta"], "yrs"), un
 #------Meta-information of input data
 datafile.windspeedAtHeightAboveGround <- 2 #SoilWat requires 2 m, but some datasets are at 10 m, e.g., NCEP/CRSF: this value checks windspeed height and if necessary converts to u2
 adjust.soilDepth <- FALSE # [FALSE] fill soil layer structure from shallower layer(s) or [TRUE] adjust soil depth if there is no soil texture information for the lowest layers
-requested_soil_layers <- seq(10, 100, by = 10)
+requested_soil_layers <- c(5, 10, 20, 30, 40, 50, 60, 70, 80, 100, 150)
 increment_soiltemperature_deltaX_cm <- 5	# If SOILWAT soil temperature is simulated and the solution instable, then the soil profile layer width is increased by this value until a stable solution can be found or total failure is determined
 
 #Climate conditions
@@ -264,21 +270,21 @@ climate.conditions <- c(climate.ambient)
 #Will be applied to each climate.conditions
 downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
 
-downscaling.options <- list(
-	daily_ppt_limit = 1.5,							#
-	monthly_limit = 1.5,							#
-	ppt_type = "detailed",							# either "detailed" or "simple"
-	correct_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
-		#	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
-		#	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
-		#	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
-	extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
-		#	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
-		#	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
-		#	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
-		# 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
-	sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
-	PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
+opt_DS <- list(
+  daily_ppt_limit = 1.5,							#
+  monthly_limit = 1.5,							#
+  ppt_type = "detailed",							# either "detailed" or "simple"
+  fix_spline = "attempt",						# one of "fail", "none" or "attempt"; only used if extrapol_type is using splines
+    #	- "fail": downscaling fails if spline extrapolations fall outside estimated monthly extremes
+    #	- "none": no correction for extrapolated monthly extreme values, but this will likely fail during correction of extreme daily PPT events
+    #	- "attempt": repeated attempts with jittering data to fit spline extrapolations within estimated monthly extreme values
+  extrapol_type = "linear_Thermessl2012CC.QMv1b",	# one of "linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"
+    #	- "linear": Gudmundsson et al. 2012: "If new model values (e.g. from climate projections) are larger than the training values used to estimate the empirical CDF, the correction found for the highest quantile of the training period is used (Boe ?? et al., 2007; Theme??l et al., 2012)."
+    #	- "tricub": I got really large output values, e.g., obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+    #	- "linear" (i.e., using Boe et al.'s correction) resulted for the same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm, hd.fut = 75 cm
+    # 	- "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
+  sigmaN = 6,										# test whether data distributions are within sigmaN * sd of mean
+  PPTratioCutoff = 10								# above and below that value use additive instead of multiplicative adjustments for precipitation; 3 was too small -> resulting in too many medium-sized ppt-event
 )
 
 #Climate ensembles created across scenarios
@@ -323,8 +329,6 @@ accountNSHemispheres_veg <- TRUE 	#if TRUE and latitude < 0 (i.e., southern hemi
 Index_RunInformation <- NULL #indices of columns of 'SWRunInformation', e.g, c(3, 7:9), or NULL, used for outputting SoilWat-run information in addition to create_treatments and climate scenario
 
 #------Select aggregated output: time scale and variable groups
-#simulation_timescales is at least one of c("daily", "weekly", "monthly", "yearly")
-simulation_timescales <- c("daily", "monthly", "yearly")
 #turn aggregation for variable groups on (1) or off (0), don't delete any variable group labels
 output_aggregates <- c(
 					#---Aggregation: SoilWat inputs

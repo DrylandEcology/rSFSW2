@@ -565,6 +565,13 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
 
 
 #------auxiliary functions
+
+in_box <- compiler::cmpfun(function(xy, xbounds, ybounds, i_use) {
+  !i_use &
+  xy[, 1] >= xbounds[1] & xy[, 1] <= xbounds[2] &
+  xy[, 2] >= ybounds[1] & xy[, 2] <= ybounds[2]
+})
+
 adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_depth[seq_len(d)])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
