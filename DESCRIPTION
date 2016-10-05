@@ -1,7 +1,7 @@
 Package: rSWSF
 Title: SOILWAT Simulation Framework
-Version: 1.7.0
-Date: 2016-10-04
+Version: 1.8.0
+Date: 2016-10-05
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
 			person("Caitlin", "Andrews", role = "ctb",
 			person("Ryan", "Murphy", role = "ctb")
