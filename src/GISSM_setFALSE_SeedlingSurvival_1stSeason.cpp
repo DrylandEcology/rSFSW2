@@ -11,7 +11,7 @@ LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s,
   // throw input errors
   if (n != ss1s.size() || ry_useyrs.size() < y ||
       ry_useyrs[y - 1] > max(ry_year_day) || ry_useyrs[y - 1] < min(ry_year_day)) {
-    throw std::invalid_argument("Invalid arguments.");
+    throw std::invalid_argument("'setFALSE_SeedlingSurvival_1stSeason': invalid arguments.");
   }
 
   // calculate
@@ -19,7 +19,7 @@ LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s,
 
   // throw error
   if (i + doy > n) {
-    throw std::runtime_error("'doy' too large for given year 'y'");
+    throw std::runtime_error("'setFALSE_SeedlingSurvival_1stSeason': doy too large for given year 'y'");
   }
 
   // assumes increasingly sorted vector ry_year_day

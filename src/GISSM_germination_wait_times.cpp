@@ -8,7 +8,7 @@ IntegerVector germination_wait_times(const IntegerVector& time_to_germinate,
 
   // throw input errors
   if (n != duration_fave_cond.size()) {
-    throw std::invalid_argument("Arguments must be of identical length");
+    throw std::invalid_argument("'germination_wait_times': arguments must be of identical length");
   }
 
   // calculate
@@ -20,14 +20,14 @@ IntegerVector germination_wait_times(const IntegerVector& time_to_germinate,
 
     // throw error if disagreement in NAs
     if (IntegerVector::is_na(time_to_germinate[i]) != IntegerVector::is_na(duration_fave_cond[i])) {
-      throw std::runtime_error("Arguments must have NAs at identical positions");
+      throw std::runtime_error("'germination_wait_times': arguments must have NAs at identical positions");
     }
 
 
     if (!IntegerVector::is_na(time_to_germinate[i])) {
       // throw error if germination takes too long
       if (time_to_germinate[i] > duration_fave_cond[i]) {
-        throw std::runtime_error("Values of time_to_germinate are larger than of duration_fave_cond");
+        throw std::runtime_error("'germination_wait_times': values of time_to_germinate are larger than of duration_fave_cond");
       }
 
       n_nas = 0;
