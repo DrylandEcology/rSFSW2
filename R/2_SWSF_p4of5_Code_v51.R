@@ -5275,7 +5275,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 											SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
 										}
 
-										SeedlingSurvival_1stSeason[RYyear_ForEachUsedDay == RY.useyrs[y]][sg_RYdoy] <- FALSE
+                    SeedlingSurvival_1stSeason <- setFALSE_SeedlingSurvival_1stSeason(
+                      SeedlingSurvival_1stSeason, RYyear_ForEachUsedDay,
+                      RY.useyrs, y, sg_RYdoy)
 									}
 								}
 							} else {#no germination during this year -> no seedlings to grow or die
