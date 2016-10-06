@@ -5002,7 +5002,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					temp.temp <- slot(slot(runData[[sc]],sw_temp),"Day")
 					TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
 					temp.soiltemp <- slot(slot(runData[[sc]],sw_soiltemp),"Day")
-					if(inherits(temp.soiltemp, "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
+					if(inherits(temp.soiltemp, "try-error") || anyNA(temp.soiltemp[, -(1:2)]) || all(temp.soiltemp[, -(1:2)] == 0)){
 						use.soiltemp <- FALSE	#flag whether soil temperature output is available or not (and then air temperature is used instead of top soil temperature)
 					} else {
 						use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
@@ -5117,7 +5117,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---3. Successful germinations
 						GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
-						temp <- padded <- rep(FALSE, RY_N_usedy)
 						germ.starts <- which(GerminationSuccess_Initiated)
 						germ.durs <- Germination_TimeToGerminate[germ.starts] - 1
 						if (param$GerminationPeriods_0ResetOr1Resume == 1) {
@@ -5125,10 +5124,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 LengthDays_FavorableConditions)
 						}
 						emergence.doys <- germ.starts + germ.durs #index of start of successful germinations + time to germinate (including wait time during unfavorable conditions if 'resume')
-						temp[emergence.doys] <- TRUE
-						padded[!GerminationSuccess_Initiated] <- NA
-						Germination_Emergence.doys <- napredict(na.action(na.exclude(padded)), emergence.doys)
-						Germination_Emergence <- temp
+						Germination_Emergence <- rep(FALSE, RY_N_usedy)
+						Germination_Emergence[emergence.doys] <- TRUE
+						Germination_Emergence.doys <- rep(NA, RY_N_usedy)
+						Germination_Emergence.doys[GerminationSuccess_Initiated] <- emergence.doys
 
 
 						#----SEEDLING SURVIVAL
