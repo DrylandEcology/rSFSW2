@@ -9,7 +9,7 @@ LogicalVector get_KilledBySoilLayers(const IntegerVector& relevantLayers, const 
   if (max(relevantLayers) > kill_conditions.ncol() ||
       n > kill_conditions.nrow() ||
       is_true(any(relevantLayers < 0))) {
-    throw std::invalid_argument("Inadmissible value(s) of relevantLayers");
+    throw std::invalid_argument("'get_KilledBySoilLayers': inadmissible value(s) of relevantLayers");
   }
 
   // calculate
