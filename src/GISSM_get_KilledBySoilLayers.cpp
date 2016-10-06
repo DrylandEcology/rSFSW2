@@ -4,17 +4,17 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 LogicalVector get_KilledBySoilLayers(const IntegerVector& relevantLayers, const LogicalMatrix& kill_conditions) {
   int n = relevantLayers.size();
-  int i, j;
-  IntegerVector killed(n);
 
   // catch errors
   if (max(relevantLayers) > kill_conditions.ncol() ||
       n > kill_conditions.nrow() ||
       is_true(any(relevantLayers < 0))) {
-    throw std::range_error("Inadmissible value(s) of relevantLayers");
+    throw std::invalid_argument("Inadmissible value(s) of relevantLayers");
   }
 
   // calculate
+  int i, j;
+  IntegerVector killed(n);
   for (i = 0; i < n; i++) {
     if (IntegerVector::is_na(relevantLayers[i])) {
       killed[i] = NA_INTEGER;

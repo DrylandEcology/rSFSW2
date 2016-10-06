@@ -40,5 +40,29 @@ if (requireNamespace("Rcpp")) {
   })
 }
 
+#' @setion: Note: The Rcpp version of the function is about 270x faster for vectors of
+#'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
+#'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
+if (requireNamespace("Rcpp")) {
+  Rcpp::sourceCpp(file.path(dir.code, "..", "src", "GISSM_germination_wait_times.cpp"))
+
+} else {
+  germination_wait_times <- compiler::cmpfun(function(time_to_germinate, duration_fave_cond) {
+    N <- length(time_to_germinate)
+    na.exclude(unlist(lapply(seq_len(N), function(t) {
+      if (is.finite(time_to_germinate[t])) {
+        t1 <- duration_fave_cond[t:N]
+        t2 <- na.exclude(t1)
+        t3 <- which(t2[time_to_germinate[t]] == t1)[1]
+        sum(is.na(t1[1:t3]))
+      } else {
+        NA
+      }
+    })))
+  })
+}
+
+
+
 #------ End of GISSM functions
 ########################
