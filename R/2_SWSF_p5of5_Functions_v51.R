@@ -2665,26 +2665,28 @@ calculate_DurationFavorableConditions <- compiler::cmpfun(function(RYyear, conse
 
 get_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYdoy, Estimate_TimeToGerminate, TmeanJan, a, b, c, d, k1_meanJanTemp, k2_meanJanTempXIncubationTemp, k3_IncubationSWP, Tgerm.year, SWPgerm.year, durations, rec.delta = 1, nrec.max = 10L) {
   for (nrec in seq_len(nrec.max)) {
-    Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate, 0))
+    Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate))
 
-    Tgerm <- mean(Tgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm = TRUE)
-    SWPgerm <- mean(SWPgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm = TRUE)
+    ids <- RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)
+    Tgerm <- mean(Tgerm.year[ids], na.rm = TRUE)
+    SWPgerm <- mean(SWPgerm.year[ids], na.rm = TRUE)
 
     temp.c.lim <- -(Tgerm - b) * (d^2 - 1) / d
     c <- if (c > 0) {
-      ifelse(c > temp.c.lim, c, temp.c.lim + tol)
+      if (c > temp.c.lim) c else {temp.c.lim + tol}
     } else if (c < 0) {
-      ifelse(c < temp.c.lim, c, temp.c.lim - tol)
+      if (c < temp.c.lim) c else {temp.c.lim - tol}
     }
 
     #NLR model (eq.5) in Hardegree SP (2006) Predicting Germination Response to Temperature. I. Cardinal-temperature Models and Subpopulation-specific Regression. Annals of Botany, 97, 1115-1125.
-    temp <- a * exp(-log(2)/log(d)^2 * log(1 + (Tgerm - b)*(d^2 - 1)/(c * d))^2)
+    temp <- a * exp(-0.693147181 / log(d)^2 * log(1 + (Tgerm - b) * (d^2 - 1) / (c * d))^2) # all.equal(log(2), 0.693147181)
+
     #drs addition to time to germinate dependent on mean January temperature and soil water potential
     temp <- 1 / temp +
             k1_meanJanTemp * TmeanJan +
             k2_meanJanTempXIncubationTemp * TmeanJan * Tgerm +
             k3_IncubationSWP * SWPgerm
-    Estimate_TimeToGerminate <- max(1, round(temp, 0) )
+    Estimate_TimeToGerminate <- max(1, round(temp) )
 
     #break if convergence or not enough time in this year
     if (abs(Estimate_TimeToGerminate - Estimate_TimeToGerminate.oldEstimate) <= rec.delta |
@@ -2698,7 +2700,7 @@ get_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYdoy, Estimate_TimeTo
       Estimate_TimeToGerminate
     }
 
-  ifelse(out <= durations[RYdoy] & RYdoy + out <= 365, out, NA) #test whether enough time to germinate
+  if (out <= durations[RYdoy] & RYdoy + out <= 365) out else NA #test whether enough time to germinate
 })
 
 #' Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
@@ -2706,9 +2708,6 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- compiler::cmpfun(function(
   #values for current year
   index.year <- RYyear_ForEachUsedDay == RYyear
   conditions <- Germination_DuringFavorableConditions[index.year]
-  doys.padded <- seq_len(sum(index.year))
-  doys.favorable <- doys.padded[conditions]
-  doys.padded[!conditions] <- NA
 
   # determining time to germinate for every day
   a <- max(tol, param$Hardegree_a)
@@ -2720,20 +2719,21 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- compiler::cmpfun(function(
                 })
   temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(runif(1) - 0.5) * tol
 
-  TimeToGerminate.favorable <- sapply(doys.favorable, FUN = get_modifiedHardegree2006NLR,
+  TimeToGerminate.favorable <- unlist(lapply(which(conditions), get_modifiedHardegree2006NLR,
     Estimate_TimeToGerminate = 1, TmeanJan = TmeanJan, a = a, b = b, c = temp.c, d = d,
     k1_meanJanTemp = param$TimeToGerminate_k1_meanJanTemp,
     k2_meanJanTempXIncubationTemp = param$TimeToGerminate_k2_meanJanTempXIncubationTemp,
     k3_IncubationSWP = param$TimeToGerminate_k3_IncubationSWP,
     Tgerm.year = soilTmeanSnow[index.year],
     SWPgerm.year = swp.TopMean[index.year],
-    durations = LengthDays_FavorableConditions[index.year])	#consequences of unfavorable conditions coded in here
+    durations = LengthDays_FavorableConditions[index.year]))	#consequences of unfavorable conditions coded in here
 
-  if (length(TimeToGerminate.favorable) == 0) {
-    TimeToGerminate.favorable <- vector("numeric", length = 0)
+  res <- rep(NA, length(conditions))
+  if (length(TimeToGerminate.favorable) > 0) {
+      res[conditions] <- TimeToGerminate.favorable
   }
 
-  napredict(na.action(na.exclude(doys.padded)), TimeToGerminate.favorable)
+  res
 })
 
 do.vector <- compiler::cmpfun(function(kill.vector, max.duration.before.kill) {
