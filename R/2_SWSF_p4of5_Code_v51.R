@@ -5121,17 +5121,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						germ.starts <- which(GerminationSuccess_Initiated)
 						germ.durs <- Germination_TimeToGerminate[germ.starts] - 1
 						if (param$GerminationPeriods_0ResetOr1Resume == 1) {
-							temp.wait <- na.exclude(unlist(lapply(seq_len(RY_N_usedy), function(t) {
-														if (is.finite(Germination_TimeToGerminate[t])) {
-														  t1 <- LengthDays_FavorableConditions[t:RY_N_usedy]
-														  t2 <- na.exclude(t1)
-															t3 <- which(t2[Germination_TimeToGerminate[t]] == t1)[1]
-															sum(is.na(t1[1:t3]))
-														} else {
-															NA
-														}
-													})))
-							germ.durs <- germ.durs + temp.wait
+              germ.durs <- germ.durs + germination_wait_times(Germination_TimeToGerminate,
+                LengthDays_FavorableConditions)
 						}
 						emergence.doys <- germ.starts + germ.durs #index of start of successful germinations + time to germinate (including wait time during unfavorable conditions if 'resume')
 						temp[emergence.doys] <- TRUE
