@@ -5258,17 +5258,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										thisSeedling_thisYear_RootingSoilLayers <- SoilLayer_at_SoilDepth(thisSeedling_thisYear_RootingDepth, layers_depth)
 
 										#Check survival under chronic SWPMax
-										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMax)
+										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByChronicSWPMax)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under chronic SWPMin
-										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMin)
+										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByChronicSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under acute SWPMin
-										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByAcuteSWPMin)
+										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByAcuteSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
@@ -5656,7 +5656,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "create_experimentals", "create_treatments", "daily_lyr_agg",
     "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
     "dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
-    "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
+    "dir.code", "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
     "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
     "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
     "establishment.delay", "establishment.duration", "establishment.swp.surface",
@@ -5712,6 +5712,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "mpi")
+      mpi.bcast.cmd(source(file.path(dir.code, "SWSF_cpp_functions.R")))
       if (print.debug) {
         mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
       }
@@ -5816,6 +5817,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "snow", cl)
+      snow::clusterEvalQ(cl, source(file.path(dir.code, "SWSF_cpp_functions.R")))
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
@@ -5829,6 +5831,7 @@ tryCatch({
 		}
 
 		if (identical(parallel_backend, "multicore")) {
+      source(file.path(dir.code, "SWSF_cpp_functions.R"))
 			Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
@@ -5841,6 +5844,7 @@ tryCatch({
 		}
 
 	} else { #call the simulations in serial
+		source(file.path(dir.code, "SWSF_cpp_functions.R"))
 		Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 		runs.completed <- 0
 
