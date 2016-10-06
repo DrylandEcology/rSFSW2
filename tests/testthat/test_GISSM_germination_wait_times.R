@@ -99,7 +99,7 @@ test_that("germination_wait_times", {
 }
 
   #--- Errors
-  # NAs not at same positions
+  # time_to_germinate is not NA, but duration_fave_cond is NA
   expect_error(germination_wait_times(1, NA))
   # germination takes longer than available favorable condition
   expect_error(germination_wait_times(2, 1))
