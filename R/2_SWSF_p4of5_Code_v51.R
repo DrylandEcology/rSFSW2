@@ -3736,7 +3736,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- CSPartSummer <- NA
-          MATLanh <- MAT50 <- T50jja <- T50djf <- CSPartSummer <- NA
+          MATLanh <- MAT50 <- T50jja <- T50djf <- NA
           Lanh_annual_means <- rep(NA, 3)
           Cond_annual_means <- rep(NA, 17)
 
@@ -4098,15 +4098,32 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 regimes_done <- TRUE
 
+                to_del <- c("n_Lanh", "width_Lanh", "Lanh_Dry_Half", "LanhConditionalDF",
+                  "LanhConditionalDF3", "ConditionalDF", "ConditionalDF3")
+                to_del <- to_del[to_del %in% ls()]
+                if (length(to_del) > 0)
+                  try(rm(list = to_del), silent = TRUE)
+
               } else {
                 if (!be.quiet)
-                  print(paste(i_label, "Number of normal years not long enough to calculate NRCS Soil Moisture Regimes. Try increasing length of simulation"))
-                Tregime[] <- Sregime[] <- NA
+                  print(paste(i_label, "Number of normal years not long enough to calculate NRCS soil moisture regimes. Try increasing length of simulation"))
+
+                Sregime[] <- NA
+
+                to_del <- c("calc50", "calcLanh", "calcMCS", "clay_temp", "days_per_wyear",
+                  "i_depth50", "i_Lanh", "i_MCS", "imp_depth", "impermeability",
+                  "isummer", "Lanh_depth", "MAP", "MMP", "normal1", "normal2",
+                  "sand_temp", "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc",
+                  "SWP_sat", "T50", "vwc_dy_nrsc", "wateryears", "wdays_index",
+                  "wyears", "wyears_index", "wyears_normal")
+                to_del <- to_del[to_del %in% ls()]
+                if (length(to_del) > 0)
+                  try(rm(list = to_del), silent = TRUE)
               }
 
             } else {
               if (!be.quiet)
-                print(paste(i_label, "has unrealistic soil temperature values."))
+                print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
                 Tregime[] <- Sregime[] <- NA
             }
 
@@ -4125,16 +4142,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           nv <- nv_new
 
 
-          to_del <- c("Lanh_annual_means", "Cond_annual_means", "calc50", "calcLanh",
-            "calcMCS", "clay_temp", "ConditionalDF", "ConditionalDF3", "CSPartSummer",
-            "days_per_wyear",  "Fifty_depth", "i_depth50", "i_Lanh", "i_MCS", "imp_depth",
-            "impermeability", "isummer", "Lanh_depth", "Lanh_Dry_Half",
-            "LanhConditionalDF", "LanhConditionalDF3", "MAP", "MAT50", "MATLanh",
-            "MCS_depth", "MMP", "n_Lanh", "normal1", "normal2", "permafrost", "sand_temp",
-            "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc", "SWP_sat", "T50",
-            "T50djf", "T50jja", "vwc_dy_nrsc", "wateryears", "wdays_index",
-            "width_Lanh", "wyears", "wyears_index", "wyears_normal")
-          # to_del <- to_del[to_del %in% ls()]
+          to_del <- c("MCS_depth", "Fifty_depth", "permafrost", "CSPartSummer", "MATLanh",
+            "MAT50", "T50jja", "T50djf", "Lanh_annual_means", "Cond_annual_means")
+          to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)
             try(rm(list = to_del), silent = TRUE)
         }
