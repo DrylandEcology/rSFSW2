@@ -1613,7 +1613,7 @@ identify_soillayers <- compiler::cmpfun(function(depths, sdepth) {
   it <- findInterval(depths, sdepth)
   if (any(is.na(it))) {
     as.integer(na.exclude(it))
-  } else if (diff(it) > 0) {
+  } else if (length(it) > 1 && diff(it) > 0) {
     (1 + it[1]):(it[2])
   } else {
     it[1]
