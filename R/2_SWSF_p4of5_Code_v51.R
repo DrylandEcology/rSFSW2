@@ -1465,7 +1465,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		if(!any(create_treatments=="soilsin") & tasks$create == 1L) {
 			soildepth <- i_sw_input_soillayers$SoilDepth_cm
 			layers_depth <- na.omit(as.numeric(i_sw_input_soillayers[2 + lmax]))
-			if(!(length(d <- which(soildepth == layers_depth)) > 0)){	#soildepth is one of the lower layer boundaries
+			d <- which(soildepth == layers_depth)
+			if (length(d) == 0) {	#soildepth is one of the lower layer boundaries
 				d <- min(length(layers_depth), findInterval(soildepth, layers_depth)+1)	#soildepth is not one of the lower layer boundaries, the next deeper layer boundary is used
 			}
 		} else {# needs to be read from soilsin file
@@ -1878,6 +1879,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       # Calculate soil layer structure, because any(create_treatments=="soilsin") and soilsin may have a different soil layer structure than the datafiles
       temp <- as.numeric(na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", seq_len(SoilLayer_MaxNo))])))
       layers_depth.datafile <- temp[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
+      if (length(layers_depth.datafile) == 0) {
+        # this condition arises if i_sw_input_soillayers["SoilDepth_cm"] < i_sw_input_soillayers["depth_L1"]
+        layers_depth.datafile <- temp[1]
+      }
 
       if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
         # different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
@@ -1951,7 +1956,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       # Impute missing/bad soil data from previous layer
       icol_excl <- which(soil_cols %in% "soilTemp_c")
       icols <- seq_along(soil_cols)[-icol_excl]
-      bad_data <- !check_soil_data(soildat[, -icol_excl])
+      bad_data <- !check_soil_data(soildat[, -icol_excl, drop = FALSE])
 
       if (any(bad_data)) for (l in ld) {
         lbad <- bad_data[l, ]
@@ -1989,10 +1994,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
     EVCO_done <- sum(soil_swdat[, "EvapBareSoil_frac"]) > 0
     TRCO_done <- all(colSums(soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
-                                            "transpTree_frac", "transpForb_frac")]) > 0)
+                                            "transpTree_frac", "transpForb_frac"), drop = FALSE]) > 0)
 
     swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
-
 
 		#add transpiration regions information to siteparamin
 		if(print.debug) print("Start of transpregion")
@@ -2332,7 +2336,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#adjust init soil temperatures to climatic conditions
 			use_soil_temp <- sw_input_soils_use[paste0("SoilTemp_L", ld)]
 			if (any(use_soil_temp)) {
-				temp <- 1:nrow(swSoils_Layers(swRunScenariosData[[sc]]))
+				temp <- seq_len(nrow(swSoils_Layers(swRunScenariosData[[sc]])))
 				if(exists("init.soilTprofile")) {
 					swSoils_Layers(swRunScenariosData[[sc]])[,12][use_soil_temp] <- init.soilTprofile
 				} else {
@@ -2993,7 +2997,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#5
 				if(aon$input_TranspirationCoeff){
 					if(print.debug) print("Aggregation of input_TranspirationCoeff")
-					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 5:8]
+					Tcoeff <- swSoils_Layers(swRunScenariosData[[1]])[, 5:8, drop = FALSE]
 					if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
 
 					TaggLs <- sapply(aggLs, FUN=function(l) apply(Tcoeff[l,, drop=FALSE], 2, sum))
@@ -3497,60 +3501,99 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(sc, sw_evsoil, tscale = "dyAll", scaler = 10, FUN = sum, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(sc, runData, simTime)
 
-					percolation <- 10 * slot(slot(runData[[sc]],sw_percolation), "Day")[simTime$index.usedy, 2 + head(ld, n=-1)]
-					hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
+          percolation <- if (d > 1) {
+              10 * slot(slot(runData[[sc]],sw_percolation), "Day")[simTime$index.usedy, 2 + ld[-d]]
+            } else {
+              rep(0, simTime$no.usedy)
+            }
+          hydred <- 10 * slot(slot(runData[[sc]],sw_hd), "Day")[simTime$index.usedy, 2 + ld]
 
 					# Water balance
-					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow=length(simTime$index.usedy), ncol=length(ld))
+					outputs_by_layer <- inputs_by_layer <- matrix(0, nrow = simTime$no.usedy, ncol = d,
+					  dimnames = list(NULL, paste0("total_Lyr_", ld)))
 					# Inputs: infiltration + received hydraulic redistribution + received percolation
 					inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
 					inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
-					inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
+          if (d > 1) {
+            inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
+          }
 
 					# Outputs: soil evaporation + transpiration + deep drainage + hydraulic redistribution donor + percolation donor
-					itemp <- 1:(ncol(Esoil.dy.all$val) - 2)
-					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + Esoil.dy.all$val[simTime$index.usedy, -(1:2)]
-					itemp <- grepl("transp_total", colnames(transp.dy.all$val))
-					outputs_by_layer[, 1:sum(itemp)] <- outputs_by_layer[, 1:sum(itemp)] + transp.dy.all$val[simTime$index.usedy, itemp]
-					itemp <- ncol(outputs_by_layer)
-					outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + deepDrain.dy$val
-					outputs_by_layer[, -itemp] <- outputs_by_layer[, -itemp] + ifelse(percolation < 0, -percolation, 0)
-					outputs_by_layer <- outputs_by_layer + ifelse(hydred < 0, -hydred, 0)
+          if (ncol(Esoil.dy.all$val) > 2) {
+            itemp <- seq_len(ncol(Esoil.dy.all$val) - 2)
+            outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] +
+              Esoil.dy.all$val[simTime$index.usedy, -(1:2)]
+          }
+          itemp <- grepl("transp_total", colnames(transp.dy.all$val))
+          if (any(itemp)) {
+            itemp <- seq_len(sum(itemp))
+            outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] +
+              transp.dy.all$val[simTime$index.usedy, itemp]
+          }
+          itemp <- ncol(outputs_by_layer)
+          outputs_by_layer[, itemp] <- outputs_by_layer[, itemp] + deepDrain.dy$val
+          if (itemp > 1) {
+            outputs_by_layer[, -itemp] <- outputs_by_layer[, -itemp] +
+              ifelse(percolation < 0, -percolation, 0)
+          }
+          outputs_by_layer <- outputs_by_layer + ifelse(hydred < 0, -hydred, 0)
 
 					# balance
 					balance <- inputs_by_layer - outputs_by_layer
 					extraction <- balance < 0
 					storage_use <- by(cbind(extraction, outputs_by_layer), INDICES=simTime2$year_ForEachUsedDay_NSadj, FUN=function(x) {
-						res1 <- apply(x[, ld], MARGIN=2, FUN=rle)
-						res2 <- apply(x[, max(ld) + ld], MARGIN=2, FUN=function(y) list(out=y))
-						return(modifyList(res1, res2))})
+            res1 <- apply(x[, ld, drop = FALSE], MARGIN=2, FUN=rle)
+            res2 <- apply(x[, soilLayers_N + ld, drop = FALSE], MARGIN=2, FUN=function(y) list(out=y))
+            modifyList(res1, res2)
+          }, simplify = FALSE)
 
 					# median duration among extracting spells for each layer and each year
-					extraction_duration_days <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) mean(dat$lengths[as.logical(dat$values)])))
+          extraction_duration_days <- sapply(storage_use, function(x)
+              sapply(x, function(dat) {
+                if (is.null(dat$out) || is.null(dat$values)) {
+                  NA
+                } else {
+                  temp <- as.logical(dat$values)
+                  if (any(temp)) mean(dat$lengths[as.logical(dat$values)]) else NA
+                }
+              }))
+          if (!is.matrix(extraction_duration_days)) {
+            extraction_duration_days <- matrix(extraction_duration_days, nrow = d, ncol = simTime$no.useyr)
+          }
 
 					# median annual sum of all extracted water during extracting spells for each layer and each year
-					extraction_summed_mm <- sapply(storage_use, FUN=function(x) sapply(x, FUN=function(dat) {
-							dat$values <- as.logical(dat$values)
-							temp <- dat
-							if(any(dat$values)) temp$values[dat$values] <- 1:sum(dat$values) # give unique ID to each extraction spell
-							if(any(!dat$values)){
-								temp$values[!dat$values] <- 0 # we are not interested in positive spells
-								has_zero <- TRUE
-							} else {
-								has_zero <- FALSE
-							}
-							storage_ids <- inverse.rle(temp)
-							x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
-							if(has_zero && length(x) > 0) x <- x[-1] # remove first element because this represents the positive spells (id = 0)
-							return(sum(x))
+					extraction_summed_mm <- sapply(storage_use, function(x) sapply(x, function(dat) {
+              if (is.null(dat$out) || is.null(dat$values)) {
+                NA
+              } else {
+                dat$values <- as.logical(dat$values)
+                temp <- dat
+                if (any(dat$values))
+                  temp$values[dat$values] <- seq_len(sum(dat$values)) # give unique ID to each extraction spell
+                if (any(!dat$values)) {
+                  temp$values[!dat$values] <- 0 # we are not interested in positive spells
+                  has_zero <- TRUE
+                } else {
+                  has_zero <- FALSE
+                }
+                storage_ids <- inverse.rle(temp)
+                x <- tapply(dat$out, INDEX=storage_ids, sum) # sum up extracted water for each extraction spell
+                if (has_zero && length(x) > 0)
+                  x <- x[-1] # remove first element because this represents the positive spells (id = 0)
+
+                sum(x)
+              }
 						}))
+          if (!is.matrix(extraction_summed_mm)) {
+            extraction_summed_mm <- matrix(extraction_summed_mm, nrow = d, ncol = simTime$no.useyr)
+          }
 
 					# aggregate across years for each soil layer
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
+					resMeans[nv:(nv+soilLayers_N-1)] <- round(apply(extraction_duration_days, 1, mean), 1)
+					resSDs[nv:(nv+soilLayers_N-1)] <- round(apply(extraction_duration_days, 1, sd), 1)
 					nv <- nv+SoilLayer_MaxNo
-					resMeans[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
-					resSDs[nv:(nv+max(ld)-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
+					resMeans[nv:(nv+soilLayers_N-1)] <- round(apply(extraction_summed_mm, 1, mean), 2)
+					resSDs[nv:(nv+soilLayers_N-1)] <- round(apply(extraction_summed_mm, 1, sd), 2)
 					nv <- nv+SoilLayer_MaxNo
 
 					rm(percolation, hydred, inputs_by_layer, outputs_by_layer, balance, extraction, storage_use, extraction_duration_days, extraction_summed_mm)
@@ -3758,7 +3801,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               impermeability <- 0.9 #impermeable layer
 
               #Required soil layers
-              soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm")]
+              soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm"), drop = FALSE]
               #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
               imp_depth <- which(soildat[, "imperm"] >= impermeability)
               imp_depth <- min(imp_depth, max(soildat[, "depth_cm"]))	#Interpret maximum soil depth as possible impermeable layer
@@ -3854,7 +3897,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               }
 
               soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st) st[["data"]])
-              swp_dy_nrsc <- swp_dy_nrsc$val[simTime$index.usedy, -(1:2)]
+              swp_dy_nrsc <- swp_dy_nrsc$val[simTime$index.usedy, -(1:2), drop = FALSE]
 
               #MCS (Soil Survey Staff 2014: p.29)
               #What soil layer info used for MCS
@@ -3883,7 +3926,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               #CSPartSummer: Is the soil saturated with water during some part of the summer June1 (=regular doy 244) - Aug31 (=regular doy 335)
               isummer <- simTime2$doy_ForEachUsedDay_NSadj >= 244 & simTime2$doy_ForEachUsedDay_NSadj <= 335
               CSPartSummer <- mean(vapply(wyears, function(yr) {
-                temp <- apply(swp_dy_nrsc[wateryears == yr & isummer, ], 1,
+                temp <- apply(swp_dy_nrsc[wateryears == yr & isummer, , drop = FALSE], 1,
                   function(x) all(x >= SWP_sat))
                 rtemp <- rle(temp)
                 if(any(rtemp$values)) max(rtemp$lengths[rtemp$values]) else 0
@@ -5077,9 +5120,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#Access daily data, the first time and afterwards only if Doy_SeedDispersalStart is different from value of previous species
 						if (sp == 1 || Doy_SeedDispersalStart != prev.Doy_SeedDispersalStart) {
-							swp <- swpmatric.dy.all$val[RY.index.usedy, 2 + ld]
-							if (length(ld) == 1)
-							  swp <- matrix(swp, ncol = 1)
+							swp <- swpmatric.dy.all$val[RY.index.usedy, 2 + ld, drop = FALSE]
 							snow <- temp.snow[RY.index.usedy, 3]*10 #mm swe in snowpack
 							airTminSnow <- ifelse(snow > 0, param$Temp_ExperiencedUnderneathSnowcover, temp.temp[RY.index.usedy, 4])
 							airTmax <- temp.temp[RY.index.usedy, 3]
@@ -5189,9 +5230,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								thisYear_SeedlingMortality_UnderneathSnowCover <- SeedlingMortality_UnderneathSnowCover[index.thisYear]
 								thisYear_SeedlingMortality_ByTmin <- SeedlingMortality_ByTmin[index.thisYear]
 								thisYear_SeedlingMortality_ByTmax <- SeedlingMortality_ByTmax[index.thisYear]
-								thisYear_SeedlingMortality_ByChronicSWPMax <- SeedlingMortality_ByChronicSWPMax[index.thisYear, ]
-								thisYear_SeedlingMortality_ByChronicSWPMin <- SeedlingMortality_ByChronicSWPMin[index.thisYear, ]
-								thisYear_SeedlingMortality_ByAcuteSWPMin <- SeedlingMortality_ByAcuteSWPMin[index.thisYear, ]
+								thisYear_SeedlingMortality_ByChronicSWPMax <- SeedlingMortality_ByChronicSWPMax[index.thisYear, , drop = FALSE]
+								thisYear_SeedlingMortality_ByChronicSWPMin <- SeedlingMortality_ByChronicSWPMin[index.thisYear, , drop = FALSE]
+								thisYear_SeedlingMortality_ByAcuteSWPMin <- SeedlingMortality_ByAcuteSWPMin[index.thisYear, , drop = FALSE]
 								thisYear_SeedlingGrowth_AbsenceOfSnowCover <- SeedlingGrowth_AbsenceOfSnowCover[index.thisYear]
 								thisYear_SeedlingGrowth_AtAboveTmin <- SeedlingGrowth_AtAboveTmin[index.thisYear]
 								thisYear_SeedlingGrowth_AtBelowTmax <- SeedlingGrowth_AtBelowTmax[index.thisYear]

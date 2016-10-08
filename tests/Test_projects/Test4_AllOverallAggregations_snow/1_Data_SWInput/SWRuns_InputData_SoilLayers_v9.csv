@@ -1,6 +1,7 @@
-"Label","SoilDepth_cm","depth_L1","depth_L2","depth_L3","depth_L4","depth_L5","depth_L6","depth_L7","depth_L8","depth_L9","depth_L10","depth_L11","depth_L12","depth_L13","depth_L14","depth_L15","depth_L16","depth_L17","depth_L18","depth_L19","depth_L20"
-"Site01",91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-"Site02",91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-"Site03",91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-"Site04",91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-"Site04",91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Label,SoilDepth_cm,depth_L1,depth_L2,depth_L3,depth_L4,depth_L5,depth_L6,depth_L7,depth_L8,depth_L9,depth_L10,depth_L11,depth_L12,depth_L13,depth_L14,depth_L15,depth_L16,depth_L17,depth_L18,depth_L19,depth_L20
+Site01,91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Site02,91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Site03,91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Site04,91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Site05,91,10,20,40,60,80,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+Site06,3,10,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA

@@ -1,6 +1,7 @@
-"Label","site_id","WeatherFolder","X_WGS84","Y_WGS84","ELEV_m","Include_YN","dailyweather_source","GCM_sources","Include_YN_ClimateScenarioSources","SoilTexture_source","Include_YN_SoilSources","Elevation_source","Include_YN_ElevationSources","ClimateNormals_source","Include_YN_ClimateNormalSources"
-"Site01",1,"Site01_weatherdata",-106.29953,35.76555,2072,1,"LookupWeatherFolder","CMIP5_BCSD_GDODCPUCLLNL_USA",1,"ISRICWISEv12_Global",1,"Elevation_NED_USA",1,"ClimateNormals_NCDC2005_USA",1
-"Site02",2,"Site02_weatherdata",-106.27478,35.76451,2072,1,"LookupWeatherFolder","CMIP5_BCSD_GDODCPUCLLNL_USA",1,"ISRICWISEv12_Global",1,"Elevation_NED_USA",1,"ClimateNormals_NCDC2005_USA",1
-"Site03",3,"Site03_weatherdata",-106.28126,35.7799,2072,1,"LookupWeatherFolder","CMIP5_BCSD_GDODCPUCLLNL_USA",1,"ISRICWISEv12_Global",1,"Elevation_NED_USA",1,"ClimateNormals_NCDC2005_USA",1
-"Site04",4,NA,-106.28749,35.7953,2072,0,NA,NA,0,NA,0,NA,0,NA,0
-"Site05",5,"Site05_weatherdata",-106.28749,35.7953,2072,1,"LookupWeatherFolder","CMIP5_BCSD_GDODCPUCLLNL_USA",1,"ISRICWISEv12_Global",1,"Elevation_NED_USA",1,"ClimateNormals_NCDC2005_USA",1
+Label,site_id,WeatherFolder,X_WGS84,Y_WGS84,ELEV_m,Include_YN,dailyweather_source,GCM_sources,Include_YN_ClimateScenarioSources,SoilTexture_source,Include_YN_SoilSources,Elevation_source,Include_YN_ElevationSources,ClimateNormals_source,Include_YN_ClimateNormalSources
+Site01,1,Site01_weatherdata,-106.29953,35.76555,2072,1,LookupWeatherFolder,CMIP5_BCSD_GDODCPUCLLNL_USA,1,ISRICWISEv12_Global,1,Elevation_NED_USA,1,ClimateNormals_NCDC2005_USA,1
+Site02,2,Site02_weatherdata,-106.27478,35.76451,2072,1,LookupWeatherFolder,CMIP5_BCSD_GDODCPUCLLNL_USA,1,ISRICWISEv12_Global,1,Elevation_NED_USA,1,ClimateNormals_NCDC2005_USA,1
+Site03,3,Site03_weatherdata,-106.28126,35.7799,2072,1,LookupWeatherFolder,CMIP5_BCSD_GDODCPUCLLNL_USA,1,ISRICWISEv12_Global,1,Elevation_NED_USA,1,ClimateNormals_NCDC2005_USA,1
+Site04,4,NA,-106.28749,35.7953,2072,0,NA,NA,0,NA,0,NA,0,NA,0
+Site05,5,Site05_weatherdata,-106.28749,35.7953,2072,1,LookupWeatherFolder,CMIP5_BCSD_GDODCPUCLLNL_USA,1,ISRICWISEv12_Global,1,Elevation_NED_USA,1,ClimateNormals_NCDC2005_USA,1
+Site06,6,Site06_weatherdata,-106.28749,35.7953,2072,1,LookupWeatherFolder,CMIP5_BCSD_GDODCPUCLLNL_USA,1,ISRICWISEv12_Global,1,Elevation_NED_USA,1,ClimateNormals_NCDC2005_USA,1
