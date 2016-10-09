@@ -35,7 +35,7 @@ if (requireNamespace("Rcpp")) {
 } else {
   get_KilledBySoilLayers <- compiler::cmpfun(function(relevantLayers, kill.conditions) {
     vapply(seq_along(relevantLayers), function(k)
-        all(as.logical(kill.conditions[k, if (is.finite(relevantLayers[k])) seq_len(relevantLayers[k]) else NA])),
+        all(as.logical(kill.conditions[k, if (is.finite(relevantLayers[k])) seq_len(relevantLayers[k]) else NA, drop = FALSE])),
       FUN.VALUE = NA)
   })
 }

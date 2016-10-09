@@ -93,7 +93,7 @@ temp <- if (interactive()) {
     readline(paste("Which of the",
                     length(tests),
                     "tests should be run",
-                    "('all'; a single number; several numbers separated by commas; ",
+                    "('all'; a single number; several numbers separated by commas;",
                     "zero or a negative number to delete any temporary objects): "))
   } else which_tests_torun
 
