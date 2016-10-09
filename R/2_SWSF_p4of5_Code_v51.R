@@ -4426,45 +4426,50 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  rm(thermal, dryness, conds, day_count)
 				}
 
-#TODO(drs): progress state
 			#36
 				if(aon$monthlySWPdryness){#dry periods based on monthly swp data: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of monthlySWPdryness")
 					if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(sc, sw_vwcmatric, tscale = "mo", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
 
-					adjMonths <- ifelse(simTime2$month_ForEachUsedMonth[1] == simTime2$month_ForEachUsedMonth_NSadj[1], 0, 6)
+          drymonths <- list()
+          mat_crit <- array(rep(SWPcrit_MPa, each = simTime$no.useyr * 12),
+            dim = c(12, simTime$no.useyr, length(SWPcrit_MPa)))
+          drymonths[["top"]] <- swpmatric.mo$top < mat_crit
 
-					drymonths.top <- drymonths.bottom <- array(data=0, dim=c(length(SWPcrit_MPa), simTime$no.useyr, 12))
-					for(icrit in seq(along=SWPcrit_MPa)){
-            temp <- tapply(swpmatric.mo$top, simTime2$month_ForEachUsedMonth_NSadj, function(x) x <= SWPcrit_MPa[icrit])
-						drymonths.top[icrit, , ] <- matrix(unlist(temp), nrow = simTime$no.useyr)
-            temp <- tapply(swpmatric.mo$bottom, simTime2$month_ForEachUsedMonth_NSadj, function(x) x <= SWPcrit_MPa[icrit])
-						drymonths.bottom[icrit, , ] <- matrix(unlist(temp), nrow = simTime$no.useyr)
-					}
+          drymonths[["bottom"]] <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
+              swpmatric.mo$bottom < mat_crit
+            } else {
+              temp <- array(FALSE, dim = c(12, simTime$no.useyr, length(SWPcrit_MPa)))
+            }
 
-					years.top <- apply(drymonths.top, MARGIN=1:2, FUN=sum)
-					years.bottom <- apply(drymonths.bottom, MARGIN=1:2, FUN=sum)
+          # Duration of dry soil periods
+          temp <- lapply(drymonths, function(x) apply(x, c(2, 3), sum))
+          years <- do.call(cbind, temp)
 
-					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(years.top, MARGIN=1, FUN=mean), apply(years.bottom, MARGIN=1, FUN=mean))
-					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(years.top, MARGIN=1, FUN=sd), apply(years.bottom, MARGIN=1, FUN=sd))
+					nv_new <- nv + 2 * length(SWPcrit_MPa)
+					resAgg[nv:(nv_new-1), ] <- t(apply(years, 2, agg_fun))
 
-					nv <- nv+2*length(SWPcrit_MPa)
+          # Start/end of dry soil periods
+					adjMonths <- if (simTime2$month_ForEachUsedMonth[1] == simTime2$month_ForEachUsedMonth_NSadj[1]) 0 else 6
 
-					start.top <- apply(drymonths.top, MARGIN=1:2, FUN=match, x=1, nomatch=0)
-					start.top[start.top != 0] <- ifelse((temp <- (start.top[start.top != 0] + adjMonths) %% 12) == 0, 12, temp)
-					start.bottom <- apply(drymonths.bottom, MARGIN=1:2, FUN=match, x=1, nomatch=0)
-					start.bottom[start.bottom != 0] <- ifelse((temp <- (start.bottom[start.bottom != 0] + adjMonths) %% 12) == 0, 12, temp)
+          starts <- lapply(drymonths, function(x) {
+              temp <- apply(x, c(2, 3), match, x = 1, nomatch = 0)
+              temp2 <- (temp + adjMonths) %% 12
+              if (any(temp > 12))
+                temp[temp > 12] <- temp2
+              temp[temp != 0 & temp2 == 0] <- 12
+              temp
+            })
+          starts <- do.call(cbind, starts)
 
-					resMeans[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ_mean, int = 12),
-					                                               apply(start.bottom, MARGIN=1, circ_mean, int = 12))
-					resSDs[nv:(nv+2*length(SWPcrit_MPa)-1)] <- c(apply(start.top, MARGIN=1, circ_sd, int = 12),
-					                                             apply(start.bottom, MARGIN=1, circ_sd, int = 12))
+					nv_new <- nv + 2 * length(SWPcrit_MPa)
+					resAgg[nv:(nv_new-1), ] <- t(apply(starts, 2, agg_fun_circular, int = 12))
+					nv <- nv_new
 
-					nv <- nv+2*length(SWPcrit_MPa)
-
-					rm(drymonths.top, drymonths.bottom, years.top, start.top, years.bottom, start.bottom, adjMonths)
+					rm(drymonths, years, starts, adjMonths)
 				}
+#TODO(drs): progress state
 			#37
 				if(aon$dailySWPdrynessANDwetness){#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of dailySWPdrynessANDwetness")
