@@ -1374,9 +1374,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       op_prev <- options("warn")
       options(warn = 0)
       env_tosave <- new.env()
-      list2env(as.list(environment()), envir = env_tosave)
-      list2env(as.list(parent.frame()), envir = env_tosave)
       list2env(as.list(.GlobalEnv), envir = env_tosave)
+      list2env(as.list(parent.frame()), envir = env_tosave)
+      list2env(as.list(environment()), envir = env_tosave)
       save(list = ls(envir = env_tosave), envir = env_tosave,
           file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
       options(op_prev)
