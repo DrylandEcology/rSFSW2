@@ -2806,7 +2806,7 @@ SeedlingRootingDepth <- compiler::cmpfun(function(age, P0, K, r) {
 #' Function that checks whether all relevant (those with roots) soil layers are under conditions of mortality (kill.conditions) for each day of a given year
 get_KilledBySoilLayers <- compiler::cmpfun(function(relevantLayers, kill.conditions) {
   vapply(seq_along(relevantLayers), function(k)
-      all(as.logical(kill.conditions[k, if (is.finite(relevantLayers[k])) seq_len(relevantLayers[k]) else NA])),
+      all(as.logical(kill.conditions[k, if (is.finite(relevantLayers[k])) seq_len(relevantLayers[k]) else NA, drop = FALSE])),
     FUN.VALUE = NA)
 })
 
