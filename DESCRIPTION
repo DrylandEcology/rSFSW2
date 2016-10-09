@@ -1,10 +1,10 @@
 Package: rSWSF
 Title: SOILWAT Simulation Framework
-Version: 1.6.3
-Date: 2016-09-28
+Version: 1.8.2
+Date: 2016-10-09
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
-			person("Caitlin", "Andrews", role = "ctb", email = "not@available.com"),
-			person("Ryan", "Murphy", role = "ctb", email = "not@available.com"))
+			person("Caitlin", "Andrews", role = "ctb",
+			person("Ryan", "Murphy", role = "ctb")
 Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
     R (>= 3.1.0)
@@ -13,6 +13,7 @@ Imports:
     RSQLite (>= 1.0.0),
     DBI (>= 0.4.1),
     circular (>= 0.4.7),
+    Rcpp (>= 0.12.7),
     SPEI (>= 1.6),
     testthat
 Suggests:
@@ -34,6 +35,7 @@ Suggests:
     Hmisc (>= 3.17.4),
     qmap (>= 1.0.4),
     DaymetR (>= 0.1)
+LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
 License: GPL (>= 3)

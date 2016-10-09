@@ -14,19 +14,19 @@ tol <- sqrt(.Machine$double.eps)
 toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
-swsf_read_csv <- compiler::cmpfun(function(file, ...) {
+swsf_read_csv <- compiler::cmpfun(function(file, stringsAsFactors = FALSE, ...) {
   if (requireNamespace("iotools", quietly = TRUE)) {
     # faster than utils::read.csv
     temp <- try(iotools::read.csv.raw(file = file, ...), silent = TRUE)
     if (inherits(temp, "try-error")) {
-      read.csv(file = file, ...)
+      read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
     } else {
       names(temp) <- gsub("\"", "", names(temp))
       temp
     }
 
   } else {
-    read.csv(file = file, ...)
+    read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
   }
 })
 
@@ -470,6 +470,28 @@ create_filename_for_Maurer2002_NorthAmerica <- compiler::cmpfun(function(X_WGS84
   gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_"))
 })
 
+#' @examples
+#'  month1 <- function() as.POSIXlt(seq(from = ISOdate(1980, 1, 1, tz = "UTC"),
+#'     to = ISOdate(2010, 12, 31, tz = "UTC"), by = "1 day"))$mon + 1
+#'  month2 <- function() seq_month_ofeach_day(list(1980, 1, 1),
+#'    list(2010, 12, 31), tz = "UTC")
+#'
+#'  if (requireNamespace("microbenchmark", quietly = TRUE))
+#'    microbenchmark::microbenchmark(month1(), month2())    # barely any difference
+#'
+seq_month_ofeach_day <- compiler::cmpfun(function(from = list(year = 1900, month = 1, day = 1),
+  to = list(year = 1900, month = 12, day = 31), tz = "UTC") {
+
+  x <- paste(from[[1]], from[[2]], from[[3]], 12, 0, 0, sep = "-")
+  from0 <- unclass(as.POSIXct.POSIXlt(strptime(x, "%Y-%m-%d-%H-%M-%OS", tz = tz)))
+  x <- paste(to[[1]], to[[2]], to[[3]], 12, 0, 0, sep = "-")
+  to0 <- unclass(as.POSIXct.POSIXlt(strptime(x, "%Y-%m-%d-%H-%M-%OS", tz = tz)))
+
+  res <- seq.int(0, to0 - from0, by = 86400) + from0
+  as.POSIXlt.POSIXct(.POSIXct(res, tz = tz))$mon + 1
+})
+
+
 simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
   res <- list()
   #simyrs <- simstartyr:endyr
@@ -543,6 +565,13 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
 
 
 #------auxiliary functions
+
+in_box <- compiler::cmpfun(function(xy, xbounds, ybounds, i_use) {
+  !i_use &
+  xy[, 1] >= xbounds[1] & xy[, 1] <= xbounds[2] &
+  xy[, 2] >= ybounds[1] & xy[, 2] <= ybounds[2]
+})
+
 adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_depth[seq_len(d)])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
@@ -593,59 +622,41 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
 })
 
 sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime = NULL, simTime2 = NULL) {
-  sw.weather.suffix <- as.numeric(names(weatherList))
-  itemp <- year.start <= sw.weather.suffix & year.end >= sw.weather.suffix
-  years <- sw.weather.suffix[itemp]
+  x <- Rsoilwat31::dbW_weatherData_to_dataframe(weatherList)
 
-  tempMean <- tempMin <- tempMax <- ppt <- rep(0, times = 12)
-  mat <- NULL
-  #map <- NULL
-  if (do.C4vars) {
-    dailyTempMin <- dailyTempMean <- NULL
-  }
+  # Trim to years
+  years <- as.numeric(unlist(lapply(weatherList, function(x) x@year)))
+  years <- years[year.start <= years & year.end >= years]
 
-  no.yrs <- length(years)
-  if (no.yrs > 0) for (y in seq_len(no.yrs)) {
-      x <- Rsoilwat31::get_swWeatherData(weatherList, years[y])@data[, c("Tmax_C", "Tmin_C", "PPT_cm"), drop = FALSE]
-      temp.dailyTempMean <- rowMeans(x[, c("Tmax_C", "Tmin_C")])
+  x <- x[year.start <= x[, "Year"] & year.end >= x[, "Year"], ]
+  xl <- list(
+          months = as.POSIXlt(seq(from = ISOdate(years[1], 1, 1, tz = "UTC"),
+                                 to = ISOdate(years[length(years)], 12, 31, tz = "UTC"),
+                                 by = "1 day"))$mon + 1,
+          Tmean_C = rowMeans(x[, c("Tmax_C", "Tmin_C")])
+        )
 
-      if (do.C4vars) {
-        dailyTempMin <- c(dailyTempMin, x[, "Tmin_C"])
-        dailyTempMean <- c(dailyTempMean, temp.dailyTempMean)
-      }
+  index <- xl[["months"]] + 100 * x[, "Year"]
+  temp <- vapply(list(xl[["Tmean_C"]], x[, "Tmin_C"], x[, "Tmax_C"]), function(data)
+    matrix(tapply(data, index, mean), nrow = 12),
+    FUN.VALUE = matrix(NA_real_, nrow = 12, ncol = length(years)))
+  tempPPT <- matrix(tapply(x[, "PPT_cm"], index, sum), nrow = 12)
 
-      month_forEachDoy <- as.POSIXlt(seq(from = ISOdate(years[y], 1, 1, tz = "UTC"),
-                                         to = ISOdate(years[y], 12, 31, tz = "UTC"),
-                                         by = "1 day"))$mon + 1
+  list(
+    meanMonthlyTempC = apply(temp[, , 1], 1, mean),
+    minMonthlyTempC = apply(temp[, , 2], 1, mean),
+    maxMonthlyTempC = apply(temp[, , 3], 1, mean),
+    meanMonthlyPPTcm = apply(tempPPT, 1, mean),
 
-      tempMean <- tempMean + tapply(temp.dailyTempMean, month_forEachDoy, mean)
-      tempMin <- tempMin + tapply(x[, "Tmin_C"], month_forEachDoy, mean)
-      tempMax <- tempMax + tapply(x[, "Tmax_C"], month_forEachDoy, mean)
-      mat <- c(mat, mean(temp.dailyTempMean))
+    MAP_cm = sum(tempPPT) / length(years),
+    MAT_C = mean(xl[["Tmean_C"]]),
 
-      ppt <- ppt + tapply(x[, "PPT_cm"], month_forEachDoy, sum)
-      #map <- c(map, sum(x[, "PPT_cm"]))
-    }
-
-  res <- list()
-  res[["meanMonthlyTempC"]] <- tempMean / no.yrs
-  res[["minMonthlyTempC"]] <- tempMin / no.yrs
-  res[["maxMonthlyTempC"]] <- tempMax / no.yrs
-  res[["meanMonthlyPPTcm"]] <- ppt / no.yrs
-
-  res[["MAP_cm"]] <- sum(res[["meanMonthlyPPTcm"]])	# sum(res[["meanMonthlyPPTcm"]]) == mean(map)
-  res[["MAT_C"]] <- mean(mat)
-
-  if (do.C4vars) {
-    res[["dailyTempMin"]] <- dailyTempMin
-    res[["dailyTempMean"]] <- dailyTempMean
-    res[["dailyC4vars"]] <- sw_dailyC4_TempVar(dailyTempMin, dailyTempMean, simTime, simTime2)
-
-  } else {
-    res[["dailyTempMin"]] <- res[["dailyTempMean"]] <- res[["dailyC4vars"]] <- NA
-  }
-
-  res
+    dailyTempMin = if (do.C4vars) x[, "Tmin_C"] else NA,
+    dailyTempMean = if (do.C4vars) xl[["Tmean_C"]] else NA,
+    dailyC4vars = if (do.C4vars) {
+        sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]], simTime, simTime2)
+      } else NA
+  )
 })
 
 cut0Inf <- compiler::cmpfun(function(x, val = NA) {
@@ -1787,15 +1798,15 @@ get.LookupFromTable <- compiler::cmpfun(function(pattern, trtype, tr_input, sw_i
 fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
   stopifnot(names(data) %in% c("sw_input", "sw_input_use"))
 
-  icols <- sapply(data, function(x) grep(pattern, colnames(x)))
-  stopifnot(dim(icols)[2L] == 2L)
+  icols <- sapply(data, function(x) grep(pattern, names(x)))
+  stopifnot(identical(icols[, "sw_input_use"], icols[, "sw_input"]))
+  icols <- icols[, "sw_input_use"]
 
-  for (k in seq_len(dim(icols)[1L])) {
-    ic <- icols[k, "sw_input"]
-    iempty <- is.na(data$sw_input[, ic]) | abs(data$sw_input[, ic]) < tol
+  for (k in icols) {
+    iempty <- is.na(data$sw_input[, k])
     if (any(iempty)) {
-      data$sw_input[iempty, ic] <- fill
-      data$sw_input_use[icols[k, "sw_input_use"]] <- TRUE
+      data$sw_input[iempty, k] <- fill
+      data$sw_input_use[k] <- TRUE
     }
   }
 
@@ -1857,7 +1868,7 @@ identify_soillayers <- compiler::cmpfun(function(depths, sdepth) {
   it <- findInterval(depths, sdepth)
   if (anyNA(it)) {
     as.integer(na.exclude(it))
-  } else if (diff(it) > 0) {
+  } else if (length(it) > 1 && diff(it) > 0) {
     (1 + it[1]):(it[2])
   } else {
     it[1]
@@ -2971,26 +2982,28 @@ calculate_DurationFavorableConditions <- compiler::cmpfun(function(RYyear, conse
 
 get_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYdoy, Estimate_TimeToGerminate, TmeanJan, a, b, c, d, k1_meanJanTemp, k2_meanJanTempXIncubationTemp, k3_IncubationSWP, Tgerm.year, SWPgerm.year, durations, rec.delta = 1, nrec.max = 10L) {
   for (nrec in seq_len(nrec.max)) {
-    Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate, 0))
+    Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate))
 
-    Tgerm <- mean(Tgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm = TRUE)
-    SWPgerm <- mean(SWPgerm.year[RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)], na.rm = TRUE)
+    ids <- RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)
+    Tgerm <- mean(Tgerm.year[ids], na.rm = TRUE)
+    SWPgerm <- mean(SWPgerm.year[ids], na.rm = TRUE)
 
     temp.c.lim <- -(Tgerm - b) * (d^2 - 1) / d
     c <- if (c > 0) {
-      ifelse(c > temp.c.lim, c, temp.c.lim + tol)
+      if (c > temp.c.lim) c else {temp.c.lim + tol}
     } else if (c < 0) {
-      ifelse(c < temp.c.lim, c, temp.c.lim - tol)
+      if (c < temp.c.lim) c else {temp.c.lim - tol}
     }
 
     #NLR model (eq.5) in Hardegree SP (2006) Predicting Germination Response to Temperature. I. Cardinal-temperature Models and Subpopulation-specific Regression. Annals of Botany, 97, 1115-1125.
-    temp <- a * exp(-log(2)/log(d)^2 * log(1 + (Tgerm - b)*(d^2 - 1)/(c * d))^2)
+    temp <- a * exp(-0.693147181 / log(d)^2 * log(1 + (Tgerm - b) * (d^2 - 1) / (c * d))^2) # all.equal(log(2), 0.693147181)
+
     #drs addition to time to germinate dependent on mean January temperature and soil water potential
     temp <- 1 / temp +
             k1_meanJanTemp * TmeanJan +
             k2_meanJanTempXIncubationTemp * TmeanJan * Tgerm +
             k3_IncubationSWP * SWPgerm
-    Estimate_TimeToGerminate <- max(1, round(temp, 0) )
+    Estimate_TimeToGerminate <- max(1, round(temp) )
 
     #break if convergence or not enough time in this year
     if (abs(Estimate_TimeToGerminate - Estimate_TimeToGerminate.oldEstimate) <= rec.delta |
@@ -3004,7 +3017,7 @@ get_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYdoy, Estimate_TimeTo
       Estimate_TimeToGerminate
     }
 
-  ifelse(out <= durations[RYdoy] & RYdoy + out <= 365, out, NA) #test whether enough time to germinate
+  if (out <= durations[RYdoy] & RYdoy + out <= 365) out else NA #test whether enough time to germinate
 })
 
 #' Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
@@ -3012,9 +3025,6 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- compiler::cmpfun(function(
   #values for current year
   index.year <- RYyear_ForEachUsedDay == RYyear
   conditions <- Germination_DuringFavorableConditions[index.year]
-  doys.padded <- seq_len(sum(index.year))
-  doys.favorable <- doys.padded[conditions]
-  doys.padded[!conditions] <- NA
 
   # determining time to germinate for every day
   a <- max(tol, param$Hardegree_a)
@@ -3026,20 +3036,21 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- compiler::cmpfun(function(
                 })
   temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(runif(1) - 0.5) * tol
 
-  TimeToGerminate.favorable <- sapply(doys.favorable, FUN = get_modifiedHardegree2006NLR,
+  TimeToGerminate.favorable <- unlist(lapply(which(conditions), get_modifiedHardegree2006NLR,
     Estimate_TimeToGerminate = 1, TmeanJan = TmeanJan, a = a, b = b, c = temp.c, d = d,
     k1_meanJanTemp = param$TimeToGerminate_k1_meanJanTemp,
     k2_meanJanTempXIncubationTemp = param$TimeToGerminate_k2_meanJanTempXIncubationTemp,
     k3_IncubationSWP = param$TimeToGerminate_k3_IncubationSWP,
     Tgerm.year = soilTmeanSnow[index.year],
     SWPgerm.year = swp.TopMean[index.year],
-    durations = LengthDays_FavorableConditions[index.year])	#consequences of unfavorable conditions coded in here
+    durations = LengthDays_FavorableConditions[index.year]))	#consequences of unfavorable conditions coded in here
 
-  if (length(TimeToGerminate.favorable) == 0) {
-    TimeToGerminate.favorable <- vector("numeric", length = 0)
+  res <- rep(NA, length(conditions))
+  if (length(TimeToGerminate.favorable) > 0) {
+      res[conditions] <- TimeToGerminate.favorable
   }
 
-  napredict(na.action(na.exclude(doys.padded)), TimeToGerminate.favorable)
+  res
 })
 
 do.vector <- compiler::cmpfun(function(kill.vector, max.duration.before.kill) {
@@ -3108,19 +3119,6 @@ SeedlingRootingDepth <- compiler::cmpfun(function(age, P0, K, r) {
   pmax(0, depth) / 10 # units = cm
 })
 
-
-#' Function that checks whether all relevant (those with roots) soil layers are under conditions of mortality (kill.conditions) for each day of a given year
-get_KilledBySoilLayers <- compiler::cmpfun(function(relevantLayers, kill.conditions) {
-  temp <- cbind(relevantLayers, kill.conditions)
-
-  apply(temp, 1, function(x) {
-    if (!is.na(x[1])) {
-      all(as.logical(x[2:(2 + x[1] - 1)]))
-    } else {
-      NA
-    }
-  })
-})
 
 get.DoyAtLevel <- compiler::cmpfun(function(x, level) {
   which(x == level & x > 0)
