@@ -1374,9 +1374,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       op_prev <- options("warn")
       options(warn = 0)
       env_tosave <- new.env()
-      list2env(as.list(environment()), envir = env_tosave)
-      list2env(as.list(parent.frame()), envir = env_tosave)
       list2env(as.list(.GlobalEnv), envir = env_tosave)
+      list2env(as.list(parent.frame()), envir = env_tosave)
+      list2env(as.list(environment()), envir = env_tosave)
       save(list = ls(envir = env_tosave), envir = env_tosave,
           file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
       options(op_prev)
@@ -5208,6 +5208,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---2. Grow and kill the seedlings
 						SeedlingSurvival_1stSeason <- Seedling_Starts <- Germination_Emergence #TRUE=seedling that germinated on that day and survives until end of season; FALSE=no germination or seedling dies during the first season
+						SeedlingSurvival_1stSeason[] <- SeedlingSurvival_1stSeason # deep copy because Rcpp-version of get_KilledBySoilLayers changes in place which has otherwise side effects on Seedling_Starts and Germination_Emergence
 						SeedlingMortality_CausesByYear <- matrix(0, nrow = length(RY.useyrs), ncol = 9)
 						colnames(SeedlingMortality_CausesByYear) <- paste0("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"))
