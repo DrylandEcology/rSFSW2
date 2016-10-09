@@ -121,7 +121,7 @@ checkCompleteness <- FALSE
 # check linked BLAS library before simulation runs
 check.blas <- FALSE
 
-#---Load functions
+#---Load functions (don't forget the C functions!)
 rSWSF <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
 if (!file.exists(rSWSF) || !continueAfterAbort) {
   sys.source(sub(".RData", ".R", rSWSF), envir = attach(NULL, name = "swsf_funs"))

@@ -1374,9 +1374,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       op_prev <- options("warn")
       options(warn = 0)
       env_tosave <- new.env()
-      list2env(as.list(environment()), envir = env_tosave)
-      list2env(as.list(parent.frame()), envir = env_tosave)
       list2env(as.list(.GlobalEnv), envir = env_tosave)
+      list2env(as.list(parent.frame()), envir = env_tosave)
+      list2env(as.list(environment()), envir = env_tosave)
       save(list = ls(envir = env_tosave), envir = env_tosave,
           file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
       options(op_prev)
@@ -5064,7 +5064,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					temp.temp <- slot(slot(runData[[sc]],sw_temp),"Day")
 					TmeanJan <- mean(temp.temp[simTime$index.usedy, 5][simTime2$month_ForEachUsedDay_NSadj==1], na.rm=TRUE)	#mean January (N-hemisphere)/July (S-hemisphere) air temperature based on normal 'doy'
 					temp.soiltemp <- slot(slot(runData[[sc]],sw_soiltemp),"Day")
-					if(inherits(temp.soiltemp, "try-error") || any(is.na(temp.soiltemp[, -(1:2)])) || all(temp.soiltemp[, -(1:2)] == 0)){
+					if(inherits(temp.soiltemp, "try-error") || anyNA(temp.soiltemp[, -(1:2)]) || all(temp.soiltemp[, -(1:2)] == 0)){
 						use.soiltemp <- FALSE	#flag whether soil temperature output is available or not (and then air temperature is used instead of top soil temperature)
 					} else {
 						use.soiltemp <- TRUE	#currently we have only mean daily soil temperatures and not min/max which we need fo the model
@@ -5177,27 +5177,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---3. Successful germinations
 						GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
-						temp <- padded <- rep(FALSE, RY_N_usedy)
 						germ.starts <- which(GerminationSuccess_Initiated)
 						germ.durs <- Germination_TimeToGerminate[germ.starts] - 1
 						if (param$GerminationPeriods_0ResetOr1Resume == 1) {
-							temp.wait <- na.exclude(unlist(lapply(seq_len(RY_N_usedy), function(t) {
-														if (is.finite(Germination_TimeToGerminate[t])) {
-														  t1 <- LengthDays_FavorableConditions[t:RY_N_usedy]
-														  t2 <- na.exclude(t1)
-															t3 <- which(t2[Germination_TimeToGerminate[t]] == t1)[1]
-															sum(is.na(t1[1:t3]))
-														} else {
-															NA
-														}
-													})))
-							germ.durs <- germ.durs + temp.wait
+              germ.durs <- germ.durs + germination_wait_times(Germination_TimeToGerminate,
+                LengthDays_FavorableConditions)
 						}
 						emergence.doys <- germ.starts + germ.durs #index of start of successful germinations + time to germinate (including wait time during unfavorable conditions if 'resume')
-						temp[emergence.doys] <- TRUE
-						padded[!GerminationSuccess_Initiated] <- NA
-						Germination_Emergence.doys <- napredict(na.action(na.exclude(padded)), emergence.doys)
-						Germination_Emergence <- temp
+						Germination_Emergence <- rep(FALSE, RY_N_usedy)
+						Germination_Emergence[emergence.doys] <- TRUE
+						Germination_Emergence.doys <- rep(NA, RY_N_usedy)
+						Germination_Emergence.doys[GerminationSuccess_Initiated] <- emergence.doys
 
 
 						#----SEEDLING SURVIVAL
@@ -5218,6 +5208,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 						#---2. Grow and kill the seedlings
 						SeedlingSurvival_1stSeason <- Seedling_Starts <- Germination_Emergence #TRUE=seedling that germinated on that day and survives until end of season; FALSE=no germination or seedling dies during the first season
+						SeedlingSurvival_1stSeason[] <- SeedlingSurvival_1stSeason # deep copy because Rcpp-version of get_KilledBySoilLayers changes in place which has otherwise side effects on Seedling_Starts and Germination_Emergence
 						SeedlingMortality_CausesByYear <- matrix(0, nrow = length(RY.useyrs), ncol = 9)
 						colnames(SeedlingMortality_CausesByYear) <- paste0("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
 										"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"))
@@ -5318,17 +5309,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										thisSeedling_thisYear_RootingSoilLayers <- SoilLayer_at_SoilDepth(thisSeedling_thisYear_RootingDepth, layers_depth)
 
 										#Check survival under chronic SWPMax
-										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMax)
+										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByChronicSWPMax)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMax[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMax"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under chronic SWPMin
-										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByChronicSWPMin)
+										thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByChronicSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByChronicSWPMin[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByChronicSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
 										#Check survival under acute SWPMin
-										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(relevantLayers=thisSeedling_thisYear_RootingSoilLayers, kill.conditions=thisYear_SeedlingMortality_ByAcuteSWPMin)
+										thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin <- get_KilledBySoilLayers(thisSeedling_thisYear_RootingSoilLayers, thisYear_SeedlingMortality_ByAcuteSWPMin)
 										temp <- thisSeedling_thisYear_SeedlingMortality_ByAcuteSWPMin[index.thisSeedlingSeason]
 										if (any(temp))
 										  killed_byCauses_onRYdoy["Seedlings1stSeason.Mortality.ByAcuteSWPMin"] <- sg_RYdoy + which(temp)[1] - 1
@@ -5344,7 +5335,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 											SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
 										}
 
-										SeedlingSurvival_1stSeason[RYyear_ForEachUsedDay == RY.useyrs[y]][sg_RYdoy] <- FALSE
+                    SeedlingSurvival_1stSeason <- setFALSE_SeedlingSurvival_1stSeason(
+                      SeedlingSurvival_1stSeason, RYyear_ForEachUsedDay,
+                      RY.useyrs, y, sg_RYdoy)
 									}
 								}
 							} else {#no germination during this year -> no seedlings to grow or die
@@ -5716,7 +5709,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "create_experimentals", "create_treatments", "daily_lyr_agg",
     "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
     "dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
-    "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
+    "dir.code", "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
     "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
     "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
     "establishment.delay", "establishment.duration", "establishment.swp.surface",
@@ -5759,7 +5752,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 
 	#ETA calculation
 	if (!be.quiet)
-	  print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, " runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
+	  print(paste("SWSF simulation runs:", runsN_todo, "out of", runsN_total, "runs will be carried out on", workersN, "cores: started at", t1 <- Sys.time()))
 
 	inputDataToSave <- list()
 
@@ -5772,6 +5765,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "mpi")
+      mpi.bcast.cmd(source(file.path(dir.code, "SWSF_cpp_functions.R")))
       if (print.debug) {
         mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
       }
@@ -5876,6 +5870,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "snow", cl)
+      snow::clusterEvalQ(cl, source(file.path(dir.code, "SWSF_cpp_functions.R")))
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
@@ -5889,6 +5884,7 @@ tryCatch({
 		}
 
 		if (identical(parallel_backend, "multicore")) {
+      source(file.path(dir.code, "SWSF_cpp_functions.R"))
 			Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
@@ -5901,6 +5897,7 @@ tryCatch({
 		}
 
 	} else { #call the simulations in serial
+		source(file.path(dir.code, "SWSF_cpp_functions.R"))
 		Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 		runs.completed <- 0
 
