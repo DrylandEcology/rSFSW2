@@ -586,6 +586,7 @@ if (length(Tables) == 0 || cleanDB) {
 		fieldtag_Tmin_crit_C <- paste0(ifelse(Tmin_crit_C < 0, "Neg", ifelse(Tmin_crit_C > 0, "Pos", "")), abs(Tmin_crit_C), "C")
 		fieldtag_Tmax_crit_C <- paste0(ifelse(Tmax_crit_C < 0, "Neg", ifelse(Tmax_crit_C > 0, "Pos", "")), abs(Tmax_crit_C), "C")
 		fieldtag_Tmean_crit_C <- paste0(ifelse(Tmean_crit_C < 0, "Neg", ifelse(Tmean_crit_C > 0, "Pos", "")), abs(Tmean_crit_C), "C")
+    fieldtag_drysoils <- paste0("AtLeast", duration_min_drysoils_days, "Days")
 
 	#0.
 		if (aon$input_SoilProfile) {
@@ -960,19 +961,40 @@ if (length(Tables) == 0 || cleanDB) {
                       "_Count_days"))
 		}
 
-#TODO(drs): progress state
 	#36
 		if (aon$monthlySWPdryness) {
-			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Duration.Total_months_mean", sep=""),
-					paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=length(SWPcrit_MPa)), ".Start_month_mean", sep=""))
+			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.",
+                            rep(c("topLayers", "bottomLayers"), each = length(SWPcrit_MPa)),
+                            ".Duration.Total_months"),
+                      paste0("DrySoilPeriods.SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.",
+                            rep(c("topLayers", "bottomLayers"), each = length(SWPcrit_MPa)),
+                            ".Start_month"))
 		}
 
 	#37
 		if (aon$dailySWPdrynessANDwetness) {
-			temp <- c(temp, paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(fieldtag_SWPcrit_MPa, each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)),
-							rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each=4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each=2), times=2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times=2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times=2)), "_mean", sep=""))
+			temp <- c(temp, paste0(rep(c("WetSoilPeriods", "DrySoilPeriods"), each = 8),
+                            ".SWPcrit",
+                            rep(fieldtag_SWPcrit_MPa, each = 16),
+                            ".NSadj.",
+                            c(rep(c("topLayers", "bottomLayers"), times = 4),
+                              rep(rep(c("topLayers", "bottomLayers"), each = 2), times = 2)),
+                            rep(c(".AnyLayerWet", ".AllLayersWet", ".AllLayersDry", ""),
+                                each = 4),
+                            ".",
+                            c(rep(rep(c("Duration.Total_days",
+                                        "Duration.LongestContinuous_days"), each = 2),
+                                  times = 2),
+                              rep(c("Duration.Total_days",
+                                    "Duration.LongestContinuous_days"), times = 2),
+                              paste0("PeriodsFor", fieldtag_drysoils, ".",
+                                rep(c("Start_doy", "End_doy"), times = 2)))
+                            ))
 		}
 
+#TODO(drs): progress state
 	#38
 		if (aon$dailySuitablePeriodsDuration) {
 			quantiles <- c(0.05, 0.5, 0.95)
@@ -985,7 +1007,16 @@ if (length(Tables) == 0 || cleanDB) {
 		}
 	#40
 		if (aon$dailySuitablePeriodsDrySpells) {
-			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=length(SWPcrit_MPa)), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
+			temp <- c(temp, paste0("ThermalSnowfreeDryPeriods.SWPcrit",
+			                      rep(paste0(rep(fieldtag_SWPcrit_MPa, each = 2),
+			                                rep(c(".topLayers", ".bottomLayers"),
+			                                    times=length(SWPcrit_MPa))),
+			                          each=4),
+			                      "_DrySpells",
+			                      c(rep("", 3), fieldtag_drysoils),
+			                      "AllLayers_",
+			                      c("meanDuration_days", "maxDuration_days", "Total_days",
+			                        "Start_doy")))
 		}
 	#41
 		if (aon$dailySWPdrynessDurationDistribution) {
@@ -1169,7 +1200,7 @@ if (length(Tables) == 0 || cleanDB) {
 
 	#62
 		if (aon$dailyRegeneration_bySWPSnow) {
-			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction_mean")
+			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction")
 		}
 
 	#63

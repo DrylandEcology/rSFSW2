@@ -576,6 +576,37 @@ adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_dep
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
 
+degree_days <- compiler::cmpfun(function(temp_C, base_C = 0) {
+  res <- temp_C - base_C
+  res[res < 0] <- 0
+
+  res
+})
+
+soil_status <- compiler::cmpfun(function(..., swp_crit, time_N, is_dry = TRUE) {
+  swp <- list(...)
+  if (is.null(names(swp)))
+    names(swp) <- paste0("V", seq_along(swp))
+
+  out <- list()
+  mat_crits <- list()
+  ncols <- vapply(swp, function(x) dim(x)[2], FUN.VALUE = NA_real_)
+
+  for (k in seq_along(swp)) {
+    if (k > 1 &&
+    mat_crit <- array(swp_crit, dim = c(length(swp_crit), time_N))
+
+
+  mat_crit1 <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
+
+  if (is_dry) {
+    lapply(swp, function(x) x < mat_crit)
+  } else {
+    lapply(swp, function(x) x >= mat_crit)
+  }
+})
+
+
 sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, simTime, simTime2, return_yearly = FALSE) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
@@ -1934,6 +1965,17 @@ local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name
 })
 
 tempError <- compiler::cmpfun(function() .Call("tempError"))
+
+season_diff_NS <- compiler::cmpfun(function(simTime2, t_unit = "day") {
+  switch(t_unit,
+    day = ,
+    days = simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1],
+    month = ,
+    months = simTime2$month_ForEachUsedMonth_NSadj[1] - simTime2$month_ForEachUsedMonth[1],
+
+    stop("'season_diff_NS': unknown time unit"))
+})
+
 
 #data access functions
 get_Response_aggL <- compiler::cmpfun(function(sc_i, response,

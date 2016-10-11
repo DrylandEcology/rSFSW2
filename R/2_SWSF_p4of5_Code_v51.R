@@ -2944,7 +2944,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							"inf.yr", "inf.mo", "inf.dy",
 							"runoff.yr", "runoff.mo", "runoff.dy",
 							"intercept.yr", "intercept.mo", "intercept.dy",
-							"deepDrain.yr", "deepDrain.mo", "deepDrain.dy")
+							"deepDrain.yr", "deepDrain.mo", "deepDrain.dy",
+
+              "degday_dy",
+              "dry_soil_dy", "dry_soil_mo",
+              "wet_soil_dy",
+              "adj_NS_months", "adj_NS_days")
 				to_del <- to_del[to_del %in% ls()]
 				if(length(to_del) > 0) try(rm(list=to_del), silent=TRUE)
 
@@ -3118,17 +3123,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc, runData, simTime)
 
 					if (sum(SWE.dy$val) > 0) {
-						snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)	# 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
+						snowyears <- simTime2$year_ForEachUsedDay_NSadj + if (simTime2$doy_ForEachUsedDay_NSadj > 273) 1 else 0	# 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
 						yrs_snow <- unique(snowyears)
 						n_yrs_snow <- length(yrs_snow)
-						adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+						adjDays_snowyear <- if (simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1]) 365 - 273 else -91
 
 						if (n_yrs_snow > 2) {
 							res.snow  <- matrix(0, nrow = n_yrs_snow - 1, ncol = 6)
 							res.snow[, 1]  <- yrs_snow[1:(n_yrs_snow - 1)]  # 1. snowyears
 							res.snow[1, -1] <- NA
 							snowyear.trim <- !is.na(pmatch(snowyears, res.snow[-1, 1], duplicates.ok = TRUE)) # snowyears with full data
-							res.snow[-1, 2] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], which.max) - adjDays # 2. doy of peak snowpack water-equivalent (mm)
+							res.snow[-1, 2] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], which.max) - adjDays_snowyear # 2. doy of peak snowpack water-equivalent (mm)
 							res.snow[-1, 5] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], function(s) sum(s > 0)) # 5. total number of days of snow cover
 							res.snow[-1, 6] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], max) # 6. peak snowpack water-equivalent (mm)
 
@@ -3140,7 +3145,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   snowy_runs <- r$lengths[r$values]
                   res.snow[syi, 4] <- sort(snowy_runs, decreasing = TRUE)[1] # 4. number of continous days of snow cover
                   i_snowy <- max(which(snowy_runs == res.snow[syi, 4])) # last run in case of > 1 of same length
-                  res.snow[syi, 3] <- cumsum(r$lengths)[r$values][i_snowy] - adjDays # 3. last day of continous snow cover
+                  res.snow[syi, 3] <- cumsum(r$lengths)[r$values][i_snowy] - adjDays_snowyear # 3. last day of continous snow cover
                 }
 							}
 							if (nrow(res.snow) > 1) {
@@ -3150,7 +3155,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								resAgg[nv:(nv+4), is_central] <- res.snow[2,-1]
 							}
 
-							rm(snowyears, snowyear.trim, res.snow, adjDays, snowy)
+							rm(snowyears, snowyear.trim, res.snow, adjDays_snowyear, snowy)
 						} else {
 							resAgg[nv:(nv+4), ] <- 0
 						}
@@ -3444,14 +3449,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailyDegreeDays")
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 
-					degday <- temp.dy$mean - DegreeDayBase
-					degday[degday < 0] <- 0
-					temp <- tapply(degday, simTime2$year_ForEachUsedDay, sum)
+          if (!exists("degday_dy"))
+            degday_dy <- degree_days(temp.dy$mean, DegreeDayBase)
+
+					temp <- tapply(degday_dy, simTime2$year_ForEachUsedDay, sum)
 
 					resAgg[nv, ] <- agg_fun(temp)
 					nv <- nv+1
-
-					rm(degday)
 				}
 
 
@@ -4309,26 +4313,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 
-          degday <- temp.dy$mean - DegreeDayBase
-          degday[degday < 0] <- 0 # degree days
-          degday <- matrix(degday, nrow = simTime$no.usedy, ncol = length(SWPcrit_MPa))
+          if (!exists("degday_dy")) {
+            degday_dy <- degree_days(temp.dy$mean, DegreeDayBase)
+          }
+          degday <- matrix(degday_dy, nrow = simTime$no.usedy, ncol = length(SWPcrit_MPa))
 
-          wet <- list()
-          mat_crit <- matrix(rep.int(SWPcrit_MPa, simTime$no.usedy),
-            ncol = length(SWPcrit_MPa), byrow = TRUE)
-          wet[["top"]] <- swpmatric.dy$top >= mat_crit
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
 
           wetdegday <- list()
           wetdegday[["top"]] <- degday
-          wetdegday[["top"]][!wet[["top"]]] <- 0
+          wetdegday[["top"]][dry_soil_dy[["top"]]] <- 0
 
           if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-            wet[["bottom"]] <- swpmatric.dy$bottom >= mat_crit
-
             wetdegday[["bottom"]] <- degday
-            wetdegday[["bottom"]][!wet[["bottom"]]] <- 0
+            wetdegday[["bottom"]][dry_soil_dy[["bottom"]]] <- 0
             wetdegday[["any"]] <- degday
-            wetdegday[["any"]][!wet[["top"]] & !wet[["bottom"]]] <- 0
+            wetdegday[["any"]][dry_soil_dy[["top"]] & dry_soil_dy[["bottom"]]] <- 0
 
           } else {
             wetdegday[["bottom"]][] <- matrix(NA, nrow = simTime$no.usedy,
@@ -4346,7 +4349,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           resAgg[nv:(nv_new - 1), ] <- do.call(rbind, temp)
           nv <- nv_new
 
-          rm(degday, wet, wetdegday, mat_crit)
+          rm(degday, wetdegday)
         }
 
 			#35.3
@@ -4355,18 +4358,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if (!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, tscale = "dy", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
-					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
+
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
+
+          if (!exists("adj_NS_days")) {
+            adj_NS_days <- season_diff_NS(simTime2, t_unit = "day")
+          }
 
           thermal <- temp.dy$mean > 0
           thermal <- matrix(thermal, nrow = simTime$no.usedy, ncol = length(SWPcrit_MPa))
 
           thermaldry <- list()
-          mat_crit <- matrix(rep.int(SWPcrit_MPa, simTime$no.usedy),
-            ncol = length(SWPcrit_MPa), byrow = TRUE)
-          thermaldry[["top"]] <- thermal &  swpmatric.dy$top < mat_crit
+          thermaldry[["top"]] <- thermal & dry_soil_dy[["top"]]
 
           thermaldry[["bottom"]] <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-              thermal & swpmatric.dy$bottom < mat_crit
+              thermal & dry_soil_dy[["bottom"]]
             } else {
               temp <- matrix(FALSE, nrow = simTime$no.usedy, ncol = length(SWPcrit_MPa))
             }
@@ -4374,13 +4383,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           temp <- aggregate(do.call(cbind, thermaldry),
             list(simTime2$year_ForEachUsedDay_NSadj), function(y)
             max.duration(y, return_doys = TRUE)[-1])[, -1]
-          temp <- do.call(cbind, temp) - adjDays
+          temp <- do.call(cbind, temp) - adj_NS_days
 
           nv_new <- nv + 4 * length(SWPcrit_MPa)
           resAgg[nv:(nv_new - 1), ] <- t(apply(temp, 2, agg_fun_circular, int = 365))
           nv <- nv_new
 
-					rm(thermal, adjDays, thermaldry, mat_crit)
+					rm(thermal, thermaldry)
 				}
 
 			#35.4
@@ -4392,21 +4401,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				  if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
 				  if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 
-				  thermal <- temp.dy$mean >
-						matrix(rep.int(Tmean_crit_C, simTime$no.usedy),
-							ncol = length(Tmean_crit_C), byrow = TRUE)
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
 
-				  dryness <- matrix(rep.int(SWPcrit_MPa, simTime$no.usedy),
-				      ncol = length(SWPcrit_MPa), byrow = TRUE)
+				  thermal <- temp.dy$mean >
+						matrix(Tmean_crit_C, nrow = simTime$no.usedy, ncol = length(Tmean_crit_C), byrow = TRUE)
+
+				  dryness <- matrix(SWPcrit_MPa, nrow = simTime$no.usedy, ncol = length(SWPcrit_MPa), byrow = TRUE)
 				  n_conds <- 6L
 				  conds <- list() # max length(conds) == n_conds
 				  temp <- swpmatric.dy.all$val[simTime$index.usedy, -(1:2), drop = FALSE]
 				  conds[["DryAll"]] <- apply(temp, 1, max) < dryness
 				  conds[["WetAll"]] <- apply(temp, 1, min) >= dryness
-				  conds[["DryTop"]] <- swpmatric.dy$top < dryness
+				  conds[["DryTop"]] <- dry_soil_dy[["top"]]
 				  conds[["WetTop"]] <- !conds[["DryTop"]]
 				  if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-				      conds[["DryBottom"]] <- swpmatric.dy$bottom < dryness
+				      conds[["DryBottom"]] <- dry_soil_dy[["bottom"]]
 				      conds[["WetBottom"]] <- !conds[["DryBottom"]]
 				  }
 
@@ -4432,30 +4444,29 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(sc, sw_vwcmatric, tscale = "mo", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
 
-          drymonths <- list()
-          mat_crit <- array(rep(SWPcrit_MPa, each = simTime$no.useyr * 12),
-            dim = c(12, simTime$no.useyr, length(SWPcrit_MPa)))
-          drymonths[["top"]] <- swpmatric.mo$top < mat_crit
-
-          drymonths[["bottom"]] <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-              swpmatric.mo$bottom < mat_crit
-            } else {
-              temp <- array(FALSE, dim = c(12, simTime$no.useyr, length(SWPcrit_MPa)))
-            }
+         if (!exists("dry_soil_mo")) {
+            dry_soil_mo <- soil_status(top = swpmatric.mo$top, bottom = swpmatric.mo$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usemo, is_dry = TRUE)
+          }
 
           # Duration of dry soil periods
-          temp <- lapply(drymonths, function(x) apply(x, c(2, 3), sum))
-          years <- do.call(cbind, temp)
+          temp <- do.call(cbind, dry_soil_mo[c("top", "bottom")])
+          temp <- vapply(seq_len(dim(temp)[2]), function(k)
+              agg_fun(tapply(temp[ , k], simTime2$yearno_ForEachUsedMonth_NSadj, sum)),
+            FUN.VALUE = rep(NA_real_, dim(resAgg)[2]))
 
-					nv_new <- nv + 2 * length(SWPcrit_MPa)
-					resAgg[nv:(nv_new-1), ] <- t(apply(years, 2, agg_fun))
+          nv_new <- nv + 2 * length(SWPcrit_MPa)
+          resAgg[nv:(nv_new - 1), ] <- t(temp)
+          nv <- nv_new
 
           # Start/end of dry soil periods
-					adjMonths <- if (simTime2$month_ForEachUsedMonth[1] == simTime2$month_ForEachUsedMonth_NSadj[1]) 0 else 6
+          if (!exists("adj_NS_months")) {
+            adj_NS_months <- season_diff_NS(simTime2, t_unit = "month")
+          }
 
           starts <- lapply(drymonths, function(x) {
               temp <- apply(x, c(2, 3), match, x = 1, nomatch = 0)
-              temp2 <- (temp + adjMonths) %% 12
+              temp2 <- (temp + adj_NS_months) %% 12
               if (any(temp > 12))
                 temp[temp > 12] <- temp2
               temp[temp != 0 & temp2 == 0] <- 12
@@ -4467,18 +4478,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resAgg[nv:(nv_new-1), ] <- t(apply(starts, 2, agg_fun_circular, int = 12))
 					nv <- nv_new
 
-					rm(drymonths, years, starts, adjMonths)
+					rm(drymonths, years, starts)
 				}
 #TODO(drs): progress state
 			#37
-				if(aon$dailySWPdrynessANDwetness){#Dry and wet periods based on daily swp: accountNSHemispheres_agg
+				if(aon$duration_min_drysoils_days){#Dry and wet periods based on daily swp: accountNSHemispheres_agg
 					if(print.debug) print("Aggregation of dailySWPdrynessANDwetness")
-					if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(sc, sw_vwcmatric, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
-					if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
+          if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(sc, sw_vwcmatric, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
+          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
 
-					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
-					durationDryPeriods.min <- 10 # days
-
+f1 <- function() {
+nv <- 1
 					for(icrit in seq_along(SWPcrit_MPa)){
 
 						wet_crit <- swpmatric.dy.all$val >= SWPcrit_MPa[icrit]
@@ -4517,7 +4527,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             res.dry[,5] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of bottom layers are dry for at least ten days
 						res.dry[,2] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min)	# end days/year when at least one of top layers have been dry for at least ten days
             res.dry[,6] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min) # end days/year when at least one of bottom layers have been dry for at least ten days
-						res.dry[, c(1:2, 5:5)] <- res.dry[, c(1:2, 5:5)] - adjDays
+						res.dry[, c(1:2, 5:5)] <- res.dry[, c(1:2, 5:5)] - adj_NS_days
 						res.dry[res.dry[, 1] > res.dry[, 2], 3] <- 0 #correct [,c(3,7)] for years when start<end otherwise set 0
             res.dry[res.dry[, 5] > res.dry[, 6], 7] <- 0 #correct [,c(3,7)] for years when start<end otherwise set 0
 
@@ -4531,6 +4541,68 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					nv <- nv+16*length(SWPcrit_MPa)
 
 					rm(res.dry, wet, wet_crit, AtLeastOneWet, AllWet, AllDry)
+resMeans[1:(nv - 1)]
+}
+
+f2 <- function() {
+nv <- 1
+          if (!exists("dry_soil_all_dy")) {
+            dry_soil_all_dy <- soil_status(
+              top = swpmatric.dy.all$val[simTime$index.usedy, 2 + topL, drop = FALSE],
+              bottom = swpmatric.dy.all$val[simTime$index.usedy, 2 + bottomL, drop = FALSE],
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
+
+          if (!exists("adj_NS_days")) {
+            adj_NS_days <- season_diff_NS(simTime2, t_unit = "day")
+          }
+
+          tx <- list()
+          tx[["AtLeastOneDry"]] <- vapply(dry_soil_dy, function(x) apply(x, 1, any),
+            FUN.VALUE = rep(NA, simTime$no.usedy))
+          tx[["AllWet"]] <- !tx[["AtLeastOneDry"]]
+          tx[["AllDry"]] <- vapply(dry_soil_dy, function(x) apply(x, 1, all),
+            FUN.VALUE = rep(NA, simTime$no.usedy))
+          tx[["AtLeastOneWet"]] <- !tx[["AllDry"]]
+
+					for(icrit in seq_along(SWPcrit_MPa)){
+						#wet periods
+						res.wet <- matrix(0, nrow = simTime$no.useyr, ncol = 8)
+						res.wet[, 1] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
+						res.wet[, 2] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
+						res.wet[, 3] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when at least one top layers is wet
+						res.wet[, 4] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when at least one top layers is wet
+						res.wet[, 5] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
+						res.wet[, 6] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
+						res.wet[, 7] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when all top layers are wet
+						res.wet[, 8] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) # maximum number of continous days when all top layers are wet
+
+						#dry periods
+						res.dry <- matrix(0, nrow = simTime$no.useyr, ncol = 8)
+						res.dry[,3] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all top layers are dry
+            res.dry[,7] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all bottom layers are dry
+						res.dry[,4] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, max.duration) #maximum number of continous days when all top layers are dry
+            res.dry[,8] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, max.duration) #maximum number of continous days when all bottom layers are dry
+						res.dry[,1] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of top layers are dry for at least ten days
+            res.dry[,5] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)	# start days/year when at least one of bottom layers are dry for at least ten days
+						res.dry[,2] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min)	# end days/year when at least one of top layers have been dry for at least ten days
+            res.dry[,6] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min) # end days/year when at least one of bottom layers have been dry for at least ten days
+						res.dry[, c(1:2, 5:5)] <- res.dry[, c(1:2, 5:5)] - adj_NS_days
+						res.dry[res.dry[, 1] > res.dry[, 2], 3] <- 0 #correct [,c(3,7)] for years when start<end otherwise set 0
+            res.dry[res.dry[, 5] > res.dry[, 6], 7] <- 0 #correct [,c(3,7)] for years when start<end otherwise set 0
+
+						#aggregate results
+						temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)])
+						resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(colMeans(temp, na.rm = TRUE),
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], 2, circ_mean, int = 365, na.rm = TRUE))
+						resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, 2, sd, na.rm = TRUE),
+								apply(res.dry[, c(1:2, 5:6), drop=FALSE], 2, circ_sd, int = 365, na.rm = TRUE))
+					}
+					nv <- nv+16*length(SWPcrit_MPa)
+
+					rm(res.dry, wet, wet_crit, AtLeastOneWet, AllWet, AllDry)
+resMeans[1:(nv - 1)]
+}
 				}
 			#38
 				if(aon$dailySuitablePeriodsDuration){
@@ -4539,6 +4611,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc, runData, simTime)
+
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
+          if (!exists("wet_soil_dy")) {
+            wet_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = FALSE)
+          }
 
 					quantiles <- c(0.05, 0.5, 0.95)
 					snowfree <- SWE.dy$val == 0
@@ -4600,10 +4681,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(!exists("temp.dy")) temp.dy <- get_Temp_dy(sc, runData, simTime)
 					if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(sc, runData, simTime)
 
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
+
 					suitable <- (SWE.dy$val == 0) & (temp.dy$mean >= DegreeDayBase)
 
-					adjDays <- simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1]
-					durationDryPeriods.min <- 10 # days
+          if (!exists("adj_NS_days")) {
+            adj_NS_days <- season_diff_NS(simTime2, t_unit = "day")
+          }
 
 					for(icrit in seq(along=SWPcrit_MPa)){
 						dry_crit <- swpmatric.dy.all$val < SWPcrit_MPa[icrit]
@@ -4624,19 +4711,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							dry.bottom <- rep(FALSE, length(dry.top))
 						}
 
-						temp <- aggregate(cbind(dry.top, dry.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) c(if(any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration=durationDryPeriods.min) - adjDays))
+						temp <- aggregate(cbind(dry.top, dry.bottom), by=list(simTime2$year_ForEachUsedDay_NSadj), FUN=function(x) c(if(any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration=durationDryPeriods.min) - adj_NS_days))
 						resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop=FALSE], 2, mean), circ_mean(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3, drop=FALSE], 2, mean), circ_mean(x=temp$dry.bottom[, 4], int=365))
 						resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop=FALSE], 2, sd), circ_sd(x=temp$dry.top[, 4], int=365), apply(temp$dry.bottom[, 1:3, drop=FALSE], 2, sd), circ_sd(x=temp$dry.bottom[, 4], int=365))
 						nv <- nv+8
 					}
 
-					rm(dry.top, dry.bottom, suitable, dry_crit, adjDays, durationDryPeriods.min)
+					rm(dry.top, dry.bottom, suitable, dry_crit, durationDryPeriods.min)
 				}
 			#41
 				if(aon$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
 					if(print.debug) print("Aggregation of dailySWPdrynessDurationDistribution")
 					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, tscale = "dy", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
 
 					deciles <- (0:10)*10/100
 					quantiles <- (0:4)/4
@@ -4669,6 +4761,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					if(print.debug) print("Aggregation of dailySWPdrynessEventSizeDistribution")
 					if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(sc, sw_vwcmatric, tscale = "dy", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
 					if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+
+          if (!exists("dry_soil_dy")) {
+            dry_soil_dy <- soil_status(top = swpmatric.dy$top, bottom = swpmatric.dy$bottom,
+              swp_crit = SWPcrit_MPa, time_N = simTime$no.usedy, is_dry = TRUE)
+          }
+
 					binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 6
 					binsN <- length(binSize) - 1
 
@@ -5750,7 +5848,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
     "dir.code", "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
     "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
-    "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
+    "do_OneSite", "do.GetClimateMeans", "done_prior", "duration_min_drysoils_days", "endyr", "estabin",
     "eta.estimate", "exec_c_prefix", "ExpInput_Seperator", "expN", "filebasename",
     "filebasename.WeatherDataYear",
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",

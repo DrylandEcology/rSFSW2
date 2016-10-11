@@ -459,12 +459,12 @@ daily_lyr_agg <- list(
 
 #regeneration: germination and establishment
 opts_regen_bySWPSnow <- list(
-  season.start = "LastSnow" # either doy or "LastSnow"
-  season.end = "FirstSnow" # either doy or "FirstSnow"
-  germination.duration = 7 # in days
-  germination.swp.surface = -0.2 # in MPa, duration must have at least x MPa
-  establishment.duration = 14 # in days
-  establishment.swp.surface = -0.4 # in MPa, duration must have at least x MPa
+  season.start = "LastSnow", # either doy or "LastSnow"
+  season.end = "FirstSnow", # either doy or "FirstSnow"
+  germination.duration = 7, # in days
+  germination.swp.surface = -0.2, # in MPa, duration must have at least x MPa
+  establishment.duration = 14, # in days
+  establishment.swp.surface = -0.4, # in MPa, duration must have at least x MPa
   establishment.delay = 1 # start of establishment needs to occur latest x days after end of germination
 )
 
@@ -476,6 +476,10 @@ bin.prcpfreeDurations <- 10	#bins of x consecutive days without precipitation
 shrub.fraction.limit <- 0.2 	#page 1213: 0.2 in Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
 growing.season.threshold.tempC <- 10 # based on Trewartha's D temperateness definition (with >=4 & < 8 months with > 10C)
 growing.season.threshold.tempC <- 4 # based on standard input of mean monthly biomass values for vegetation composition
+
+
+# dry soil periods: minimum duration to quality for aggregations 'dailySuitablePeriodsDrySpells' and 'dailySWPdrynessANDwetness'
+duration_min_drysoils_days <- 10	# used, e.g., by functions 'startDoyOfDuration' and 'endDoyOfDuration'
 
 
 #------SoilWat files
