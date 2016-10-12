@@ -30,7 +30,7 @@
 #'  relevant soil layers (columns) of \code{kill.conditions} were \code{TRUE}, and with
 #'  \code{FALSE} otherwise
 if (requireNamespace("Rcpp")) {
-  Rcpp::sourceCpp(file.path(dir.code, "..", "src", "GISSM_get_KilledBySoilLayers.cpp"))
+  Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_get_KilledBySoilLayers.cpp"))
 
 } else {
   get_KilledBySoilLayers <- compiler::cmpfun(function(relevantLayers, kill.conditions) {
@@ -45,7 +45,7 @@ if (requireNamespace("Rcpp")) {
 #'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
 if (requireNamespace("Rcpp")) {
-  Rcpp::sourceCpp(file.path(dir.code, "..", "src", "GISSM_germination_wait_times.cpp"))
+  Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_germination_wait_times.cpp"))
 
 } else {
   germination_wait_times <- compiler::cmpfun(function(time_to_germinate, duration_fave_cond) {
@@ -67,7 +67,7 @@ if (requireNamespace("Rcpp")) {
 #' @setion: Note: The Rcpp version of the function is about 4x faster than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of 4.
 if (requireNamespace("Rcpp")) {
-  Rcpp::sourceCpp(file.path(dir.code, "..", "src", "GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp"))
+  Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp"))
 
 } else {
   setFALSE_SeedlingSurvival_1stSeason <- compiler::cmpfun(function(ss1s, ry_year_day, ry_useyrs, y, doy) {

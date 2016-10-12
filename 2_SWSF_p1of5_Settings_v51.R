@@ -66,7 +66,7 @@ url.Rrepos <- "https://cran.us.r-project.org"
 dir.prj <- "~/YOURPROJECT"
 if (interactive()) setwd(dir.prj)
 dir.prj <- dir.big <- getwd()
-dir.code <- file.path(dir.prj, "R")
+dir.code <- dir.prj
 
 
 #parent folder containing external data
@@ -122,7 +122,7 @@ checkCompleteness <- FALSE
 check.blas <- FALSE
 
 #---Load functions (don't forget the C functions!)
-rSWSF <- file.path(dir.code, "2_SWSF_p5of5_Functions_v51.RData")
+rSWSF <- file.path(dir.code, "R", "2_SWSF_p5of5_Functions_v51.RData")
 if (!file.exists(rSWSF) || !continueAfterAbort) {
   sys.source(sub(".RData", ".R", rSWSF), envir = attach(NULL, name = "swsf_funs"))
   save(list = ls(name = "swsf_funs"), file = rSWSF)
@@ -513,4 +513,4 @@ if(any(actions == "create") || any(actions == "execute") || any(actions == "aggr
 ########################Source of the code base###############################
 
 if (!interactive())
-  source(file.path(dir.code, "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)
+  source(file.path(dir.code, "R", "2_SWSF_p4of5_Code_v51.R"), verbose = FALSE, chdir = FALSE)

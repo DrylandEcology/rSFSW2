@@ -813,7 +813,7 @@ if(!be.quiet) print(paste("SWSF sets up the database: started at", t1 <- Sys.tim
 name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
 if(copyCurrentConditionsFromDatabase | copyCurrentConditionsFromTempSQL) name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
 setwd(dir.prj)
-source(file.path(dir.code, "2_SWSF_p2of5_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
+source(file.path(dir.code, "R", "2_SWSF_p2of5_CreateDB_Tables_v51.R"), verbose = FALSE, chdir = FALSE)
 
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname=name.OutputDB)
 
@@ -858,7 +858,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
 	stopifnot(file.exists(dir.external))
 
-	source(file.path(dir.code, "2_SWSF_p3of5_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
+	source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
   do_check_include <- TRUE
 
 	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
@@ -5765,7 +5765,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "mpi")
-      mpi.bcast.cmd(source(file.path(dir.code, "SWSF_cpp_functions.R")))
+      mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
       if (print.debug) {
         mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
       }
@@ -5870,7 +5870,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
       export_objects_to_workers(list.export, list_envs, "snow", cl)
-      snow::clusterEvalQ(cl, source(file.path(dir.code, "SWSF_cpp_functions.R")))
+      snow::clusterEvalQ(cl, source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
@@ -5884,7 +5884,7 @@ tryCatch({
 		}
 
 		if (identical(parallel_backend, "multicore")) {
-      source(file.path(dir.code, "SWSF_cpp_functions.R"))
+      source(file.path(dir.code, "R", "SWSF_cpp_functions.R"))
 			Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
@@ -5897,7 +5897,7 @@ tryCatch({
 		}
 
 	} else { #call the simulations in serial
-		source(file.path(dir.code, "SWSF_cpp_functions.R"))
+		source(file.path(dir.code, "R", "SWSF_cpp_functions.R"))
 		Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 		runs.completed <- 0
 
