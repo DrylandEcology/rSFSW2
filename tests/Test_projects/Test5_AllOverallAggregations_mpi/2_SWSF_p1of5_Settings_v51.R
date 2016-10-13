@@ -43,6 +43,7 @@ debug.dump.objects <- interactive()
 #------Mode of framework
 minVersionRsoilwat <- "1.1.0"
 minVersion_dbWeather <- "3.1.0"
+use_rcpp <- TRUE
 num_cores <- 4
 parallel_backend <- "mpi" #"snow" or "multicore" or "mpi"
 parallel_runs <- !interactive()

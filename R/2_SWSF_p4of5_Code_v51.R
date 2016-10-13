@@ -5738,8 +5738,8 @@ if(actionWithSoilWat && runsN_todo > 0){
     "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
     "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
     "tr_prod", "tr_site", "tr_soil", "tr_VegetationComposition",
-    "tr_weather", "weatherin", "workersN", "yearsin")
-  list.export <- list.export[!duplicated(list.export)]
+    "tr_weather", "use_rcpp", "weatherin", "workersN", "yearsin")
+  #list.export <- list.export[!duplicated(list.export)]
 
   swsf_env <- new.env(parent = emptyenv())
   load(rSWSF, envir = swsf_env)
