@@ -29,7 +29,7 @@
 #'  \code{NA} for days when conditions were not evaluated, \code{TRUE} if all
 #'  relevant soil layers (columns) of \code{kill.conditions} were \code{TRUE}, and with
 #'  \code{FALSE} otherwise
-if (requireNamespace("Rcpp")) {
+if (use_rcpp && requireNamespace("Rcpp")) {
   Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_get_KilledBySoilLayers.cpp"))
 
 } else {
@@ -44,7 +44,7 @@ if (requireNamespace("Rcpp")) {
 #' @setion: Note: The Rcpp version of the function is about 270x faster for vectors of
 #'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
-if (requireNamespace("Rcpp")) {
+if (use_rcpp && requireNamespace("Rcpp")) {
   Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_germination_wait_times.cpp"))
 
 } else {
@@ -66,7 +66,7 @@ if (requireNamespace("Rcpp")) {
 
 #' @setion: Note: The Rcpp version of the function is about 4x faster than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of 4.
-if (requireNamespace("Rcpp")) {
+if (use_rcpp && requireNamespace("Rcpp")) {
   Rcpp::sourceCpp(file.path(dir.code, "src", "GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp"))
 
 } else {
