@@ -129,7 +129,7 @@ file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mod
 dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
   dir.create(path, showWarnings, recursive, mode)
   if(times < 24)
-    if(!file.exists(path)) {
+    if(!dir.exists(path)) {
       print("trying to make directory again")
       Recall(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
     }
