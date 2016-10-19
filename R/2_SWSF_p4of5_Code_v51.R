@@ -963,6 +963,7 @@ if (any(unlist(pcalcs))) {
       has_changed <- FALSE
       sw_input_soils_data <- lapply(var_layers, function(x)
         as.matrix(sw_input_soils[runIDs_adjust_ws, grep(x, names(sw_input_soils))[ids_layers]]))
+      sw_input_soils_data2 <- NULL
 
       for (ils in seq_along(layer_sets)) {
         il_set <- avail_sl_ids == layer_sets[ils]
