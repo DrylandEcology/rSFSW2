@@ -129,7 +129,7 @@ file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mod
 dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
   dir.create(path, showWarnings, recursive, mode)
   if(times < 24)
-    if(!file.exists(path)) {
+    if(!dir.exists(path)) {
       print("trying to make directory again")
       Recall(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
     }
@@ -2895,12 +2895,12 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
   comps <- c("_Litter", "_Biomass", "_FractionLive", "_LAIconv")
   veg_ids = lapply(comps, function(x)
     grep(paste0(funct_veg, x), names(use)))
-  veg_incl = lapply(vegs_ids, function(x) use[x])
+  veg_incl = lapply(vegs_id, function(x) use[x])
 
   temp <- slot(prod_default, paste0("MonthlyProductionValues_", tolower(funct_veg)))
   if (any(unlist(veg_incl))) {
     for (k in seq_along(comps)) if (any(veg_incl[[k]]))
-      temp[veg_incl[[k]], k] <- prod_input[, veg_ids[[k]][veg_incl[[k]]]]
+      temp[veg_incl[[k]], k] <- as.numeric(prod_input[, veg_ids[[k]][veg_incl[[k]]]])
   }
 
   temp
