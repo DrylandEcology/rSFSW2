@@ -3764,7 +3764,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#---Aggregation: Ecological dryness
 			#35a
         regimes_done <- FALSE
-        if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+        if (aon$dailyNRCS_SoilMoistureTemperatureRegimes || dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
           if (print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
           #Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
           #Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
@@ -4186,20 +4186,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               Tregime[] <- Sregime[] <- NA
           }
 
-          nv_new <- nv + 6
-          resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
-            MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost))
-          nv <- nv_new
-          nv_new <- nv + dim(temp_annual)[2]
-          resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
-          resSDs[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, sd, na.rm = TRUE))
-          nv <- nv_new
-          nv_new <- nv + length(Tregime)
-          resMeans[nv:(nv_new - 1)] <- Tregime
-          nv <- nv_new
-          nv_new <- nv + length(Sregime)
-          resMeans[nv:(nv_new - 1)] <- Sregime
-          nv <- nv_new
+          if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
+            nv_new <- nv + 6
+            resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
+              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost))
+            nv <- nv_new
+            nv_new <- nv + dim(temp_annual)[2]
+            resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
+            resSDs[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, sd, na.rm = TRUE))
+            nv <- nv_new
+          }
+          if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+            nv_new <- nv + length(Tregime)
+            resMeans[nv:(nv_new - 1)] <- Tregime
+            nv <- nv_new
+            nv_new <- nv + length(Sregime)
+            resMeans[nv:(nv_new - 1)] <- Sregime
+            nv <- nv_new
+          }
 
           to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost", "temp_annual")
           #to_del <- to_del[to_del %in% ls()]

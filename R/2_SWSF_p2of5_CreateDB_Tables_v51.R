@@ -778,7 +778,7 @@ if (length(Tables) == 0 || do.clean) {
 		##############################################################---Aggregation: Ecological dryness---##############################################################
 
 	#35a
-  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
       # abbreviations:
       #     - GT = greater than; LT = less than; EQ = equal
       #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
@@ -824,11 +824,18 @@ if (length(Tables) == 0 || do.clean) {
                       "COND8_MCS_AnyWetConsec_GT90Days_prob", # COND8
                       "COND9_MCS_AllWet_Winter_days", # MoistDaysConsecWinter
                       "COND9_MCS_AllWet_Winter_GT45days_prob"), # COND9
-                    "_mean"),
-              paste0("SoilTemperatureRegime_",
-                    c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-              paste0("SoilMoistureRegime_",
-                    c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
+                    "_mean"))))
+    }
+  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+      # abbreviations:
+      #     - GT = greater than; LT = less than; EQ = equal
+      #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
+      #     - consec = consecutive
+      temp <- c(temp, paste0("NRCS_",
+                c(paste0("SoilTemperatureRegime_",
+                        c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
+                  paste0("SoilMoistureRegime_",
+                        c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
     }
 	#35b
     if (aon$dailyNRCS_Chambers2014_ResilienceResistance) {
