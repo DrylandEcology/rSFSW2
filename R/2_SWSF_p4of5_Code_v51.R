@@ -3774,7 +3774,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           temp <- c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
           Tregime <- rep(0, length(temp))
           names(Tregime) <- temp
-          temp <- c("Anyhydrous", "Aridic", "Udic", "Ustic", "Xeric")
+          temp <- c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")
           Sregime <- rep(0, length(temp))
           names(Sregime) <- temp
 
@@ -4186,13 +4186,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               Tregime[] <- Sregime[] <- NA
           }
 
-          resMeans[nv:(nv + 5)] <- c(Fifty_depth,
+          nv_new <- nv + 6
+          resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
             MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost))
-          nv_new <- nv + 6 + dim(temp_annual)[2]
-          resMeans[(nv + 6):(nv_new - 1)] <- t(apply(temp_annual, 2,
-            mean, na.rm = TRUE))
-          resSDs[(nv + 6):(nv_new - 1)] <- t(apply(temp_annual, 2,
-            sd, na.rm = TRUE))
+          nv <- nv_new
+          nv_new <- nv + dim(temp_annual)[2]
+          resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
+          resSDs[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, sd, na.rm = TRUE))
           nv <- nv_new
           nv_new <- nv + length(Tregime)
           resMeans[nv:(nv_new - 1)] <- Tregime
