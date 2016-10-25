@@ -1402,7 +1402,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 #------------------------Preparations for simulation run
   if (!be.quiet)
-    print(paste(i_sim, ":", i_label, "started at ", time.sys))
+    print(paste0(i_sim, ": ", i_label, " started at ", time.sys))
 
 	#Check what needs to be done
 	#TODO this currently doesn't work in the database setup
@@ -2859,7 +2859,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		#if(aggregate.timing) OutputTiming <- list()
 		#if(aggregate.timing) GeneralOutputTiming <- matrix(NA,nrow=scenario_No,ncol=2)
 		#aggregate for each scenario
-		for (sc in 1:scenario_No){
+		for (sc in seq_len(scenario_No)) {
+      if (tasks$aggregate <= 0) break
+
 			if(print.debug) print(paste("Start of overall aggregation for scenario:", sc))
 			#HEADER GENERATION REMOVED#
 			#only exclude if 1.) Exclude_ClimateAmbient is true in treatments 2.) That Run is set to Exclude_ClimateAmbient 3.) Our current Scenario is Current
@@ -5439,12 +5441,18 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#temporaly save aggregate data
 				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
 
-				if (dbOverallColumns > 0 && dbOverallColumns == (nv - 1)) {
+        nv1 <- nv - 1
+				if (dbOverallColumns > 0 && dbOverallColumns == nv1) {
 					resMeans[!is.finite(resMeans)] <- "NULL"
 					resSDs[!is.finite(resSDs)] <- "NULL"
-					temp1 <- paste0(c(P_id, resMeans[1:(nv-1)]), collapse = ",")
-					temp2 <- paste0(c(P_id, resSDs[1:(nv-1)]), collapse = ",")
+					temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
+					temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
+
 				} else {
+          print(paste0(i_sim, ": ", i_label, " aggregation unsuccessful:",
+            " incorrect number of aggregated variables: n = ", nv1,
+            " instead of ", dbOverallColumns))
+          tasks$aggregate <- 0L
 					temp1 <- temp2 <- P_id
 				}
 				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
@@ -5458,7 +5466,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			}
 
 			#Daily Output
-			if(daily_no > 0){
+			if (daily_no > 0 && tasks$aggregate > 0) {
 				dailyList <- list()
 				SQLc <- ""
 				#aggregate for each response variable
