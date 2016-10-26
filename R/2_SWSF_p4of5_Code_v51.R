@@ -3780,9 +3780,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- NA
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 39)
+          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 40)
           colnames(temp_annual) <- c("MATLanh", "MAT50", "T50jja", "T50djf",
-                                      "CSPartSummer", paste0("V", 6:39))
+                                      "CSPartSummer", paste0("V", 6:40))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -4167,7 +4167,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 regimes_done <- TRUE
 
                 to_del <- c("n_Lanh", "width_Lanh", "Lanh_Dry_Half", "ACS_CondsDF_day",
-                  "ACS_CondsDF_yrs", "ACS_CondsDF3", "MCS_CondsDF", "MCS_CondsDF3")
+                  "ACS_CondsDF_yrs", "ACS_CondsDF3", "MCS_CondsDF_day", "MCS_ConsDF_yrs",
+                  "MCS_CondsDF3")
                 #to_del <- to_del[to_del %in% ls()]
                 if (length(to_del) > 0)
                   try(rm(list = to_del), silent = TRUE)
@@ -4226,7 +4227,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             try(rm(list = to_del), silent = TRUE)
         }
 
-			#35b
+        #35b
 				if(aon$dailyNRCS_Chambers2014_ResilienceResistance){
 					#Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 					if(print.debug) print("Aggregation of dailyNRCS_Chambers2014_ResilienceResistance")
@@ -4237,8 +4238,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resilience <- resistance <- rep(0, times=length(cats))
 					names(resilience) <- names(resistance) <- cats
 
-					if (regimes_done && (aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
-					  dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
+          if (regimes_done && (aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
+            dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
 						#---Table 1 in Chambers et al. 2014
 						rows_resilience <- c("ModeratelyHigh", "ModeratelyHigh", "Moderate", "Low", "Low")
 						rows_resistance <- c("High", "Moderate", "ModeratelyLow", "Moderate", "Low")
@@ -4279,8 +4280,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           RR <- c(Low = 0, Moderate = 0, High = 0)
 
-          if (regimes_done && aon$aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
-					  dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
+          if (regimes_done && (aon$aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
+            dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
             #---Table 1 in Maestas et al. 2016
             Table1 <- matrix(c(
                 "Cryic", "Xeric", "High",
