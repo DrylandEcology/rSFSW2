@@ -4237,7 +4237,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					resilience <- resistance <- rep(0, times=length(cats))
 					names(resilience) <- names(resistance) <- cats
 
-					if (regimes_done && aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+					if (regimes_done && (aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
+					  dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
 						#---Table 1 in Chambers et al. 2014
 						rows_resilience <- c("ModeratelyHigh", "ModeratelyHigh", "Moderate", "Low", "Low")
 						rows_resistance <- c("High", "Moderate", "ModeratelyLow", "Moderate", "Low")
@@ -4278,7 +4279,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           RR <- c(Low = 0, Moderate = 0, High = 0)
 
-          if (regimes_done && aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+          if (regimes_done && aon$aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
+					  dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
             #---Table 1 in Maestas et al. 2016
             Table1 <- matrix(c(
                 "Cryic", "Xeric", "High",
