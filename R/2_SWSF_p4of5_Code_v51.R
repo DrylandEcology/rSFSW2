@@ -4007,7 +4007,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 #Mean Annual soil temperature is less than or equal to 0C
                 ACS_CondsDF_yrs$COND1 <- ACS_CondsDF_yrs$MAT50 <= 0
                 #Soil temperature in the Lahn Depth is never greater than 5
-#old:           ACS_CondsDF_yrs$COND2 <- ACS_CondsDF_yrs$MATLanh <= 5
                 ACS_CondsDF_day$COND2_Test <- apply(soiltemp_nrsc[["dy"]][simTime$index.usedy[wdays_index], 1 + i_Lanh, drop = FALSE], 1,
                   function(st) all(st < 5))
                 ACS_CondsDF_yrs$COND2 <- with(ACS_CondsDF_day,
@@ -4073,13 +4072,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 MCS_CondsDF_yrs$COND3 <- MCS_CondsDF_yrs$DryDaysCumAny < 90 #TRUE = Not Dry for as long 90 cumlative days,FALSE = Dry as long as as 90 Cumlative days
 
                 #COND4 - The means annual soil temperature at 50cm is < or > 22C
-#old            MCS_CondsDF_yrs$COND4 <- MCS_CondsDF_yrs$MAT50 > 22 #TRUE - Greater than 22, False - Less than 22
                 MCS_CondsDF_yrs$COND4 <- MCS_CondsDF_yrs$MAT50 >= 22 #TRUE - Greater than 22, False - Less than 22
 
                 #COND5 - The absolute difference between the temperature in winter @ 50cm and the temperature in summer @ 50cm is > or < 6
                 MCS_CondsDF_yrs$AbsDiffSoilTemp_DJFvsJJA <- with(MCS_CondsDF_yrs,
                   abs(T50djf - T50jja))
-#old            MCS_CondsDF_yrs$COND5 <- MCS_CondsDF_yrs$AbsDiffSoilTemp_DJFvsJJA > 6 #TRUE - Greater than 6, FALSE - Less than 6
                 MCS_CondsDF_yrs$COND5 <- MCS_CondsDF_yrs$AbsDiffSoilTemp_DJFvsJJA >= 6 #TRUE - Greater than 6, FALSE - Less than 6
 
                 #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
@@ -4114,12 +4111,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   Sregime["Anhydrous"] <- 1L
 
                 #Aridic soil moisture regime; The limits set for soil temperature exclude from these soil moisture regimes soils in the very cold and dry polar regions and in areas at high elevations. Such soils are considered to have anhydrous condition
-#old            if (MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'] && !MCS_CondsDF3['COND3'])
                 if (MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'])
                   Sregime["Aridic"] <- 1L
 
+                 #Xeric soil moisture regime
+                if (!as.logical(Sregime["Aridic"]) &&
+                    !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
+                    !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
+                  Sregime["Xeric"] <- 1L
+                }
+
                 #Udic soil moisture regime - #we ignore test for 'three- phase system' during T50 > 5
-                if (MCS_CondsDF3['COND3']) {
+                if (!any(as.logical(Sregime[c("Aridic", "Xeric")])) &&
+                    MCS_CondsDF3['COND3']) {
                   if (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                     if (MCS_CondsDF3['COND6'])
                       Sregime["Udic"] <- 1L
@@ -4129,21 +4133,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 }
 
                 #Ustic soil moisture regime
-#old:           if (!permafrost) {
-#                  if ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
-#                      !MCS_CondsDF3['COND3'] && (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8'])) {
-#                      Sregime["Ustic"] <- 1L
-#                  }
-#                  if (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] &&
-#                      !MCS_CondsDF3['COND3'] && !MCS_CondsDF3['COND1']) {
-#                      if (MCS_CondsDF3['COND9']) {
-#                        if (MCS_CondsDF3['COND6'])
-#                          Sregime["Ustic"] <- 1L
-#                      } else {
-#                          Sregime["Ustic"] <- 1L
-#                      }
-#                  }
-                if (!permafrost && !MCS_CondsDF3['COND3']) {
+                if (!any(as.logical(Sregime[c("Aridic", "Xeric", "Udic")])) &&
+                    !permafrost && !MCS_CondsDF3['COND3']) {
                   if (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) {
                     if (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) {
                       Sregime["Ustic"] <- 1L
@@ -4158,17 +4149,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                       }
                     }
                   }
-                }
-
-                 #Xeric soil moisture regime
-#old:           if (!MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
-#                   !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] &&
-#                   (MCS_CondsDF3['COND1_1'] || !MCS_CondsDF3['COND2'])) {
-#                   Sregime["Xeric"] <- 1L
-#                }
-                if (!MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
-                   !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
-                  Sregime["Xeric"] <- 1L
                 }
 
                 temp_annual[wyears_index, 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
