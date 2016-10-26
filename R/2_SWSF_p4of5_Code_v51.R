@@ -4129,8 +4129,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 }
 
                 #Ustic soil moisture regime
-                if (!permafrost) {
-#old               if ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
+#old:           if (!permafrost) {
+#                  if ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
 #                      !MCS_CondsDF3['COND3'] && (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8'])) {
 #                      Sregime["Ustic"] <- 1L
 #                  }
@@ -4143,18 +4143,18 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #                          Sregime["Ustic"] <- 1L
 #                      }
 #                  }
+                if (!permafrost && !MCS_CondsDF3['COND3']) {
                   if (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) {
-                    if (MCS_CondsDF3['COND6'] &&
-                      (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8'])) {
-                        Sregime["Ustic"] <- 1L
+                    if (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) {
+                      Sregime["Ustic"] <- 1L
                     }
                   } else {
-                    if (!MCS_CondsDF3['COND3'] && !MCS_CondsDF3['COND1']) {
+                    if (!MCS_CondsDF3['COND1']) {
                       if (MCS_CondsDF3['COND9']) {
                         if (MCS_CondsDF3['COND6'])
                           Sregime["Ustic"] <- 1L
                       } else {
-                          Sregime["Ustic"] <- 1L
+                        Sregime["Ustic"] <- 1L
                       }
                     }
                   }
@@ -4166,8 +4166,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #                   (MCS_CondsDF3['COND1_1'] || !MCS_CondsDF3['COND2'])) {
 #                   Sregime["Xeric"] <- 1L
 #                }
-                if (!MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'])
+                if (!MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
+                   !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                   Sregime["Xeric"] <- 1L
+                }
 
                 temp_annual[wyears_index, 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
