@@ -797,7 +797,8 @@ if (length(Tables) == 0 || do.clean) {
                       "COND2_ACS_atAnhDepth_LE5C_prob", # COND2
                       "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_isGThalf_at50cm_GT0C_prob", # COND3
                       "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_days", # HalfDryDaysCumAbove0C
-                      "COND3_ACS_at50cm_GT0C_days", # T50_at0C
+                      "COND3_ACS_at50cm_GT0C_days", # SoilAbove0C
+                      "COND3_ACS_at50cm_GT0C_prob", # T50_at0C
                       "COND3_ACS_MoreThanHalfDry_prob", # Lanh_Dry_Half
                       "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob", # COND3_Test
                      # MCS_annual_means:
