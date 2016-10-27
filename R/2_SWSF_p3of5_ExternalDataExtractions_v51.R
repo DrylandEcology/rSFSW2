@@ -669,7 +669,7 @@ if (exinfo$ExtractClimateChangeScenarios) {
 #------Load additional parameters and functions for data from the Lawrence Livermore National Lab and from USGS NEX
 
 if (exinfo$ExtractClimateChangeScenarios &&
-    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
+    (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 
 	Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
@@ -2629,7 +2629,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 #------EXTRACT CLIMATE CHANGE DATA------
 
 if (exinfo$ExtractClimateChangeScenarios &&
-    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
+    (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 
 	#access climate change data
 	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta) {
