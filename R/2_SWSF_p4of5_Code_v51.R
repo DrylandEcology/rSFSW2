@@ -3776,15 +3776,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           temp <- c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
           Tregime <- rep(0, length(temp))
           names(Tregime) <- temp
-          temp <- c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")
+          temp <- c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")
           Sregime <- rep(0, length(temp))
           names(Sregime) <- temp
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- NA
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 40)
+          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 41)
           colnames(temp_annual) <- c("MATLanh", "MAT50", "T50jja", "T50djf",
-                                      "CSPartSummer", paste0("V", 6:40))
+                                      "CSPartSummer", paste0("V", 6:41))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3797,6 +3797,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
               if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc, runData, simTime)
               if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc, runData, simTime)
+              if (!exists("aet.mo")) aet.mo <- get_AET_mo(sc, runData, simTime)
 
               #Parameters
               SWP_dry <- -1.5	#dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
@@ -4041,6 +4042,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   T50djf = temp_annual[wyears_index, "T50djf"]
                 )
 
+                #COND0 - monthly AET < PPT
+                MCS_CondsDF_yrs$COND0 <- tapply(prcp.mo$ppt > aet.mo$val,
+                  simTime2$yearno_ForEachUsedMonth, all)
+
                 #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
                 MCS_CondsDF_day$COND1_Test <- with(MCS_CondsDF_day,
                   MCS_Dry_All & T50_at5C)	#TRUE = where are both these conditions met
@@ -4101,7 +4106,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   tapply(MCS_Moist_All, Years, max.duration))#Consecutive days of moist soil after winter solsitice
                 MCS_CondsDF_yrs$COND9 <- MCS_CondsDF_yrs$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
 
-                MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')],
+                MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')],
                   2, function(x) sum(x)) > length(wyears_normal) / 2
 
                 #---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31
@@ -4112,19 +4117,24 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 if (ACS_CondsDF3['COND1'] && ACS_CondsDF3['COND2'] && ACS_CondsDF3['COND3'])
                   Sregime["Anhydrous"] <- 1L
 
+                #Perudic soil moisture regime
+                if (MCS_CondsDF3['COND0'])
+                  Sregime["Perudic"] <- 1L
+
                 #Aridic soil moisture regime; The limits set for soil temperature exclude from these soil moisture regimes soils in the very cold and dry polar regions and in areas at high elevations. Such soils are considered to have anhydrous condition
-                if (MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'])
+                if (!as.logical(Sregime["Perudic"]) &&
+                    MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'])
                   Sregime["Aridic"] <- 1L
 
                  #Xeric soil moisture regime
-                if (!as.logical(Sregime["Aridic"]) &&
+                if (!and(as.logical(Sregime[c("Perudic", "Aridic")]) &&
                     !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
                     !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                   Sregime["Xeric"] <- 1L
                 }
 
                 #Udic soil moisture regime - #we ignore test for 'three- phase system' during T50 > 5
-                if (!any(as.logical(Sregime[c("Aridic", "Xeric")])) &&
+                if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric")])) &&
                     MCS_CondsDF3['COND3']) {
                   if (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                     if (MCS_CondsDF3['COND6'])
@@ -4135,7 +4145,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 }
 
                 #Ustic soil moisture regime
-                if (!any(as.logical(Sregime[c("Aridic", "Xeric", "Udic")])) &&
+                if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric", "Udic")])) &&
                     !permafrost && !MCS_CondsDF3['COND3']) {
                   if (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) {
                     if (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) {
@@ -4157,8 +4167,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
                   aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                     by = list(ACS_CondsDF_day$Years), mean)[, -1]))
-                temp_annual[wyears_index, 14:40] <- as.matrix(cbind(MCS_CondsDF_yrs
-                  [, c("DryDaysCumAbove5C", "SoilAbove5C", "COND1",
+                temp_annual[wyears_index, 14:41] <- as.matrix(cbind(MCS_CondsDF_yrs
+                  [, c("COND0",
+                    "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
                     "AnyMoistDaysCumAbove5C", "COND1_1",
                     "MaxContDaysAnyMoistCumAbove8", "COND2",
                     "DryDaysCumAny", "COND3",
