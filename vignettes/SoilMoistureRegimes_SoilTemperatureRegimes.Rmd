@@ -1,0 +1,284 @@
+---
+title: "SWSF calculations of NCRS soil moisture regime (SMR) and soil temperature regime (STR)"
+author: "Daniel R Schlaepfer"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SoilMoistureRegimes_SoilTemperatureRegimes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette explains how SWSF has implemented the calculations of soil moisture regime (SMR) and soil temperature regime (STR) and compares the logic with the Java Newhall Simulation Model and with the Keys to Soil Taxonomy.
+
+## References
+* Soil Survey Staff (2015). Illustrated guide to soil taxonomy. USDA Natural Resources Conservation Service, National Soil Survey Center, Lincoln, Nebraska.
+* Soil Survey Staff (2014). Keys to soil taxonomy, 12th ed. USDA Natural Resources Conservation Service, Washington, DC.
+* jNSM (2016) Java Newhall Simulation Model, version 1.6.1. https://github.com/drww/newhall (accessed Oct 26, 2016).
+
+## Notes
+* Quoted text is directly from SSS 2014.  So direction may be opposite of a condition, which will be indicated by NOT before the condition.
+* jNSM calculations can be found at end of this document. Line numbers refer to file 'BASICSimulationModel.java'
+
+## Soil Moisture Regimes
+
+### Undefined
+* SWSF
+    * not one of {perudic, aridic, xeric, ustic, udic, anhydrous}
+* jNSM (line 3060)
+    * not one of {perudic, aridic, xeric, ustic, udic}
+
+
+### Perudic
+* Regime characteristic of areas where precipitation exceeds evapotranspiration every month
+* SWSF
+    * COND0
+* jNSM (lines 2977ff)
+    * perudic: [COND0] swt != 0
+* Characteristics (SSS 2014)
+    * [COND0] precipitation exceeds evapotranspiration in all months of normal years
+    * the moisture tension rarely reaches 100 kPa in the soil moisture control section
+* Generalized Characteristics (SSS 2015)
+    * The soil is almost always moist; soil tension is rarely > 100 kPa (about >1 bar)
+    * Precipitation exceeds evapotranspiration by plants in every month.
+* Remarks
+    * Somewhat unclear if PET or AET should be compared with PPT. "evapotranspiration by plants" sounds like AET, but jNSM uses PET. SWSF follows jNSM and uses PET.
+
+
+## Udic
+* Regime characteristic of humid regions with seasonally well distributed precipitation
+* SWSF
+    * COND3 & [(!COND4 & COND5 & COND6) | !(!COND4 & COND5)]
+* jNSM (lines 3011ff)
+    * not one of {perudic, aridic, xeric}
+    * udic: ([COND3] nd[1] + nd[2]) < 90
+    * qualifier: if ([COND3_1] (nd[1] + nd[2]) < 30) "typic"
+      elseif (NOT [COND5] dif < 5) "dry-tropudic"
+      else "dry-tempudic"
+* Characteristics (SSS 2014)
+    * [COND3] "not dry in any part for as long as 90 cumulative days in normal years"
+      AND
+    * IF (both:)
+        * NOT [COND4] "mean annual soil temperature is lower than 22 C"
+          AND
+        * [COND5] "mean winter and mean summer soil temperatures at a depth of 50 cm below the soil surface differ by 6 C or more"
+    * THEN IF [COND6] "dry in all parts for less than 45 consecutive days in the 4 months following the summer solstice" THEN UDIC
+    * ELSE UDIC
+      AND
+    * "except for short periods, a three- phase system, solid-liquid-gas, in part or all of the soil moisture control section when the soil temperature is above 5 C"
+* Generalized Characteristics (SSS 2015)
+    * Soil is dry < 90 cumulative days in most years
+    * Soil is dry < 45 consecutive days in summer and early fall (except in very warm areas and locations where there is little difference between summer and winter soil temperatures).
+* Remarks
+    * jNSM ignores COND4-6
+    * SWSF and jNSM ignore "except for short periods, a three- phase system, solid-liquid-gas, in part or all of the soil moisture control section when the soil temperature is above 5 C"
+
+
+## Ustic
+* Regime characteristic of semiarid climates where moisture is limited but available for portions of the growing season
+* SWSF
+    * !permafrost & !COND3 &
+      ([(COND4 | !COND5) & (COND7 | COND8)] |
+      [(!(COND4 | !COND5) & !COND1 &
+      {COND9 & COND6 | !COND9})])
+* jNSM (lines 3032ff)
+    * not one of {perudic, aridic, xeric, udic}
+    * ustic: not pergelic && not cryic
+    * qualifier: if ([COND5] dif >= 5) {
+        if (NOT [COND9] nccm <= 45) "typic-tempustic"
+        elseif (NOT [COND6] nccd > 45) "xerix-tempustic"
+        else "wet-tempustic"
+      } else {
+        if ([COND2_1] ncpm[2]) < 180) "aridic-tropustic"
+        elseif ([COND2_2] ncpm[2] < 270) "typic-tropustic"
+        else "udic"
+      }
+* Characteristics (SSS 2014)
+    * "not applied to soils that have permafrost"
+      AND
+    * IF
+      [COND4] "mean annual soil temperature is 22 C or higher"
+      OR
+      NOT [COND5] "mean summer and winter soil temperatures differ by less than 6 C at a depth of 50 cm below the soil surface"
+    * THEN
+      NOT [COND3] "dry in some or all parts for 90 or more cumulative days in normal years"
+        * AND IF
+            * [COND7] "moist in some part either for more than 180 cumulative days per year"
+              OR
+            * [COND8] "moist for 90 or more consecutive days"
+        * THEN USTIC
+    * ELSE
+        * NOT [COND3] "dry in some or all parts for 90 or more cumulative days"
+          AND
+        * NOT [COND1] "not dry in all parts for more than half of the cumulative days when the soil temperature at a depth of 50 cm is higher than 5 C"
+          AND
+        * IF
+            * [COND9] "moist in all parts for 45 or more consecutive days in the 4 months following the winter solstice"
+              THEN
+            * IF [COND6] "dry in all parts for less than 45 consecutive days in the 4 months following the summer solstice"  THEN USTIC
+        * ELSE USTIC
+* Generalized Characteristics (SSS 2015)
+    * In areas that have very warm average annual soil temperature (> 22 C) or that have little difference (< 6 C) between winter and summer soil temperatures
+        * The soil is dry for > 90 cumulative days during the year, but
+        * The soil is moist during the year for > 90 consecutive days or > 180  cumulative days
+      Or:
+    * In other areas with cold to warm soil temperatures (< 22 C):
+        * The soil is dry for > 90 cumulative days, but 
+        * The soil is moist for > 50% of the growing season (when soil  temperature > 5 C).  
+      Or:
+    * In other areas where the soil is moist for > 45 consecutive days in winter  and early spring, the soil is dry for < 45 consecutive days in summer and early fall.
+* Remarks
+    * jNSM does not explicitly calculate ustic, instead it represents the "other" category (except for the very cold areas)
+
+
+## Xeric
+* Regime characteristic of a Mediterranean-type climate with cool, moist winters and warm, dry summers
+* SWSF
+    * !COND6 & COND9 & !COND4 & COND5
+* jNSM (lines 3000ff)
+    * not one of {perudic, aridic}
+    * xeric: tma < 22 && dif >= 5 && nccd >= 45 && nccm >= 45
+        * equivalent to !COND4 && COND5 && !COND6 && COND9
+    * qualifier: if ([COND6_1] nccd > 90) "dry" else "typic"
+* Characteristics (SSS 2014)
+    * [COND9] "moist in all parts for 45 or MORE consecutive days in the 4 months following the winter solstice"
+      AND
+    * NOT[COND6] "Dry in all parts for 45 or MORE consecutive days in the 4 months following the summer solstice"
+* Generalized Characteristics (SSS 2015)
+    * The soil is moist for > 45 consecutive days in winter and early spring and dry for > 45 consecutive days in summer and early fall.
+    * The soil is moist is for > 50% of the growing season (when soil temp is > 5 C).
+* Remarks
+    * SSS 2014 does not mention COND4-5 except maybe indirectly by "Mediterranean-type climate with cool, moist winters and warm, dry summers"
+
+## Aridic
+* Regime characteristic of arid and semiarid climates that are unsuitable for cultivation without irrigation
+* SWSF
+    * COND1 & COND2
+* jNSM (lines 2988ff)
+    * not perudic
+    * aridic: [COND1] nsd[1] > (lt5c / 2) && [COND2] ncpm[2] < 90
+    * qualifier: if ([COND10] nd[1] == 360) "extreme"
+      elseif ([COND2_3] ncpm[2] <= 45) "typic"
+      else "weak"
+* Characteristics (SSS 2014)
+    * [COND1] "Dry in all parts for more than half of the cumulative days per year when the soil temperature at a depth of 50 cm below the soil surface is above 5 C"
+      AND
+    * [COND2] "Moist in some or all parts for less than 90 consecutive days when the soil temperature at a depth of 50 cm below the soil surface is above 8 C."
+* Generalized Characteristics (SSS 2015)
+    * During the growing season:
+        * The soil is dry more than half of the total days.
+        * The soil is moist < ~90 consecutive days.
+
+
+## Anhydrous
+* Very cold and very dry soil conditions
+* SWSF
+    * AnhCOND1 & AnhCOND2 & AnhCOND3
+* jNSM
+    * Not considered
+* Characteristics (SSS 2014)
+    * [AnhCOND1] "Mean annual soil temperature of 0C or colder"
+      AND
+    * At a depth of 10 to 70 cm:
+        * [AnhCOND2] "has a soil temperature of less than 5 C throughout the year"
+          AND
+        * "Includes no ice-impregnated permafrost"
+          AND
+        * [AnhCOND3] "Is dry (water held at 1500 kPa or more) in one-half or more of the soil for one-half or more of the time the layer has a soil temperature above 0 C",
+          OR
+        * "Has a rupture-resistance class of loose to slightly hard throughout when the soil temperature is 0 C or colder, except where a cemented pedogenic horizon occurs."
+* Generalized Characteristics (SSS 2015)
+    * Mean annual soil temperature is < 0 C
+    * At a depth of 10 to 70 cm:
+        * Temperature is < 5 C all year, and
+        * Soil has no ice-impregnated permafrost, and
+        * When temperature is > 0 C (> 1500 kPa tension), soil is very dry,
+          or
+        * When temperature is < 0 C, soil is loose to just slightly hard (unless there is pedogenic cementation).
+* Remarks
+    * SWSF ignores "Includes no ice-impregnated permafrost" and "Has a rupture-resistance class of loose to slightly hard throughout when the soil temperature is 0 C or colder, except where a cemented pedogenic horizon occurs."
+
+
+
+
+
+
+## OUR CRITERIA (Interpreted from SSS 2014) -- language refers to layers, not parts
+* COND0 - precipitation exceeds AET in all months
+* COND1 - Dry in ALL layers for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
+* COND2 - Moist in ANY layer for less than 90 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* COND2-1 - Moist in ANY layer for less than 180 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* COND2-2 - Moist in ANY layer for less than 270 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* COND2-3 - Moist in ANY layer for less or equal than 45 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* COND3 - MCS is dry in ANY layer for < 90 CUMULATIVE days -- sum of days with any dry layer < 90
+* COND3-1 - MCS is dry in ANY layer for < 30 CUMULATIVE days -- sum of days with any dry layer < 30
+* COND4 - The means annual soil temperature at 50cm is >= 22C
+* COND5 - The absolute difference between the temperature in winter @ 50cm and the temperature in summer @ 50cm is >= 6C
+* COND6 - Dry in ALL layers LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
+* COND6-1 - Dry in ALL layers MORE than 90 CONSECUTIVE days in the 4 months following the summer solstice
+* COND7 - MCS is moist in ANY layer for more than 180 CUMULATIVE days
+* COND8 - MCS is moist in ANY layer for more than 90 CONSECUTIVE days
+* COND9 - Moist in ALL layers MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
+* COND10 - Dry in ALL layers for more or equal to 360 days
+
+* AnhCOND1 - Mean Annual soil temperature at 50 cm depth is less than or equal to 0C
+* AnhCOND2 - Daily soil temperature of all soil layers in 10-70 cm < 5 C
+* AnhCOND3 - In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
+
+
+* SSS 2014, p. 329: "Control Section for Soil Temperature The control section for soil temperature is either at a depth of 50 cm below the soil surface or at the upper boundary of a root-limiting layer, whichever is shallower."
+
+
+## jNSM calculations
+based on 'BASICSimulationModel.java' and ' NewhallResults.java'
+
+* swt = comparison monthly PET vs. PPT
+    * [lines 363-369] noMpeGreaterThanPrecip = !all(mpe[1:12] > precip[1:12])
+    * [lines 370-373] swt = if (noMpeGreaterThanPrecip) -1 else 0
+* nd with
+  nd[1] = numCumulativeDaysDry = [assumption] MCS is dry in ALL layers (cf. COND10)
+  nd[2] = numCumulativeDaysMoistDry
+  nd[3] = numCumulativeDaysMoist
+  nd[1] + nd[2]: test variable for [COND3]
+    * [lines ...]
+* dif = absolute difference between mean summer and mean winter soil temperature (cf. COND5)
+    * [lines 199-212] st = mean(temperature[6:8]) + fc
+      wt = mean(temperature[c(1:2, 12)]) + fc
+      if (southern hemisphere) swap st and wt
+    * [lines 241-215] cs = abs(st - wt) * (1 - fcd) / 2
+    * [lines 246-248] dif = (st - cs) - (wt + cs)
+* nccm = moistDaysAfterWinterSolstice = [assumption] CONSECUTIVE days in the 4 months following the winter solstice when MCS is moist in ALL layers (cf. COND9)
+    * [lines 2147, 2171, 2173, 2209, 2211, 2246, 2247]
+    * [line 2252] nccm = max
+* nccd = dryDaysAfterSummerSolstice = [assumption] CONSECUTIVE days in the 4 months following the summer solstice when MCS is dry in ALL layers (cf. COND6)
+    * [lines 2029, 2053, 2055, 2091, 2093, 2128, 2129]
+    * [line 2134] nccd = max
+* ncpm with
+  ncpm[1] = numConsecutiveDaysMoistInSomeParts
+  ncpm[2] = numConsecutiveDaysMoistInSomePartsOver8C [assumption] CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C and MCS is moist in ANY layers (cf. COND2)
+    * [lines ...]
+* nsd with
+  nsd[1] = numCumulativeDaysDryOver5C [assumption] cumulative days when MCS is dry in all parts and the soil temperature at a depth of 50cm is above 5C (cf. COND1)
+  nsd[2] = numCumulativeDaysMoistDryOver5C
+  nsd[3] = numCumulativeDaysMoistOver5C
+    * [lines 1487, 1536, 1563]
+* tma = mean annual soil temperature
+    * [lines 193-196] sumt = sum(temperature[1:12])
+    * [line 198] tma = mean(sumt) + fc
+* lt5c = [assumption] cumulative days when the soil temperature at a depth of 50 cm below the soil surface is above 5 C (cf. COND1)
+    * [lines 1483, 1451, 1565]
+* Remarks
+    * dif
+        * jNSM is using the old limit of 5 C instead of the new limit of 6 C
+        * "in 1999 the Iso- definitions were refined from < 5 degrees C to < 6 degrees C" [slide 3 of ' jNSM_Background_Use_Tutorial.pptx']
+        * SWSF is using new limit of 6 C
+
+
+## jNSM inputs
+* precip[1:12] = monthly precipitation in mm
+* temperature[1:12] = mean monthly air temperature in C
+* mpe[1:12] = monthly potential evaporation in mm based on Thornthwaite 1948
+* fc = 2.5 = Degree offset between soil and air temperature in Celsius
+* fcd = 0.66 = Soil-Air Relationship Amplitude
+
+

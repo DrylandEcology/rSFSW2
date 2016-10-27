@@ -34,7 +34,9 @@ Suggests:
     iotools (>= 0.1-12),
     Hmisc (>= 3.17.4),
     qmap (>= 1.0.4),
-    DaymetR (>= 0.1)
+    DaymetR (>= 0.1),
+    knitr,
+    rmarkdown
 LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
@@ -42,3 +44,4 @@ License: GPL (>= 3)
 URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
 BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
 RoxygenNote: 5.0.1
+VignetteBuilder: knitr
