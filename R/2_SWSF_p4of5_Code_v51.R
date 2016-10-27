@@ -4055,7 +4055,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #COND0 - monthly PET < PPT
                 MCS_CondsDF_yrs$COND0 <- tapply(prcp.mo$ppt > pet.mo$val,
-                  simTime2$yearno_ForEachUsedMonth, all)
+                  simTime2$yearno_ForEachUsedMonth, all)[wyears_index]
 
                 #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
                 MCS_CondsDF_day$COND1_Test <- with(MCS_CondsDF_day,
@@ -4250,7 +4250,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 regimes_done <- TRUE
 
                 to_del <- c("n_Lanh", "width_Lanh", "Lanh_Dry_Half", "ACS_CondsDF_day",
-                  "ACS_CondsDF_yrs", "ACS_CondsDF3", "MCS_CondsDF_day", "MCS_ConsDF_yrs",
+                  "ACS_CondsDF_yrs", "ACS_CondsDF3", "MCS_CondsDF_day", "MCS_CondsDF_yrs",
                   "MCS_CondsDF3")
                 #to_del <- to_del[to_del %in% ls()]
                 if (length(to_del) > 0)
@@ -4260,7 +4260,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 if (!be.quiet)
                   print(paste(i_label, "Number of normal years not long enough to calculate NRCS soil moisture regimes. Try increasing length of simulation"))
 
-                Sregime[] <- NA
+                Sregime[] <- SRqualifier[] <- NA
               }
 
               to_del <- c("calc50", "calcLanh", "calcMCS", "clay_temp", "days_per_wyear",
@@ -4276,13 +4276,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             } else {
               if (!be.quiet)
                 print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
-                Tregime[] <- Sregime[] <- NA
+                Tregime[] <- Sregime[] <- SRqualifier[] <- NA
             }
 
           } else {
             if (!be.quiet)
               print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-              Tregime[] <- Sregime[] <- NA
+              Tregime[] <- Sregime[] <- SRqualifier[] <- NA
           }
 
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
@@ -4301,6 +4301,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             nv <- nv_new
             nv_new <- nv + length(Sregime)
             resMeans[nv:(nv_new - 1)] <- Sregime
+            nv <- nv_new
+            nv_new <- nv + length(SRqualifier)
+            resMeans[nv:(nv_new - 1)] <- SRqualifier
             nv <- nv_new
           }
 
@@ -4322,7 +4325,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 					names(resilience) <- names(resistance) <- cats
 
           if (regimes_done && (aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
-            dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
+            aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
 						#---Table 1 in Chambers et al. 2014
 						rows_resilience <- c("ModeratelyHigh", "ModeratelyHigh", "Moderate", "Low", "Low")
 						rows_resistance <- c("High", "Moderate", "ModeratelyLow", "Moderate", "Low")
@@ -4363,19 +4366,30 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           RR <- c(Low = 0, Moderate = 0, High = 0)
 
-          if (regimes_done && (aon$aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
-            dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
+          if (regimes_done && (aon$dailyNRCS_SoilMoistureTemperatureRegimes ||
+            aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates)) {
             #---Table 1 in Maestas et al. 2016
+            # assumptions
+            #   - "Dry-Xeric" == "Xeric bordering on Aridic"
+            #   - "Weak-Aridic" == "Aridic bordering on Xeric"
             Table1 <- matrix(c(
-                "Cryic", "Xeric", "High",
-                "Frigid", "Xeric", "High",
-                "Cryic", "Aridic", "Moderate",
-                "Frigid", "Aridic", "Moderate",
-                "Mesic", "Xeric", "Moderate",
+                "Cryic", "Typic-Xeric", "High",
+                "Cryic", "Dry-Xeric", "High",
+                "Frigid", "Typic-Xeric", "High",
+                "Cryic", "Weak-Aridic", "High",
+
+                "Cryic", "Typic-Aridic", "Moderate",
+                "Frigid", "Dry-Xeric", "Moderate",
+                "Frigid", "Typic-Aridic", "Moderate",
+                "Frigid", "Weak-Aridic", "Moderate",
+                "Mesic", "Typic-Xeric", "Moderate",
+
+                "Mesic", "Dry-Xeric", "Low",
+                "Mesic", "Weak-Aridic", "Low",
                 "Mesic", "Aridic", "Low"),
               ncol = 3, byrow = TRUE)
 
-            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
+            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(SRqualifier[Table1[, 2]]), 3]
             RR[temp] <- 1
 
             rm(Table1)
