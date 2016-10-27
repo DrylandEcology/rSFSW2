@@ -3804,7 +3804,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
               if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc, runData, simTime)
               if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc, runData, simTime)
-              if (!exists("aet.mo")) aet.mo <- get_AET_mo(sc, runData, simTime)
+              if (!exists("pet.mo")) pet.mo <- get_PET_mo(sc, runData, simTime)
 
               #Parameters
               SWP_dry <- -1.5	#dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
@@ -4053,8 +4053,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   T50djf = temp_annual[wyears_index, "T50djf"]
                 )
 
-                #COND0 - monthly AET < PPT
-                MCS_CondsDF_yrs$COND0 <- tapply(prcp.mo$ppt > aet.mo$val,
+                #COND0 - monthly PET < PPT
+                MCS_CondsDF_yrs$COND0 <- tapply(prcp.mo$ppt > pet.mo$val,
                   simTime2$yearno_ForEachUsedMonth, all)
 
                 #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
@@ -4161,7 +4161,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 }
 
                 #Xeric soil moisture regime
-                if (!and(as.logical(Sregime[c("Perudic", "Aridic")]) &&
+                if (!any(as.logical(Sregime[c("Perudic", "Aridic")])) &&
                     !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
                     !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                   Sregime["Xeric"] <- 1L
@@ -4182,8 +4182,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']))) {
                   Sregime["Udic"] <- 1L
 
-                #Qualifier for udic SMR
-                if (as.logical(Sregime["Udic"])) {
+                  #Qualifier for udic SMR
                   if (MCS_CondsDF3["COND3_1"]) {
                     SRqualifier["Typic-Udic"] <- 1L
                   } else if (!MCS_CondsDF3["COND5"]) {
