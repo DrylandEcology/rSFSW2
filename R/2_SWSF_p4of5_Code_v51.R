@@ -3779,12 +3779,19 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           temp <- c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")
           Sregime <- rep(0, length(temp))
           names(Sregime) <- temp
+          temp <- c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic", #Aridic
+            "Dry-Xeric", "Typic-Xeric", # Xeric
+            "Typic-Tempustic", "Xeric-Tempustic", "Wet-Tempustic", "Aridic-Tropustic",
+            "Typic-Tropustic", "Udic-Ustic", # Ustic
+            "Typic-Udic", "Dry-Tropudic", "Dry-Tempudic") # Udic
+          SRqualifier <- rep(0, length(temp))
+          names(SRqualifier) <- temp
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- NA
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 41)
+          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 47)
           colnames(temp_annual) <- c("MATLanh", "MAT50", "T50jja", "T50djf",
-                                      "CSPartSummer", paste0("V", 6:41))
+                                      "CSPartSummer", paste0("V", 6:47))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -4072,11 +4079,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 MCS_CondsDF_yrs$MaxContDaysAnyMoistCumAbove8 <- with(MCS_CondsDF_day,
                   tapply(COND2_Test, Years, max.duration)) # Maximum consecutive days
                 MCS_CondsDF_yrs$COND2 <- MCS_CondsDF_yrs$MaxContDaysAnyMoistCumAbove8 < 90 # TRUE = moist less than 90 consecutive days during >8 C soils, FALSE = moist more than 90 consecutive days
+                MCS_CondsDF_yrs$COND2_1 <- MCS_CondsDF_yrs$MaxContDaysAnyMoistCumAbove8 < 180
+                MCS_CondsDF_yrs$COND2_2 <- MCS_CondsDF_yrs$MaxContDaysAnyMoistCumAbove8 < 270
+                MCS_CondsDF_yrs$COND2_3 <- MCS_CondsDF_yrs$MaxContDaysAnyMoistCumAbove8 <= 45
 
                 #COND3 - MCS is Not dry in ANY part as long as 90 CUMULATIVE days - Can't be dry longer than 90 cum days
                 MCS_CondsDF_yrs$DryDaysCumAny <- with(MCS_CondsDF_day,
                   tapply(!MCS_Moist_All, Years, sum)) #Number of days where any soils are dry
                 MCS_CondsDF_yrs$COND3 <- MCS_CondsDF_yrs$DryDaysCumAny < 90 #TRUE = Not Dry for as long 90 cumlative days,FALSE = Dry as long as as 90 Cumlative days
+                MCS_CondsDF_yrs$COND3_1 <- MCS_CondsDF_yrs$DryDaysCumAny < 30
 
                 #COND4 - The means annual soil temperature at 50cm is < or > 22C
                 MCS_CondsDF_yrs$COND4 <- MCS_CondsDF_yrs$MAT50 >= 22 #TRUE - Greater than 22, False - Less than 22
@@ -4090,6 +4101,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 MCS_CondsDF_yrs$DryDaysConsecSummer <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(172:293),],
                   tapply(MCS_Dry_All, Years, max.duration))  #Consecutive days of dry soil after summer solsitice
                 MCS_CondsDF_yrs$COND6 <- MCS_CondsDF_yrs$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days
+                MCS_CondsDF_yrs$COND6_1 <- MCS_CondsDF_yrs$DryDaysConsecSummer > 90
 
                 #COND7 - MCS is MOIST in SOME parts for more than 180 CUMULATIVE days
                 MCS_CondsDF_yrs$MoistDaysCumAny <- with(MCS_CondsDF_day,
@@ -4106,7 +4118,14 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   tapply(MCS_Moist_All, Years, max.duration))#Consecutive days of moist soil after winter solsitice
                 MCS_CondsDF_yrs$COND9 <- MCS_CondsDF_yrs$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
 
-                MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1','COND1_1','COND2','COND3','COND4','COND5','COND6','COND7','COND8','COND9')],
+                #COND10 - MCS is Dry in ALL layers for more or equal to 360 days
+                MCS_CondsDF_yrs$AllDryDaysCumAny <- with(MCS_CondsDF_day,
+                  tapply(MCS_Dry_All, Years, sum)) #Number of days where all soils are dry
+                MCS_CondsDF_yrs$COND10 <- MCS_CondsDF_yrs$AllDryDaysCumAny >= 360
+
+                MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1', 'COND1_1',
+                  'COND2', 'COND2_1', 'COND2_2', 'COND2_3', 'COND3', 'COND3_1', 'COND4', 'COND5',
+                  'COND6', 'COND6_1', 'COND7', 'COND8', 'COND9', 'COND10')],
                   2, function(x) sum(x)) > length(wyears_normal) / 2
 
                 #---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31
@@ -4126,11 +4145,33 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'])
                   Sregime["Aridic"] <- 1L
 
-                 #Xeric soil moisture regime
+                #Qualifier for aridic SMR
+                if (as.logical(Sregime["Aridic"])) {
+                  if (MCS_CondsDF3["COND10"]) {
+                    SRqualifier["Extreme-Aridic"] <- 1L
+                  } else if (MCS_CondsDF3["COND2_3"]) {
+                    # NOTE: COND2_3: assumes that 'MaxContDaysAnyMoistCumAbove8' is equivalent to jNSM variable 'ncpm[2]'
+                    SRqualifier["Typic-Aridic"] <- 1L
+                  } else {
+                    SRqualifier["Weak-Aridic"] <- 1L
+                  }
+                }
+
+                #Xeric soil moisture regime
                 if (!and(as.logical(Sregime[c("Perudic", "Aridic")]) &&
                     !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
                     !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                   Sregime["Xeric"] <- 1L
+                }
+
+                #Qualifier for xeric SMR
+                if (as.logical(Sregime["Xeric"])) {
+                  if (MCS_CondsDF3["COND6_1"]) {
+                    # NOTE: this conditional assumes that 'DryDaysConsecSummer' is equivalent to jNSM variable 'nccd'
+                    SRqualifier["Dry-Xeric"] <- 1L
+                  } else {
+                    SRqualifier["Typic-Xeric"] <- 1L
+                  }
                 }
 
                 #Udic soil moisture regime - #we ignore test for 'three- phase system' during T50 > 5
@@ -4141,6 +4182,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                       Sregime["Udic"] <- 1L
                   } else {
                     Sregime["Udic"] <- 1L
+                  }
+                }
+
+                #Qualifier for udic SMR
+                if (as.logical(Sregime["Udic"])) {
+                  if (MCS_CondsDF3["COND3_1"]) {
+                    SRqualifier["Typic-Udic"] <- 1L
+                  } else if (!MCS_CondsDF3["COND5"]) {
+                    SRqualifier["Dry-Tropudic"] <- 1L
+                  } else {
+                    SRqualifier["Dry-Tempudic"] <- 1L
                   }
                 }
 
@@ -4163,24 +4215,50 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   }
                 }
 
+                #Qualifier for ustic SMR
+                if (as.logical(Sregime["Ustic"])) {
+                  if (MCS_CondsDF3["COND5"]) {
+                    if (!MCS_CondsDF3["COND9"]) {
+                      # NOTE: this conditional assumes that 'MoistDaysConsecWinter' is equivalent to jNSM variable 'nccm'
+                      SRqualifier["Typic-Tempustic"] <- 1L
+                    } else if (!MCS_CondsDF3["COND6"]) {
+                      # NOTE: this conditional assumes that 'DryDaysConsecSummer' is equivalent to jNSM variable 'nccd'
+                      SRqualifier["Xeric-Tempustic"] <- 1L
+                    } else {
+                      SRqualifier["Wet-Tempustic"] <- 1L
+                    }
+                  } else {
+                    # NOTE: COND2_1 and COND2_2: assume that 'MaxContDaysAnyMoistCumAbove8' is equivalent to jNSM variable 'ncpm[2]'
+                    if (MCS_CondsDF3["COND2_1"]) {
+                      SRqualifier["Aridic-Tropustic"] <- 1L
+                    } else if (MCS_CondsDF3["COND2_2"]) {
+                      SRqualifier["Typic-Tropustic"] <- 1L
+                    } else {
+                      SRqualifier["Udic-Ustic"] <- 1L
+                    }
+                  }
+                }
+
                 temp_annual[wyears_index, 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
                   aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                     by = list(ACS_CondsDF_day$Years), mean)[, -1]))
-                temp_annual[wyears_index, 14:41] <- as.matrix(cbind(MCS_CondsDF_yrs
+
+                temp_annual[wyears_index, 14:47] <- as.matrix(cbind(MCS_CondsDF_yrs
                   [, c("COND0",
                     "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
                     "AnyMoistDaysCumAbove5C", "COND1_1",
-                    "MaxContDaysAnyMoistCumAbove8", "COND2",
-                    "DryDaysCumAny", "COND3",
+                    "MaxContDaysAnyMoistCumAbove8", "COND2", "COND2_1", "COND2_2", "COND2_3",
+                    "DryDaysCumAny", "COND3", "COND3_1",
                     "COND4",
                     "AbsDiffSoilTemp_DJFvsJJA", "COND5",
-                    "DryDaysConsecSummer", "COND6",
+                    "DryDaysConsecSummer", "COND6", "COND6_1",
                     "MoistDaysCumAny", "COND7",
                     "MoistDaysConsecAny", "COND8",
-                    "MoistDaysConsecWinter", "COND9")],
+                    "MoistDaysConsecWinter", "COND9",
+                    "AllDryDaysCumAny", "COND10")],
                 aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C", "MCS_Moist_All",
-                    "MCS_Dry_All", "COND1_Test", "COND1_1_Test", "COND2_Test")],
+                    "COND1_Test", "COND1_1_Test", "COND2_Test")],
                   by = list(MCS_CondsDF_day$Years), mean)[, -1]))
 
                 regimes_done <- TRUE

@@ -810,22 +810,29 @@ if (length(Tables) == 0 || do.clean) {
                       "COND1-1_MCS_AnyWet_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1_1
                       "COND2_MCS_AnyWetConsec_Max_at50cm_GT8C_days", # MaxContDaysAnyMoistCumAbove8
                       "COND2_MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
+                      "COND2-1_MCS_AnyWetConsec_LT180Days_at50cm_GT8C_prob", # COND2_1
+                      "COND2-2_MCS_AnyWetConsec_LT270Days_at50cm_GT8C_prob", # COND2_2
+                      "COND2-3_MCS_AnyWetConsec_LE45Days_at50cm_GT8C_prob", # COND2_3
                       "COND3_MCS_AnyDry_days", # DryDaysCumAny
                       "COND3_MCS_AnyDryTotal_LT90Days_prob", # COND3
+                      "COND3-1_MCS_AnyDryTotal_LT30Days_prob", # COND3_1
                       "COND4_MCS_at50cm_GT22C_prob", # COND4
                       "COND5_MCS_at50cm_DiffJJAtoDJF_C", # AbsDiffSoilTemp_DJFvsJJA
                       "COND5_MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
                       "COND6_MCS_AllDry_Summer_days",  # DryDaysConsecSummer
                       "COND6_MCS_AllDry_Summer_LT45Days_prob", # COND6
+                      "COND6-1_MCS_AllDry_Summer_GT90Days_prob", # COND6_1
                       "COND7_MCS_AnyMoist_GT180Days_days", # MoistDaysCumAny
                       "COND7_MCS_AnyMoist_GT180Days_prob", # COND7
                       "COND8_MCS_AnyWetConsec_days", # MoistDaysConsecAny
                       "COND8_MCS_AnyWetConsec_GT90Days_prob", # COND8
                       "COND9_MCS_AllWet_Winter_days", # MoistDaysConsecWinter
                       "COND9_MCS_AllWet_Winter_GT45days_prob", # COND9
+                      "COND10_MCS_AllDry_days", # AllDryDaysCumAny
+                      "COND10_MCS_AllDry_prob", # COND10
 
                       "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
-                      "Days_MCS_AllWet_prob", "Days_MCS_AllDry_prob",
+                      "Days_MCS_AllWet_prob",
                       "COND1_MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
                       "COND1-1_MCS_AnyWet_and_at50cm_GT5C_prob", # COND1_1_Test
                       "COND2_MCS_AnyWet_and_at50cm_GT8C_prob"), # COND2_Test
@@ -840,7 +847,13 @@ if (length(Tables) == 0 || do.clean) {
                 c(paste0("SoilTemperatureRegime_",
                         c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
                   paste0("SoilMoistureRegime_",
-                        c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")))))
+                        c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")),
+                  paste0("SoilMoistureRegimeQualifier_",
+                        c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic",
+                          "Dry-Xeric", "Typic-Xeric",
+                          "Typic-Tempustic", "Xeric-Tempustic", "Wet-Tempustic",
+                          "Aridic-Tropustic", "Typic-Tropustic", "Udic-Ustic",
+                          "Typic-Udic", "Dry-Tropudic", "Dry-Tempudic")))))
     }
 	#35b
     if (aon$dailyNRCS_Chambers2014_ResilienceResistance) {
