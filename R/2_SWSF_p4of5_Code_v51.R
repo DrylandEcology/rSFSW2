@@ -4142,11 +4142,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #Aridic soil moisture regime; The limits set for soil temperature exclude from these soil moisture regimes soils in the very cold and dry polar regions and in areas at high elevations. Such soils are considered to have anhydrous condition
                 if (!as.logical(Sregime["Perudic"]) &&
-                    MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2'])
+                    MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2']) {
                   Sregime["Aridic"] <- 1L
 
-                #Qualifier for aridic SMR
-                if (as.logical(Sregime["Aridic"])) {
+                  #Qualifier for aridic SMR
                   if (MCS_CondsDF3["COND10"]) {
                     SRqualifier["Extreme-Aridic"] <- 1L
                   } else if (MCS_CondsDF3["COND2_3"]) {
@@ -4162,10 +4161,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
                     !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
                   Sregime["Xeric"] <- 1L
-                }
 
-                #Qualifier for xeric SMR
-                if (as.logical(Sregime["Xeric"])) {
+                  #Qualifier for xeric SMR
                   if (MCS_CondsDF3["COND6_1"]) {
                     # NOTE: this conditional assumes that 'DryDaysConsecSummer' is equivalent to jNSM variable 'nccd'
                     SRqualifier["Dry-Xeric"] <- 1L
@@ -4176,14 +4173,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #Udic soil moisture regime - #we ignore test for 'three- phase system' during T50 > 5
                 if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric")])) &&
-                    MCS_CondsDF3['COND3']) {
-                  if (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
-                    if (MCS_CondsDF3['COND6'])
-                      Sregime["Udic"] <- 1L
-                  } else {
-                    Sregime["Udic"] <- 1L
-                  }
-                }
+                    MCS_CondsDF3['COND3'] &&
+                    (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] && MCS_CondsDF3['COND6'] ||
+                    (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']))) {
+                  Sregime["Udic"] <- 1L
 
                 #Qualifier for udic SMR
                 if (as.logical(Sregime["Udic"])) {
@@ -4198,25 +4191,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #Ustic soil moisture regime
                 if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric", "Udic")])) &&
-                    !permafrost && !MCS_CondsDF3['COND3']) {
-                  if (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) {
-                    if (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) {
-                      Sregime["Ustic"] <- 1L
-                    }
-                  } else {
-                    if (!MCS_CondsDF3['COND1']) {
-                      if (MCS_CondsDF3['COND9']) {
-                        if (MCS_CondsDF3['COND6'])
-                          Sregime["Ustic"] <- 1L
-                      } else {
-                        Sregime["Ustic"] <- 1L
-                      }
-                    }
-                  }
-                }
+                    !permafrost && !MCS_CondsDF3['COND3'] &&
+                    ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
+                    (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) ||
+                    !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] &&
+                    !MCS_CondsDF3['COND1'] &&
+                    (MCS_CondsDF3['COND9'] && MCS_CondsDF3['COND6'] || !MCS_CondsDF3['COND9']))) {
+                  Sregime["Ustic"] <- 1L
 
-                #Qualifier for ustic SMR
-                if (as.logical(Sregime["Ustic"])) {
+                  #Qualifier for ustic SMR
                   if (MCS_CondsDF3["COND5"]) {
                     if (!MCS_CondsDF3["COND9"]) {
                       # NOTE: this conditional assumes that 'MoistDaysConsecWinter' is equivalent to jNSM variable 'nccm'
