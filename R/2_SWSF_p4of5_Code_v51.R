@@ -3945,31 +3945,35 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf", "CSPartSummer")])
 
-              #---Soil temperature regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.28/Soil Survey Staff 2014: p.31
+              #---Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
               #we ignore distinction between iso- and not iso-
               if (am["MAT50"] >= 22) {
                   Tregime["Hyperthermic"] <- 1L
-              } else if (am["MAT50"] >= 15){
+              } else if (am["MAT50"] >= 15) {
                   Tregime["Thermic"] <- 1L
-              } else if (am["MAT50"] >= 8){
+              } else if (am["MAT50"] >= 8) {
                   Tregime["Mesic"] <- 1L
-              } else if (am["MAT50"] < 8 && am["MAT50"] > 0) {
+
+              } else if (am["MAT50"] > 0 && !permafrost) {
+                # mineral soils
                 if (am["CSPartSummer"] > 0) {
-                  # ignoring organic soils, Saturated with water
-                  if (am["T50jja"] > 0 && am["T50jja"] < 13)  {
+                  # ignoring O-horizon and histic epipedon; Saturated with water
+                  if (am["T50jja"] < 13) {
                     # ignoring O-horizon
                       Tregime["Cryic"] <- 1L
                     } else {
                       Tregime["Frigid"] <- 1L
                     }
                 } else {
-                  # ignoring O-horizon and histic epipedon, Not saturated with water
-                  if (am["T50jja"] > 0 && am["T50jja"] < 15) {
+                  # ignoring O-horizon; Not saturated with water
+                  if (am["T50jja"] < 15) {
                       Tregime["Cryic"] <- 1L
                     } else {
                       Tregime["Frigid"] <- 1L
                     }
                   }
+                # ignoring organic soils
+
               } else if (am["MAT50"] <= 0 || permafrost) {
                 # limit should be 1 C for Gelisols
                 Tregime["Gelic"] <- 1L
@@ -4128,7 +4132,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   'COND6', 'COND6_1', 'COND7', 'COND8', 'COND9', 'COND10')],
                   2, function(x) sum(x)) > length(wyears_normal) / 2
 
-                #---Soil moisture regime: based on Chambers et al. 2014: Appendix 3 and on Soil Survey Staff 2010: p.26-28/Soil Survey Staff 2014: p.28-31
+                #---Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
                 #we ignore 'Aquic'
 
                 #Anhydrous condition: Soil Survey Staff 2010: p.16/Soil Survey Staff 2014: p.18
