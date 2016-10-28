@@ -43,7 +43,7 @@ debug.warn.level <- sum(c(print.debug, interactive()))
 debug.dump.objects <- interactive()
 
 #------Mode of framework
-minVersionRsoilwat <- "1.1.2"
+minVersionRsoilwat <- "1.1.4"
 minVersion_dbWeather <- "3.1.0"
 use_rcpp <- TRUE
 num_cores <- 2
