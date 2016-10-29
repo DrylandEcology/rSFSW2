@@ -5,4 +5,4 @@
 
 # Example code in package build process
 *-Ex.R
-# inst/doc #don't ignore until SWSF is a true R package
+ inst/doc #don't ignore until SWSF is a true R package
