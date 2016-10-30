@@ -3791,6 +3791,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- NA
+          wyears_normal <- NULL
           temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 47)
           colnames(temp_annual) <- c("MATLanh", "MAT50", "T50jja", "T50djf",
                                       "CSPartSummer", paste0("V", 6:47))
@@ -4270,7 +4271,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 "isummer", "MAP", "MMP", "normal1", "normal2",
                 "sand_temp", "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc",
                 "SWP_sat", "vwc_dy_nrsc", "wateryears", "wdays_index",
-                "wyears", "wyears_index", "wyears_normal")
+                "wyears", "wyears_index")
               #to_del <- to_del[to_del %in% ls()]
               if (length(to_del) > 0)
                 try(rm(list = to_del), silent = TRUE)
@@ -4288,9 +4289,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           }
 
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-            nv_new <- nv + 6
+            nv_new <- nv + 7
             resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
-              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost))
+              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost), length(wyears_normal))
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
             resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
@@ -4309,7 +4310,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             nv <- nv_new
           }
 
-          to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost", "temp_annual")
+          to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost",
+            "wyears_normal", "temp_annual")
           #to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)
             try(rm(list = to_del), silent = TRUE)
