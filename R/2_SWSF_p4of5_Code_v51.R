@@ -3998,6 +3998,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               wyears_index <- findInterval(wyears_normal, wyears)
               wdays_index <- wateryears %in% wyears_normal
               days_per_wyear <- as.integer(table(wateryears[wdays_index], dnn = FALSE))
+              crit_agree_fraction <- 0.9
 
               if (length(wyears_normal) > 2) {
                 #Structures used Lanh delinieation
@@ -4037,7 +4038,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 ACS_CondsDF_yrs$COND3 <- with(ACS_CondsDF_yrs,
                   HalfDryDaysCumAbove0C > .5 * SoilAbove0C) #TRUE = Half of soil layers are dry greater than half the days where MAST >0c
                 ACS_CondsDF3 <- apply(ACS_CondsDF_yrs[, c('COND1', 'COND2', 'COND3')],
-                  2, function(x) sum(x)) > length(wyears_normal) / 2
+                  2, function(x) sum(x)) > length(wyears_normal)  * crit_agree_fraction
 
                 #Structures used for MCS delineation
                 MCS_CondsDF_day <- data.frame(
@@ -4132,7 +4133,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1', 'COND1_1',
                   'COND2', 'COND2_1', 'COND2_2', 'COND2_3', 'COND3', 'COND3_1', 'COND4', 'COND5',
                   'COND6', 'COND6_1', 'COND7', 'COND8', 'COND9', 'COND10')],
-                  2, function(x) sum(x)) > length(wyears_normal) / 2
+                  2, function(x) sum(x)) > length(wyears_normal) * crit_agree_fraction
 
                 #---Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
                 #we ignore 'Aquic'
