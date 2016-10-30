@@ -178,20 +178,22 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   )
   include_YN <- SWRunInformation$Include_YN
   labels <- SWRunInformation$Label
+  temp <- which(include_YN > 0)
+  nrowsClasses <- temp[min(length(temp), 25L)]
 
-  sw_input_soillayers <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.soillayers)),
-    error = print)
+  sw_input_soillayers <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.soillayers),
+    nrowsClasses = nrowsClasses), error = print)
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.treatments)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.treatments),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_treatments_use <- temp[["use"]]
   sw_input_treatments <- temp[["data"]]
   stopifnot(
     !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
   )
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.Experimentals)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.Experimentals),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_experimentals_use <- temp[["use"]]
   sw_input_experimentals <- temp[["data"]]
   create_experimentals <- names(sw_input_experimentals_use[sw_input_experimentals_use])
@@ -218,41 +220,41 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   if (dim(sw_input_experimentals)[2] == 1)
     stop("Experimentals might be tab separated instead of comma.")
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.cloud)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.cloud),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_cloud_use <- temp[["use"]]
   sw_input_cloud <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.prod)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.prod),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_prod <- temp[["data"]]
   sw_input_prod_use <- temp[["use"]]
   sw_input_prod_use <- sw_input_prod_use | names(sw_input_prod_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.siteparam)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.siteparam),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_site <- temp[["data"]]
   sw_input_site_use <- temp[["use"]]
   sw_input_site_use <- sw_input_site_use | names(sw_input_site_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.soils)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.soils),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_soils <- temp[["data"]]
   sw_input_soils_use <- temp[["use"]]
   sw_input_soils_use <- sw_input_soils_use | names(sw_input_soils_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.weathersetup)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.weathersetup),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_weather_use <- temp[["use"]]
   sw_input_weather <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_climscen_use <- temp[["use"]]
   sw_input_climscen <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios_values)),
-    error = print)
+  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios_values),
+    nrowsClasses = nrowsClasses), error = print)
   sw_input_climscen_values_use <- temp[["use"]]
   sw_input_climscen_values <- temp[["data"]]
 
