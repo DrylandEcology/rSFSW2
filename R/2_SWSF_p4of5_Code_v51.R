@@ -3791,8 +3791,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost <- NA
-          wyears_normal <- NULL
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 47)
+          st_NRCS <- list(N_wyears_normal = 0)
+          temp_annual <- matrix(NA,
+            nrow = if (opt_NCRS_SMTRs[["do_1st_regime"]]) simTime$no.useyr else 1,
+            ncol = 47)
           colnames(temp_annual) <- c("MATLanh", "MAT50", "T50jja", "T50djf",
                                       "CSPartSummer", paste0("V", 6:47))
 
@@ -3809,15 +3811,53 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc, runData, simTime)
               if (!exists("pet.mo")) pet.mo <- get_PET_mo(sc, runData, simTime)
 
-              #Parameters
-              SWP_dry <- -1.5	#dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
-              SWP_sat <- -0.033	#saturated means SWP above -0.033 MPa
-              impermeability <- 0.9 #impermeable layer
+              # Prepare data
+              if (opt_NCRS_SMTRs[["do_1st_regime"]]) {
+                soiltemp_nrsc <- list(
+                  yr = list(data = soiltemp.yr.all$val, nheader = 1),
+                  mo = list(data = soiltemp.mo.all$val, nheader = 2),
+                  dy = list(data = soiltemp.dy.all$val, nheader = 2)
+                )
+                vwc_dy_nrsc <- vwcmatric.dy.all
+
+                st_NRCS <- list(
+                    N_useyr = simTime$no.useyr,
+                    N_usedy = simTime$no.usedy,
+                    index_useyr = simTime$index.useyr,
+                    index_usemo = simTime$index.usemo,
+                    index_usedy = simTime$index.usedy,
+                    month_ForMonth = simTime2$month_ForEachUsedMonth_NSadj,
+                    doy_ForDay = simTime2$doy_ForEachUsedDay_NSadj
+                  )
+
+              } else {
+                soiltemp_nrsc <- list(
+                  yr = list(data = matrix(colMeans(soiltemp.yr.all$val[simTime$index.useyr, , drop = FALSE]), nrow = 1),
+                    nheader = 1),
+                  mo = list(data = aggregate(soiltemp.mo.all$val[simTime$index.usemo, , drop = FALSE],
+                    by = list(simTime2$month_ForEachUsedMonth), mean)[, -1], nheader = 2),
+                  dy = list(data = aggregate(soiltemp.dy.all$val[simTime$index.usedy, , drop = FALSE],
+                    by = list(simTime2$doy_ForEachUsedDay), mean)[, -1], nheader = 2)
+                )
+                vwc_dy_nrsc <- lapply(vwcmatric.dy.all, function(x)
+                  aggregate(as.matrix(x)[simTime$index.usedy, ],
+                    list(simTime2$doy_ForEachUsedDay), mean)[, -1])
+
+                st_NRCS <- list(
+                    N_useyr = 1,
+                    N_usedy = temp <- dim(vwc_dy_nrsc$val)[1],
+                    index_useyr = 1,
+                    index_usemo = 1:12,
+                    index_usedy = seq_len(temp),
+                    month_ForMonth = 1:12,
+                    doy_ForDay = seq_len(temp)
+                  )
+              }
 
               #Required soil layers
               soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm"), drop = FALSE]
               #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
-              imp_depth <- which(soildat[, "imperm"] >= impermeability)
+              imp_depth <- which(soildat[, "imperm"] >= opt_NCRS_SMTRs[["impermeability"]])
               imp_depth <- min(imp_depth, max(soildat[, "depth_cm"]))	#Interpret maximum soil depth as possible impermeable layer
               Fifty_depth <- min(50, imp_depth)
 
@@ -3846,13 +3886,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               }))
 
               #Set soil depths and intervals accounting for shallow soil profiles: Soil Survey Staff 2014: p.31)
-              soiltemp_nrsc <- list(
-                yr = list(data = soiltemp.yr.all$val, nheader = 1),
-                mo = list(data = soiltemp.mo.all$val, nheader = 2),
-                dy = list(data = soiltemp.dy.all$val, nheader = 2)
-              )
-              vwc_dy_nrsc <- vwcmatric.dy.all
-
               ##Calculate soil temperature at necessary depths using a weighted mean
               i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
               calc50 <- !(Fifty_depth == soildat[i_depth50, "depth_cm"])
@@ -3896,22 +3929,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 rm(weightsLanh)
               }
 
-              if (calc50 || any(calcMCS) || any(calcLanh)) {
-                if (!be.quiet) print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
+              soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st) st[["data"]])
+
+              swp_recalculate <- calc50 || any(calcMCS) || any(calcLanh)
+              if (swp_recalculate && !be.quiet) {
+                print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
                     " because of insufficient soil layers: required would be {",
                       paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
                       "} and available are {",
                       paste(layers_depth, collapse = ", "), "}"))
-
-                swp_dy_nrsc <- get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
-                  sand = soildat[, "sand"], clay = soildat[, "clay"])
-
-              } else {
-                swp_dy_nrsc <- swpmatric.dy.all
               }
 
-              soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st) st[["data"]])
-              swp_dy_nrsc <- swp_dy_nrsc$val[simTime$index.usedy, -(1:2), drop = FALSE]
+              swp_dy_nrsc <- if (swp_recalculate || !opt_NCRS_SMTRs[["do_1st_regime"]]) {
+                  get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
+                    sand = soildat[, "sand"], clay = soildat[, "clay"])
+                } else {
+                  swpmatric.dy.all
+                }
+              swp_dy_nrsc <- swp_dy_nrsc$val[st_NRCS[["index_usedy"]], -(1:2), drop = FALSE]
+
 
               #MCS (Soil Survey Staff 2014: p.29)
               #What soil layer info used for MCS
@@ -3920,33 +3956,45 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               i_Lanh <- identify_soillayers(Lanh_depth, soildat[, "depth_cm"])
 
               #mean soil temperature in Lahn depths (10 - 70 cm)
-              temp_annual[, "MATLanh"] <- apply(soiltemp_nrsc[["yr"]][simTime$index.useyr, 1 + i_Lanh, drop = FALSE], 1,
+              temp_annual[, "MATLanh"] <- apply(soiltemp_nrsc[["yr"]][st_NRCS[["index_usedy"]], 1 + i_Lanh, drop = FALSE], 1,
                 weighted.mean, w = soildat[i_Lanh, "depth_cm"])
 
               #---Calculate variables
-              #Water year starting Oct 1
-              wateryears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)	# 1. water-year: N-hemisphere: October 1st = 1 day of water year; S-hemisphere: April 1st = 1 day of water year
-              wyears <- (temp <- unique(wateryears))[-length(temp)]#eliminate last year
-
               #mean soil temperatures at 50cm depth
-              temp_annual[, "MAT50"] <- soiltemp_nrsc[["yr"]][simTime$index.useyr, 1 + i_depth50]
-              temp <- soiltemp_nrsc[["mo"]][simTime$index.usemo, 2 + i_depth50][simTime2$month_ForEachUsedMonth_NSadj %in% 6:8]
-              temp_annual[, "T50jja"] <- apply(matrix(temp, ncol = simTime$no.useyr), 2, mean)
-              temp <- soiltemp_nrsc[["mo"]][simTime$index.usemo, 2 + i_depth50][simTime2$month_ForEachUsedMonth_NSadj %in% c(12, 1:2)]
-              temp_annual[, "T50djf"] <- apply(matrix(temp, ncol = simTime$no.useyr), 2, mean)
-              T50 <- soiltemp_nrsc[["dy"]][simTime$index.usedy, 2 + i_depth50]
+              temp_annual[, "MAT50"] <- soiltemp_nrsc[["yr"]][st_NRCS[["index_useyr"]], 1 + i_depth50]
+              temp <- soiltemp_nrsc[["mo"]][st_NRCS[["index_usemo"]],
+                2 + i_depth50][st_NRCS[["month_ForMonth"]] %in% 6:8]
+              temp_annual[, "T50jja"] <- apply(matrix(temp, ncol = st_NRCS[["N_useyr"]]), 2, mean)
+              temp <- soiltemp_nrsc[["mo"]][st_NRCS[["index_usemo"]],
+                2 + i_depth50][st_NRCS[["month_ForMonth"]] %in% c(12, 1:2)]
+              temp_annual[, "T50djf"] <- apply(matrix(temp, ncol = st_NRCS[["N_useyr"]]), 2, mean)
+              T50 <- soiltemp_nrsc[["dy"]][st_NRCS[["index_usedy"]], 2 + i_depth50]
               #Moist and dry at 50cm depth for MCS and Lahn calcs
 
+              if (opt_NCRS_SMTRs[["do_1st_regime"]]) {
+                #Water year starting Oct 1
+                # 1. water-year: N-hemisphere: October 1st = 1 day of water year; S-hemisphere: April 1st = 1 day of water year
+                wateryears <- simTime2$year_ForEachUsedDay_NSadj +
+                  ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)
+                wyears <- (temp <- unique(wateryears))[-length(temp)]#eliminate last year
+
+              } else {
+                wateryears <- rep(1, st_NRCS[["N_usedy"]])
+                wyears <- 1
+              }
+
               #CSPartSummer: Is the soil saturated with water during some part of the summer June1 (=regular doy 244) - Aug31 (=regular doy 335)
-              isummer <- simTime2$doy_ForEachUsedDay_NSadj >= 244 & simTime2$doy_ForEachUsedDay_NSadj <= 335
+              isummer <- st_NRCS[["doy_ForDay"]] >= 244 & st_NRCS[["doy_ForDay"]] <= 335
               temp_annual[, "CSPartSummer"] <- vapply(wyears, function(yr) {
                 temp <- apply(swp_dy_nrsc[wateryears == yr & isummer, , drop = FALSE], 1,
-                  function(x) all(x >= SWP_sat))
+                  function(x) all(x >= opt_NCRS_SMTRs[["SWP_sat"]]))
                 rtemp <- rle(temp)
                 if(any(rtemp$values)) max(rtemp$lengths[rtemp$values]) else 0
               }, FUN.VALUE = NA_real_)
 
-              am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf", "CSPartSummer")])
+              am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf"), drop = FALSE])
+              am_sat <- sum(temp_annual[, "CSPartSummer"] > 0) >=
+                dim(temp_annual)[1] * opt_NCRS_SMTRs[["crit_agree_frac"]]
 
               #---Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
               #we ignore distinction between iso- and not iso-
@@ -3959,7 +4007,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               } else if (am["MAT50"] > 0 && !permafrost) {
                 # mineral soils
-                if (am["CSPartSummer"] > 0) {
+                if (am_sat) {
                   # ignoring O-horizon and histic epipedon; Saturated with water
                   if (am["T50jja"] < 13) {
                     # ignoring O-horizon
@@ -3982,51 +4030,76 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 Tregime["Gelic"] <- 1L
               }
 
-              #Normal years for soil moisture regimes (Soil Survey Staff 2014: p.29)
-              #Should have a time period of 30 years to determine normal years
-              MAP <- c(mean(prcp.yr$ppt), sd(prcp.yr$ppt))
-              normal1 <- (prcp.yr$ppt >= MAP[1] - MAP[2]) & (prcp.yr$ppt <= MAP[1] + MAP[2])
-              MMP <- tapply(prcp.mo$ppt,
-                simTime2$month_ForEachUsedMonth_NSadj,
-                function(x) c(mean(x), sd(x)))
-              MMP <- matrix(unlist(MMP), nrow = 2, ncol = 12)
-              normal2 <- tapply(prcp.mo$ppt, simTime2$yearno_ForEachUsedMonth_NSadj,
-                function(x) sum((x >= MMP[1, ] - MMP[2, ]) & (x <= MMP[1, ] + MMP[2, ])) >= 8)
-              # Normal years =
-              #   - Annual precipitation that is plus or minus one standard precipitation
-              #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
-              wyears_normal <- wyears[normal1 & normal2]
-              wyears_index <- findInterval(wyears_normal, wyears)
-              wdays_index <- wateryears %in% wyears_normal
-              days_per_wyear <- as.integer(table(wateryears[wdays_index], dnn = FALSE))
-              crit_agree_fraction <- 0.9
 
-              if (length(wyears_normal) > 2) {
+              if (opt_NCRS_SMTRs[["use_normal"]]) {
+                # Normal years for soil moisture regimes (Soil Survey Staff 2014: p.29)
+                # Should have a time period of 30 years to determine normal years
+                if (simTime$no.useyr < 30)
+                  print(paste(i_label, "has only", simTime$no.useyr, "years of data;",
+                    "determination of normal years for NRCS soil moisture regimes should",
+                    "be based on >= 30 years."))
+
+                #   - Annual precipitation that is plus or minus one standard precipitation
+                #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
+                MAP <- c(mean(prcp.yr$ppt), sd(prcp.yr$ppt))
+                normal1 <- (prcp.yr$ppt >= MAP[1] - MAP[2]) & (prcp.yr$ppt <= MAP[1] + MAP[2])
+                MMP <- tapply(prcp.mo$ppt,
+                  simTime2$month_ForEachUsedMonth_NSadj,
+                  function(x) c(mean(x), sd(x)))
+                MMP <- matrix(unlist(MMP), nrow = 2, ncol = 12)
+                normal2 <- tapply(prcp.mo$ppt, simTime2$yearno_ForEachUsedMonth_NSadj,
+                  function(x) sum((x >= MMP[1, ] - MMP[2, ]) & (x <= MMP[1, ] + MMP[2, ])) >= 8)
+
+                st_NRCS <- c(st_NRCS, list(
+                  wyears_normal = wyears_normal <- wyears[normal1 & normal2],
+                  N_wyears_normal = length(wyears_normal),
+                  wyears_index = findInterval(wyears_normal, wyears),
+                  wdays_index = wdays_index <- wateryears %in% wyears_normal,
+                  N_wdays_normal = sum(wdays_index),
+                  days_per_wyear = as.integer(table(wateryears[wdays_index], dnn = FALSE))
+                ))
+
+                rm(list = c("MAP", "MMP", "normal1", "normal2"))
+
+              } else {
+                st_NRCS <- c(st_NRCS, list(
+                  wyears_normal = 1,
+                  N_wyears_normal = 1,
+                  wyears_index = 1,
+                  wdays_index = rep(TRUE, st_NRCS[["N_usedy"]]),
+                  N_wdays_normal = st_NRCS[["N_usedy"]],
+                  days_per_wyear = st_NRCS[["N_usedy"]]
+                ))
+              }
+
+
+              if (st_NRCS[["N_wyears_normal"]] > 2 || !opt_NCRS_SMTRs[["do_1st_regime"]]) {
                 #Structures used Lanh delinieation
                 #Days are moists in half of the Lanh soil depth (and not soil layers!)
                 n_Lanh <- length(i_Lanh)
                 width_Lanh <- diff(c(0, soildat[, "depth_cm"]))[i_Lanh] # stopifnot(sum(width_Lanh) == Lanh_depth[2] - Lanh_depth[1])
-                temp <- swp_dy_nrsc[wdays_index, i_Lanh, drop = FALSE] > SWP_dry
-                temp <- temp * matrix(width_Lanh, nrow = sum(wdays_index), ncol = length(i_Lanh), byrow = TRUE)
-                Lanh_Dry_Half <- .rowSums(temp, m = sum(wdays_index), n = n_Lanh) <= sum(width_Lanh) / 2
+                temp <- swp_dy_nrsc[st_NRCS[["wdays_index"]], i_Lanh, drop = FALSE] > opt_NCRS_SMTRs[["SWP_dry"]]
+                temp <- temp * matrix(width_Lanh, nrow = st_NRCS[["N_wdays_normal"]], ncol = length(i_Lanh), byrow = TRUE)
+                Lanh_Dry_Half <- .rowSums(temp, m = st_NRCS[["N_wdays_normal"]], n = n_Lanh) <= sum(width_Lanh) / 2
 
                 #Conditions for Anhydrous soil delineation
                 ACS_CondsDF_day <- data.frame(
-                  Years = rep(wyears_normal, days_per_wyear),
-                  T50_at0C = T50[wdays_index] > 0, # days where T @ 50 is > 0 C
+                  Years = rep(st_NRCS[["wyears_normal"]], st_NRCS[["days_per_wyear"]]),
+                  T50_at0C = T50[st_NRCS[["wdays_index"]]] > 0, # days where T @ 50 is > 0 C
                   Lanh_Dry_Half = Lanh_Dry_Half
                 )
                 ACS_CondsDF_yrs <- data.frame(
-                  Years = wyears_normal,
-                  MAT50 = temp_annual[wyears_index, "MAT50"],
-                  MATLanh = temp_annual[wyears_index, "MATLanh"]
+                  Years = st_NRCS[["wyears_normal"]],
+                  MAT50 = temp_annual[st_NRCS[["wyears_index"]], "MAT50"],
+                  MATLanh = temp_annual[st_NRCS[["wyears_index"]], "MATLanh"]
                 )
 
                 #Mean Annual soil temperature is less than or equal to 0C
                 ACS_CondsDF_yrs$COND1 <- ACS_CondsDF_yrs$MAT50 <= 0
                 #Soil temperature in the Lahn Depth is never greater than 5
-                ACS_CondsDF_day$COND2_Test <- apply(soiltemp_nrsc[["dy"]][simTime$index.usedy[wdays_index], 1 + i_Lanh, drop = FALSE], 1,
-                  function(st) all(st < 5))
+                ACS_CondsDF_day$COND2_Test <- apply(
+                  soiltemp_nrsc[["dy"]][st_NRCS[["index_usedy"]][st_NRCS[["wdays_index"]]], 1 + i_Lanh, drop = FALSE],
+                  1, function(st) all(st < 5))
                 ACS_CondsDF_yrs$COND2 <- with(ACS_CondsDF_day,
                   tapply(COND2_Test, Years, all))
                 #In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
@@ -4039,27 +4112,32 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 ACS_CondsDF_yrs$COND3 <- with(ACS_CondsDF_yrs,
                   HalfDryDaysCumAbove0C > .5 * SoilAbove0C) #TRUE = Half of soil layers are dry greater than half the days where MAST >0c
                 ACS_CondsDF3 <- apply(ACS_CondsDF_yrs[, c('COND1', 'COND2', 'COND3')],
-                  2, function(x) sum(x)) > length(wyears_normal)  * crit_agree_fraction
+                  2, sum) > crit_agree_fraction * st_NRCS[["N_wyears_normal"]]
 
                 #Structures used for MCS delineation
                 MCS_CondsDF_day <- data.frame(
-                  Years = rep(wyears_normal, days_per_wyear),
-                  DOY = simTime2$doy_ForEachUsedDay_NSadj[wdays_index],
-                  T50_at5C = T50[wdays_index] > 5, # days where T @ 50cm exceeds 5C
-                  T50_at8C = T50[wdays_index] > 8, # days where T @ 50cm exceeds 8C
-                  MCS_Moist_All = apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] > SWP_dry, 1, all),
-                  MCS_Dry_All = apply(swp_dy_nrsc[wdays_index, i_MCS, drop = FALSE] < SWP_dry, 1, all)
+                  Years = rep(st_NRCS[["wyears_normal"]], st_NRCS[["days_per_wyear"]]),
+                  DOY = st_NRCS[["doy_ForDay"]][st_NRCS[["wdays_index"]]],
+                  T50_at5C = T50[st_NRCS[["wdays_index"]]] > 5, # days where T @ 50cm exceeds 5C
+                  T50_at8C = T50[st_NRCS[["wdays_index"]]] > 8, # days where T @ 50cm exceeds 8C
+                  MCS_Moist_All = apply(swp_dy_nrsc[st_NRCS[["wdays_index"]], i_MCS, drop = FALSE] > opt_NCRS_SMTRs[["SWP_dry"]], 1, all),
+                  MCS_Dry_All = apply(swp_dy_nrsc[st_NRCS[["wdays_index"]], i_MCS, drop = FALSE] < opt_NCRS_SMTRs[["SWP_dry"]], 1, all)
                 )
                 MCS_CondsDF_yrs <- data.frame(
-                  Years = wyears_normal,
-                  MAT50 = temp_annual[wyears_index, "MAT50"],
-                  T50jja = temp_annual[wyears_index, "T50jja"],
-                  T50djf = temp_annual[wyears_index, "T50djf"]
+                  Years = st_NRCS[["wyears_normal"]],
+                  MAT50 = temp_annual[st_NRCS[["wyears_index"]], "MAT50"],
+                  T50jja = temp_annual[st_NRCS[["wyears_index"]], "T50jja"],
+                  T50djf = temp_annual[st_NRCS[["wyears_index"]], "T50djf"]
                 )
 
                 #COND0 - monthly PET < PPT
-                MCS_CondsDF_yrs$COND0 <- tapply(prcp.mo$ppt > pet.mo$val,
-                  simTime2$yearno_ForEachUsedMonth, all)[wyears_index]
+                MCS_CondsDF_yrs$COND0 <- if (opt_NCRS_SMTRs[["do_1st_regime"]]) {
+                    tapply(prcp.mo$ppt > pet.mo$val,
+                      simTime2$yearno_ForEachUsedMonth, all)[st_NRCS[["wyears_index"]]]
+                  } else {
+                    all(tapply(prcp.mo$ppt - pet.mo$val,
+                      simTime2$month_ForEachUsedMonth, mean) > 0)
+                  }
 
                 #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
                 MCS_CondsDF_day$COND1_Test <- with(MCS_CondsDF_day,
@@ -4113,7 +4191,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #COND7 - MCS is MOIST in SOME parts for more than 180 CUMULATIVE days
                 MCS_CondsDF_yrs$MoistDaysCumAny <- with(MCS_CondsDF_day,
-                  tapply(!MCS_Dry_All, Years, function(x) sum(x)))#Number of days where any soils are moist
+                  tapply(!MCS_Dry_All, Years, sum))#Number of days where any soils are moist
                 MCS_CondsDF_yrs$COND7 <- MCS_CondsDF_yrs$MoistDaysCumAny > 180 #TRUE = Not Dry or Moist for as long 180 cumlative days
 
                 #Cond8 - MCS is MOIST in SOME parts for more than 90 CONSECUTIVE days
@@ -4134,7 +4212,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1', 'COND1_1',
                   'COND2', 'COND2_1', 'COND2_2', 'COND2_3', 'COND3', 'COND3_1', 'COND4', 'COND5',
                   'COND6', 'COND6_1', 'COND7', 'COND8', 'COND9', 'COND10')],
-                  2, function(x) sum(x)) > length(wyears_normal) * crit_agree_fraction
+                  2, sum) > crit_agree_fraction * st_NRCS[["N_wyears_normal"]]
 
                 #---Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
                 #we ignore 'Aquic'
@@ -4229,12 +4307,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   }
                 }
 
-                temp_annual[wyears_index, 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
+                temp_annual[st_NRCS[["wyears_index"]], 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
                   aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                     by = list(ACS_CondsDF_day$Years), mean)[, -1]))
 
-                temp_annual[wyears_index, 14:47] <- as.matrix(cbind(MCS_CondsDF_yrs
+                temp_annual[st_NRCS[["wyears_index"]], 14:47] <- as.matrix(cbind(MCS_CondsDF_yrs
                   [, c("COND0",
                     "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
                     "AnyMoistDaysCumAbove5C", "COND1_1",
@@ -4267,12 +4345,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 Sregime[] <- SRqualifier[] <- NA
               }
 
-              to_del <- c("calc50", "calcLanh", "calcMCS", "clay_temp", "days_per_wyear",
-                "i_depth50", "i_Lanh", "i_MCS", "imp_depth", "impermeability",
-                "isummer", "MAP", "MMP", "normal1", "normal2",
-                "sand_temp", "soildat", "soiltemp_nrsc", "SWP_dry", "swp_dy_nrsc",
-                "SWP_sat", "vwc_dy_nrsc", "wateryears", "wdays_index",
-                "wyears", "wyears_index")
+              to_del <- c("calc50", "calcLanh", "calcMCS", "clay_temp",
+                "i_depth50", "i_Lanh", "i_MCS", "imp_depth", "isummer",
+                "sand_temp", "soildat", "soiltemp_nrsc", "swp_dy_nrsc",
+                "vwc_dy_nrsc", "wateryears", "wyears")
               #to_del <- to_del[to_del %in% ls()]
               if (length(to_del) > 0)
                 try(rm(list = to_del), silent = TRUE)
@@ -4292,7 +4368,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
             nv_new <- nv + 7
             resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
-              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost), length(wyears_normal))
+              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost), st_NRCS[["N_wyears_normal"]])
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
             resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
@@ -4312,7 +4388,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           }
 
           to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost",
-            "wyears_normal", "temp_annual")
+            "st_NRCS", "temp_annual")
           #to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)
             try(rm(list = to_del), silent = TRUE)
@@ -5863,7 +5939,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
-    "ouput_aggregated_ts", "output_aggregate_daily", "parallel_backend",
+    "opt_NCRS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily", "parallel_backend",
     "parallel_runs", "param.species_regeneration", "pcalcs", "print.debug",
     "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
     "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
