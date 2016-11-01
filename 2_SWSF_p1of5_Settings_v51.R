@@ -462,15 +462,14 @@ shrub.fraction.limit <- 0.2 	#page 1213: 0.2 in Paruelo JM, Lauenroth WK (1996) 
 growing.season.threshold.tempC <- 10 # based on Trewartha's D temperateness definition (with >=4 & < 8 months with > 10C)
 growing.season.threshold.tempC <- 4 # based on standard input of mean monthly biomass values for vegetation composition
 
-# NCRS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
-opt_NCRS_SMTRs <- list(
+# NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
+opt_NRCS_SMTRs <- list(
   # Approach for regime determination
   #   - TRUE: first, determine regime for each year; second, aggregate regimes
   #   - FALSE: first, average moisture and temperature for each DOY;
   #            second, determine regime for this average year
   do_1st_regime = FALSE,
-  # If do_1st_regime_2nd_aggregate is TRUE, then this sets
-  # required regime aggregation agreement level (e.g., 0.5 = majority; 1 = all)
+  # Required regime aggregation agreement level (e.g., 0.5 = majority; 1 = all)
   crit_agree_frac = 1,
   # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
   use_normal = TRUE,
