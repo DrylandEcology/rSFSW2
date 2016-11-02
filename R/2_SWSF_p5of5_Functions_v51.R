@@ -2608,7 +2608,7 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
   comps <- c("_Litter", "_Biomass", "_FractionLive", "_LAIconv")
   veg_ids = lapply(comps, function(x)
     grep(paste0(funct_veg, x), names(use)))
-  veg_incl = lapply(vegs_id, function(x) use[x])
+  veg_incl = lapply(veg_ids, function(x) use[x])
 
   temp <- slot(prod_default, paste0("MonthlyProductionValues_", tolower(funct_veg)))
   if (any(unlist(veg_incl))) {
