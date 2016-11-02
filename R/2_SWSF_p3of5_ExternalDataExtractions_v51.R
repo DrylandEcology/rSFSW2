@@ -669,7 +669,7 @@ if (exinfo$ExtractClimateChangeScenarios) {
 #------Load additional parameters and functions for data from the Lawrence Livermore National Lab and from USGS NEX
 
 if (exinfo$ExtractClimateChangeScenarios &&
-    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
+    (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 
 	Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
@@ -2629,7 +2629,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 #------EXTRACT CLIMATE CHANGE DATA------
 
 if (exinfo$ExtractClimateChangeScenarios &&
-    any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
+    (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 
 	#access climate change data
 	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta) {
@@ -3224,7 +3224,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			layer_TopDep <- c(0, 10, 20, 40, 60, 80)	#in cm
 			layer_BotDep <- c(10, 20, 40, 60, 80, 100)	#in cm
 
-			dir.ex.dat <- file.path(dir.ex.soil, "wise5by5min_v1b")
+			dir.ex.dat <- file.path(dir.ex.soil, "WISE", "wise5by5min_v1b")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 
 			#run_sites_wise of simulation runs
