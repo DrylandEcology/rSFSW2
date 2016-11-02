@@ -1917,7 +1917,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
         if (length(icol) > d)
           icol <- icol[ld]
 
-        if (length(temp) > 0) {
+        if (length(icol) > 0) {
           luse <- list(use = which(sw_input_soils_use[icol]),
                         other = intersect(
                                   which(!sw_input_soils_use[icol]),
