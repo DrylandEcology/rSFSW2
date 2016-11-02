@@ -1774,35 +1774,35 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 			#composition
 			use_it <- sw_input_prod_use[grepl("Composition", names(sw_input_prod_use))]
 			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, cbind(
+        temp <- with(i_sw_input_prod, c(
           Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction,
           Composition_ForbFraction, Composition_BareGround))
-        temp[is.finite(temp) | !use_it] <- 0 # if one is is requested, then put others to 0
-				swRunScenariosData[[1]]@prod@Composition <- temp
+        temp[!is.finite(temp) | !use_it] <- 0 # if one is is requested, then put others to 0
+				swProd_Composition(swRunScenariosData[[1]]) <- temp
 			}
 			#albedo
 			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
 			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, cbind(Grass_Albedo, Shrub_Albedo, Tree_Albedo,
+        temp <- with(i_sw_input_prod, c(Grass_Albedo, Shrub_Albedo, Tree_Albedo,
           Forb_Albedo, BareGround_Albedo))
-        temp[is.finite(temp)] <- 0
+        temp[!is.finite(temp)] <- 0
 				swProd_Albedo(swRunScenariosData[[1]])[use_it] <- temp[use_it]
 			}
 			#constant canopy height
 			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
 			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, cbind(Grass_CanopyHeight_Constant_cm,
+        temp <- with(i_sw_input_prod, c(Grass_CanopyHeight_Constant_cm,
           Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,
           Forb_CanopyHeight_Constant_cm))
-        temp[is.finite(temp)] <- 0
-				swRunScenariosData[[1]]@prod@CanopyHeight[5, use_it] <- height.datfile[use_it]
+        temp[!is.finite(temp)] <- 0
+        swProd_CanopyHeight(swRunScenariosData[[1]])[5, use_it] <- temp[use_it]
 			}
 			#flag for hydraulic redistribution
 			use_it <- sw_input_prod_use[grepl("HydRed", names(sw_input_prod_use))]
 			if (any(use_it)) {
-				temp <- with(i_sw_input_prod, cbind(Grass_HydRed_OnOff, Shrub_HydRed_OnOff,
-				  Tree_HydRed_OnOff, Forb_HydRed_OnOff))
-        temp[is.finite(temp)] <- 0
+        temp <- with(i_sw_input_prod, c(Grass_HydRed_OnOff, Shrub_HydRed_OnOff,
+          Tree_HydRed_OnOff, Forb_HydRed_OnOff))
+        temp[!is.finite(temp)] <- TRUE
 				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <- temp[use_it]
 			}
 
@@ -1917,7 +1917,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
         if (length(icol) > d)
           icol <- icol[ld]
 
-        if (length(temp) > 0) {
+        if (length(icol) > 0) {
           luse <- list(use = which(sw_input_soils_use[icol]),
                         other = intersect(
                                   which(!sw_input_soils_use[icol]),
