@@ -15,25 +15,36 @@ toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
 swsf_read_csv <- compiler::cmpfun(function(file, stringsAsFactors = FALSE, ...) {
-  if (requireNamespace("iotools", quietly = TRUE)) {
+  dots <- list(...)
+  dots[["file"]] <- file
+  dots[["stringsAsFactors"]] <- stringsAsFactors
+  use_iotools <- requireNamespace("iotools", quietly = TRUE)
+  res <- NULL
+
+  if (use_iotools) {
     # faster than utils::read.csv
-    temp <- try(iotools::read.csv.raw(file = file, ...), silent = TRUE)
+    dots2 <- dots[names(dots) %in% names(formals(iotools::read.csv.raw))]
+    temp <- try(do.call(iotools::read.csv.raw, args = dots2), silent = TRUE)
     if (inherits(temp, "try-error")) {
-      read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
+      use_iotools <- FALSE
     } else {
       names(temp) <- gsub("\"", "", names(temp))
-      temp
+      res <- temp
     }
-
-  } else {
-    read.csv(file = file, stringsAsFactors = stringsAsFactors, ...)
   }
+
+  if (!use_iotools) {
+    dots2 <- dots[names(dots) %in% names(formals(utils::read.csv))]
+    res <- try(do.call(utils::read.csv, args = dots2), silent = TRUE)
+  }
+
+  res
 })
 
-swsf_read_inputfile <- compiler::cmpfun(function(file, header_rows = 1) {
+swsf_read_inputfile <- compiler::cmpfun(function(file, header_rows = 1, ...) {
   sw_use <- tryCatch(swsf_read_csv(file, nrows = header_rows),
     error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
-  sw <- swsf_read_csv(file, skip = header_rows)
+  sw <- swsf_read_csv(file, skip = header_rows, ...)
   names(sw) <- names(sw_use)
   sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
   sw_use[is.na(sw_use)] <- FALSE
@@ -2597,7 +2608,7 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
   comps <- c("_Litter", "_Biomass", "_FractionLive", "_LAIconv")
   veg_ids = lapply(comps, function(x)
     grep(paste0(funct_veg, x), names(use)))
-  veg_incl = lapply(vegs_id, function(x) use[x])
+  veg_incl = lapply(veg_ids, function(x) use[x])
 
   temp <- slot(prod_default, paste0("MonthlyProductionValues_", tolower(funct_veg)))
   if (any(unlist(veg_incl))) {
