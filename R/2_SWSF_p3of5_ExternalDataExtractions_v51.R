@@ -1797,7 +1797,83 @@ if (exinfo$ExtractClimateChangeScenarios &&
   })
 
 
+  downscale.wgen_package <- compiler::cmpfun(function(
+                obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+                deltaFuture_yr, years = NULL,
+                DScur_startyear = NULL, DScur_endyear = NULL,
+                DSfut_startyear = NULL, DSfut_endyear = NULL,
+                opt_DS = list(
+                  extrapol_type = "linear_Thermessl2012CC.QMv1b",
+                  ppt_type = "detailed",
+                  sigmaN = 6,
+                  PPTratioCutoff = 10,
+                  fix_spline = "attempt"),
+                dailyPPTceiling, monthly_extremes,
+                do_checks = TRUE, ...){
+    require("zoo")
+    require("weathergen")
+    require("dplyr")
+    library("lubridate")    
+    
+    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]     
+    
+    day_data <- dbW_weatherData_to_dataframe(obs.hist.daily)
+    
+    dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
+    
+    day_data <- data.frame(WYEAR = wyear(dates),
+                           MONTH = format(dates, "%m"),
+                           DATE  = dates,    
+                           PRCP  = day_data[,'PPT_cm'],
+                           TEMP  = (day_data[,'Tmin_C'] + day_data[,'Tmax_C']) / 2,
+                           TMIN  = day_data[,'Tmin_C'],
+                           TMAX  = day_data[,'Tmax_C'],
+                           WIND  = NA)
+    # get water years, oct 1st to sep 30th... used if start_month should be 10
+    #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m" ))==10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m" ))==9)),]
+    
+    start_month <- as.numeric(format(min(day_data$DATE), "%m" ))
+    
+    climwyear <- group_by(day_data, WYEAR=wyear(DATE, start_month = start_month)) %>%
+      summarise(N    = n(),
+                PRCP = sum(PRCP),
+                TMAX = mean(TMAX),
+                TMIN = mean(TMIN),
+                TEMP = mean(TEMP))                        
+    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)] 
+    
+    wyear_list <- list(day_data$WYEAR)
+    wyr_data <- data.frame(WYEAR =  complete_years,
+                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],  
+                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)], 
+                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)], 
+                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],  
+                           WIND  =  NA                                       
+    )				  
+    
+    obs_dat <- list(day=day_data, wyr=wyr_data)
+    zoo_day <- zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
+                   order.by = obs_dat[['day']][['DATE']])
+    # set.seed(1) # for testing
+    if (!be.quiet) print(paste("calling wgen_daily(zoo_day, n_year=", DScur_endyear - DScur_startyear,
+                               ",start_water_year=",DScur_startyear,",start_month =",start_month,")"))
+    # consider setting more parameters 
+    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence				  
+    scen.fut.daily <- weathergen::wgen_daily(zoo_day, 
+                                             n_year = DScur_endyear - DScur_startyear,
+                                             start_water_year = DScur_startyear,
+                                             start_month = start_month,
+                                             include_leap_days = FALSE)
 
+    scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
+                                 DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
+                                 Tmax_C = scen.fut.daily$out$TMAX,
+                                 Tmin_C = scen.fut.daily$out$TMIN,
+                                 PPT_cm = scen.fut.daily$out$PRCP)				    
+    # year start back to 1/1, probably only needed when setting start_month != 1
+    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]				    
+    scen.fut.daily <- dbW_dataframe_to_weatherData(scen.fut.daily, round=FALSE)
+  })
 	#-------DB access functions
 
   #' Converts precipitation data to values in cm / month
@@ -2379,7 +2455,8 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
           dm_fun <- switch(dm, raw = downscale.raw, delta = downscale.delta,
             `hybrid-delta` = downscale.deltahybrid,
-            `hybrid-delta-3mod` = downscale.deltahybrid3mod, stop)
+            `hybrid-delta-3mod` = downscale.deltahybrid3mod, 
+            `wgen-package` = downscale.wgen_package, stop)
 
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
