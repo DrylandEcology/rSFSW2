@@ -3789,7 +3789,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           names(SRqualifier) <- temp
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
-          Fifty_depth <- permafrost <- NA
+          Fifty_depth <- permafrost_yrs <- NA
           SMR_normalyears_N <- 0
           temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 47, dimnames =
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer", paste0("V", 6:47))))
@@ -3937,9 +3937,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 sdepths = soildat[, "depth_cm"])
 
               #Permafrost (Soil Survey Staff 2014: p.28) is defined as a thermal condition in which a material (including soil material) remains below 0 C for 2 or more years in succession
-              permafrost <- any(apply(soiltemp.yr.all$val[simTime$index.useyr, -1, drop = FALSE], 2, function(x) {
+              permafrost_yrs <- max(apply(soiltemp.yr.all$val[simTime$index.useyr, -1, drop = FALSE], 2, function(x) {
                 temp <- rle(x < 0)
-                any(temp$values) && any(temp$lengths[temp$values] >= 2)
+                if (any(temp$values)) max(temp$lengths[temp$values]) else 0L
               }))
 
               #Set soil depths and intervals accounting for shallow soil profiles: Soil Survey Staff 2014: p.31)
@@ -4047,7 +4047,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               } else if (am["MAT50"] >= 8) {
                   Tregime["Mesic"] <- 1L
 
-              } else if (am["MAT50"] > 0 && !permafrost) {
+              } else if (am["MAT50"] > 0 && permafrost_yrs <= 0) {
                 # mineral soils
                 if (am_sat) {
                   # ignoring O-horizon and histic epipedon; Saturated with water
@@ -4067,7 +4067,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   }
                 # ignoring organic soils
 
-              } else if (am["MAT50"] <= 0 || permafrost) {
+              } else if (am["MAT50"] <= 0 || permafrost_yrs > 0) {
                 # limit should be 1 C for Gelisols
                 Tregime["Gelic"] <- 1L
               }
@@ -4275,7 +4275,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 #Ustic soil moisture regime
                 if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric", "Udic")])) &&
-                    !permafrost && !MCS_CondsDF3['COND3'] &&
+                    (permafrost_yrs <= 0) && !MCS_CondsDF3['COND3'] &&
                     ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
                     (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) ||
                     !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] &&
@@ -4367,7 +4367,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
             nv_new <- nv + 7
             resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
-              MCS_depth[1:2], Lanh_depth[1:2], as.integer(permafrost), SMR_normalyears_N)
+              MCS_depth[1:2], Lanh_depth[1:2], permafrost_yrs, SMR_normalyears_N)
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
             resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
@@ -4386,7 +4386,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             nv <- nv_new
           }
 
-          to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost",
+          to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost_yrs",
             "SMR_normalyears_N", "temp_annual")
           #to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)

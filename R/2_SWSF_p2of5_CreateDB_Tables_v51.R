@@ -788,7 +788,7 @@ if (length(Tables) == 0 || do.clean) {
           c(c("Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
-              "Permafrost_TF",
+              "Permafrost_years",
               "SMR_normalyears_N"),
             paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
                       "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C",

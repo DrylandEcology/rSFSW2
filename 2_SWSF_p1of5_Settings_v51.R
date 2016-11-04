@@ -468,7 +468,7 @@ opt_NRCS_SMTRs <- list(
   #   - TRUE: first, determine regime for each year; second, aggregate regimes
   #   - FALSE: first, average moisture and temperature for each DOY;
   #            second, determine regime for this average year
-  do_1st_regime = FALSE,
+  do_1st_regime = TRUE,
   # Required regime aggregation agreement level (e.g., 0.5 = majority; 1 = all)
   crit_agree_frac = 1,
   # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
