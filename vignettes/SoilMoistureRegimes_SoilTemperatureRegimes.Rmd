@@ -191,9 +191,8 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 * Very cold and very dry soil conditions
 * SWSF
     * [AnhCOND1](#AnhCOND1) & [AnhCOND2](#AnhCOND2) & [AnhCOND3](#AnhCOND3)
-* [jNSM 2016](#jNSM2016)
-    * Not considered
-* Characteristics ([SSS 2014](#SSS2014))
+* [jNSM 2016](#jNSM2016): not considered
+* Characteristics ([p. 18-19 in SSS 2014](#SSS2014))
     + [[AnhCOND1](#AnhCOND1)] "Mean annual soil temperature of 0C or colder"
     + __AND__
     + At a depth of 10 to 70 cm:
@@ -218,10 +217,125 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 
 
 
+## Soil Temperature Regimes
+We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter soil temperatures differ by less than 6 oC at a depth of 50 cm or at a densic, lithic, or paralithic contact, whichever is shallower", which is applicable to [frigid](#Frigid), [mesic](#Mesic), [thermic](#Thermic), and [hyperthermic](#Hyperthermic) regimes ([SSS 2014](#SSS2014))
+
+### Permafrost
+* Permanently frozen layers
+* "Permafrost may be impregnated by ice or, in the case of insufficient interstitial water, may be dry." ([SSS 2014](#SSS2014))
+* SWSF
+    * [stCOND0](#stCOND0)
+* [jNSM 2016](#jNSM2016): not considered
+* Characteristics ([p. 28 in SSS 2014](#SSS2014))
+    + [[stCOND0](#stCOND0)] "a thermal condition in which a material (including soil material) remains below 0 C for 2 or more years in succession"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * p. 3-101: "Layer has temperature of < 0 C for 2 or more consecutive years."
+
+
+### Gelic
+* "Gelic materials are mineral or organic soil materials that show evidence of cryoturbation (frost churning) and/or ice segregation in the active layer (seasonal thaw layer) and/or the upper part of the permafrost" ([SSS 2014](#SSS2014))
+* "The gelic soil temperature regime has not been documented in soils of the continental U.S. but occurs in the soils of Alaska." ([SSS 2015](#SSS2015))
+* SWSF
+    * [stCOND1](#stCOND1) | [stCOND0](#stCOND0)
+* [jNSM 2016](#jNSM2016): calls this regime "pergelic"
+    + [[stCOND1](#stCOND1)] tma < 0
+* Characteristics ([SSS 2014](#SSS2014))
+    + [[stCOND1](#stCOND1)] "mean annual soil temperature at or below 0 C (in Gelic suborders and Gelic great groups) or 1 C or lower (in Gelisols)"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is <= 0 C"
+
+
+### Cryic
+* Cryic soils are cold but have no permafrost and they are cold also during summer.
+* "Too cold for virtually all crops" ([SSS 2015](#SSS2015))
+* SWSF
+    + current: \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & ([[stCOND5](#stCOND5) & [stCOND6](#stCOND6)] | [\![stCOND5](#stCOND5) & [stCOND8](#stCOND8)])
+    + new [todo]: incorporate [stCOND7](#stCOND7) and [stCOND9](#stCOND9)
+* [jNSM 2016](#jNSM2016):
+    + [\![[stCOND1](#stCOND1)]] tma >= 0 && [[stCOND2](#stCOND2)] tma < 8 && [?] ((st - cs) < 15)
+* Characteristics ([SSS 2014](#SSS2014))
+    + [\![stCOND0](#stCOND0)] "not have permafrost"
+    + __AND__
+    * __IF__ "mineral soils"
+        + __IF__ [\![stCOND5](#stCOND5)] "not saturated with water during some part of the summer" "(June, July, and August in the Northern Hemisphere and December, January, and February in the Southern Hemisphere)"
+            + __IF__ "no 'O' horizon"
+                + __IF__ [[stCOND8](#stCOND8)] mean summer soil temperature "between 0 C to 15 C" __THEN__ cryic
+            + __ELSE__ "'O' horizon"
+                + __IF__ [[stCOND9](#stCOND9)] mean summer soil temperature "between 0 C to 8 C" __THEN__ cryic
+        + __ELSE__ "soil is saturated with water during some part of the summer"
+            + __IF__ "no 'O' horizon"
+                + __IF__ [[stCOND6](#stCOND6)] mean summer soil temperature "between 0 C to 13 C" __THEN__ cryic
+            + __ELSE__ "'O' horizon" __OR__ "histic epipedon"
+                + __IF__ [[stCOND7](#stCOND7)] mean summer soil temperature "between 0 C to 6 C" __THEN__ cryic
+    + __ELSE__ "organic soils"
+        + __IF__ [[stCOND7](#stCOND7)] mean summer soil temperature "between 0 C to 6 C" __THEN__ cryic
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is > 0 to < 8 C but has no permafrost and summer temperatures are also cold"
+* Remarks
+    * [p.3-10 SSS 2015](#SSS2015): "The histic epipedon is a horizon that is periodically saturated with water and that has sufficiently high amounts of organic carbon (O.C. 12 to 18%, by weight, depending on clay content) to be considered organic soil material. Typically, it is at (or near) the surface and is peat or muck at least 20 cm thick."
+    * [p. 335 SSS 2014](#SSS2014): "O horizons or layers: Horizons or layers dominated by organic soil materials. [...] Some O horizons or layers consist of slightly decomposed to highly decomposed litter, such as leaves, needles, twigs, moss, and lichens, that has been deposited on the surface of either mineral or organic soils. [...] An O horizon or layer may be at the surface of a mineral soil, or it may be at any depth below the surface if it is buried."
+
+
+### Frigid
+* "Too cold for all but cold weather crops, such as wheat, oats, or
+barley" ([SSS 2015](#SSS2015))
+* SWSF
+    * \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & \![cryic](#cryic)
+* [jNSM 2016](#jNSM2016):
+    + [[stCOND2](#stCOND2)] tma < 8 && [?] ((st - cs) >= 15) && [?] (df & fcd) > 5
+* Characteristics ([SSS 2014](#SSS2014))
+    + "A soil with a frigid soil temperature regime is warmer in summer than a soil with a cryic regime, but its mean annual temperature is between 0 and 8 C"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is > 0 to < 8 C (but warmer than cryic soils in summer)"
+
+
+### Mesic
+* "Suited to crops such as corn, wheat, and soybeans" ([SSS 2015](#SSS2015))
+* SWSF
+    * \![stCOND2](#stCOND2) & [stCOND3](#stCOND3)
+* [jNSM 2016](#jNSM2016):
+    + [\![stCOND2](#stCOND2)] tma >= 8 && [[stCOND3](#stCOND3)] tma < 15
+* Characteristics ([SSS 2014](#SSS2014))
+    + "mean annual soil temperature is 8 C or higher [\![stCOND2](#stCOND2)] but lower than 15 C [[stCOND3](#stCOND3)]"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is 8 to < 15 C"
+
+
+### Thermic
+* "Suited to warm weather crops such as cotton" ([SSS 2015](#SSS2015))
+* SWSF
+    * \![stCOND3](#stCOND3) & [stCOND4](#stCOND4)
+* [jNSM 2016](#jNSM2016):
+    + [\![stCOND3](#stCOND3)] tma >= 15 && [[stCOND4](#stCOND4)] tma < 22
+* Characteristics ([SSS 2014](#SSS2014))
+    + "mean annual soil temperature is 15 C or higher [\![stCOND3](#stCOND3)] but lower than 22 C [[stCOND4](#stCOND4)]"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is 15 to < 22 C"
+
+
+### Hyperthermic
+* "Suited to citrus and other freeze-intolerant crops" ([SSS 2015](#SSS2015))
+* SWSF
+    * \![stCOND4](#stCOND4)
+* [jNSM 2016](#jNSM2016):
+    + [\![stCOND4](#stCOND4)] tma >= 22
+* Characteristics ([SSS 2014](#SSS2014))
+    + [\![stCOND4](#stCOND4)] "mean annual soil temperature is 22 C or higher"
+* Generalized Characteristics ([SSS 2015](#SSS2015))
+    * "Soil is >= 22 C"
+
+
 
 
 ## Definitions of conditions
-Interpreted from [SSS 2014](#SSS2014) -- language refers to layers, not parts
+Our interpretations from [SSS 2014](#SSS2014) -- language refers to layers, not parts
+
+* dry := soil water potential < -1.5 MPa "the moisture tension is 1500 kPa or more" ([p. 29, SSS 2014](#SSS2014))
+* moist/wet := soil water potential >= -1.5 MPa "water is held at a tension of less than 1500 kPa but more than zero" ([p. 29, SSS 2014](#SSS2014))
+* saturated := soil water potential >= -0.033 MPa
+
+
+### Conditions for Soil Moisture Regimes
 
 * <a name="COND0"/>COND0</a>: precipitation exceeds AET in all months
 * <a name="COND1"/>COND1</a>: Dry in ALL layers for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
@@ -240,12 +354,28 @@ Interpreted from [SSS 2014](#SSS2014) -- language refers to layers, not parts
 * <a name="COND9"/>COND9</a>: Moist in ALL layers MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
 * <a name="COND10"/>COND10</a>: Dry in ALL layers for more or equal to 360 days
 
+
+### Conditions for Anhydrous Soils
+
 * <a name="AnhCOND1"/>AnhCOND1</a>: Mean Annual soil temperature at 50 cm depth is less than or equal to 0C
 * <a name="AnhCOND2"/>AnhCOND2</a>: Daily soil temperature of all soil layers in 10-70 cm < 5 C
 * <a name="AnhCOND3"/>AnhCOND3</a>: In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
 
 
-* [SSS 2014](#SSS2014), p. 329: "Control Section for Soil Temperature The control section for soil temperature is either at a depth of 50 cm below the soil surface or at the upper boundary of a root-limiting layer, whichever is shallower."
+### Conditions for Soil Temperature Regimes
+
+* <a name="st_depth"/>st_depth</a>: "The control section for soil temperature is either at a depth of 50 cm below the soil surface or at the upper boundary of a root-limiting layer, whichever is shallower." ([p. 329, SSS 2014](#SSS2014))
+* <a name="stCOND0"/>stCOND0</a>: Annual mean soil temperature of the same layer is less than 0 C for at least two consecutive years for at least one layer
+* <a name="stCOND1"/>stCOND1</a>: Mean annual soil temperature at [st_depth](#st_depth) is <= 0 C
+* <a name="stCOND2"/>stCOND2</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 8 C
+* <a name="stCOND3"/>stCOND3</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 15 C
+* <a name="stCOND4"/>stCOND4</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 22 C
+* <a name="stCOND5"/>stCOND5</a>: Any layer of soil is saturated with water during some part of the summer, e.g., for the northern hemisphere, June 1 (doy 244) - Aug31 (doy 335)
+* <a name="stCOND6"/>stCOND6</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 13 C
+* <a name="stCOND7"/>stCOND7</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 6 C
+* <a name="stCOND8"/>stCOND8</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 15 C
+* <a name="stCOND9"/>stCOND9</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 8 C
+
 
 
 ## jNSM variables
@@ -298,7 +428,7 @@ Interpreted from [SSS 2014](#SSS2014) -- language refers to layers, not parts
 * precip[1:12] = monthly precipitation in mm
 * temperature[1:12] = mean monthly air temperature in C
 * mpe[1:12] = monthly potential evaporation in mm based on Thornthwaite 1948
-* fc = 2.5 = Degree offset between soil and air temperature in Celsius
+* fc = 2.5 = Degree offset between soil and air temperature in Celsius [Comment: this value is being applied in the code to both monthly and annual data]
 * fcd = 0.66 = Soil-Air Relationship Amplitude
 
 
