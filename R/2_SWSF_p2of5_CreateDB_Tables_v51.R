@@ -790,9 +790,10 @@ if (length(Tables) == 0 || do.clean) {
               "ACS_Upper_cm", "ACS_Lower_cm",
               "Permafrost_years",
               "SMR_normalyears_N"),
-            paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
-                      "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C",
-                      "Saturation_ConsecutiveMaxDuration_JJA_days",
+            paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C", # MATLanh, MAT50
+                      "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C", # T50jja, T50djf
+                      "Saturation_ConsecutiveMaxDuration_JJA_days", # CSPartSummer
+                      "SoilTemp_Offset_from_MeanAirTemp_C", # meanTair_Tsoil50_offset_C
                     # Anhydrous_annual_means:
                       "COND1_ACS_at50cm_LE0C_prob", # COND1
                       "COND2_ACS_atAnhDepth_LE5C_prob", # COND2

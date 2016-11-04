@@ -3791,8 +3791,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost_yrs <- NA
           SMR_normalyears_N <- 0
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 47, dimnames =
-            list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer", paste0("V", 6:47))))
+          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 48, dimnames =
+            list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
+            "meanTair_Tsoil50_offset_C", paste0("V", 6:47))))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3806,6 +3807,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(sc, runData, simTime)
               if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(sc, runData, simTime)
               if (!exists("pet.mo")) pet.mo <- get_PET_mo(sc, runData, simTime)
+              if (!exists("temp.mo")) temp.mo <- get_Temp_mo(sc, runData, simTime)
 
               # Prepare data
               #Water year starting Oct 1
@@ -3868,6 +3870,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 st_NRCS <- c(st_NRCS, list(
                     index_usedy = simTime$index.usedy[st_NRCS[["i_dy_used"]]],
                     month_ForMonth = simTime2$month_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
+                    yearno_ForMonth = simTime2$yearno_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
                     doy_ForDay = simTime2$doy_ForEachUsedDay_NSadj[st_NRCS[["i_dy_used"]]]
                   ))
 
@@ -3891,6 +3894,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 st_NRCS <- c(st_NRCS, list(
                     index_usedy = seq_len(temp),
                     month_ForMonth = 1:12,
+                    yearno_ForMonth = rep(1, 12),
                     doy_ForDay = seq_len(temp)
                   ))
                 # adjust st_NRCS for the aggregation
@@ -4023,7 +4027,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               temp <- soiltemp_nrsc[["mo"]][, 2 + i_depth50][st_NRCS[["month_ForMonth"]] %in% c(12, 1:2)]
               temp_annual[, "T50djf"] <- apply(matrix(temp, ncol = st_NRCS[["N_yr_used"]]), 2, mean)
               T50 <- soiltemp_nrsc[["dy"]][, 2 + i_depth50]
-              #Moist and dry at 50cm depth for MCS and Lahn calcs
+              # offset between soil and air temperature
+              fc <- temp.mo$mean[st_NRCS[["i_mo_used"]]] - soiltemp_nrsc[["mo"]][, 2 + i_depth50]
+              temp_annual[, "meanTair_Tsoil50_offset_C"] <- tapply(fc,
+                st_NRCS[["yearno_ForMonth"]], mean)
 
               #CSPartSummer: Is the soil saturated with water during some part of the summer June1 (=regular doy 244) - Aug31 (=regular doy 335)
               isummer <- st_NRCS[["doy_ForDay"]] >= 244 & st_NRCS[["doy_ForDay"]] <= 335
@@ -4306,12 +4313,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   }
                 }
 
-                temp_annual[, 6:13] <- as.matrix(cbind(ACS_CondsDF_yrs
+                temp_annual[, 7:14] <- as.matrix(cbind(ACS_CondsDF_yrs
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
                   aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                     by = list(ACS_CondsDF_day$Years), mean)[, -1]))
 
-                temp_annual[, 14:47] <- as.matrix(cbind(MCS_CondsDF_yrs
+                temp_annual[, 15:48] <- as.matrix(cbind(MCS_CondsDF_yrs
                   [, c("COND0",
                     "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
                     "AnyMoistDaysCumAbove5C", "COND1_1",
