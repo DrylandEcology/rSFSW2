@@ -3212,7 +3212,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Sand_L") |
-								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
+								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L") |
+                has_nodata(sw_input_soils[runIDs_sites, ], "TOC_GperKG_L"))
 		}
 
 		if (any(do_extract[[2]])) {
@@ -3343,8 +3344,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 			})
 
-			template_simulationSoils <- rep(NA, times = 2 + 4 * layer_Nsim)
-			names(template_simulationSoils) <- c("i", "soildepth", paste0(rep(c("bulk", "sand", "clay", "cfrag"), times=layer_Nsim), "_L", rep(1:layer_Nsim, each=4)))
+      template_simulationSoils <- rep(NA, times = 2 + 5 * layer_Nsim)
+      names(template_simulationSoils) <- c("i", "soildepth",
+        paste0(rep(c("bulk", "sand", "clay", "cfrag", "TOC"), times = layer_Nsim),
+        "_L", rep(seq_len(layer_Nsim), each = 4)))
 			template_simulationSoils["soildepth"] <- 0
 
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
@@ -3390,6 +3393,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 									dat = simulationSoils[paste0("cfrag_L", ils)],
 									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
 									frac = pfracl)	# coarse fragments (vol % > 2 mm)
+                simulationSoils[paste0("TOC_L", ils)] <- get_SoilDatValuesForLayer(
+                  dat = simulationSoils[paste0("TOC_L", ils)],
+                  soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
+                  frac = pfracl)	# total organic carbon content (g C / kg)
 							}
 						}
 					}
@@ -3519,6 +3526,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
 				sw_input_soils_use[i.temp[lys]] <- TRUE
 				sw_input_soils_use[i.temp[-lys]] <- FALSE
+        i.temp <- grep("TOC_Gper_KG_L", names(sw_input_soils_use))
+        sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("TOC_L", lys)], 2)
+        sw_input_soils_use[i.temp[lys]] <- TRUE
+        sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
