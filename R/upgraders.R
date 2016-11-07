@@ -29,20 +29,20 @@ upgrade_soilsin_v11_to_v12 <- function(file, new_name = NULL) {
   nvar <- ncols / nlyrs
   temp <- rep(cumsum(rep(1, nlyrs)), each = nvar)
   temp <- c(rep(0, iclay[1]), temp[-((length(temp) - iclay[1] + 1):length(temp))])
-  icols_transfer <- seq_len(ncols) + temp
-  ncols_new <- dim(data)[2] - 1 + length(iclay)
+  icols_transfer <- c(1, 1 + seq_len(ncols) + temp)
+  ncols_new <- dim(data)[2] + length(iclay)
 
-  colnames2 <- rep("", 1 + ncols_new)
-  colnames2[c(1, 1 + icols_transfer)] <- names(use)
-  colnames2[-c(1, 1 + icols_transfer)] <- paste0("TOC_GperKG_L", seq_len(nlyrs))
+  colnames2 <- rep("", ncols_new)
+  colnames2[icols_transfer] <- names(use)
+  colnames2[-icols_transfer] <- paste0("TOC_GperKG_L", seq_len(nlyrs))
 
-  use2 <- rep(FALSE, 1 + ncols_new)
-  use2[c(1, 1 + icols_transfer)] <- use
+  use2 <- rep(FALSE, ncols_new)
+  use2[icols_transfer] <- use
   names(use2) <- colnames2
 
-  data2 <- matrix(0, nrow = dim(data)[1], ncol = ncols_new)
-  data2[, icols_transfer] <- data[, -1]
-  data2 <- data.frame(data[, "Label"], data2)
+  data2 <- data.frame(data[, "Label"],
+    matrix(0, nrow = dim(data)[1], ncol = ncols_new - 1))
+  data2[, icols_transfer[-1]] <- data[, -1]
   names(data2) <- colnames2
 
   # write data to disk
