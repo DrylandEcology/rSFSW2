@@ -41,7 +41,7 @@ upgrade_soilsin_v11_to_v12 <- function(file, new_name = NULL) {
   names(use2) <- colnames2
 
   data2 <- data.frame(data[, "Label"],
-    matrix(0, nrow = dim(data)[1], ncol = ncols_new - 1))
+    matrix(NA, nrow = dim(data)[1], ncol = ncols_new - 1))
   data2[, icols_transfer[-1]] <- data[, -1]
   names(data2) <- colnames2
 
