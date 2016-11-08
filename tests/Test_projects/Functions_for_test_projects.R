@@ -12,8 +12,10 @@
 #' @param make_new_ref A logical value. If \code{TRUE} then output database will be saved
 #'  as new reference.
 #'
-#' @return A logical, named vector with four items: \code{has_run}, \code{has_problems},
-#'  \code{made_new_refs}, \code{deleted_output}
+#' @return A data.frame where each row represents the outcomes of a test project. The
+#'  The columns return four logical values \code{has_run}, \code{has_problems},
+#'  \code{made_new_refs}, \code{deleted_output}, and one character string \code{referenceDB}
+#'  of the reference database name against which this run of the test project was compared.
 run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
                               which_tests_torun = seq_along(dir_tests),
                               delete_output = FALSE,
@@ -28,39 +30,53 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
 
   problems <- list()
   fname_report <- "Test_project_report.txt"
-  has_run <- FALSE
+  res <- data.frame(matrix(FALSE, nrow = length(which_tests_torun), ncol = 4,
+    dimnames = list(NULL, c("has_run", "has_problems", "made_new_refs", "deleted_output"))),
+    referenceDB = vector("character", length(which_tests_torun)),
+    stringsAsFactors = FALSE)
 
   if (length(which_tests_torun) > 0) {
-    for (it in which_tests_torun) {
+    for (k in seq_along(which_tests_torun)) {
+      it <- which_tests_torun[k]
       print(paste0(Sys.time(), ": running test project '", basename(dir_tests[it]), "'"))
 
       test_code <- list.files(dir_tests[it], pattern = "2_SWSF_p1of")
+      problems2 <- list()
 
       if (length(test_code) == 1L) {
         setwd(if (interactive()) file.path(dir_test, "..", "..") else dir_tests[it])
         temp <- try(source(file.path(dir_tests[it], test_code), verbose = FALSE, chdir = FALSE))
 
         if (!inherits(temp, "try-error")) {
-          has_run <- TRUE
+          res[k, "has_run"] <- TRUE
           comp <- compare_test_output(dir_tests[it])
+
           if (length(comp) > 0) {
-            problems <- c(problems,
+            res[k, "referenceDB"] <- comp[[1]]
+          } else if (length(comp) > 1) {
+            problems2 <- c(problems2,
               paste("Problem list for test project", shQuote(basename(dir_tests[it])), ":"),
-              comp)
+              comp[-1])
           }
+
         } else {
-          problems <- c(problems,
+          problems2 <- c(problems2,
             paste("Source code for test project", shQuote(basename(dir_tests[it])), "unsuccessful."))
-      }
+        }
 
       } else {
-          problems <- c(problems,
+          problems2 <- c(problems2,
             paste("Source code for test project", shQuote(basename(dir_tests[it])), "not found."))
+      }
+
+      if (length(problems2) > 0) {
+        res[k, "has_problems"] <- TRUE
+        problems <- c(problems, problems2)
       }
     }
 
-    has_problems <- length(problems) > 0
-    if (has_problems) {
+
+    if (any(res[, "has_problems"])) {
         if (delete_output && !force_delete_output)
           print("Test output will not be deleted because problems were detected.")
         if (make_new_ref)
@@ -71,24 +87,27 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
         writeLines(unlist(problems), con = file.path(dir_test, fname_report))
     }
 
-    made_new_refs <- if (make_new_ref && !has_problems) {
-        all(sapply(dir_tests, function(test) make_test_output_reference(test)))
-      } else FALSE
+    if (make_new_ref && !all(res[, "has_problems"])) {
+      res[, "made_new_refs"] <- sapply(dir_tests[which_tests_torun],
+        function(test) make_test_output_reference(test))
 
-    deleted_output <- if (force_delete_output ||
-                         (delete_output && !has_problems &&
-                            (!make_new_ref || (make_new_ref && made_new_refs)))) {
-        all(sapply(dir_tests, function(test) delete_test_output(test)))
-      } else FALSE
+    } else {
+      res[, "made_new_refs"] <- FALSE
+    }
 
-  } else {
-    has_problems <- made_new_refs <- deleted_output <- FALSE
+    if (force_delete_output ||
+     (delete_output && !res[it, "has_problems"] &&
+     (!make_new_ref || (make_new_ref && any(res[, "made_new_refs"]))))) {
+      res[, "deleted_output"] <- sapply(dir_tests[which_tests_torun],
+        function(test) delete_test_output(test))
+
+    } else {
+      res[, "deleted_output"] <- FALSE
+    }
+
   }
 
-  c(has_run = has_run,
-    has_problems = has_problems,
-    made_new_refs = made_new_refs,
-    deleted_output = deleted_output)
+  res
 }
 
 
@@ -164,7 +183,7 @@ delete_test_output <- function(dir_test) {
 #' @param verbose A logical value. If \code{TRUE} then messages are printed.
 #'
 #' @return A (possibly empty) list of character vectors describing differences between
-#'  test and reference databases.
+#'  test and reference databases. A first entry is the file name of the reference database.
 #'
 #' @seealso \link{\code{all.equal}}
 compare_test_output <- function(dir_test, dir_ref = NULL,
@@ -172,7 +191,7 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
                                 verbose = FALSE) {
   diff_msgs <- list()
   if (verbose)
-    on.exit(print(diff_msgs))
+    on.exit(print(diff_msgs[-1]))
 
 	if (is.null(dir_ref))
 		dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
@@ -180,9 +199,11 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
 	#---Identify and connect to reference data base
 	refs <- list.files(dir_ref, pattern = basename(dir_test))
 	if (length(refs) == 0L) {
-		diff_msgs <- c(diff_msgs,
+		diff_msgs <- c(diff_msgs, "",
 		  paste(Sys.time(), "no reference database found for", shQuote(basename(dir_test))))
 		return(diff_msgs)
+	} else {
+		diff_msgs <- c(diff_msgs, refs[length(refs)])
 	}
 	refDB <- RSQLite::dbConnect(RSQLite::SQLite(), file.path(dir_ref, refs[length(refs)]))
 
