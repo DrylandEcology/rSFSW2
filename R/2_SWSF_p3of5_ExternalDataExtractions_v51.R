@@ -3352,7 +3352,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			template_simulationSoils["soildepth"] <- 0
 
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise) {
+			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise, nextract) {
 				#Init
 				simulationSoils["i"] <- i
 				simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
@@ -3412,14 +3412,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			})
 
 
-			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise) {
+			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise, nextract) {
 				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
 				temp <- try(calc_weightedMeanForSimulationCell(i,
 							i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
 							simulationSoils = template_simulationSoils,
 							layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-							dat_wise = dat_wise))
+							dat_wise = dat_wise,
+							nextract = nextract))
 				if (inherits(temp, "try-error")) template_simulationSoils else temp
 			})
 
@@ -3437,7 +3438,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
@@ -3452,7 +3454,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
 					snow::clusterEvalQ(cl, rm(list=ls()))
@@ -3463,7 +3466,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 				}
 
 			} else {
@@ -3471,7 +3475,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 			}
 			rm(dat_wise)
 
