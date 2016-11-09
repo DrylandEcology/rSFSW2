@@ -788,8 +788,7 @@ if (length(Tables) == 0 || do.clean) {
           c(c("Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
-              "Permafrost_years",
-              "SMR_normalyears_N"),
+              "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),
             paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C", # MATLanh, MAT50
                       "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C", # T50jja, T50djf
                       "Saturation_ConsecutiveMaxDuration_JJA_days", # CSPartSummer

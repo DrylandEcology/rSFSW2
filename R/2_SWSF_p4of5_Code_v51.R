@@ -3768,7 +3768,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#---Aggregation: Ecological dryness
 			#35a
         regimes_done <- FALSE
-        if (aon$dailyNRCS_SoilMoistureTemperatureRegimes || dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
+        if (aon$dailyNRCS_SoilMoistureTemperatureRegimes || aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
           if (print.debug) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
           #Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
           #Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
@@ -3789,11 +3789,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           names(SRqualifier) <- temp
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
-          Fifty_depth <- permafrost_yrs <- NA
+          Fifty_depth <- permafrost_yrs <- has_Ohorizon <- NA
           SMR_normalyears_N <- 0
           temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 48, dimnames =
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
-            "meanTair_Tsoil50_offset_C", paste0("V", 6:47))))
+            "meanTair_Tsoil50_offset_C", paste0("V", 7:48))))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3993,12 +3993,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               soiltemp_nrsc <- lapply(soiltemp_nrsc, function(st) st[["data"]])
 
               swp_recalculate <- calc50 || any(calcMCS) || any(calcLanh)
-              if (swp_recalculate && !be.quiet) {
-                print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
-                    " because of insufficient soil layers: required would be {",
-                      paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
-                      "} and available are {",
-                      paste(layers_depth, collapse = ", "), "}"))
+              if (swp_recalculate) {
+                soilLayers_N_NRCS <- dim(soildat)[1]
+
+                if (!be.quiet)
+                  print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
+                      " because of insufficient soil layers: required would be {",
+                        paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
+                        "} and available are {",
+                        paste(layers_depth, collapse = ", "), "}"))
+              } else {
+                soilLayers_N_NRCS <- soilLayers_N
               }
 
               swp_dy_nrsc <- if (swp_recalculate || !opt_NRCS_SMTRs[["do_1st_regime"]]) {
@@ -4041,12 +4046,61 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 if(any(rtemp$values)) max(rtemp$lengths[rtemp$values]) else 0
               }, FUN.VALUE = NA_real_)
 
-              am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf"), drop = FALSE])
-              am_sat <- sum(temp_annual[, "CSPartSummer"] > 0) >=
-                opt_NRCS_SMTRs[["crit_agree_frac"]] * dim(temp_annual)[1]
+              # "saturated with water for X cumulative days in normal years"
+              days_saturated_layers <- vapply(st_NRCS[["yr_used"]], function(yr) {
+                apply(swp_dy_nrsc[wateryears[st_NRCS[["i_dy_used"]]] == yr, , drop = FALSE], 2,
+                  function(x) sum(x >= opt_NRCS_SMTRs[["SWP_sat"]]))
+              }, FUN.VALUE = rep(NA_real_, soilLayers_N_NRCS))
+              if (!is.matrix(days_saturated_layers)) {
+                days_saturated_layers <- matrix(days_saturated_layers,
+                  nrow = soilLayers_N_NRCS, ncol = st_NRCS[["N_yr_used"]])
+              }
+
+              am_sat <- list(
+                year = apply(days_saturated_layers, 1, function(x) sum(x >= 30)),
+                summer = sum(temp_annual[, "CSPartSummer"] > 0)
+              )
+              am_sat <- lapply(am_sat, function(x) x >=
+                opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]])
+
+              # Organic versus mineral soil material per layer
+              organic_carbon_wfraction <- if (exists("soil_TOC")) {
+                soil_TOC / 1000 # units(TOC) = g C / kg soil
+              } else {
+                rep(NA, soilLayers_N_NRCS)
+              }
+
+              is_mineral_layer <- (!am_sat[["year"]] & organic_carbon_wfraction < 0.2) |
+                (am_sat[["year"]] &
+                (soildat[, "clay"] >= 0.6 & organic_carbon_wfraction < 0.18) |
+                (organic_carbon_wfraction < 0.12 + 0.1 * soildat[, "clay"]))
+
+              # determine presence of O horizon
+              # TODO: guess (critical levels 'crit_Oh' are made up and not based on data):
+              #       O-horizon if 50% trees or 75% shrubs or lots of litter
+              crit_Oh <- c(0.5, 0.75, 0.8)
+              veg_comp <- swProd_Composition(swRunScenariosData[[sc]])[1:4]
+
+              temp <- cbind(swProd_MonProd_grass(swRunScenariosData[[sc]])[, "Litter"],
+                swProd_MonProd_shrub(swRunScenariosData[[sc]])[, "Litter"],
+                swProd_MonProd_tree(swRunScenariosData[[sc]])[, "Litter"],
+                swProd_MonProd_forb(swRunScenariosData[[sc]])[, "Litter"])
+
+              veg_litter <- mean(apply(sweep(temp, 2, veg_comp, "*"), 1, sum))
+              crit_litter <- crit_Oh[3] *
+                sum(swProd_Es_param_limit(swRunScenariosData[[sc]]) * veg_comp)
+
+              has_Ohorizon <- (veg_litter >= crit_litter) &&
+                if (!is.finite(is_mineral_layer[1])) {
+                  veg_comp["Trees"] > crit_Oh[1] || veg_comp["Shrubs"] > crit_Oh[2]
+                } else {
+                  !is_mineral_layer[1]
+                }
 
               #---Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
               #we ignore distinction between iso- and not iso-
+              am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf"), drop = FALSE])
+
               if (am["MAT50"] >= 22) {
                   Tregime["Hyperthermic"] <- 1L
               } else if (am["MAT50"] >= 15) {
@@ -4056,23 +4110,39 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               } else if (am["MAT50"] > 0 && permafrost_yrs <= 0) {
                 # mineral soils
-                if (am_sat) {
-                  # ignoring O-horizon and histic epipedon; Saturated with water
-                  if (am["T50jja"] < 13) {
-                    # ignoring O-horizon
+                if (am_sat[["summer"]]) {
+                  # "soil is saturated with water during some part of summer"
+                  if (has_Ohorizon) { # TODO: should be: 'O-horizon' OR 'histic epipedon'
+                    if (am["T50jja"] < 6) {
                       Tregime["Cryic"] <- 1L
                     } else {
                       Tregime["Frigid"] <- 1L
                     }
-                } else {
-                  # ignoring O-horizon; Not saturated with water
-                  if (am["T50jja"] < 15) {
+                  } else {
+                    if (am["T50jja"] < 13) {
                       Tregime["Cryic"] <- 1L
                     } else {
                       Tregime["Frigid"] <- 1L
                     }
                   }
-                # ignoring organic soils
+
+                } else {
+                  # "not saturated with water during some part of the summer"
+                  if (has_Ohorizon) {
+                    if (am["T50jja"] < 8) {
+                      Tregime["Cryic"] <- 1L
+                    } else {
+                      Tregime["Frigid"] <- 1L
+                    }
+                  } else {
+                    if (am["T50jja"] < 15) {
+                      Tregime["Cryic"] <- 1L
+                    } else {
+                      Tregime["Frigid"] <- 1L
+                    }
+                  }
+                }
+                # TODO: else organic soils: cryic if mean(T50jja) > 0 C and < 6 C
 
               } else if (am["MAT50"] <= 0 || permafrost_yrs > 0) {
                 # limit should be 1 C for Gelisols
@@ -4372,9 +4442,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           }
 
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-            nv_new <- nv + 7
-            resMeans[nv:(nv_new - 1)] <- c(Fifty_depth,
-              MCS_depth[1:2], Lanh_depth[1:2], permafrost_yrs, SMR_normalyears_N)
+            nv_new <- nv + 8
+            resMeans[nv:(nv_new - 1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
+              permafrost_yrs, SMR_normalyears_N, as.integer(has_Ohorizon))
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
             resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
@@ -4473,7 +4543,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 "Mesic", "Dry-Xeric", "Low",
                 "Mesic", "Weak-Aridic", "Low",
-                "Mesic", "Aridic", "Low"),
+                "Mesic", "Typic-Aridic", "Low"),
               ncol = 3, byrow = TRUE)
 
             temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(SRqualifier[Table1[, 2]]), 3]
@@ -4482,7 +4552,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             rm(Table1)
           }
 
-          nv_new <- nv + length(RR)
+          nv_new <- nv + 3
           resMeans[nv:(nv_new - 1)] <- RR
           nv <- nv_new
 
