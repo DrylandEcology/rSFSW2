@@ -1041,7 +1041,9 @@ if (any(unlist(pcalcs))) {
       temp <- icol_bsE[use_layers]
       icols <- temp[sw_input_soils_use[temp]]
       if (length(icols) > 0L) {
-        do_calc <- !all(rowSums(sw_input_soils[runIDs_adjust, icols, drop = FALSE], na.rm = TRUE) > 0)
+        x <- sw_input_soils[runIDs_adjust, icols, drop = FALSE]
+        do_calc <- anyNA(x) || !all(rowSums(x, na.rm = TRUE) > 0)
+        rm(x)
       }
     }
 
@@ -1097,6 +1099,8 @@ if (any(unlist(pcalcs))) {
 
       sw_input_soils_use[icols_bse_notused] <- FALSE
       sw_input_soils[runIDs_adjust, icols_bse_notused] <- 0
+
+      stopifnot(!is.na(sw_input_soils[runIDs_adjust, icols_bsE_used]))
 
       #write data to datafile.soils
       write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
