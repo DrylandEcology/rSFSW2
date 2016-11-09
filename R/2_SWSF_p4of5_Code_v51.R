@@ -2822,7 +2822,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#TODO: adjust this once TOC is incorporated into Rsoilwat
 		soil_TOC <- if (exists("i_sw_input_soils")) {
-		  i_sw_input_soils[, grepl("TOC_GperKG_L", names(sw_input_soils_use))[ld]]
+		  as.numeric(i_sw_input_soils[, grep("TOC_GperKG_L", names(sw_input_soils_use))[ld]])
 		} else rep(NA, soilLayers_N)
 
 		#get soil aggregation layer for daily aggregations
@@ -3920,6 +3920,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               #Required soil layers
               soildat <- swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm"), drop = FALSE]
+              #TODO: adjust this once TOC is incorporated into Rsoilwat
+              soildat <- cbind(soildat, soil_TOC)
               #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
               imp_depth <- which(soildat[, "imperm"] >= opt_NRCS_SMTRs[["impermeability"]])
               imp_depth <- min(imp_depth, max(soildat[, "depth_cm"]))	#Interpret maximum soil depth as possible impermeable layer
@@ -4069,11 +4071,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]])
 
               # Organic versus mineral soil material per layer
-              organic_carbon_wfraction <- if (exists("soil_TOC")) {
-                soil_TOC / 1000 # units(TOC) = g C / kg soil
-              } else {
-                rep(NA, soilLayers_N_NRCS)
-              }
+              organic_carbon_wfraction <- soildat[, "soil_TOC"] / 1000 # units(TOC) = g C / kg soil
 
               is_mineral_layer <- (!am_sat[["year"]] & organic_carbon_wfraction < 0.2) |
                 (am_sat[["year"]] &
