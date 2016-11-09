@@ -178,8 +178,7 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   )
   include_YN <- SWRunInformation$Include_YN
   labels <- SWRunInformation$Label
-  temp <- which(include_YN > 0)
-  nrowsClasses <- temp[min(length(temp), 25L)]
+  nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
   sw_input_soillayers <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.soillayers),
     nrowsClasses = nrowsClasses), error = print)
