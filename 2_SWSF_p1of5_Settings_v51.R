@@ -371,10 +371,10 @@ output_aggregates <- c(
 						"dailySWPextremes", 1,
 						"dailyRechargeExtremes", 1,
 					#---Aggregation: Ecological dryness
-						"dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
-						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
-						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
-					  "dailyNRCS_Maestas2016_ResilienceResistance", 0,
+						"dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 1, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_SoilMoistureTemperatureRegimes", 1, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_Chambers2014_ResilienceResistance", 1, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+					  "dailyNRCS_Maestas2016_ResilienceResistance", 1,
 						"dailyWetDegreeDays", 1,
 						"dailyThermalDrynessStartEnd", 1,
 						"dailyThermalSWPConditionCount", 1,
@@ -409,8 +409,8 @@ output_aggregates <- c(
 						"monthlyAETratios", 1,
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
-						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_GISSM", 0
+						"dailyRegeneration_bySWPSnow", 1,
+						"dailyRegeneration_GISSM", 1
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
