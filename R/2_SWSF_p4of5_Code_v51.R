@@ -1300,14 +1300,14 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 						}
 
 					} else if (sim_cells_or_points == "cell") {
-						sp_dat <- sim_raster
-						stopifnot(raster::canProcessInMemory(sp_dat)) # if failing, then need a more sophisticated assignment of values than implemented below
+						stopifnot(raster::canProcessInMemory(sim_raster)) # if failing, then need a more sophisticated assignment of values than implemented below
 
 						temp <- run_sites
 						if (!raster::compareCRS(crs_sites, sim_crs)) {
 							temp <- sp::spTransform(temp, CRS = sim_crs)
 						}
 
+						sp_dat <- raster::init(sim_raster, fun = function(x) rep(NA, x)) # init with NAs
 						sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
 					}
 
