@@ -3301,7 +3301,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 			layer_TopDep <- c(0, 10, 20, 40, 60, 80)	#in cm
 			layer_BotDep <- c(10, 20, 40, 60, 80, 100)	#in cm
 
-			dir.ex.dat <- file.path(dir.ex.soil, "wise5by5min_v1b")
+			dir.ex.dat <- file.path(dir.ex.soil, "WISE", "wise5by5min_v1b")
 			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
 
 			#run_sites_wise of simulation runs
