@@ -309,8 +309,7 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
   done_N <- 0
 
   if (identical(parallel_backend, "snow")) {
-    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env, all.names = FALSE)),
-      envir = obj_env))
+    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
 
     if (inherits(temp, "try-error")) {
       break
@@ -319,8 +318,8 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
     }
 
     if (success) {
-      done_N <- min(snow::clusterCall(cl,
-        function() length(ls(.GlobalEnv))), na.rm = TRUE)
+      done_N <- min(unlist(snow::clusterCall(cl,
+        function() length(ls(.GlobalEnv)))), na.rm = TRUE)
     }
 
   } else if (identical(parallel_backend, "mpi")) {
