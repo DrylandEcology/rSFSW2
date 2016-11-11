@@ -56,16 +56,6 @@ dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
 if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
 dirname.sw.runs.weather <- "WeatherData"
 
-#timing: basis for estimated time of arrival, ETA
-timerfile <- "temp_timer.csv"
-ftemp <- file.path(dir.out, timerfile)
-times <- if (!file.exists(ftemp) || !continueAfterAbort) {
-    cat("0,NA", file = ftemp, sep = "\n")
-  } else {
-   swsf_read_csv(file = ftemp, header = FALSE, colClasses = c("integer", "NULL"), skip = 1)[[1]]
-  }
-runIDs_done <- if (length(times) > 0) sort(times) else NULL
-
 #timing: output for overall timing information
 timerfile2 <- "Timing_Simulation.csv"
 ftemp <- file.path(dir.out, timerfile2)
@@ -416,10 +406,14 @@ runsN_incl <- runsN_master * max(expN, 1L)
 runsN_Pid <- runsN_incl * scenario_No
 
 runIDs_total <- seq_len(runsN_total) # consecutive number of all (tr x exp) simulations to be executed
-counter.digitsN <- 1 + ceiling(log10(runsN_master * max(expN, 1L)))	#max index digits
-runIDs_todo <- runIDs_total[!(runIDs_total %in% runIDs_done)] # remove already completed runs from todo list
-runsN_todo <- length(runIDs_todo)
+counter.digitsN <- 1 + ceiling(log10(runsN_incl))	#max index digits
 
+success <- setup_dbWork(dir.out, runIDs_total, continueAfterAbort)
+if (!success)
+  stop("Work database failed to setup or an existing one is from a different simulation design")
+
+runIDs_todo <- dbWork_todos(dir.out)
+runsN_todo <- length(runIDs_todo)
 
 #------outputing data
 if(makeInputForExperimentalDesign) ExpInput_Seperator <- "X!X"
@@ -5636,13 +5630,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       cat(SQL, file = dbTempFile, append = TRUE, sep = "\n")
   }
 
-  if (all(unlist(tasks) != 0)) {
+  dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
+  status <- all(unlist(tasks) != 0)
+
+  dbWork_update_job(dir.out, i_sim,
+    status = if (status) "completed" else "failed", time_s = dt)
+
+  if (status) {
     #ETA estimation
-    dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
-    ftemp <- file.path(dir.out, timerfile)
-    cat(paste(i_sim, dt, sep = ","), file = ftemp, append = TRUE, sep = "\n")
-    times <- swsf_read_csv(file = ftemp, header = FALSE,
-          nrows = runsN_total + 1, colClasses = c("NULL", "numeric"))[[1]]
+    times <- dbWork_timing(dir.out)
 
     if (!be.quiet) {
       n <- length(times) - 1
@@ -5747,7 +5743,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "sw_pet", "sw_precip", "sw_runoff", "sw_snow", "sw_soiltemp",
     "sw_swcbulk", "sw_swpmatric", "sw_temp", "sw_transp", "sw_vwcbulk",
     "sw_vwcmatric", "sw.inputs", "sw.outputs", "swcsetupin", "swDataFromFiles",
-    "swFilesIn", "swOutSetupIn", "SWPcrit_MPa", "timerfile", "Tmean_crit_C", "Tmax_crit_C",
+    "swFilesIn", "swOutSetupIn", "SWPcrit_MPa", "Tmean_crit_C", "Tmax_crit_C",
     "Tmin_crit_C", "tr_cloud", "tr_files", "tr_input_climPPT", "tr_input_climTemp",
     "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
     "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
@@ -6455,7 +6451,7 @@ write.timer("Time_Check", time_sec=delta.check)
 write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(actionWithSoilWat){
-	times <- as.numeric(unlist(read.csv(file=file.path(dir.out, timerfile), header=FALSE, colClasses=c("NULL", "numeric"), skip=1)))
+  times <- dbWork_timing(dir.out)
 	write.timer("Time_OneRun_Mean", time_sec=mean(times))
 	write.timer("Time_OneRun_SD", time_sec=sd(times))
 	write.timer("Time_OneRun_Median", time_sec=median(times))

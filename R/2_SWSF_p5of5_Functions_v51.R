@@ -392,6 +392,106 @@ mpi_work <- compiler::cmpfun(function() {
 })
 
 
+create_dbWork <- function(dbWork, runsIDs) {
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  DBI::dbExecute(con,
+    paste("CREATE TABLE work(runID INTEGER PRIMARY KEY,",
+    "completed INTEGER NOT NULL, failed INTEGER NOT NULL, inwork INTEGER NOT NULL,",
+    "time_s REAL)"))
+
+  jobs <- matrix(0L, nrow = length(runsIDs), ncol = 5,
+    dimnames = list(NULL, c("runID", "completed", "failed", "inwork", "time_s")))
+  jobs[, "runID"] <- sort.int(as.integer(runsIDs))
+
+  RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
+  RSQLite::dbDisconnect(con)
+}
+
+
+setup_dbWork <- function(path, runsIDs, continueAfterAbort = FALSE) {
+  dbWork <- file.path(path, "dbWork.sqlite3")
+  success <- create <- FALSE
+
+  if (continueAfterAbort) {
+    if (file.exists(dbWork)) {
+      con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+      setup_runIDs <- RSQLite::dbGetQuery(con, "SELECT runID FROM work ORDER BY runID")
+
+      success <- identical(as.integer(setup_runIDs$runID), sort.int(runsIDs))
+
+      if (success) {
+        # clean-up potentially lingering 'inwork'
+        DBI::dbExecute(con, "UPDATE work SET inwork = 0 WHERE inwork > 0")
+      }
+      RSQLite::dbDisconnect(con)
+
+    } else {
+      create <- TRUE
+    }
+
+  } else {
+    unlink(dbWork)
+    create <- TRUE
+  }
+
+  if (create) {
+    temp <- create_dbWork(dbWork, runsIDs)
+    success <- !inherits(temp, "try-error")
+  }
+
+  success
+}
+
+dbWork_todos <- function(path) {
+  dbWork <- file.path(path, "dbWork.sqlite3")
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  runIDs_todo <- RSQLite::dbGetQuery(con, paste("SELECT runID FROM work",
+    "WHERE completed = 0 ORDER BY runID"))
+  RSQLite::dbDisconnect(con)
+
+  runIDs_todo$runID
+}
+
+dbWork_timing <- function(path) {
+  dbWork <- file.path(path, "dbWork.sqlite3")
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  times <- RSQLite::dbGetQuery(con, "SELECT time_s FROM work WHERE completed > 0")
+  RSQLite::dbDisconnect(con)
+
+  times$time_s
+}
+
+
+dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"), time_s = NULL) {
+  dbWork <- file.path(path, "dbWork.sqlite3")
+  stopifnot(file.exists(dbWork))
+  status <- match.arg(status)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+
+  if (status == "completed") {
+    DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
+      "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+
+  } else if (status == "failed") {
+    DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
+      "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+
+  } else if (status == "inwork") {
+    DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
+      "inwork = 1, time_s = 0 WHERE runID =", runID))
+  }
+
+  RSQLite::dbDisconnect(con)
+
+  invisible(TRUE)
+}
+
+
+
 load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
   if(!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
   invisible(0)
