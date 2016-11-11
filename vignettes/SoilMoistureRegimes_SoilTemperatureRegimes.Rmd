@@ -233,7 +233,7 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
 
 
 ### Gelic
-* "Gelic materials are mineral or organic soil materials that show evidence of cryoturbation (frost churning) and/or ice segregation in the active layer (seasonal thaw layer) and/or the upper part of the permafrost" ([SSS 2014](#SSS2014))
+* "Gelic materials are [mineral](#MSM) or [organic soil materials](#OSM) that show evidence of cryoturbation (frost churning) and/or ice segregation in the active layer (seasonal thaw layer) and/or the upper part of the permafrost" ([SSS 2014](#SSS2014))
 * "The gelic soil temperature regime has not been documented in soils of the continental U.S. but occurs in the soils of Alaska." ([SSS 2015](#SSS2015))
 * SWSF
     * [stCOND1](#stCOND1) | [stCOND0](#stCOND0)
@@ -249,31 +249,35 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
 * Cryic soils are cold but have no permafrost and they are cold also during summer.
 * "Too cold for virtually all crops" ([SSS 2015](#SSS2015))
 * SWSF
-    + current: \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & ([[stCOND5](#stCOND5) & [stCOND6](#stCOND6)] | [\![stCOND5](#stCOND5) & [stCOND8](#stCOND8)])
-    + new [todo]: incorporate [stCOND7](#stCOND7) and [stCOND9](#stCOND9)
+    + \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & (\![[stCOND5](#stCOND5) &
+      {\![O-horizon](#Ohorizon) & [stCOND8](#stCOND8)} |
+      {[O-horizon](#Ohorizon) & [stCOND9](#stCOND9)}] |
+    [[stCOND5](#stCOND5) &
+      {\![O-horizon](#Ohorizon) & [stCOND6](#stCOND6)} |
+      {[O-horizon](#Ohorizon) & [stCOND7](#stCOND7)}])
 * [jNSM 2016](#jNSM2016):
-    + [\![[stCOND1](#stCOND1)]] tma >= 0 && [[stCOND2](#stCOND2)] tma < 8 && [?] ((st - cs) < 15)
+    + [\![[stCOND1](#stCOND1)]] tma >= 0 && [[stCOND2](#stCOND2)] tma < 8 && [[stCOND8](#stCOND8)] ((st - cs) < 15)
 * Characteristics ([SSS 2014](#SSS2014))
     + [\![stCOND0](#stCOND0)] "not have permafrost"
     + __AND__
-    * __IF__ "mineral soils"
+    * __IF__ "[mineral soils](#MSM)"
         + __IF__ [\![stCOND5](#stCOND5)] "not saturated with water during some part of the summer" "(June, July, and August in the Northern Hemisphere and December, January, and February in the Southern Hemisphere)"
-            + __IF__ "no 'O' horizon"
+            + __IF__ "no [O-horizon](#Ohorizon)"
                 + __IF__ [[stCOND8](#stCOND8)] mean summer soil temperature "between 0 C to 15 C" __THEN__ cryic
-            + __ELSE__ "'O' horizon"
+            + __ELSE__ "[O-horizon](#Ohorizon)"
                 + __IF__ [[stCOND9](#stCOND9)] mean summer soil temperature "between 0 C to 8 C" __THEN__ cryic
         + __ELSE__ "soil is saturated with water during some part of the summer"
-            + __IF__ "no 'O' horizon"
+            + __IF__ "no [O-horizon](#Ohorizon)"
                 + __IF__ [[stCOND6](#stCOND6)] mean summer soil temperature "between 0 C to 13 C" __THEN__ cryic
-            + __ELSE__ "'O' horizon" __OR__ "histic epipedon"
+            + __ELSE__ "[O-horizon](#Ohorizon) __OR__ "[histic epipedon](#histic_epipedon)"
                 + __IF__ [[stCOND7](#stCOND7)] mean summer soil temperature "between 0 C to 6 C" __THEN__ cryic
-    + __ELSE__ "organic soils"
+    + __ELSE__ "[organic soils](#OSM)"
         + __IF__ [[stCOND7](#stCOND7)] mean summer soil temperature "between 0 C to 6 C" __THEN__ cryic
 * Generalized Characteristics ([SSS 2015](#SSS2015))
     * "Soil is > 0 to < 8 C but has no permafrost and summer temperatures are also cold"
 * Remarks
-    * [p.3-10 SSS 2015](#SSS2015): "The histic epipedon is a horizon that is periodically saturated with water and that has sufficiently high amounts of organic carbon (O.C. 12 to 18%, by weight, depending on clay content) to be considered organic soil material. Typically, it is at (or near) the surface and is peat or muck at least 20 cm thick."
-    * [p. 335 SSS 2014](#SSS2014): "O horizons or layers: Horizons or layers dominated by organic soil materials. [...] Some O horizons or layers consist of slightly decomposed to highly decomposed litter, such as leaves, needles, twigs, moss, and lichens, that has been deposited on the surface of either mineral or organic soils. [...] An O horizon or layer may be at the surface of a mineral soil, or it may be at any depth below the surface if it is buried."
+    * [jNSM 2016](#jNSM2016) does not distinguish between [mineral](#MSM) and [organic material](#OSM). Thus, it ignores conditions [stCOND5](#stCOND5), [stCOND6](#stCOND6), [stCOND7](#stCOND7), and [stCOND9](#stCOND9). It assumes that soils are "not saturated with water during some part of the summer" ([\![stCOND5](#stCOND5)]) and have "no [O-horizon](#Ohorizon)", when testing for the [cryic](#Cryic) regime with [[stCOND8](#stCOND8)].
+    * SWSF ignores "[organic soils](#OSM)", but consideres the presence of [O-horizons](#Ohorizon).
 
 
 ### Frigid
@@ -282,11 +286,13 @@ barley" ([SSS 2015](#SSS2015))
 * SWSF
     * \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & \![cryic](#cryic)
 * [jNSM 2016](#jNSM2016):
-    + [[stCOND2](#stCOND2)] tma < 8 && [?] ((st - cs) >= 15) && [?] (df & fcd) > 5
+    + [[stCOND2](#stCOND2)] tma < 8 && [\![stCOND8](#stCOND8)] ((st - cs) >= 15) && [scaled [COND5](#COND5)?] (dif * fcd) > 5
 * Characteristics ([SSS 2014](#SSS2014))
     + "A soil with a frigid soil temperature regime is warmer in summer than a soil with a cryic regime, but its mean annual temperature is between 0 and 8 C"
 * Generalized Characteristics ([SSS 2015](#SSS2015))
     * "Soil is > 0 to < 8 C (but warmer than cryic soils in summer)"
+* Remarks
+    * Unclear why [jNSM 2016](#jNSM2016) appears to apply a scaled version of [COND5](#COND5)
 
 
 ### Mesic
@@ -330,51 +336,62 @@ barley" ([SSS 2015](#SSS2015))
 ## Definitions of conditions
 Our interpretations from [SSS 2014](#SSS2014) -- language refers to layers, not parts
 
-* dry := soil water potential < -1.5 MPa "the moisture tension is 1500 kPa or more" ([p. 29, SSS 2014](#SSS2014))
-* moist/wet := soil water potential >= -1.5 MPa "water is held at a tension of less than 1500 kPa but more than zero" ([p. 29, SSS 2014](#SSS2014))
-* saturated := soil water potential >= -0.033 MPa
+* __dry__ := soil water potential < -1.5 MPa "the moisture tension is 1500 kPa or more" ([p. 29, SSS 2014](#SSS2014))
+* __moist/wet__ := soil water potential >= -1.5 MPa "water is held at a tension of less than 1500 kPa but more than zero" ([p. 29, SSS 2014](#SSS2014))
+* __saturated__ := soil water potential >= -0.033 MPa
+
+* __<a name="histic_epipedon"/>histic epipedon</a>__ := a horizon that is periodically saturated with water and that has sufficiently high amounts of organic carbon (O.C. 12 to 18%, by weight, depending on clay content) to be considered organic soil material. Typically, it is at (or near) the surface and is peat or muck at least 20 cm thick." ([p.3-10, SSS 2015](#SSS2015))
+* __<a name="Ohorizon"/>O horizon</a>__ := "Horizons [...] dominated by organic soil materials. [...] Some O horizons [...] consist of slightly decomposed to highly decomposed litter, such as leaves, needles, twigs, moss, and lichens, that has been deposited on the surface of either mineral or organic soils." ([p. 335, SSS 2014](#SSS2014))
+* __<a name="OSM"/>organic soil material</a>__ := "Soil material that contains more than the amounts of organic carbon described above for mineral soil material is considered organic soil material" ([p. 3, SSS 2014](#SSS2014))
+* __<a name="MSM"/>mineral soil material</a>__ := "(less than 2.0 mm in diameter) _either_:
+    1) Is saturated with water for less than 30 days (cumulative) per year in normal years and contains less than 20 percent (by weight) organic carbon; _or_
+    2) Is saturated with water for 30 days or more (cumulative) in normal years (or is artificially drained) and, excluding live roots, has an organic carbon content (by weight) of:
+        * Less than 18 percent if the mineral fraction contains 60 percent or more clay; _or_
+        * Less than 12 percent if the mineral fraction contains no clay; _or_
+        * Less than 12 + (clay percentage multiplied by 0.1) percent if the mineral fraction contains less than 60 percent clay." ([p. 3, SSS 2014](#SSS2014))
+
 
 
 ### Conditions for Soil Moisture Regimes
 
-* <a name="COND0"/>COND0</a>: precipitation exceeds AET in all months
-* <a name="COND1"/>COND1</a>: Dry in ALL layers for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
-* <a name="COND2"/>COND2</a>: Moist in ANY layer for less than 90 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
-* <a name="COND2_1"/>COND2_1</a>: Moist in ANY layer for less than 180 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
-* <a name="COND2_2"/>COND2_2</a>: Moist in ANY layer for less than 270 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
-* <a name="COND2_3"/>COND2_3</a>: Moist in ANY layer for less or equal than 45 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
-* <a name="COND3"/>COND3</a>: MCS is dry in ANY layer for < 90 CUMULATIVE days -- sum of days with any dry layer < 90
-* <a name="COND3_1"/>COND3_1</a>: MCS is dry in ANY layer for < 30 CUMULATIVE days -- sum of days with any dry layer < 30
-* <a name="COND4"/>COND4</a>: The means annual soil temperature at 50cm is >= 22C
-* <a name="COND5"/>COND5</a>: The absolute difference between the temperature in winter @ 50cm and the temperature in summer @ 50cm is >= 6C
-* <a name="COND6"/>COND6</a>: Dry in ALL layers LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
-* <a name="COND6_1"/>COND6_1</a>: Dry in ALL layers MORE than 90 CONSECUTIVE days in the 4 months following the summer solstice
-* <a name="COND7"/>COND7</a>: MCS is moist in ANY layer for more than 180 CUMULATIVE days
-* <a name="COND8"/>COND8</a>: MCS is moist in ANY layer for more than 90 CONSECUTIVE days
-* <a name="COND9"/>COND9</a>: Moist in ALL layers MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
-* <a name="COND10"/>COND10</a>: Dry in ALL layers for more or equal to 360 days
+* __<a name="COND0"/>COND0</a>__: precipitation exceeds AET in all months
+* __<a name="COND1"/>COND1</a>__: Dry in ALL layers for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
+* __<a name="COND2"/>COND2</a>__: Moist in ANY layer for less than 90 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* __<a name="COND2_1"/>COND2_1</a>__: Moist in ANY layer for less than 180 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* __<a name="COND2_2"/>COND2_2</a>__: Moist in ANY layer for less than 270 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* __<a name="COND2_3"/>COND2_3</a>__: Moist in ANY layer for less or equal than 45 CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C
+* __<a name="COND3"/>COND3</a>__: MCS is dry in ANY layer for < 90 CUMULATIVE days -- sum of days with any dry layer < 90
+* __<a name="COND3_1"/>COND3_1</a>__: MCS is dry in ANY layer for < 30 CUMULATIVE days -- sum of days with any dry layer < 30
+* __<a name="COND4"/>COND4</a>__: The means annual soil temperature at 50cm is >= 22C
+* __<a name="COND5"/>COND5</a>__: The absolute difference between the temperature in winter @ 50cm and the temperature in summer @ 50cm is >= 6C
+* __<a name="COND6"/>COND6</a>__: Dry in ALL layers LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
+* __<a name="COND6_1"/>COND6_1</a>__: Dry in ALL layers MORE than 90 CONSECUTIVE days in the 4 months following the summer solstice
+* __<a name="COND7"/>COND7</a>__: MCS is moist in ANY layer for more than 180 CUMULATIVE days
+* __<a name="COND8"/>COND8</a>__: MCS is moist in ANY layer for more than 90 CONSECUTIVE days
+* __<a name="COND9"/>COND9</a>__: Moist in ALL layers MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
+* __<a name="COND10"/>COND10</a>__: Dry in ALL layers for more or equal to 360 days
 
 
 ### Conditions for Anhydrous Soils
 
-* <a name="AnhCOND1"/>AnhCOND1</a>: Mean Annual soil temperature at 50 cm depth is less than or equal to 0C
-* <a name="AnhCOND2"/>AnhCOND2</a>: Daily soil temperature of all soil layers in 10-70 cm < 5 C
-* <a name="AnhCOND3"/>AnhCOND3</a>: In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
+* __<a name="AnhCOND1"/>AnhCOND1</a>__: Mean Annual soil temperature at 50 cm depth is less than or equal to 0C
+* __<a name="AnhCOND2"/>AnhCOND2</a>__: Daily soil temperature of all soil layers in 10-70 cm < 5 C
+* __<a name="AnhCOND3"/>AnhCOND3</a>__: In the Lahn Depth, 1/2 of soil dry > 1/2 CUMULATIVE days when Mean Annual ST > 0C
 
 
 ### Conditions for Soil Temperature Regimes
 
-* <a name="st_depth"/>st_depth</a>: "The control section for soil temperature is either at a depth of 50 cm below the soil surface or at the upper boundary of a root-limiting layer, whichever is shallower." ([p. 329, SSS 2014](#SSS2014))
-* <a name="stCOND0"/>stCOND0</a>: Annual mean soil temperature of the same layer is less than 0 C for at least two consecutive years for at least one layer
-* <a name="stCOND1"/>stCOND1</a>: Mean annual soil temperature at [st_depth](#st_depth) is <= 0 C
-* <a name="stCOND2"/>stCOND2</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 8 C
-* <a name="stCOND3"/>stCOND3</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 15 C
-* <a name="stCOND4"/>stCOND4</a>: Mean annual soil temperature at [st_depth](#st_depth) is < 22 C
-* <a name="stCOND5"/>stCOND5</a>: Any layer of soil is saturated with water during some part of the summer, e.g., for the northern hemisphere, June 1 (doy 244) - Aug31 (doy 335)
-* <a name="stCOND6"/>stCOND6</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 13 C
-* <a name="stCOND7"/>stCOND7</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 6 C
-* <a name="stCOND8"/>stCOND8</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 15 C
-* <a name="stCOND9"/>stCOND9</a>: Mean summer soil temperature at [st_depth](#st_depth) is < 8 C
+* __<a name="st_depth"/>st_depth</a>__: "The control section for soil temperature is either at a depth of 50 cm below the soil surface or at the upper boundary of a root-limiting layer, whichever is shallower." ([p. 329, SSS 2014](#SSS2014))
+* __<a name="stCOND0"/>stCOND0</a>__: Annual mean soil temperature of the same layer is less than 0 C for at least two consecutive years for at least one layer
+* __<a name="stCOND1"/>stCOND1</a>__: Mean annual soil temperature at [st_depth](#st_depth) is <= 0 C
+* __<a name="stCOND2"/>stCOND2</a>__: Mean annual soil temperature at [st_depth](#st_depth) is < 8 C
+* __<a name="stCOND3"/>stCOND3</a>__: Mean annual soil temperature at [st_depth](#st_depth) is < 15 C
+* __<a name="stCOND4"/>stCOND4</a>__: Mean annual soil temperature at [st_depth](#st_depth) is < 22 C
+* __<a name="stCOND5"/>stCOND5</a>__: Any layer of soil is saturated with water during some part of the summer, e.g., for the northern hemisphere, June 1 (doy 244) - Aug31 (doy 335)
+* __<a name="stCOND6"/>stCOND6</a>__: Mean summer soil temperature at [st_depth](#st_depth) is < 13 C
+* __<a name="stCOND7"/>stCOND7</a>__: Mean summer soil temperature at [st_depth](#st_depth) is < 6 C
+* __<a name="stCOND8"/>stCOND8</a>__: Mean summer soil temperature at [st_depth](#st_depth) is < 15 C
+* __<a name="stCOND9"/>stCOND9</a>__: Mean summer soil temperature at [st_depth](#st_depth) is < 8 C
 
 
 
@@ -385,17 +402,20 @@ Our interpretations from [SSS 2014](#SSS2014) -- language refers to layers, not 
     * [lines 363-369] noMpeGreaterThanPrecip = \!all(mpe[1:12] > precip[1:12])
     * [lines 370-373] swt =  __IF__ (noMpeGreaterThanPrecip) -1  __ELSE__ 0
 * nd with
-  nd[1] = numCumulativeDaysDry = [assumption] MCS is dry in ALL layers (cf. COND10)
-  nd[2] = numCumulativeDaysMoistDry
-  nd[3] = numCumulativeDaysMoist
-  nd[1] + nd[2]: test variable for [[COND3](#COND3)]
+    * nd[1] = numCumulativeDaysDry = [assumption] MCS is dry in ALL layers (cf. COND10)
+    * nd[2] = numCumulativeDaysMoistDry
+    * nd[3] = numCumulativeDaysMoist
+    * nd[1] + nd[2]: test variable for [[COND3](#COND3)]
     * [lines ...]
 * dif = absolute difference between mean summer and mean winter soil temperature (cf. [COND5](#COND5))
-    * [lines 199-212] st = mean(temperature[6:8]) + fc
-      wt = mean(temperature[c(1:2, 12)]) + fc
-       __IF__ (southern hemisphere) swap st and wt
+    * [lines 199-212]
+        * st = mean(temperature[6:8]) + fc
+        * wt = mean(temperature[c(1:2, 12)]) + fc
+    *  __IF__ (southern hemisphere) swap st and wt
     * [lines 241-215] cs = abs(st - wt) * (1 - fcd) / 2
     * [lines 246-248] dif = (st - cs) - (wt + cs)
+        * st - cs = mean summer soil temperature
+        * wt - cs = mean winter soil temperature
 * nccm = moistDaysAfterWinterSolstice = [assumption] CONSECUTIVE days in the 4 months following the winter solstice when MCS is moist in ALL layers (cf. [COND9](#COND9))
     * [lines 2147, 2171, 2173, 2209, 2211, 2246, 2247]
     * [line 2252] nccm = max
@@ -403,13 +423,13 @@ Our interpretations from [SSS 2014](#SSS2014) -- language refers to layers, not 
     * [lines 2029, 2053, 2055, 2091, 2093, 2128, 2129]
     * [line 2134] nccd = max
 * ncpm with
-  ncpm[1] = numConsecutiveDaysMoistInSomeParts
-  ncpm[2] = numConsecutiveDaysMoistInSomePartsOver8C [assumption] CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C and MCS is moist in ANY layers (cf. [COND2](#COND2))
+    * ncpm[1] = numConsecutiveDaysMoistInSomeParts
+    * ncpm[2] = numConsecutiveDaysMoistInSomePartsOver8C [assumption] CONSECUTIVE days when the soil temperature at a depth of 50cm is above 8C and MCS is moist in ANY layers (cf. [COND2](#COND2))
     * [lines ...]
 * nsd with
-  nsd[1] = numCumulativeDaysDryOver5C [assumption] cumulative days when MCS is dry in all parts and the soil temperature at a depth of 50cm is above 5C (cf. [COND1](#COND1))
-  nsd[2] = numCumulativeDaysMoistDryOver5C
-  nsd[3] = numCumulativeDaysMoistOver5C
+    * nsd[1] = numCumulativeDaysDryOver5C [assumption] cumulative days when MCS is dry in all parts and the soil temperature at a depth of 50cm is above 5C (cf. [COND1](#COND1))
+    * nsd[2] = numCumulativeDaysMoistDryOver5C
+    * nsd[3] = numCumulativeDaysMoistOver5C
     * [lines 1487, 1536, 1563]
 * tma = mean annual soil temperature
     * [lines 193-196] sumt = sum(temperature[1:12])

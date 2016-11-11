@@ -3,8 +3,8 @@ Title: SOILWAT Simulation Framework
 Version: 1.9.0
 Date: 2016-11-08
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
-      person("Caitlin", "Andrews", role = "ctb",
-      person("Ryan", "Murphy", role = "ctb")
+      person("Caitlin", "Andrews", role = "ctb"),
+      person("Ryan", "Murphy", role = "ctb"))
 Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
     R (>= 3.3.0)
