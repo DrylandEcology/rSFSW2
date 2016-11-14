@@ -466,11 +466,15 @@ dbWork_timing <- function(path) {
 }
 
 
-dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"), time_s = NULL) {
+dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"), time_s = NULL, with_lock =  TRUE) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
   status <- match.arg(status)
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+
+  with_lock <- with_lock && requireNamespace("flock")
+  if (with_lock)
+    locked <- flock::lock(dbWork, exclusive = FALSE)
 
   if (status == "completed") {
     DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
@@ -486,6 +490,8 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
   }
 
   RSQLite::dbDisconnect(con)
+  if (with_lock)
+    flock::unlock(locked)
 
   invisible(TRUE)
 }
