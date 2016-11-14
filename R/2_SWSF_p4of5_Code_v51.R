@@ -3842,7 +3842,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               } else {
                 st_NRCS <- list(
                   yr_used = simTime$useyrs,
-                  i_yr_used = findInterval(simTime$useyrs, simTime$useyrs))
+                  i_yr_used = findInterval(simTime$useyrs, wyears))
               }
 
               st_NRCS <- c(st_NRCS, list(
