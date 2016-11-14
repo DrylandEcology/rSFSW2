@@ -24,6 +24,9 @@ swsf_read_csv <- compiler::cmpfun(function(file, stringsAsFactors = FALSE, ...) 
   if (use_iotools) {
     # faster than utils::read.csv
     dots2 <- dots[names(dots) %in% names(formals(iotools::read.csv.raw))]
+    if (!any(names(dots2) == "nrowsClasses"))
+      dots2[["nrowsClasses"]] <- 1000L
+
     temp <- try(do.call(iotools::read.csv.raw, args = dots2), silent = TRUE)
     if (inherits(temp, "try-error")) {
       use_iotools <- FALSE
