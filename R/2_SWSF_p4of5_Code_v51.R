@@ -202,22 +202,16 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   )
 
   #update treatment specifications based on experimental design
-  sw_input_treatments_use_combined <- sw_input_treatments_use |
-  	names(sw_input_treatments_use) %in% create_experimentals
-  temp <- which(!(create_experimentals %in% names(sw_input_treatments_use)))
-  if (length(temp) > 0) {
-    sw_input_treatments_use_combined <- cbind(sw_input_treatments_use_combined,
-      matrix(1, nrow = 1, ncol = length(temp), dimnames = list(NA, c(create_experimentals[temp]))))
-  }
-  create_treatments <- names(sw_input_treatments_use_combined)[sw_input_treatments_use_combined]
+  create_treatments <- union(names(sw_input_treatments_use)[sw_input_treatments_use],
+    create_experimentals)
 
-  if (dim(SWRunInformation)[2] == 1)
+  if (dim(SWRunInformation)[2] < 2)
     stop("SWRunInformation might be tab separated instead of comma.")
-  if (dim(sw_input_soillayers)[2] == 1)
+  if (dim(sw_input_soillayers)[2] < 2)
     stop("SoilLayers might be tab separated instead of comma.")
-  if (dim(sw_input_treatments)[2] == 1)
+  if (dim(sw_input_treatments)[2] < 2)
     stop("Treatments might be tab separated instead of comma.")
-  if (dim(sw_input_experimentals)[2] == 1)
+  if (dim(sw_input_experimentals)[2] < 2)
     stop("Experimentals might be tab separated instead of comma.")
 
   temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.cloud),

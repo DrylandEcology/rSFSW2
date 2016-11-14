@@ -299,7 +299,7 @@ datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
 
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v04.csv"
+datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v05.csv"
 
 datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
 datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
