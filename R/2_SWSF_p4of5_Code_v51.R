@@ -1855,11 +1855,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
         "SoilTemp_deltaX_cm", "SoilTemp_MaxDepth_cm")
       flagsSW <- c("BiomassLimiter_g/m^2", "T1constant_a", "T1constant_b", "T1constant_c",
         "cs_constant_SoilThermCondct", "cs_constant", "sh_constant_SpecificHeatCapacity",
-        "ConstMeanAirTemp", "deltaX_Param", "MaxDepth")[]
-      site_use <- sw_input_site_use[flags]
+        "ConstMeanAirTemp", "deltaX_Param", "MaxDepth")[c(1:7, 9:10)]
+      site_use <- sw_input_site_use[flagsIn]
       if (any(site_use))
-        swSite_SoilTemperatureConsts(swRunScenariosData[[1]])[site_use] <-
-          as.numeric(i_sw_input_site[flags][site_use])
+        swSite_SoilTemperatureConsts(swRunScenariosData[[1]])[flagsSW][site_use] <-
+          as.numeric(i_sw_input_site[flagsIn][site_use])
     }
 
     swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
