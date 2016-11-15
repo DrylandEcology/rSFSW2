@@ -1568,10 +1568,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(simstartyr)
 		swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(endyr)
 
-		##adjust soil temp equation parameters
-		if(any(create_treatments=="MaxTempDepth"))
-		  swRunScenariosData[[1]]@site@SoilTemperatureConstants[[10]] <- i_sw_input_treatments$MaxTempDepth
-
 		#------2. Step: a) Information for this SoilWat-run from treatment SoilWat input files stored in dir.sw.in.tr
 		if(any(create_treatments=="sw"))
 			print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
@@ -1852,7 +1848,20 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       if (sw_input_site_use["SoilTemp_Flag"]) {
         swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <- i_sw_input_site$SoilTemp_Flag
       }
+
+      flagsIn <- c("SoilTemp_BiomassLimiter_gPERm2", "SoilTemp_T1constant_a",
+        "SoilTemp_T1constant_b", "SoilTemp_T1constant_c", "SoilTemp_SoilThermCondct",
+        "SoilTemp_cs_constant", "SoilTemp_SpecificHeatCapacity",
+        "SoilTemp_deltaX_cm", "SoilTemp_MaxDepth_cm")
+      flagsSW <- c("BiomassLimiter_g/m^2", "T1constant_a", "T1constant_b", "T1constant_c",
+        "cs_constant_SoilThermCondct", "cs_constant", "sh_constant_SpecificHeatCapacity",
+        "ConstMeanAirTemp", "deltaX_Param", "MaxDepth")[]
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use))
+        swSite_SoilTemperatureConsts(swRunScenariosData[[1]])[site_use] <-
+          as.numeric(i_sw_input_site[flags][site_use])
     }
+
     swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
     if (is.finite(i_SWRunInformation$ELEV_m))
       swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m

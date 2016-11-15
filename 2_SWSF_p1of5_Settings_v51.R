@@ -305,7 +305,7 @@ datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
 datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
 datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
 datafile.prod <- "SWRuns_InputData_prod_v10.csv"
-datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
+datafile.siteparam <- "SWRuns_InputData_siteparam_v14.csv"
 datafile.soils <- "SWRuns_InputData_soils_v12.csv"
 datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
 
