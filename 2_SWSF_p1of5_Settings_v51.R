@@ -462,12 +462,9 @@ growing.season.threshold.tempC <- 4 # based on standard input of mean monthly bi
 
 # NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
 opt_NRCS_SMTRs <- list(
-  # Approach for regime determination
-  #   - TRUE: first, determine regime for each year; second, aggregate regimes
-  #   - FALSE: first, average moisture and temperature for each DOY;
-  #            second, determine regime for this average year
-  do_1st_regime = TRUE,
-  # Regime aggregation agreement level (e.g., 0.5 = majority; 1 = all)
+  # Approach for regime determination ('data' -> 'conditions' -> 'regime')
+  aggregate_at = "regime",
+  # Aggregation agreement level (e.g., 0.5 = majority; 1 = all)
   crit_agree_frac = 1,
   # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
   use_normal = TRUE,

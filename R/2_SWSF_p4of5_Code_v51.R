@@ -3775,27 +3775,21 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           #Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
           #Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
 
+          stopifnot(any(opt_NRCS_SMTRs[["aggregate_at"]] == c("data", "conditions", "regime")))
+
           #Result containers
-          temp <- c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
-          Tregime <- rep(0, length(temp))
-          names(Tregime) <- temp
-          temp <- c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")
-          Sregime <- rep(0, length(temp))
-          names(Sregime) <- temp
-          temp <- c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic", #Aridic
-            "Dry-Xeric", "Typic-Xeric", # Xeric
-            "Typic-Tempustic", "Xeric-Tempustic", "Wet-Tempustic", "Aridic-Tropustic",
-            "Typic-Tropustic", "Udic-Ustic", # Ustic
-            "Typic-Udic", "Dry-Tropudic", "Dry-Tempudic") # Udic
-          SRqualifier <- rep(0, length(temp))
-          names(SRqualifier) <- temp
+          SMTR <- list()
+          temp <- STR_names()
+          SMTR[["STR"]] <- matrix(0, nrow = 1, ncol = length(temp), dimnames = list(NULL, temp))
+          temp <- c(SMR_names(), SMRq_names())
+          SMTR[["SMR"]] <- matrix(0, nrow = 1, ncol = length(temp), dimnames = list(NULL, temp))
 
           MCS_depth <- Lanh_depth <- rep(NA, 2)
           Fifty_depth <- permafrost_yrs <- has_Ohorizon <- NA
           SMR_normalyears_N <- 0
-          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 48, dimnames =
+          temp_annual <- matrix(NA, nrow = simTime$no.useyr, ncol = 45, dimnames =
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
-            "meanTair_Tsoil50_offset_C", paste0("V", 7:48))))
+            "meanTair_Tsoil50_offset_C", paste0("V", 7:45))))
 
           if (swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(sc, sw_soiltemp, tscale = "dyAll", scaler = 1, FUN = weighted.mean, weights = layers_width, x = runData, st = simTime, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3867,17 +3861,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
               )
               vwc_dy_nrsc <- vwcmatric.dy.all
 
-              if (opt_NRCS_SMTRs[["do_1st_regime"]]) {
-                # Determine regimes based on time-series output and then determine overall regime
-                st_NRCS <- c(st_NRCS, list(
-                    index_usedy = simTime$index.usedy[st_NRCS[["i_dy_used"]]],
-                    month_ForMonth = simTime2$month_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
-                    yearno_ForMonth = simTime2$yearno_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
-                    doy_ForDay = simTime2$doy_ForEachUsedDay_NSadj[st_NRCS[["i_dy_used"]]]
-                  ))
-
-              } else {
-                # Aggregate SOILWAT output to mean conditions before determining regimes
+              if (opt_NRCS_SMTRs[["aggregate_at"]] == "data") {
+                # Aggregate SOILWAT output to mean conditions before determining conditions and regimes
                 soiltemp_nrsc <- list(
                   yr = list(data = matrix(colMeans(soiltemp_nrsc[["yr"]][["data"]]), nrow = 1),
                     nheader = soiltemp_nrsc[["yr"]][["nheader"]]),
@@ -3911,6 +3896,15 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
                 wateryears <- rep(1, temp)
                 wyears <- 1
+
+              } else {
+                # Determine regimes based on time-series output and then determine conditions and regime
+                st_NRCS <- c(st_NRCS, list(
+                    index_usedy = simTime$index.usedy[st_NRCS[["i_dy_used"]]],
+                    month_ForMonth = simTime2$month_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
+                    yearno_ForMonth = simTime2$yearno_ForEachUsedMonth_NSadj[st_NRCS[["i_mo_used"]]],
+                    doy_ForDay = simTime2$doy_ForEachUsedDay_NSadj[st_NRCS[["i_dy_used"]]]
+                  ))
               }
 
               temp_annual <- temp_annual[st_NRCS[["i_yr_used"]], , drop = FALSE]
@@ -4010,7 +4004,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 soilLayers_N_NRCS <- soilLayers_N
               }
 
-              swp_dy_nrsc <- if (swp_recalculate || !opt_NRCS_SMTRs[["do_1st_regime"]]) {
+              swp_dy_nrsc <- if (swp_recalculate || opt_NRCS_SMTRs[["aggregate_at"]] == "data") {
                   get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
                     sand = soildat[, "sand"], clay = soildat[, "clay"])
                 } else {
@@ -4029,6 +4023,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 weighted.mean, w = soildat[i_Lanh, "depth_cm"])
 
               #---Calculate variables
+              crit_agree <- opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]]
+
               #mean soil temperatures at 50cm depth
               temp_annual[, "MAT50"] <- soiltemp_nrsc[["yr"]][, 1 + i_depth50]
               temp <- soiltemp_nrsc[["mo"]][, 2 + i_depth50][st_NRCS[["month_ForMonth"]] %in% 6:8]
@@ -4060,18 +4056,17 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   nrow = soilLayers_N_NRCS, ncol = st_NRCS[["N_yr_used"]])
               }
 
-              am_sat <- list(
-                year = apply(days_saturated_layers, 1, function(x) sum(x >= 30)),
-                summer = sum(temp_annual[, "CSPartSummer"] > 0)
-              )
-              am_sat <- lapply(am_sat, function(x) x >=
-                opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]])
+              somCOND0 <- t(days_saturated_layers) >= 30
+              #if (opt_NRCS_SMTRs[["aggregate_at"]] == "conditions") {
+                somCOND0 <- matrix(colSums(somCOND0), nrow = 1, ncol = soilLayers_N_NRCS) >=
+                  crit_agree
+              #}
 
               # Organic versus mineral soil material per layer
               organic_carbon_wfraction <- soildat[, "soil_TOC"] / 1000 # units(TOC) = g C / kg soil
 
-              is_mineral_layer <- (!am_sat[["year"]] & organic_carbon_wfraction < 0.2) |
-                (am_sat[["year"]] &
+              is_mineral_layer <- (!somCOND0 & organic_carbon_wfraction < 0.2) |
+                (somCOND0 &
                 (soildat[, "clay"] >= 0.6 & organic_carbon_wfraction < 0.18) |
                 (organic_carbon_wfraction < 0.12 + 0.1 * soildat[, "clay"]))
 
@@ -4099,59 +4094,25 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
               #---Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
               #we ignore distinction between iso- and not iso-
-              am <- colMeans(temp_annual[, c("MAT50", "T50jja", "T50djf"), drop = FALSE])
-
-              if (am["MAT50"] >= 22) {
-                  Tregime["Hyperthermic"] <- 1L
-              } else if (am["MAT50"] >= 15) {
-                  Tregime["Thermic"] <- 1L
-              } else if (am["MAT50"] >= 8) {
-                  Tregime["Mesic"] <- 1L
-
-              } else if (am["MAT50"] > 0 && permafrost_yrs <= 0) {
-                # mineral soils
-                if (am_sat[["summer"]]) {
-                  # "soil is saturated with water during some part of summer"
-                  if (has_Ohorizon) { # TODO: should be: 'O-horizon' OR 'histic epipedon'
-                    if (am["T50jja"] < 6) {
-                      Tregime["Cryic"] <- 1L
-                    } else {
-                      Tregime["Frigid"] <- 1L
-                    }
-                  } else {
-                    if (am["T50jja"] < 13) {
-                      Tregime["Cryic"] <- 1L
-                    } else {
-                      Tregime["Frigid"] <- 1L
-                    }
-                  }
-
-                } else {
-                  # "not saturated with water during some part of the summer"
-                  if (has_Ohorizon) {
-                    if (am["T50jja"] < 8) {
-                      Tregime["Cryic"] <- 1L
-                    } else {
-                      Tregime["Frigid"] <- 1L
-                    }
-                  } else {
-                    if (am["T50jja"] < 15) {
-                      Tregime["Cryic"] <- 1L
-                    } else {
-                      Tregime["Frigid"] <- 1L
-                    }
-                  }
-                }
-                # TODO: else organic soils: cryic if mean(T50jja) > 0 C and < 6 C
-
-              } else if (am["MAT50"] <= 0 || permafrost_yrs > 0) {
-                # limit should be 1 C for Gelisols
-                Tregime["Gelic"] <- 1L
+              icol <- c("MAT50", "T50jja", "CSPartSummer")
+              stCONDs <- temp_annual[, icol, drop = FALSE]
+              if (opt_NRCS_SMTRs[["aggregate_at"]] == "conditions") {
+                temp <- colMeans(stCONDs)
+                temp["CSPartSummer"] <- temp["CSPartSummer"] >
+                  opt_NRCS_SMTRs[["crit_agree_frac"]]
+                stCONDs <- matrix(temp, nrow = 1, ncol = length(icol),
+                  dimnames = list(NULL, icol))
               }
+              has_permafrost <- permafrost_yrs >= 2
+
+              SMTR[["STR"]] <- t(apply(stCONDs, 1, function(x)
+                STR_logic(MAST = x["MAT50"], MSST = x["T50jja"],
+                  SatSoilSummer_days = x["CSPartSummer"],
+                  has_permafrost = has_permafrost, has_Ohorizon = has_Ohorizon)))
 
 
               if (SMR_normalyears_N > 2) {
-                #Structures used Lanh delinieation
+                #Structures used Lanh delineation
                 #Days are moists in half of the Lanh soil depth (and not soil layers!)
                 n_Lanh <- length(i_Lanh)
                 width_Lanh <- diff(c(0, soildat[, "depth_cm"]))[i_Lanh] # stopifnot(sum(width_Lanh) == Lanh_depth[2] - Lanh_depth[1])
@@ -4187,8 +4148,16 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   tapply(T50_at0C, Years, sum))
                 ACS_CondsDF_yrs$COND3 <- with(ACS_CondsDF_yrs,
                   HalfDryDaysCumAbove0C > .5 * SoilAbove0C) #TRUE = Half of soil layers are dry greater than half the days where MAST >0c
-                ACS_CondsDF3 <- apply(ACS_CondsDF_yrs[, c('COND1', 'COND2', 'COND3')],
-                  2, sum) >= opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]]
+
+                icol <- c('COND1', 'COND2', 'COND3')
+                icol_new <- paste0("ACS_", icol)
+                ACS_CondsDF3 <- as.matrix(ACS_CondsDF_yrs[, icol, drop = FALSE])
+                if (opt_NRCS_SMTRs[["aggregate_at"]] == "conditions") {
+                  ACS_CondsDF3 <- matrix(colSums(ACS_CondsDF3), nrow = 1, ncol = length(icol),
+                    dimnames = list(NULL, icol_new)) >= crit_agree
+                } else {
+                  dimnames(ACS_CondsDF3)[[2]] <- icol_new
+                }
 
                 #Structures used for MCS delineation
                 MCS_CondsDF_day <- data.frame(
@@ -4207,12 +4176,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 )
 
                 #COND0 - monthly PET < PPT
-                MCS_CondsDF_yrs$COND0 <- if (opt_NRCS_SMTRs[["do_1st_regime"]]) {
-                    tapply(prcp.mo$ppt > pet.mo$val,
-                      simTime2$yearno_ForEachUsedMonth, all)[st_NRCS[["i_yr_used"]]]
-                  } else {
+                MCS_CondsDF_yrs$COND0 <- if (opt_NRCS_SMTRs[["aggregate_at"]] == "data") {
                     all(tapply(prcp.mo$ppt - pet.mo$val,
                       simTime2$month_ForEachUsedMonth, mean) > 0)
+                  } else {
+                    tapply(prcp.mo$ppt > pet.mo$val,
+                      simTime2$yearno_ForEachUsedMonth, all)[st_NRCS[["i_yr_used"]]]
                   }
 
                 #COND1 - Dry in ALL parts for more than half of the CUMULATIVE days per year when the soil temperature at a depth of 50cm is above 5C
@@ -4224,16 +4193,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   tapply(T50_at5C, Years, sum))
                 MCS_CondsDF_yrs$COND1 <- with(MCS_CondsDF_yrs,
                   DryDaysCumAbove5C > .5 * SoilAbove5C) #TRUE =Soils are dry greater than 1/2 cumulative days/year
-
-                #COND1.1 - Moist in SOME or ALL parts for more than half of the CUMMULATIVE days per year when the soil temperature at a depth of 50cm is above 5
-                #!MCS_Dry_All = MCS_ Moist Any; !MCS_Moist_All = MCS_Dry Any
-                #This Test is kind of redundant basically if COND1 is TRUE than
-                MCS_CondsDF_day$COND1_1_Test <- with(MCS_CondsDF_day,
-                  !MCS_Dry_All & T50_at5C)	#TRUE = where are both these conditions met
-                MCS_CondsDF_yrs$AnyMoistDaysCumAbove5C <-  with(MCS_CondsDF_day,
-                  tapply(COND1_1_Test, Years, sum))
-                MCS_CondsDF_yrs$COND1_1 <- with(MCS_CondsDF_yrs,
-                  AnyMoistDaysCumAbove5C > .5 * SoilAbove5C)
 
                 #Cond2 - Moist in SOME or all parts for less than 90 CONSECUTIVE days when the the soil temperature at a depth of 50cm is above 8C
                 MCS_CondsDF_day$COND2_Test <- with(MCS_CondsDF_day,
@@ -4285,113 +4244,32 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                   tapply(MCS_Dry_All, Years, sum)) #Number of days where all soils are dry
                 MCS_CondsDF_yrs$COND10 <- MCS_CondsDF_yrs$AllDryDaysCumAny >= 360
 
-                MCS_CondsDF3 <- apply(MCS_CondsDF_yrs[, c('COND0', 'COND1', 'COND1_1',
-                  'COND2', 'COND2_1', 'COND2_2', 'COND2_3', 'COND3', 'COND3_1', 'COND4', 'COND5',
-                  'COND6', 'COND6_1', 'COND7', 'COND8', 'COND9', 'COND10')],
-                  2, sum) >= opt_NRCS_SMTRs[["crit_agree_frac"]] * st_NRCS[["N_yr_used"]]
+                icol <- c('COND0', 'COND1', 'COND2', 'COND2_1', 'COND2_2', 'COND2_3',
+                  'COND3', 'COND3_1', 'COND4', 'COND5', 'COND6', 'COND6_1', 'COND7',
+                  'COND8', 'COND9', 'COND10')
+                icol_new <- paste0("MCS_", icol)
+                MCS_CondsDF3 <- as.matrix(MCS_CondsDF_yrs[, icol, drop = FALSE])
+                if (opt_NRCS_SMTRs[["aggregate_at"]] == "conditions") {
+                  MCS_CondsDF3 <- matrix(colSums(MCS_CondsDF3), nrow = 1, ncol = length(icol),
+                    dimnames = list(NULL, icol_new)) >= crit_agree
+                } else {
+                  dimnames(MCS_CondsDF3)[[2]] <- icol_new
+                }
+
 
                 #---Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
-                #we ignore 'Aquic'
-
-                #Anhydrous condition: Soil Survey Staff 2010: p.16/Soil Survey Staff 2014: p.18
-                #we ignore test for 'ice-cemented permafrost' and 'rupture-resistance class'
-                if (ACS_CondsDF3['COND1'] && ACS_CondsDF3['COND2'] && ACS_CondsDF3['COND3'])
-                  Sregime["Anhydrous"] <- 1L
-
-                #Perudic soil moisture regime
-                if (MCS_CondsDF3['COND0'])
-                  Sregime["Perudic"] <- 1L
-
-                #Aridic soil moisture regime; The limits set for soil temperature exclude from these soil moisture regimes soils in the very cold and dry polar regions and in areas at high elevations. Such soils are considered to have anhydrous condition
-                if (!as.logical(Sregime["Perudic"]) &&
-                    MCS_CondsDF3['COND1'] && MCS_CondsDF3['COND2']) {
-                  Sregime["Aridic"] <- 1L
-
-                  #Qualifier for aridic SMR
-                  if (MCS_CondsDF3["COND10"]) {
-                    SRqualifier["Extreme-Aridic"] <- 1L
-                  } else if (MCS_CondsDF3["COND2_3"]) {
-                    # NOTE: COND2_3: assumes that 'MaxContDaysAnyMoistCumAbove8' is equivalent to jNSM variable 'ncpm[2]'
-                    SRqualifier["Typic-Aridic"] <- 1L
-                  } else {
-                    SRqualifier["Weak-Aridic"] <- 1L
-                  }
-                }
-
-                #Xeric soil moisture regime
-                if (!any(as.logical(Sregime[c("Perudic", "Aridic")])) &&
-                    !MCS_CondsDF3['COND6'] && MCS_CondsDF3['COND9'] &&
-                    !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5']) {
-                  Sregime["Xeric"] <- 1L
-
-                  #Qualifier for xeric SMR
-                  if (MCS_CondsDF3["COND6_1"]) {
-                    # NOTE: this conditional assumes that 'DryDaysConsecSummer' is equivalent to jNSM variable 'nccd'
-                    SRqualifier["Dry-Xeric"] <- 1L
-                  } else {
-                    SRqualifier["Typic-Xeric"] <- 1L
-                  }
-                }
-
-                #Udic soil moisture regime - #we ignore test for 'three- phase system' during T50 > 5
-                if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric")])) &&
-                    MCS_CondsDF3['COND3'] &&
-                    (!MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] && MCS_CondsDF3['COND6'] ||
-                    (MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']))) {
-                  Sregime["Udic"] <- 1L
-
-                  #Qualifier for udic SMR
-                  if (MCS_CondsDF3["COND3_1"]) {
-                    SRqualifier["Typic-Udic"] <- 1L
-                  } else if (!MCS_CondsDF3["COND5"]) {
-                    SRqualifier["Dry-Tropudic"] <- 1L
-                  } else {
-                    SRqualifier["Dry-Tempudic"] <- 1L
-                  }
-                }
-
-                #Ustic soil moisture regime
-                if (!any(as.logical(Sregime[c("Perudic", "Aridic", "Xeric", "Udic")])) &&
-                    (permafrost_yrs <= 0) && !MCS_CondsDF3['COND3'] &&
-                    ((MCS_CondsDF3['COND4'] || !MCS_CondsDF3['COND5']) &&
-                    (MCS_CondsDF3['COND7'] || MCS_CondsDF3['COND8']) ||
-                    !MCS_CondsDF3['COND4'] && MCS_CondsDF3['COND5'] &&
-                    !MCS_CondsDF3['COND1'] &&
-                    (MCS_CondsDF3['COND9'] && MCS_CondsDF3['COND6'] || !MCS_CondsDF3['COND9']))) {
-                  Sregime["Ustic"] <- 1L
-
-                  #Qualifier for ustic SMR
-                  if (MCS_CondsDF3["COND5"]) {
-                    if (!MCS_CondsDF3["COND9"]) {
-                      # NOTE: this conditional assumes that 'MoistDaysConsecWinter' is equivalent to jNSM variable 'nccm'
-                      SRqualifier["Typic-Tempustic"] <- 1L
-                    } else if (!MCS_CondsDF3["COND6"]) {
-                      # NOTE: this conditional assumes that 'DryDaysConsecSummer' is equivalent to jNSM variable 'nccd'
-                      SRqualifier["Xeric-Tempustic"] <- 1L
-                    } else {
-                      SRqualifier["Wet-Tempustic"] <- 1L
-                    }
-                  } else {
-                    # NOTE: COND2_1 and COND2_2: assume that 'MaxContDaysAnyMoistCumAbove8' is equivalent to jNSM variable 'ncpm[2]'
-                    if (MCS_CondsDF3["COND2_1"]) {
-                      SRqualifier["Aridic-Tropustic"] <- 1L
-                    } else if (MCS_CondsDF3["COND2_2"]) {
-                      SRqualifier["Typic-Tropustic"] <- 1L
-                    } else {
-                      SRqualifier["Udic-Ustic"] <- 1L
-                    }
-                  }
-                }
+                SMTR[["SMR"]] <- t(apply(cbind(ACS_CondsDF3, MCS_CondsDF3), 1,
+                  function(x) do.call(SMR_logic, args = c(as.list(x),
+                  list(has_permafrost = has_permafrost)))))
 
                 temp_annual[, 7:14] <- as.matrix(cbind(ACS_CondsDF_yrs
                   [, c("COND1", "COND2", "COND3", "HalfDryDaysCumAbove0C", "SoilAbove0C")],
                   aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                     by = list(ACS_CondsDF_day$Years), mean)[, -1]))
 
-                temp_annual[, 15:48] <- as.matrix(cbind(MCS_CondsDF_yrs
+                temp_annual[, 15:45] <- as.matrix(cbind(MCS_CondsDF_yrs
                   [, c("COND0",
                     "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
-                    "AnyMoistDaysCumAbove5C", "COND1_1",
                     "MaxContDaysAnyMoistCumAbove8", "COND2", "COND2_1", "COND2_2", "COND2_3",
                     "DryDaysCumAny", "COND3", "COND3_1",
                     "COND4",
@@ -4402,7 +4280,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                     "MoistDaysConsecWinter", "COND9",
                     "AllDryDaysCumAny", "COND10")],
                 aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C", "MCS_Moist_All",
-                    "COND1_Test", "COND1_1_Test", "COND2_Test")],
+                    "COND1_Test", "COND2_Test")],
                   by = list(MCS_CondsDF_day$Years), mean)[, -1]))
 
                 regimes_done <- TRUE
@@ -4418,7 +4296,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 if (!be.quiet)
                   print(paste(i_label, "Number of normal years not long enough to calculate NRCS soil moisture regimes. Try increasing length of simulation"))
 
-                Sregime[] <- SRqualifier[] <- NA
+                SMTR[["SMR"]][] <- NA
               }
 
               to_del <- c("calc50", "calcLanh", "calcMCS", "clay_temp",
@@ -4432,13 +4310,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             } else {
               if (!be.quiet)
                 print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
-                Tregime[] <- Sregime[] <- SRqualifier[] <- NA
+                SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
             }
 
           } else {
             if (!be.quiet)
               print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-              Tregime[] <- Sregime[] <- SRqualifier[] <- NA
+              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
           }
 
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
@@ -4451,6 +4329,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             resSDs[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, sd, na.rm = TRUE))
             nv <- nv_new
           }
+
+          Tregime <- colMeans(SMTR[["STR"]])
+          Sregime <- colMeans(SMTR[["SMR"]])
+
           if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
             nv_new <- nv + length(Tregime)
             resMeans[nv:(nv_new - 1)] <- Tregime
@@ -4458,13 +4340,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             nv_new <- nv + length(Sregime)
             resMeans[nv:(nv_new - 1)] <- Sregime
             nv <- nv_new
-            nv_new <- nv + length(SRqualifier)
-            resMeans[nv:(nv_new - 1)] <- SRqualifier
-            nv <- nv_new
           }
 
+          Tregime <- Tregime >= opt_NRCS_SMTRs[["crit_agree_frac"]]
+          Sregime <- Sregime >= opt_NRCS_SMTRs[["crit_agree_frac"]]
+
           to_del <- c("MCS_depth", "Lanh_depth", "Fifty_depth", "permafrost_yrs",
-            "SMR_normalyears_N", "temp_annual")
+            "SMTR", "SMR_normalyears_N", "temp_annual")
           #to_del <- to_del[to_del %in% ls()]
           if (length(to_del) > 0)
             try(rm(list = to_del), silent = TRUE)
@@ -4546,7 +4428,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
                 "Mesic", "Typic-Aridic", "Low"),
               ncol = 3, byrow = TRUE)
 
-            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(SRqualifier[Table1[, 2]]), 3]
+            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
             RR[temp] <- 1
 
             rm(Table1)

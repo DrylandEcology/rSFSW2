@@ -807,8 +807,6 @@ if (length(Tables) == 0 || do.clean) {
                       "COND1_MCS_AllDry_and_at50cm_GT5C_days", # DryDaysCumAbove5C
                       "COND1_MCS_at50cm_GT5C_days", # SoilAbove5C
                       "COND1_MCS_AllDry_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1
-                      "COND1-1_MCS_AnyWet_and_at50cm_GT5C_days", # AnyMoistDaysCumAbove5C
-                      "COND1-1_MCS_AnyWet_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1_1
                       "COND2_MCS_AnyWetConsec_Max_at50cm_GT8C_days", # MaxContDaysAnyMoistCumAbove8
                       "COND2_MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
                       "COND2-1_MCS_AnyWetConsec_LT180Days_at50cm_GT8C_prob", # COND2_1
@@ -835,7 +833,6 @@ if (length(Tables) == 0 || do.clean) {
                       "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
                       "Days_MCS_AllWet_prob",
                       "COND1_MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
-                      "COND1-1_MCS_AnyWet_and_at50cm_GT5C_prob", # COND1_1_Test
                       "COND2_MCS_AnyWet_and_at50cm_GT8C_prob"), # COND2_Test
                     "_mean"))))
     }
@@ -845,16 +842,9 @@ if (length(Tables) == 0 || do.clean) {
       #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
       #     - consec = consecutive
       temp <- c(temp, paste0("NRCS_",
-                c(paste0("SoilTemperatureRegime_",
-                        c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-                  paste0("SoilMoistureRegime_",
-                        c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic")),
-                  paste0("SoilMoistureRegimeQualifier_",
-                        c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic",
-                          "Dry-Xeric", "Typic-Xeric",
-                          "Typic-Tempustic", "Xeric-Tempustic", "Wet-Tempustic",
-                          "Aridic-Tropustic", "Typic-Tropustic", "Udic-Ustic",
-                          "Typic-Udic", "Dry-Tropudic", "Dry-Tempudic")))))
+                c(paste0("SoilTemperatureRegime_", STR_names()),
+                  paste0("SoilMoistureRegime_", SMR_names()),
+                  paste0("SoilMoistureRegimeQualifier_", SMRq_names()))))
     }
 	#35b
     if (aon$dailyNRCS_Chambers2014_ResilienceResistance) {
