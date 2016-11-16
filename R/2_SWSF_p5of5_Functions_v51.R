@@ -233,6 +233,7 @@ isLeapYear <- compiler::cmpfun(function(y) {
 #'    - runsN_Pid == max(P_id) == runsN_incl x scenario_No
 #'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database
 #'
+#' @aliases it_exp it_site it_Pid
 #' @name iterators
 NULL
 #' @rdname iterators
@@ -392,23 +393,42 @@ mpi_work <- compiler::cmpfun(function() {
 })
 
 
-create_dbWork <- function(dbWork, runsIDs) {
+########################
+#------ dbWork functions
+
+#' Create a SQLite-database \code{dbWork} to manage runs fo a SWSF simulation project
+#'
+#' @param dbWork A character string. Path to the folder where the database will be created.
+#' @param runIDs An integer vector. Identification numbers of requested runs,
+#'  i.e., all (or a subset) of \code{runIDs_total}, see \code{\link{iterators}}.
+#' @return Invisibly \code{TRUE}
+create_dbWork <- function(dbWork, runIDs) {
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
   DBI::dbExecute(con,
     paste("CREATE TABLE work(runID INTEGER PRIMARY KEY,",
     "completed INTEGER NOT NULL, failed INTEGER NOT NULL, inwork INTEGER NOT NULL,",
     "time_s REAL)"))
 
-  jobs <- matrix(0L, nrow = length(runsIDs), ncol = 5,
+  jobs <- matrix(0L, nrow = length(runIDs), ncol = 5,
     dimnames = list(NULL, c("runID", "completed", "failed", "inwork", "time_s")))
-  jobs[, "runID"] <- sort.int(as.integer(runsIDs))
+  jobs[, "runID"] <- sort.int(as.integer(runIDs))
 
   RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
   RSQLite::dbDisconnect(con)
+
+  invisible(TRUE)
 }
 
-
-setup_dbWork <- function(path, runsIDs, continueAfterAbort = FALSE) {
+#' Setup or connect to SQLite-database \code{dbWork} to manage runs fo a SWSF simulation
+#'  project
+#'
+#' @inheritParams create_dbWork
+#' @param continueAfterAbort A logical value. If \code{TRUE} and \code{dbWork} exists,
+#'  then function connects to the existing database. If \code{FALSE}, then a new database
+#'  is created (possibly overwriting an existing one).
+#' @return A logical value indicating success/failure of setting up/connecting to
+#'  \code{dbWork} and initializing with \code{runIDs}.
+setup_dbWork <- function(path, runIDs, continueAfterAbort = FALSE) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   success <- create <- FALSE
 
@@ -417,7 +437,7 @@ setup_dbWork <- function(path, runsIDs, continueAfterAbort = FALSE) {
       con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
       setup_runIDs <- RSQLite::dbGetQuery(con, "SELECT runID FROM work ORDER BY runID")
 
-      success <- identical(as.integer(setup_runIDs$runID), sort.int(runsIDs))
+      success <- identical(as.integer(setup_runIDs$runID), sort.int(runIDs))
 
       if (success) {
         # clean-up potentially lingering 'inwork'
@@ -435,26 +455,36 @@ setup_dbWork <- function(path, runsIDs, continueAfterAbort = FALSE) {
   }
 
   if (create) {
-    temp <- create_dbWork(dbWork, runsIDs)
+    temp <- create_dbWork(dbWork, runIDs)
     success <- !inherits(temp, "try-error")
   }
 
   success
 }
 
-dbWork_todos <- function(path) {
+
+#' Extract identification numbers of runs of a SWSF simulation project which are
+#'  uncompleted and not \code{inwork}
+#'
+#' @inheritParams create_dbWork
+#' @return An integer vector of \code{runIDs}.
+dbWork_todos <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
   runIDs_todo <- RSQLite::dbGetQuery(con, paste("SELECT runID FROM work",
-    "WHERE completed = 0 ORDER BY runID"))
+    "WHERE completed = 0 AND inwork = 0 ORDER BY runID"))
   RSQLite::dbDisconnect(con)
 
   runIDs_todo$runID
-}
+})
 
-dbWork_timing <- function(path) {
+#' Extract stored execution times of completed runs of a SWSF simulation project
+#'
+#' @inheritParams create_dbWork
+#' @return A numeric vector of execution time in seconds.
+dbWork_timing <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
@@ -463,20 +493,35 @@ dbWork_timing <- function(path) {
   RSQLite::dbDisconnect(con)
 
   times$time_s
-}
+})
 
 
-dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"), time_s = NULL, with_lock =  TRUE) {
+#' Update run information of a SWSF simulation project
+#'
+#' @inheritParams create_dbWork
+#' @param runID An integer value. The identification number of the current run,
+#'  i.e., a value out of \code{runIDs_total}, see \code{\link{iterators}}.
+#' @param status A character string. One of "completed", "failed", "inwork".
+#' @param time_s A numeric value. The execution time in seconds; used if \code{status} is one of
+#'  "completed" and "failed".
+#' @param with_filelock A character string. The file path for locking access to
+#'  \code{dbWork} with a file lock, i.e., to provide
+#'  synchronization during parallel processing. If \code{NULL}, no file locking is used.
+#'
+#' @return A logical value whether the status was successfully updated.
+dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("completed", "failed", "inwork"),
+  time_s = "NULL", with_filelock = NULL) {
+
+  status <- match.arg(status)
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
-  status <- match.arg(status)
+
+  if (!is.null(with_filelock)) {
+    ml <- lock_access(with_filelock, runID)
+  }
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
 
-  with_lock <- with_lock && requireNamespace("flock")
-  if (with_lock)
-    locked <- flock::lock(dbWork, exclusive = FALSE)
-
-  if (status == "completed") {
+  res <- if (status == "completed") {
     DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
       "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
 
@@ -485,17 +530,85 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
       "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
 
   } else if (status == "inwork") {
-    DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
-      "inwork = 1, time_s = 0 WHERE runID =", runID))
+    prev_status <- RSQLite::dbGetQuery(con,
+      paste("SELECT inwork FROM work WHERE runID =", runID))$inwork
+    if (prev_status == 0) {
+      DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
+        "inwork = 1, time_s = 0 WHERE runID =", runID))
+    } else {
+      print(paste(runID, "is already in work"))
+      0
+    }
   }
 
   RSQLite::dbDisconnect(con)
-  if (with_lock)
-    flock::unlock(locked)
+  if (!is.null(with_filelock)) {
+    ml <- unlock_access(with_filelock)
+  }
 
-  invisible(TRUE)
+  res == 1
+})
+
+#------ End of dbWork functions
+########################
+
+
+########################
+#------ Synchronicity functions
+
+#' Synchronicity with backing store locks
+#'
+#' @section Note: My attempts at using lock/unlock functions from \pkg{flock} failed
+#'  because unlock appeared to not free resources. My attempts at using such functions
+#'  from \pkg{synchronicity} failed because of segfaults with
+#'  \code{GetResourceName(m@mutexInfoAddr)}. Instead, I use here ideas based on functions
+#'  from \pkg{Rdsm} and Samuel.
+#'
+#' @param fname_lock A character string. Path to locking directory.
+#'
+#' @aliases lock unlock lock_attempt unlock_access lock_access
+#' @name synchronicity
+NULL
+
+#' Unlock a backing store lock
+#'
+#' @rdname synchronicity
+unlock_access <- function(fname_lock) {
+  unlink(fname_lock, recursive = TRUE)
 }
 
+#' Attempt to obtain at a backing store lock
+#'
+#' @param id A R object. Identifier used to test unique write access in locking directory.
+#' @return A logical value. \code{TRUE} if lock was successfully obtained.
+#' @rdname synchronicity
+lock_attempt <- compiler::cmpfun(function(fname_lock, id) {
+  res <- FALSE
+  if (dir.create(fname_lock)) {
+    text_id <- paste("access locked for", id)
+    lockfile <- file.path(fname_lock, "lockfile.txt")
+    writeBin(text_id, con = lockfile)
+    out <- readBin(lockfile, what = "character")
+    res <- identical(text_id, out)
+    if (!res) unlock_access(fname_lock)
+  }
+  res
+})
+
+#' Set a backing store lock
+#'
+#' @paramInherits lock_attempt
+#' @return A logical value. \code{TRUE} if lock was successfully obtained.
+#' @rdname synchronicity
+lock_access <- compiler::cmpfun(function(fname_lock, id = 0) {
+  while (!lock_attempt(fname_lock, id)) {
+    Sys.sleep(runif(1, 0.02, 0.1))
+  }
+  TRUE
+})
+
+#------ End of synchronicity functions
+########################
 
 
 load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
@@ -1687,7 +1800,7 @@ fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
 #' @param x A numeric data.frame or matrix. Columns are soil layers.
 #' @param il An integer value. The column/soil layer number after which a new layer is added.
 #' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
-#' @param method A character string. \code{See details.}
+#' @param method A character string. \link{@details}
 #'
 #' @return An object like x with one column more at position \code{il + 1}.
 add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate", "exhaust")) {

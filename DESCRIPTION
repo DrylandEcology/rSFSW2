@@ -34,8 +34,7 @@ Suggests:
     iotools (>= 0.1-12),
     Hmisc (>= 3.17.4),
     qmap (>= 1.0.4),
-    DaymetR (>= 0.1),
-    flock (>= 0.7)
+    DaymetR (>= 0.1)
 LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
