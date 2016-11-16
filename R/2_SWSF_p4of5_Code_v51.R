@@ -5931,12 +5931,12 @@ if(actionWithSoilWat && runsN_todo > 0){
 
   swsf_env <- new.env(parent = emptyenv())
   load(rSWSF, envir = swsf_env)
-  list.export <- unique(c(ls(envir = swsf_env), list.export))
 
-  list_envs <- list(rSWSF = swsf_env,
-                    local = environment(),
-                    parent = parent.frame(),
-                    global = .GlobalEnv)
+  obj2exp <- gather_objects_for_export(
+    varlist = unique(c(ls(envir = swsf_env), list.export)),
+    list_envs = list(rSWSF = swsf_env, local = environment(),
+      parent = parent.frame(), global = .GlobalEnv))
+
 
 	#ETA calculation
 	if (!be.quiet)
@@ -5947,18 +5947,27 @@ if(actionWithSoilWat && runsN_todo > 0){
 	if (parallel_runs && parallel_init) {
 		#call the simulations depending on parallel backend
 		if (identical(parallel_backend, "mpi")) {
-			mpi.bcast.cmd(library(Rsoilwat31, quietly = TRUE))
-			mpi.bcast.cmd(library(circular, quietly = TRUE))
-			mpi.bcast.cmd(library(SPEI, quietly = TRUE))
-			mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(Rsoilwat31, quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(circular, quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(SPEI, quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
 
-      export_objects_to_workers(list.export, list_envs, "mpi")
-      mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
-      if (print.debug) {
-        mpi.bcast.cmd(print(paste("Slave", mpi.comm.rank(), "has", length(ls()), "objects")))
+      temp <- export_objects_to_workers(obj2exp, "mpi")
+      if (temp) { # Check success of export to MPI workers
+        if (print.debug) {
+          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
+            length(ls()), "objects")))
+        }
+      } else {
+        print("Rmpi workers have insufficient data to execute jobs")
+        Rmpi::mpi.close.Rslaves()
+        Rmpi::mpi.exit()
+        stop()
       }
-      mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
-			mpi.bcast.cmd(mpi_work())
+
+      Rmpi::mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
+      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
+			Rmpi::mpi.bcast.cmd(mpi_work())
 
 			junk <- 0L
 			closed_slaves <- 0L
@@ -5969,8 +5978,8 @@ tryCatch({
         if (print.debug) {
           print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
         }
-				complete <- mpi.recv.Robj(mpi.any.source(), mpi.any.tag())
-				complete_info <- mpi.get.sourcetag()
+				complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
+				complete_info <- Rmpi::mpi.get.sourcetag()
 				slave_id <- complete_info[1]
 				tag <- complete_info[2]
         if (print.debug) {
@@ -6045,9 +6054,9 @@ tryCatch({
 })
 			}
 
-			mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
-			mpi.bcast.cmd(rm(list=ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
-			mpi.bcast.cmd(gc())
+			Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+			Rmpi::mpi.bcast.cmd(rm(list=ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
+			Rmpi::mpi.bcast.cmd(gc())
 			print(runs.completed)
 		}
 
@@ -6057,7 +6066,7 @@ tryCatch({
 			snow::clusterEvalQ(cl, library(SPEI, quietly = TRUE))
 			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
-      export_objects_to_workers(list.export, list_envs, "snow", cl)
+      export_objects_to_workers(obj2exp, "snow", cl)
       snow::clusterEvalQ(cl, source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
@@ -6346,14 +6355,14 @@ if(checkCompleteness){
 	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
 		if(identical(parallel_backend, "mpi")) {
-			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
-			numberMissing <- mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDB)
+			numberMissing <- Rmpi::mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDB)
 			TotalMissing <- sum(unlist(numberMissing))
 
 			print(paste("dbTables.sqlite3 is missing : ",TotalMissing,"",sep=""))
 
-			numberMissing <- mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDBCurrent)
+			numberMissing <- Rmpi::mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDBCurrent)
 			TotalMissing <- sum(unlist(numberMissing))
 
 			print(paste("dbTables_current.sqlite3 is missing : ",TotalMissing,"",sep=""))
@@ -6578,9 +6587,9 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 		if(identical(parallel_backend, "mpi")) {
 			export_objects_to_workers(list.export, list(global = .GlobalEnv), "mpi")
 
-			mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
-			ensembles.completed <- mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			ensembles.completed <- Rmpi::mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
 			ensembles.completed <- sum(unlist(ensembles.completed))
 		} else if(identical(parallel_backend, "snow")) {
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
@@ -6653,8 +6662,8 @@ options(ow)	#sets the warning option to its previous value
 
 if(parallel_runs && parallel_init){
 	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
-		mpi.close.Rslaves(dellog=FALSE)
-		mpi.exit()
+		Rmpi::mpi.close.Rslaves(dellog=FALSE)
+		Rmpi::mpi.exit()
 	}
 	if(identical(parallel_backend, "snow")){
 		snow::stopCluster(cl)	#clean up snow cluster
