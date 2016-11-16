@@ -269,22 +269,19 @@ it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN, runIDs) {
 #' @param cl A snow cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
-export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, parallel_backend = c("mpi", "snow"), cl = NULL) {
-  t.bcast <- Sys.time()
-  parallel_backend <- match.arg(parallel_backend)
-  print(paste("Exporting", length(varlist), "objects from master process to workers/slaves"))
-
+gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
   #---Determine environments
-  export_oe <- list()
+  obj_env <- new.env(parent = emptyenv())
   vtemp <- NULL
 
   for (k in seq_along(list_envs)) {
     temp <- varlist[varlist %in% ls(pos = list_envs[[k]])]
-    export_oe[[k]] <- list(
-        varlist = temp[!(temp %in% vtemp)],
-        envir = list_envs[[k]]
-      )
-    vtemp <- c(vtemp, export_oe[[k]][["varlist"]])
+    temp <- temp[!(temp %in% vtemp)]
+
+    for (i in seq_along(temp))
+      assign(temp[i], value = get(temp[i], list_envs[[k]]), obj_env)
+
+    vtemp <- c(vtemp, temp)
   }
 
   cannot_export <- !(varlist %in% vtemp)
@@ -292,52 +289,67 @@ export_objects_to_workers <- compiler::cmpfun(function(varlist, list_envs, paral
     print(paste("Objects in 'varlist' that cannot be located:",
           paste(varlist[cannot_export], collapse = ", ")))
 
+  obj_env
+})
 
-  #---Export objects from environments
-  success <- TRUE
 
-  for (k in seq_along(export_oe)) {
-    if (!is.null(export_oe[[k]][["varlist"]]) &&
-        !is.null(export_oe[[k]][["envir"]])) {
+do_import_objects <- compiler::cmpfun(function(obj_env) {
+  temp <- list2env(as.list(obj_env), envir = .GlobalEnv)
 
-      if (identical(parallel_backend, "snow")) {
-        temp <- try(snow::clusterExport(cl, export_oe[[k]][["varlist"]],
-                            envir = export_oe[[k]][["envir"]]))
+  NULL
+})
 
-        if (inherits(temp, "try-error"))
-          success <- FALSE
 
-      } else if (identical(parallel_backend, "mpi")) {
+export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend = c("mpi", "snow"), cl = NULL) {
+  t.bcast <- Sys.time()
+  parallel_backend <- match.arg(parallel_backend)
+  N <- length(ls(obj_env))
+  print(paste("Exporting", N, "objects from master process to workers"))
 
-        if (any(c("obj__", "x__") %in% export_oe[[k]][["varlist"]]))
-          stop("R objects with names 'obj__' and 'x__' cannot be exported to workers/slaves")
+  success <- FALSE
+  done_N <- 0
 
-        temp <- try(lapply(export_oe[[k]][["varlist"]], function(obj__) {
-            Rmpi::mpi.bcast.Robj2slave(obj__)
-            x__ <- get(obj__, pos = export_oe[[k]][["envir"]])
-            Rmpi::mpi.bcast.Robj2slave(x__)
-            Rmpi::mpi.bcast.cmd(assign(obj__, x__, pos = .GlobalEnv))
-          }))
+  if (identical(parallel_backend, "snow")) {
+    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
 
-        if (inherits(temp, "try-error")) {
-          success <- FALSE
-        } else {
-          Rmpi::mpi.bcast.cmd(rm(obj__, x__))
-        }
-      }
+    if (inherits(temp, "try-error")) {
+      break
+    } else {
+      success <- TRUE
+    }
+
+    if (success) {
+      done_N <- min(unlist(snow::clusterCall(cl,
+        function() length(ls(.GlobalEnv)))), na.rm = TRUE)
+    }
+
+  } else if (identical(parallel_backend, "mpi")) {
+    temp <- try(Rmpi::mpi.bcast.cmd(assign,
+      x = "do_import_objects", value = do_import_objects))
+    if (!inherits(temp, "try-error"))
+      temp <- try(Rmpi::mpi.bcast.cmd(do_import_objects, obj_env = obj_env))
+
+    success <- !inherits(temp, "try-error")
+    if (success) {
+      done_N <- min(lengths(Rmpi::mpi.remote.exec(cmd = ls,
+        envir = .GlobalEnv, simplify = FALSE)))
     }
   }
 
-  if (success) {
-    print(paste("Exporting", length(vtemp), "objects took",
+  if (success && done_N >= N) {
+    print(paste("Export of", done_N, "objects took",
               round(difftime(Sys.time(), t.bcast, units = "secs"), 2),
               "secs"))
   } else {
-    print("Export not successful")
+    success <- FALSE
+    print(paste("Export not successful:", done_N, "instead of", N, "objects exported"))
   }
 
   success
 })
+
+
+
 
 
 #' Rmpi work function for calling \code{do_OneSite}
