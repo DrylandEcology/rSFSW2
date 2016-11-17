@@ -11,7 +11,7 @@ Depends:
 Imports:
     Rsoilwat31 (>= 1.1.2),
     RSQLite (>= 1.0.0),
-    DBI (>= 0.4.1),
+    DBI (>= 0.5),
     circular (>= 0.4.7),
     Rcpp (>= 0.12.7),
     SPEI (>= 1.6),
