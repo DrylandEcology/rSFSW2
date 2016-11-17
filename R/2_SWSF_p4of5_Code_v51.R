@@ -497,9 +497,13 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 
 workersN <- 1
 parallel_init <- FALSE
+lockfile <- NULL
+
 if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
 	if(parallel_runs){
 		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+
+    lockfile <- tempfile(pattern = "swsflock", tmpdir = normalizePath(tempdir()))
 
 		if(identical(parallel_backend, "mpi")) {
       Rmpi::mpi.spawn.Rslaves(nslaves = num_cores)
@@ -1365,6 +1369,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #P_id is a unique id number for each scenario in each run
 
 	time.sys <- Sys.time()
+
+  dbWork_update_job(dir.out, i_sim, status = "inwork",
+    with_filelock = lockfile, verbose = print.debug)
 
 	flag.icounter <- formatC(i_sim, width=counter.digitsN, format = "d", flag="0")
 
@@ -5634,7 +5641,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
   status <- all(unlist(tasks) != 0)
 
   dbWork_update_job(dir.out, i_sim, status = if (status) "completed" else "failed",
-    time_s = dt, verbose = print.debug)
+    time_s = dt, with_filelock = lockfile, verbose = print.debug)
 
   if (status) {
     #ETA estimation
@@ -5724,7 +5731,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr", "estabin",
     "establishment.delay", "establishment.duration", "establishment.swp.surface",
     "eta.estimate", "exec_c_prefix", "ExpInput_Seperator", "expN", "filebasename",
-    "filebasename.WeatherDataYear", "germination.duration", "germination.swp.surface",
+    "filebasename.WeatherDataYear", "lockfile", "germination.duration", "germination.swp.surface",
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
@@ -5767,6 +5774,8 @@ if(actionWithSoilWat && runsN_todo > 0){
 	inputDataToSave <- list()
 
 	if (parallel_runs && parallel_init) {
+	  unlink(lockfile, recursive = TRUE)
+
 		#call the simulations depending on parallel backend
 		if (identical(parallel_backend, "mpi")) {
 			Rmpi::mpi.bcast.cmd(library(Rsoilwat31, quietly = TRUE))

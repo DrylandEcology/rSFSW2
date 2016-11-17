@@ -673,7 +673,7 @@ unlock_access <- function(lock) {
 #' @return The updated \code{lock} object of class \code{SWSF_lock}.
 #' @rdname synchronicity
 lock_attempt <- compiler::cmpfun(function(lock) {
-  if (dir.create(lock$dir)) {
+  if (dir.create(lock$dir, showWarnings = FALSE)) {
     writeBin(lock$code, con = lock$file)
     lock$obtained <- check_lock_content(lock)
     if (!lock$obtained)
