@@ -308,14 +308,10 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
   success <- FALSE
   done_N <- 0
 
-  if (identical(parallel_backend, "snow")) {
+  if (inherits(cl, "cluster") && identical(parallel_backend, "snow")) {
     temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
 
-    if (inherits(temp, "try-error")) {
-      break
-    } else {
-      success <- TRUE
-    }
+    success <- !inherits(temp, "try-error")
 
     if (success) {
       done_N <- min(unlist(snow::clusterCall(cl,
@@ -2417,16 +2413,17 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 
     # set up parallel
     if (do_parallel) {
-      list.export <- c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr") #objects that need exporting to slaves
-	    list_envs <- list(local = environment(), parent = parent.frame(), global = .GlobalEnv)
+      obj2exp <- gather_objects_for_export(
+        varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr"),
+        list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
 
       if (identical(parallel_backend, "mpi")) {
-        export_objects_to_workers(list.export, list_envs, "mpi")
+        export_objects_to_workers(obj2exp, "mpi")
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
         Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
 
       } else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(list.export, list_envs, "snow", cl)
+        export_objects_to_workers(obj2exp, "snow", cl)
         snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
         snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
       }
@@ -2483,6 +2480,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
             nMonthlyWrites <- do.call(sum, nMonthlyWrites)
           }
         } else if (identical(parallel_backend, "multicore")) {
+          list.export <- ls(obj2exp)
           if (daily) {
             nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
               gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
