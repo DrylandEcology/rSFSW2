@@ -515,47 +515,85 @@ dbWork_timing <- compiler::cmpfun(function(path) {
 #' @param with_filelock A character string. The file path for locking access to
 #'  \code{dbWork} with a file lock, i.e., to provide
 #'  synchronization during parallel processing. If \code{NULL}, no file locking is used.
+#' @param verbose A logical value. If \code{TRUE}, status messages about file lock and
+#'  database access are printed
 #'
 #' @return A logical value whether the status was successfully updated.
 dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("completed", "failed", "inwork"),
-  time_s = "NULL", with_filelock = NULL) {
+  time_s = "NULL", with_filelock = NULL, verbose = FALSE) {
 
   status <- match.arg(status)
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
-  if (!is.null(with_filelock)) {
-    ml <- lock_access(with_filelock, runID)
-  }
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  success <- FALSE
+  res <- 0L
 
-  res <- if (status == "completed") {
-    DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
-      "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+  repeat {
+    if (verbose)
+      print(paste0("'dbWork_update_job': (", runID, "-", status, ") attempt to update"))
 
-  } else if (status == "failed") {
-    DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
-      "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+    lock <- if (!is.null(with_filelock)) {
+        lock_access(with_filelock, runID, verbose)
+      } else {
+        list(confirmed_access = TRUE)
+      }
 
-  } else if (status == "inwork") {
-    prev_status <- RSQLite::dbGetQuery(con,
-      paste("SELECT inwork FROM work WHERE runID =", runID))$inwork
-    if (prev_status == 0) {
-      DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
-        "inwork = 1, time_s = 0 WHERE runID =", runID))
-    } else {
-      print(paste(runID, "is already in work"))
-      0
+    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork), silent = TRUE)
+
+    if (inherits(con, "DBIConnection")) {
+      res <- DBI::dbWithTransaction(con, {
+        temp <- if (status == "completed") {
+            DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
+              "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+
+          } else if (status == "failed") {
+            DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
+              "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
+
+          } else if (status == "inwork") {
+            prev_status <- RSQLite::dbGetQuery(con,
+              paste("SELECT inwork FROM work WHERE runID =", runID))$inwork
+            if (prev_status == 0) {
+              DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
+                "inwork = 1, time_s = 0 WHERE runID =", runID))
+            } else {
+              if (verbose)
+                print(paste("'dbWork_update_job':", runID, "is already in work"))
+              0L
+            }
+          } else {
+            0L
+          }
+
+        if (!is.null(with_filelock)) {
+          lock <- unlock_access(lock)
+        }
+
+        if (!lock$confirmed_access) {
+          if (verbose)
+            print(paste0("'dbWork_update_job': (", runID, "-", status, ") access confirmation failed"))
+          temp <- 0L
+          DBI::dbBreak()
+        } else if (verbose) {
+          print(paste0("'dbWork_update_job': (", runID, "-", status, ") transaction confirmed"))
+        }
+
+        as.integer(temp)
+      })
+
+      RSQLite::dbDisconnect(con)
+      success <- lock$confirmed_access
+    } else if (verbose) {
+      print(paste0("'dbWork_update_job': (", runID, "-", status, ") 'dbWork' is locked"))
     }
+
+    if (success) break
   }
 
-  RSQLite::dbDisconnect(con)
-  if (!is.null(with_filelock)) {
-    ml <- unlock_access(with_filelock)
-  }
-
-  res == 1
+  !is.na(res) && res == 1L
 })
+
 
 #------ End of dbWork functions
 ########################
@@ -569,50 +607,103 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
 #' @section Note: My attempts at using lock/unlock functions from \pkg{flock} failed
 #'  because unlock appeared to not free resources. My attempts at using such functions
 #'  from \pkg{synchronicity} failed because of segfaults with
-#'  \code{GetResourceName(m@mutexInfoAddr)}. Instead, I use here ideas based on functions
+#'  \code{GetResourceName(m@mutexInfoAddr)}; additionally, \pkg{synchronicity} is
+#'  restricted to unix systems. Instead, I use here ideas based on functions
 #'  from \pkg{Rdsm} and Samuel.
 #'
-#' @param fname_lock A character string. Path to locking directory.
+#' @param lock An object of class \code{SWSF_lock}.
 #'
-#' @aliases lock unlock lock_attempt unlock_access lock_access
+#' @aliases lock unlock lock_init lock_attempt unlock_access lock_access
+#'  check_lock_content remove_lock
 #' @name synchronicity
 NULL
 
-#' Unlock a backing store lock
+#' Create and initialize an object of class \code{SWSF_lock}
 #'
+#' @param fname_lock A character string. Path to locking directory.
+#' @param id A R object. Identifier used to test unique write access in locking directory.
+#' @return An object of class \code{SWSF_lock}.
 #' @rdname synchronicity
-unlock_access <- function(fname_lock) {
-  unlink(fname_lock, recursive = TRUE)
+lock_init <- function(fname_lock, id) {
+  lock <- list(
+    dir = fname_lock,
+    file = file.path(fname_lock, "lockfile.txt"),
+    code = paste("access locked for", id),
+    obtained = FALSE,
+    confirmed_access = NA)
+  class(lock) <- "SWSF_lock"
+  lock
 }
 
-#' Attempt to obtain at a backing store lock
+
+#' Check content of a backing store lock
 #'
-#' @param id A R object. Identifier used to test unique write access in locking directory.
-#' @return A logical value. \code{TRUE} if lock was successfully obtained.
+#' @return A logical value. \code{TRUE} if lock file contains proper code of the lock.
 #' @rdname synchronicity
-lock_attempt <- compiler::cmpfun(function(fname_lock, id) {
-  res <- FALSE
-  if (dir.create(fname_lock)) {
-    text_id <- paste("access locked for", id)
-    lockfile <- file.path(fname_lock, "lockfile.txt")
-    writeBin(text_id, con = lockfile)
-    out <- readBin(lockfile, what = "character")
-    res <- identical(text_id, out)
-    if (!res) unlock_access(fname_lock)
+check_lock_content <- compiler::cmpfun(function(lock) {
+  if (file.exists(lock$file)) {
+    out <- readBin(lock$file, what = "character")
+    identical(lock$code, out)
+  } else {
+    FALSE
   }
-  res
 })
+
+#' Remove the files associated with a backing store lock
+#'
+#' @return The return value of unlinking the directory associated with \code{lock}.
+#' @rdname synchronicity
+remove_lock <- function(lock) {
+  unlink(lock$dir, recursive = TRUE)
+}
+
+#' Unlock a backing store lock
+#'
+#' @return The updated \code{lock} object of class \code{SWSF_lock}.
+#' @rdname synchronicity
+unlock_access <- function(lock) {
+  lock$confirmed_access <- check_lock_content(lock)
+  remove_lock(lock)
+  lock
+}
+
+
+#' Attempt to obtain access of a backing store lock
+#'
+#' @return The updated \code{lock} object of class \code{SWSF_lock}.
+#' @rdname synchronicity
+lock_attempt <- compiler::cmpfun(function(lock) {
+  if (dir.create(lock$dir)) {
+    writeBin(lock$code, con = lock$file)
+    lock$obtained <- check_lock_content(lock)
+    if (!lock$obtained)
+      remove_lock(lock)
+  }
+
+  lock
+})
+
 
 #' Set a backing store lock
 #'
-#' @paramInherits lock_attempt
-#' @return A logical value. \code{TRUE} if lock was successfully obtained.
+#' Access to the backing store lock is attempted until successfully obtained.
+#'
+#' @paramInherits lock_init
+#' @param verbose A logical value. If \code{TRUE}, then each attempt at obtaining the lock
+#'  is printed.
+#' @return The updated \code{lock} object of class \code{SWSF_lock}.
 #' @rdname synchronicity
-lock_access <- compiler::cmpfun(function(fname_lock, id = 0) {
-  while (!lock_attempt(fname_lock, id)) {
+lock_access <- compiler::cmpfun(function(fname_lock, id = 0, verbose = FALSE) {
+  lock <- lock_init(fname_lock, id)
+
+  while (!lock$obtained) {
+    if (verbose)
+      print(paste(Sys.time(), "attempt to obtain lock for", shQuote(id)))
+    lock <- lock_attempt(lock)
     Sys.sleep(runif(1, 0.02, 0.1))
   }
-  TRUE
+
+  lock
 })
 
 #------ End of synchronicity functions

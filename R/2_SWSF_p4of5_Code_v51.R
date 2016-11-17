@@ -5633,8 +5633,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
   dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
-  dbWork_update_job(dir.out, i_sim,
-    status = if (status) "completed" else "failed", time_s = dt)
+  dbWork_update_job(dir.out, i_sim, status = if (status) "completed" else "failed",
+    time_s = dt, verbose = print.debug)
 
   if (status) {
     #ETA estimation
