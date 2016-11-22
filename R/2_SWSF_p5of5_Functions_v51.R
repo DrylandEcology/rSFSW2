@@ -14,55 +14,6 @@ tol <- sqrt(.Machine$double.eps)
 toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
-swsf_read_csv <- compiler::cmpfun(function(file, stringsAsFactors = FALSE, ...) {
-  dots <- list(...)
-  dots[["file"]] <- file
-  dots[["stringsAsFactors"]] <- stringsAsFactors
-  use_iotools <- requireNamespace("iotools", quietly = TRUE)
-  res <- NULL
-
-  if (use_iotools) {
-    # faster than utils::read.csv
-    dots2 <- dots[names(dots) %in% names(formals(iotools::read.csv.raw))]
-    if (!any(names(dots2) == "nrowsClasses"))
-      dots2[["nrowsClasses"]] <- 1000L
-
-    temp <- try(do.call(iotools::read.csv.raw, args = dots2), silent = TRUE)
-    if (inherits(temp, "try-error")) {
-      use_iotools <- FALSE
-    } else {
-      names(temp) <- gsub("\"", "", names(temp))
-      res <- temp
-    }
-  }
-
-  if (!use_iotools) {
-    dots2 <- dots[names(dots) %in% names(formals(utils::read.csv))]
-    res <- try(do.call(utils::read.csv, args = dots2), silent = TRUE)
-  }
-
-  res
-})
-
-swsf_read_inputfile <- compiler::cmpfun(function(file, header_rows = 1, ...) {
-  sw_use <- tryCatch(swsf_read_csv(file, nrows = header_rows),
-    error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
-  sw <- swsf_read_csv(file, skip = header_rows, ...)
-  names(sw) <- names(sw_use)
-  sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
-  sw_use[is.na(sw_use)] <- FALSE
-  names(sw_use) <- names(sw)
-
-  list(use = sw_use, data = sw)
-})
-
-reconstitute_inputfile <- compiler::cmpfun(function(sw_use, data) {
-  temp <- as.data.frame(matrix(as.integer(sw_use), nrow = 1L))
-  colnames(temp) <- names(sw_use)
-  temp[1, 1] <- "UseInformationToCreateSoilWatRuns"
-  rbind(temp, data)
-})
-
 
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
@@ -260,148 +211,6 @@ it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN, runIDs) {
 #t(sapply(runIDs_total, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
 
 
-#' Export R objects to MPI slaves or SNOW workers
-#'
-#' @param varlist A vector of R object names to export
-#' @param list_envs A list of environments in which to search for the R objects
-#' @param parallel_backend A character vector, either 'mpi' or 'snow'
-#' @param cl A snow cluster object
-#'
-#' @return A logical value. \code{TRUE} if every object was exported successfully.
-gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
-  #---Determine environments
-  obj_env <- new.env(parent = emptyenv())
-  vtemp <- NULL
-
-  for (k in seq_along(list_envs)) {
-    temp <- varlist[varlist %in% ls(pos = list_envs[[k]])]
-    temp <- temp[!(temp %in% vtemp)]
-
-    for (i in seq_along(temp))
-      assign(temp[i], value = get(temp[i], list_envs[[k]]), obj_env)
-
-    vtemp <- c(vtemp, temp)
-  }
-
-  cannot_export <- !(varlist %in% vtemp)
-  if (any(cannot_export))
-    print(paste("Objects in 'varlist' that cannot be located:",
-          paste(varlist[cannot_export], collapse = ", ")))
-
-  obj_env
-})
-
-
-do_import_objects <- compiler::cmpfun(function(obj_env) {
-  temp <- list2env(as.list(obj_env), envir = .GlobalEnv)
-
-  NULL
-})
-
-
-export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend = c("mpi", "snow"), cl = NULL) {
-  t.bcast <- Sys.time()
-  parallel_backend <- match.arg(parallel_backend)
-  N <- length(ls(obj_env))
-  print(paste("Exporting", N, "objects from master process to workers"))
-
-  success <- FALSE
-  done_N <- 0
-
-  if (identical(parallel_backend, "snow")) {
-    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
-
-    if (inherits(temp, "try-error")) {
-      break
-    } else {
-      success <- TRUE
-    }
-
-    if (success) {
-      done_N <- min(unlist(snow::clusterCall(cl,
-        function() length(ls(.GlobalEnv)))), na.rm = TRUE)
-    }
-
-  } else if (identical(parallel_backend, "mpi")) {
-    temp <- try(Rmpi::mpi.bcast.cmd(assign,
-      x = "do_import_objects", value = do_import_objects))
-    if (!inherits(temp, "try-error"))
-      temp <- try(Rmpi::mpi.bcast.cmd(do_import_objects, obj_env = obj_env))
-
-    success <- !inherits(temp, "try-error")
-    if (success) {
-      done_N <- min(lengths(Rmpi::mpi.remote.exec(cmd = ls,
-        envir = .GlobalEnv, simplify = FALSE)))
-    }
-  }
-
-  if (success && done_N >= N) {
-    print(paste("Export of", done_N, "objects took",
-              round(difftime(Sys.time(), t.bcast, units = "secs"), 2),
-              "secs"))
-  } else {
-    success <- FALSE
-    print(paste("Export not successful:", done_N, "instead of", N, "objects exported"))
-  }
-
-  success
-})
-
-
-
-
-
-#' Rmpi work function for calling \code{do_OneSite}
-#'
-#' @references
-#'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
-#' @section Note:
-#'  In case an error occurs, the slave will like not report back to master because
-#'  it hangs in miscommunication, and reminds idle (check activity, e.g., with \code{top}).
-mpi_work <- compiler::cmpfun(function() {
-  # Note the use of the tag for sent messages:
-  #     1=ready_for_task, 2=done_task, 3=exiting
-  # Note the use of the tag for received messages:
-  #     1=task, 2=done_tasks
-
-  junk <- 0L
-  done <- 0L
-  while (done != 1L) {
-    # Signal being ready to receive a new task
-    Rmpi::mpi.send.Robj(junk, 0, 1)
-
-    # Receive a task
-    dat <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
-    task_info <- Rmpi::mpi.get.sourcetag()
-    tag <- task_info[2]
-
-    if (tag == 1L) {
-      if (dat$do_OneSite) {
-        #print(paste("MPI slave", Rmpi::mpi.comm.rank(), "works on:", dat$i_sim, dat$labels))
-        result <- match.fun("do_OneSite")(i_sim = dat$i_sim,
-          i_labels = dat$labels,
-          i_SWRunInformation = dat$SWRunInformation,
-          i_sw_input_soillayers = dat$sw_input_soillayers,
-          i_sw_input_treatments = dat$sw_input_treatments,
-          i_sw_input_cloud = dat$sw_input_cloud,
-          i_sw_input_prod = dat$sw_input_prod,
-          i_sw_input_site = dat$sw_input_site,
-          i_sw_input_soils = dat$sw_input_soils,
-          i_sw_input_weather = dat$sw_input_weather,
-          i_sw_input_climscen = dat$sw_input_climscen,
-          i_sw_input_climscen_values = dat$sw_input_climscen_values)
-
-        # Send a results message back to the master
-        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
-      }
-
-    } else if (tag == 2L) {
-      done <- 1L
-    }
-    # We'll just ignore any unknown messages
-  }
-  Rmpi::mpi.send.Robj(junk, 0, 3)
-})
 
 
 load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
@@ -2417,16 +2226,17 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 
     # set up parallel
     if (do_parallel) {
-      list.export <- c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr") #objects that need exporting to slaves
-	    list_envs <- list(local = environment(), parent = parent.frame(), global = .GlobalEnv)
+      obj2exp <- gather_objects_for_export(
+        varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr"),
+        list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
 
       if (identical(parallel_backend, "mpi")) {
-        export_objects_to_workers(list.export, list_envs, "mpi")
+        export_objects_to_workers(obj2exp, "mpi")
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
         Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
 
       } else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(list.export, list_envs, "snow", cl)
+        export_objects_to_workers(obj2exp, "snow", cl)
         snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
         snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
       }
@@ -2483,6 +2293,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
             nMonthlyWrites <- do.call(sum, nMonthlyWrites)
           }
         } else if (identical(parallel_backend, "multicore")) {
+          list.export <- ls(obj2exp)
           if (daily) {
             nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
               gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
@@ -2635,225 +2446,6 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
 })
 
 
-########################
-#------ GISSM functions
-# Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions. Ecol Model, 286, 66-77.
-
-#' Function to convert soil depth to soil layer
-SoilLayer_at_SoilDepth <- compiler::cmpfun(function(depth_cm, layers_depth) {
-  pmax(1, pmin(length(layers_depth), 1 + findInterval(depth_cm - 0.01, layers_depth)))
-})
-
-
-#' Function to calculate for each day of the year, duration in days of upcoming favorable conditions accounting for consequences.unfavorable=0 (if conditions become unfavorable, then restart the count), =1 (resume)
-calculate_DurationFavorableConditions <- compiler::cmpfun(function(RYyear, consequences.unfavorable, Germination_DuringFavorableConditions, RYyear_ForEachUsedDay) {
-
-  index.year <- RYyear_ForEachUsedDay == RYyear
-  conditions <- Germination_DuringFavorableConditions[index.year]
-  doys <- seq_len(sum(index.year))
-  doys[!conditions] <- NA	#calculate only for favorable days
-  out <- rep(NA, times = sum(index.year))
-
-  if (consequences.unfavorable == 0) {
-    # if conditions become unfavorable, then restart the count afterwards
-    temp.rle <- rle(conditions)
-    if (sum(!temp.rle$values) > 0) {
-      temp.unfavorable_startdoy <- c((1 + c(0, cumsum(temp.rle$lengths)))[!temp.rle$values], 1 + sum(index.year)) #add starts for odd- and even-lengthed rle
-
-      temp.rle$values <- if (temp.rle$values[1]) {
-          #first rle period is favorable
-          rep(temp.unfavorable_startdoy, each = 2)
-        } else {
-          #first rle period is unfavorable
-          rep(temp.unfavorable_startdoy[-1], each = 2)
-        }
-      temp.rle$values <- temp.rle$values[seq_along(temp.rle$lengths)]
-
-    } else {#every day is favorable
-      temp.rle$values <- length(conditions) + 1
-    }
-    out <- inverse.rle(temp.rle) - doys	#difference to next following start of a period of unfavorable conditions
-
-  } else if(consequences.unfavorable == 1) {
-    # if conditions become unfavorable, then resume the count afterwards
-    temp <- sum(conditions)
-    count <- if(temp > 0) {
-      temp:1
-    } else {#every day is unfavorable
-      vector("numeric", length = 0)
-    }
-
-    out <- napredict(na.action(na.exclude(doys)), count)	#sum of following favorable conditions in this year
-  }
-
-  out
-})
-
-get_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYdoy, Estimate_TimeToGerminate, TmeanJan, a, b, c, d, k1_meanJanTemp, k2_meanJanTempXIncubationTemp, k3_IncubationSWP, Tgerm.year, SWPgerm.year, durations, rec.delta = 1, nrec.max = 10L) {
-  for (nrec in seq_len(nrec.max)) {
-    Estimate_TimeToGerminate <- Estimate_TimeToGerminate.oldEstimate <- max(0, round(Estimate_TimeToGerminate))
-
-    ids <- RYdoy:(RYdoy + Estimate_TimeToGerminate - 1)
-    Tgerm <- mean(Tgerm.year[ids], na.rm = TRUE)
-    SWPgerm <- mean(SWPgerm.year[ids], na.rm = TRUE)
-
-    temp.c.lim <- -(Tgerm - b) * (d^2 - 1) / d
-    c <- if (c > 0) {
-      if (c > temp.c.lim) c else {temp.c.lim + tol}
-    } else if (c < 0) {
-      if (c < temp.c.lim) c else {temp.c.lim - tol}
-    }
-
-    #NLR model (eq.5) in Hardegree SP (2006) Predicting Germination Response to Temperature. I. Cardinal-temperature Models and Subpopulation-specific Regression. Annals of Botany, 97, 1115-1125.
-    temp <- a * exp(-0.693147181 / log(d)^2 * log(1 + (Tgerm - b) * (d^2 - 1) / (c * d))^2) # all.equal(log(2), 0.693147181)
-
-    #drs addition to time to germinate dependent on mean January temperature and soil water potential
-    temp <- 1 / temp +
-            k1_meanJanTemp * TmeanJan +
-            k2_meanJanTempXIncubationTemp * TmeanJan * Tgerm +
-            k3_IncubationSWP * SWPgerm
-    Estimate_TimeToGerminate <- max(1, round(temp) )
-
-    #break if convergence or not enough time in this year
-    if (abs(Estimate_TimeToGerminate - Estimate_TimeToGerminate.oldEstimate) <= rec.delta |
-        RYdoy + Estimate_TimeToGerminate - 1 > 365)
-      break
-  }
-
-  out <- if (nrec >= nrec.max) {
-      round(mean(c(Estimate_TimeToGerminate, Estimate_TimeToGerminate.oldEstimate)), 0)
-    } else {
-      Estimate_TimeToGerminate
-    }
-
-  if (out <= durations[RYdoy] & RYdoy + out <= 365) out else NA #test whether enough time to germinate
-})
-
-#' Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
-calculate_TimeToGerminate_modifiedHardegree2006NLR <- compiler::cmpfun(function(RYyear, Germination_DuringFavorableConditions, LengthDays_FavorableConditions, RYyear_ForEachUsedDay, soilTmeanSnow, swp.TopMean, TmeanJan, param) {
-  #values for current year
-  index.year <- RYyear_ForEachUsedDay == RYyear
-  conditions <- Germination_DuringFavorableConditions[index.year]
-
-  # determining time to germinate for every day
-  a <- max(tol, param$Hardegree_a)
-  b <- param$Hardegree_b
-  d <- max(tol, if (param$Hardegree_d == 1) {
-                  if (runif(1) > 0.5) {1 + tol} else {1 - toln}
-                } else {
-                  param$Hardegree_d
-                })
-  temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(runif(1) - 0.5) * tol
-
-  TimeToGerminate.favorable <- unlist(lapply(which(conditions), get_modifiedHardegree2006NLR,
-    Estimate_TimeToGerminate = 1, TmeanJan = TmeanJan, a = a, b = b, c = temp.c, d = d,
-    k1_meanJanTemp = param$TimeToGerminate_k1_meanJanTemp,
-    k2_meanJanTempXIncubationTemp = param$TimeToGerminate_k2_meanJanTempXIncubationTemp,
-    k3_IncubationSWP = param$TimeToGerminate_k3_IncubationSWP,
-    Tgerm.year = soilTmeanSnow[index.year],
-    SWPgerm.year = swp.TopMean[index.year],
-    durations = LengthDays_FavorableConditions[index.year]))	#consequences of unfavorable conditions coded in here
-
-  res <- rep(NA, length(conditions))
-  if (length(TimeToGerminate.favorable) > 0) {
-      res[conditions] <- TimeToGerminate.favorable
-  }
-
-  res
-})
-
-do.vector <- compiler::cmpfun(function(kill.vector, max.duration.before.kill) {
-  doys <- seq_along(kill.vector)
-  doys[!kill.vector] <- NA	#calculate only for kill days
-  temp.rle <- rle(kill.vector)
-
-  if (sum(!temp.rle$values) > 0) {
-    temp.startdoy <- (1 + c(0, cumsum(temp.rle$lengths)))[!temp.rle$values]
-    temp.rle$values <- if(temp.rle$values[1]) {
-        rep(temp.startdoy, each = 2)
-      } else {
-        rep(temp.startdoy[-1], each = 2)
-      }
-    temp.rle$values <- temp.rle$values[seq_along(temp.rle$lengths)]
-
-  } else {#every day is kill free
-    temp.rle$values <- length(kill.vector) + 1
-  }
-  kill.durations <- inverse.rle(temp.rle) - doys
-  mortality <- rep(FALSE, times = length(kill.vector))
-  mortality[kill.durations > max.duration.before.kill] <- TRUE
-
-  mortality
-})
-
-#' Function to calculate mortality under conditions and checks survival limit
-calculate_SeedlingMortality_ByCondition <- compiler::cmpfun(function(kill.conditions, max.duration.before.kill) {
-  if (length(dim(kill.conditions)) > 0) { #i.e., is.matrix, columns=soil layers
-    apply(kill.conditions, 2, do.vector, max.duration.before.kill)
-  } else {
-    do.vector(kill.conditions, max.duration.before.kill)
-  }
-})
-
-
-#' Function to calculate favorable conditions for seedling growth for each day of a given year
-calculate_SuitableGrowthThisYear_UnderCondition <- compiler::cmpfun(function(favorable.conditions, consequences.unfavorable) {
-  out <- rep(NA, times = length(favorable.conditions))
-
-  if (consequences.unfavorable == 0) {
-    #if conditions become unfavorable, then stop growth for rest of season
-    temp.rle <- rle(favorable.conditions)
-    temp.firstFavorable.index <- which(temp.rle$values)[1]
-
-    if(!is.na(temp.firstFavorable.index) && temp.firstFavorable.index < length(temp.rle$values)){
-      temp.rle$values[(temp.firstFavorable.index+1):length(temp.rle$values)] <- FALSE
-      out <- inverse.rle(temp.rle)
-    } else { #nothing changed, either because all days are either favorable or unfavorable or because first favorable period is also the last in the season
-      out <- favorable.conditions
-    }
-
-  } else if(consequences.unfavorable == 1) {
-    #if conditions become unfavorable, then resume growth afterwards
-    out <- favorable.conditions
-  }
-
-  out
-})
-
-
-#' Function to calculate rooting depth at given age
-SeedlingRootingDepth <- compiler::cmpfun(function(age, P0, K, r) {
-  depth <- K * P0 * exp(r * age) / (K + P0 * (exp(r * age) - 1))	#[age] = days, [P0, K, r] = mm
-
-  pmax(0, depth) / 10 # units = cm
-})
-
-
-get.DoyAtLevel <- compiler::cmpfun(function(x, level) {
-  which(x == level & x > 0)
-})
-
-get.DoyMostFrequentSuccesses <- compiler::cmpfun(function(doys, data) {
-  res1.max <- sapply(1:2, function(x) quantile(doys[doys[, x] > 0, x], probs = c(0.1, 1), type = 3)) # must return one of the values because the quantiles are compared against the values in function 'get.DoyAtLevel'
-  germ.doy <- if (all(!data[, 1])) {
-      #no successful germination
-      list(NA, NA)
-    } else {
-      lapply(1:2, function(x) get.DoyAtLevel(doys[, 1], res1.max[x, 1]))
-    }
-  sling.doy <- if (all(!data[, 2])) {
-      #no successful seedlings
-      list(NA, NA)
-    } else {
-      lapply(1:2, function(x) get.DoyAtLevel(doys[, 2], res1.max[x, 2]))
-    }
-  res1.max <- list(germ.doy, sling.doy)
-
-  unlist(lapply(res1.max, function(x) c(min(x[[1]]), median(x[[2]]), max(x[[1]]))))
-})
-
-#------ End of GISSM functions
-########################
 
 
 
