@@ -2907,6 +2907,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							"vpd.yr", "vpd.mo", "vpd.dy",
 							"AET.yr", "AET.mo", "AET.dy",
 							"soiltemp.yr", "soiltemp.mo", "soiltemp.dy",
+              "soiltemp.yr.all", "soiltemp.mo.all", "soiltemp.dy.all",
 							"swcbulk.yr", "swcbulk.mo", "swcbulk.dy",
 							"swabulk.yr", "swabulk.mo", "swabulk.dy",
 							"swamatric.yr", "swamatric.mo", "swamatric.dy",
