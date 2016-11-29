@@ -17,6 +17,17 @@ toln <- sqrt(.Machine$double.neg.eps)
 
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
+# PRAGMA, see http://www.sqlite.org/pragma.html
+PRAGMA_settings1 <- function() c("PRAGMA cache_size = 400000;",
+            "PRAGMA synchronous = 1;",
+            "PRAGMA locking_mode = EXCLUSIVE;",
+            "PRAGMA temp_store = MEMORY;",
+            "PRAGMA auto_vacuum = NONE;")
+PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
+            "PRAGMA page_size=65536;", # no return value
+            "PRAGMA max_page_count=2147483646;", # returns the maximum page count
+            "PRAGMA foreign_keys = ON;") #no return value
+
 set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
   temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
   invisible(0)
