@@ -6048,8 +6048,6 @@ if (any(actions == "concatenate")) {
 		# Add data to SQL databases
 		for	(j in seq_along(theFileList)) {
 			tDB1 <- Sys.time()
-      if (!be.quiet)
-        print(paste0("Adding ", sQuote(theFileList[j]), " to output DB: started at ", tDB1))
 
 			tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
 			if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
@@ -6061,6 +6059,10 @@ if (any(actions == "concatenate")) {
 			sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
 			add_to_DBCurrent <- copyCurrentConditionsFromTempSQL &&
         grepl("SQL_Current", theFileList[j])
+
+      if (!be.quiet)
+        print(paste("Adding", sQuote(theFileList[j]), "with", length(sql_cmds), "lines",
+          "to output DB: started at ", tDB1))
 
       # Send SQL statements to database
       OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con)), "try-error")
@@ -6106,23 +6108,26 @@ if (any(actions == "concatenate")) {
         OK_line <- OK_line && any(table_name == out_tables_aggr)
 
         # Insert data via temporary SQL statement
-        OK_line <- OK_line && !(id %in% pids_inserted[[table_name]])
+        OK_line1 <- OK_line && !(id %in% pids_inserted[[table_name]])
         OK_line2 <- if (add_to_DBCurrent) {
             OK_line && !(id %in% pids2_inserted[[table_name]])
-          } else FALSE
+          } else TRUE
 
-				if (OK_line) {
+				if (OK_line1) {
 					res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
-          OK_line <- OK_line && !inherits(res, "try-error")
+          OK_line1 <- OK_line1 && !inherits(res, "try-error")
+          if (OK_line1)
+            pids_inserted[[table_name]] <- c(pids_inserted[[table_name]], id)
 				}
 				if (OK_line2 && add_to_DBCurrent) {
 					res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
-          OK_line <- OK_line && !inherits(res, "try-error")
+          OK_line2 <- OK_line2 && !inherits(res, "try-error")
+          if (OK_line2)
+            pids2_inserted[[table_name]] <- c(pids2_inserted[[table_name]], id)
 				}
 
         # Add processed Pid to vector
-        if (OK_line && (!add_to_DBCurrent || (OK_line2 && add_to_DBCurrent))) {
-          pids_inserted <- c(pids_inserted, id)
+        if (OK_line1 && OK_line2) {
           if (print.debug)
             print(paste("Added to output DB: P_id =", id, "from row", k, "of",
               sQuote(theFileList[j])))
@@ -6149,11 +6154,12 @@ if (any(actions == "concatenate")) {
 			}
 
 			# Clean up and report
-      if (OK_tempfile) {
+      if (OK_tempfile || !is.null(notOK_lines)) {
 				cat(file.path(dir.out.temp, theFileList[j]),
-				    file = file.path(dir.out.temp,concatFile), append = TRUE, sep = "\n")
-				if (deleteTmpSQLFiles)
-					try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
+				    file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
+
+        if (deleteTmpSQLFiles)
+          try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
 			}
 
 			if (print.debug) {
