@@ -10,6 +10,37 @@
 #--------------------------------------------------------------------------------------------------#
 
 
+# PRAGMA, see http://www.sqlite.org/pragma.html
+PRAGMA_settings1 <- function() c("PRAGMA cache_size = 400000;",
+            "PRAGMA synchronous = 1;",
+            "PRAGMA locking_mode = EXCLUSIVE;",
+            "PRAGMA temp_store = MEMORY;",
+            "PRAGMA auto_vacuum = NONE;")
+PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
+            "PRAGMA page_size=65536;", # no return value
+            "PRAGMA max_page_count=2147483646;", # returns the maximum page count
+            "PRAGMA foreign_keys = ON;") #no return value
+
+set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
+  temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
+  invisible(0)
+})
+
+getSiteIds <- compiler::cmpfun(function(con, folderNames) {
+  wf_ids <- RSQLite::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
+  wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
+})
+
+local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name.OutputDB) {	# Get name of weather file from output database
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN, runIDs)))[1,1]
+  DBI::dbDisconnect(con)
+  temp
+})
+
+
+
+
 #---File names
 maker.climateScenarios <- function(currentScenario = "Current",
   ensembleScenarios = c("RCP45", "RCP85"), ensembleLevels = c(2, 8, 15)) {
