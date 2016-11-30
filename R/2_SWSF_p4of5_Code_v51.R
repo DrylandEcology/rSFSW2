@@ -6024,17 +6024,24 @@ if (any(actions == "concatenate")) {
 		# Locate temporary SQL files
 		theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
 			full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
-		completedFiles <- if (file.exists(file.path(dir.out.temp,concatFile))) {
-				basename(readLines(file.path(dir.out.temp, concatFile)))
-			} else {
-				character(0)
-			}
-		if (deleteTmpSQLFiles && any(theFileList %in% completedFiles)) {
-		  # remove any already inserted files from list
-			theFileList <- theFileList[-which(theFileList %in% completedFiles)]
-		}
+
+    # remove any already inserted files from list
+    if (!deleteTmpSQLFiles && continueAfterAbort) {
+      temp <- file.path(dir.out.temp, concatFile)
+      completedFiles <- if (file.exists(temp)) {
+          basename(readLines(temp))
+        } else {
+          character(0)
+        }
+      temp <- which(theFileList == completedFiles)
+      if (length(temp) > 0) {
+        theFileList <- theFileList[-temp]
+      }
+    }
 
     # Check what has already been inserted in each tables
+# NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
+#   may then be too large for available memory
     pids_inserted <- lapply(out_tables_aggr, function(agg_table)
       DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
     names(pids_inserted) <- out_tables_aggr
@@ -6061,7 +6068,7 @@ if (any(actions == "concatenate")) {
         grepl("SQL_Current", theFileList[j])
 
       if (!be.quiet)
-        print(paste("Adding", sQuote(theFileList[j]), "with", length(sql_cmds), "lines",
+        print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
           "to output DB: started at ", tDB1))
 
       # Send SQL statements to database
@@ -6087,7 +6094,7 @@ if (any(actions == "concatenate")) {
 					id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
 
 				if (any(id_start < 1, id_end <= id_start)) {
-          print(paste0("P_id not located in file ", sQuote(theFileList[j]), " on line ",
+          print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
             k, ": ", substr(sql_cmds[k], 1, 100)))
           next
 				}
@@ -6099,7 +6106,7 @@ if (any(actions == "concatenate")) {
         id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
 
         if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
-          print(paste0("Name of table not located in file ", sQuote(theFileList[j]),
+          print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
             " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
           next
         }
@@ -6107,11 +6114,63 @@ if (any(actions == "concatenate")) {
         table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
         OK_line <- OK_line && any(table_name == out_tables_aggr)
 
+        # Check if P_id already in output DB
+        OK_line1 <- id %in% pids_inserted[[table_name]]
+        OK_line2 <- if (add_to_DBCurrent) id %in% pids2_inserted[[table_name]] else FALSE
+
+        # If P_id already in output DB, then check whether data agree
+        OK_agree1 <- FALSE
+        if (OK_line1) {
+          id_data_DB <- DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
+            "\" WHERE P_id = ", id))
+
+          tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
+          repeat {
+            nt <- nchar(tmp_data)
+            if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
+            tmp_data <- substr(tmp_data, 1, nt - 1)
+          }
+          if (nt > 1 ) {
+            tmp_data <- paste0("c(", tmp_data)
+            tmp_data <- gsub("NULL", "NA", tmp_data)
+            tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
+
+            OK_agree1 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data,
+              tolerance = 1e2 * tol))
+
+            if (!OK_agree1)
+              print(paste("Data already in output DB with P_id =", id, "of table",
+              shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
+          }
+        }
+
+        OK_agree2 <- FALSE
+        if (OK_line2) {
+          id_data_DB <- DBI::dbGetQuery(con2, paste0("SELECT * FROM \"", table_name,
+            "\" WHERE P_id = ", id))
+
+          tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
+          repeat {
+            nt <- nchar(tmp_data)
+            if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
+            tmp_data <- substr(tmp_data, 1, nt - 1)
+          }
+          if (nt > 1 ) {
+            tmp_data <- paste0("c(", tmp_data)
+            tmp_data <- gsub("NULL", "NA", tmp_data)
+            tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
+
+            OK_agree2 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data))
+
+            if (!OK_agree2)
+              print(paste("Data already in output DB with P_id =", id, "of table",
+              shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
+          }
+        }
+
         # Insert data via temporary SQL statement
-        OK_line1 <- OK_line && !(id %in% pids_inserted[[table_name]])
-        OK_line2 <- if (add_to_DBCurrent) {
-            OK_line && !(id %in% pids2_inserted[[table_name]])
-          } else TRUE
+        OK_line1 <- OK_line && !OK_line1
+        OK_line2 <- if (add_to_DBCurrent) OK_line && !OK_line2 else TRUE
 
 				if (OK_line1) {
 					res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
@@ -6129,13 +6188,15 @@ if (any(actions == "concatenate")) {
         # Add processed Pid to vector
         if (OK_line1 && OK_line2) {
           if (print.debug)
-            print(paste("Added to output DB: P_id =", id, "from row", k, "of",
-              sQuote(theFileList[j])))
+            print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
+              "from row", k, "of", shQuote(theFileList[j])))
 
         } else {
-          notOK_lines <- c(notOK_lines, k)
-          print(paste("The output DB has problems with P_id =", id,
-            "when processing file", sQuote(theFileList[j])))
+          if (!OK_agree1 || (OK_agree2 && add_to_DBCurrent)) {
+            notOK_lines <- c(notOK_lines, k)
+            print(paste("The output DB has problems with inserting P_id =", id, "to table",
+              shQuote(table_name), "when processing file", shQuote(theFileList[j])))
+          }
         }
       }
 
