@@ -5998,6 +5998,15 @@ tryCatch({
 #------------------------
 
 #------------------------
+# NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
+# around SQL insert statements, but instead as data.frames. Text files containing
+# data.frames may be much faster with checks for duplicate P_id entries and could be
+# inserted at once (instead of line by line) with the command
+#   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
+
+# NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
+#   may then be too large for available memory
+
 if (any(actions == "concatenate")) {
 	t1 <- Sys.time()
   if (!be.quiet)
@@ -6006,24 +6015,9 @@ if (any(actions == "concatenate")) {
 	temp <- as.double(difftime(t1, t.overall, units = "secs"))
 
 	if (temp <= (MinTimeConcat - 36000) || !parallel_runs || !identical(parallel_backend, "mpi")) {#need at least 10 hours for anything useful
-		#Connect to the Database
-		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-
-		do_DBCurrent <- copyCurrentConditionsFromTempSQL || copyCurrentConditionsFromDatabase
-		reset_DBCurrent <- copyCurrentConditionsFromTempSQL && (cleanDB || !file.exists(name.OutputDBCurrent))
-		if (reset_DBCurrent) file.copy(from = name.OutputDB, to = name.OutputDBCurrent)
-		if (do_DBCurrent) con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
-		if (reset_DBCurrent) dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-		out_tables <- DBI::dbListTables(con)
-		out_tables_aggr <- grep("aggregation_", out_tables, value = TRUE)
-
-		# Prepare output databases
-		set_PRAGMAs(con, PRAGMA_settings1())
-		if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
-
-		# Locate temporary SQL files
-		theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
-			full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+    # Locate temporary SQL files
+    theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
+      full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
 
     # remove any already inserted files from list
     if (!deleteTmpSQLFiles && continueAfterAbort) {
@@ -6039,199 +6033,214 @@ if (any(actions == "concatenate")) {
       }
     }
 
-    # Check what has already been inserted in each tables
-# NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
-#   may then be too large for available memory
-    pids_inserted <- lapply(out_tables_aggr, function(agg_table)
-      DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-    names(pids_inserted) <- out_tables_aggr
+    if (length(theFileList) > 0) {
+      #Connect to the Database
+      con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
-    if (copyCurrentConditionsFromTempSQL) {
-      pids2_inserted <- lapply(out_tables_aggr, function(agg_table)
-        DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-      names(pids2_inserted) <- out_tables_aggr
-    }
+      do_DBCurrent <- copyCurrentConditionsFromTempSQL || copyCurrentConditionsFromDatabase
+      reset_DBCurrent <- copyCurrentConditionsFromTempSQL && (cleanDB || !file.exists(name.OutputDBCurrent))
+      if (reset_DBCurrent)
+        file.copy(from = name.OutputDB, to = name.OutputDBCurrent)
+      if (do_DBCurrent)
+        con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
+      if (reset_DBCurrent)
+        dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+      out_tables <- DBI::dbListTables(con)
+      out_tables_aggr <- grep("aggregation_", out_tables, value = TRUE)
 
-		# Add data to SQL databases
-		for	(j in seq_along(theFileList)) {
-			tDB1 <- Sys.time()
+      # Prepare output databases
+      set_PRAGMAs(con, PRAGMA_settings1())
+      if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
 
-			tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
-			if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
-				break
-			}
+      # Check what has already been inserted in each tables
+      pids_inserted <- lapply(out_tables_aggr, function(agg_table)
+        DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
+      names(pids_inserted) <- out_tables_aggr
 
-      OK_tempfile <- TRUE
-			# Read SQL statements from temporary file
-			sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
-			add_to_DBCurrent <- copyCurrentConditionsFromTempSQL &&
-        grepl("SQL_Current", theFileList[j])
+      if (copyCurrentConditionsFromTempSQL) {
+        pids2_inserted <- lapply(out_tables_aggr, function(agg_table)
+          DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
+        names(pids2_inserted) <- out_tables_aggr
+      }
 
-      if (!be.quiet)
-        print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
-          "to output DB: started at ", tDB1))
+      # Add data to SQL databases
+      for (j in seq_along(theFileList)) {
+        tDB1 <- Sys.time()
 
-      # Send SQL statements to database
-      OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con)), "try-error")
-      if (add_to_DBCurrent)
-        OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con2)), "try-error")
-
-# NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
-# around SQL insert statements, but instead as data.frames. Text files containing
-# data.frames may be much faster with checks for duplicate P_id entries and could be
-# inserted at once (instead of line by line) with the command
-#   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
-
-      notOK_lines <- NULL
-
-      if (OK_tempfile) for (k in seq_along(sql_cmds)) {
-        OK_line <- TRUE
-
-				# Determine P_id
-				id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-				id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
-				if (id_end < 0)
-					id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
-
-				if (any(id_start < 1, id_end <= id_start)) {
-          print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
-            k, ": ", substr(sql_cmds[k], 1, 100)))
-          next
-				}
-
-				id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
-        OK_line <- OK_line && is.finite(id)
-
-        # Determine table
-        id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
-
-        if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
-          print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
-            " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
-          next
+        tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
+        if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
+          break
         }
 
-        table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
-        OK_line <- OK_line && any(table_name == out_tables_aggr)
+        OK_tempfile <- TRUE
+        # Read SQL statements from temporary file
+        sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
+        add_to_DBCurrent <- copyCurrentConditionsFromTempSQL &&
+          grepl("SQL_Current", theFileList[j])
 
-        # Check if P_id already in output DB
-        OK_line1 <- id %in% pids_inserted[[table_name]]
-        OK_line2 <- if (add_to_DBCurrent) id %in% pids2_inserted[[table_name]] else FALSE
+        if (!be.quiet)
+          print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
+            "to output DB: started at ", tDB1))
 
-        # If P_id already in output DB, then check whether data agree
-        OK_agree1 <- FALSE
-        if (OK_line1) {
-          id_data_DB <- DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
-            "\" WHERE P_id = ", id))
+        # Send SQL statements to database
+        OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con)), "try-error")
+        if (add_to_DBCurrent)
+          OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con2)), "try-error")
 
-          tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-          repeat {
-            nt <- nchar(tmp_data)
-            if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-            tmp_data <- substr(tmp_data, 1, nt - 1)
+        notOK_lines <- NULL
+
+        if (OK_tempfile) for (k in seq_along(sql_cmds)) {
+          OK_line <- TRUE
+
+          # Determine P_id
+          id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
+          id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
+          if (id_end < 0)
+            id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
+
+          if (any(id_start < 1, id_end <= id_start)) {
+            print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
+              k, ": ", substr(sql_cmds[k], 1, 100)))
+            next
           }
-          if (nt > 1 ) {
-            tmp_data <- paste0("c(", tmp_data)
-            tmp_data <- gsub("NULL", "NA", tmp_data)
-            tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
 
-            OK_agree1 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data,
-              tolerance = 1e2 * tol))
+          id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
+          OK_line <- OK_line && is.finite(id)
 
-            if (!OK_agree1)
-              print(paste("Data already in output DB with P_id =", id, "of table",
-              shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
+          # Determine table
+          id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
+
+          if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
+            print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
+              " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
+            next
+          }
+
+          table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
+          OK_line <- OK_line && any(table_name == out_tables_aggr)
+
+          # Check if P_id already in output DB
+          OK_line1 <- id %in% pids_inserted[[table_name]]
+          OK_line2 <- if (add_to_DBCurrent) id %in% pids2_inserted[[table_name]] else FALSE
+
+          # If P_id already in output DB, then check whether data agree
+          OK_agree1 <- FALSE
+          if (OK_line1) {
+            id_data_DB <- DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
+              "\" WHERE P_id = ", id))
+
+            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
+            repeat {
+              nt <- nchar(tmp_data)
+              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
+              tmp_data <- substr(tmp_data, 1, nt - 1)
+            }
+            if (nt > 1 ) {
+              tmp_data <- paste0("c(", tmp_data)
+              tmp_data <- gsub("NULL", "NA", tmp_data)
+              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
+
+              OK_agree1 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data,
+                tolerance = 1e2 * tol))
+
+              if (!OK_agree1)
+                print(paste("Data already in output DB with P_id =", id, "of table",
+                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
+            }
+          }
+
+          OK_agree2 <- FALSE
+          if (OK_line2) {
+            id_data_DB <- DBI::dbGetQuery(con2, paste0("SELECT * FROM \"", table_name,
+              "\" WHERE P_id = ", id))
+
+            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
+            repeat {
+              nt <- nchar(tmp_data)
+              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
+              tmp_data <- substr(tmp_data, 1, nt - 1)
+            }
+            if (nt > 1 ) {
+              tmp_data <- paste0("c(", tmp_data)
+              tmp_data <- gsub("NULL", "NA", tmp_data)
+              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
+
+              OK_agree2 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data))
+
+              if (!OK_agree2)
+                print(paste("Data already in output DB with P_id =", id, "of table",
+                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
+            }
+          }
+
+          # Insert data via temporary SQL statement
+          OK_line1 <- OK_line && !OK_line1
+          OK_line2 <- if (add_to_DBCurrent) OK_line && !OK_line2 else TRUE
+
+          if (OK_line1) {
+            res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
+            OK_line1 <- OK_line1 && !inherits(res, "try-error")
+            if (OK_line1)
+              pids_inserted[[table_name]] <- c(pids_inserted[[table_name]], id)
+          }
+          if (OK_line2 && add_to_DBCurrent) {
+            res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
+            OK_line2 <- OK_line2 && !inherits(res, "try-error")
+            if (OK_line2)
+              pids2_inserted[[table_name]] <- c(pids2_inserted[[table_name]], id)
+          }
+
+          # Add processed Pid to vector
+          if (OK_line1 && OK_line2) {
+            if (print.debug)
+              print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
+                "from row", k, "of", shQuote(theFileList[j])))
+
+          } else {
+            if (!OK_agree1 || (OK_agree2 && add_to_DBCurrent)) {
+              notOK_lines <- c(notOK_lines, k)
+              print(paste("The output DB has problems with inserting P_id =", id, "to table",
+                shQuote(table_name), "when processing file", shQuote(theFileList[j])))
+            }
           }
         }
 
-        OK_agree2 <- FALSE
-        if (OK_line2) {
-          id_data_DB <- DBI::dbGetQuery(con2, paste0("SELECT * FROM \"", table_name,
-            "\" WHERE P_id = ", id))
-
-          tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-          repeat {
-            nt <- nchar(tmp_data)
-            if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-            tmp_data <- substr(tmp_data, 1, nt - 1)
-          }
-          if (nt > 1 ) {
-            tmp_data <- paste0("c(", tmp_data)
-            tmp_data <- gsub("NULL", "NA", tmp_data)
-            tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
-
-            OK_agree2 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data))
-
-            if (!OK_agree2)
-              print(paste("Data already in output DB with P_id =", id, "of table",
-              shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
-          }
-        }
-
-        # Insert data via temporary SQL statement
-        OK_line1 <- OK_line && !OK_line1
-        OK_line2 <- if (add_to_DBCurrent) OK_line && !OK_line2 else TRUE
-
-				if (OK_line1) {
-					res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
-          OK_line1 <- OK_line1 && !inherits(res, "try-error")
-          if (OK_line1)
-            pids_inserted[[table_name]] <- c(pids_inserted[[table_name]], id)
-				}
-				if (OK_line2 && add_to_DBCurrent) {
-					res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
-          OK_line2 <- OK_line2 && !inherits(res, "try-error")
-          if (OK_line2)
-            pids2_inserted[[table_name]] <- c(pids2_inserted[[table_name]], id)
-				}
-
-        # Add processed Pid to vector
-        if (OK_line1 && OK_line2) {
-          if (print.debug)
-            print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
-              "from row", k, "of", shQuote(theFileList[j])))
+        if (is.null(notOK_lines)) {
+          OK_tempfile <- OK_tempfile && DBI::dbCommit(con)
+          if (add_to_DBCurrent)
+            OK_tempfile <- OK_tempfile && DBI::dbCommit(con2)
 
         } else {
-          if (!OK_agree1 || (OK_agree2 && add_to_DBCurrent)) {
-            notOK_lines <- c(notOK_lines, k)
-            print(paste("The output DB has problems with inserting P_id =", id, "to table",
-              shQuote(table_name), "when processing file", shQuote(theFileList[j])))
-          }
+          OK_tempfile <- FALSE
+          DBI::dbRollback(con)
+          if (add_to_DBCurrent) DBI::dbRollback(con2)
+          # Write failed lines to new file
+          writeLines(sql_cmds[notOK_lines],
+            con = file.path(dir.out.temp, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
+        }
+
+        # Clean up and report
+        if (OK_tempfile || !is.null(notOK_lines)) {
+          cat(file.path(dir.out.temp, theFileList[j]),
+              file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
+
+          if (deleteTmpSQLFiles)
+            try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
+        }
+
+        if (print.debug) {
+          tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
+          print(paste("    ended at", Sys.time(), "after", tDB, "s"))
         }
       }
 
-      if (is.null(notOK_lines)) {
-        OK_tempfile <- OK_tempfile && DBI::dbCommit(con)
-        if (add_to_DBCurrent)
-          OK_tempfile <- OK_tempfile && DBI::dbCommit(con2)
+      if (!be.quiet)
+        print(paste("Output DB complete in :",
+          round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 
-			} else {
-        OK_tempfile <- FALSE
-				DBI::dbRollback(con)
-				if (add_to_DBCurrent) DBI::dbRollback(con2)
-        # Write failed lines to new file
-        writeLines(sql_cmds[notOK_lines],
-          con = file.path(dir.out.temp, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
-			}
-
-			# Clean up and report
-      if (OK_tempfile || !is.null(notOK_lines)) {
-				cat(file.path(dir.out.temp, theFileList[j]),
-				    file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
-
-        if (deleteTmpSQLFiles)
-          try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
-			}
-
-			if (print.debug) {
-				tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
-				print(paste("    ended at", Sys.time(), "after", tDB, "s"))
-			}
-		}
-
-    if (!be.quiet)
-      print(paste("Output DB complete in :",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+      DBI::dbDisconnect(con)
+      if (do_DBCurrent) DBI::dbDisconnect(con2)
+    }
 
 		if(copyCurrentConditionsFromDatabase & !copyCurrentConditionsFromTempSQL) {
 			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
@@ -6260,7 +6269,7 @@ if (any(actions == "concatenate")) {
 			#Get Tables minus ones we do not want
 			Tables <- dbListTables(con)
 			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[-(which(Tables %in% headerTables))]
+			Tables <- Tables[-(which(Tables %in% headerTables()))]
 
 			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
 			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
@@ -6273,7 +6282,7 @@ if (any(actions == "concatenate")) {
 
 			Tables <- dbListTables(con)
 			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[(which(Tables %in% headerTables[-1]))]
+			Tables <- Tables[(which(Tables %in% headerTables()[-1]))]
 
 			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
 			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
@@ -6284,10 +6293,11 @@ if (any(actions == "concatenate")) {
 
 			unlink(paste(Tables,".sql",sep=""))
 			unlink(c("dump.txt","insert.txt"))
+
+  		DBI::dbDisconnect(con)
+	  	if (do_DBCurrent) DBI::dbDisconnect(con2)
 		}
 
-		DBI::dbDisconnect(con)
-		if (do_DBCurrent) DBI::dbDisconnect(con2)
 	} else {
 		print(paste("Need more than", MinTimeConcat, "seconds to put SQL in output DB."))
 	}
@@ -6295,79 +6305,100 @@ if (any(actions == "concatenate")) {
 
 
 #--------------------------------------------------------------------------------------------------#
-#------------------------CHECK COMPLETENESS OF OUTPUT FILES AND SIMULATIONS
+#------------------------CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION
 t.check <- Sys.time()
 
-if(checkCompleteness){
+if (any(actions == "check")) {
 
-	if(!be.quiet) print(paste("SWSF checks simulations and output: started at", t.check))
-	headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
+	if (!be.quiet)
+	  print(paste("SWSF checks simulations and output: started at", t.check))
 
-	checkForMissing <- function(Table, database){
-		con <- DBI::dbConnect(RSQLite::SQLite(), dbname = database)
-
-		sql <- paste("SELECT runs.P_id FROM runs LEFT JOIN ",Table," ON (runs.P_id=",Table,".P_id) WHERE ",Table,".P_id is NULL ORDER BY runs.P_id",sep="")
-
-		mP_ids <- dbGetQuery(con, sql)$P_id
-
-		if(length(mP_ids) > 0)
-			save(mP_ids,file=paste(database,"_",Table,"_missing_P_ids.RData"))
-
-		return(length(mP_ids))
-	}
-
-	library(RSQLite,quietly = TRUE)
 	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-
 	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables)]
+	Tables <- Tables[-which(Tables %in% headerTables())]
+  DBI::dbDisconnect(con)
 
+  do_DBcurrent <- copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL
+  missing_Pids <- missing_Pids_current <- NULL
 
-	if(parallel_runs && parallel_init){
+	if (parallel_runs && parallel_init) {
+    if (!exists("swsf_env")) {
+      swsf_env <- new.env(parent = emptyenv())
+      load(rSWSF, envir = swsf_env)
+    }
+
+    obj2exp <- gather_objects_for_export(varlist = ls(envir = swsf_env),
+      list_envs = list(rSWSF = swsf_env))
+
 		#call the simulations depending on parallel backend
-		if(identical(parallel_backend, "mpi")) {
-			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
+		if (identical(parallel_backend, "mpi")) {
+			Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
+      export_objects_to_workers(obj2exp, "mpi")
 
-			numberMissing <- Rmpi::mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDB)
-			TotalMissing <- sum(unlist(numberMissing))
+      temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+        dbname = name.OutputDB)
+      missing_Pids <- as.integer(unlist(temp))
 
-			print(paste("dbTables.sqlite3 is missing : ",TotalMissing,"",sep=""))
+      if (do_DBcurrent) {
+        temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+          dbname = name.OutputDBCurrent)
+        missing_Pids_current <- as.integer(unlist(temp))
+      }
 
-			numberMissing <- Rmpi::mpi.applyLB(x=Tables, fun=checkForMissing, database=name.OutputDBCurrent)
-			TotalMissing <- sum(unlist(numberMissing))
+      Rmpi::mpi.bcast.cmd(rm(list = ls()))
+      Rmpi::mpi.bcast.cmd(gc())
 
-			print(paste("dbTables_current.sqlite3 is missing : ",TotalMissing,"",sep=""))
 		} else if(identical(parallel_backend, "snow")) {
-			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+			snow::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
+      export_objects_to_workers(obj2exp, "snow", cl)
 
-			numberMissing <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% checkForMissing(Tables[i], database=name.OutputDB)
-			print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
-			numberMissing <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% checkForMissing(Tables[i], database=name.OutputDBCurrent)
-			print(paste("dbTables_current.sqlite3 is missing : ",numberMissing,"",sep=""))
+      temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
+        dbname = name.OutputDB)
+      missing_Pids <- as.integer(unlist(temp))
+
+      if (do_DBcurrent) {
+        temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
+          dbname = name.OutputDBCurrent)
+        missing_Pids_current <- as.integer(unlist(temp))
+      }
+
+      snow::clusterEvalQ(cl, rm(list = ls()))
+      snow::clusterEvalQ(cl, gc())
 		}
+
 	} else {
-		numberMissing <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-			checkForMissing(table, database=name.OutputDB)
-		}
-		print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
+    temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
+    missing_Pids <- as.integer(unlist(temp))
 
-		numberMissing <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-			checkForMissing(table, database=name.OutputDBCurrent)
-		}
-		print(paste("dbTables.sqlite3 is missing : ",numberMissing,"",sep=""))
-	}
+    if (do_DBcurrent) {
+      temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDBCurrent)
+      missing_Pids_current <- as.integer(unlist(temp))
+    }
+  }
 
+  if (length(missing_Pids) > 0) {
+    ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
 
+    print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
+      length(missing_Pids), "records; P_id of these records are saved to file",
+      shQuote(ftemp)))
+    saveRDS(missing_Pids, file = ftemp)
+  }
 
-	all.complete <- complete.aggregations & complete.simulations	#do check here: still need to implement
-	if(!all.complete) print("Not all simulations or aggregations were successful: please, check logs")
-} else {
-	all.complete <- TRUE	#assume all is good
+  if (length(missing_Pids_current) > 0) {
+    ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
+
+    print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
+      length(missing_Pids_current), "records; P_id of these records are saved to file",
+      shQuote(ftemp)))
+    saveRDS(missing_Pids_current, file = ftemp)
+  }
 }
 
 #timing of check
-delta.check <- difftime(Sys.time(), t.check, units="secs")
-if(!be.quiet & checkCompleteness) print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
+delta.check <- difftime(Sys.time(), t.check, units = "secs")
+if (!be.quiet & any(actions == "check"))
+  print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------ENSEMBLE GENERATION
@@ -6549,7 +6580,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
 	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables)]
+	Tables <- Tables[-which(Tables %in% headerTables())]
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
 	if(parallel_runs && parallel_init){

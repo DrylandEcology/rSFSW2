@@ -141,7 +141,6 @@ con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 Tables <- RSQLite::dbListTables(con)
 
 if (length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2())
-headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
@@ -1126,7 +1125,7 @@ if (length(Tables) == 0 || do.clean) {
 
 			Tables<-dbListTables(con)
 			dbDisconnect(con)
-			Tables<-Tables[!(Tables %in% headerTables)]
+			Tables<-Tables[!(Tables %in% headerTables())]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
 			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
