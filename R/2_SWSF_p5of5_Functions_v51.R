@@ -175,6 +175,7 @@ isLeapYear <- compiler::cmpfun(function(y) {
 #'    - runsN_Pid == max(P_id) == runsN_incl x scenario_No
 #'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database
 #'
+#' @aliases it_exp it_site it_Pid
 #' @name iterators
 NULL
 #' @rdname iterators
@@ -1393,7 +1394,7 @@ fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
 #' @param x A numeric data.frame or matrix. Columns are soil layers.
 #' @param il An integer value. The column/soil layer number after which a new layer is added.
 #' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
-#' @param method A character string. \code{See details.}
+#' @param method A character string. \link{@details}
 #'
 #' @return An object like x with one column more at position \code{il + 1}.
 add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate", "exhaust")) {
