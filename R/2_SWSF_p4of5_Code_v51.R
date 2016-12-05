@@ -632,7 +632,6 @@ if(exinfo$GriddedDailyWeatherFromLivneh2013_NorthAmerica && createAndPopulateWea
 }
 
 
-
 if (do_weather_source) {
   lwf_cond1 <- sw_input_treatments_use["LookupWeatherFolder"] &&
                 !anyNA(sw_input_treatments$LookupWeatherFolder[runIDs_sites])
@@ -711,6 +710,25 @@ if (do_weather_source) {
 		}
 
 		sites_dailyweather_source
+	}
+	
+	dw_Livneh <- function(sites_dailyweather_source) {
+	  years <- simstartyr >= 1915 && endyr <= 2011
+	  if (any(years)) {
+	    livneh_test <- raster::raster(file.path(dir.ex.Livneh, "Meteorology_Livneh_CONUSExt_v.1.2_2013.191501.nc"))
+	    raster::CRS(livneh_test) <- raster::CRS("+proj=longlat +ellps=WGS8 +datum=WGS84 +no_defs +towgs84=0,0,0")
+	    sp_locs <- sp::SpatialPoints(coords = SWRunInformation[runIDs_sites, c("X_WGS84", "Y_WGS84")], 
+	                                 proj4string = CRS("+proj=longlat +ellps=WGS8 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+	    valid <- !is.na(raster::extract(livneh_test, y = spTransform(sp_locs, CRSobj = raster::CRS(projection(livneh_test)))))
+	    if (any(valid)) {
+	      sites_dailyweather_source[valid] <<- "Livneh_NorthAmerica"
+	      sites_dailyweather_names[valid] <<- with(SWRunInformation[runIDs_sites[valid], ], paste0(Label, "Livneh", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
+	    }
+	  }
+	  if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'Livneh_NorthAmerica'"))
+	}
+	
+	sites_dailyweather_source
 	}
 
 	dw_NRCan_10km_Canada <- function(sites_dailyweather_source) {
