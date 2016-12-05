@@ -93,7 +93,13 @@ if (createAndPopulateWeatherDatabase) {
 			dbW_compression_type = dbW_compression_type)
 	}
 	rm(ids_DayMet_extraction)
-
+	
+	ids_Livneh <- runIDs_sites[which(sites_dailyweather_source == "Livneh_NorthAmerica")]
+	if (length(ids_Livneh > 0) {
+	  source(file.path(dir.code, "R", "Livneh-Extraction.R"))
+	}
+	rm(ids_Livneh)
+	
 	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
 	if (length(ids_NRCan_extraction) > 0) {
 		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
