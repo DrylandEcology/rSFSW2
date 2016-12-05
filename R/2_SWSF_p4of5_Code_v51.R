@@ -722,7 +722,7 @@ if (do_weather_source) {
 	    valid <- !is.na(raster::extract(livneh_test, y = spTransform(sp_locs, CRSobj = raster::CRS(projection(livneh_test)))))
 	    if (any(valid)) {
 	      sites_dailyweather_source[valid] <<- "Livneh_NorthAmerica"
-	      sites_dailyweather_names[valid] <<- with(SWRunInformation[runIDs_sites[valid], ], paste0(Label, "Livneh", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
+	      sites_dailyweather_names[valid] <<- with(SWRunInformation[runIDs_sites[valid], ], paste0(Label, "Livneh", formatC(X_WGS84, digits=5, format="f"), "_", formatC(Y_WGS84, digits=5, format="f")))
 	    }
 	  }
 	  if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'Livneh_NorthAmerica'"))
