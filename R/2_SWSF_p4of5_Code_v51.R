@@ -625,6 +625,12 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
 }
 
+if(exinfo$GriddedDailyWeatherFromLivneh2013_NorthAmerica && createAndPopulateWeatherDatabase){
+  dir.ex.Livneh <- file.path(dir.ex.weather, "Livneh_North_America", "MONTHLY_GRIDS")
+  stopifnot(file.exists(dir.ex.Livneh), require(raster), require(sp), require(rgdal), 
+            require(ncdf4), require(RSQLite))
+}
+
 
 
 if (do_weather_source) {
