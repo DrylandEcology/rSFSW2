@@ -1909,33 +1909,26 @@ if (exinfo$ExtractClimateChangeScenarios &&
     dry_wet_threshold <- 0.3
     wet_extreme_threshold <- 0.8
     
-    prcp_states <- weathergen::mc_assign_states(day_data$PRCP, day_data$MONTH, c('d','w','e'), weathergen::mc_state_threshold(day_data$PRCP, day_data$MONTH, dry_wet_threshold, wet_extreme_threshold))
-    
+    if (hasArg("wgen_dry_spell_changes")) dry_spell_changes <- wgen_dry_spell_changes
+    else dry_spell_changes <- 1 # can be one value or a vector of 12   
+        
+    if (hasArg("wgen_wet_spell_changes")) dry_spell_changes <- wgen_wet_spell_changes
+    else wet_spell_changes <- 1 # can be one value or a vector of 12  
 
-    # complete BS
-    # dry_spell_changes <- sapply(seq(12), FUN = function(x) { 
-    #                         monthly_states <- prcp_states[as.integer(day_data$MONTH) == x] 
-    #                         states_rle <- rle(as.character(monthly_states))
-    #                         mean(states_rle$lengths[states_rle$values == 'd'])              
-    #                       })
-    # 
-    # wet_spell_changes <- sapply(seq(12), FUN = function(x) { 
-    #                         monthly_states <- prcp_states[as.integer(day_data$MONTH) == x] 
-    #                         states_rle <- rle(as.character(monthly_states))
-    #                         mean(states_rle$lengths[states_rle$values == 'w'])               
-    #                       })
-      
+    if (hasArg("wgen_prcp_cv_changes")) dry_spell_changes <- wgen_prcp_cv_changes
+    else wet_spell_changes <- 1 # can be one value or a vector of 12  
+        
     changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
     
     prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
     
     temp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"]))
     
-    
-    
     # set.seed(1) # for testing
     if (!be.quiet) print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
-                               ",start_water_year=",start_yr,",start_month =",start_month,")"))
+                               ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
+                               "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
+                               wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
     
     # consider setting more parameters 
     # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence				  
@@ -1946,7 +1939,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
                                              dry_wet_threshold=dry_wet_threshold, 
                                              wet_extreme_quantile_threshold=wet_extreme_threshold,
                                              include_leap_days = FALSE,
-                                             dry_spell_changes=1, wet_spell_changes=1,
+                                             dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
                                              prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
                                              )   # Leap days has to be implemented in weathergen, only FALSE is currently supported
 
