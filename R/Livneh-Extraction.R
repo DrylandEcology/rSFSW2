@@ -5,28 +5,6 @@
 # Date   - December 5th, 2016
 ########################################################
 
-########################################################
-# Helper function to determine if a year is a leap year
-########################################################
-is_leapyear <- function(year){
-  return(((year %% 4 == 0) & (year %% 100 != 0)) | (year %% 400 == 0))
-}
-
-###################################################
-# Helper function to convert ncdf files to rasters
-###################################################
-convert_to_brick <- function(fileName, type) {
-  r <- raster::brick(fileName, varname=type)
-}
-
-###################################################################
-# Helper function to convert coordinates to the correct resolution
-###################################################################
-conv_res <- function(x) {
-  round((28.15625+round((x-28.15625)/0.0625,0)*0.0625), digits=5)
-}
-
-
 #' @title Extract Gridded Weather Data from a Livneh Database
 #'
 #' @description Extracts daily gridded weather data, including precipitation,
@@ -70,6 +48,27 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     require(Rsoilwat31) # For formatting the weather data
     require(RSQLite)    # For inserting data into the database
     require(sp)         # For the raster package
+  
+    ########################################################
+    # Helper function to determine if a year is a leap year
+    ########################################################
+    is_leapyear <- function(year){
+      return(((year %% 4 == 0) & (year %% 100 != 0)) | (year %% 400 == 0))
+    }
+    
+    ###################################################
+    # Helper function to convert ncdf files to rasters
+    ###################################################
+    convert_to_brick <- function(fileName, type) {
+      r <- raster::brick(fileName, varname=type)
+    }
+    
+    ###################################################################
+    # Helper function to convert coordinates to the correct resolution
+    ###################################################################
+    conv_res <- function(x) {
+      round((28.15625+round((x-28.15625)/0.0625,0)*0.0625), digits=5)
+    }
 
     #########################
     # Configuration settings
@@ -119,13 +118,13 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     colnames(coords)      <- NULL
     coords                <- na.omit(coords)
     xy_wgs84              <- matrix(unlist(coords), ncol = 2)
-    xy_wgs84              <- apply(xy_wgs84, 2, conv_res)
+    xy_wgs84              <- matrix(apply(xy_wgs84, 2, conv_res), ncol = 2)
 
     # Create coordinates as spatial points for extraction with raster layers
     prj_geographicWGS84   <- CRS("+proj=longlat +ellps=WGS84
                                  +datum=WGS84 +no_defs +towgs84=0,0,0")
-    sp_locs               <- SpatialPoints(coords=xy_wgs84,
-                                           proj4string=prj_geographicWGS84)
+    sp_locs               <- SpatialPoints(coords = xy_wgs84,
+                                           proj4string = prj_geographicWGS84)
 
     # Create necessary variables and containers for extraction
     seq_years             <-  seq(start_year, end_year)
@@ -196,7 +195,7 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
       # Increment j to the next year
       j = j + 12
     }
-
+    
     # Stop parallel execution
     if (run_parallel) {
       raster::endCluster()
@@ -270,14 +269,3 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     }
     invisible(0)
 }
-
-
-#######################
-# Extract weather data
-#######################
-extract_daily_weather_from_livneh(dir_data = dir.ex.Livneh, dir_temp = dir.out.temp, 
-                                  site_ids = SWRunInformation$site_id[ids_Livneh], 
-                                  coords = SWRunInformation[ids_Livneh, c("X_WGS84", "Y_WGS84"), drop = FALSE], 
-                                  start_year = simstartyr, end_year = endyr, 
-                                  comp_type = dbW_compression_type, 
-                                  run_parallel = parallel_runs, num_cores = num_cores, be_quiet = be.quiet)
