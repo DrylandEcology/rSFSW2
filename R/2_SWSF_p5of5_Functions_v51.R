@@ -17,15 +17,6 @@ toln <- sqrt(.Machine$double.neg.eps)
 
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
-set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
-  temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
-  invisible(0)
-})
-
-getSiteIds <- compiler::cmpfun(function(con, folderNames) {
-  wf_ids <- RSQLite::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
-  wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
-})
 
 has_nodata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
   if (is.null(tag)) {
@@ -1814,13 +1805,6 @@ setBottomLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
   } else {
     (DeepestTopLayer + 1L):d
   }
-})
-
-local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name.OutputDB) {	# Get name of weather file from output database
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN, runIDs)))[1,1]
-  DBI::dbDisconnect(con)
-  temp
 })
 
 tempError <- compiler::cmpfun(function() .Call("tempError"))
