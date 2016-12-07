@@ -95,8 +95,14 @@ if (createAndPopulateWeatherDatabase) {
 	rm(ids_DayMet_extraction)
 	
 	ids_Livneh <- runIDs_sites[which(sites_dailyweather_source == "Livneh_NorthAmerica")]
-	if (length(ids_Livneh > 0) {
+	if (length(ids_Livneh > 0)) {
 	  source(file.path(dir.code, "R", "Livneh-Extraction.R"))
+	  extract_daily_weather_from_livneh(dir_data = dir.ex.Livneh, dir_temp = dir.out.temp, 
+	                                    site_ids = SWRunInformation$site_id[ids_Livneh], 
+	                                    coords = SWRunInformation[ids_Livneh, c("X_WGS84", "Y_WGS84"), drop = FALSE], 
+	                                    start_year = simstartyr, end_year = endyr, 
+	                                    comp_type = dbW_compression_type, 
+	                                    run_parallel = parallel_runs, num_cores = num_cores, be_quiet = be.quiet)
 	}
 	rm(ids_Livneh)
 	
