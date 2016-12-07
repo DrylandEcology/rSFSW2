@@ -170,8 +170,8 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 } else {
   SWRunInformation <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.SWRunInformation)),
     error = print)
-  stopifnot(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
-    function(x) x %in% names(SWRunInformation)),		# required columns
+  stopifnot(sapply(required_colnames_SWRunInformation(),
+      function(x) x %in% names(SWRunInformation)),		# required columns
     all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
     !grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
     !grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names

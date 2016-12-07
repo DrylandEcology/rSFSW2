@@ -41,7 +41,7 @@ PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
             "PRAGMA foreign_keys = ON;") #no return value
 
 set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
-  temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
+  temp <- lapply(force(settings), function(x) RSQLite::dbGetQuery(con, x))
   invisible(0)
 })
 
