@@ -141,7 +141,6 @@ con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 Tables <- RSQLite::dbListTables(con)
 
 if (length(Tables) == 0) set_PRAGMAs(con, PRAGMA_settings2())
-headerTables <- c("runs","sqlite_sequence","header","run_labels","scenario_labels","sites","experimental_labels","treatments","simulation_years","weatherfolders")
 
 #Only do this if the database is empty
 #number of tables without ensembles (daily_no*2 + 2)
@@ -183,7 +182,7 @@ if (length(Tables) == 0 || do.clean) {
 
 		#############Site Table############################
 		# Note: invariant to 'include_YN', i.e., do not subset rows of 'SWRunInformation'
-		index_sites <- sort(unique(c(sapply(c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN"),
+		index_sites <- sort(unique(c(sapply(required_colnames_SWRunInformation(),
 				function(x) which(x == colnames(SWRunInformation))),
 			Index_RunInformation)))
 		sites_data <- data.frame(SWRunInformation[, index_sites], row.names = NULL, check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
@@ -495,9 +494,13 @@ if (length(Tables) == 0 || do.clean) {
 		################CREATE VIEW########################
 		if (length(Index_RunInformation) > 0) {
 			sites_columns <- colnames(SWRunInformation)[Index_RunInformation]
-			icol <- grep("WeatherFolder", sites_columns)
-			if (length(icol) > 0)
-				sites_columns <- sites_columns[-icol]
+
+      for (k_excl in c("label", "WeatherFolder", "Include_YN")) {
+        icol <- grep(k_excl, sites_columns, ignore.case = TRUE)
+        if (length(icol) > 0)
+          sites_columns <- sites_columns[-icol]
+      }
+
 		} else {
 			sites_columns <- NULL
 		}
@@ -507,6 +510,7 @@ if (length(Tables) == 0 || do.clean) {
 		header_columns <- paste(c(
 				"runs.P_id",
 				"run_labels.label AS Labels",
+        "sites.Include_YN AS Include_YN",
 				if (!is.null(sites_columns))
 					paste0("sites.\"", sites_columns, "\"", collapse = ", "),
 				if (useExperimentals)
@@ -1126,7 +1130,7 @@ if (length(Tables) == 0 || do.clean) {
 
 			Tables<-dbListTables(con)
 			dbDisconnect(con)
-			Tables<-Tables[!(Tables %in% headerTables)]
+			Tables<-Tables[!(Tables %in% headerTables())]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
 			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
