@@ -1908,15 +1908,25 @@ if (exinfo$ExtractClimateChangeScenarios &&
     
     dry_wet_threshold <- 0.3
     wet_extreme_threshold <- 0.8
-    
-    if (hasArg("wgen_dry_spell_changes")) dry_spell_changes <- wgen_dry_spell_changes
-    else dry_spell_changes <- 1 # can be one value or a vector of 12   
-        
-    if (hasArg("wgen_wet_spell_changes")) dry_spell_changes <- wgen_wet_spell_changes
-    else wet_spell_changes <- 1 # can be one value or a vector of 12  
-
-    if (hasArg("wgen_prcp_cv_changes")) dry_spell_changes <- wgen_prcp_cv_changes
-    else wet_spell_changes <- 1 # can be one value or a vector of 12  
+    # read additional parameters, if provided
+    if (hasArg("add_params")) 
+    {  
+      additional <- list(...)
+      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes)) 
+      {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
+      } else dry_spell_changes <- 1 # can be one value or a vector of 12   
+      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes)) 
+      {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
+      } else wet_spell_changes <- 1 # can be one value or a vector of 12   
+      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes)) 
+      {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
+      } else prcp_cv_changes <- 1 # can be one value or a vector of 12   
+    } else {
+      print("add_params = FALSE")
+      dry_spell_changes <- 1 
+      wet_spell_changes <- 1
+      prcp_cv_changes <- 1 
+    }   
         
     changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
     
@@ -2537,7 +2547,13 @@ if (exinfo$ExtractClimateChangeScenarios &&
             `hybrid-delta` = downscale.deltahybrid,
             `hybrid-delta-3mod` = downscale.deltahybrid3mod, 
             `wgen-package` = downscale.wgen_package, stop)
-
+          
+          # a list of additional parameters for downscaling
+          dm_add_params <- switch(dm, raw = NULL, delta = NULL,
+                                  `hybrid-delta` = NULL,
+                                  `hybrid-delta-3mod` = NULL, 
+                                  `wgen-package` = list(wgen_dry_spell_changes=1,wgen_wet_spell_changes=1,wgen_prcp_cv_changes=1), stop)
+          
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
               obs.hist.daily = obs.hist.daily, obs.hist.monthly = obs.hist.monthly,
@@ -2548,7 +2564,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
               DSfut_endyear = future_yrs[it, "DSfut_endyr"],
               opt_DS = opt_DS,
               dailyPPTceiling = dailyPPTceiling, monthly_extremes = monthly_extremes,
-              do_checks = do_checks))
+              do_checks = do_checks, add_params = dm_add_params))
 
             if (!inherits(scen.fut.daily, "try-error")) {
               if (!do_checks)
