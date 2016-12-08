@@ -2753,9 +2753,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 			scw <- if (getScenarioWeatherDataFromDatabase) sc else 1L
 			mDepth <- swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
-      print(1)
 			if (DeltaX[2] > 0) {
-			  print(1.1)
 				if (print.debug) print(paste("Using pre-determined DeltaX =", DeltaX[1]))
 				if (DeltaX[2] == 2L) swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
 
@@ -2765,7 +2763,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								silent = TRUE)
 
 			} else {
-			  print(1.2)
 			  save(sc, file = "sc.RData")
 			  save(scw, file = "scw.RData")
 			  save(i_sw_weatherList, file = "weatherList.RData")
@@ -2774,10 +2771,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 											 weatherList = i_sw_weatherList[[scw]],
 									echo = FALSE, quiet = FALSE),
 								silent = TRUE)
-        print(1.3)
 				## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
 				is_SOILTEMP_INSTABLE <- tempError()
-        print(2)
 				if (is_SOILTEMP_INSTABLE) {
 					## Incrementing deltaX and recalling SOILWAT until the temperature is at least normal or the loop executes ten times
 					i_soil_rep <- 0
@@ -2789,7 +2784,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 							DeltaX[1] <- DeltaX[1] + increment_soiltemperature_deltaX_cm
 							if (mDepth %% DeltaX[1] == 0) break
 						}
-            print(3)
 						## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
 						swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
 						if (print.debug) print(paste("Site", i_sim, i_label, "SOILWAT called again with deltaX = ", swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met." ))
