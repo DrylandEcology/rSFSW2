@@ -3212,7 +3212,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Sand_L") |
-								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
+								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L") |
+                has_nodata(sw_input_soils[runIDs_sites, ], "TOC_GperKG_L"))
 		}
 
 		if (any(do_extract[[2]])) {
@@ -3343,12 +3344,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 			})
 
-			template_simulationSoils <- rep(NA, times = 2 + 4 * layer_Nsim)
-			names(template_simulationSoils) <- c("i", "soildepth", paste0(rep(c("bulk", "sand", "clay", "cfrag"), times=layer_Nsim), "_L", rep(1:layer_Nsim, each=4)))
+      nextract <- 5L
+      template_simulationSoils <- rep(NA, times = 2 + nextract * layer_Nsim)
+      names(template_simulationSoils) <- c("i", "soildepth",
+        paste0(rep(c("bulk", "sand", "clay", "cfrag", "TOC"), times = layer_Nsim),
+        "_L", rep(seq_len(layer_Nsim), each = nextract)))
 			template_simulationSoils["soildepth"] <- 0
 
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise) {
+			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise, nextract) {
 				#Init
 				simulationSoils["i"] <- i
 				simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
@@ -3358,7 +3362,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#Do calculations if any soils in this simulation cell
 				if (i_sim_cells_SUIDs$SUIDs_N > 0) {
-					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID, FUN = get_prids, dat_wise = dat_wise))))
+					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
+						FUN = get_prids, dat_wise = dat_wise))))
 
 					for (is in seq_len(this_simCell$SUIDs_N)) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
 						prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
@@ -3390,26 +3395,32 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 									dat = simulationSoils[paste0("cfrag_L", ils)],
 									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
 									frac = pfracl)	# coarse fragments (vol % > 2 mm)
+                simulationSoils[paste0("TOC_L", ils)] <- get_SoilDatValuesForLayer(
+                  dat = simulationSoils[paste0("TOC_L", ils)],
+                  soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
+                  frac = pfracl)	# total organic carbon content (g C / kg)
 							}
 						}
 					}
 
 					#Adjust values for area present
-					simulationSoils <- simulationSoils / c(1, simulation_frac, rep(simulation_layer_frac, each = 4))
+					simulationSoils <- simulationSoils /
+					  c(1, simulation_frac, rep(simulation_layer_frac, each = nextract))
 				}
 
 				simulationSoils
 			})
 
 
-			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise) {
+			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise, nextract) {
 				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
 				temp <- try(calc_weightedMeanForSimulationCell(i,
 							i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
 							simulationSoils = template_simulationSoils,
 							layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-							dat_wise = dat_wise))
+							dat_wise = dat_wise,
+							nextract = nextract))
 				if (inherits(temp, "try-error")) template_simulationSoils else temp
 			})
 
@@ -3427,7 +3438,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
@@ -3442,7 +3454,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
 					snow::clusterEvalQ(cl, rm(list=ls()))
@@ -3453,7 +3466,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 				}
 
 			} else {
@@ -3461,7 +3475,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+						dat_wise = dat_wise,
+						nextract = nextract)
 			}
 			rm(dat_wise)
 
@@ -3491,7 +3506,6 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i_Done[which(do_extract[[2]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
-
 				#set and save soil layer structure
 				lys <- seq_len(layer_Nsim)
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
@@ -3519,6 +3533,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
 				sw_input_soils_use[i.temp[lys]] <- TRUE
 				sw_input_soils_use[i.temp[-lys]] <- FALSE
+        i.temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
+        sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("TOC_L", lys)], 2)
+        sw_input_soils_use[i.temp[lys]] <- TRUE
+        sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),

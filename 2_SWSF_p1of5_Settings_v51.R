@@ -117,7 +117,8 @@ saveRsoilwatOutput <- FALSE
 #store data in big input files for experimental design x treatment design
 makeInputForExperimentalDesign <- FALSE
 # fields/variables of input data for which to create maps if any(actions == "map_input")
-map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay", "EvapCoeff", "RH", "SkyC", "Wind", "snowd")
+map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
+  "TOC_GperKG", "EvapCoeff", "RH", "SkyC", "Wind", "snowd")
 # check linked BLAS library before simulation runs
 check.blas <- FALSE
 
@@ -312,27 +313,24 @@ datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
 
 datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"
 datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v04.csv"
+datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v05.csv"
 
-if ((any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input datafiles in the folder ./datafiles
-	datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
-	datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
-	datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
-	datafile.prod <- "SWRuns_InputData_prod_v10.csv"
-	datafile.siteparam <- "SWRuns_InputData_siteparam_v13.csv"
-	datafile.soils <- "SWRuns_InputData_soils_v11.csv"
-	datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
-}
-if (( any(actions == "external") || any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")) ) {	#input files in sub-folders ./treatments
-	trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
-	trfile.LookupClimateTempScenarios <- "climate.temp.csv"
-	trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
-	trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
-	trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients_v2.csv"
-	trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
-	trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
-	trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
-}
+datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
+datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
+datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
+datafile.prod <- "SWRuns_InputData_prod_v10.csv"
+datafile.siteparam <- "SWRuns_InputData_siteparam_v14.csv"
+datafile.soils <- "SWRuns_InputData_soils_v12.csv"
+datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
+
+trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
+trfile.LookupClimateTempScenarios <- "climate.temp.csv"
+trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
+trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
+trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients_v2.csv"
+trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
+trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
+trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
 
 datafile.SWRWinputs_preprocessed <- "SWRuns_InputAll_PreProcessed.RData" # Storage file of input data for repeated access (faster) instead of re-reading from (slower) csv files if flag 'usePreProcessedInput' is TRUE
 
@@ -387,9 +385,10 @@ output_aggregates <- c(
 						"dailySWPextremes", 1,
 						"dailyRechargeExtremes", 1,
 					#---Aggregation: Ecological dryness
-						"dailyNRCS_SoilMoistureTemperatureRegimes", 0, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
-						"dailyNRCS_Chambers2014_ResilienceResistance", 0, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
-					  "dailyNRCS_Maestas2016_ResilienceResistance", 0,
+						"dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 1, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_SoilMoistureTemperatureRegimes", 1, #Requires at least soil layers at 10, 20, 30, 50, 60, 90 cm
+						"dailyNRCS_Chambers2014_ResilienceResistance", 1, #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
+					  "dailyNRCS_Maestas2016_ResilienceResistance", 1,
 						"dailyWetDegreeDays", 1,
 						"dailyThermalDrynessStartEnd", 1,
 						"dailyThermalSWPConditionCount", 1,
@@ -424,8 +423,8 @@ output_aggregates <- c(
 						"monthlyAETratios", 1,
 						"monthlyPETratios", 1,
 					#---Aggregation: Potential regeneration
-						"dailyRegeneration_bySWPSnow", 0,
-						"dailyRegeneration_GISSM", 0
+						"dailyRegeneration_bySWPSnow", 1,
+						"dailyRegeneration_GISSM", 1
 )
 
 #select variables to aggregate daily mean and SD, if "daily" is in simulation_timescales
@@ -475,6 +474,18 @@ shrub.fraction.limit <- 0.2 	#page 1213: 0.2 in Paruelo JM, Lauenroth WK (1996) 
 growing.season.threshold.tempC <- 10 # based on Trewartha's D temperateness definition (with >=4 & < 8 months with > 10C)
 growing.season.threshold.tempC <- 4 # based on standard input of mean monthly biomass values for vegetation composition
 
+# NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
+opt_NRCS_SMTRs <- list(
+  # Approach for regime determination ('data' -> 'conditions' -> 'regime')
+  aggregate_at = "regime",
+  # Aggregation agreement level (e.g., 0.5 = majority; 1 = all)
+  crit_agree_frac = 1,
+  # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
+  use_normal = TRUE,
+  SWP_dry = -1.5,       #dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
+  SWP_sat = -0.033,     #saturated means SWP above -0.033 MPa
+  impermeability = 0.9  #impermeable layer
+)
 
 #------SoilWat files
 sw <- "sw_v31"

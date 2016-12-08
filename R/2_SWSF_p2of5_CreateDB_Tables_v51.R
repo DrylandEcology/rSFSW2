@@ -771,7 +771,7 @@ if (length(Tables) == 0 || do.clean) {
 		##############################################################---Aggregation: Ecological dryness---##############################################################
 
 	#35a
-  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
       # abbreviations:
       #     - GT = greater than; LT = less than; EQ = equal
       #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
@@ -781,34 +781,63 @@ if (length(Tables) == 0 || do.clean) {
           c(c("Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
-              "Permafrost_TF"),
-            paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
-                      "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C",
-                      "Saturation_ConsecutiveMaxDuration_JJA_days",
-                     # Lanh_annual_means:
-                     "Days_at50cm_GT0C_prob", "Days_ACS_MoreThanHalfDry_prob",
-                     "Days_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob",
-                     # Cond_annual_means:
-                     "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
-                     "Days_MCS_AllWet_prob", "Days_MCS_AllDry_prob",
-                     "MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
-                     "MCS_AnyWet_and_at50cm_GT5C_prob", # COND1_1_Test
-                     "MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
-                     "MCS_AnyDryTotal_LT90Days_prob", # COND3
-                     "MCS_at50cm_GT22C_prob", # COND4
-                     "MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
-                     "Days_MCS_AllDry_Summer_days",
-                     "MCS_AllDry_Summer_LT45Days_prob", # COND6
-                     "MCS_AnyMoist_GT180Days_prob", # COND7
-                     "Days_MCS_AnyWetConsec_days",
-                     "MCS_AnyWetConsec_GT90Days_prob", # COND8
-                     "Days_MCS_AllWet_Winter_days",
-                     "MCS_AllWet_Winter_GT45days_prob"), # COND9
-                   "_mean"),
-              paste0("SoilTemperatureRegime_",
-                    c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")),
-              paste0("SoilMoistureRegime_",
-                    c("Anhydrous", "Aridic", "Udic", "Ustic", "Xeric")))))
+              "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),
+            paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C", # MATLanh, MAT50
+                      "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C", # T50jja, T50djf
+                      "Saturation_ConsecutiveMaxDuration_JJA_days", # CSPartSummer
+                      "SoilTemp_Offset_from_MeanAirTemp_C", # meanTair_Tsoil50_offset_C
+                    # Anhydrous_annual_means:
+                      "COND1_ACS_at50cm_LE0C_prob", # COND1
+                      "COND2_ACS_atAnhDepth_LE5C_prob", # COND2
+                      "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_isGThalf_at50cm_GT0C_prob", # COND3
+                      "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_days", # HalfDryDaysCumAbove0C
+                      "COND3_ACS_at50cm_GT0C_days", # SoilAbove0C
+                      "COND3_ACS_at50cm_GT0C_prob", # T50_at0C
+                      "COND3_ACS_MoreThanHalfDry_prob", # Lanh_Dry_Half
+                      "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob", # COND3_Test
+                     # MCS_annual_means:
+                      "COND0_mPPT_GT_mPET_prob", # COND0
+                      "COND1_MCS_AllDry_and_at50cm_GT5C_days", # DryDaysCumAbove5C
+                      "COND1_MCS_at50cm_GT5C_days", # SoilAbove5C
+                      "COND1_MCS_AllDry_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1
+                      "COND2_MCS_AnyWetConsec_Max_at50cm_GT8C_days", # MaxContDaysAnyMoistCumAbove8
+                      "COND2_MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
+                      "COND2-1_MCS_AnyWetConsec_LT180Days_at50cm_GT8C_prob", # COND2_1
+                      "COND2-2_MCS_AnyWetConsec_LT270Days_at50cm_GT8C_prob", # COND2_2
+                      "COND2-3_MCS_AnyWetConsec_LE45Days_at50cm_GT8C_prob", # COND2_3
+                      "COND3_MCS_AnyDry_days", # DryDaysCumAny
+                      "COND3_MCS_AnyDryTotal_LT90Days_prob", # COND3
+                      "COND3-1_MCS_AnyDryTotal_LT30Days_prob", # COND3_1
+                      "COND4_MCS_at50cm_GT22C_prob", # COND4
+                      "COND5_MCS_at50cm_DiffJJAtoDJF_C", # AbsDiffSoilTemp_DJFvsJJA
+                      "COND5_MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
+                      "COND6_MCS_AllDry_Summer_days",  # DryDaysConsecSummer
+                      "COND6_MCS_AllDry_Summer_LT45Days_prob", # COND6
+                      "COND6-1_MCS_AllDry_Summer_GT90Days_prob", # COND6_1
+                      "COND7_MCS_AnyMoist_GT180Days_days", # MoistDaysCumAny
+                      "COND7_MCS_AnyMoist_GT180Days_prob", # COND7
+                      "COND8_MCS_AnyWetConsec_days", # MoistDaysConsecAny
+                      "COND8_MCS_AnyWetConsec_GT90Days_prob", # COND8
+                      "COND9_MCS_AllWet_Winter_days", # MoistDaysConsecWinter
+                      "COND9_MCS_AllWet_Winter_GT45days_prob", # COND9
+                      "COND10_MCS_AllDry_days", # AllDryDaysCumAny
+                      "COND10_MCS_AllDry_prob", # COND10
+
+                      "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
+                      "Days_MCS_AllWet_prob",
+                      "COND1_MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
+                      "COND2_MCS_AnyWet_and_at50cm_GT8C_prob"), # COND2_Test
+                    "_mean"))))
+    }
+  if (aon$dailyNRCS_SoilMoistureTemperatureRegimes) {
+      # abbreviations:
+      #     - GT = greater than; LT = less than; EQ = equal
+      #     - MCS = MoistureControlSection; ACS = AnhydrousControlSection
+      #     - consec = consecutive
+      temp <- c(temp, paste0("NRCS_",
+                c(paste0("SoilTemperatureRegime_", STR_names()),
+                  paste0("SoilMoistureRegime_", SMR_names()),
+                  paste0("SoilMoistureRegimeQualifier_", SMRq_names()))))
     }
 	#35b
     if (aon$dailyNRCS_Chambers2014_ResilienceResistance) {
