@@ -1,7 +1,7 @@
 Package: rSWSF
 Title: SOILWAT Simulation Framework
-Version: 1.9.2
-Date: 2016-11-28
+Version: 1.10.0
+Date: 2016-12-08
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
@@ -9,7 +9,7 @@ Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
     R (>= 3.3.0)
 Imports:
-    Rsoilwat31 (>= 1.1.2),
+    Rsoilwat31 (>= 1.2.2),
     RSQLite (>= 1.0.0),
     DBI (>= 0.5),
     circular (>= 0.4.7),
