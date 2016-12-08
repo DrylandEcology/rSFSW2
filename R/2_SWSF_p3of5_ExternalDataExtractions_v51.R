@@ -1909,15 +1909,14 @@ if (exinfo$ExtractClimateChangeScenarios &&
     dry_wet_threshold <- 0.3
     wet_extreme_threshold <- 0.8
     
-    if (hasArg("wgen_dry_spell_changes")) 
-    {  dry_spell_changes <- wgen_dry_spell_changes
-    } else dry_spell_changes <- 1 # can be one value or a vector of 12   
+    if (hasArg("wgen_dry_spell_changes")) dry_spell_changes <- wgen_dry_spell_changes
+    else dry_spell_changes <- 1 # can be one value or a vector of 12   
         
-    if (hasArg("wgen_wet_spell_changes")) { dry_spell_changes <- wgen_wet_spell_changes
-    } else wet_spell_changes <- 1 # can be one value or a vector of 12  
+    if (hasArg("wgen_wet_spell_changes")) dry_spell_changes <- wgen_wet_spell_changes
+    else wet_spell_changes <- 1 # can be one value or a vector of 12  
 
-    if (hasArg("wgen_prcp_cv_changes")) { prcp_cv_changes <- wgen_prcp_cv_changes
-    } else prcp_cv_changes <- 1 # can be one value or a vector of 12  
+    if (hasArg("wgen_prcp_cv_changes")) dry_spell_changes <- wgen_prcp_cv_changes
+    else wet_spell_changes <- 1 # can be one value or a vector of 12  
         
     changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
     
