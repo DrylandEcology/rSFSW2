@@ -9,6 +9,25 @@
 #MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #--------------------------------------------------------------------------------------------------#
 
+missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
+
+  sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
+    Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
+    "ORDER BY header.P_id")
+
+  mP_ids <- RSQLite::dbGetQuery(con, sql)$P_id
+
+  DBI::dbDisconnect(con)
+
+  mP_ids
+})
+
+headerTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
+  "scenario_labels", "sites", "experimental_labels", "treatments", "simulation_years",
+  "weatherfolders")
+
+
 
 # PRAGMA, see http://www.sqlite.org/pragma.html
 PRAGMA_settings1 <- function() c("PRAGMA cache_size = 400000;",
@@ -22,7 +41,7 @@ PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
             "PRAGMA foreign_keys = ON;") #no return value
 
 set_PRAGMAs <- compiler::cmpfun(function(con, settings) {
-  temp <- lapply(settings, function(x) RSQLite::dbGetQuery(con, x))
+  temp <- lapply(force(settings), function(x) RSQLite::dbGetQuery(con, x))
   invisible(0)
 })
 

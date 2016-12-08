@@ -3,7 +3,7 @@ context("dbWork: runIDs organization")
 #--- Inputs
 #setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/SoilWat_R_Wrapper/tests/testthat")
 dbpath <- tempdir()
-flock <- tempfile()
+flock <- tempfile(pattern = "swsflock", tmpdir = normalizePath(dbpath))
 runIDs <- seq_len(100)
 #fname_log <- "log_dbWork.txt"
 verbose <- FALSE
@@ -56,6 +56,7 @@ parallel::clusterEvalQ(cl, require("RSQLite"))
 #--- Unit tests
 test_that("dbWork", {
   # Init
+  unlink(flock, recursive = TRUE)
   expect_true(setup_dbWork(dbpath, runIDs))
   expect_identical(dbWork_todos(dbpath), runIDs)
 
@@ -70,13 +71,11 @@ test_that("dbWork", {
   # Init
   expect_true(setup_dbWork(dbpath, runIDs))
   expect_identical(dbWork_todos(dbpath), runIDs)
-  remove_lock(flock)
   expect_s3_class(pretend_sim(cl, runIDs, dbpath, flock, verbose), "table")
-
 })
 
 #--- Clean up
 parallel::stopCluster(cl)
 unlink(file.path(dbpath, "dbWork.sqlite3"))
-unlink(flock)
+unlink(flock, recursive = TRUE)
 #unlink(fname_log)
