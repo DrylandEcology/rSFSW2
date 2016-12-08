@@ -21,114 +21,14 @@ if (createAndPopulateWeatherDatabase) {
 		}
 	}
 
-	# weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-	dbW_createDatabase(dbFilePath = dbWeatherDataFile,
-		site_data = data.frame(Site_id = SWRunInformation$site_id,
-						Latitude = SWRunInformation$Y_WGS84,
-						Longitude = SWRunInformation$X_WGS84,
-						Label = SWRunInformation$WeatherFolder,
-						stringsAsFactors = FALSE),
-		site_subset = runIDs_sites,
-		scenarios = data.frame(Scenario = climate.conditions),
-		compression_type = dbW_compression_type)
-
-	Time <- Sys.time()
-
-	# Extract weather data and move to weather database based on inclusion-invariant 'site_id'
-	# Extract weather data per site
-	if (!be.quiet) print(paste(Sys.time(), "started with moving single site weather data to database"))
-
-	ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica")) ## position in 'runIDs_sites'
-	if (length(ids_single) > 0) {
-		if (any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
-			Maurer <- with(SWRunInformation[runIDs_sites[ids_single], ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
-
-		for (i in seq_along(ids_single)) {
-			i_idss <- ids_single[i]
-			i_site <- runIDs_sites[i_idss]
-
-			if (!be.quiet && i %% 100 == 1)
-				print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[i_site], i, "of", length(ids_single), "sites in database"))
-
-			if (sites_dailyweather_source[i_idss] == "LookupWeatherFolder") {
-				weatherData <- ExtractLookupWeatherFolder(dir.weather = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
-									weatherfoldername = SWRunInformation$WeatherFolder[i_site])
-
-			} else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
-				weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-				          dir_data = dir.ex.maurer2002,
-				          cellname = Maurer[i],
-									startYear = simstartyr,
-									endYear = endyr)
-
-			} else {
-				stop(paste(sites_dailyweather_source[i_idss], "not implemented"))
-			}
-
-			if (!is.null(weatherData)) {
-				years <- as.integer(names(weatherData))
-				data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-				Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
-					Scenario_id = 1,
-					StartYear = years[1],
-					EndYear = years[length(years)],
-					weather_blob = data_blob)
-			} else {
-				print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[i_site]))
-			}
-		}
-		rm(ids_single, i_idss, i_site, weatherData, years, data_blob)
-	}
-
-	# Extract weather data for all sites based on inclusion-invariant 'site_id'
-	ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
-	if (length(ids_DayMet_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-		  dir_data = dir.ex.daymet,
-		  site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
-			coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
-			start_year = simstartyr,
-			end_year = endyr,
-			dir_temp = dir.out.temp,
-			dbW_compression_type = dbW_compression_type)
-	}
-	rm(ids_DayMet_extraction)
-
-	ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
-	if (length(ids_NRCan_extraction) > 0) {
-		ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
-		  dir_data = dir.ex.NRCan,
-		  site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
-			coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
-			start_year = simstartyr,
-			end_year = endyr,
-			dir_temp = dir.out.temp,
-			dbW_compression_type = dbW_compression_type,
-			do_parallel = parallel_runs && identical(parallel_backend, "snow"),
-			ncores = num_cores)
-	}
-	rm(ids_NRCan_extraction)
-
-	ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
-	if (length(ids_NCEPCFSR_extraction) > 0) {
-		GriddedDailyWeatherFromNCEPCFSR_Global(
-		  site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
-			dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
-			start_year = simstartyr,
-			end_year = endyr,
-			meta_cfsr = prepd_CFSR,
-			n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-			do_parallel = parallel_runs && parallel_init,
-			parallel_backend = parallel_backend,
-			cl = if (identical(parallel_backend, "snow")) cl else NULL,
-			rm_temp = deleteTmpSQLFiles,
-			continueAfterAbort = continueAfterAbort,
-			dir_temp = dir.out.temp,
-			dbW_compression_type = dbW_compression_type)
-	}
-	rm(ids_NCEPCFSR_extraction)
-
-	dbW_disconnectConnection()
+  make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
+    climate.conditions, sites_dailyweather_source, dir.sw.in.tr, dir.out.temp,
+    chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
+    parallel_init, parallel_runs, parallel_backend, num_cores,
+    cl = if (exists("cl")) cl else NULL,
+    dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
+    dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
+    verbose = !be.quiet)
 }
 
 
