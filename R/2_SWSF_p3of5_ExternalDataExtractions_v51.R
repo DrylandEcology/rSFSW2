@@ -1318,7 +1318,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	  }
 	  delta_ts[, "PPT_cm"] <- delta_ppts	  
 	  
-	  delta_ts
+	  list(delta_ts, ppt_fun)
 	  })
 	
 	#' Downscale with the 'direct approach'
@@ -1347,37 +1347,38 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		  obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
 		if (any(!tp$iuse_scen_fut_m))
 		  scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-
-		# 1. Calculate mean monthly values in historic and future scenario values
-		scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-		scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-		scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-
-		obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-		obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-		obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
-
-		# 2. Calculate deltas between observed historic and future mean scenario values
-				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
-				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
-		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
-		ppt_fun <- rep("*", 12)
-
-		# Deltas of monthly means
-		delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
-		delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
-		delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-		temp_add <- obs.hist.mean_ppt < tol |
-		            delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
-		            delta_ppts > opt_DS[["PPTratioCutoff"]]
-		if (any(temp_add)) {
-			ppt_fun[temp_add] <- "+"
-			delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
-		}
-		delta_ts[, "PPT_cm"] <- delta_ppts
-
-
+    # moved to calcDeltas
+		# # 1. Calculate mean monthly values in historic and future scenario values
+		# scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+		# scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+		# scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
+		# 
+		# obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+		# obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+		# obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+		# 
+		# # 2. Calculate deltas between observed historic and future mean scenario values
+		# 		#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+		# 		#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
+		# delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+		# delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
+		# ppt_fun <- rep("*", 12)
+		# 
+		# # Deltas of monthly means
+		# delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
+		# delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
+		# delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
+		# temp_add <- obs.hist.mean_ppt < tol |
+		#             delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
+		#             delta_ppts > opt_DS[["PPTratioCutoff"]]
+		# if (any(temp_add)) {
+		# 	ppt_fun[temp_add] <- "+"
+		# 	delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
+		# }
+		# delta_ts[, "PPT_cm"] <- delta_ppts
+    delta_ts <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
+    ppt_fun <- delta_ts[[2]]
+    delta_ts <- delta_ts[[1]]
 		# 3. Apply deltas to historic daily weather
 		applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
 				years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
@@ -1915,20 +1916,21 @@ if (exinfo$ExtractClimateChangeScenarios &&
       if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes)) 
       {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
       } else dry_spell_changes <- 1 # can be one value or a vector of 12   
+      
       if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes)) 
       {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
       } else wet_spell_changes <- 1 # can be one value or a vector of 12   
+      
       if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes)) 
       {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
       } else prcp_cv_changes <- 1 # can be one value or a vector of 12   
     } else {
-      print("add_params = FALSE")
       dry_spell_changes <- 1 
       wet_spell_changes <- 1
       prcp_cv_changes <- 1 
     }   
         
-    changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
+    changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)[[1]]
     
     prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
     
@@ -2552,7 +2554,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
           dm_add_params <- switch(dm, raw = NULL, delta = NULL,
                                   `hybrid-delta` = NULL,
                                   `hybrid-delta-3mod` = NULL, 
-                                  `wgen-package` = list(wgen_dry_spell_changes=1,wgen_wet_spell_changes=1,wgen_prcp_cv_changes=1), stop)
+                                  # `wgen-package` = list(wgen_dry_spell_changes=ifelse("wgen_dry_spell_changes" %in% colnames(locations),locations[,"wgen_dry_spell_changes"],1),
+                                  #                       wgen_wet_spell_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1),
+                                  #                       wgen_prcp_cv_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1)), 
+                                  `wgen-package` = list(wgen_dry_spell_changes=wgen_dry_spell_changes,wgen_wet_spell_changes=wgen_wet_spell_changes,wgen_prcp_cv_changes=wgen_prcp_cv_changes),
+                                   stop)
           
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
