@@ -2556,7 +2556,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
                                   `hybrid-delta-3mod` = NULL, 
                                   `wgen-package` = list(wgen_dry_spell_changes=ifelse("wgen_dry_spell_changes" %in% colnames(locations),locations[,"wgen_dry_spell_changes"],1),
                                                         wgen_wet_spell_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1),
-                                                        wgen_prcp_cv_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1)), 
+                                                        wgen_prcp_cv_changes=ifelse("wgen_prcp_cv_changes" %in% colnames(locations),locations[,"wgen_prcp_cv_changes"],1)), 
                                    stop)
           
           for (do_checks in c(TRUE, FALSE)) {
