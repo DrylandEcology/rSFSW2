@@ -2554,10 +2554,9 @@ if (exinfo$ExtractClimateChangeScenarios &&
           dm_add_params <- switch(dm, raw = NULL, delta = NULL,
                                   `hybrid-delta` = NULL,
                                   `hybrid-delta-3mod` = NULL, 
-                                  # `wgen-package` = list(wgen_dry_spell_changes=ifelse("wgen_dry_spell_changes" %in% colnames(locations),locations[,"wgen_dry_spell_changes"],1),
-                                  #                       wgen_wet_spell_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1),
-                                  #                       wgen_prcp_cv_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1)), 
-                                  `wgen-package` = list(wgen_dry_spell_changes=wgen_dry_spell_changes,wgen_wet_spell_changes=wgen_wet_spell_changes,wgen_prcp_cv_changes=wgen_prcp_cv_changes),
+                                  `wgen-package` = list(wgen_dry_spell_changes=ifelse("wgen_dry_spell_changes" %in% colnames(locations),locations[,"wgen_dry_spell_changes"],1),
+                                                        wgen_wet_spell_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1),
+                                                        wgen_prcp_cv_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1)), 
                                    stop)
           
           for (do_checks in c(TRUE, FALSE)) {
@@ -2905,6 +2904,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 		#put requests together
 		locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
+		locations <- cbind( locations, sw_input_treatments[, c("wgen_dry_spell_changes","wgen_wet_spell_changes","wgen_prcp_cv_changes")])
 		requestN <- length(reqGCMs) * nrow(locations)
 		if (!be.quiet) print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
