@@ -61,9 +61,6 @@ timerfile2 <- "Timing_Simulation.csv"
 ftemp <- file.path(dir.out, timerfile2)
 cat(",Time_s,Number", file = ftemp, sep = "\n")
 
-#concatenate file keeps track of sql files inserted into data
-concatFile <- "sqlFilesInserted.csv"
-concatFileProblemLines <- "sqlFilesProblemLines.csv"
 
 #------load libraries
 dir.libraries <- .libPaths()[1]
@@ -534,8 +531,15 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
       }
 
 		parallel_init <- TRUE
-		if(!be.quiet) print(paste("SWSF prepares parallelization: initialization of", workersN, "workers ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+		if (!be.quiet)
+		  print(paste("SWSF prepares parallelization: initialization of", workersN,
+		    "workers ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 	}
+}
+
+if (identical(parallel_backend, "mpi") && parallel_runs && parallel_init) {
+  # Only enforce wall-time on MPI systems
+  opt_comp_time[["wall_time_s"]] <- Inf
 }
 #--------------------------------------------------------------------------------------------------#
 
@@ -1362,7 +1366,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #i_exp = the row of sw_input_experimentals for the i_sim-th simulation run
 #P_id is a unique id number for each scenario in each run
 
-	time.sys <- Sys.time()
+  time.sys <- Sys.time()
+  has_time_to_simulate <- (difftime(time.sys, t.overall, units = "secs") +
+    opt_comp_time[["one_sim_s"]]) < opt_comp_time[["wall_time_s"]]
+
+  if (!has_time_to_simulate)
+    stop("Not enough time to simulate ", i_sim)
 
   dbWork_update_job(dir.out, i_sim, status = "inwork",
     with_filelock = lockfile, verbose = print.debug)
@@ -5952,9 +5961,9 @@ if(actionWithSoilWat && runsN_todo > 0){
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
-    "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily", "parallel_backend",
-    "parallel_runs", "param.species_regeneration", "pcalcs", "print.debug",
-    "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
+    "opt_comp_time", "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily",
+    "parallel_backend", "parallel_runs", "param.species_regeneration", "pcalcs",
+    "print.debug", "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
     "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
     "season.end", "season.start", "shrub.fraction.limit", "simstartyr",
     "simTime", "simTime_ForEachUsedTimeUnit_North", "simTime_ForEachUsedTimeUnit_South",
@@ -6038,9 +6047,8 @@ tryCatch({
         }
 
 				if (tag == 1L) {
-					temp <- Sys.time() - t.overall
-					units(temp) <- "secs"
-					temp <- as.double(temp)
+          has_time_to_simulate <- (difftime(Sys.time(), t.overall, units = "secs") +
+            opt_comp_time[["one_sim_s"]]) < opt_comp_time[["wall_time_s"]]
 
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
@@ -6098,7 +6106,6 @@ tryCatch({
 }, interrupt=function(interrupt) {
 	print("Ctrl-C caught bringing work to an end.")
 	print(interrupt)
-	MaxDoOneSiteTime <<- 0
 })
 			}
 
@@ -6202,300 +6209,45 @@ tryCatch({
 # NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
 #   may then be too large for available memory
 
+t.outputDB <- Sys.time()
+
 if (any(actions == "concatenate")) {
-	t1 <- Sys.time()
   if (!be.quiet)
-    print(paste("Inserting data from temp SQL files into output DB: started at", t1))
+    print(paste("Inserting data from temp SQL files into output DB: started at", t.outputDB))
 
-	temp <- as.double(difftime(t1, t.overall, units = "secs"))
+  has_time_to_concat <- (difftime(t.outputDB, t.overall, units = "secs") +
+    opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
 
-	if (temp <= (MinTimeConcat - 36000) || !parallel_runs || !identical(parallel_backend, "mpi")) {#need at least 10 hours for anything useful
-    # Locate temporary SQL files
-    theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
-      full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+  if (has_time_to_concat) {
+    move_temporary_to_outputDB(dir.out.temp, name.OutputDB,
+      name.OutputDBCurrent, t.overall, opt_comp_time,
+      copyCurrentConditionsFromTempSQL && !copyCurrentConditionsFromDatabase,
+      cleanDB, deleteTmpSQLFiles, continueAfterAbort, print.debug, verbose = !be.quiet)
 
-    # remove any already inserted files from list
-    if (!deleteTmpSQLFiles && continueAfterAbort) {
-      temp <- file.path(dir.out.temp, concatFile)
-      completedFiles <- if (file.exists(temp)) {
-          basename(readLines(temp))
-        } else {
-          character(0)
-        }
-      temp <- which(theFileList == completedFiles)
-      if (length(temp) > 0) {
-        theFileList <- theFileList[-temp]
-      }
+  } else {
+    print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
+  }
+
+
+  if (copyCurrentConditionsFromDatabase && !copyCurrentConditionsFromTempSQL) {
+    has_time_to_concat <- (difftime(Sys.time(), t.overall, units = "secs") +
+      opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
+
+    if (has_time_to_concat) {
+      do_copyCurrentConditionsFromDatabase(name.OutputDB, name.OutputDBCurrent,
+        verbose = !be.quiet)
+
+    } else {
+      print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
     }
+  }
+}
 
-    if (length(theFileList) > 0) {
-      #Connect to the Database
-      con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-
-      do_DBCurrent <- copyCurrentConditionsFromTempSQL || copyCurrentConditionsFromDatabase
-      reset_DBCurrent <- copyCurrentConditionsFromTempSQL && (cleanDB || !file.exists(name.OutputDBCurrent))
-      if (reset_DBCurrent)
-        file.copy(from = name.OutputDB, to = name.OutputDBCurrent)
-      if (do_DBCurrent)
-        con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
-      if (reset_DBCurrent)
-        dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-      out_tables <- DBI::dbListTables(con)
-      out_tables_aggr <- grep("aggregation_", out_tables, value = TRUE)
-
-      # Prepare output databases
-      set_PRAGMAs(con, PRAGMA_settings1())
-      if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
-
-      # Check what has already been inserted in each tables
-      pids_inserted <- lapply(out_tables_aggr, function(agg_table)
-        DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-      names(pids_inserted) <- out_tables_aggr
-
-      if (copyCurrentConditionsFromTempSQL) {
-        pids2_inserted <- lapply(out_tables_aggr, function(agg_table)
-          DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-        names(pids2_inserted) <- out_tables_aggr
-      }
-
-      # Add data to SQL databases
-      for (j in seq_along(theFileList)) {
-        tDB1 <- Sys.time()
-
-        tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
-        if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
-          break
-        }
-
-        OK_tempfile <- TRUE
-        # Read SQL statements from temporary file
-        sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
-        add_to_DBCurrent <- copyCurrentConditionsFromTempSQL &&
-          grepl("SQL_Current", theFileList[j])
-
-        if (!be.quiet)
-          print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
-            "to output DB: started at ", tDB1))
-
-        # Send SQL statements to database
-        OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con)), "try-error")
-        if (add_to_DBCurrent)
-          OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con2)), "try-error")
-
-        notOK_lines <- NULL
-
-        if (OK_tempfile) for (k in seq_along(sql_cmds)) {
-          OK_line <- TRUE
-
-          # Determine P_id
-          id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-          id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
-          if (id_end < 0)
-            id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
-
-          if (any(id_start < 1, id_end <= id_start)) {
-            print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
-              k, ": ", substr(sql_cmds[k], 1, 100)))
-            next
-          }
-
-          id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
-          OK_line <- OK_line && is.finite(id)
-
-          # Determine table
-          id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
-
-          if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
-            print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
-              " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
-            next
-          }
-
-          table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
-          OK_line <- OK_line && any(table_name == out_tables_aggr)
-
-          # Check if P_id already in output DB
-          OK_line1 <- id %in% pids_inserted[[table_name]]
-          OK_line2 <- if (add_to_DBCurrent) id %in% pids2_inserted[[table_name]] else FALSE
-
-          # If P_id already in output DB, then check whether data agree
-          OK_agree1 <- FALSE
-          if (OK_line1) {
-            id_data_DB <- DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
-              "\" WHERE P_id = ", id))
-
-            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-            repeat {
-              nt <- nchar(tmp_data)
-              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-              tmp_data <- substr(tmp_data, 1, nt - 1)
-            }
-            if (nt > 1 ) {
-              tmp_data <- paste0("c(", tmp_data)
-              tmp_data <- gsub("NULL", "NA", tmp_data)
-              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
-
-              OK_agree1 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data,
-                tolerance = 1e2 * tol))
-
-              if (!OK_agree1)
-                print(paste("Data already in output DB with P_id =", id, "of table",
-                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
-            }
-          }
-
-          OK_agree2 <- FALSE
-          if (OK_line2) {
-            id_data_DB <- DBI::dbGetQuery(con2, paste0("SELECT * FROM \"", table_name,
-              "\" WHERE P_id = ", id))
-
-            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-            repeat {
-              nt <- nchar(tmp_data)
-              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-              tmp_data <- substr(tmp_data, 1, nt - 1)
-            }
-            if (nt > 1 ) {
-              tmp_data <- paste0("c(", tmp_data)
-              tmp_data <- gsub("NULL", "NA", tmp_data)
-              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
-
-              OK_agree2 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data))
-
-              if (!OK_agree2)
-                print(paste("Data already in output DB with P_id =", id, "of table",
-                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
-            }
-          }
-
-          # Insert data via temporary SQL statement
-          OK_line1 <- OK_line && !OK_line1
-          OK_line2 <- if (add_to_DBCurrent) OK_line && !OK_line2 else TRUE
-
-          if (OK_line1) {
-            res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
-            OK_line1 <- OK_line1 && !inherits(res, "try-error")
-            if (OK_line1)
-              pids_inserted[[table_name]] <- c(pids_inserted[[table_name]], id)
-          }
-          if (OK_line2 && add_to_DBCurrent) {
-            res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
-            OK_line2 <- OK_line2 && !inherits(res, "try-error")
-            if (OK_line2)
-              pids2_inserted[[table_name]] <- c(pids2_inserted[[table_name]], id)
-          }
-
-          # Add processed Pid to vector
-          if (OK_line1 && OK_line2) {
-            if (print.debug)
-              print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
-                "from row", k, "of", shQuote(theFileList[j])))
-
-          } else {
-            if (!OK_agree1 || (OK_agree2 && add_to_DBCurrent)) {
-              notOK_lines <- c(notOK_lines, k)
-              print(paste("The output DB has problems with inserting P_id =", id, "to table",
-                shQuote(table_name), "when processing file", shQuote(theFileList[j])))
-            }
-          }
-        }
-
-        if (is.null(notOK_lines)) {
-          OK_tempfile <- OK_tempfile && DBI::dbCommit(con)
-          if (add_to_DBCurrent)
-            OK_tempfile <- OK_tempfile && DBI::dbCommit(con2)
-
-        } else {
-          OK_tempfile <- FALSE
-          DBI::dbRollback(con)
-          if (add_to_DBCurrent) DBI::dbRollback(con2)
-          # Write failed lines to new file
-          writeLines(sql_cmds[notOK_lines],
-            con = file.path(dir.out.temp, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
-        }
-
-        # Clean up and report
-        if (OK_tempfile || !is.null(notOK_lines)) {
-          cat(file.path(dir.out.temp, theFileList[j]),
-              file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
-
-          if (deleteTmpSQLFiles)
-            try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
-        }
-
-        if (print.debug) {
-          tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
-          print(paste("    ended at", Sys.time(), "after", tDB, "s"))
-        }
-      }
-
-      if (!be.quiet)
-        print(paste("Output DB complete in :",
-          round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-
-      DBI::dbDisconnect(con)
-      if (do_DBCurrent) DBI::dbDisconnect(con2)
-    }
-
-		if(copyCurrentConditionsFromDatabase & !copyCurrentConditionsFromTempSQL) {
-			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
-			#Get sql for tables and index
-			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-			sqlTables <- fetch(resSQL,n=-1)
-			sqlTables <- unlist(sqlTables)
-			sqlTables <- sqlTables[-grep(pattern="sqlite_sequence",sqlTables)]
-			dbClearResult(resSQL)
-			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='view' ORDER BY name;")
-			sqlView <- fetch(resIndex,n=-1)
-			dbClearResult(resIndex)
-			sqlView<-unlist(sqlView)
-			sqlView <- sqlView[!is.na(sqlView)]
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-
-			con <- DBI::dbConnect(RSQLite::SQLite(), name.OutputDBCurrent)
-			for(i in 1:length(sqlTables)) {#Create the tables
-				res<-dbSendQuery(con, sqlTables[i])
-				dbClearResult(res)
-			}
-			dbGetQuery(con, sqlView)
-
-			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-			#Get Tables minus ones we do not want
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[-(which(Tables %in% headerTables()))]
-
-			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
-
-			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
-			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
-
-			unlink(paste(Tables,".sql",sep=""))
-
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[(which(Tables %in% headerTables()[-1]))]
-
-			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
-
-			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
-			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
-
-			unlink(paste(Tables,".sql",sep=""))
-			unlink(c("dump.txt","insert.txt"))
-
-  		DBI::dbDisconnect(con)
-	  	if (do_DBCurrent) DBI::dbDisconnect(con2)
-		}
-
-	} else {
-		print(paste("Need more than", MinTimeConcat, "seconds to put SQL in output DB."))
-	}
+#timing of outputDB
+delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
+if (!be.quiet & any(actions == "concatenate")) {
+  print(paste("SWSF inserting temporary data to outputDB: ended after",
+    round(delta.outputDB, 2), "s"))
 }
 
 
@@ -6504,102 +6256,17 @@ if (any(actions == "concatenate")) {
 t.check <- Sys.time()
 
 if (any(actions == "check")) {
+  if (!be.quiet)
+    print(paste("SWSF checks simulations and output: started at", t.check))
 
-	if (!be.quiet)
-	  print(paste("SWSF checks simulations and output: started at", t.check))
-
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB,
-    flags = RSQLite::SQLITE_RO)
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables())]
-  DBI::dbDisconnect(con)
-
-  do_DBcurrent <- copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL
-  missing_Pids <- missing_Pids_current <- NULL
-
-	if (parallel_runs && parallel_init) {
-    if (!exists("swsf_env")) {
-      swsf_env <- new.env(parent = emptyenv())
-      load(rSWSF, envir = swsf_env)
-    }
-
-    obj2exp <- gather_objects_for_export(varlist = ls(envir = swsf_env),
-      list_envs = list(rSWSF = swsf_env))
-
-		#call the simulations depending on parallel backend
-		if (identical(parallel_backend, "mpi")) {
-			Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "mpi")
-
-      missing_Pids <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
-        dbname = name.OutputDB)
-
-      if (do_DBcurrent) {
-        missing_Pids_current <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
-          dbname = name.OutputDBCurrent)
-      }
-
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
-
-		} else if(identical(parallel_backend, "snow")) {
-			snow::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "snow", cl)
-
-      missing_Pids <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
-        dbname = name.OutputDB)
-
-      if (do_DBcurrent) {
-        missing_Pids_current <- snow::clusterApplyLB(cl, x = Tables,
-          fun = missing_Pids_outputDB, dbname = name.OutputDBCurrent)
-      }
-
-      snow::clusterEvalQ(cl, rm(list = ls()))
-      snow::clusterEvalQ(cl, gc())
-		}
-
-	} else {
-    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
-
-    if (do_DBcurrent) {
-      missing_Pids_current <- lapply(Tables, missing_Pids_outputDB,
-        dbname = name.OutputDBCurrent)
-    }
+  if (!exists("swsf_env")) {
+    swsf_env <- new.env(parent = emptyenv())
+    load(rSWSF, envir = swsf_env)
   }
 
-  missing_Pids <- unique(unlist(missing_Pids))
-  missing_Pids_current <- unique(unlist(missing_Pids_current))
-
-  if (length(missing_Pids) > 0) {
-    missing_Pids <- as.integer(sort(missing_Pids))
-    ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
-
-    if (identical(missing_Pids, -1L)) {
-      print(paste("Output DB", shQuote(name.OutputDB), "is empty and not complete"))
-
-    } else {
-      print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
-        length(missing_Pids), "records; P_id of these records are saved to file",
-        shQuote(ftemp)))
-    }
-    saveRDS(missing_Pids, file = ftemp)
-  }
-
-  if (length(missing_Pids_current) > 0) {
-    missing_Pids_current <- as.integer(sort(missing_Pids_current))
-    ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
-
-    if (identical(missing_Pids_current, -1L)) {
-      print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is empty",
-        "and not complete"))
-
-    } else {
-      print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
-        length(missing_Pids_current), "records; P_id of these records are saved to file",
-        shQuote(ftemp)))
-    }
-    saveRDS(missing_Pids_current, file = ftemp)
-  }
+  check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
+    do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
+    parallel_runs, parallel_init, parallel_backend, cl, dir.out, swsf_env)
 }
 
 #timing of check
@@ -6700,7 +6367,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			}
 		}
 
-		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
+		if(!(TableTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
 			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
 
@@ -6714,7 +6381,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 				EnsembleTimeStop <- Sys.time() - t.overall
 				units(EnsembleTimeStop) <- "secs"
 				EnsembleTimeStop <- as.double(EnsembleTimeStop)
-				if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
+				if((EnsembleTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
 					break
 				}
 				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
@@ -6792,7 +6459,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 
 	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_comp_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
 			export_objects_to_workers(list.export, list(global = .GlobalEnv), "mpi")
 
@@ -6843,6 +6510,7 @@ write.timer <- function(label, time_sec = "", number = "") {
 }
 
 write.timer("Time_Total", time_sec=delta.overall)
+write.timer("Time_OutputDB", time_sec = delta.outputDB)
 write.timer("Time_Check", time_sec=delta.check)
 write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
