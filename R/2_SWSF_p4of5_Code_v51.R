@@ -6498,7 +6498,8 @@ if (any(actions == "check")) {
 	if (!be.quiet)
 	  print(paste("SWSF checks simulations and output: started at", t.check))
 
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB,
+    flags = RSQLite::SQLITE_RO)
 	Tables <- dbListTables(con) #get a list of tables
 	Tables <- Tables[-which(Tables %in% headerTables())]
   DBI::dbDisconnect(con)
@@ -6520,14 +6521,12 @@ if (any(actions == "check")) {
 			Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
       export_objects_to_workers(obj2exp, "mpi")
 
-      temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
         dbname = name.OutputDB)
-      missing_Pids <- as.integer(unlist(temp))
 
       if (do_DBcurrent) {
-        temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+        missing_Pids_current <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
           dbname = name.OutputDBCurrent)
-        missing_Pids_current <- as.integer(unlist(temp))
       }
 
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
@@ -6537,14 +6536,12 @@ if (any(actions == "check")) {
 			snow::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
       export_objects_to_workers(obj2exp, "snow", cl)
 
-      temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
         dbname = name.OutputDB)
-      missing_Pids <- as.integer(unlist(temp))
 
       if (do_DBcurrent) {
-        temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
-          dbname = name.OutputDBCurrent)
-        missing_Pids_current <- as.integer(unlist(temp))
+        missing_Pids_current <- snow::clusterApplyLB(cl, x = Tables,
+          fun = missing_Pids_outputDB, dbname = name.OutputDBCurrent)
       }
 
       snow::clusterEvalQ(cl, rm(list = ls()))
@@ -6552,30 +6549,45 @@ if (any(actions == "check")) {
 		}
 
 	} else {
-    temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
-    missing_Pids <- as.integer(unlist(temp))
+    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
 
     if (do_DBcurrent) {
-      temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDBCurrent)
-      missing_Pids_current <- as.integer(unlist(temp))
+      missing_Pids_current <- lapply(Tables, missing_Pids_outputDB,
+        dbname = name.OutputDBCurrent)
     }
   }
 
+  missing_Pids <- unique(unlist(missing_Pids))
+  missing_Pids_current <- unique(unlist(missing_Pids_current))
+
   if (length(missing_Pids) > 0) {
+    missing_Pids <- as.integer(sort(missing_Pids))
     ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
 
-    print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
-      length(missing_Pids), "records; P_id of these records are saved to file",
-      shQuote(ftemp)))
+    if (identical(missing_Pids, -1L)) {
+      print(paste("Output DB", shQuote(name.OutputDB), "is empty and not complete"))
+
+    } else {
+      print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
+        length(missing_Pids), "records; P_id of these records are saved to file",
+        shQuote(ftemp)))
+    }
     saveRDS(missing_Pids, file = ftemp)
   }
 
   if (length(missing_Pids_current) > 0) {
+    missing_Pids_current <- as.integer(sort(missing_Pids_current))
     ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
 
-    print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
-      length(missing_Pids_current), "records; P_id of these records are saved to file",
-      shQuote(ftemp)))
+    if (identical(missing_Pids_current, -1L)) {
+      print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is empty",
+        "and not complete"))
+
+    } else {
+      print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
+        length(missing_Pids_current), "records; P_id of these records are saved to file",
+        shQuote(ftemp)))
+    }
     saveRDS(missing_Pids_current, file = ftemp)
   }
 }
@@ -6826,11 +6838,13 @@ write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(actionWithSoilWat){
   times <- dbWork_timing(dir.out)
-	write.timer("Time_OneRun_Mean", time_sec=mean(times))
-	write.timer("Time_OneRun_SD", time_sec=sd(times))
-	write.timer("Time_OneRun_Median", time_sec=median(times))
-	write.timer("Time_OneRun_Min", time_sec=min(times))
-	write.timer("Time_OneRun_Max", time_sec=max(times))
+  if (length(times) > 0) {
+    write.timer("Time_OneRun_Mean", time_sec=mean(times))
+    write.timer("Time_OneRun_SD", time_sec=sd(times))
+    write.timer("Time_OneRun_Median", time_sec=median(times))
+    write.timer("Time_OneRun_Min", time_sec=min(times))
+    write.timer("Time_OneRun_Max", time_sec=max(times))
+  }
 }
 
 write.timer("N_cores", number=workersN)

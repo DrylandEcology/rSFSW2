@@ -77,7 +77,7 @@ dbWork_todos <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
   runIDs_todo <- RSQLite::dbGetQuery(con, paste("SELECT runID FROM work",
     "WHERE completed = 0 AND inwork = 0 ORDER BY runID"))
   RSQLite::dbDisconnect(con)
@@ -93,7 +93,7 @@ dbWork_timing <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
   times <- RSQLite::dbGetQuery(con, "SELECT time_s FROM work WHERE completed > 0")
   RSQLite::dbDisconnect(con)
 

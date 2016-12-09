@@ -10,15 +10,22 @@
 #--------------------------------------------------------------------------------------------------#
 
 missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
+  mP_ids <- -1L
 
-  sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
-    Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
-    "ORDER BY header.P_id")
+  if (file.exists(dbname)) {
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
 
-  mP_ids <- RSQLite::dbGetQuery(con, sql)$P_id
+    temp <- DBI::dbListTables(con)
 
-  DBI::dbDisconnect(con)
+    if (any("header" == temp) && any(Table == temp)) {
+      sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
+        Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
+        "ORDER BY header.P_id")
+      mP_ids <- RSQLite::dbGetQuery(con, sql)[, "header.P_id"]
+    }
+
+    DBI::dbDisconnect(con)
+  }
 
   mP_ids
 })
@@ -51,7 +58,7 @@ getSiteIds <- compiler::cmpfun(function(con, folderNames) {
 })
 
 local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name.OutputDB) {	# Get name of weather file from output database
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB, flags = RSQLite::SQLITE_RO)
   temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN, runIDs)))[1,1]
   DBI::dbDisconnect(con)
   temp
@@ -81,7 +88,7 @@ maker.climateScenarios <- function(currentScenario = "Current",
 #---Database functions
 #List tables and variables of a database
 list.dbTables <- function(dbName) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName, flags = RSQLite::SQLITE_RO)
   res <- DBI::dbListTables(con)
   RSQLite::dbDisconnect(con)
 
@@ -89,7 +96,7 @@ list.dbTables <- function(dbName) {
 }
 
 list.dbVariables <- function(dbName, dbTable) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName, flags = RSQLite::SQLITE_RO)
   res <- DBI::dbListFields(con, dbTable)
   RSQLite::dbDisconnect(con)
 
@@ -103,7 +110,7 @@ list.dbVariablesOfAllTables <- function(dbName) {
 
 addHeaderToWhereClause <- function(whereClause, headers = NULL, fdbSWSF = NULL) {
   if (is.null(headers) && file.exists(fdbSWSF)) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
     headers <- DBI::dbListFields(con, name = "header")
     RSQLite::dbDisconnect(con)
   }
@@ -167,7 +174,7 @@ get.SeveralOverallVariables_Scenario <- function(fdbSWSF, responseName, MeanOrSD
   iColumns <- list()
 
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
     iTable <- DBI::dbListTables(con)
     iTable <- grep(paste0("Overall_", MeanOrSD), iTable, ignore.case = TRUE,
       fixed = FALSE, value = TRUE)
@@ -293,7 +300,7 @@ get.Table_Scenario <- function(fdbSWSF, responseName, MeanOrSD = "Mean",
 
   dat <- NULL
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
     temp1 <- DBI::dbListTables(con)
     temp2 <- grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp1,
       ignore.case = TRUE, fixed = FALSE)
@@ -368,7 +375,7 @@ get.Table <- function(fdbSWSF, fdbSWSFens, climCat, responseName, MeanOrSD = "Me
     #print(paste(paste(responseName,collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid, sep = " "))
     if (climCat[i_climCat, 1] == "Current") {
       scenario<-climCat[i_climCat, 1]
-      con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF)
+      con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]
       if (length(iTable) == 1) {
         fields <- DBI::dbListFields(con, iTable)
