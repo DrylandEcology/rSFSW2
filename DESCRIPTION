@@ -1,17 +1,17 @@
 Package: rSWSF
 Title: SOILWAT Simulation Framework
-Version: 1.9.0
-Date: 2016-11-08
+Version: 1.10.0
+Date: 2016-12-08
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
-      person("Caitlin", "Andrews", role = "ctb",
-      person("Ryan", "Murphy", role = "ctb")
+      person("Caitlin", "Andrews", role = "ctb"),
+      person("Ryan", "Murphy", role = "ctb"))
 Description: An R wrapper for simulation experiments with SOILWAT
 Depends:
     R (>= 3.3.0)
 Imports:
-    Rsoilwat31 (>= 1.1.2),
+    Rsoilwat31 (>= 1.2.2),
     RSQLite (>= 1.0.0),
-    DBI (>= 0.4.1),
+    DBI (>= 0.5),
     circular (>= 0.4.7),
     Rcpp (>= 0.12.7),
     SPEI (>= 1.6),
@@ -34,7 +34,9 @@ Suggests:
     iotools (>= 0.1-12),
     Hmisc (>= 3.17.4),
     qmap (>= 1.0.4),
-    DaymetR (>= 0.1)
+    DaymetR (>= 0.1),
+    knitr,
+    rmarkdown
 LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
@@ -42,3 +44,4 @@ License: GPL (>= 3)
 URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
 BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
 RoxygenNote: 5.0.1
+VignetteBuilder: knitr
