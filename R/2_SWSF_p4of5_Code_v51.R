@@ -2827,8 +2827,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:scenario_No) {
+    P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
+
     if (print.debug)
-      print(paste("Start of SoilWat execution for scenario:", sc))
+      print(paste("Start of SoilWat execution for P_id =", P_id, "scenario =", sc))
 
     if (tasks$execute[sc] == 1L && continueAfterAbort && saveRsoilwatOutput &&
       file.exists(f_sw_output[sc])) {
@@ -2941,7 +2943,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				Exclude_ClimateAmbient <- TRUE
 
 				#dbOverallColumns comes from database creation
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
         temp <- paste(c(P_id, if (dbOverallColumns > 0)
           paste0(rep("NULL", dbOverallColumns), collapse = ",")), collapse = ",")
 				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
@@ -5667,10 +5668,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#---Aggregation: done with options
 
 				#temporaly save aggregate data
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
-
         nv1 <- nv - 1
-				if (dbOverallColumns > 0 && dbOverallColumns == nv1) {
+				if ((dbOverallColumns > 0 && dbOverallColumns == nv1) || dbOverallColumns == 0L) {
 					resMeans[!is.finite(resMeans)] <- "NULL"
 					resSDs[!is.finite(resSDs)] <- "NULL"
 					temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
@@ -5711,7 +5710,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						}
 
 						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-						agg.no <- ifelse(agg.analysis == 1, 1, aggLs_no)
+						agg.no <- if (agg.analysis > 1) aggLs_no else 1L
 
 						res.dailyMean <- res.dailySD <- rep(NA, times=ifelse(agg.analysis == 1, 1, ifelse(daily_lyr_agg[["do"]], agg.no, SoilLayer_MaxNo)) * 366)
 
@@ -5751,7 +5750,27 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 							#extract data and aggregate into layers if requested
 							agg.dat <- NULL
-							if(agg.analysis == 1){ #no layers
+							if (agg.analysis > 1) {
+                #deal with soil layers: either each or 1-4 aggregated soil layers
+								if( any(!is.na(match(agg.resp, c("VWCbulk", "VWCmatric", "SWPmatric", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
+									agg.agg <- weighted.mean
+									agg.w <- layers_width
+								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWCbulk", "SWAbulk")))) ){#aggregate by simple functions
+									agg.agg <- sum
+									agg.w <- rep(0, times=length(layers_width))
+								}
+								for(al in 1:aggLs_no){
+									if(length(aggLs[[al]]) > 1) {
+										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w[aggLs[[al]]])
+									} else {
+										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
+											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
+										}
+									}
+								}
+
+							} else {
+                #no layers
 								if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
 									agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, SnowLoss=7, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
 									agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
@@ -5768,23 +5787,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:colN], 1, sum)
 									} else {
 										agg.dat[[1]] <- temp1[simTime$index.usedy, 3]
-									}
-								}
-							} else {#deal with soil layers: either each or 1-4 aggregated soil layers
-								if( any(!is.na(match(agg.resp, c("VWCbulk", "VWCmatric", "SWPmatric", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
-									agg.agg <- weighted.mean
-									agg.w <- layers_width
-								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWCbulk", "SWAbulk")))) ){#aggregate by simple functions
-									agg.agg <- sum
-									agg.w <- rep(0, times=length(layers_width))
-								}
-								for(al in 1:aggLs_no){
-									if(length(aggLs[[al]]) > 1) {
-										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w[aggLs[[al]]])
-									} else {
-										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
-											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
-										}
 									}
 								}
 							}
@@ -5818,25 +5820,33 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								}
 							}
 						}
+
 						#temporary save daily data
-						P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
+            res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+            res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 
-						#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
-						if(agg.analysis == 1){
-							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+            if (agg.analysis > 1) {
+              SQL1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                  ids <- seq_len(366) + (x - 1) * 366
+                  paste0(P_id, ",", x, ",", paste0(res.dailyMean[ids], collapse = ","))
+                }), ")")
 
-						} else {
-							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
-							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-						}
+              SQL2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                  ids <- seq_len(366) + (x - 1) * 366
+                  paste0(P_id, ",", x, ",", paste0(res.dailySD[ids], collapse = ","))
+                }), ")")
+
+            } else { #no layers
+              SQL1 <- paste0("(", P_id, ",", paste(res.dailyMean, collapse = ","), ")")
+              SQL2 <- paste0("(", P_id, ",", paste(res.dailySD, collapse = ","), ")")
+            }
+
+            SQL1 <- paste0("INSERT INTO \"aggregation_doy_", output_aggregate_daily[doi],
+              "_Mean\" VALUES ", SQL1, ";")
+
+            SQL2 <- paste0("INSERT INTO \"aggregation_doy_", output_aggregate_daily[doi],
+              "_SD\" VALUES ", SQL2, ";")
+            SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
 
 					}#end if continueAfterAbort
 				}#doi loop
@@ -5883,7 +5893,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       if (eta.estimate) {
         deta <- round(ceiling((runsN_total - n) / workersN) *
           sapply(list(mean, sd), function(f) f(times, na.rm = TRUE)))
-        pi95 <- deta[2] * sqrt(1 + 1 / n) * qt(0.975, n) # 95% prediction interval
+        pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) qt(0.975, n) else NA}# 95% prediction interval
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
             paste(round(pi95 / 3600), "h")
           } else if (pi95 > 60) {
