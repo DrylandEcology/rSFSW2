@@ -37,7 +37,9 @@ do_import_objects <- compiler::cmpfun(function(obj_env) {
 })
 
 
-export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend = c("mpi", "snow"), cl = NULL) {
+export_objects_to_workers <- compiler::cmpfun(function(obj_env,
+  parallel_backend = c("mpi", "snow"), cl = NULL) {
+
   t.bcast <- Sys.time()
   parallel_backend <- match.arg(parallel_backend)
   N <- length(ls(obj_env))

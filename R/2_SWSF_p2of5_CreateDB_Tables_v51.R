@@ -24,8 +24,7 @@ if (createAndPopulateWeatherDatabase) {
   make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, sites_dailyweather_source, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    parallel_init, parallel_runs, parallel_backend, num_cores,
-    cl = if (exists("cl")) cl else NULL,
+    parallel_init, parallel_runs, parallel_backend, num_cores, cl,
     dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
     dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
     verbose = !be.quiet)

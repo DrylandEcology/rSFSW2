@@ -7,8 +7,10 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
     dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL, prepd_CFSR = NULL,
     verbose = FALSE) {
 
+  stopifnot(requireNamespace("Rsoilwat31"))
+
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-  dbW_createDatabase(dbFilePath = dbWeatherDataFile,
+  Rsoilwat31::dbW_createDatabase(dbFilePath = dbWeatherDataFile,
     site_data = data.frame(Site_id = SWRunInformation$site_id,
             Latitude = SWRunInformation$Y_WGS84,
             Longitude = SWRunInformation$X_WGS84,
@@ -22,30 +24,36 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
   # Extract weather data and move to weather database based on inclusion-invariant 'site_id'
   # Extract weather data per site
-  if (verbose) print(paste(Sys.time(), "started with moving single site weather data to database"))
+  if (verbose)
+    print(paste(Sys.time(), "started with moving single site weather data to database"))
 
-  ids_single <- which(sites_dailyweather_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica")) ## position in 'runIDs_sites'
+  temp <- sites_dailyweather_source %in%
+    c("LookupWeatherFolder", "Maurer2002_NorthAmerica")
+  ids_single <- which(temp) ## position in 'runIDs_sites'
+
   if (length(ids_single) > 0) {
     if (any(sites_dailyweather_source == "Maurer2002_NorthAmerica"))
-      Maurer <- with(SWRunInformation[runIDs_sites[ids_single], ], create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+      Maurer <- with(SWRunInformation[runIDs_sites[ids_single], ],
+        create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 
     for (i in seq_along(ids_single)) {
       i_idss <- ids_single[i]
       i_site <- runIDs_sites[i_idss]
 
       if (verbose && i %% 100 == 1)
-        print(paste(Sys.time(), "storing weather data of site", SWRunInformation$Label[i_site], i, "of", length(ids_single), "sites in database"))
+        print(paste(Sys.time(), "storing weather data of site",
+          SWRunInformation$Label[i_site], ":", i, "of", length(ids_single),
+          "sites in database"))
 
       if (sites_dailyweather_source[i_idss] == "LookupWeatherFolder") {
-        weatherData <- ExtractLookupWeatherFolder(dir.weather = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
-                  weatherfoldername = SWRunInformation$WeatherFolder[i_site])
+        weatherData <- ExtractLookupWeatherFolder(dir.weather =
+          file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+          weatherfoldername = SWRunInformation$WeatherFolder[i_site])
 
       } else if (sites_dailyweather_source[i_idss] == "Maurer2002_NorthAmerica") {
         weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-                  dir_data = dir.ex.maurer2002,
-                  cellname = Maurer[i],
-                  startYear = simstartyr,
-                  endYear = endyr)
+          dir_data = dir.ex.maurer2002, cellname = Maurer[i], startYear = simstartyr,
+          endYear = endyr)
 
       } else {
         stop(paste(sites_dailyweather_source[i_idss], "not implemented"))
@@ -53,37 +61,44 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
       if (!is.null(weatherData)) {
         years <- as.integer(names(weatherData))
-        data_blob <- dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData,
+          type = dbW_compression_type)
         Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
-          Scenario_id = 1,
-          StartYear = years[1],
-          EndYear = years[length(years)],
+          Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
           weather_blob = data_blob)
+
       } else {
-        print(paste("Moving daily weather data to database unsuccessful", SWRunInformation$Label[i_site]))
+        print(paste("Moving daily weather data to database unsuccessful",
+          SWRunInformation$Label[i_site]))
       }
     }
   }
 
   # Extract weather data for all sites based on inclusion-invariant 'site_id'
-  ids_DayMet_extraction <- runIDs_sites[which(sites_dailyweather_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
+  temp <- sites_dailyweather_source == "DayMet_NorthAmerica"
+  ids_DayMet_extraction <- runIDs_sites[which(temp)] ## position in 'runIDs_sites'
+
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
       dir_data = dir.ex.daymet,
       site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
-      coords_WGS84 = SWRunInformation[ids_DayMet_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+      coords_WGS84 = SWRunInformation[ids_DayMet_extraction,
+        c("X_WGS84", "Y_WGS84"), drop = FALSE],
       start_year = simstartyr,
       end_year = endyr,
       dir_temp = dir.out.temp,
       dbW_compression_type = dbW_compression_type)
   }
 
-  ids_NRCan_extraction <- runIDs_sites[which(sites_dailyweather_source == "NRCan_10km_Canada")]
+  temp <- sites_dailyweather_source == "NRCan_10km_Canada"
+  ids_NRCan_extraction <- runIDs_sites[which(temp)]
+
   if (length(ids_NRCan_extraction) > 0) {
     ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
       dir_data = dir.ex.NRCan,
       site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
-      coords_WGS84 = SWRunInformation[ids_NRCan_extraction, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+      coords_WGS84 = SWRunInformation[ids_NRCan_extraction,
+        c("X_WGS84", "Y_WGS84"), drop = FALSE],
       start_year = simstartyr,
       end_year = endyr,
       dir_temp = dir.out.temp,
@@ -92,11 +107,13 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       ncores = num_cores)
   }
 
-  ids_NCEPCFSR_extraction <- runIDs_sites[which(sites_dailyweather_source == "NCEPCFSR_Global")]
+  temp <- sites_dailyweather_source == "NCEPCFSR_Global"
+  ids_NCEPCFSR_extraction <- runIDs_sites[which(temp)]
   if (length(ids_NCEPCFSR_extraction) > 0) {
     GriddedDailyWeatherFromNCEPCFSR_Global(
       site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
-      dat_sites = SWRunInformation[ids_NCEPCFSR_extraction, c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
+      dat_sites = SWRunInformation[ids_NCEPCFSR_extraction,
+        c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
       start_year = simstartyr,
       end_year = endyr,
       meta_cfsr = prepd_CFSR,
@@ -110,7 +127,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       dbW_compression_type = dbW_compression_type)
   }
 
-  dbW_disconnectConnection()
+  Rsoilwat31::dbW_disconnectConnection()
 }
 
 
@@ -217,10 +234,12 @@ ExtractLookupWeatherFolder <- compiler::cmpfun(function(dir.weather, weatherfold
 
   weatherData <- list()
   for (j in seq_along(weath)) {
-    data_sw <- as.matrix(read.table(file.path(WeatherFolder, weath[j]), header = FALSE, comment.char = "#", blank.lines.skip = TRUE, sep = "\t"))
+    temp <- read.table(file.path(WeatherFolder, weath[j]), header = FALSE,
+      comment.char = "#", blank.lines.skip = TRUE, sep = "\t")
+    data_sw <- as.matrix(temp)
     data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
     colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-    weatherData[[j]] <- new("swWeatherData",
+    weatherData[[j]] <- methods::new("swWeatherData",
                             year = years[j],
                             data = data.matrix(data_sw, rownames.force = FALSE))
   }
@@ -255,7 +274,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- compiler::cmpfun(functi
     for(y in seq_along(years)) {
       data_sw <- data_all[weath.data$year == years[y], ]
       data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-      weathDataList[[y]] <- new("swWeatherData",
+      weathDataList[[y]] <- methods::new("swWeatherData",
                               year = years[y],
                               data = data.matrix(data_sw, rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
     }
@@ -335,7 +354,7 @@ get_DayMet_NorthAmerica <- compiler::cmpfun(function(dir_data, cellID, Xdm_WGS84
         data_sw[366, ] <- c(366, data_sw[365, -1])
       }
       data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
-      weathDataList[[y]] <- new("swWeatherData",
+      weathDataList[[y]] <- methods::new("swWeatherData",
                                 year=years[y],
                                 data = data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE)) #strip row.names, otherwise they consume about 60% of file size
     }
@@ -494,7 +513,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
       doys <- if (isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
       data_sw <- cbind(doys, NRC_weather[i, doys, iy, ]) #DOY Tmax(C) Tmin(C) PPT(cm) [ppt was converted from mm to cm]
       colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-      weatherData[[iy]] <- new("swWeatherData",
+      weatherData[[iy]] <- methods::new("swWeatherData",
                               year = NRC_target_years[iy],
                               data = data.matrix(data_sw, rownames.force = FALSE))
     }

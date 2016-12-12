@@ -488,6 +488,7 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 
 workersN <- 1
 parallel_init <- FALSE
+cl <- NULL
 lockfile <- NULL
 
 if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
@@ -6052,7 +6053,7 @@ tryCatch({
 
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
-          if ((runs.completed <= length(runIDs_todo)) & (temp < MaxDoOneSiteTime)) {
+          if ((runs.completed <= length(runIDs_todo)) && has_time_to_simulate) {
 						# Send a task, and then remove it from the task list
 						i_site <- it_site(runIDs_todo[runs.completed], runsN_master, runIDs_sites)
 						i_labels <- labels[i_site]
