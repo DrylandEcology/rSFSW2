@@ -1057,9 +1057,8 @@ if (length(Tables) == 0 || do.clean) {
 		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
 		if (do.ensembles) {
 
-			Tables<-dbListTables(con)
+			Tables <- dbOutput_ListOutputTables(con)
 			dbDisconnect(con)
-			Tables<-Tables[!(Tables %in% headerTables())]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
 			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)

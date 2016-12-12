@@ -537,7 +537,7 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 	}
 }
 
-if (identical(parallel_backend, "mpi") && parallel_runs && parallel_init) {
+if (!identical(parallel_backend, "mpi")) {
   # Only enforce wall-time on MPI systems
   opt_comp_time[["wall_time_s"]] <- Inf
 }
@@ -6213,7 +6213,7 @@ t.outputDB <- Sys.time()
 
 if (any(actions == "concatenate")) {
   if (!be.quiet)
-    print(paste("Inserting data from temp SQL files into output DB: started at", t.outputDB))
+    print(paste("SWSF inserting temporary data to outputDB: started at", t.outputDB))
 
   has_time_to_concat <- (difftime(t.outputDB, t.overall, units = "secs") +
     opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
@@ -6453,8 +6453,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	library(RSQLite,quietly = TRUE)
 	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables())]
+	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
 	if(parallel_runs && parallel_init){
