@@ -9,7 +9,7 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 #--order output_aggregate_daily--#
 if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
-ow <- options("warn", "error")
+ow_prev <- options("warn", "error")
 #    - warn < 0: warnings are ignored
 #    - warn = 0: warnings are stored until the top–level function returns
 #    - warn = 1: warnings are printed as they occur
@@ -503,7 +503,7 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
       .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
         if (is.loaded("mpi_initialize")) {
-          if (isNamespaceLoaded("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
+          if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
             Rmpi::mpi.close.Rslaves()
           .Call("mpi_finalize")
         }
@@ -1367,8 +1367,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #i_exp = the row of sw_input_experimentals for the i_sim-th simulation run
 #P_id is a unique id number for each scenario in each run
 
-  time.sys <- Sys.time()
-  has_time_to_simulate <- (difftime(time.sys, t.overall, units = "secs") +
+  t.do_OneSite <- Sys.time()
+  has_time_to_simulate <- (difftime(t.do_OneSite, t.overall, units = "secs") +
     opt_comp_time[["one_sim_s"]]) < opt_comp_time[["wall_time_s"]]
 
   if (!has_time_to_simulate)
@@ -1413,7 +1413,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 #------------------------Preparations for simulation run
   if (!be.quiet)
-    print(paste0(i_sim, ": ", i_label, " started at ", time.sys))
+    print(paste0(i_sim, ": ", i_label, " started at ", t.do_OneSite))
 
 	#Check what needs to be done
 	#TODO this currently doesn't work in the database setup
@@ -5885,11 +5885,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       cat(SQL, file = dbTempFile, append = TRUE, sep = "\n")
   }
 
-  dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
+  delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
   dbWork_update_job(dir.out, i_sim, status = if (status) "completed" else "failed",
-    time_s = dt, with_filelock = lockfile, verbose = print.debug)
+    time_s = delta.do_OneSite, with_filelock = lockfile, verbose = print.debug)
 
   if (status) {
     #ETA estimation
@@ -5897,7 +5897,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
     if (!be.quiet) {
       n <- length(times) - 1
-      temp <- paste0(i_sim, ": ", i_label, " done in ", dt, " ", units(dt), ": ",
+      temp <- paste0(i_sim, ": ", i_label, " done in ", delta.do_OneSite, " ", units(delta.do_OneSite), ": ",
                     round(n / runsN_total * 100, 2), "% complete")
 
       if (eta.estimate) {
@@ -5982,7 +5982,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
     "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
     "tr_prod", "tr_site", "tr_soil", "tr_VegetationComposition",
-    "tr_weather", "use_rcpp", "weatherin", "workersN", "yearsin")
+    "tr_weather", "t.overall", "use_rcpp", "weatherin", "workersN", "yearsin")
   #list.export <- list.export[!duplicated(list.export)]
 
   swsf_env <- new.env(parent = emptyenv())
@@ -6016,16 +6016,16 @@ if(actionWithSoilWat && runsN_todo > 0){
           Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
             length(ls()), "objects")))
         }
+
       } else {
-        print("Rmpi workers have insufficient data to execute jobs")
-        Rmpi::mpi.close.Rslaves()
+        #Rmpi::mpi.close.Rslaves()
         Rmpi::mpi.exit()
-        stop()
+        stop("Rmpi workers have insufficient data to execute jobs")
       }
 
       Rmpi::mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
-			Rmpi::mpi.bcast.cmd(mpi_work())
+			Rmpi::mpi.bcast.cmd(mpi_work(verbose = print.debug))
 
 			junk <- 0L
 			closed_slaves <- 0L
@@ -6056,29 +6056,31 @@ tryCatch({
           if ((runs.completed <= length(runIDs_todo)) && has_time_to_simulate) {
 						# Send a task, and then remove it from the task list
 						i_site <- it_site(runIDs_todo[runs.completed], runsN_master, runIDs_sites)
-						i_labels <- labels[i_site]
-						i_SWRunInformation <- SWRunInformation[i_site, ]
-						i_sw_input_soillayers <- sw_input_soillayers[i_site, ]
-						i_sw_input_treatments <- sw_input_treatments[i_site, ]
-						i_sw_input_cloud <- sw_input_cloud[i_site, ]
-						i_sw_input_prod <- sw_input_prod[i_site, ]
-						i_sw_input_site <- sw_input_site[i_site, ]
-						i_sw_input_soils <- sw_input_soils[i_site, ]
-						i_sw_input_weather <- sw_input_weather[i_site, ]
-						i_sw_input_climscen <- sw_input_climscen[i_site, ]
-						i_sw_input_climscen_values <- sw_input_climscen_values[i_site, ]
 
-						dataForRun <- list(do_OneSite=TRUE, i_sim=runIDs_todo[runs.completed], labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
-						mpi.send.Robj(dataForRun, slave_id, 1)
+            dataForRun <- list(do_OneSite = TRUE,
+              i_sim = runIDs_todo[runs.completed],
+              i_labels = labels[i_site],
+              i_SWRunInformation = SWRunInformation[i_site, ],
+              i_sw_input_soillayers = sw_input_soillayers[i_site, ],
+              i_sw_input_treatments = sw_input_treatments[i_site, ],
+              i_sw_input_cloud = sw_input_cloud[i_site, ],
+              i_sw_input_prod = sw_input_prod[i_site, ],
+              i_sw_input_site = sw_input_site[i_site, ],
+              i_sw_input_soils = sw_input_soils[i_site, ],
+              i_sw_input_weather = sw_input_weather[i_site, ],
+              i_sw_input_climscen = sw_input_climscen[i_site, ],
+              i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
+
 						if (print.debug) {
 						  print(paste("Slave:", slave_id,
 						              "Run:", runIDs_todo[runs.completed],
 						              "started at", Sys.time()))
 						}
+						Rmpi::mpi.send.Robj(dataForRun, slave_id, 1)
 						runs.completed <- runs.completed + 1L
 
 					} else {
-						mpi.send.Robj(junk, slave_id, 2)
+						Rmpi::mpi.send.Robj(junk, slave_id, 2)
 					}
 
 				} else if (tag == 2L) {
@@ -6128,7 +6130,18 @@ tryCatch({
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
 				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
-				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
+        do_OneSite(i_sim = i_sim,
+          i_labels = labels[i_site],
+          i_SWRunInformation = SWRunInformation[i_site, ],
+          i_sw_input_soillayers = sw_input_soillayers[i_site, ],
+          i_sw_input_treatments = sw_input_treatments[i_site, ],
+          i_sw_input_cloud = sw_input_cloud[i_site, ],
+          i_sw_input_prod = sw_input_prod[i_site, ],
+          i_sw_input_site = sw_input_site[i_site, ],
+          i_sw_input_soils = sw_input_soils[i_site, ],
+          i_sw_input_weather = sw_input_weather[i_site, ],
+          i_sw_input_climscen = sw_input_climscen[i_site, ],
+          i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
 			}
 
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
@@ -6465,8 +6478,9 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 
 			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
-			ensembles.completed <- Rmpi::mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			ensembles.completed <- Rmpi::mpi.applyLB(X = Tables, FUN = collect_EnsembleFromScenarios)
 			ensembles.completed <- sum(unlist(ensembles.completed))
+
 		} else if(identical(parallel_backend, "snow")) {
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
 			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
@@ -6531,26 +6545,43 @@ write.timer("N_SWruns", number=runs.completed * scenario_No)
 write.timer("N_EnsembleFiles", number=ifelse(exists("ensembles.completed"), ensembles.completed, 0))
 
 
-if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
+if (!be.quiet)
+  print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CODE CLEANUP
 
-options(ow)	#sets the warning option to its previous value
+options(ow_prev) #sets the warning option to its previous value
 
-if(parallel_runs && parallel_init){
-	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
-		Rmpi::mpi.close.Rslaves(dellog=FALSE)
-		Rmpi::mpi.exit()
-	}
-	if(identical(parallel_backend, "snow")){
-		snow::stopCluster(cl)	#clean up snow cluster
-	}
+if (parallel_runs && parallel_init) {
+  if (print.debug) {
+    print(paste0("SWSF: started to clean parallel ", parallel_backend,
+      "-workers at ", Sys.time()))
+  }
+
+  if (identical(parallel_backend, "mpi")) {
+    #clean up mpi slaves
+
+    #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
+    # Rmpi::mpi.close.Rslaves(dellog = FALSE)
+
+    Rmpi::mpi.exit()
+    rm(.Last)
+  }
+
+  if (identical(parallel_backend, "snow") && !is.null(cl)) {
+    #clean up snow cluster
+    snow::stopCluster(cl)
+  }
+
+  if (print.debug) {
+    print(paste0("SWSF: ", parallel_backend,
+      "-workers successfully closed down at ", Sys.time()))
+  }
+
 }
 
-
-#rm(list=ls(all=TRUE))	#optional
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#

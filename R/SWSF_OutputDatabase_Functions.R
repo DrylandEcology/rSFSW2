@@ -836,11 +836,11 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
       export_objects_to_workers(obj2exp, "mpi")
 
-      missing_Pids <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
         dbname = name.OutputDB)
 
       if (do_DBcurrent) {
-        missing_Pids_current <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
+        missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
           dbname = name.OutputDBCurrent)
       }
 

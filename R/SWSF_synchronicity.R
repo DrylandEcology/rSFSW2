@@ -27,6 +27,7 @@ lock_init <- function(fname_lock, id) {
   lock <- list(
     dir = fname_lock,
     file = file.path(fname_lock, "lockfile.txt"),
+    locker_id = id,
     code = paste("access locked for", id),
     obtained = FALSE,
     confirmed_access = NA)
@@ -61,8 +62,11 @@ remove_lock <- function(lock) {
 #' @return The updated \code{lock} object of class \code{SWSF_lock}.
 #' @rdname synchronicity
 unlock_access <- function(lock) {
-  lock$confirmed_access <- check_lock_content(lock)
-  remove_lock(lock)
+  if (inherits(lock, "SWSF_lock")) {
+    lock$confirmed_access <- check_lock_content(lock)
+    remove_lock(lock)
+  }
+
   lock
 }
 
@@ -87,17 +91,14 @@ lock_attempt <- compiler::cmpfun(function(lock) {
 #'
 #' Access to the backing store lock is attempted until successfully obtained.
 #'
-#' @paramInherits lock_init
 #' @param verbose A logical value. If \code{TRUE}, then each attempt at obtaining the lock
 #'  is printed.
 #' @return The updated \code{lock} object of class \code{SWSF_lock}.
 #' @rdname synchronicity
-lock_access <- compiler::cmpfun(function(fname_lock, id = 0, verbose = FALSE) {
-  lock <- lock_init(fname_lock, id)
-
-  while (!lock$obtained) {
+lock_access <- compiler::cmpfun(function(lock, verbose = FALSE) {
+  if (inherits(lock, "SWSF_lock")) while (!lock$obtained) {
     if (verbose)
-      print(paste(Sys.time(), "attempt to obtain lock for", shQuote(id)))
+      print(paste(Sys.time(), "attempt to obtain lock for", shQuote(lock$locker_id)))
     lock <- lock_attempt(lock)
     Sys.sleep(runif(1, 0.02, 0.1))
   }

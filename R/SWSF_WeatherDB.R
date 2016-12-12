@@ -643,18 +643,19 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
       if (do_parallel) {
         if (identical(parallel_backend, "mpi")) {
           if (daily) {
-            nDailyReads <- Rmpi::mpi.applyLB(x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
+            nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
+              FUN = gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
             nDailyReads <- do.call(sum, nDailyReads)
 
-            nDailyWrites <- Rmpi::mpi.applyLB(x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites_todo[irows, "WeatherFolder"], siteDirsC=dtemp)
+            nDailyWrites <- Rmpi::mpi.applyLB(X = years, FUN = writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites_todo[irows, "WeatherFolder"], siteDirsC=dtemp)
             nDailyWrites <- do.call(sum, nDailyWrites)
           }
           if (monthly) {
-            nMonthlyReads <- Rmpi::mpi.applyLB(x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+            nMonthlyReads <- Rmpi::mpi.applyLB(X = 0:(n_climvars-1), FUN = gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
             nMonthlyReads <- do.call(sum, nMonthlyReads)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- Rmpi::mpi.applyLB(x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
+            nMonthlyWrites <- Rmpi::mpi.applyLB(X = seq_len(n_sites_all), FUN = writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
             nMonthlyWrites <- do.call(sum, nMonthlyWrites)
           }
         } else if (identical(parallel_backend, "snow")) {

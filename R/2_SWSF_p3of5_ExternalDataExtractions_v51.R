@@ -2496,7 +2496,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 				Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
 				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -3298,7 +3298,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
             export_objects_to_workers(obj2exp, "mpi")
 						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 
-						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs,
+						sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = extract_SUIDs,
 						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 
@@ -3445,7 +3445,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				if (identical(parallel_backend, "mpi")) {
           export_objects_to_workers(obj2exp, "mpi")
 
-					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- Rmpi::mpi.applyLB(X = is_ToDo,
+					  FUN = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
@@ -3459,7 +3460,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				} else if (identical(parallel_backend, "snow")) {
           export_objects_to_workers(obj2exp, "snow", cl)
 
-					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo,
+					  fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
