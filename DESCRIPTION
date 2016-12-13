@@ -1,7 +1,7 @@
 Package: rSWSF
 Title: SOILWAT Simulation Framework
-Version: 1.10.0
-Date: 2016-12-08
+Version: 1.11.0
+Date: 2016-12-13
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
@@ -18,8 +18,7 @@ Imports:
     testthat
 Suggests:
     Rmpi (>= 0.6.6),
-    doSNOW (>= 1.0.14),
-    snow (>= 0.4.1),
+    parallel,
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
     raster (>= 2.5.8),
