@@ -9,7 +9,7 @@ actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensembl
 #--order output_aggregate_daily--#
 if(length(output_aggregate_daily) > 0) output_aggregate_daily <- output_aggregate_daily[order(output_aggregate_daily)]
 #------
-ow <- options("warn", "error")
+ow_prev <- options("warn", "error")
 #    - warn < 0: warnings are ignored
 #    - warn = 0: warnings are stored until the top–level function returns
 #    - warn = 1: warnings are printed as they occur
@@ -61,9 +61,6 @@ timerfile2 <- "Timing_Simulation.csv"
 ftemp <- file.path(dir.out, timerfile2)
 cat(",Time_s,Number", file = ftemp, sep = "\n")
 
-#concatenate file keeps track of sql files inserted into data
-concatFile <- "sqlFilesInserted.csv"
-concatFileProblemLines <- "sqlFilesProblemLines.csv"
 
 #------load libraries
 dir.libraries <- .libPaths()[1]
@@ -491,6 +488,7 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 
 workersN <- 1
 parallel_init <- FALSE
+cl <- NULL
 lockfile <- NULL
 
 if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
@@ -505,7 +503,7 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
       .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
         if (is.loaded("mpi_initialize")) {
-          if (isNamespaceLoaded("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
+          if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
             Rmpi::mpi.close.Rslaves()
           .Call("mpi_finalize")
         }
@@ -534,8 +532,15 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
       }
 
 		parallel_init <- TRUE
-		if(!be.quiet) print(paste("SWSF prepares parallelization: initialization of", workersN, "workers ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+		if (!be.quiet)
+		  print(paste("SWSF prepares parallelization: initialization of", workersN,
+		    "workers ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 	}
+}
+
+if (!identical(parallel_backend, "mpi")) {
+  # Only enforce wall-time on MPI systems
+  opt_comp_time[["wall_time_s"]] <- Inf
 }
 #--------------------------------------------------------------------------------------------------#
 
@@ -1362,7 +1367,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 #i_exp = the row of sw_input_experimentals for the i_sim-th simulation run
 #P_id is a unique id number for each scenario in each run
 
-	time.sys <- Sys.time()
+  t.do_OneSite <- Sys.time()
+  has_time_to_simulate <- (difftime(t.do_OneSite, t.overall, units = "secs") +
+    opt_comp_time[["one_sim_s"]]) < opt_comp_time[["wall_time_s"]]
+
+  if (!has_time_to_simulate)
+    stop("Not enough time to simulate ", i_sim)
 
   dbWork_update_job(dir.out, i_sim, status = "inwork",
     with_filelock = lockfile, verbose = print.debug)
@@ -1403,7 +1413,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 #------------------------Preparations for simulation run
   if (!be.quiet)
-    print(paste0(i_sim, ": ", i_label, " started at ", time.sys))
+    print(paste0(i_sim, ": ", i_label, " started at ", t.do_OneSite))
 
 	#Check what needs to be done
 	#TODO this currently doesn't work in the database setup
@@ -2827,8 +2837,10 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:scenario_No) {
+    P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
+
     if (print.debug)
-      print(paste("Start of SoilWat execution for scenario:", sc))
+      print(paste("Start of SoilWat execution for P_id =", P_id, "scenario =", sc))
 
     if (tasks$execute[sc] == 1L && continueAfterAbort && saveRsoilwatOutput &&
       file.exists(f_sw_output[sc])) {
@@ -2941,7 +2953,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				Exclude_ClimateAmbient <- TRUE
 
 				#dbOverallColumns comes from database creation
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
         temp <- paste(c(P_id, if (dbOverallColumns > 0)
           paste0(rep("NULL", dbOverallColumns), collapse = ",")), collapse = ",")
 				SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
@@ -5667,10 +5678,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 				#---Aggregation: done with options
 
 				#temporaly save aggregate data
-				P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
-
         nv1 <- nv - 1
-				if (dbOverallColumns > 0 && dbOverallColumns == nv1) {
+				if ((dbOverallColumns > 0 && dbOverallColumns == nv1) || dbOverallColumns == 0L) {
 					resMeans[!is.finite(resMeans)] <- "NULL"
 					resSDs[!is.finite(resSDs)] <- "NULL"
 					temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
@@ -5711,7 +5720,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 						}
 
 						agg.analysis <- switch(EXPR=agg.resp, AET=1, Transpiration=2, EvaporationSoil=1, EvaporationSurface=1, EvaporationTotal=1, VWCbulk=2, VWCmatric=2, SWCbulk=2, SWPmatric=2, SWAbulk=2, Snowpack=1, Rain=1, Snowfall=1, Snowmelt=1, SnowLoss=1, Infiltration=1, DeepDrainage=1, PET=1, TotalPrecipitation=1, TemperatureMin=1, TemperatureMax=1, SoilTemperature=2, Runoff=1)
-						agg.no <- ifelse(agg.analysis == 1, 1, aggLs_no)
+						agg.no <- if (agg.analysis > 1) aggLs_no else 1L
 
 						res.dailyMean <- res.dailySD <- rep(NA, times=ifelse(agg.analysis == 1, 1, ifelse(daily_lyr_agg[["do"]], agg.no, SoilLayer_MaxNo)) * 366)
 
@@ -5751,7 +5760,27 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 							#extract data and aggregate into layers if requested
 							agg.dat <- NULL
-							if(agg.analysis == 1){ #no layers
+							if (agg.analysis > 1) {
+                #deal with soil layers: either each or 1-4 aggregated soil layers
+								if( any(!is.na(match(agg.resp, c("VWCbulk", "VWCmatric", "SWPmatric", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
+									agg.agg <- weighted.mean
+									agg.w <- layers_width
+								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWCbulk", "SWAbulk")))) ){#aggregate by simple functions
+									agg.agg <- sum
+									agg.w <- rep(0, times=length(layers_width))
+								}
+								for(al in 1:aggLs_no){
+									if(length(aggLs[[al]]) > 1) {
+										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w[aggLs[[al]]])
+									} else {
+										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
+											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
+										}
+									}
+								}
+
+							} else {
+                #no layers
 								if( any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax","Runoff")))) ){
 									agg.column <- switch(EXPR=agg.resp, AET=3, EvaporationSurface=3, Snowpack=3, Rain=4, Snowfall=5, Snowmelt=6, SnowLoss=7, Infiltration=3, DeepDrainage=3, PET=3, TotalPrecipitation=3, TemperatureMin=4, TemperatureMax=3,Runoff=3)
 									agg.dat[[1]] <- temp1[simTime$index.usedy, agg.column]
@@ -5768,23 +5797,6 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 										agg.dat[[1]] <- apply(temp1[simTime$index.usedy, 3:colN], 1, sum)
 									} else {
 										agg.dat[[1]] <- temp1[simTime$index.usedy, 3]
-									}
-								}
-							} else {#deal with soil layers: either each or 1-4 aggregated soil layers
-								if( any(!is.na(match(agg.resp, c("VWCbulk", "VWCmatric", "SWPmatric", "SoilTemperature")))) ){ #aggregate by functions that are weighted by depths of soil layers
-									agg.agg <- weighted.mean
-									agg.w <- layers_width
-								} else if( any(!is.na(match(agg.resp, c("Transpiration", "SWCbulk", "SWAbulk")))) ){#aggregate by simple functions
-									agg.agg <- sum
-									agg.w <- rep(0, times=length(layers_width))
-								}
-								for(al in 1:aggLs_no){
-									if(length(aggLs[[al]]) > 1) {
-										agg.dat[[al]] <- apply(temp1[simTime$index.usedy, 2 + aggLs[[al]]], 1, agg.agg, w=agg.w[aggLs[[al]]])
-									} else {
-										if(!(is.null(aggLs[[al]]) | length(aggLs[[al]]) == 0)) {
-											agg.dat[[al]]  <- temp1[simTime$index.usedy, 2 + aggLs[[al]]]
-										}
 									}
 								}
 							}
@@ -5818,25 +5830,33 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 								}
 							}
 						}
+
 						#temporary save daily data
-						P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
+            res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+            res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 
-						#save(agg.analysis, aggLs_no, P_id, header, sc, agg.resp, res.dailyMean, res.dailySD, file=file.path(dir.out, paste(mpi.comm.rank(),"of",mpi.comm.size(),"_sc_",sc,"_doi_",doi,".r",sep="")))
-						if(agg.analysis == 1){
-							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
+            if (agg.analysis > 1) {
+              SQL1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                  ids <- seq_len(366) + (x - 1) * 366
+                  paste0(P_id, ",", x, ",", paste0(res.dailyMean[ids], collapse = ","))
+                }), ")")
 
-						} else {
-							#save(res.dailyMean,agg.no,header,header.names,P_id, res.dailySD,agg.analysis, aggLs_no,aggLs,agg.resp,layers_width,file=file.path(dir.out, "readThis.r"))
-							res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-							res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-							SQL1 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_Mean", sep=""), " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailyMean[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL2 <- paste0("INSERT INTO ",paste("aggregation_doy_", output_aggregate_daily[doi], "_SD", sep=""),   " VALUES ", paste0("(",sapply(1:agg.no, FUN=function(x) {paste0(P_id,",", x,",",paste0(res.dailySD[((x*366)-365):(x*366)],collapse=","))}), ")", sep="", collapse = ","), ";", sep="")
-							SQL <- paste(SQL, SQL1, SQL2, sep="\n")
-						}
+              SQL2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                  ids <- seq_len(366) + (x - 1) * 366
+                  paste0(P_id, ",", x, ",", paste0(res.dailySD[ids], collapse = ","))
+                }), ")")
+
+            } else { #no layers
+              SQL1 <- paste0("(", P_id, ",", paste(res.dailyMean, collapse = ","), ")")
+              SQL2 <- paste0("(", P_id, ",", paste(res.dailySD, collapse = ","), ")")
+            }
+
+            SQL1 <- paste0("INSERT INTO \"aggregation_doy_", output_aggregate_daily[doi],
+              "_Mean\" VALUES ", SQL1, ";")
+
+            SQL2 <- paste0("INSERT INTO \"aggregation_doy_", output_aggregate_daily[doi],
+              "_SD\" VALUES ", SQL2, ";")
+            SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
 
 					}#end if continueAfterAbort
 				}#doi loop
@@ -5865,11 +5885,11 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       cat(SQL, file = dbTempFile, append = TRUE, sep = "\n")
   }
 
-  dt <- round(difftime(Sys.time(), time.sys, units = "secs"), 2)
+  delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
   dbWork_update_job(dir.out, i_sim, status = if (status) "completed" else "failed",
-    time_s = dt, with_filelock = lockfile, verbose = print.debug)
+    time_s = delta.do_OneSite, with_filelock = lockfile, verbose = print.debug)
 
   if (status) {
     #ETA estimation
@@ -5877,13 +5897,13 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
     if (!be.quiet) {
       n <- length(times) - 1
-      temp <- paste0(i_sim, ": ", i_label, " done in ", dt, " ", units(dt), ": ",
+      temp <- paste0(i_sim, ": ", i_label, " done in ", delta.do_OneSite, " ", units(delta.do_OneSite), ": ",
                     round(n / runsN_total * 100, 2), "% complete")
 
       if (eta.estimate) {
         deta <- round(ceiling((runsN_total - n) / workersN) *
           sapply(list(mean, sd), function(f) f(times, na.rm = TRUE)))
-        pi95 <- deta[2] * sqrt(1 + 1 / n) * qt(0.975, n) # 95% prediction interval
+        pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) qt(0.975, n) else NA}# 95% prediction interval
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
             paste(round(pi95 / 3600), "h")
           } else if (pi95 > 60) {
@@ -5942,9 +5962,9 @@ if(actionWithSoilWat && runsN_todo > 0){
     "get.month", "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
-    "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily", "parallel_backend",
-    "parallel_runs", "param.species_regeneration", "pcalcs", "print.debug",
-    "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
+    "opt_comp_time", "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily",
+    "parallel_backend", "parallel_runs", "param.species_regeneration", "pcalcs",
+    "print.debug", "prodin", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
     "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
     "season.end", "season.start", "shrub.fraction.limit", "simstartyr",
     "simTime", "simTime_ForEachUsedTimeUnit_North", "simTime_ForEachUsedTimeUnit_South",
@@ -5962,7 +5982,7 @@ if(actionWithSoilWat && runsN_todo > 0){
     "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
     "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
     "tr_prod", "tr_site", "tr_soil", "tr_VegetationComposition",
-    "tr_weather", "use_rcpp", "weatherin", "workersN", "yearsin")
+    "tr_weather", "t.overall", "use_rcpp", "weatherin", "workersN", "yearsin")
   #list.export <- list.export[!duplicated(list.export)]
 
   swsf_env <- new.env(parent = emptyenv())
@@ -5996,16 +6016,16 @@ if(actionWithSoilWat && runsN_todo > 0){
           Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
             length(ls()), "objects")))
         }
+
       } else {
-        print("Rmpi workers have insufficient data to execute jobs")
-        Rmpi::mpi.close.Rslaves()
+        #Rmpi::mpi.close.Rslaves()
         Rmpi::mpi.exit()
-        stop()
+        stop("Rmpi workers have insufficient data to execute jobs")
       }
 
       Rmpi::mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
-			Rmpi::mpi.bcast.cmd(mpi_work())
+			Rmpi::mpi.bcast.cmd(mpi_work(verbose = print.debug))
 
 			junk <- 0L
 			closed_slaves <- 0L
@@ -6028,38 +6048,39 @@ tryCatch({
         }
 
 				if (tag == 1L) {
-					temp <- Sys.time() - t.overall
-					units(temp) <- "secs"
-					temp <- as.double(temp)
+          has_time_to_simulate <- (difftime(Sys.time(), t.overall, units = "secs") +
+            opt_comp_time[["one_sim_s"]]) < opt_comp_time[["wall_time_s"]]
 
 					# slave is ready for a task. Give it the next task, or tell it tasks
 					# are done if there are none.
-          if ((runs.completed <= length(runIDs_todo)) & (temp < MaxDoOneSiteTime)) {
+          if ((runs.completed <= length(runIDs_todo)) && has_time_to_simulate) {
 						# Send a task, and then remove it from the task list
 						i_site <- it_site(runIDs_todo[runs.completed], runsN_master, runIDs_sites)
-						i_labels <- labels[i_site]
-						i_SWRunInformation <- SWRunInformation[i_site, ]
-						i_sw_input_soillayers <- sw_input_soillayers[i_site, ]
-						i_sw_input_treatments <- sw_input_treatments[i_site, ]
-						i_sw_input_cloud <- sw_input_cloud[i_site, ]
-						i_sw_input_prod <- sw_input_prod[i_site, ]
-						i_sw_input_site <- sw_input_site[i_site, ]
-						i_sw_input_soils <- sw_input_soils[i_site, ]
-						i_sw_input_weather <- sw_input_weather[i_site, ]
-						i_sw_input_climscen <- sw_input_climscen[i_site, ]
-						i_sw_input_climscen_values <- sw_input_climscen_values[i_site, ]
 
-						dataForRun <- list(do_OneSite=TRUE, i_sim=runIDs_todo[runs.completed], labels=i_labels, SWRunInformation=i_SWRunInformation, sw_input_soillayers=i_sw_input_soillayers, sw_input_treatments=i_sw_input_treatments, sw_input_cloud=i_sw_input_cloud, sw_input_prod=i_sw_input_prod, sw_input_site=i_sw_input_site, sw_input_soils=i_sw_input_soils, sw_input_weather=i_sw_input_weather, sw_input_climscen=i_sw_input_climscen, sw_input_climscen_values=i_sw_input_climscen_values)
-						mpi.send.Robj(dataForRun, slave_id, 1)
+            dataForRun <- list(do_OneSite = TRUE,
+              i_sim = runIDs_todo[runs.completed],
+              i_labels = labels[i_site],
+              i_SWRunInformation = SWRunInformation[i_site, ],
+              i_sw_input_soillayers = sw_input_soillayers[i_site, ],
+              i_sw_input_treatments = sw_input_treatments[i_site, ],
+              i_sw_input_cloud = sw_input_cloud[i_site, ],
+              i_sw_input_prod = sw_input_prod[i_site, ],
+              i_sw_input_site = sw_input_site[i_site, ],
+              i_sw_input_soils = sw_input_soils[i_site, ],
+              i_sw_input_weather = sw_input_weather[i_site, ],
+              i_sw_input_climscen = sw_input_climscen[i_site, ],
+              i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
+
 						if (print.debug) {
 						  print(paste("Slave:", slave_id,
 						              "Run:", runIDs_todo[runs.completed],
 						              "started at", Sys.time()))
 						}
+						Rmpi::mpi.send.Robj(dataForRun, slave_id, 1)
 						runs.completed <- runs.completed + 1L
 
 					} else {
-						mpi.send.Robj(junk, slave_id, 2)
+						Rmpi::mpi.send.Robj(junk, slave_id, 2)
 					}
 
 				} else if (tag == 2L) {
@@ -6088,7 +6109,6 @@ tryCatch({
 }, interrupt=function(interrupt) {
 	print("Ctrl-C caught bringing work to an end.")
 	print(interrupt)
-	MaxDoOneSiteTime <<- 0
 })
 			}
 
@@ -6110,7 +6130,18 @@ tryCatch({
 
 			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
 				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
-				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
+        do_OneSite(i_sim = i_sim,
+          i_labels = labels[i_site],
+          i_SWRunInformation = SWRunInformation[i_site, ],
+          i_sw_input_soillayers = sw_input_soillayers[i_site, ],
+          i_sw_input_treatments = sw_input_treatments[i_site, ],
+          i_sw_input_cloud = sw_input_cloud[i_site, ],
+          i_sw_input_prod = sw_input_prod[i_site, ],
+          i_sw_input_site = sw_input_site[i_site, ],
+          i_sw_input_soils = sw_input_soils[i_site, ],
+          i_sw_input_weather = sw_input_weather[i_site, ],
+          i_sw_input_climscen = sw_input_climscen[i_site, ],
+          i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
 			}
 
 			snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
@@ -6192,300 +6223,45 @@ tryCatch({
 # NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
 #   may then be too large for available memory
 
+t.outputDB <- Sys.time()
+
 if (any(actions == "concatenate")) {
-	t1 <- Sys.time()
   if (!be.quiet)
-    print(paste("Inserting data from temp SQL files into output DB: started at", t1))
+    print(paste("SWSF inserting temporary data to outputDB: started at", t.outputDB))
 
-	temp <- as.double(difftime(t1, t.overall, units = "secs"))
+  has_time_to_concat <- (difftime(t.outputDB, t.overall, units = "secs") +
+    opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
 
-	if (temp <= (MinTimeConcat - 36000) || !parallel_runs || !identical(parallel_backend, "mpi")) {#need at least 10 hours for anything useful
-    # Locate temporary SQL files
-    theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
-      full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+  if (has_time_to_concat) {
+    move_temporary_to_outputDB(dir.out.temp, name.OutputDB,
+      name.OutputDBCurrent, t.overall, opt_comp_time,
+      copyCurrentConditionsFromTempSQL && !copyCurrentConditionsFromDatabase,
+      cleanDB, deleteTmpSQLFiles, continueAfterAbort, print.debug, verbose = !be.quiet)
 
-    # remove any already inserted files from list
-    if (!deleteTmpSQLFiles && continueAfterAbort) {
-      temp <- file.path(dir.out.temp, concatFile)
-      completedFiles <- if (file.exists(temp)) {
-          basename(readLines(temp))
-        } else {
-          character(0)
-        }
-      temp <- which(theFileList == completedFiles)
-      if (length(temp) > 0) {
-        theFileList <- theFileList[-temp]
-      }
+  } else {
+    print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
+  }
+
+
+  if (copyCurrentConditionsFromDatabase && !copyCurrentConditionsFromTempSQL) {
+    has_time_to_concat <- (difftime(Sys.time(), t.overall, units = "secs") +
+      opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
+
+    if (has_time_to_concat) {
+      do_copyCurrentConditionsFromDatabase(name.OutputDB, name.OutputDBCurrent,
+        verbose = !be.quiet)
+
+    } else {
+      print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
     }
+  }
+}
 
-    if (length(theFileList) > 0) {
-      #Connect to the Database
-      con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-
-      do_DBCurrent <- copyCurrentConditionsFromTempSQL || copyCurrentConditionsFromDatabase
-      reset_DBCurrent <- copyCurrentConditionsFromTempSQL && (cleanDB || !file.exists(name.OutputDBCurrent))
-      if (reset_DBCurrent)
-        file.copy(from = name.OutputDB, to = name.OutputDBCurrent)
-      if (do_DBCurrent)
-        con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
-      if (reset_DBCurrent)
-        dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-      out_tables <- DBI::dbListTables(con)
-      out_tables_aggr <- grep("aggregation_", out_tables, value = TRUE)
-
-      # Prepare output databases
-      set_PRAGMAs(con, PRAGMA_settings1())
-      if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
-
-      # Check what has already been inserted in each tables
-      pids_inserted <- lapply(out_tables_aggr, function(agg_table)
-        DBI::dbGetQuery(con, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-      names(pids_inserted) <- out_tables_aggr
-
-      if (copyCurrentConditionsFromTempSQL) {
-        pids2_inserted <- lapply(out_tables_aggr, function(agg_table)
-          DBI::dbGetQuery(con2, paste0("SELECT P_id FROM ", agg_table, ";"))[, 1])
-        names(pids2_inserted) <- out_tables_aggr
-      }
-
-      # Add data to SQL databases
-      for (j in seq_along(theFileList)) {
-        tDB1 <- Sys.time()
-
-        tDB <- as.double(difftime(tDB1, t.overall, units = "secs"))
-        if (tDB > (MaxRunDurationTime - MaxConcatTime) && parallel_runs && identical(parallel_backend, "mpi")) {#figure need at least 8 minutes for big ones  ( not run in parallel
-          break
-        }
-
-        OK_tempfile <- TRUE
-        # Read SQL statements from temporary file
-        sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
-        add_to_DBCurrent <- copyCurrentConditionsFromTempSQL &&
-          grepl("SQL_Current", theFileList[j])
-
-        if (!be.quiet)
-          print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
-            "to output DB: started at ", tDB1))
-
-        # Send SQL statements to database
-        OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con)), "try-error")
-        if (add_to_DBCurrent)
-          OK_tempfile <- OK_tempfile && !inherits(try(DBI::dbBegin(con2)), "try-error")
-
-        notOK_lines <- NULL
-
-        if (OK_tempfile) for (k in seq_along(sql_cmds)) {
-          OK_line <- TRUE
-
-          # Determine P_id
-          id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-          id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
-          if (id_end < 0)
-            id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
-
-          if (any(id_start < 1, id_end <= id_start)) {
-            print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
-              k, ": ", substr(sql_cmds[k], 1, 100)))
-            next
-          }
-
-          id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
-          OK_line <- OK_line && is.finite(id)
-
-          # Determine table
-          id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
-
-          if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
-            print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
-              " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
-            next
-          }
-
-          table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
-          OK_line <- OK_line && any(table_name == out_tables_aggr)
-
-          # Check if P_id already in output DB
-          OK_line1 <- id %in% pids_inserted[[table_name]]
-          OK_line2 <- if (add_to_DBCurrent) id %in% pids2_inserted[[table_name]] else FALSE
-
-          # If P_id already in output DB, then check whether data agree
-          OK_agree1 <- FALSE
-          if (OK_line1) {
-            id_data_DB <- DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
-              "\" WHERE P_id = ", id))
-
-            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-            repeat {
-              nt <- nchar(tmp_data)
-              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-              tmp_data <- substr(tmp_data, 1, nt - 1)
-            }
-            if (nt > 1 ) {
-              tmp_data <- paste0("c(", tmp_data)
-              tmp_data <- gsub("NULL", "NA", tmp_data)
-              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
-
-              OK_agree1 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data,
-                tolerance = 1e2 * tol))
-
-              if (!OK_agree1)
-                print(paste("Data already in output DB with P_id =", id, "of table",
-                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
-            }
-          }
-
-          OK_agree2 <- FALSE
-          if (OK_line2) {
-            id_data_DB <- DBI::dbGetQuery(con2, paste0("SELECT * FROM \"", table_name,
-              "\" WHERE P_id = ", id))
-
-            tmp_data <- substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k]))
-            repeat {
-              nt <- nchar(tmp_data)
-              if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-              tmp_data <- substr(tmp_data, 1, nt - 1)
-            }
-            if (nt > 1 ) {
-              tmp_data <- paste0("c(", tmp_data)
-              tmp_data <- gsub("NULL", "NA", tmp_data)
-              tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
-
-              OK_agree2 <- isTRUE(all.equal(as.numeric(id_data_DB), tmp_data))
-
-              if (!OK_agree2)
-                print(paste("Data already in output DB with P_id =", id, "of table",
-                shQuote(table_name), "differ from data of file", shQuote(theFileList[j])))
-            }
-          }
-
-          # Insert data via temporary SQL statement
-          OK_line1 <- OK_line && !OK_line1
-          OK_line2 <- if (add_to_DBCurrent) OK_line && !OK_line2 else TRUE
-
-          if (OK_line1) {
-            res <- try(DBI::dbSendQuery(con, sql_cmds[k]))
-            OK_line1 <- OK_line1 && !inherits(res, "try-error")
-            if (OK_line1)
-              pids_inserted[[table_name]] <- c(pids_inserted[[table_name]], id)
-          }
-          if (OK_line2 && add_to_DBCurrent) {
-            res <- try(DBI::dbSendQuery(con2, sql_cmds[k]))
-            OK_line2 <- OK_line2 && !inherits(res, "try-error")
-            if (OK_line2)
-              pids2_inserted[[table_name]] <- c(pids2_inserted[[table_name]], id)
-          }
-
-          # Add processed Pid to vector
-          if (OK_line1 && OK_line2) {
-            if (print.debug)
-              print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
-                "from row", k, "of", shQuote(theFileList[j])))
-
-          } else {
-            if (!OK_agree1 || (OK_agree2 && add_to_DBCurrent)) {
-              notOK_lines <- c(notOK_lines, k)
-              print(paste("The output DB has problems with inserting P_id =", id, "to table",
-                shQuote(table_name), "when processing file", shQuote(theFileList[j])))
-            }
-          }
-        }
-
-        if (is.null(notOK_lines)) {
-          OK_tempfile <- OK_tempfile && DBI::dbCommit(con)
-          if (add_to_DBCurrent)
-            OK_tempfile <- OK_tempfile && DBI::dbCommit(con2)
-
-        } else {
-          OK_tempfile <- FALSE
-          DBI::dbRollback(con)
-          if (add_to_DBCurrent) DBI::dbRollback(con2)
-          # Write failed lines to new file
-          writeLines(sql_cmds[notOK_lines],
-            con = file.path(dir.out.temp, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
-        }
-
-        # Clean up and report
-        if (OK_tempfile || !is.null(notOK_lines)) {
-          cat(file.path(dir.out.temp, theFileList[j]),
-              file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
-
-          if (deleteTmpSQLFiles)
-            try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
-        }
-
-        if (print.debug) {
-          tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
-          print(paste("    ended at", Sys.time(), "after", tDB, "s"))
-        }
-      }
-
-      if (!be.quiet)
-        print(paste("Output DB complete in :",
-          round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-
-      DBI::dbDisconnect(con)
-      if (do_DBCurrent) DBI::dbDisconnect(con2)
-    }
-
-		if(copyCurrentConditionsFromDatabase & !copyCurrentConditionsFromTempSQL) {
-			if(!be.quiet) print(paste("Database is copied and subset to ambient condition: start at ",  Sys.time()))
-			#Get sql for tables and index
-			resSQL<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-			sqlTables <- fetch(resSQL,n=-1)
-			sqlTables <- unlist(sqlTables)
-			sqlTables <- sqlTables[-grep(pattern="sqlite_sequence",sqlTables)]
-			dbClearResult(resSQL)
-			resIndex<-dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='view' ORDER BY name;")
-			sqlView <- fetch(resIndex,n=-1)
-			dbClearResult(resIndex)
-			sqlView<-unlist(sqlView)
-			sqlView <- sqlView[!is.na(sqlView)]
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-
-			con <- DBI::dbConnect(RSQLite::SQLite(), name.OutputDBCurrent)
-			for(i in 1:length(sqlTables)) {#Create the tables
-				res<-dbSendQuery(con, sqlTables[i])
-				dbClearResult(res)
-			}
-			dbGetQuery(con, sqlView)
-
-			con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-			#Get Tables minus ones we do not want
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[-(which(Tables %in% headerTables()))]
-
-			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
-
-			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
-			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
-
-			unlink(paste(Tables,".sql",sep=""))
-
-			Tables <- dbListTables(con)
-			Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
-			Tables <- Tables[(which(Tables %in% headerTables()[-1]))]
-
-			writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
-			lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-			writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
-
-			system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
-			system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
-
-			unlink(paste(Tables,".sql",sep=""))
-			unlink(c("dump.txt","insert.txt"))
-
-  		DBI::dbDisconnect(con)
-	  	if (do_DBCurrent) DBI::dbDisconnect(con2)
-		}
-
-	} else {
-		print(paste("Need more than", MinTimeConcat, "seconds to put SQL in output DB."))
-	}
+#timing of outputDB
+delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
+if (!be.quiet & any(actions == "concatenate")) {
+  print(paste("SWSF inserting temporary data to outputDB: ended after",
+    round(delta.outputDB, 2), "s"))
 }
 
 
@@ -6494,90 +6270,17 @@ if (any(actions == "concatenate")) {
 t.check <- Sys.time()
 
 if (any(actions == "check")) {
+  if (!be.quiet)
+    print(paste("SWSF checks simulations and output: started at", t.check))
 
-	if (!be.quiet)
-	  print(paste("SWSF checks simulations and output: started at", t.check))
-
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables())]
-  DBI::dbDisconnect(con)
-
-  do_DBcurrent <- copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL
-  missing_Pids <- missing_Pids_current <- NULL
-
-	if (parallel_runs && parallel_init) {
-    if (!exists("swsf_env")) {
-      swsf_env <- new.env(parent = emptyenv())
-      load(rSWSF, envir = swsf_env)
-    }
-
-    obj2exp <- gather_objects_for_export(varlist = ls(envir = swsf_env),
-      list_envs = list(rSWSF = swsf_env))
-
-		#call the simulations depending on parallel backend
-		if (identical(parallel_backend, "mpi")) {
-			Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "mpi")
-
-      temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
-        dbname = name.OutputDB)
-      missing_Pids <- as.integer(unlist(temp))
-
-      if (do_DBcurrent) {
-        temp <- Rmpi::mpi.applyLB(x = Tables, fun = missing_Pids_outputDB,
-          dbname = name.OutputDBCurrent)
-        missing_Pids_current <- as.integer(unlist(temp))
-      }
-
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
-
-		} else if(identical(parallel_backend, "snow")) {
-			snow::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "snow", cl)
-
-      temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
-        dbname = name.OutputDB)
-      missing_Pids <- as.integer(unlist(temp))
-
-      if (do_DBcurrent) {
-        temp <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
-          dbname = name.OutputDBCurrent)
-        missing_Pids_current <- as.integer(unlist(temp))
-      }
-
-      snow::clusterEvalQ(cl, rm(list = ls()))
-      snow::clusterEvalQ(cl, gc())
-		}
-
-	} else {
-    temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
-    missing_Pids <- as.integer(unlist(temp))
-
-    if (do_DBcurrent) {
-      temp <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDBCurrent)
-      missing_Pids_current <- as.integer(unlist(temp))
-    }
+  if (!exists("swsf_env")) {
+    swsf_env <- new.env(parent = emptyenv())
+    load(rSWSF, envir = swsf_env)
   }
 
-  if (length(missing_Pids) > 0) {
-    ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
-
-    print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
-      length(missing_Pids), "records; P_id of these records are saved to file",
-      shQuote(ftemp)))
-    saveRDS(missing_Pids, file = ftemp)
-  }
-
-  if (length(missing_Pids_current) > 0) {
-    ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
-
-    print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
-      length(missing_Pids_current), "records; P_id of these records are saved to file",
-      shQuote(ftemp)))
-    saveRDS(missing_Pids_current, file = ftemp)
-  }
+  check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
+    do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
+    parallel_runs, parallel_init, parallel_backend, cl, dir.out, swsf_env)
 }
 
 #timing of check
@@ -6678,7 +6381,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			}
 		}
 
-		if(!(TableTimeStop > (MaxRunDurationTime-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
+		if(!(TableTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) | !parallel_runs | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
 			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
 
@@ -6692,7 +6395,7 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 				EnsembleTimeStop <- Sys.time() - t.overall
 				units(EnsembleTimeStop) <- "secs"
 				EnsembleTimeStop <- as.double(EnsembleTimeStop)
-				if((EnsembleTimeStop > (MaxRunDurationTime-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
+				if((EnsembleTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) & parallel_runs & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
 					break
 				}
 				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))
@@ -6764,20 +6467,20 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	library(RSQLite,quietly = TRUE)
 	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
 
-	Tables <- dbListTables(con) #get a list of tables
-	Tables <- Tables[-which(Tables %in% headerTables())]
+	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
 	if(parallel_runs && parallel_init){
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","MaxRunDurationTime", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_comp_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
 			export_objects_to_workers(list.export, list(global = .GlobalEnv), "mpi")
 
 			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
-			ensembles.completed <- Rmpi::mpi.applyLB(x=Tables, fun=collect_EnsembleFromScenarios)
+			ensembles.completed <- Rmpi::mpi.applyLB(X = Tables, FUN = collect_EnsembleFromScenarios)
 			ensembles.completed <- sum(unlist(ensembles.completed))
+
 		} else if(identical(parallel_backend, "snow")) {
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
 			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
@@ -6821,16 +6524,19 @@ write.timer <- function(label, time_sec = "", number = "") {
 }
 
 write.timer("Time_Total", time_sec=delta.overall)
+write.timer("Time_OutputDB", time_sec = delta.outputDB)
 write.timer("Time_Check", time_sec=delta.check)
 write.timer("Time_Ensembles", time_sec=delta.ensembles)
 
 if(actionWithSoilWat){
   times <- dbWork_timing(dir.out)
-	write.timer("Time_OneRun_Mean", time_sec=mean(times))
-	write.timer("Time_OneRun_SD", time_sec=sd(times))
-	write.timer("Time_OneRun_Median", time_sec=median(times))
-	write.timer("Time_OneRun_Min", time_sec=min(times))
-	write.timer("Time_OneRun_Max", time_sec=max(times))
+  if (length(times) > 0) {
+    write.timer("Time_OneRun_Mean", time_sec=mean(times))
+    write.timer("Time_OneRun_SD", time_sec=sd(times))
+    write.timer("Time_OneRun_Median", time_sec=median(times))
+    write.timer("Time_OneRun_Min", time_sec=min(times))
+    write.timer("Time_OneRun_Max", time_sec=max(times))
+  }
 }
 
 write.timer("N_cores", number=workersN)
@@ -6839,26 +6545,43 @@ write.timer("N_SWruns", number=runs.completed * scenario_No)
 write.timer("N_EnsembleFiles", number=ifelse(exists("ensembles.completed"), ensembles.completed, 0))
 
 
-if(!be.quiet) print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
+if (!be.quiet)
+  print(paste("SWSF: ended with actions =", paste(actions, collapse=", "), "at", Sys.time()))
 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------CODE CLEANUP
 
-options(ow)	#sets the warning option to its previous value
+options(ow_prev) #sets the warning option to its previous value
 
-if(parallel_runs && parallel_init){
-	if(identical(parallel_backend, "mpi")) {	#clean up mpi slaves
-		Rmpi::mpi.close.Rslaves(dellog=FALSE)
-		Rmpi::mpi.exit()
-	}
-	if(identical(parallel_backend, "snow")){
-		snow::stopCluster(cl)	#clean up snow cluster
-	}
+if (parallel_runs && parallel_init) {
+  if (print.debug) {
+    print(paste0("SWSF: started to clean parallel ", parallel_backend,
+      "-workers at ", Sys.time()))
+  }
+
+  if (identical(parallel_backend, "mpi")) {
+    #clean up mpi slaves
+
+    #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
+    # Rmpi::mpi.close.Rslaves(dellog = FALSE)
+
+    Rmpi::mpi.exit()
+    rm(.Last)
+  }
+
+  if (identical(parallel_backend, "snow") && !is.null(cl)) {
+    #clean up snow cluster
+    snow::stopCluster(cl)
+  }
+
+  if (print.debug) {
+    print(paste0("SWSF: ", parallel_backend,
+      "-workers successfully closed down at ", Sys.time()))
+  }
+
 }
 
-
-#rm(list=ls(all=TRUE))	#optional
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#

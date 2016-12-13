@@ -50,11 +50,13 @@ num_cores <- 2
 parallel_backend <- "snow" #"snow" or "multicore" or "mpi"
 parallel_runs <- !interactive()
 
-#------Rmpi Jobs finish within Wall Time------#
-MaxRunDurationTime <- 1.5 * 60 *60 #Set the time duration for this job [in seconds], i.e. Wall time. As time runs out Rmpi will not send more work. Effects Insert into database and ensembles.
-MaxDoOneSiteTime <- (MaxRunDurationTime - 11*60) #This will stop new Rmpi jobs at 'x' seconds before MaxRunDuration expires.
-MinTimeConcat <- 10 * 60 * 60 #This is the minimum time remaining after execution needed to begin concat
-MaxConcatTime <- 35 * 60 #This will stop any new sql file concat job at 'x' seconds before MaxRunDuration expires.
+#------Computation time requests------#
+# These limits are only enforced if parallel_backend == "mpi"
+opt_comp_time <- list(
+  wall_time_s = 12 * 3600, # requested wall time
+  one_sim_s = 60, # time needed to complete one call to do_OneSite()
+  one_concat_s = 60 # time needed to process one temporary SQL file
+)
 
 #------Repository in case installation of additional R packages is required
 url.Rrepos <- "https://cran.us.r-project.org"

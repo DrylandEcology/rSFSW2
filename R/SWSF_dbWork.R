@@ -77,7 +77,7 @@ dbWork_todos <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
   runIDs_todo <- RSQLite::dbGetQuery(con, paste("SELECT runID FROM work",
     "WHERE completed = 0 AND inwork = 0 ORDER BY runID"))
   RSQLite::dbDisconnect(con)
@@ -93,7 +93,7 @@ dbWork_timing <- compiler::cmpfun(function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
   times <- RSQLite::dbGetQuery(con, "SELECT time_s FROM work WHERE completed > 0")
   RSQLite::dbDisconnect(con)
 
@@ -123,6 +123,12 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
+  lock <- if (!is.null(with_filelock)) {
+      lock_init(with_filelock, runID)
+    } else {
+      list(confirmed_access = TRUE)
+    }
+
   success <- FALSE
   res <- 0L
 
@@ -130,16 +136,16 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
     if (verbose)
       print(paste0("'dbWork_update_job': (", runID, "-", status, ") attempt to update"))
 
-    lock <- if (!is.null(with_filelock)) {
-        lock_access(with_filelock, runID, verbose)
-      } else {
-        list(confirmed_access = TRUE)
-      }
-
+    lock <- lock_access(lock, verbose)
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork), silent = TRUE)
 
-    if (inherits(con, "DBIConnection")) {
+    if (inherits(con, "SQLiteConnection")) {
       res <- DBI::dbWithTransaction(con, {
+        if (verbose) {
+          print(paste0("'dbWork_update_job': (", runID, "-", status,
+            ") start transaction"))
+        }
+
         temp <- if (status == "completed") {
             DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
               "inwork = 0, time_s =", time_s, "WHERE runID =", runID))
@@ -163,17 +169,19 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
             0L
           }
 
-        if (!is.null(with_filelock)) {
-          lock <- unlock_access(lock)
-        }
+        lock <- unlock_access(lock)
 
         if (!lock$confirmed_access) {
-          if (verbose)
-            print(paste0("'dbWork_update_job': (", runID, "-", status, ") access confirmation failed"))
+          if (verbose) {
+            print(paste0("'dbWork_update_job': (", runID, "-", status,
+              ") access confirmation failed"))
+          }
           temp <- 0L
           DBI::dbBreak()
+
         } else if (verbose) {
-          print(paste0("'dbWork_update_job': (", runID, "-", status, ") transaction confirmed"))
+          print(paste0("'dbWork_update_job': (", runID, "-", status,
+            ") transaction confirmed"))
         }
 
         as.integer(temp)

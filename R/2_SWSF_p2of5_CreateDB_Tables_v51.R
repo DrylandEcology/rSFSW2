@@ -24,8 +24,7 @@ if (createAndPopulateWeatherDatabase) {
   make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, sites_dailyweather_source, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    parallel_init, parallel_runs, parallel_backend, num_cores,
-    cl = if (exists("cl")) cl else NULL,
+    parallel_init, parallel_runs, parallel_backend, num_cores, cl,
     dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
     dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
     verbose = !be.quiet)
@@ -1057,9 +1056,8 @@ if (length(Tables) == 0 || do.clean) {
 		#&& ((do.clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do.clean && temp == 0)
 		if (do.ensembles) {
 
-			Tables<-dbListTables(con)
+			Tables <- dbOutput_ListOutputTables(con)
 			dbDisconnect(con)
-			Tables<-Tables[!(Tables %in% headerTables())]
 			Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 			Tables <- sub(pattern="_Mean",replacement="",x=Tables,ignore.case = T)
 			respName<-sub(pattern="aggregation_",replacement="",x=Tables,ignore.case = T)
