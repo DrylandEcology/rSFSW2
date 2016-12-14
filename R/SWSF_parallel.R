@@ -2,8 +2,8 @@
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
-#' @param parallel_backend A character vector, either 'mpi' or 'snow'
-#' @param cl A snow cluster object
+#' @param parallel_backend A character vector, either 'mpi' or 'cluster'
+#' @param cl A parallel (socket) cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
 gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
@@ -38,7 +38,7 @@ do_import_objects <- compiler::cmpfun(function(obj_env) {
 
 
 export_objects_to_workers <- compiler::cmpfun(function(obj_env,
-  parallel_backend = c("mpi", "snow"), cl = NULL) {
+  parallel_backend = c("mpi", "cluster"), cl = NULL) {
 
   t.bcast <- Sys.time()
   parallel_backend <- match.arg(parallel_backend)
@@ -48,13 +48,13 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
   success <- FALSE
   done_N <- 0
 
-  if (inherits(cl, "cluster") && identical(parallel_backend, "snow")) {
-    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
+  if (inherits(cl, "cluster") && identical(parallel_backend, "cluster")) {
+    temp <- try(parallel::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
 
     success <- !inherits(temp, "try-error")
 
     if (success) {
-      done_N <- min(unlist(snow::clusterCall(cl,
+      done_N <- min(unlist(parallel::clusterCall(cl,
         function() length(ls(.GlobalEnv)))), na.rm = TRUE)
     }
 

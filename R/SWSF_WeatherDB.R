@@ -103,7 +103,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       end_year = endyr,
       dir_temp = dir.out.temp,
       dbW_compression_type = dbW_compression_type,
-      do_parallel = parallel_init && parallel_runs && identical(parallel_backend, "snow"),
+      do_parallel = parallel_init && parallel_runs && identical(parallel_backend, "cluster"),
       ncores = num_cores)
   }
 
@@ -541,7 +541,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
                 cfsr_so,
                 yearLow, yearHigh, dir.in.cfsr, dir_temp,
                 n_site_per_core = 100,
-                do_parallel = FALSE, parallel_backend = "snow", cl = NULL,
+                do_parallel = FALSE, parallel_backend = "cluster", cl = NULL,
                 rm_mc_files = FALSE, continueAfterAbort = FALSE) {
 
 #str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
@@ -616,10 +616,10 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
         Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
 
-      } else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(obj2exp, "snow", cl)
-        snow::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
-        snow::clusterEvalQ(cl, setwd(dir.in.cfsr))
+      } else if (identical(parallel_backend, "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", cl)
+        parallel::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
+        parallel::clusterEvalQ(cl, setwd(dir.in.cfsr))
       }
     }
 
@@ -644,90 +644,90 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
         if (identical(parallel_backend, "mpi")) {
           if (daily) {
             nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
-              FUN = gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-            nDailyReads <- do.call(sum, nDailyReads)
+              FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
+              latitudes = lats, longitudes = longs)
 
-            nDailyWrites <- Rmpi::mpi.applyLB(X = years, FUN = writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites_todo[irows, "WeatherFolder"], siteDirsC=dtemp)
-            nDailyWrites <- do.call(sum, nDailyWrites)
+            nDailyWrites <- Rmpi::mpi.applyLB(X = years, FUN = writeDailyWeatherData,
+              nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
+              siteDirsC = dtemp)
           }
           if (monthly) {
-            nMonthlyReads <- Rmpi::mpi.applyLB(X = 0:(n_climvars-1), FUN = gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
-            nMonthlyReads <- do.call(sum, nMonthlyReads)
+            nMonthlyReads <- Rmpi::mpi.applyLB(X = 0L:(n_climvars - 1L),
+              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
+              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- Rmpi::mpi.applyLB(X = seq_len(n_sites_all), FUN = writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
-            nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+            nMonthlyWrites <- Rmpi::mpi.applyLB(X = seq_len(n_sites_all),
+              FUN = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
-        } else if (identical(parallel_backend, "snow")) {
-          if (daily) {
-            nDailyReads <- snow::clusterApplyLB(cl, x=1:nrow(do_daily), fun=gribDailyWeatherData, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-            nDailyReads <- do.call(sum, nDailyReads)
 
-            nDailyWrites <- snow::clusterApplyLB(cl, x=years, fun=writeDailyWeatherData, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
-            nDailyWrites <- do.call(sum, nDailyWrites)
-          }
-          if (monthly) {
-            nMonthlyReads <- snow::clusterApplyLB(cl, x=0:(n_climvars-1), fun=gribMonthlyClimate, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
-            nMonthlyReads <- do.call(sum, nMonthlyReads)
-          }
-          if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- snow::clusterApplyLB(cl, x=seq_len(n_sites_all), fun=writeMonthlyClimate, siteDirsC=dir_temp.sitesC)
-            nMonthlyWrites <- do.call(sum, nMonthlyWrites)
-          }
-        } else if (identical(parallel_backend, "multicore")) {
-          list.export <- ls(obj2exp)
+        } else if (identical(parallel_backend, "cluster")) {
           if (daily) {
-            nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
-              gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-            nDailyWrites <- foreach::foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
-              writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
+            nDailyReads <- parallel::clusterApplyLB(cl, x = seq_len(nrow(do_daily)),
+              fun = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
+              latitudes = lats, longitudes = longs)
+
+            nDailyWrites <- parallel::clusterApplyLB(cl, x = years, fun = writeDailyWeatherData,
+              nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
+              siteDirsC = dtemp)
           }
           if (monthly) {
-            nMonthlyReads <- foreach::foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
-              gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
+            nMonthlyReads <- parallel::clusterApplyLB(cl, x = 0L:(n_climvars - 1L),
+              fun = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
+              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- foreach::foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE, .export=list.export) %dopar%
-              writeMonthlyClimate(ic, siteDirsC=dir_temp.sitesC)
+            nMonthlyWrites <- parallel::clusterApplyLB(cl, x = seq_len(n_sites_all),
+              fun = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
         }
+
       } else {
-        if (daily) {
-          nDailyReads <- foreach::foreach(id = 1:nrow(do_daily), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
-            gribDailyWeatherData(id, do_daily=do_daily, nSites=ntemp, latitudes=lats, longitudes=longs)
-          nDailyWrites <- foreach::foreach(y = years, .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
-            writeDailyWeatherData(y, nSites=ntemp, siteNames=dat_sites[irows, "WeatherFolder"], siteDirsC=dtemp)
-        }
-        if (monthly) {
-          nMonthlyReads <- foreach::foreach(iv = 0:(n_climvars-1), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
-            gribMonthlyClimate(iv, nSites=ntemp, latitudes=lats, longitudes=longs, siteDirsC=dtemp, yearLow=yearLow, yearHigh=yearHigh)
-        }
-        if (monthly && k == length(do_sites)) { # only do at the end
-          nMonthlyWrites <- foreach::foreach(ic = seq_len(n_sites_all), .combine="sum", .errorhandling="remove", .inorder=FALSE) %do%
-            writeMonthlyClimate(ic, siteDirsC=dir_temp.sitesC)
-        }
+          if (daily) {
+            nDailyReads <- lapply(X = seq_len(nrow(do_daily)),
+              FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
+              latitudes = lats, longitudes = longs)
+
+            nDailyWrites <- lapply(X = years, FUN = writeDailyWeatherData,
+              nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
+              siteDirsC = dtemp)
+          }
+          if (monthly) {
+            nMonthlyReads <- lapply(X = 0L:(n_climvars - 1L),
+              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
+              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
+          }
+          if (monthly && k == length(do_sites)) { # only do at the end
+            nMonthlyWrites <- lapply(X = seq_len(n_sites_all),
+              FUN = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
+          }
       }
 
       # check that all was done
-      if (daily)
+      if (daily) {
+        nDailyReads <- do.call(sum, nDailyReads)
+        nDailyWrites <- do.call(sum, nDailyWrites)
         stopifnot(nDailyReads == nrow(do_daily), nDailyWrites == n_years)
-      if (monthly)
+      }
+      if (monthly) {
+        nMonthlyReads <- do.call(sum, nMonthlyReads)
         stopifnot(nMonthlyReads == n_climvars)
+      }
+      if (monthly && k == length(do_sites)) { # only do at the end
+        nMonthlyWrites <- do.call(sum, nMonthlyWrites)
+        stopifnot(nMonthlyWrites == n_sites)
+      }
     }
-
-    # check that all was done
-    if (monthly)
-      stopifnot(nMonthlyWrites == n_sites)
 
     # clean up parallel
     if (do_parallel) {
       if (identical(parallel_backend, "mpi")) {
-        Rmpi::mpi.bcast.cmd(rm(list=ls()))
+        Rmpi::mpi.bcast.cmd(rm(list = ls()))
         Rmpi::mpi.bcast.cmd(gc())
       }
-      if (identical(parallel_backend, "snow")) {
-        snow::clusterEvalQ(cl, rm(list=ls()))
-        snow::clusterEvalQ(cl, gc())
+      if (identical(parallel_backend, "cluster")) {
+        parallel::clusterEvalQ(cl, rm(list = ls()))
+        parallel::clusterEvalQ(cl, gc())
       }
     }
 
@@ -761,7 +761,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 
 
 GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year,
-  meta_cfsr, n_site_per_core = 100, do_parallel = FALSE, parallel_backend = "snow", cl = NULL,
+  meta_cfsr, n_site_per_core = 100, do_parallel = FALSE, parallel_backend = "cluster", cl = NULL,
   rm_temp = TRUE, continueAfterAbort = FALSE, dir_temp = tempdir(),
   dbW_compression_type = "gzip") {
 

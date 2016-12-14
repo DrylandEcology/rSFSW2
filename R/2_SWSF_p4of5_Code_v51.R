@@ -76,25 +76,20 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if(!require(Rsoilwat31,quietly = TRUE) || (require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
-	print("Going to try to install Rsoilwat library")
-	installed <- FALSE
-	if(.Platform$OS.type == "unix" && Sys.info()[1] == "Darwin" && sessionInfo()$R.version$major == 3){
-		#try to install mac binary for R version 3
-		installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "Rsoilwat_osx_r3.zip"),repos=NULL, type="mac.binary",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
-		installed<-is.null(installed)
-	} else if (.Platform$OS.type == "windows" && sessionInfo()$R.version$major == 3){
-		#try to install windows binary for R version 3
-		installed<-tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "Rsoilwat_windows_r3.zip"),repos=NULL, type="win.binary",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
-		installed<-is.null(installed)
-	}
-	if(!installed){#attempt to compile package from source because so far neither mac or windows binary attempted to install or successfully installed
-		installed <- tryCatch(install.packages(file.path(dir.in, "Rsoilwat", "SoilWat_v27_R.tar.gz"),repos=NULL, type="source",lib=dir.libraries), warning=function(w) { print(w); print("FAILED"); return(FALSE) })
-		installed <- is.null(installed)
-	}
-	if(!installed) stop("Could not install package Rsoilwat please contact admin.")
-	stopifnot(require(Rsoilwat31,quietly = TRUE) && packageVersion("Rsoilwat31") >= minVersionRsoilwat)
+if (!require(Rsoilwat31, quietly = TRUE) || (require(Rsoilwat31, quietly = TRUE) &&
+  packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
+
+  print("Going to try to install Rsoilwat library")
+
+  temp <- getwd()
+  setwd(dir.in)
+  system2(command = "git", args = "clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git Rsoilwat")
+  tools::Rcmd(args = paste("INSTALL Rsoilwat"))
+  setwd(temp)
+
+  stopifnot(require(Rsoilwat31) && packageVersion("Rsoilwat31") >= minVersionRsoilwat)
 }
+
 if(!require(circular, quietly=TRUE)) {
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	stopifnot(require(circular, quietly=TRUE))
@@ -108,34 +103,27 @@ if(!require(RSQLite,quietly = TRUE)) {
 	stopifnot(require(RSQLite, quietly = TRUE))
 }
 
-if(parallel_runs && identical(parallel_backend, "mpi")) {
-	if(!require(Rmpi, quietly = TRUE)) {
-	  print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI available from",
-	              "https://www.open-mpi.org/software/ompi/",
-	              "with install instructions at https://www.open-mpi.org/faq/?category=building#easy-build"))
-	  print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print the",
-	              "error message: 'Cannot find mpi.h header file'"))
-		tryCatch(install.packages("Rmpi",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("Rmpi failed to install"); stop("Stopping") })
-		stopifnot(require(Rmpi, quietly = TRUE))
-	}
-}
-if(parallel_runs && identical(parallel_backend, "snow")) {
-	if(!require(doSNOW,quietly = TRUE)) {#requires: foreach, iterators, snow
-		tryCatch(install.packages("doSNOW",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("doSNOW failed to install"); stop("Stopping") })
-		stopifnot(require(doSNOW, quietly = TRUE))
-	}
-}
-if(parallel_runs && identical(parallel_backend, "multicore")) {
-	if(!require(doMC,quietly = TRUE)) {	#requires: foreach, iterators, codetools, and attaches: multicore
-		tryCatch(install.packages("doMC",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("doMC failed to install"); stop("Stopping") })
-		stopifnot(require(doMC, quietly = TRUE))
-	}
-}
-if(!parallel_runs) {
-	if(!require(foreach,quietly = TRUE)) {
-		tryCatch(install.packages("foreach",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("foreach failed to install"); stop("Stopping") })
-		stopifnot(require(foreach, quietly = TRUE))
-	}
+if (parallel_runs && identical(parallel_backend, "mpi")) {
+  if (!require(Rmpi, quietly = TRUE)) {
+    print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
+      shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
+      shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
+    print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
+      "the error message: 'Cannot find mpi.h header file'"))
+    tryCatch(install.packages("Rmpi", repos = url.Rrepos, lib = dir.libraries),
+      warning = function(w) {
+        print(w)
+        print("Rmpi failed to install")
+        stop("Stopping")
+    })
+    stopifnot(require(Rmpi, quietly = TRUE))
+  }
+
+} else if(parallel_runs && identical(parallel_backend, "cluster")) {
+  stopifnot(require("parallel")) # parallel is a base-package since R v2.14.0
+
+} else if(parallel_runs) {
+  stop("Parallel backend ", shQuote(parallel_backend), " is not available to SWSF")
 }
 
 #if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
@@ -497,7 +485,7 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
 
     lockfile <- tempfile(pattern = "swsflock", tmpdir = normalizePath(tempdir()))
 
-		if(identical(parallel_backend, "mpi")) {
+    if (identical(parallel_backend, "mpi")) {
       Rmpi::mpi.spawn.Rslaves(nslaves = num_cores)
 
       .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
@@ -508,27 +496,19 @@ if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ens
           .Call("mpi_finalize")
         }
       }
-		}
 
-		if(identical(parallel_backend, "snow")){
-			if(!be.quiet) setDefaultClusterOptions(outfile="")
-			#cl <-  makeCluster(num_cores, type="MPI", outfile="")
-			cl <- snow::makeSOCKcluster(num_cores)
-			# Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
-			clusterApply(cl, seq_len(num_cores), function(x) .nodeNumber <<- x)
-			#snow::clusterSetupRNG(cl) #random numbers setup
-			doSNOW::registerDoSNOW(cl) 	# register foreach backend
-		}
-
-		if(identical(parallel_backend, "multicore")) {
-			#stop("Only use snow on JANUS, because multicore cannot access cores outside master node")
-			registerDoMC(num_cores)
-		}
+    } else if (identical(parallel_backend, "cluster")) {
+      cl <- parallel::makePSOCKcluster(num_cores, outfile = if (!be.quiet) "" else {
+        file.path(dir.prj, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
+      # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
+      parallel::clusterApplyLB(cl, seq_len(num_cores), function(x) .nodeNumber <<- x)
+      #parallel::clusterSetRNGStream(cl, seed) #random numbers setup
+    }
 
     workersN <- if (identical(parallel_backend, "mpi")) {
         Rmpi::mpi.comm.size() - 1
       } else {
-        foreach::getDoParWorkers()
+        parallel::detectCores(all.tests = TRUE)
       }
 
 		parallel_init <- TRUE
@@ -2809,10 +2789,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 		SQL <- SQLcurrent <- character(0)
 		fid <- if (parallel_runs && parallel_backend == "mpi") {
 			mpi.comm.rank()
-		} else if (parallel_runs && parallel_backend == "snow") {
+		} else if (parallel_runs && parallel_backend == "cluster") {
 			.nodeNumber
-		} else if (parallel_runs && parallel_backend == "multicore") {
-			sample.int(50000, 1)
 		} else {
 			0L
 		}
@@ -6118,59 +6096,69 @@ tryCatch({
 			print(runs.completed)
 		}
 
-		if (identical(parallel_backend, "snow")) {
-			snow::clusterEvalQ(cl, library(Rsoilwat31, quietly = TRUE))
-			snow::clusterEvalQ(cl, library(circular, quietly = TRUE))
-			snow::clusterEvalQ(cl, library(SPEI, quietly = TRUE))
-			snow::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
+		if (identical(parallel_backend, "cluster")) {
+			parallel::clusterEvalQ(cl, library(Rsoilwat31, quietly = TRUE))
+			parallel::clusterEvalQ(cl, library(circular, quietly = TRUE))
+			parallel::clusterEvalQ(cl, library(SPEI, quietly = TRUE))
+			parallel::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
 
-      export_objects_to_workers(obj2exp, "snow", cl)
-      snow::clusterEvalQ(cl, source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
-			snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
+      export_objects_to_workers(obj2exp, "cluster", cl)
+      parallel::clusterEvalQ(cl, source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
+      parallel::clusterEvalQ(cl,
+        Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
-			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %dopar% {
-				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
-        do_OneSite(i_sim = i_sim,
-          i_labels = labels[i_site],
-          i_SWRunInformation = SWRunInformation[i_site, ],
-          i_sw_input_soillayers = sw_input_soillayers[i_site, ],
-          i_sw_input_treatments = sw_input_treatments[i_site, ],
-          i_sw_input_cloud = sw_input_cloud[i_site, ],
-          i_sw_input_prod = sw_input_prod[i_site, ],
-          i_sw_input_site = sw_input_site[i_site, ],
-          i_sw_input_soils = sw_input_soils[i_site, ],
-          i_sw_input_weather = sw_input_weather[i_site, ],
-          i_sw_input_climscen = sw_input_climscen[i_site, ],
-          i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
-			}
+#TODO: It seems like a bad hack to make this work without exporting the full data.frames
+# (e.g., SWRunInformation, sw_input_soillayers, ...) to the workers. clusterLapplyLB does
+# not work because do_OneSite has two 'iterators' (i.e., i_sim and i_site). clusterMap
+# operates on elements (i.e., columns of data.frames); hence, I use split() to convert
+# the data.frames to lists where the elements correspond to the rows.
 
-			snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-			snow::clusterEvalQ(cl, rm(list=ls()))
-			snow::clusterEvalQ(cl, gc())
-		}
+      temp_ids <- cbind(i_sim = runIDs_todo,
+        i_site = it_site(runIDs_todo, runsN_master, runIDs_sites))
+      temp_seqs <- seq_along(runIDs_todo)
 
-		if (identical(parallel_backend, "multicore")) {
-      source(file.path(dir.code, "R", "SWSF_cpp_functions.R"))
-			Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+      runs.completed <- parallel::clusterMap(cl, fun = do_OneSite,
+        i_sim = temp_ids[, "i_sim"],
+        i_labels = labels[temp_ids[, "i_site"]],
+        i_SWRunInformation = split(SWRunInformation[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_soillayers = split(sw_input_soillayers[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_treatments = split(sw_input_treatments[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_cloud = split(sw_input_cloud[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_prod = split(sw_input_prod[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_site = split(sw_input_site[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_soils = split(sw_input_soils[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_weather = split(sw_input_weather[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_climscen = split(sw_input_climscen[temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_climscen_values = split(sw_input_climscen_values[temp_ids[, "i_site"], ], temp_seqs),
+        RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
 
-			runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE, .noexport=list.noexport) %dopar% {
-				i_site <- it_site(i_sim, runsN_master, runIDs_sites)
+      runs.completed <- sum(unlist(runs.completed))
 
-				do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
-			}
-
-			Rsoilwat31::dbW_disconnectConnection()
+			parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+			parallel::clusterEvalQ(cl, rm(list = ls()))
+			parallel::clusterEvalQ(cl, gc())
 		}
 
 	} else { #call the simulations in serial
 		source(file.path(dir.code, "R", "SWSF_cpp_functions.R"))
 		Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
-		runs.completed <- 0
 
-		runs.completed <- foreach(i_sim=runIDs_todo, .combine="+", .inorder=FALSE) %do% {
-			i_site <- it_site(i_sim, runsN_master, runIDs_sites)
-			do_OneSite(i_sim=i_sim, i_labels=labels[i_site], i_SWRunInformation=SWRunInformation[i_site, ], i_sw_input_soillayers=sw_input_soillayers[i_site, ], i_sw_input_treatments=sw_input_treatments[i_site, ], i_sw_input_cloud=sw_input_cloud[i_site, ], i_sw_input_prod=sw_input_prod[i_site, ], i_sw_input_site=sw_input_site[i_site, ], i_sw_input_soils=sw_input_soils[i_site, ], i_sw_input_weather=sw_input_weather[i_site, ], i_sw_input_climscen=sw_input_climscen[i_site, ], i_sw_input_climscen_values=sw_input_climscen_values[i_site, ])
-		}
+    runs.completed <- lapply(runIDs_todo, function(i_sim) {
+      i_site <- it_site(i_sim, runsN_master, runIDs_sites)
+      do_OneSite(i_sim = i_sim,
+        i_labels = labels[i_site],
+        i_SWRunInformation = SWRunInformation[i_site, ],
+        i_sw_input_soillayers = sw_input_soillayers[i_site, ],
+        i_sw_input_treatments = sw_input_treatments[i_site, ],
+        i_sw_input_cloud = sw_input_cloud[i_site, ],
+        i_sw_input_prod = sw_input_prod[i_site, ],
+        i_sw_input_site = sw_input_site[i_site, ],
+        i_sw_input_soils = sw_input_soils[i_site, ],
+        i_sw_input_weather = sw_input_weather[i_site, ],
+        i_sw_input_climscen = sw_input_climscen[i_site, ],
+        i_sw_input_climscen_values = sw_input_climscen_values[i_site, ])
+    })
+    runs.completed <- sum(unlist(runs.completed))
 
 		Rsoilwat31::dbW_disconnectConnection()
 
@@ -6479,9 +6467,8 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
 			ensembles.completed <- Rmpi::mpi.applyLB(X = Tables, FUN = collect_EnsembleFromScenarios)
-			ensembles.completed <- sum(unlist(ensembles.completed))
 
-		} else if(identical(parallel_backend, "snow")) {
+		} else if(identical(parallel_backend, "cluster")) {
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
 			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
 			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
@@ -6489,19 +6476,22 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
 			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
 
-			if(length(export_obj_local) > 0) snow::clusterExport(cl, export_obj_local, envir=environment())
-			if(length(export_obj_in_parent) > 0) snow::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
-			if(length(export_obj_in_globenv) > 0) snow::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
+			if(length(export_obj_local) > 0) parallel::clusterExport(cl, export_obj_local, envir=environment())
+			if(length(export_obj_in_parent) > 0) parallel::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
+			if(length(export_obj_in_globenv) > 0) parallel::clusterExport(cl, export_obj_in_globenv, envir=.GlobalEnv)
 
-			snow::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+			parallel::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
 
-			ensembles.completed <- foreach(i = 1:length(Tables), .combine="+", .inorder=FALSE) %dopar% collect_EnsembleFromScenarios(Tables[i])
+      ensembles.completed <- parallel::clusterApplyLB(cl, x = seq_along(Tables), function(i)
+        collect_EnsembleFromScenarios(Tables[i]))
 		}
+
 	} else {
-		ensembles.completed <- foreach(table=Tables, .combine="+", .inorder=FALSE) %do% {
-			collect_EnsembleFromScenarios(table)
-		}
+    ensembles.completed <- lapply(seq_along(Tables), function(i)
+      collect_EnsembleFromScenarios(Tables[i]))
 	}
+
+  ensembles.completed <- sum(unlist(ensembles.completed))
 
 	if(ensembles.completed != (temp <- length(Tables)*ifelse(save.scenario.ranks, 3, 2)*length(ensemble.families)*length(ensemble.levels))) print("SWSF calculates ensembles: something went wrong with ensemble output: ensembles.completed = ", ensembles.completed, " instead of ", temp,".")
 }
@@ -6570,9 +6560,9 @@ if (parallel_runs && parallel_init) {
     rm(.Last)
   }
 
-  if (identical(parallel_backend, "snow") && !is.null(cl)) {
-    #clean up snow cluster
-    snow::stopCluster(cl)
+  if (identical(parallel_backend, "cluster") && !is.null(cl)) {
+    #clean up parallel cluster
+    parallel::stopCluster(cl)
   }
 
   if (print.debug) {

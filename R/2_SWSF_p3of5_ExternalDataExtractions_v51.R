@@ -2693,13 +2693,13 @@ if (exinfo$ExtractClimateChangeScenarios &&
 				Rmpi::mpi.bcast.cmd(rm(list=ls()))
 				Rmpi::mpi.bcast.cmd(gc())
 
-			} else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(obj2exp, "snow", cl)
+			} else if (identical(parallel_backend, "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", cl)
 
-				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+				parallel::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
+				parallel::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- parallel::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2714,53 +2714,36 @@ if (exinfo$ExtractClimateChangeScenarios &&
 						dir.out.temp = dir.out.temp,
 						be.quiet = be.quiet, print.debug = print.debug)
 
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-				snow::clusterEvalQ(cl, rm(list=ls()))
-				snow::clusterEvalQ(cl, gc())
+				parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+				parallel::clusterEvalQ(cl, rm(list=ls()))
+				parallel::clusterEvalQ(cl, gc())
 
-			} else if (identical(parallel_backend, "multicore")) {
-				packages.export <- "Rsoilwat31"
-				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
-					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-					temp <- try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-					Rsoilwat31::dbW_disconnectConnection()
-					return(temp)
-				}
 			} else {
 				i_Done <- NULL
 			}
 
-		} else {
-			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-			Rsoilwat31::dbW_disconnectConnection()
-		}
+    } else {
+      Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+
+      i_Done <- lapply(is_ToDo, FUN = try.ScenarioWeather,
+        clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
+        climDB_meta = climDB_meta, climDB_files = climDB_files,
+        reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+        reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        climate.ambient = climate.ambient,
+        locations = locations,
+        dbW_iSiteTable = dbW_iSiteTable,
+        compression_type = dbW_compression_type,
+        getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+        simstartyr = simstartyr, endyr = endyr,
+        DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+        opt_DS = opt_DS,
+        dir.out.temp = dir.out.temp,
+        be.quiet = be.quiet, print.debug = print.debug)
+      i_Done <- do.call(c, i_Done)
+
+      Rsoilwat31::dbW_disconnectConnection()
+    }
 
 
 
@@ -3479,37 +3462,32 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 						sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = extract_SUIDs,
 						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 
 						Rmpi::mpi.bcast.cmd(rm(list=ls()))
 						Rmpi::mpi.bcast.cmd(gc())
 
-					} else if (identical(parallel_backend, "snow")) {
-            export_objects_to_workers(obj2exp, "snow", cl)
-						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
+					} else if (identical(parallel_backend, "cluster")) {
+            export_objects_to_workers(obj2exp, "cluster", cl)
+						parallel::clusterEvalQ(cl, library(raster, quietly = TRUE))
 
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs,
+						sim_cells_SUIDs <- parallel::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs,
 						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 
-						snow::clusterEvalQ(cl, rm(list=ls()))
-						snow::clusterEvalQ(cl, gc())
+						parallel::clusterEvalQ(cl, rm(list=ls()))
+						parallel::clusterEvalQ(cl, gc())
 
-					} else if (identical(parallel_backend, "multicore")) {
-						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE,
-						  .export=list.export, .packages=packages.export) %dopar% extract_SUIDs(i,
-						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
-				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-						extract_SUIDs(i, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-				}
+
+        } else {
+          sim_cells_SUIDs <- lapply(is_ToDo, FUN = extract_SUIDs, res = cell_res_wise,
+            grid = grid_wise, sp_sites = run_sites_wise))
+        }
 			}
 			rm(grid_wise)
 
+      sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 			sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[,"i"])),]
 
 			#- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
@@ -3631,45 +3609,37 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
 						dat_wise = dat_wise,
 						nextract = nextract)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
 					Rmpi::mpi.bcast.cmd(gc())
 
-				} else if (identical(parallel_backend, "snow")) {
-          export_objects_to_workers(obj2exp, "snow", cl)
+				} else if (identical(parallel_backend, "cluster")) {
+          export_objects_to_workers(obj2exp, "cluster", cl)
 
-					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo,
+					sim_cells_soils <- parallel::clusterApplyLB(cl, x = is_ToDo,
 					  fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
 						dat_wise = dat_wise,
 						nextract = nextract)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
 
-					snow::clusterEvalQ(cl, rm(list=ls()))
-					snow::clusterEvalQ(cl, gc())
+					parallel::clusterEvalQ(cl, rm(list=ls()))
+					parallel::clusterEvalQ(cl, gc())
 
-				} else if (identical(parallel_backend, "multicore")) {
-					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE, .export=list.export) %dopar%
-						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise,
-						nextract = nextract)
 				}
 
 			} else {
-				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise,
-						nextract = nextract)
+        sim_cells_soils <- lapply(is_ToDo, FUN = try_weightedMeanForSimulationCell,
+          sim_cells_SUIDs = sim_cells_SUIDs,
+          template_simulationSoils = template_simulationSoils,
+          layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
+          dat_wise = dat_wise,
+          nextract = nextract)
 			}
 			rm(dat_wise)
 
+      sim_cells_soils <- do.call(rbind, sim_cells_soils)
 			sim_cells_soils <- sim_cells_soils[order(sim_cells_soils[, "i"]), ]
 
 			if (FALSE) {#visualize in interactive sessions

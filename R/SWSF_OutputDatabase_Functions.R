@@ -847,20 +847,20 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
-    } else if(identical(parallel_backend, "snow")) {
-      snow::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "snow", cl)
+    } else if(identical(parallel_backend, "cluster")) {
+      parallel::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
+      export_objects_to_workers(obj2exp, "cluster", cl)
 
-      missing_Pids <- snow::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
         dbname = name.OutputDB)
 
       if (do_DBcurrent) {
-        missing_Pids_current <- snow::clusterApplyLB(cl, x = Tables,
+        missing_Pids_current <- parallel::clusterApplyLB(cl, x = Tables,
           fun = missing_Pids_outputDB, dbname = name.OutputDBCurrent)
       }
 
-      snow::clusterEvalQ(cl, rm(list = ls()))
-      snow::clusterEvalQ(cl, gc())
+      parallel::clusterEvalQ(cl, rm(list = ls()))
+      parallel::clusterEvalQ(cl, gc())
     }
 
   } else {
