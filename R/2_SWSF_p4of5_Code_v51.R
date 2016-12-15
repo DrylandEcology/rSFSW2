@@ -91,20 +91,24 @@ if (!require(Rsoilwat31, quietly = TRUE) || (require(Rsoilwat31, quietly = TRUE)
 }
 
 if(!require(circular, quietly=TRUE)) {
+  # loads via a namespace: boot
 	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
 	stopifnot(require(circular, quietly=TRUE))
 }
 if(!require(SPEI, quietly=TRUE)) {
+  # attaches: lmomco; loads via a namespace: MASS, Lmoments, goftest
 	tryCatch(install.packages("SPEI",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("SPEI failed to install"); stop("Stopping") })
 	stopifnot(require(SPEI, quietly=TRUE))
 }
 if(!require(RSQLite,quietly = TRUE)) {
+  # loads via a namespace: DBI, memoise, Rcpp, digest
 	tryCatch(install.packages("RSQLite",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
 	stopifnot(require(RSQLite, quietly = TRUE))
 }
 
 if (parallel_runs && identical(parallel_backend, "mpi")) {
   if (!require(Rmpi, quietly = TRUE)) {
+    # loads via a namespace: parallel
     print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
       shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
       shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
@@ -440,7 +444,7 @@ exinfo$use_sim_spatial <-
 
 #------------------------SPATIAL SETUP OF SIMULATIONS
 if (exinfo$use_sim_spatial || any(actions == "map_input")) {
-	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
+	if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !require("raster"))) {
 		stop("The packages 'rgdal', 'sp', and 'raster' are required, but one or multiple of them are not installed.")
 	}
 
@@ -460,6 +464,7 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 	}
 
 	# make sure that sim_crs is valid
+  #   - package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
 	stopifnot((temp <- rgdal::checkCRSArgs(as.character(sim_crs)))[[1]])
 	sim_crs <- sp::CRS(temp[[2]])
 

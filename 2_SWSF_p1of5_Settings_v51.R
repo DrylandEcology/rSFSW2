@@ -182,9 +182,9 @@ if (sim_cells_or_points == "cell") {
 	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
 	fname_sim_raster <- file.path(dir.in, "YOURRASTER.FILE")
 	sim_res <- c(1e4, 1e4)
-	sim_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
+	sim_crs <- "+init=epsg:5072" # NAD83(HARN) / Conus Albers
 } else {
-	sim_crs <- sp::CRS("+init=epsg:4326") # WGS84
+	sim_crs <- "+init=epsg:4326" # WGS84
 }
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
