@@ -2554,9 +2554,9 @@ if (exinfo$ExtractClimateChangeScenarios &&
           dm_add_params <- switch(dm, raw = NULL, delta = NULL,
                                   `hybrid-delta` = NULL,
                                   `hybrid-delta-3mod` = NULL, 
-                                  `wgen-package` = list(wgen_dry_spell_changes=ifelse("wgen_dry_spell_changes" %in% colnames(locations),locations[,"wgen_dry_spell_changes"],1),
-                                                        wgen_wet_spell_changes=ifelse("wgen_wet_spell_changes" %in% colnames(locations),locations[,"wgen_wet_spell_changes"],1),
-                                                        wgen_prcp_cv_changes=ifelse("wgen_prcp_cv_changes" %in% colnames(locations),locations[,"wgen_prcp_cv_changes"],1)), 
+                                  `wgen-package` = list(wgen_dry_spell_changes = { if ("wgen_dry_spell_changes" %in% colnames(locations)) {locations[il,"wgen_dry_spell_changes"]} else {1}},
+                                                        wgen_wet_spell_changes = { if ("wgen_wet_spell_changes" %in% colnames(locations)) {locations[il,"wgen_wet_spell_changes"]} else {1}},
+                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}), 
                                    stop)
           
           for (do_checks in c(TRUE, FALSE)) {
