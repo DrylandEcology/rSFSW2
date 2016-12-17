@@ -3303,7 +3303,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
         } else {
           sim_cells_SUIDs <- lapply(is_ToDo, FUN = extract_SUIDs, res = cell_res_wise,
-            grid = grid_wise, sp_sites = run_sites_wise))
+            grid = grid_wise, sp_sites = run_sites_wise)
         }
 			}
 			rm(grid_wise)
