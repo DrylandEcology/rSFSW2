@@ -1,61 +1,36 @@
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
 
-if(!be.quiet) print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at", Sys.time()))
+if (!be.quiet)
+  print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at",
+    Sys.time()))
 
 #------
-actionWithSoilWat <- any(actions == "create") || any(actions == "execute") || any(actions == "aggregate")
+actionWithSoilWat <- any(actions == "create") || any(actions == "execute") ||
+  any(actions == "aggregate")
 actionWithSWSFOutput <- any(actions == "concatenate") || any(actions == "ensemble")
+
 #--order output_aggregate_daily--#
 daily_no <- length(output_aggregate_daily)
 if (daily_no > 0)
   output_aggregate_daily <- sort(output_aggregate_daily)
+
 #------
-ow_prev <- options("warn", "error")
-#    - warn < 0: warnings are ignored
-#    - warn = 0: warnings are stored until the top–level function returns
-#    - warn = 1: warnings are printed as they occur
-#    - warn = 2: all warnings are turned into errors
-options(warn = debug.warn.level)
-
-if (debug.dump.objects) {
-	# dumps objects and frames to files, and (if not interactive) quits
-	# Note: view dumped frames with
-	# load(file.path(dir.prj, "last.dump.rda"))
-	# debugger(`path/to/file/last.dump.rda`)
-	options(error = quote({
-    dump_objs <- new.env()
-
-    for (p in sys.parents()) {
-      if (inherits(try(sys.frame(p), silent = TRUE), "try-error"))
-        next
-      items <- setdiff(ls(name = sys.frame(p)), ls(name = dump_objs))
-      for (it in items)
-        assign(it, get(it, pos = sys.frame(p)), envir = dump_objs)
-    }
-
-    save(list = ls(name = dump_objs), envir = dump_objs,
-      file = file.path(dir.prj, "last.dump.save.RData"))
-
-		dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
-
-		if (!interactive())
-			q("no")
-	}))
-} else {
-	options(error = traceback)
-}
+ow_prev <- set_options_warn_error(debug.warn.level, debug.dump.objects, dir.prj)
 
 
 #create simulation directory structure
 dir.sw.in <- normalizePath(dir.sw.in)
-if(makeInputForExperimentalDesign) dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
+if (makeInputForExperimentalDesign)
+  dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
 dir.out.temp <- file.path(dir.out, "temp")
-dir.create2(dir.out, showWarnings=FALSE, recursive=TRUE)
-dir.create2(dir.big, showWarnings=FALSE, recursive=TRUE)
-if(saveRsoilwatInput || saveRsoilwatOutput) dir.create2(dir.sw.runs, showWarnings=FALSE, recursive=TRUE)
-dir.create2(dir.out.temp, showWarnings=FALSE, recursive=TRUE)
-if(makeInputForExperimentalDesign) dir.create2(dir.out.experimentalInput, showWarnings=FALSE, recursive=TRUE)
+dir.create2(dir.out, showWarnings = FALSE, recursive = TRUE)
+dir.create2(dir.big, showWarnings = FALSE, recursive = TRUE)
+if (saveRsoilwatInput || saveRsoilwatOutput)
+  dir.create2(dir.sw.runs, showWarnings = FALSE, recursive = TRUE)
+dir.create2(dir.out.temp, showWarnings = FALSE, recursive = TRUE)
+if (makeInputForExperimentalDesign)
+  dir.create2(dir.out.experimentalInput, showWarnings = FALSE, recursive = TRUE)
 dirname.sw.runs.weather <- "WeatherData"
 
 #timing: output for overall timing information
@@ -135,12 +110,14 @@ if (parallel_runs && identical(parallel_backend, "mpi")) {
 #if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
 
 #------prepare output
-temp <- matrix(data=output_aggregates, ncol=2, nrow=length(output_aggregates)/2, byrow=TRUE)
+temp <- matrix(output_aggregates, ncol = 2, nrow = length(output_aggregates) / 2,
+  byrow = TRUE)
 aon <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
 names(aon) <- temp[, 1]
 
 #------import data
-if(!be.quiet) print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
+if (!be.quiet)
+  print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
 # Read data from files
 do_check_include <- FALSE
@@ -344,7 +321,9 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 		compress = FALSE) # No compression for fast access; RDS may be slightly faster, but would require loop over assign(, envir = .GlobalEnv)
 }
 
-if(!be.quiet) print(paste("SWSF reads input data: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+if (!be.quiet)
+  print(paste("SWSF reads input data: ended after",
+    round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 
 
 #------create scenario names
@@ -401,11 +380,12 @@ runIDs_todo <- dbWork_todos(dir.out)
 runsN_todo <- length(runIDs_todo)
 
 #------outputing data
-if(makeInputForExperimentalDesign) ExpInput_Seperator <- "X!X"
+if (makeInputForExperimentalDesign)
+  ExpInput_Seperator <- "X!X"
 
 #append treatment information to the aggregated output in addition to selected Index_RunInformation
 Index_RunInformation_Treatments <- NULL
-if(length(create_treatments) > 0) {
+if (length(create_treatments) > 0) {
 	Index_RunInformation_Treatments <- match(create_treatments, names(sw_input_treatments))
 }
 
@@ -419,7 +399,8 @@ if (any(temp) && length(SWPcrit_MPa) > 0) {
 
 
 #------------------------FLAGS FOR EXTERNAL DATA
-temp <- matrix(data=do.ExtractExternalDatasets, ncol=2, nrow=length(do.ExtractExternalDatasets)/2, byrow=TRUE)
+temp <- matrix(do.ExtractExternalDatasets, nrow = length(do.ExtractExternalDatasets) / 2,
+  ncol = 2, byrow = TRUE)
 exinfo <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
 names(exinfo) <- temp[, 1]
 
@@ -461,7 +442,8 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 
 	# SpatialPoints of simulation cell centers/sites in WGS84
 	crs_sites <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
-	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)
+	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites, ],
+    data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)
 }
 
 
@@ -475,9 +457,10 @@ parallel_init <- FALSE
 cl <- NULL
 lockfile <- NULL
 
-if(any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles){
-	if(parallel_runs){
-		if(!be.quiet) print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles) {
+  if (parallel_runs) {
+    if (!be.quiet)
+      print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
 
     lockfile <- tempfile(pattern = "swsflock", tmpdir = normalizePath(tempdir()))
 
@@ -699,7 +682,8 @@ if (do_weather_source) {
           sites_dailyweather_names[there] <<- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_NRCan", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
         }
       }
-			if(!be.quiet) print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
+      if (!be.quiet)
+        print(paste("Data for", sum(there), "sites will come from 'NRCan_10km_Canada'"))
 		}
 
 		sites_dailyweather_source
@@ -717,8 +701,8 @@ if (do_weather_source) {
           sites_dailyweather_names[there] <- with(SWRunInformation[runIDs_sites[there], ], paste0(Label, "_CFSR", formatC(X_WGS84, digits=4, format="f"), "_", formatC(Y_WGS84, digits=4, format="f")))
         }
       }
-			if (!be.quiet)
-			  print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
+      if (!be.quiet)
+        print(paste("Data for", sum(there), "sites will come from 'NCEPCFSR_Global'"))
 		}
 
 		sites_dailyweather_source
@@ -738,11 +722,12 @@ if (do_weather_source) {
 
 			plot(sp_locs2, pch=19, cex=0.5, col=c("blue", "red", "green", "purple", "black")[ifelse(is.na(sites_dailyweather_source),5,sites_dailyweather_source)])
 			plot(nrc_test, col=adjustcolor("orange", alpha.f=0.5), add=TRUE)
-			if(require(maps)) map("state", add=TRUE)
+			if (require(maps)) map("state", add=TRUE)
 			plot(xy, col=adjustcolor("darkgray", alpha.f=0.5), lwd=1, add=TRUE)
 
 			id_remove <- which(is.na(sites_dailyweather_source))
-			if(!be.quiet) print(paste("There are no daily weather data for", length(id_remove), "sites"))
+			if (!be.quiet)
+			  print(paste("There are no daily weather data for", length(id_remove), "sites"))
 			SWRunInformation$Include_YN[runIDs_sites][id_remove] <- 0
 			write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
 			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
@@ -885,15 +870,20 @@ if(accountNSHemispheres_agg){
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(exinfo))] > 0)){
-	setwd(dir.prj)
+  setwd(dir.prj)
 
-	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: started at", t1 <- Sys.time()))
-	stopifnot(file.exists(dir.external))
+  if (!be.quiet)
+    print(paste("SWSF extracts information from external datasets prior to simulation",
+      "runs: started at", t1 <- Sys.time()))
 
-	source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"), verbose = FALSE, chdir = FALSE)
+  stopifnot(file.exists(dir.external))
+  source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"),
+    verbose = FALSE, chdir = FALSE)
   do_check_include <- TRUE
 
-	if(!be.quiet) print(paste("SWSF extracts information from external datasets prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+  if (!be.quiet)
+    print(paste("SWSF extracts information from external datasets prior to simulation",
+      "runs: ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
 
 
@@ -907,7 +897,8 @@ if (do_check_include) {
 		include_YN_sources <- apply(SWRunInformation[, includes_sources, drop = FALSE], 1, function(x) all(x > 0L))
 
 		if (all(include_YN_sources[include_YN > 0L])) {
-			if(!be.quiet) print(paste("Data sources available for all requested SWSF simulation runs"))
+			if (!be.quiet)
+			  print(paste("Data sources available for all requested SWSF simulation runs"))
 
 		} else {
 			include_YN_available <- rep(0, runsN_master)
@@ -1048,7 +1039,8 @@ if (any(unlist(pcalcs))) {
       rm(sw_input_soils_data, sw_input_soils_data2)
     }
 
-    if(!be.quiet) print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
+    if (!be.quiet)
+      print(paste(Sys.time(), "completed 'InterpolateSoilDatafileToRequestedSoilLayers'"))
   }
 
   if (pcalcs$CalculateBareSoilEvaporationCoefficientsFromSoilTexture) {
@@ -1164,7 +1156,9 @@ if (any(unlist(pcalcs))) {
 		sw_input_soils_use[index.soilTemp] <- TRUE
 	}
 
-	if(!be.quiet) print(paste("SWSF makes calculations prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	if (!be.quiet)
+	  print(paste("SWSF makes calculations prior to simulation runs: ended after",
+	    round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
 
 
@@ -1283,7 +1277,9 @@ if (any(actions == "create")) {
     rm(do_prior_lookup)
   }
 
-	if(!be.quiet) print(paste("SWSF obtains information prior to simulation runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+	if (!be.quiet)
+	  print(paste("SWSF obtains information prior to simulation runs: ended after",
+	    round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
 
 
@@ -2176,8 +2172,9 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
 
 		#Check that extraction of weather data was successful
 		if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-			if(!be.quiet) print(paste(i_sim, i_label, "i_sw_weatherList ERROR:", i_sw_weatherList))
 			tasks$create <- 0L
+			if (!be.quiet)
+			  print(paste(i_sim, i_label, "i_sw_weatherList ERROR:", i_sw_weatherList))
 		}
 
 		#copy and make climate scenarios from datafiles
@@ -6265,7 +6262,10 @@ tryCatch({
 #		}
 	}
 	#save(inputDataToSave,file=file.path(dir.out,paste("swInputData_",head(runIDs_todo,n=1),"_",head(runIDs_todo,n=1)+runs.completed,".R",sep="")),compress=TRUE)
-	if(!be.quiet) print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended after",  round(difftime(Sys.time(), t1, units="secs"), 2), "s"))
+  if (!be.quiet)
+    print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended",
+      "after", round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+
 } else {
 	runs.completed <- 0
 }
