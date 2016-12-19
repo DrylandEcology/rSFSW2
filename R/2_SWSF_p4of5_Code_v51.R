@@ -6032,8 +6032,9 @@ if(actionWithSoilWat && runsN_todo > 0){
     "tr_weather", "t.overall", "use_rcpp", "weatherin", "workersN", "yearsin")
   #list.export <- list.export[!duplicated(list.export)]
 
+  #------ Remove when this becomes a R package
   swsf_env <- new.env(parent = emptyenv())
-  load(rSWSF, envir = swsf_env)
+  suppressWarnings(load(rSWSF, envir = swsf_env))
 
   obj2exp <- gather_objects_for_export(
     varlist = unique(c(ls(envir = swsf_env), list.export)),
@@ -6330,9 +6331,10 @@ if (any(actions == "check")) {
   if (!be.quiet)
     print(paste("SWSF checks simulations and output: started at", t.check))
 
+  #------ Remove when this becomes a R package
   if (!exists("swsf_env")) {
     swsf_env <- new.env(parent = emptyenv())
-    load(rSWSF, envir = swsf_env)
+    suppressWarnings(load(rSWSF, envir = swsf_env))
   }
 
   check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
