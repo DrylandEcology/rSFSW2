@@ -1950,10 +1950,10 @@ if (exinfo$ExtractClimateChangeScenarios &&
                                              start_month = start_month,
                                              dry_wet_threshold=dry_wet_threshold, 
                                              wet_extreme_quantile_threshold=wet_extreme_threshold,
-                                             include_leap_days = FALSE,
+                                             include_leap_days = TRUE,
                                              dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
                                              prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
-                                             )   # Leap days has to be implemented in weathergen, only FALSE is currently supported
+                                             )   
 
     scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
                                  DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
