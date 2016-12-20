@@ -1061,7 +1061,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 			db_treatments <- unique(temp_df)
 			db_treatments_rows <- nrow(db_treatments)
 			#this maps locations from reduced
-			temp <- duplicated(df)
+			temp <- duplicated(temp_df)
 			treatments_unique_map <- rep(NA, nrow(temp_df))
 			temp2 <- data.frame(t(temp_df))
 			treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp,])), temp2)
