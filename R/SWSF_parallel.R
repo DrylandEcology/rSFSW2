@@ -31,7 +31,7 @@ gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
 
 
 do_import_objects <- compiler::cmpfun(function(obj_env) {
-  temp <- list2env(as.list(obj_env), envir = .GlobalEnv)
+  temp <- list2env(as.list(obj_env), envir = globalenv())
 
   NULL
 })
@@ -56,8 +56,10 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
     success <- !inherits(temp, "try-error")
 
     if (success) {
-      done_N <- min(unlist(parallel::clusterCall(cl,
-        function() length(ls(.GlobalEnv)))), na.rm = TRUE)
+      temp <- parallel::clusterCall(cl, function() ls(globalenv()))
+      done_N <- min(lengths(temp))
+    } else {
+      print(paste("'export_objects_to_workers': error:", temp))
     }
 
   } else if (identical(parallel_backend, "mpi")) {
@@ -68,8 +70,10 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
 
     success <- !inherits(temp, "try-error")
     if (success) {
-      done_N <- min(lengths(Rmpi::mpi.remote.exec(cmd = ls,
-        envir = .GlobalEnv, simplify = FALSE)))
+      temp <- Rmpi::mpi.remote.exec(cmd = ls, envir = globalenv(), simplify = FALSE)
+      done_N <- min(lengths(temp))
+    } else {
+      print(paste("'export_objects_to_workers': error:", temp))
     }
 
   } else {
@@ -125,18 +129,7 @@ mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
           print(paste(Sys.time(), "MPI slave", Rmpi::mpi.comm.rank(), "works on:",
             dat$i_sim, dat$i_labels))
 
-        result <- match.fun("do_OneSite")(i_sim = dat$i_sim,
-          i_labels = dat$i_labels,
-          i_SWRunInformation = dat$i_SWRunInformation,
-          i_sw_input_soillayers = dat$i_sw_input_soillayers,
-          i_sw_input_treatments = dat$i_sw_input_treatments,
-          i_sw_input_cloud = dat$i_sw_input_cloud,
-          i_sw_input_prod = dat$i_sw_input_prod,
-          i_sw_input_site = dat$i_sw_input_site,
-          i_sw_input_soils = dat$i_sw_input_soils,
-          i_sw_input_weather = dat$i_sw_input_weather,
-          i_sw_input_climscen = dat$i_sw_input_climscen,
-          i_sw_input_climscen_values = dat$i_sw_input_climscen_values)
+        result <- do.call("do_OneSite", args = dat[-1])
 
         # Send a result message back to the master
         Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
@@ -152,3 +145,34 @@ mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
   }
   Rmpi::mpi.send.Robj(junk, 0, 3)
 })
+
+
+clean_parallel_workers <- function(parallel_backend, cl = NULL, verbose = FALSE) {
+
+  if (verbose) {
+    print(paste0("SWSF: started to clean parallel ", parallel_backend,
+      "-workers at ", Sys.time()))
+  }
+
+  if (identical(parallel_backend, "mpi")) {
+    #clean up mpi slaves
+
+    #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
+    # Rmpi::mpi.close.Rslaves(dellog = FALSE)
+
+    Rmpi::mpi.exit()
+    rm(.Last, pos = globalenv())
+  }
+
+  if (identical(parallel_backend, "cluster") && !is.null(cl)) {
+    #clean up parallel cluster
+    parallel::stopCluster(cl)
+  }
+
+  if (verbose) {
+    print(paste0("SWSF: ", parallel_backend,
+      "-workers successfully closed down at ", Sys.time()))
+  }
+
+  invisible(TRUE)
+}

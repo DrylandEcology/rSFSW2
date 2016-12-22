@@ -911,7 +911,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 
 
   dbOutput_create_Design <- function(con_dbOut, SWRunInformation, Index_RunInformation,
-      site_labels, runsN_master,runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+      runsN_master,runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
       create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
       sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
       counter.digitsN) {
@@ -1302,9 +1302,9 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
         temp1 <- formatC(SWRunInformation[, "site_id"], width = counter.digitsN,
           format = "d", flag = "0")
         temp2 <- rep(sw_input_experimentals[, "Label"], each = runsN_master)
-        paste(temp1, temp2, site_labels, sep = "_")
+        paste(temp1, temp2, SWRunInformation$Label, sep = "_")
       } else {
-        site_labels
+        SWRunInformation$Label
       }
     rs <- DBI::dbSendStatement(con_dbOut, "INSERT INTO run_labels VALUES(NULL, :label)",
       params = list(label = temp))
@@ -2038,7 +2038,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 #' @section: NOTE: Do not change the design of the output database without adjusting the iterator
 #'   functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
 make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
-    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+    runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
     create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
     sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
     counter.digitsN, aon, daily_no, daily_lyr_agg, output_aggregate_daily, SoilLayer_MaxNo,
@@ -2058,7 +2058,7 @@ make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
     return(n_tables)
 
   dbOutput_create_Design(con_dbOut, SWRunInformation, Index_RunInformation,
-    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+    runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
     create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
     sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
     counter.digitsN)

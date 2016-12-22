@@ -3,6 +3,7 @@
 # - move constants to package environment
 
 slot <- methods::slot
+as <- methods::as
 
 #------ Constants
 output_timescales_maxNo <- 4L

@@ -110,5 +110,189 @@ reconstitute_inputfile <- compiler::cmpfun(function(sw_use, data) {
   rbind(temp, data)
 })
 
+check_requested_sites <- function(include_YN, SWRunInformation, dir.in,
+  datafile.SWRunInformation, datafile.SWRWinputs_preprocessed, verbose = FALSE) {
+
+  includes_all_sources <- grep("Include_YN", colnames(SWRunInformation),
+    ignore.case = TRUE, value = TRUE)
+  do_ignore <- includes_all_sources %in% c("Include_YN", "include_YN_available")
+  includes_sources <- includes_all_sources[!do_ignore]
+
+  if (length(includes_sources) > 0L) {
+    include_YN_sources <- apply(SWRunInformation[, includes_sources, drop = FALSE], 1,
+      function(x) all(x > 0L))
+
+    if (all(include_YN_sources[include_YN > 0L])) {
+      if (verbose)
+        print(paste("Data sources available for all requested SWSF simulation runs"))
+
+    } else {
+      include_YN_available <- rep(0L, dim(SWRunInformation)[1])
+      include_YN_available[include_YN_sources] <- 1L
+      SWRunInformation[, "include_YN_available"] <- include_YN_available
+
+      write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation),
+        row.names = FALSE)
+      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+
+      stop("Data sources not available for every requested SWSF simulation run. ",
+        "New column 'include_YN_available' with updated information stored to ",
+        "MasterInput file 'SWRunInformation' on disk. SWSF is stopped so that you can ",
+        "bring 'include_YN' and 'include_YN_available' in agreement before running ",
+        "the simulations.")
+    }
+
+  }
+
+  SWRunInformation
+}
+
+
+map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
+  sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use,
+  sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use,
+  sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
+  sw_input_climscen_values, runIDs_sites, sim_cells_or_points, run_sites, crs_sites,
+  sim_crs, sim_raster, dir.out, verbose = FALSE) {
+
+  if (verbose)
+    print(paste("SWSF generates maps of input variables for quality control: started at",
+    t1 <- Sys.time()))
+
+  dir.inmap <- file.path(dir.out, "Input_maps")
+  dir.create(dir.inmap, showWarnings = FALSE)
+
+  input_avail <- list(
+    SWRunInformation = list(
+      cols = names(SWRunInformation), use = rep(TRUE, ncol(SWRunInformation))),
+    sw_input_soillayers = list(
+      cols = names(sw_input_soillayers), use = rep(TRUE, ncol(sw_input_soillayers))),
+    sw_input_cloud = list(
+      cols = names(sw_input_cloud), use = sw_input_cloud_use),
+    sw_input_prod = list(
+      cols = names(sw_input_prod), use = sw_input_prod_use),
+    sw_input_site = list(
+      cols = names(sw_input_site), use = sw_input_site_use),
+    sw_input_soils = list(
+      cols = names(sw_input_soils), use = sw_input_soils_use),
+    sw_input_weather = list(
+      cols = names(sw_input_weather), use = sw_input_weather_use),
+    sw_input_climscen = list(
+      cols = names(sw_input_climscen), use = sw_input_climscen_use),
+    sw_input_climscen_values = list(
+      cols = names(sw_input_climscen_values), use = sw_input_climscen_use)
+  )
+
+  for (iv in seq_along(map_vars)) {
+    iv_locs <- lapply(input_avail, function(ina)
+      grep(map_vars[iv], ina$cols[ina$use], ignore.case = TRUE, value = TRUE))
+    iv_locs <- iv_locs[lengths(iv_locs) > 0]
+
+    if (length(iv_locs) > 0) {
+      dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
+
+      for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
+        dat <- get(names(iv_locs)[it1])[runIDs_sites, iv_locs[[it1]][it2]]
+        dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
+
+        # this code plots only numeric maps
+        if (any(is.finite(dat)) && !inherits(dat, "try-error")) {
+          names(dat) <- iv_locs[[it1]][it2]
+
+          map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2],
+            sim_cells_or_points, sep = "_")
+
+          # Convert data to spatial object
+          if (sim_cells_or_points == "point") {
+            sp_dat <- as(run_sites, "SpatialPointsDataFrame")
+            temp <- as.data.frame(dat)
+            colnames(temp) <-  iv_locs[[it1]][it2]
+            methods::slot(sp_dat, "data") <- temp
+
+            if (!raster::compareCRS(crs_sites, sim_crs)) {
+              sp_dat <- sp::spTransform(sp_dat, CRS = sim_crs)
+            }
+
+          } else if (sim_cells_or_points == "cell") {
+            # if failing, then need a more sophisticated assignment of values than
+            # implemented below
+            stopifnot(raster::canProcessInMemory(sim_raster))
+
+            temp <- run_sites
+            if (!raster::compareCRS(crs_sites, sim_crs)) {
+              temp <- sp::spTransform(temp, CRS = sim_crs)
+            }
+
+            # init with NAs
+            sp_dat <- raster::init(sim_raster, fun = function(x) rep(NA, x))
+            sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
+          }
+
+          # Save to disk
+          saveRDS(sp_dat, file = file.path(dir.inmapvar, paste0(map_flag, ".rds")))
+
+          # Figure
+          png(height = 10, width = 6, units = "in", res = 200,
+            file = file.path(dir.inmapvar, paste0(map_flag, ".png")))
+          par_old <- par(mfrow = c(2, 1), mar = c(2.5, 2.5, 0.5, 0.5),
+            mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
+
+          # panel a: map
+          n_cols <- 255
+          cols <- rev(terrain.colors(7))
+          cols[1] <- "gray"
+          cols <- colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
+          if (sim_cells_or_points == "point") {
+            par1 <- par(mar = c(2.5, 2.5, 0.5, 8.5))
+            cdat <- cut(dat, n_cols)
+            p_size <- function(x) max(0.25, min(2, 100 / x))
+            sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
+              cex = p_size(length(dat)), axes = TRUE, asp = 1)
+            # legend
+            ids <- round(seq(1, n_cols, length.out = 12))
+            lusr <- par("usr")
+            lxy <- cbind(rep(lusr[2] + (lusr[2] - lusr[1]) / 15, 12),
+              lusr[3] + (lusr[4] - lusr[3]) / 4 + seq(0, 1, length.out = 12) *
+              (lusr[4] - lusr[3]) / 2)
+            points(lxy, col = cols[ids], pch = 15, cex = 2, xpd = NA)
+            text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
+            par(par1)
+
+          } else if (sim_cells_or_points == "cell") {
+            raster::plot(sp_dat, col = cols, asp = 1)
+          }
+          mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"),
+            font = 2)
+
+          # panel b: histogram
+          hist(dat, xlab = paste(names(iv_locs)[it1], iv_locs[[it1]][it2]), main = "")
+          mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[2], ")"),
+            font = 2)
+
+          par(par_old)
+          dev.off()
+        }
+      }
+    }
+  }
+
+  if (verbose)
+    print(paste("SWSF input maps: ended after",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+
+  invisible(TRUE)
+}
+
+read_SoilWat_FileDefaults <- function(dir.sw.in, swFilesIn) {
+  # 'swDataFromFiles' acts as the basis for all runs
+  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir.sw.in, files.in = swFilesIn)
+  # we don't need the example weather data; the code will get weather data separately
+  if (length(swDataFromFiles@weatherHistory) > 0)
+    swDataFromFiles@weatherHistory <- list(Rsoilwat31::swClear(swDataFromFiles@weatherHistory[[1]]))
+
+  swDataFromFiles
+}
+
+
 #------ End of datafile-IO functions
 ########################

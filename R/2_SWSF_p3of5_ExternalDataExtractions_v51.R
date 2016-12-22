@@ -2488,7 +2488,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
       obj2exp <- gather_objects_for_export(varlist = list.export,
-        list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+        list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
 			# extract the GCM data depending on parallel backend
 			if (identical(parallel_backend, "mpi")) {
@@ -3273,7 +3273,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise",
 					  "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
           obj2exp <- gather_objects_for_export(varlist = list.export,
-            list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+            list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
 
 					#call the simulations depending on parallel backend
@@ -3417,7 +3417,7 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				  "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell",
 				  "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
         obj2exp <- gather_objects_for_export(varlist = list.export,
-          list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+          list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {

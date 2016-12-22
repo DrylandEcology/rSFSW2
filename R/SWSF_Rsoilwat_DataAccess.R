@@ -310,3 +310,31 @@ get_Runoff_yr <- compiler::cmpfun(function(x, st) {
        ponded = x[, 3],
        snowmelt = x[, 4])
 })
+
+# TODO: move to Rsoilwat
+sw_out_flags <- function() {
+  c(sw_aet = "AET",
+    sw_deepdrain = "DEEPSWC",
+    sw_estabs = "ESTABL",
+    sw_evsoil = "EVAPSOIL",
+    sw_evapsurface = "EVAPSURFACE",
+    sw_hd = "HYDRED",
+    sw_inf_soil = "SOILINFILT",
+    sw_interception = "INTERCEPTION",
+    sw_percolation = "LYRDRAIN",
+    sw_pet = "PET",
+    sw_precip = "PRECIP",
+    sw_runoff = "RUNOFF",
+    sw_snow = "SNOWPACK",
+    sw_soiltemp = "SOILTEMP",
+    sw_surfaceWater = "SURFACEWATER",
+    sw_swp = "SWPMATRIC",
+    sw_swabulk = "SWABULK",
+    sw_swcbulk = "SWCBULK",
+    sw_temp = "TEMP",
+    sw_transp = "TRANSP",
+    sw_vwcbulk = "VWCBULK",
+    sw_vwcmatric = "VWCMATRIC",
+    sw_wetdays = "WETDAY",
+    sw_logfile = "LOG")
+}

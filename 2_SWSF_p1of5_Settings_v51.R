@@ -490,52 +490,7 @@ opt_NRCS_SMTRs <- list(
 )
 
 #------SoilWat files
-sw <- "sw_v31"
-sw.inputs <- "Input"	#must be string of length > 0; i.e. not compatible with SoilWat versions < 21
-sw.outputs <- "Output"	#sw_v20+: "Output", earlier versions ""
 swFilesIn <- "files_v30.in"
-
-if(any(actions == "create") || any(actions == "execute") || any(actions == "aggregate") ) {
-	#sw input file names
-	swOutSetupIn <- "outsetup_v20.in"
-	swcsetupin <- "swcsetup.in"
-	soilsin <- "soils_v30.in"
-	yearsin <- "years.in"
-	estabin <- "estab.in"
-	weatherin <- "weathsetup_v20.in"
-	cloudin <- "cloud_v20.in"
-	prodin <- "sbe_prod_v31.in"
-	siteparamin <- "siteparam_v26.in"
-	filebasename.WeatherDataYear <- "weath"
-
-	#characteristics of sw input files
-	soilsin.firstDataLine <- 18	# 18, if soilsin >= v23; 17, if soilsin < v23
-
-	sw_aet			<- "AET"
-	sw_deepdrain	<- "DEEPSWC"
-	sw_estabs		<- "ESTABL"
-	sw_evsoil		<- "EVAPSOIL"
-	sw_evapsurface	<- "EVAPSURFACE"
-	sw_hd			<- "HYDRED"
-	sw_inf_soil		<- "SOILINFILT"
-	sw_interception	<- "INTERCEPTION"
-	sw_percolation	<- "LYRDRAIN"
-	sw_pet			<- "PET"
-	sw_precip		<- "PRECIP"
-	sw_runoff		<- "RUNOFF"
-	sw_snow			<- "SNOWPACK"
-	sw_soiltemp		<- "SOILTEMP"
-	sw_surfaceWater	<- "SURFACEWATER"
-	sw_swp			<- "SWPMATRIC"
-	sw_swabulk		<- "SWABULK"
-	sw_swcbulk		<- "SWCBULK"
-	sw_temp			<- "TEMP"
-	sw_transp		<- "TRANSP"
-	sw_vwcbulk		<- "VWCBULK"
-	sw_vwcmatric	<- "VWCMATRIC"
-	sw_wetdays		<- "WETDAY"
-	sw_logfile		<- "LOG"
-}
 
 ##############################################################################
 ########################Source of the code base###############################

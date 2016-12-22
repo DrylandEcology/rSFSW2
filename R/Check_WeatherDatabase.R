@@ -31,7 +31,7 @@ fclimate <- file.path(dir_out, paste0("Summary_climate_dbWeatherData_", format(S
 cl <- makeCluster(n_cores, type = "PSOCK", outfile = "workers_log.txt")
 temp <- clusterExport(cl, c("name_wid"))
 #temp <- clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-'))
-temp <- clusterApply(cl, seq_len(n_cores), function(x) assign(name_wid, x, envir = .GlobalEnv)) # worker identification number
+temp <- clusterApply(cl, seq_len(n_cores), function(x) assign(name_wid, x, envir = globalenv())) # worker identification number
 
 
 merge_workers_tempfiles <- function(dir_temp, pattern, file) {

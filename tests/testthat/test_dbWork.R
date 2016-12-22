@@ -44,7 +44,7 @@ ncores <- if (is.finite(temp)) temp else 2L
 cl <- parallel::makePSOCKcluster(ncores)
 .node_id <- 0L
 parallel::clusterApply(cl, seq_len(ncores),
-  function(i) assign(".node_id", i, envir = .GlobalEnv))
+  function(i) assign(".node_id", i, envir = globalenv()))
 parallel::clusterSetRNGStream(cl, iseed = 127)
 #TODO: replace next two lines when SWSF has become a package
 parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",
