@@ -1816,7 +1816,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction,
           Composition_ForbFraction, Composition_BareGround))
         temp[!is.finite(temp) | !use_it] <- 0 # if some are requested, then put others to 0
-				swProd_Composition(swRunScenariosData[[1]]) <- temp
+				swProd_Composition(swRunScenariosData[[1]]) <- as.numeric(temp)
 			}
 			#albedo
 			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
@@ -1828,7 +1828,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             collapse = "-"), "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-				swProd_Albedo(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+				swProd_Albedo(swRunScenariosData[[1]])[use_it] <- as.numeric(temp[use_it])
 			}
 			#constant canopy height
 			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
@@ -1854,7 +1854,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+				swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <- as.logical(temp[use_it])
 			}
       #flag for transpiration-critical SWP (MPa)
       use_it <- grepl("SWPcrit_MPa", names(sw_input_prod_use))
@@ -1867,7 +1867,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-        swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+        swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <-
+          as.numeric(temp[use_it])
       }
 
       swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
@@ -1898,7 +1899,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
       site_use <- sw_input_site_use[flags]
       if (any(site_use))
         swSite_ModelFlags(swRunScenariosData[[1]])[site_use] <-
-          as.numeric(i_sw_input_site[flags][site_use])
+          as.logical(i_sw_input_site[flags][site_use])
 
       flags <- c("PET_multiplier", "RunoffPercent_fromPondedWater")
       site_use <- sw_input_site_use[flags]
@@ -1907,7 +1908,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           as.numeric(i_sw_input_site[flags][site_use])
 
       if (sw_input_site_use["Param_UnsaturatedPercolation"]) {
-        swSite_DrainageCoefficient(swRunScenariosData[[1]]) <- i_sw_input_site$Param_UnsaturatedPercolation
+        swSite_DrainageCoefficient(swRunScenariosData[[1]]) <-
+          as.numeric(i_sw_input_site$Param_UnsaturatedPercolation)
       }
 
       flags <- c("Latitude", "Altitude", "Slope", "Aspect")
@@ -1917,7 +1919,8 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           as.numeric(i_sw_input_site[flags][site_use])
 
       if (sw_input_site_use["SoilTemp_Flag"]) {
-        swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <- i_sw_input_site$SoilTemp_Flag
+        swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <-
+          as.logical(i_sw_input_site$SoilTemp_Flag)
       }
 
       flagsIn <- c("SoilTemp_BiomassLimiter_gPERm2", "SoilTemp_T1constant_a",
@@ -1933,9 +1936,12 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           as.numeric(i_sw_input_site[flagsIn][site_use])
     }
 
-    swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
+    swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <-
+      as.numeric(i_SWRunInformation$Y_WGS84 * pi / 180)
+
     if (is.finite(i_SWRunInformation$ELEV_m))
-      swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m
+      swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <-
+        as.numeric(i_SWRunInformation$ELEV_m)
 
     #add soil information to soilsin
     if (print.debug)
