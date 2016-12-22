@@ -861,13 +861,6 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
     sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
     sw_input_climscen_values, runIDs_sites, sim_cells_or_points, run_sites, crs_sites,
     sim_crs, sim_raster, dir.out, verbose = !be.quiet)
-
-
-
-
-
-
-
 }
 
 

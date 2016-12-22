@@ -384,7 +384,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
           Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction,
           Composition_ForbFraction, Composition_BareGround))
         temp[!is.finite(temp) | !use_it] <- 0 # if some are requested, then put others to 0
-				Rsoilwat31::swProd_Composition(swRunScenariosData[[1]]) <- temp
+				Rsoilwat31::swProd_Composition(swRunScenariosData[[1]]) <- as.numeric(temp)
 			}
 			#albedo
 			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
@@ -396,7 +396,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
             collapse = "-"), "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-				Rsoilwat31::swProd_Albedo(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+				Rsoilwat31::swProd_Albedo(swRunScenariosData[[1]])[use_it] <-
+				  as.numeric(temp[use_it])
 			}
 			#constant canopy height
 			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
@@ -422,7 +423,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-				Rsoilwat31::swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+				Rsoilwat31::swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <-
+				  as.logical(temp[use_it])
 			}
       #flag for transpiration-critical SWP (MPa)
       use_it <- grepl("SWPcrit_MPa", names(sw_input_prod_use))
@@ -435,7 +437,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-        Rsoilwat31::swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <- temp[use_it]
+        Rsoilwat31::swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <-
+          as.numeric(temp[use_it])
       }
 
       Rsoilwat31::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
@@ -466,7 +469,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
       site_use <- sw_input_site_use[flags]
       if (any(site_use))
         Rsoilwat31::swSite_ModelFlags(swRunScenariosData[[1]])[site_use] <-
-          as.numeric(i_sw_input_site[flags][site_use])
+          as.logical(i_sw_input_site[flags][site_use])
 
       flags <- c("PET_multiplier", "RunoffPercent_fromPondedWater")
       site_use <- sw_input_site_use[flags]
@@ -475,7 +478,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
           as.numeric(i_sw_input_site[flags][site_use])
 
       if (sw_input_site_use["Param_UnsaturatedPercolation"]) {
-        Rsoilwat31::swSite_DrainageCoefficient(swRunScenariosData[[1]]) <- i_sw_input_site$Param_UnsaturatedPercolation
+        Rsoilwat31::swSite_DrainageCoefficient(swRunScenariosData[[1]]) <-
+          as.numeric(i_sw_input_site$Param_UnsaturatedPercolation)
       }
 
       flags <- c("Latitude", "Altitude", "Slope", "Aspect")
@@ -485,7 +489,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
           as.numeric(i_sw_input_site[flags][site_use])
 
       if (sw_input_site_use["SoilTemp_Flag"]) {
-        Rsoilwat31::swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <- i_sw_input_site$SoilTemp_Flag
+        Rsoilwat31::swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <-
+          as.logical(i_sw_input_site$SoilTemp_Flag)
       }
 
       flagsIn <- c("SoilTemp_BiomassLimiter_gPERm2", "SoilTemp_T1constant_a",
@@ -501,9 +506,12 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
           as.numeric(i_sw_input_site[flagsIn][site_use])
     }
 
-    Rsoilwat31::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <- i_SWRunInformation$Y_WGS84 * pi / 180
+    Rsoilwat31::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <-
+      as.numeric(i_SWRunInformation$Y_WGS84 * pi / 180)
+
     if (is.finite(i_SWRunInformation$ELEV_m))
-      Rsoilwat31::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <- i_SWRunInformation$ELEV_m
+      Rsoilwat31::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <-
+        as.numeric(i_SWRunInformation$ELEV_m)
 
     #add soil information to soilsin
     if (print.debug)
