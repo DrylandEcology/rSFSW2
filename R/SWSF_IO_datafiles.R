@@ -1,6 +1,9 @@
 ########################
 #------ datafile-IO functions
 
+required_colnames_SWRunInformation <- function()
+  c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN")
+
 #' Read a comma-separated value (csv) file
 #'
 #' Call function \code{\link[iotools]{read.csv.raw}}, if available, or else,

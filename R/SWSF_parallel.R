@@ -2,8 +2,8 @@
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
-#' @param parallel_backend A character vector, either 'mpi' or 'snow'
-#' @param cl A snow cluster object
+#' @param parallel_backend A character vector, either 'mpi' or 'cluster'
+#' @param cl A parallel (socket) cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
 gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
@@ -37,7 +37,9 @@ do_import_objects <- compiler::cmpfun(function(obj_env) {
 })
 
 
-export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend = c("mpi", "snow"), cl = NULL) {
+export_objects_to_workers <- compiler::cmpfun(function(obj_env,
+  parallel_backend = c("mpi", "cluster"), cl = NULL) {
+
   t.bcast <- Sys.time()
   parallel_backend <- match.arg(parallel_backend)
   N <- length(ls(obj_env))
@@ -46,13 +48,15 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
   success <- FALSE
   done_N <- 0
 
-  if (inherits(cl, "cluster") && identical(parallel_backend, "snow")) {
-    temp <- try(snow::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
+  if (inherits(cl, "cluster") && identical(parallel_backend, "cluster")) {
+    # Remove suppressWarnings() when SWSF becomes a R package
+    temp <- suppressWarnings(try(parallel::clusterExport(cl, as.list(ls(obj_env)),
+      envir = obj_env)))
 
     success <- !inherits(temp, "try-error")
 
     if (success) {
-      done_N <- min(unlist(snow::clusterCall(cl,
+      done_N <- min(unlist(parallel::clusterCall(cl,
         function() length(ls(.GlobalEnv)))), na.rm = TRUE)
     }
 
@@ -67,6 +71,9 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
       done_N <- min(lengths(Rmpi::mpi.remote.exec(cmd = ls,
         envir = .GlobalEnv, simplify = FALSE)))
     }
+
+  } else {
+    temp <- "requested 'parallel_backend' not implemented"
   }
 
   if (success && done_N >= N) {
@@ -75,7 +82,8 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
               "secs"))
   } else {
     success <- FALSE
-    print(paste("Export not successful:", done_N, "instead of", N, "objects exported"))
+    print(paste("Export not successful:", done_N, "instead of", N, "objects exported:",
+      temp))
   }
 
   success
@@ -87,12 +95,14 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env, parallel_backend
 
 #' Rmpi work function for calling \code{do_OneSite}
 #'
+#' @param verbose A logical value.
+#'
 #' @references
 #'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
 #' @section Note:
-#'  In case an error occurs, the slave will like not report back to master because
-#'  it hangs in miscommunication, and reminds idle (check activity, e.g., with \code{top}).
-mpi_work <- compiler::cmpfun(function() {
+#'  If an error occurs, then the slave will likely not report back to master because
+#'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
+mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
   # Note the use of the tag for sent messages:
   #     1=ready_for_task, 2=done_task, 3=exiting
   # Note the use of the tag for received messages:
@@ -111,26 +121,32 @@ mpi_work <- compiler::cmpfun(function() {
 
     if (tag == 1L) {
       if (dat$do_OneSite) {
-        #print(paste("MPI slave", Rmpi::mpi.comm.rank(), "works on:", dat$i_sim, dat$labels))
-        result <- match.fun("do_OneSite")(i_sim = dat$i_sim,
-          i_labels = dat$labels,
-          i_SWRunInformation = dat$SWRunInformation,
-          i_sw_input_soillayers = dat$sw_input_soillayers,
-          i_sw_input_treatments = dat$sw_input_treatments,
-          i_sw_input_cloud = dat$sw_input_cloud,
-          i_sw_input_prod = dat$sw_input_prod,
-          i_sw_input_site = dat$sw_input_site,
-          i_sw_input_soils = dat$sw_input_soils,
-          i_sw_input_weather = dat$sw_input_weather,
-          i_sw_input_climscen = dat$sw_input_climscen,
-          i_sw_input_climscen_values = dat$sw_input_climscen_values)
+        if (verbose)
+          print(paste(Sys.time(), "MPI slave", Rmpi::mpi.comm.rank(), "works on:",
+            dat$i_sim, dat$i_labels))
 
-        # Send a results message back to the master
+        result <- match.fun("do_OneSite")(i_sim = dat$i_sim,
+          i_labels = dat$i_labels,
+          i_SWRunInformation = dat$i_SWRunInformation,
+          i_sw_input_soillayers = dat$i_sw_input_soillayers,
+          i_sw_input_treatments = dat$i_sw_input_treatments,
+          i_sw_input_cloud = dat$i_sw_input_cloud,
+          i_sw_input_prod = dat$i_sw_input_prod,
+          i_sw_input_site = dat$i_sw_input_site,
+          i_sw_input_soils = dat$i_sw_input_soils,
+          i_sw_input_weather = dat$i_sw_input_weather,
+          i_sw_input_climscen = dat$i_sw_input_climscen,
+          i_sw_input_climscen_values = dat$i_sw_input_climscen_values)
+
+        # Send a result message back to the master
         Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
       }
 
     } else if (tag == 2L) {
       done <- 1L
+      if (verbose)
+        print(paste(Sys.time(), "MPI slave", Rmpi::mpi.comm.rank(),
+          "shuts down 'mpi_work()'"))
     }
     # We'll just ignore any unknown messages
   }

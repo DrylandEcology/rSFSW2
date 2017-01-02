@@ -2478,7 +2478,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	#' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 	#'
 	#' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears, assocYears) {
+	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears, assocYears, cl = NULL) {
 		#requests is_ToDo: fastest if nc file is
 		#	- DONE: permutated to (lat, lon, time) instead (time, lat, lon)
 		#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2487,15 +2487,16 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		if (parallel_runs && parallel_init) {
 			is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
+      obj2exp <- gather_objects_for_export(varlist = list.export,
+        list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+
 			# extract the GCM data depending on parallel backend
 			if (identical(parallel_backend, "mpi")) {
-        export_objects_to_workers(list.export,
-          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-          "mpi")
+        export_objects_to_workers(obj2exp, "mpi")
 				Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
 				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2514,15 +2515,13 @@ if (exinfo$ExtractClimateChangeScenarios &&
 				Rmpi::mpi.bcast.cmd(rm(list=ls()))
 				Rmpi::mpi.bcast.cmd(gc())
 
-			} else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(list.export,
-          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-          "snow", cl)
+			} else if (identical(parallel_backend, "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", cl)
 
-				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+				parallel::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
+				parallel::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- parallel::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2537,57 +2536,43 @@ if (exinfo$ExtractClimateChangeScenarios &&
 						dir.out.temp = dir.out.temp,
 						be.quiet = be.quiet, print.debug = print.debug)
 
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-				snow::clusterEvalQ(cl, rm(list=ls()))
-				snow::clusterEvalQ(cl, gc())
+				parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+				parallel::clusterEvalQ(cl, rm(list=ls()))
+				parallel::clusterEvalQ(cl, gc())
 
-			} else if (identical(parallel_backend, "multicore")) {
-				packages.export <- "Rsoilwat31"
-				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
-					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-					temp <- try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-					Rsoilwat31::dbW_disconnectConnection()
-					return(temp)
-				}
 			} else {
 				i_Done <- NULL
 			}
 
-		} else {
-			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-			Rsoilwat31::dbW_disconnectConnection()
-		}
+    } else {
+      Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+
+      i_Done <- lapply(is_ToDo, FUN = try.ScenarioWeather,
+        clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
+        climDB_meta = climDB_meta, climDB_files = climDB_files,
+        reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+        reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        climate.ambient = climate.ambient,
+        locations = locations,
+        dbW_iSiteTable = dbW_iSiteTable,
+        compression_type = dbW_compression_type,
+        getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+        simstartyr = simstartyr, endyr = endyr,
+        DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+        opt_DS = opt_DS,
+        dir.out.temp = dir.out.temp,
+        be.quiet = be.quiet, print.debug = print.debug)
+      i_Done <- do.call(c, i_Done)
+
+      Rsoilwat31::dbW_disconnectConnection()
+    }
 
 
 
-		if (!be.quiet) print(paste("Started adding temporary files into database '", clim_source, "' at", Sys.time()))
+		if (!be.quiet)
+		  print(paste("Started adding temporary files into database '", clim_source,
+		  "' at", Sys.time()))
+
 		Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 		temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if (length(temp.files) > 0) {
@@ -2632,8 +2617,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
     (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 
 	#access climate change data
-	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta) {
-		if (!be.quiet) print(paste0("Started", shQuote(clim_source), "at ", Sys.time()))
+	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX,
+	  do_SWRun_sites, include_YN_climscen, climDB_meta, cl = NULL) {
+
+		if (!be.quiet)
+		  print(paste("Started", shQuote(clim_source), "at", Sys.time()))
 
 		#Global flags
 		repeatExtractionLoops_maxN <- 3
@@ -2830,7 +2818,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 			out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
 				clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-				reqDownscalingsPerGCM, locations, getYears, assocYears)
+				reqDownscalingsPerGCM, locations, getYears, assocYears, cl)
 
 			i_Done <- sort(unique(c(i_Done, out)))
 			saveRDS(i_Done, file = logFile)
@@ -2882,7 +2870,8 @@ if (exinfo$ExtractClimateChangeScenarios &&
                   is_NEX = grepl("NEX", clim_source),
                   do_SWRun_sites = do_SWRun_sites,
                   include_YN_climscen = include_YN_climscen,
-                  climDB_meta = climDB_metas[[clim_source]])
+                  climDB_meta = climDB_metas[[clim_source]],
+                  cl = cl)
   }
 
 	SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
@@ -3212,7 +3201,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Sand_L") |
-								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
+								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L") |
+                has_nodata(sw_input_soils[runIDs_sites, ], "TOC_GperKG_L"))
 		}
 
 		if (any(do_extract[[2]])) {
@@ -3280,47 +3270,45 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				if (parallel_runs && parallel_init) {
 					#objects that need exporting to slaves
-					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise", "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
+					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise",
+					  "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
+          obj2exp <- gather_objects_for_export(varlist = list.export,
+            list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+
 
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
-            export_objects_to_workers(list.export,
-              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-              "mpi")
+            export_objects_to_workers(obj2exp, "mpi")
 						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 
-						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+						sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = extract_SUIDs,
+						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 
 						Rmpi::mpi.bcast.cmd(rm(list=ls()))
 						Rmpi::mpi.bcast.cmd(gc())
 
-					} else if (identical(parallel_backend, "snow")) {
-            export_objects_to_workers(list.export,
-              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-              "snow", cl)
-						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
+					} else if (identical(parallel_backend, "cluster")) {
+            export_objects_to_workers(obj2exp, "cluster", cl)
+						parallel::clusterEvalQ(cl, library(raster, quietly = TRUE))
 
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+						sim_cells_SUIDs <- parallel::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs,
+						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 
-						snow::clusterEvalQ(cl, rm(list=ls()))
-						snow::clusterEvalQ(cl, gc())
+						parallel::clusterEvalQ(cl, rm(list=ls()))
+						parallel::clusterEvalQ(cl, gc())
 
-					} else if (identical(parallel_backend, "multicore")) {
-						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar%
-							extract_SUIDs(i, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
-				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-						extract_SUIDs(i, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-				}
+
+        } else {
+          sim_cells_SUIDs <- lapply(is_ToDo, FUN = extract_SUIDs, res = cell_res_wise,
+            grid = grid_wise, sp_sites = run_sites_wise)
+        }
 			}
 			rm(grid_wise)
 
+      sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 			sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[,"i"])),]
 
 			#- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
@@ -3343,12 +3331,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 			})
 
-			template_simulationSoils <- rep(NA, times = 2 + 4 * layer_Nsim)
-			names(template_simulationSoils) <- c("i", "soildepth", paste0(rep(c("bulk", "sand", "clay", "cfrag"), times=layer_Nsim), "_L", rep(1:layer_Nsim, each=4)))
+      nextract <- 5L
+      template_simulationSoils <- rep(NA, times = 2 + nextract * layer_Nsim)
+      names(template_simulationSoils) <- c("i", "soildepth",
+        paste0(rep(c("bulk", "sand", "clay", "cfrag", "TOC"), times = layer_Nsim),
+        "_L", rep(seq_len(layer_Nsim), each = nextract)))
 			template_simulationSoils["soildepth"] <- 0
 
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise) {
+			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise, nextract) {
 				#Init
 				simulationSoils["i"] <- i
 				simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
@@ -3358,7 +3349,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#Do calculations if any soils in this simulation cell
 				if (i_sim_cells_SUIDs$SUIDs_N > 0) {
-					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID, FUN = get_prids, dat_wise = dat_wise))))
+					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
+						FUN = get_prids, dat_wise = dat_wise))))
 
 					for (is in seq_len(this_simCell$SUIDs_N)) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
 						prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
@@ -3390,81 +3382,85 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 									dat = simulationSoils[paste0("cfrag_L", ils)],
 									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
 									frac = pfracl)	# coarse fragments (vol % > 2 mm)
+                simulationSoils[paste0("TOC_L", ils)] <- get_SoilDatValuesForLayer(
+                  dat = simulationSoils[paste0("TOC_L", ils)],
+                  soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
+                  frac = pfracl)	# total organic carbon content (g C / kg)
 							}
 						}
 					}
 
 					#Adjust values for area present
-					simulationSoils <- simulationSoils / c(1, simulation_frac, rep(simulation_layer_frac, each = 4))
+					simulationSoils <- simulationSoils /
+					  c(1, simulation_frac, rep(simulation_layer_frac, each = nextract))
 				}
 
 				simulationSoils
 			})
 
 
-			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise) {
+			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise, nextract) {
 				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
 				temp <- try(calc_weightedMeanForSimulationCell(i,
 							i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
 							simulationSoils = template_simulationSoils,
 							layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-							dat_wise = dat_wise))
+							dat_wise = dat_wise,
+							nextract = nextract))
 				if (inherits(temp, "try-error")) template_simulationSoils else temp
 			})
 
 			if (parallel_runs && parallel_init) {
 				#objects that need exporting to slaves
-				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
+				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N",
+				  "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell",
+				  "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
+        obj2exp <- gather_objects_for_export(varlist = list.export,
+          list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
 
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
-          export_objects_to_workers(list.export,
-            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-            "mpi")
+          export_objects_to_workers(obj2exp, "mpi")
 
-					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- Rmpi::mpi.applyLB(X = is_ToDo,
+					  FUN = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
+						dat_wise = dat_wise,
+						nextract = nextract)
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
 					Rmpi::mpi.bcast.cmd(gc())
 
-				} else if (identical(parallel_backend, "snow")) {
-          export_objects_to_workers(list.export,
-            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-            "snow", cl)
+				} else if (identical(parallel_backend, "cluster")) {
+          export_objects_to_workers(obj2exp, "cluster", cl)
 
-					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- parallel::clusterApplyLB(cl, x = is_ToDo,
+					  fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
+						dat_wise = dat_wise,
+						nextract = nextract)
 
-					snow::clusterEvalQ(cl, rm(list=ls()))
-					snow::clusterEvalQ(cl, gc())
+					parallel::clusterEvalQ(cl, rm(list=ls()))
+					parallel::clusterEvalQ(cl, gc())
 
-				} else if (identical(parallel_backend, "multicore")) {
-					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE, .export=list.export) %dopar%
-						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
 				}
 
 			} else {
-				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+        sim_cells_soils <- lapply(is_ToDo, FUN = try_weightedMeanForSimulationCell,
+          sim_cells_SUIDs = sim_cells_SUIDs,
+          template_simulationSoils = template_simulationSoils,
+          layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
+          dat_wise = dat_wise,
+          nextract = nextract)
 			}
 			rm(dat_wise)
 
+      sim_cells_soils <- do.call(rbind, sim_cells_soils)
 			sim_cells_soils <- sim_cells_soils[order(sim_cells_soils[, "i"]), ]
 
 			if (FALSE) {#visualize in interactive sessions
@@ -3491,7 +3487,6 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i_Done[which(do_extract[[2]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
-
 				#set and save soil layer structure
 				lys <- seq_len(layer_Nsim)
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
@@ -3519,6 +3514,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
 				sw_input_soils_use[i.temp[lys]] <- TRUE
 				sw_input_soils_use[i.temp[-lys]] <- FALSE
+        i.temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
+        sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("TOC_L", lys)], 2)
+        sw_input_soils_use[i.temp[lys]] <- TRUE
+        sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
@@ -3973,8 +3972,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 							cfsr_so = prepd_CFSR$cfsr_so,
 							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
               do_parallel = parallel_runs && parallel_init,
-							parallel_backend = parallel_backend,
-							cl = if (identical(parallel_backend, "snow")) cl else NULL,
+							parallel_backend = parallel_backend, cl = cl,
 							rm_mc_files = TRUE,
               continueAfterAbort = continueAfterAbort))
 			if (inherits(temp, "try-error")) stop(temp)

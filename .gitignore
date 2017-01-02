@@ -7,3 +7,4 @@ R/*.rda
 
 # Example code in package build process
 *-Ex.R
+inst/doc
