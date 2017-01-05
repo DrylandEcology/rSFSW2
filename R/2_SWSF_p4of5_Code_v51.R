@@ -120,13 +120,15 @@ if (!be.quiet)
 
 # Read data from files
 do_check_include <- FALSE
-if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_preprocessed))) {
-	load(file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
-		envir = globalenv()) # This however annihilates all objects in globalenv() with the same names !
+fpreprocin <- file.path(dir.in, datafile.SWRWinputs_preprocessed)
+
+if (usePreProcessedInput && file.exists(fpreprocin)) {
+  # This however annihilates all objects in globalenv() with the same names !
+  load(file = fpreprocin, envir = globalenv())
 
 } else {
-  SWRunInformation <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.SWRunInformation)),
-    error = print)
+  fmaster <- file.path(dir.in, datafile.SWRunInformation)
+  SWRunInformation <- tryCatch(swsf_read_csv(fmaster), error = print)
   stopifnot(sapply(required_colnames_SWRunInformation(),
       function(x) x %in% names(SWRunInformation)),		# required columns
     all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
@@ -136,8 +138,9 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   include_YN <- SWRunInformation$Include_YN
   nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
-  sw_input_soillayers <- tryCatch(swsf_read_csv(file.path(dir.in, datafile.soillayers),
-    nrowsClasses = nrowsClasses), error = print)
+  fslayers <- file.path(dir.in, datafile.soillayers)
+  sw_input_soillayers <- tryCatch(swsf_read_csv(fslayers, nrowsClasses = nrowsClasses),
+    error = print)
 
   temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.treatments),
     nrowsClasses = nrowsClasses), error = print)
@@ -169,8 +172,8 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   if (dim(sw_input_experimentals)[2] < 2)
     stop("Experimentals might be tab separated instead of comma.")
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.cloud),
-    nrowsClasses = nrowsClasses), error = print)
+  fcloud <- file.path(dir.sw.dat, datafile.cloud)
+  temp <- tryCatch(swsf_read_inputfile(fcloud, nrowsClasses = nrowsClasses), error = print)
   sw_input_cloud_use <- temp[["use"]]
   sw_input_cloud <- temp[["data"]]
 
@@ -186,8 +189,8 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
   sw_input_site_use <- temp[["use"]]
   sw_input_site_use <- sw_input_site_use | names(sw_input_site_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.soils),
-    nrowsClasses = nrowsClasses), error = print)
+  fsoils <- file.path(dir.sw.dat, datafile.soils)
+  temp <- tryCatch(swsf_read_inputfile(fsoils, nrowsClasses = nrowsClasses), error = print)
   sw_input_soils <- temp[["data"]]
   sw_input_soils_use <- temp[["use"]]
   sw_input_soils_use <- sw_input_soils_use | names(sw_input_soils_use) %in% create_experimentals	#update specifications based on experimental design
@@ -314,9 +317,25 @@ if (usePreProcessedInput && file.exists(file.path(dir.in, datafile.SWRWinputs_pr
 	}
 
   do_check_include <- TRUE
-	save(SWRunInformation, include_YN, sw_input_soillayers, sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, create_experimentals, create_treatments, sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use, sw_input_climscen_values, tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT, tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code, tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD, tr_VegetationComposition, param.species_regeneration, no.species_regeneration,
-		file = file.path(dir.in, datafile.SWRWinputs_preprocessed),
-		compress = FALSE) # No compression for fast access; RDS may be slightly faster, but would require loop over assign(, envir = globalenv())
+  # No compression for fast access; RDS may be slightly faster, but would require loop
+  # over assign(, envir = globalenv())
+  save(fmaster, SWRunInformation, include_YN, create_experimentals, create_treatments,
+    fslayers, sw_input_soillayers,
+    sw_input_treatments_use, sw_input_treatments,
+    sw_input_experimentals_use, sw_input_experimentals,
+    fcloud, sw_input_cloud_use, sw_input_cloud,
+    sw_input_prod_use, sw_input_prod,
+    sw_input_site_use, sw_input_site,
+    fsoils, sw_input_soils_use, sw_input_soils,
+    sw_input_weather_use, sw_input_weather,
+    sw_input_climscen_use, sw_input_climscen,
+    sw_input_climscen_values_use, sw_input_climscen_values,
+    tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT,
+    tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code,
+    tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD,
+    tr_VegetationComposition,
+    param.species_regeneration, no.species_regeneration,
+    file = fpreprocin, compress = FALSE)
 }
 
 if (!be.quiet)
@@ -441,6 +460,9 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 	crs_sites <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
 	run_sites <- sp::SpatialPoints(coords = with(SWRunInformation[runIDs_sites, ],
     data.frame(X_WGS84, Y_WGS84)), proj4string = crs_sites)
+
+} else {
+  run_sites <- sim_raster <- crs_sites <- sim_res <- NULL
 }
 
 
@@ -531,6 +553,8 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 
 	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.big, dir.ex.CFSR)
 	stopifnot(!inherits(prepd_CFSR, "try-error"))
+} else {
+  prepd_CFSR <- NULL
 }
 
 
@@ -599,8 +623,8 @@ if (do_weather_source) {
   SWRunInformation <- dw_determine_sources(dw_source, exinfo, dailyweather_options,
     create_treatments, runIDs_sites, SWRunInformation, sw_input_treatments_use,
     sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, simstartyr,
-    endyr, datafile.SWRunInformation, datafile.SWRWinputs_preprocessed, dir.in,
-    dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr, verbose = !be.quiet)
+    endyr, fmaster, fpreprocin, dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr,
+    verbose = !be.quiet)
 }
 
 if (anyNA(SWRunInformation[runIDs_sites, "dailyweather_source"])) {
@@ -743,6 +767,17 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   stopifnot(file.exists(dir.external))
   source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"),
     verbose = FALSE, chdir = FALSE)
+
+  if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA ||
+    exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
+
+    ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_master, runIDs_sites,
+      run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
+      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
+      fmaster, fcloud, fpreprocin, chunk_size.options, continueAfterAbort, be.quiet,
+      prepd_CFSR, startyr, endyr, parallel_runs, parallel_init, parallel_backend, cl)
+  }
+
   do_check_include <- TRUE
 
   if (!be.quiet)
@@ -755,8 +790,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 #--------------------------------------------------------------------------------------------------#
 #------------------------CHECK THAT INCLUDE_YN* ARE INCLUSIVE
 if (do_check_include) {
-  SWRunInformation <- check_requested_sites(include_YN, SWRunInformation, dir.in,
-    datafile.SWRunInformation, datafile.SWRWinputs_preprocessed, verbose = !be.quiet)
+  SWRunInformation <- check_requested_sites(include_YN, SWRunInformation, fmaster,
+    fpreprocin, verbose = !be.quiet)
 }
 
 
@@ -789,9 +824,8 @@ if (any(unlist(pcalcs))) {
 
   if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
     temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(requested_soil_layers,
-      runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils, dir.in,
-      datafile.SWRWinputs_preprocessed, datafile.soillayers, dir.sw.dat, datafile.soils,
-      verbose = !be.quiet)
+      runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
+      fpreprocin, fslayers, fsoils, verbose = !be.quiet)
 
     sw_input_soillayers <- temp[["sw_input_soillayers"]]
     sw_input_soils_use <- temp[["sw_input_soils_use"]]
@@ -803,8 +837,8 @@ if (any(unlist(pcalcs))) {
     # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 
     temp <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(runIDs_adjust,
-      sw_input_soils_use, sw_input_soils, dir.in, datafile.SWRWinputs_preprocessed,
-      dir.sw.dat, datafile.soils, continueAfterAbort, verbose = !be.quiet)
+      sw_input_soils_use, sw_input_soils, fpreprocin, fsoils, continueAfterAbort,
+      verbose = !be.quiet)
 
     sw_input_soils_use <- temp[["sw_input_soils_use"]]
     sw_input_soils <- temp[["sw_input_soils"]]
@@ -841,8 +875,7 @@ if (any(actions == "create")) {
   temp <- do_prior_TableLookups(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
     create_treatments, SoilLayer_MaxNo, sw_input_experimentals_use, sw_input_experimentals,
     sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
-    dir.in, dir.sw.dat, datafile.SWRWinputs_preprocessed, datafile.soils, datafile.cloud,
-    continueAfterAbort, verbose = !be.quiet)
+    fpreprocin, fsoils, fcloud, continueAfterAbort, verbose = !be.quiet)
 
   done_prior <- temp[["done_prior"]]
   sw_input_soils_use <- temp[["sw_input_soils_use"]]

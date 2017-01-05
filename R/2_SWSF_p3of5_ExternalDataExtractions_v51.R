@@ -653,8 +653,8 @@ if (exinfo$ExtractClimateChangeScenarios) {
 
 		#write data to datafile.SWRunInformation
 		SWRunInformation$GCM_sources[runIDs_sites] <- as.character(sites_GCM_source)
-		write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
-		unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+		write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
+		unlink(fpreprocin)
 
 	} else {
 
@@ -1283,28 +1283,28 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			iuse_obs_hist_d = iuse_obs_hist_d, iuse_obs_hist_m = iuse_obs_hist_m,
 			iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
 	})
-	
-  #'  
-  #' Calculate Deltas, used for downscaling functionality	
-	
-	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {   
-	  
+
+  #'
+  #' Calculate Deltas, used for downscaling functionality
+
+	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
+
 	  # 1. Calculate mean monthly values in historic and future scenario values
 	  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-	  
+
 	  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 	  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)	  
-	  
+	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+
 	  # 2. Calculate deltas between observed historic and future mean scenario values
 	  #	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 	  #	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 	  delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 	  delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 	  ppt_fun <- rep("*", 12)
-	  
+
 	  # Deltas of monthly means
 	  delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
 	  delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
@@ -1316,11 +1316,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	    ppt_fun[temp_add] <- "+"
 	    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
 	  }
-	  delta_ts[, "PPT_cm"] <- delta_ppts	  
-	  
+	  delta_ts[, "PPT_cm"] <- delta_ppts
+
 	  list(delta_ts, ppt_fun)
 	  })
-	
+
 	#' Downscale with the 'direct approach'
 	#'
 	#' See 'direct' approach in Lenderink et al. (2007)
@@ -1352,18 +1352,18 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		# scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 		# scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 		# scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-		# 
+		#
 		# obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 		# obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 		# obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
-		# 
+		#
 		# # 2. Calculate deltas between observed historic and future mean scenario values
 		# 		#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 		# 		#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 		# delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		# delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 		# ppt_fun <- rep("*", 12)
-		# 
+		#
 		# # Deltas of monthly means
 		# delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
 		# delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
@@ -1849,13 +1849,13 @@ if (exinfo$ExtractClimateChangeScenarios &&
                 dailyPPTceiling, monthly_extremes,
                 do_checks = TRUE, ...){
     if (!be.quiet) print(paste("downscale.wgen_package start(deltaFuture_yr =", deltaFuture_yr, "years", years, "DScur_startyear", DScur_startyear,"DScur_endyear", DScur_endyear, "DSfut_startyear", DSfut_startyear,
-                               "DSfut_endyear", DSfut_endyear, sep = " ")) 
+                               "DSfut_endyear", DSfut_endyear, sep = " "))
 
     require("zoo")
     require("weathergen")
     require("dplyr")
-    library("lubridate")    
-    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]     
+    library("lubridate")
+    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]
     # Time periods
     tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
                             scen.fut.monthly, years, DScur_startyear, DScur_endyear,
@@ -1866,11 +1866,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
       obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
     if (any(!tp$iuse_scen_fut_m))
       scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-    
+
     day_data <- dbW_weatherData_to_dataframe(obs.hist.daily)
 
     dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
-    
+
     day_data <- data.frame(WYEAR = wyear(dates),
                            MONTH = format(dates, "%m"),
                            DATE  = dates,
@@ -1879,90 +1879,90 @@ if (exinfo$ExtractClimateChangeScenarios &&
                            TMIN  = day_data[,'Tmin_C'],
                            TMAX  = day_data[,'Tmax_C'],
                            WIND  = NA)
-    
+
     # get water years, oct 1st to sep 30th... used if start_month should be 10
     #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m" ))==10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m" ))==9)),]
     start_month <- as.numeric(format(min(day_data$DATE), "%m" ))
-    
+
     climwyear <- group_by(day_data, WYEAR=wyear(DATE, start_month = start_month)) %>%
       summarise(N    = n(),
                 PRCP = sum(PRCP),
                 TMAX = mean(TMAX),
                 TMIN = mean(TMIN),
-                TEMP = mean(TEMP))                        
-    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)] 
-    
+                TEMP = mean(TEMP))
+    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)]
+
     wyear_list <- list(day_data$WYEAR)
     wyr_data <- data.frame(WYEAR =  complete_years,
-                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],  
-                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)], 
-                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)], 
-                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],  
-                           WIND  =  NA                                       
-    )				  
-    
+                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],
+                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)],
+                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)],
+                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],
+                           WIND  =  NA
+    )
+
     obs_dat <- list(day=day_data, wyr=wyr_data)
     zoo_day <- zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
                    order.by = obs_dat[['day']][['DATE']])
-    start_yr <- as.integer(format(dates[1],"%Y")) ## 
+    start_yr <- as.integer(format(dates[1],"%Y")) ##
     end_yr <- as.integer(format(max(dates),"%Y"))
-    
+
     dry_wet_threshold <- 0.3
     wet_extreme_threshold <- 0.8
     # read additional parameters, if provided
-    if (hasArg("add_params")) 
-    {  
+    if (hasArg("add_params"))
+    {
       additional <- list(...)
-      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes)) 
+      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes))
       {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
-      } else dry_spell_changes <- 1 # can be one value or a vector of 12   
-      
-      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes)) 
+      } else dry_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes))
       {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
-      } else wet_spell_changes <- 1 # can be one value or a vector of 12   
-      
-      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes)) 
+      } else wet_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes))
       {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
-      } else prcp_cv_changes <- 1 # can be one value or a vector of 12   
+      } else prcp_cv_changes <- 1 # can be one value or a vector of 12
     } else {
-      dry_spell_changes <- 1 
+      dry_spell_changes <- 1
       wet_spell_changes <- 1
-      prcp_cv_changes <- 1 
-    }   
-        
+      prcp_cv_changes <- 1
+    }
+
     changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)[[1]]
-    
+
     prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
-    
+
     temp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"]))
-    
+
     # set.seed(1) # for testing
     if (!be.quiet) print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
                                ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
                                "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
                                wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
-    
-    # consider setting more parameters 
-    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence				  
-    scen.fut.daily <- weathergen::wgen_daily(zoo_day, 
+
+    # consider setting more parameters
+    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
+    scen.fut.daily <- weathergen::wgen_daily(zoo_day,
                                              n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
                                              start_water_year = start_yr, #DScur_startyear,
                                              start_month = start_month,
-                                             dry_wet_threshold=dry_wet_threshold, 
+                                             dry_wet_threshold=dry_wet_threshold,
                                              wet_extreme_quantile_threshold=wet_extreme_threshold,
                                              include_leap_days = TRUE,
                                              dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
                                              prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
-                                             )   
+                                             )
 
     scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
                                  DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
                                  Tmax_C = scen.fut.daily$out$TMAX,
                                  Tmin_C = scen.fut.daily$out$TMIN,
-                                 PPT_cm = scen.fut.daily$out$PRCP)				  
+                                 PPT_cm = scen.fut.daily$out$PRCP)
 
     # year start back to 1/1, probably only needed when setting start_month != 1
-    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]				    
+    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
     scen.fut.daily <- dbW_dataframe_to_weatherData(scen.fut.daily, round=FALSE)
     scen.fut.daily
   })
@@ -2547,18 +2547,18 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
           dm_fun <- switch(dm, raw = downscale.raw, delta = downscale.delta,
             `hybrid-delta` = downscale.deltahybrid,
-            `hybrid-delta-3mod` = downscale.deltahybrid3mod, 
+            `hybrid-delta-3mod` = downscale.deltahybrid3mod,
             `wgen-package` = downscale.wgen_package, stop)
-          
+
           # a list of additional parameters for downscaling
           dm_add_params <- switch(dm, raw = NULL, delta = NULL,
                                   `hybrid-delta` = NULL,
-                                  `hybrid-delta-3mod` = NULL, 
+                                  `hybrid-delta-3mod` = NULL,
                                   `wgen-package` = list(wgen_dry_spell_changes = { if ("wgen_dry_spell_changes" %in% colnames(locations)) {locations[il,"wgen_dry_spell_changes"]} else {1}},
                                                         wgen_wet_spell_changes = { if ("wgen_wet_spell_changes" %in% colnames(locations)) {locations[il,"wgen_wet_spell_changes"]} else {1}},
-                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}), 
+                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}),
                                    stop)
-          
+
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
               obs.hist.daily = obs.hist.daily, obs.hist.monthly = obs.hist.monthly,
@@ -3054,8 +3054,8 @@ if (exinfo$ExtractClimateChangeScenarios &&
   }
 
 	SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
-	write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-	unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+	write.csv(SWRunInformation, file=fmaster, row.names=FALSE)
+	unlink(fpreprocin)
 
 	rm(sites_GCM_source, xy, include_YN_climscen, do_SWRun_sites, clim_source)
 }
@@ -3140,7 +3140,7 @@ if (exinfo$ExtractClimateChangeScenarios && any(exinfo$which_ClimateWizard)) {
 			#write data to datafile.climatescenarios_values
 			write.csv(reconstitute_inputfile(sw_input_climscen_values_use, sw_input_climscen_values),
 				file = file.path(dir.sw.dat, datafile.climatescenarios_values), row.names = FALSE)
-			unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+			unlink(fpreprocin)
 
 			rm(list.scenarios.datafile, list.scenarios.external, sc.temp, sc.ppt, res, locations)
 		} else {
@@ -3325,8 +3325,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- soil_data[i_good, 1, "bedrock"]
 				i.temp <- grep("depth_L", colnames(sw_input_soillayers))
 				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(data=rep(ldepth[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
-				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+				write.csv(sw_input_soillayers, file=fslayers, row.names=FALSE)
+				unlink(fpreprocin)
 
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
@@ -3349,8 +3349,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-					file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+					file = fsoils, row.names = FALSE)
+				unlink(fpreprocin)
 
 				rm(i.temp, i_Done)
 			}
@@ -3672,8 +3672,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i.temp <- grep("depth_L", colnames(sw_input_soillayers))
 				sw_input_soillayers[runIDs_sites[i_Done], i.temp[lys]] <- matrix(rep(layer_BotDep[lys], times=sum(i_good)), ncol=length(lys), byrow=TRUE)
 				sw_input_soillayers[runIDs_sites[i_Done], i.temp[-lys]] <- NA
-				write.csv(sw_input_soillayers, file=file.path(dir.in, datafile.soillayers), row.names=FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+				write.csv(sw_input_soillayers, file=fslayers, row.names=FALSE)
+				unlink(fpreprocin)
 
 				#set and save soil texture
 				#add data to sw_input_soils and set the use flags
@@ -3700,8 +3700,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-					file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+					file = fsoils, row.names = FALSE)
+				unlink(fpreprocin)
 
 				rm(lys, i.temp, i_Done)
 			}
@@ -3721,8 +3721,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
     include_YN_soils <- rep(0, runsN_master)
     include_YN_soils[runIDs_sites[!notDone]] <- 1
     SWRunInformation$Include_YN_SoilSources <- include_YN_soils
-    write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+    write.csv(SWRunInformation, file=fmaster, row.names=FALSE)
+    unlink(fpreprocin)
 
     if (any(notDone))
       print(paste("'ExtractSoilData': no soil information for n =", sum(notDone), "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
@@ -3912,8 +3912,8 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
     include_YN_elev[runIDs_sites[!notDone]] <- 1
     SWRunInformation$Include_YN_ElevationSources <- include_YN_elev
 
-    write.csv(SWRunInformation, file=file.path(dir.in, datafile.SWRunInformation), row.names=FALSE)
-    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+    write.csv(SWRunInformation, file=fmaster, row.names=FALSE)
+    unlink(fpreprocin)
 
     if (any(notDone))
       print(paste("Elevation wasn't found for ", sum(notDone), " sites"))
@@ -3929,296 +3929,3 @@ if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
 #------END OF ELEVATION------
 #--------------------------------------------------------------------------------------------------#
 
-
-if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
-	#allow for multiple sources
-	if (extract_determine_database == "SWRunInformation" && "ClimateNormals_source" %in% colnames(SWRunInformation)) {
-		sites_monthlyclim_source <- SWRunInformation$ClimateNormals_source[runIDs_sites]
-	} else if (extract_determine_database == "order" || !("ClimateNormals_source" %in% colnames(SWRunInformation))) {
-		sites_monthlyclim_source <- rep(NA, times = runsN_sites)
-	} else {
-		stop(paste("Value of 'extract_determine_database'", extract_determine_database, "not implemented"))
-	}
-
-	monthlyclim <- array(NA, dim = c(runsN_sites, 3, 12), dimnames = list(NULL, c("RH", "cover", "wind"), NULL))
-
-  do_extract <- list(ExtractSkyDataFromNOAAClimateAtlas_USA = FALSE,
-                     ExtractSkyDataFromNCEPCFSR_Global = FALSE)
-  did_extract <- c(ExtractSkyDataFromNOAAClimateAtlas_USA = FALSE,
-                   ExtractSkyDataFromNCEPCFSR_Global = FALSE)
-
-	if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
-		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
-    stopifnot(require("rgdal"))
-
-		do_extract[[1]] <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
-						sites_monthlyclim_source == "ClimateNormals_NCDC2005_USA"
-
-		if (continueAfterAbort) {
-			do_extract[[1]] <- do_extract[[1]] & (
-								has_nodata(sw_input_cloud[runIDs_sites, ], "RH") |
-								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
-								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
-		}
-		names(do_extract[[1]]) <- NULL
-
-		i_extract <- as.integer(which(do_extract[[1]]))
-		n_extract <- sum(do_extract[[1]])
-
-		if (n_extract > 0) {
-			if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =", n_extract, "sites"))
-			reference <- "National Climatic Data Center. 2005. Climate maps of the United States. Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed May 2010."
-
-			#NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
-			dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
-			stopifnot(file.exists(dir.ex.dat), require(raster), require(sp), require(rgdal))
-
-			dir_noaaca <- list(
-							RH = file.path(dir.ex.dat, "HumidityRelative_Percent"),
-							cover = file.path(dir.ex.dat, "Sunshine_Percent"),
-							# cover = file.path(dir.ex.dat, "SkyCoverDay_Percent"),
-							wind = file.path(dir.ex.dat, "WindSpeed_mph"))
-
-			files_shp <- list(
-							RH = paste0("RH23", formatC(st_mo, width=2,format="d", flag="0")),
-							cover = paste0("SUN52", formatC(st_mo, width=2,format="d", flag="0")),
-							# cover = paste0("SKYC50", formatC(st_mo, width=2,format="d", flag="0")),
-							wind = paste0("WND60B", formatC(st_mo, width=2,format="d", flag="0")))
-
-			var_codes <- list(
-							RH = c(10, 23, 31, 41, 51, 61, 71, 78, 90), #percent
-							cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),	#percent
-							# cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),	#percent
-							wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
-			stopifnot(	colnames(monthlyclim) == names(dir_noaaca),
-						colnames(monthlyclim) == names(files_shp),
-						colnames(monthlyclim) == names(var_codes))
-
-			#locations of simulation runs
-			sites_noaaca <- run_sites[do_extract[[1]], ]
-			# Align with data crs
-			noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
-			crs_data <- raster::crs(noaaca)
-			if (!raster::compareCRS(crs_sites, crs_data)) {
-				sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)	#transform points to grid-coords
-			}
-
-			if (sim_cells_or_points == "point") {
-				args_extract <- list(x = sites_noaaca)
-
-			} else if (sim_cells_or_points == "cell") {
-				cell_res_noaaca <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-					sp = sites_noaaca, crs_sp = crs_sites, crs_to = crs_data)
-				args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)
-			}
-
-			# determine NOAA CA extractions to do
-			do_chunks <- parallel::splitIndices(n_extract, ceiling(n_extract / chunk_size.options[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]))
-
-			n_vars <- ncol(monthlyclim)
-			n_months <- length(st_mo)
-			n_chunks <- length(do_chunks)
-			iv <- m <- ic <- 1
-
-			# determine start location based on interrupted data extraction
-			ftemp_noaaca <- file.path(dir.out.temp, "NOAA_ClimateAtlas_extraction.rds")
-
-			if (continueAfterAbort && file.exists(ftemp_noaaca)) {
-				prev_noaaca <- readRDS(ftemp_noaaca)
-
-				if (identical(do_extract[[1]], prev_noaaca[["do_extract"]])) { # only continue if same extractions
-					monthlyclim[do_extract[[1]], , ] <- prev_noaaca[["monthlyclim"]][do_extract[[1]], , ]
-
-					iv <- prev_noaaca[["iv"]]
-					m <- prev_noaaca[["m"]]
-					if (identical(do_chunks, prev_noaaca[["do_chunks"]])) {
-						ic <- prev_noaaca[["ic"]]
-					} else {
-						itemp <- max(unlist(prev_noaaca[["do_chunks"]][seq_len(prev_noaaca[["ic"]])]))
-						cnewmaxs <- sapply(do_chunks, function(x) max(x))
-						ic <- findInterval(itemp, c(0, cnewmaxs))
-					}
-				}
-			}
-
-			#extract data for locations
-			if (iv < n_vars ||
-				(iv == n_vars && m < n_months) ||
-				(iv == n_vars && m == n_months && ic < n_chunks)) repeat {
-
-				if (!be.quiet) print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ", paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of", n_chunks), sep = ", ")))
-
-				iextr <- i_extract[do_chunks[[ic]]]
-				args_chunk <- args_extract
-				args_chunk[["x"]] <- args_chunk[["x"]][do_chunks[[ic]], ]
-				if (!is.null(args_chunk[["coords"]]))
-					args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
-
-				monthlyclim[iextr, iv, m] <- do.call("extract_from_external_shapefile",
-						args = c(args_chunk,
-								file_path = list(dir_noaaca[[iv]]),
-								file_shp = list(files_shp[[iv]][m]),
-								fields = list("GRIDCODE"),
-								code = list(var_codes[[iv]])))
-
-				if (ic < n_chunks) {
-					ic <- ic + 1
-				} else {
-					ic <- 1
-					m <- m + 1
-				}
-				if (m > n_months) {
-					m <- 1
-					iv <- iv + 1
-				}
-
-				if (continueAfterAbort) saveRDS(list(monthlyclim = monthlyclim,
-													do_extract = do_extract[[1]],
-													do_chunks = do_chunks,
-													iv = iv, m = m, ic = ic),
-											file = ftemp_noaaca)
-
-				if (iv > n_vars) break
-			}
-
-			#subtract from 100% as we want cover and not no-cover
-			monthlyclim[do_extract[[1]], "cover", ] <- 100 - monthlyclim[do_extract[[1]], "cover", ]
-
-
-			# Save extracted data to disk
-			i_good <- do_extract[[1]] & !has_incompletedata(monthlyclim) #length(i_good) == length(do_extract[[1]]) == runsN_sites
-			i_notgood <- do_extract[[1]] & has_incompletedata(monthlyclim) #length(i_good) == length(do_extract[[1]]) == runsN_sites
-			sites_monthlyclim_source[i_notgood] <- NA
-
-			if (any(i_good)) {
-				did_extract[1] <- TRUE
-				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCDC2005_USA"
-				if (!be.quiet) print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =", sum(i_good), "out of", n_extract, "sites"))
-
-				#add data to sw_input_cloud and set the use flags
-				i.temp <- grep("RH", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "RH", ], 2)
-				i.temp <- grep("SkyC", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "cover", ], 2)
-				i.temp <- grep("wind", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp[st_mo]] <- round(monthlyclim[i_good, "wind", ], 2)
-
-				#write data to datafile.cloud
-				write.csv(reconstitute_inputfile(sw_input_cloud_use, sw_input_cloud),
-					file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-				rm(i.temp)
-			}
-			rm(dir_noaaca, files_shp, var_codes, sites_noaaca, reference, noaaca, i_good, i_notgood)
-		}
-
-		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
-	}
-
-	if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
-		#Citations: Environmental Modeling Center/National Centers for Environmental Prediction/National Weather Service/NOAA/U.S. Department of Commerce. 2010. NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December 2010. Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory.
-		# http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
-
-		if (!be.quiet) print(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
-
-		do_extract[[2]] <- has_incompletedata(monthlyclim) | is.na(sites_monthlyclim_source) |
-						sites_monthlyclim_source == "ClimateNormals_NCEPCFSR_Global"
-
-		if (continueAfterAbort) {
-			do_extract[[2]] <- do_extract[[2]] & (
-								has_nodata(sw_input_cloud[runIDs_sites, ], "RH") |
-								has_nodata(sw_input_cloud[runIDs_sites, ], "SkyC") |
-								has_nodata(sw_input_cloud[runIDs_sites, ], "wind"))
-		}
-		names(do_extract[[2]]) <- NULL
-
-		if (any(do_extract[[2]])) {
-			if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =", sum(do_extract[[2]]), "sites"))
-
-			#locations of simulation runs
-			locations <- SWRunInformation[runIDs_sites[do_extract[[2]]], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
-			# do the extractions
-			temp <- try(get_NCEPCFSR_data(
-							dat_sites = locations,
-							daily = FALSE, monthly = TRUE,
-							yearLow = startyr, yearHigh = endyr,
-							dir.in.cfsr = prepd_CFSR$dir.in.cfsr,
-							dir_temp = dir.out.temp,
-							cfsr_so = prepd_CFSR$cfsr_so,
-							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
-              do_parallel = parallel_runs && parallel_init,
-							parallel_backend = parallel_backend, cl = cl,
-							rm_mc_files = TRUE,
-              continueAfterAbort = continueAfterAbort))
-			if (inherits(temp, "try-error")) stop(temp)
-
-			#match weather folder names in case of missing extractions
-			res <- as.matrix(temp[["res_clim"]][, -1])
-			irow <- match(locations[, "WeatherFolder"], table = temp[["res_clim"]][, "WeatherFolder"], nomatch = 0)
-			irowL <- irow > 0
-			monthlyclim[do_extract[[2]], "RH", ][irowL, ] <- res[irow, grepl("RH", colnames(res))]
-			monthlyclim[do_extract[[2]], "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
-			monthlyclim[do_extract[[2]], "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
-
-			# Save extracted data to disk
-			i_good <- do_extract[[2]] & !has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract[[2]]) == runsN_sites
-			i_notgood <- do_extract[[2]] & has_incompletedata(monthlyclim) #length(i_good) == sum(do_extract[[2]]) == runsN_sites
-			sites_monthlyclim_source[i_notgood] <- NA
-
-			if (any(i_good)) {
-				did_extract[2] <- TRUE
-				sites_monthlyclim_source[i_good] <- "ClimateNormals_NCEPCFSR_Global"
-				if (!be.quiet) print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =", sum(i_good), "out of", sum(do_extract[[2]]), "sites"))
-
-				#add data to sw_input_cloud and set the use flags
-				i.temp <- grep("RH", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "RH", ], 2)
-				i.temp <- grep("SkyC", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "cover", ], 2)
-				i.temp <- grep("wind", names(sw_input_cloud_use))
-				sw_input_cloud_use[i.temp] <- TRUE
-				sw_input_cloud[runIDs_sites[i_good], i.temp][, st_mo] <- round(monthlyclim[i_good, "wind", ], 2)
-
-				#write data to datafile.cloud
-				write.csv(reconstitute_inputfile(sw_input_cloud_use, sw_input_cloud),
-					file = file.path(dir.sw.dat, datafile.cloud), row.names = FALSE)
-				unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-				rm(i.temp)
-			}
-			rm(locations, temp, i_good, i_notgood, irow, irowL)
-		}
-
-		if (!be.quiet) print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
-	}
-
-	if (any(did_extract)) {
-    #write data to datafile.SWRunInformation
-    SWRunInformation$ClimateNormals_source[runIDs_sites] <- as.character(sites_monthlyclim_source)
-
-    notDone <- is.na(sites_monthlyclim_source)
-    include_YN_climnorm <- rep(0, runsN_master)
-    include_YN_climnorm[runIDs_sites[!notDone]] <- 1
-    SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
-
-    write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation), row.names = FALSE)
-    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
-
-    if (any(notDone))
-      print(paste("Climate normals weren't found for", sum(notDone), "sites"))
-    rm(notDone, include_YN_climnorm)
-
-  } else {
-      print("'ExtractClimateNormals': no data extracted because already available")
-  }
-
-	rm(monthlyclim, sites_monthlyclim_source, do_extract, did_extract)
-}
-
-#--------------------------------------------------------------------------------------------------#

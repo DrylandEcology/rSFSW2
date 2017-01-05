@@ -110,8 +110,8 @@ reconstitute_inputfile <- compiler::cmpfun(function(sw_use, data) {
   rbind(temp, data)
 })
 
-check_requested_sites <- function(include_YN, SWRunInformation, dir.in,
-  datafile.SWRunInformation, datafile.SWRWinputs_preprocessed, verbose = FALSE) {
+check_requested_sites <- function(include_YN, SWRunInformation, fmaster, fpreprocin,
+  verbose = FALSE) {
 
   includes_all_sources <- grep("Include_YN", colnames(SWRunInformation),
     ignore.case = TRUE, value = TRUE)
@@ -131,9 +131,8 @@ check_requested_sites <- function(include_YN, SWRunInformation, dir.in,
       include_YN_available[include_YN_sources] <- 1L
       SWRunInformation[, "include_YN_available"] <- include_YN_available
 
-      write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation),
-        row.names = FALSE)
-      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
+      unlink(fpreprocin)
 
       stop("Data sources not available for every requested SWSF simulation run. ",
         "New column 'include_YN_available' with updated information stored to ",

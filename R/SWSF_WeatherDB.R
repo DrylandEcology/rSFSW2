@@ -980,8 +980,7 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, simstartyr
 dw_determine_sources <- function(dw_source, exinfo, dailyweather_options, create_treatments,
   runIDs_sites, SWRunInformation, sw_input_treatments_use, sw_input_treatments,
   sw_input_experimentals_use, sw_input_experimentals, simstartyr, endyr,
-  datafile.SWRunInformation, datafile.SWRWinputs_preprocessed, dir.in, dir.ex.NRCan,
-  dir.ex.maurer2002, dir.sw.in.tr, verbose = FALSE) {
+  fmaster, fpreprocin, dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr, verbose = FALSE) {
 
   dw_names <- rep(NA, times = length(dw_source))
   dailyweather_options2 <- rev(dailyweather_options)
@@ -1018,9 +1017,9 @@ dw_determine_sources <- function(dw_source, exinfo, dailyweather_options, create
   include_YN_dw <- rep(0L, dim(SWRunInformation)[1])
   include_YN_dw[runIDs_sites][!is.na(dw_source)] <- 1L
   SWRunInformation[, "Include_YN_DailyWeather"] <- include_YN_dw
-  write.csv(SWRunInformation, file = file.path(dir.in, datafile.SWRunInformation),
+  write.csv(SWRunInformation, file = fmaster,
     row.names = FALSE)
-  unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+  unlink(fpreprocin)
 
   SWRunInformation
 }

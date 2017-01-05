@@ -1,7 +1,6 @@
 calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
-  runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils, dir.in,
-  datafile.SWRWinputs_preprocessed, datafile.soillayers, dir.sw.dat, datafile.soils,
-  verbose = FALSE) {
+  runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
+  fpreprocin, fslayers, fsoils, verbose = FALSE) {
 
   if (verbose)
     print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of",
@@ -85,12 +84,11 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
 
     if (has_changed) {
       #write data to datafile.soillayers
-      write.csv(sw_input_soillayers, file = file.path(dir.in, datafile.soillayers),
-        row.names = FALSE)
+      write.csv(sw_input_soillayers, file = fslayers, row.names = FALSE)
       #write data to datafile.soils
       write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-        file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-      unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+        file = fsoils, row.names = FALSE)
+      unlink(fpreprocin)
 
       print(paste0("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
         "adjust lookup tables with per-layer values if applicable for this project"))
@@ -106,8 +104,8 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
 
 
 calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_adjust,
-  sw_input_soils_use, sw_input_soils, dir.in, datafile.SWRWinputs_preprocessed,
-  dir.sw.dat, datafile.soils, continueAfterAbort = TRUE, verbose = FALSE) {
+  sw_input_soils_use, sw_input_soils, fpreprocin, fsoils, continueAfterAbort = TRUE,
+  verbose = FALSE) {
 
  if (verbose)
     print(paste(Sys.time(), "'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'"))
@@ -195,8 +193,8 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
 
     #write data to datafile.soils
     write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-      file = file.path(dir.sw.dat, datafile.soils), row.names = FALSE)
-    unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+      file = fsoils, row.names = FALSE)
+    unlink(fpreprocin)
   }
 
   if (verbose)
@@ -210,8 +208,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
 do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
   create_treatments, SoilLayer_MaxNo, sw_input_experimentals_use, sw_input_experimentals,
   sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
-  dir.in, dir.sw.dat, datafile.SWRWinputs_preprocessed, datafile.soils, datafile.cloud,
-  continueAfterAbort = TRUE, verbose = FALSE) {
+  fpreprocin, fsoils, fcloud, continueAfterAbort = TRUE, verbose = FALSE) {
 
   if (verbose)
     print(paste("SWSF obtains information prior to simulation runs: started at",
@@ -229,7 +226,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         sw_input = "sw_input_soils",
         nvars = SoilLayer_MaxNo,
         do_fill = FALSE,
-        datafile = file.path(dir.sw.dat, datafile.soils)),
+        datafile = fsoils),
 
       LookupTranspRegionsFromTable = list(
         flag = "LookupTranspRegionsFromTable",
@@ -239,7 +236,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         sw_input = "sw_input_soils",
         nvars = SoilLayer_MaxNo,
         do_fill = FALSE,
-        datafile = file.path(dir.sw.dat, datafile.soils)),
+        datafile = fsoils),
 
       LookupSnowDensityFromTable = list(
         flag = "LookupSnowDensityFromTable",
@@ -251,7 +248,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         do_fill = TRUE,
         fill_pattern = "snowd",
         fill_value = 76,  	# 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
-        datafile = file.path(dir.sw.dat, datafile.cloud))
+        datafile = fcloud)
     )
 
     done_prior <- rep(FALSE, length(do_prior_lookup))
@@ -313,7 +310,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
             #write data to datafile
             write.csv(reconstitute_inputfile(tempdat$sw_input_use, tempdat$sw_input),
               file = pc$datafile, row.names = FALSE)
-            unlink(file.path(dir.in, datafile.SWRWinputs_preprocessed))
+            unlink(fpreprocin)
           }
 
         } else {
