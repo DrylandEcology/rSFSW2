@@ -487,7 +487,7 @@ if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.en
     workersN <- if (identical(parallel_backend, "mpi")) {
         Rmpi::mpi.comm.size() - 1
       } else {
-        parallel::detectCores(all.tests = TRUE)
+        num_cores #parallel::detectCores(all.tests = TRUE)
       }
 
 		parallel_init <- TRUE
