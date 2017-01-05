@@ -17,15 +17,15 @@ missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
       sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
-        Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
+        Table, ".P_id) WHERE header.Include_YN = 1 AND ", Table, ".P_id is NULL ",
         "ORDER BY header.P_id")
-      mP_ids <- RSQLite::dbGetQuery(con, sql)[, "header.P_id"]
+      mP_ids <- RSQLite::dbGetQuery(con, sql)[, 1]
     }
 
     DBI::dbDisconnect(con)
   }
 
-  mP_ids
+  as.integer(mP_ids)
 })
 
 
@@ -819,7 +819,7 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
 
 
 check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NULL,
-  do_DBcurrent = FALSE, parallel_runs = FALSE, parallel_init = FALSE,
+  update_workDB = FALSE, do_DBcurrent = FALSE, parallel_runs = FALSE, parallel_init = FALSE,
   parallel_backend = NULL, cl = NULL, dir.out = getwd(), swsf_env = NULL) {
 
   Tables <- dbOutput_ListOutputTables(dbname = name.OutputDB)
@@ -873,25 +873,32 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
   }
 
   missing_Pids <- unique(unlist(missing_Pids))
+  missing_Pids <- as.integer(sort(missing_Pids))
   missing_Pids_current <- unique(unlist(missing_Pids_current))
+  missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
-    missing_Pids <- as.integer(sort(missing_Pids))
     ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
-
     if (identical(missing_Pids, -1L)) {
       print(paste("Output DB", shQuote(name.OutputDB), "is empty and not complete"))
 
     } else {
       print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
-        length(missing_Pids), "records; P_id of these records are saved to file",
-        shQuote(ftemp)))
+        length(missing_Pids), "records"))
+
+     # Output missing Pids to rds file
+      print(paste("P_id of these records are saved to file", shQuote(ftemp)))
+      saveRDS(missing_Pids, file = ftemp)
+
+      # Update workDB
+      if (update_workDB) {
+        print("'workDB' is updated with these missing P_id for a re-run")
+        temp <- dbWork_redo(dir.out, runIDs = missing_Pids)
+      }
     }
-    saveRDS(missing_Pids, file = ftemp)
   }
 
   if (length(missing_Pids_current) > 0) {
-    missing_Pids_current <- as.integer(sort(missing_Pids_current))
     ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
@@ -902,8 +909,8 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
         length(missing_Pids_current), "records; P_id of these records are saved to file",
         shQuote(ftemp)))
-    }
-    saveRDS(missing_Pids_current, file = ftemp)
+     saveRDS(missing_Pids_current, file = ftemp)
+   }
   }
 
   invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current))

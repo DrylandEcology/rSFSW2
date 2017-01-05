@@ -484,7 +484,7 @@ if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.en
     workersN <- if (identical(parallel_backend, "mpi")) {
         Rmpi::mpi.comm.size() - 1
       } else {
-        parallel::detectCores(all.tests = TRUE)
+        num_cores #parallel::detectCores(all.tests = TRUE)
       }
 
 		parallel_init <- TRUE
@@ -956,6 +956,7 @@ if (any(actions == "check")) {
   }
 
   check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
+    update_workDB = check_updates_workDB || deleteTmpSQLFiles,
     do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
     parallel_runs, parallel_init, parallel_backend, cl, dir.out, swsf_env)
 }
