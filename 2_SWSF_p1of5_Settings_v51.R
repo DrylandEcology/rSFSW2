@@ -125,7 +125,7 @@ map_vars <- c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
 check.blas <- FALSE
 
 #---Load functions (don't forget the C functions!)
-rSWSF <- file.path(dir.code, "R", "2_SWSF_p5of5_Functions_v51.RData")
+rSWSF <- file.path(dir.code, "R", "SWSF_Functions.RData")
 if (!file.exists(rSWSF) || !continueAfterAbort) {
   exclude_from_R <- c("2_SWSF_p3of5_ExternalDataExtractions_v51.R",
     "2_SWSF_p4of5_Code_v51.R", "SWSF_cpp_functions.R")
