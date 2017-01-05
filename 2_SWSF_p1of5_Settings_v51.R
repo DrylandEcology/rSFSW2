@@ -127,9 +127,8 @@ check.blas <- FALSE
 #---Load functions (don't forget the C functions!)
 rSWSF <- file.path(dir.code, "R", "2_SWSF_p5of5_Functions_v51.RData")
 if (!file.exists(rSWSF) || !continueAfterAbort) {
-  exclude_from_R <- c("2_SWSF_p2of5_CreateDB_Tables_v51.R",
-    "2_SWSF_p3of5_ExternalDataExtractions_v51.R", "2_SWSF_p4of5_Code_v51.R",
-    "Check_WeatherDatabase.R", "SWSF_cpp_functions.R")
+  exclude_from_R <- c("2_SWSF_p3of5_ExternalDataExtractions_v51.R",
+    "2_SWSF_p4of5_Code_v51.R", "SWSF_cpp_functions.R")
   temp <- list.files(file.path(dir.code, "R"), pattern = ".r", ignore.case = TRUE,
     full.names = TRUE)
   ntemp <- nchar(temp)
