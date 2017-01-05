@@ -101,6 +101,29 @@ dbWork_timing <- compiler::cmpfun(function(path) {
 })
 
 
+
+#' Set runs information that need to be redone / simulated (again)
+#'
+#' @inheritParams create_dbWork
+#' @return A logical vector indicating success.
+dbWork_redo <- compiler::cmpfun(function(path, runIDs) {
+  if (length(runIDs) > 0) {
+    dbWork <- file.path(path, "dbWork.sqlite3")
+    stopifnot(file.exists(dbWork))
+
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+    rs <- DBI::dbSendStatement(con, paste("UPDATE work SET completed = 0, failed = 0,",
+      "inwork = 0, time_s = 0 WHERE runID = :x"))
+    DBI::dbBind(rs, param = list(x = runIDs))
+    DBI::dbClearResult(rs)
+    RSQLite::dbDisconnect(con)
+
+  } else {
+    TRUE
+  }
+})
+
+
 #' Update run information of a SWSF simulation project
 #'
 #' @inheritParams create_dbWork

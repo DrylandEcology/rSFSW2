@@ -156,6 +156,7 @@ deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
+check_updates_workDB <- TRUE # If action == "check" detects missing Pids, then workDB is updated (so that a new run of the script can be started to add missing runs)
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
@@ -182,9 +183,9 @@ if (sim_cells_or_points == "cell") {
 	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
 	fname_sim_raster <- file.path(dir.in, "YOURRASTER.FILE")
 	sim_res <- c(1e4, 1e4)
-	sim_crs <- sp::CRS("+init=epsg:5072") # NAD83(HARN) / Conus Albers
+	sim_crs <- "+init=epsg:5072" # NAD83(HARN) / Conus Albers
 } else {
-	sim_crs <- sp::CRS("+init=epsg:4326") # WGS84
+	sim_crs <- "+init=epsg:4326" # WGS84
 }
 
 #Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
@@ -479,9 +480,9 @@ growing.season.threshold.tempC <- 4 # based on standard input of mean monthly bi
 # NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
 opt_NRCS_SMTRs <- list(
   # Approach for regime determination ('data' -> 'conditions' -> 'regime')
-  aggregate_at = "regime",
+  aggregate_at = "conditions",
   # Aggregation agreement level (e.g., 0.5 = majority; 1 = all)
-  crit_agree_frac = 1,
+  crit_agree_frac = 0.9,
   # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
   use_normal = TRUE,
   SWP_dry = -1.5,       #dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)

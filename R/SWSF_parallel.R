@@ -49,7 +49,9 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
   done_N <- 0
 
   if (inherits(cl, "cluster") && identical(parallel_backend, "cluster")) {
-    temp <- try(parallel::clusterExport(cl, as.list(ls(obj_env)), envir = obj_env))
+    # Remove suppressWarnings() when SWSF becomes a R package
+    temp <- suppressWarnings(try(parallel::clusterExport(cl, as.list(ls(obj_env)),
+      envir = obj_env)))
 
     success <- !inherits(temp, "try-error")
 
@@ -69,6 +71,9 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
       done_N <- min(lengths(Rmpi::mpi.remote.exec(cmd = ls,
         envir = .GlobalEnv, simplify = FALSE)))
     }
+
+  } else {
+    temp <- "requested 'parallel_backend' not implemented"
   }
 
   if (success && done_N >= N) {
@@ -77,7 +82,8 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
               "secs"))
   } else {
     success <- FALSE
-    print(paste("Export not successful:", done_N, "instead of", N, "objects exported"))
+    print(paste("Export not successful:", done_N, "instead of", N, "objects exported:",
+      temp))
   }
 
   success

@@ -15,6 +15,49 @@ toln <- sqrt(.Machine$double.neg.eps)
 
 #------ Funtions
 
+set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
+  dir.prj = ".") {
+
+  ow_prev <- options("warn", "error")
+  #    - warn < 0: warnings are ignored
+  #    - warn = 0: warnings are stored until the top–level function returns
+  #    - warn = 1: warnings are printed as they occur
+  #    - warn = 2: all warnings are turned into errors
+  options(warn = debug.warn.level)
+
+  if (debug.dump.objects) {
+    # dumps objects and frames to files, and (if not interactive) quits
+    # Note: view dumped frames with
+    # load(file.path(dir.prj, "last.dump.rda"))
+    # debugger(`path/to/file/last.dump.rda`)
+    options(error = quote({
+      dump_objs <- new.env()
+
+      for (p in sys.parents()) {
+        if (inherits(try(sys.frame(p), silent = TRUE), "try-error"))
+          next
+        items <- setdiff(ls(name = sys.frame(p)), ls(name = dump_objs))
+        for (it in items)
+          assign(it, get(it, pos = sys.frame(p)), envir = dump_objs)
+      }
+
+      save(list = ls(name = dump_objs), envir = dump_objs,
+        file = file.path(dir.prj, "last.dump.save.RData"))
+
+      dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
+
+      if (!interactive())
+        q("no")
+    }))
+
+  } else {
+    options(error = traceback)
+  }
+
+  ow_prev
+}
+
+
 getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
 
 
