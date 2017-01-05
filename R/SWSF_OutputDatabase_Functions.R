@@ -17,15 +17,15 @@ missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
       sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
-        Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
+        Table, ".P_id) WHERE header.Include_YN = 1 AND ", Table, ".P_id is NULL ",
         "ORDER BY header.P_id")
-      mP_ids <- RSQLite::dbGetQuery(con, sql)[, "header.P_id"]
+      mP_ids <- RSQLite::dbGetQuery(con, sql)[, "P_id"]
     }
 
     DBI::dbDisconnect(con)
   }
 
-  mP_ids
+  as.integer(mP_ids)
 })
 
 
