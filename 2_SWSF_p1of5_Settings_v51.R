@@ -287,7 +287,7 @@ climate.conditions <- c(climate.ambient)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
-downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
+downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod" or "wgen-package"
 
 opt_DS <- list(
   daily_ppt_limit = 1.5,							#
