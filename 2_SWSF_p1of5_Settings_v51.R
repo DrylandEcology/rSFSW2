@@ -156,6 +156,7 @@ deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
+check_updates_workDB <- TRUE # If action == "check" detects missing Pids, then workDB is updated (so that a new run of the script can be started to add missing runs)
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv

@@ -6344,6 +6344,7 @@ if (any(actions == "check")) {
   }
 
   check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
+    update_workDB = check_updates_workDB || deleteTmpSQLFiles,
     do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
     parallel_runs, parallel_init, parallel_backend, cl, dir.out, swsf_env)
 }
