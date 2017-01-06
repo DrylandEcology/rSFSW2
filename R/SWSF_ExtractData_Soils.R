@@ -47,7 +47,7 @@ update_soils_input <- function(MMC, runIDs_sites, digits = 2, i_Done, ldepths_cm
   unlink(fpreprocin)
 
   #set and save soil texture
-  for (k in 2:6) {
+  for (k in 1 + seq_len(MMC[["nvars"]])) {
     icol <- grep(MMC[["vars"]][1, "input"], names(MMC[["use"]]))
     temp <- MMC[["data"]][i_Done, paste0(MMC[["vars"]][1, "intern"], "_L", lys)]
     if (!all(is.na(temp))) {
@@ -66,8 +66,9 @@ update_soils_input <- function(MMC, runIDs_sites, digits = 2, i_Done, ldepths_cm
 }
 
 adjust_soils_todos <- function(todos, MMC, runIDs_sites) {
-  temp <- is.na(MMC[["input2"]][runIDs_sites, MMC[["vars"]][1, "input"]]
-  for (k in 2:6) {
+  temp <- is.na(MMC[["input2"]][runIDs_sites, MMC[["vars"]][1, "input"]])
+
+  for (k in 1 + seq_len(MMC[["nvars"]])) {
     temp <- temp | has_nodata(MMC[["input"]][runIDs_sites, ], MMC[["vars"]][k, "input"])
   }
   todos <- todos & temp

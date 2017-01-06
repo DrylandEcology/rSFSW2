@@ -815,10 +815,10 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
 dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, simstartyr,
   endyr, path = NULL, MoreArgs = NULL) {
 
-  lwf_cond1 <- MoreArgs[["it_use"]]["LookupWeatherFolder"] && !anyNA(it_lwf)
-  lwf_cond2 <- !anyNA(ri_lwf) && !any(grepl("GriddedDailyWeatherFrom",
+  lwf_cond1 <- MoreArgs[["it_use"]]["LookupWeatherFolder"] && !anyNA(MoreArgs[["it_lwf"]])
+  lwf_cond2 <- !anyNA(MoreArgs[["ri_lwf"]]) && !any(grepl("GriddedDailyWeatherFrom",
     names(exinfo)[unlist(exinfo)]))
-  lwf_cond3 <- MoreArgs[["ie_use"]]["LookupWeatherFolder"] && !anyNA(it_lwf)
+  lwf_cond3 <- MoreArgs[["ie_use"]]["LookupWeatherFolder"] && !anyNA(MoreArgs[["it_lwf"]])
   lwf_cond4 <- any(MoreArgs[["create_treatments"]] == "LookupWeatherFolder")
 
   n <- length(MoreArgs[["runIDs_sites"]])
@@ -829,13 +829,13 @@ dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, simsta
     pwd <- getwd()
     setwd(path)
     if (lwf_cond1)
-      there <- there | sapply(it_lwf, function(ix)
+      there <- there | sapply(MoreArgs[["it_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(ix))
     if (lwf_cond2)
-      there <- there | sapply(ri_lwf, function(ix)
+      there <- there | sapply(MoreArgs[["ri_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(ix))
     if (lwf_cond3)
-      there <- there | rep(any(sapply(ie_lwf, function(ix)
+      there <- there | rep(any(sapply(MoreArgs[["ie_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(ix))), times = n)
     setwd(pwd)
 
@@ -1002,8 +1002,8 @@ dw_determine_sources <- function(dw_source, exinfo, dailyweather_options, create
     temp <- ftemp(dw_source, dw_names, exinfo, site_dat, simstartyr,
       endyr, path = path_dw_source[[dailyweather_options2[k]]],
       MoreArgs = MoreArgs[[dailyweather_options2[k]]])
-    dw_source <- temp[["dw_source"]]
-    dw_names <- temp[["dw_name"]]
+    dw_source <- temp[["source"]]
+    dw_names <- temp[["name"]]
 
     if (verbose)
       print(paste("Data for", temp[["n"]], "sites will come from",
@@ -1012,7 +1012,7 @@ dw_determine_sources <- function(dw_source, exinfo, dailyweather_options, create
 
   # Save information on weather source to disk file
   dw_names <- gsub("[[:space:]]", "", dw_names)
-  SWRunInformation[runIDs_sites][!is.na(dw_names), "WeatherFolder"] <- na.exclude(dw_names)
+  SWRunInformation[runIDs_sites[!is.na(dw_names)], "WeatherFolder"] <- na.exclude(dw_names)
   SWRunInformation[runIDs_sites, "dailyweather_source"] <- as.character(dw_source)
   include_YN_dw <- rep(0L, dim(SWRunInformation)[1])
   include_YN_dw[runIDs_sites][!is.na(dw_source)] <- 1L

@@ -162,62 +162,61 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
   names(todos) <- NULL
   n_extract <- sum(todos)
 
-  if (any(todos)) {
+  if (n_extract > 0) {
     if (verbose)
       print(paste("'ExtractElevation_HWSD_Global' will be extracted for n =",
         n_extract, "sites"))
 
-      dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
+    dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
 
-      #read raster data
-      g.elev <- raster(file.path(dir.ex.hwsd, "GloElev_30as.asc"))
-      crs_data <- raster::crs(g.elev)
+    #read raster data
+    g.elev <- raster(file.path(dir.ex.hwsd, "GloElev_30as.asc"))
+    crs_data <- raster::crs(g.elev)
 
-      #locations of simulation runs
-      sites_hwsd <- run_sites[todos, ]
-      # Align with data crs
-      if (!raster::compareCRS(crs_sites, crs_data)) {
-        sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform points to grid-coords
-      }
+    #locations of simulation runs
+    sites_hwsd <- run_sites[todos, ]
+    # Align with data crs
+    if (!raster::compareCRS(crs_sites, crs_data)) {
+      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform points to grid-coords
+    }
 
-      if (sim_cells_or_points == "point") {
-        args_extract <- list(x = sites_hwsd)
+    if (sim_cells_or_points == "point") {
+      args_extract <- list(x = sites_hwsd)
 
-      } else if (sim_cells_or_points == "cell") {
-        cell_res_hwsd <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-          sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
-        args_extract <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block",
-          probs = MMC[["probs"]])
-      }
+    } else if (sim_cells_or_points == "cell") {
+      cell_res_hwsd <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
+        sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
+      args_extract <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block",
+        probs = MMC[["probs"]])
+    }
 
-      #extract data for locations
-      temp <- do.call("extract_from_external_raster", args = c(args_extract,
-        data = list(g.elev)))	# elevation in m a.s.l.
+    #extract data for locations
+    temp <- do.call("extract_from_external_raster", args = c(args_extract,
+      data = list(g.elev)))	# elevation in m a.s.l.
 
-      if (is.vector(temp)) {
-        MMC[["data"]][todos, "ELEV_m"] <- temp
+    if (is.vector(temp)) {
+      MMC[["data"]][todos, "ELEV_m"] <- temp
 
-      } else if (is.array(temp)) {
-        MMC[["data"]][todos, ] <- temp[, 1, ]
+    } else if (is.array(temp)) {
+      MMC[["data"]][todos, ] <- temp[, 1, ]
 
-      } else {
-        stop("Unknown object returned from 'extract_from_external_raster' when",
-          "extracting elevation data.")
-      }
+    } else {
+      stop("Unknown object returned from 'extract_from_external_raster' when",
+        "extracting elevation data.")
+    }
 
-      i_good <- complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
-      MMC[["source"]][which(todos)[!i_good]] <- NA
+    i_good <- complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
+    MMC[["source"]][which(todos)[!i_good]] <- NA
 
-      if (any(i_good)) {
-        MMC[["idone"]]["HWSD1"] <- TRUE
-        i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
-        i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+    if (any(i_good)) {
+      MMC[["idone"]]["HWSD1"] <- TRUE
+      i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
+      i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-        MMC[["source"]][i_Done] <- "Elevation_HWSD_Global"
-        if (!be.quiet)
-          print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good),
-            "out of", n_extract, "sites"))
-      }
+      MMC[["source"]][i_Done] <- "Elevation_HWSD_Global"
+      if (!be.quiet)
+        print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good),
+          "out of", n_extract, "sites"))
     }
 
     if (any(i_good)) {
