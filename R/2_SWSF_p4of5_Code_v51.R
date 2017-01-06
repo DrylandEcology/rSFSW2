@@ -771,11 +771,24 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA ||
     exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
 
-    ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_master, runIDs_sites,
-      run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
-      fmaster, fcloud, fpreprocin, chunk_size.options, continueAfterAbort, be.quiet,
-      prepd_CFSR, startyr, endyr, parallel_runs, parallel_init, parallel_backend, cl)
+    temp <- ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_master, runsN_sites,
+      runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo,
+      extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
+      dir.ex.weather, dir.out.temp, fmaster, fcloud, fpreprocin, chunk_size.options,
+      continueAfterAbort, be.quiet, prepd_CFSR, startyr, endyr, parallel_runs,
+      parallel_init, parallel_backend, cl)
+
+    SWRunInformation <- temp[["SWRunInformation"]]
+    sw_input_cloud_use <- temp[["sw_input_cloud_use"]]
+    sw_input_cloud <- temp[["sw_input_cloud"]]
+  }
+
+  if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
+    temp <- ExtractData_Elevation(SWRunInformation, runsN_master, runsN_sites,
+      runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
+      sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, be.quiet)
+
+    SWRunInformation <- temp[["SWRunInformation"]]
   }
 
   do_check_include <- TRUE

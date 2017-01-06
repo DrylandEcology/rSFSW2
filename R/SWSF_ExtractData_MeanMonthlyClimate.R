@@ -1,5 +1,5 @@
 
-prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runIDs_sites,
+prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_sites, runIDs_sites,
   extract_determine_database, sw_input_cloud_use, sw_input_cloud) {
 
   sites_monthlyclim_source <- rep(NA, times = runsN_sites)
@@ -10,21 +10,18 @@ prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runIDs_site
   } else if (extract_determine_database == "order" || !has_cns_field) {
   } else {
     message("Value of 'extract_determine_database'", extract_determine_database,
-      " not implemented"))
+      " not implemented")
   }
 
-  temp <- rep(FALSE, times = runsN_sites)
   dtemp <- array(NA, dim = c(runsN_sites, 3, 12), dimnames = list(NULL,
       c("RH", "cover", "wind"), NULL))
 
-  list(source = sites_monthlyclim_source, data = dtemp,
-    itodo = list(NCDC1 = temp, NCEPCFSR1 = temp),
-    idone = c(NCDC1 = temp, NCEPCFSR1 = temp),
+  list(source = sites_monthlyclim_source, data = dtemp, idone = vector(),
     use = sw_input_cloud_use, input = sw_input_cloud)
 }
 
 
-copy_MMCdata_toInput <- function(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin) {
+update_meanmonthlyclimate_input <- function(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin) {
   #add data to MMC[["input"]] and set the use flags
   i.temp <- grep("RH", names(MMC[["use"]]))
   MMC[["use"]][i.temp] <- TRUE
@@ -58,8 +55,9 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
   if (verbose)
     print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
 
-  todos <- MMC[["itodo"]][["NCDC1"]] | has_incompletedata(MMC[["data"]]) |
-    is.na(MMC[["source"]]) | MMC[["source"]] == "ClimateNormals_NCDC2005_USA"
+  MMC[["idone"]]["NCDC1"] <- FALSE
+  todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
+    MMC[["source"]] == "ClimateNormals_NCDC2005_USA"
 
   if (continueAfterAbort) {
     todos <- todos & (
@@ -68,7 +66,6 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
       has_nodata(MMC[["input"]][runIDs_sites, ], "wind"))
   }
   names(todos) <- NULL
-
   i_extract <- as.integer(which(todos))
   n_extract <- sum(todos)
 
@@ -205,11 +202,9 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
         print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      copy_MMCdata_toInput(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
+      update_meanmonthlyclimate_input(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
     }
   }
-
-  MMC[["itodo"]][["NCDC1"]] <- todos
 
   if (verbose)
     print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
@@ -231,8 +226,11 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_s
   if (verbose)
     print(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
 
-  todos <- MMC[["itodo"]][["NCEPCFSR1"]] | has_incompletedata(MMC[["data"]]) |
-    is.na(MMC[["source"]]) | MMC[["source"]] == "ClimateNormals_NCEPCFSR_Global"
+  stopifnot(require(raster), require(sp), require(rgdal))
+
+  MMC[["idone"]]["NCEPCFSR1"] <- FALSE
+  todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
+    MMC[["source"]] == "ClimateNormals_NCEPCFSR_Global"
 
   if (continueAfterAbort) {
     todos <- todos & (
@@ -241,11 +239,12 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_s
       has_nodata(MMC[["input"]][runIDs_sites, ], "wind"))
   }
   names(todos) <- NULL
+  n_extract <- sum(todos)
 
-  if (any(todos)) {
+  if (n_extract > 0) {
     if (verbose)
       print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =",
-        sum(todos), "sites"))
+        n_extract, "sites"))
 
     #locations of simulation runs
     locations <- SWRunInformation[runIDs_sites[todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
@@ -279,13 +278,11 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_s
       MMC[["source"]][i_good] <- "ClimateNormals_NCEPCFSR_Global"
       if (verbose)
         print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
-          sum(i_good), "out of", sum(todos), "sites"))
+          sum(i_good), "out of", n_extract, "sites"))
 
-      copy_MMCdata_toInput(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
+      update_meanmonthlyclimate_input(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
     }
   }
-
-  MMC[["itodo"]][["NCEPCFSR1"]] <- todos
 
   if (verbose)
     print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
@@ -317,17 +314,17 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, runIDs_site
       print("'ExtractClimateNormals': no data extracted because already available")
   }
 
-  invisible(notDone)
+  SWRunInformation
 }
 
 #' @export
-ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runIDs_sites,
-  run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
+ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runsN_sites,
+  runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
   sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
   fmaster, fcloud, fpreprocin, chunk_size.options, continueAfterAbort, be.quiet,
   prepd_CFSR, startyr, endyr, parallel_runs, parallel_init, parallel_backend, cl) {
 
-  MMC <- prepare_ExtractData_MeanMonthlyClimate(SWRunInformation, runIDs_sites,
+  MMC <- prepare_ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_sites, runIDs_sites,
     extract_determine_database, sw_input_cloud_use, sw_input_cloud)
 
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
@@ -344,8 +341,11 @@ ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runID
       chunk_size.options, continueAfterAbort, verbose = !be.quiet)
   }
 
-  update_MeanMonthlyClimate_sources(MMC, SWRunInformation, runIDs_sites, runsN_master,
-    fmaster, fpreprocin)
+  SWRunInformation <- update_MeanMonthlyClimate_sources(MMC, SWRunInformation,
+    runIDs_sites, runsN_master, fmaster, fpreprocin)
+
+  list(SWRunInformation = SWRunInformation, sw_input_cloud_use = sw_input_cloud_use,
+    sw_input_cloud = sw_input_cloud)
 }
 
-#--------------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------#
