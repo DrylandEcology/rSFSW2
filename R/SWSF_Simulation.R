@@ -1412,7 +1412,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 
 		#prepare SQL result container
 		SQL <- SQLcurrent <- character(0)
-    fid <- if (parallel_init && parallel_runs) {
+    fid <- if (do_parallel) {
         if (parallel_backend == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (parallel_backend == "cluster") {
@@ -4562,7 +4562,7 @@ run_simulation_experiment <- function(rSWSF, cl, runIDs_todo, use_rcpp,
       MoreArgs[["runsN_total"]], "runs will be carried out on", MoreArgs[["workersN"]],
       "cores: started at", t1 <- Sys.time()))
 
-  if (MoreArgs[["parallel_runs"]] && MoreArgs[["parallel_init"]]) {
+  if (MoreArgs[["do_parallel"]]) {
     unlink(MoreArgs[["lockfile"]], recursive = TRUE)
 
     #--- Remove when this becomes a R package
@@ -4789,7 +4789,7 @@ gather_args_do_OneSite <- function() {
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
     "opt_comp_time", "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily",
-    "parallel_backend", "parallel_init", "parallel_runs", "param.species_regeneration", "pcalcs",
+    "parallel_backend", "do_parallel", "param.species_regeneration", "pcalcs",
     "print.debug", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
     "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
     "season.end", "season.start", "shrub.fraction.limit", "simstartyr",

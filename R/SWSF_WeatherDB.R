@@ -3,7 +3,7 @@
 make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    parallel_init, parallel_runs, parallel_backend, num_cores, cl = NULL,
+    do_parallel, parallel_backend, num_cores, cl = NULL,
     dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL, prepd_CFSR = NULL,
     verbose = FALSE) {
 
@@ -103,7 +103,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       end_year = endyr,
       dir_temp = dir.out.temp,
       dbW_compression_type = dbW_compression_type,
-      do_parallel = parallel_init && parallel_runs && identical(parallel_backend, "cluster"),
+      do_parallel = do_parallel && identical(parallel_backend, "cluster"),
       ncores = num_cores)
   }
 
@@ -118,7 +118,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       end_year = endyr,
       meta_cfsr = prepd_CFSR,
       n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-      do_parallel = parallel_runs && parallel_init,
+      do_parallel = do_parallel,
       parallel_backend = parallel_backend,
       cl = cl,
       rm_temp = deleteTmpSQLFiles,

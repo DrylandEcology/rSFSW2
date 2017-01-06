@@ -472,7 +472,7 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 #used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
 
 workersN <- 1
-parallel_init <- FALSE
+do_parallel <- FALSE
 cl <- NULL
 lockfile <- NULL
 
@@ -509,11 +509,11 @@ if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.en
         num_cores #parallel::detectCores(all.tests = TRUE)
       }
 
-		parallel_init <- TRUE
-		if (!be.quiet)
-		  print(paste("SWSF prepares parallelization: initialization of", workersN,
-		    "workers ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-	}
+    do_parallel <- TRUE
+    if (!be.quiet)
+      print(paste("SWSF prepares parallelization: initialization of", workersN,
+        "workers ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+  }
 }
 
 if (!identical(parallel_backend, "mpi")) {
@@ -676,7 +676,7 @@ if (createAndPopulateWeatherDatabase) {
   make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    parallel_init, parallel_runs, parallel_backend, num_cores, cl,
+    do_parallel, parallel_backend, num_cores, cl,
     dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
     dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
     verbose = !be.quiet)
@@ -768,6 +768,21 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"),
     verbose = FALSE, chdir = FALSE)
 
+  if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
+    exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
+
+    temp <- ExtractData_Soils(SWRunInformation, runsN_master, runsN_sites,
+      runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
+      extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
+      dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, be.quiet,
+      do_parallel, parallel_backend, cl)
+
+    SWRunInformation <- temp[["SWRunInformation"]]
+    sw_input_soillayers <- temp[["sw_input_soillayers"]]
+    sw_input_soils_use <- temp[["sw_input_soils_use"]]
+    sw_input_soils <- temp[["sw_input_soils"]]
+  }
+
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA ||
     exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
 
@@ -775,8 +790,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
       runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo,
       extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
       dir.ex.weather, dir.out.temp, fmaster, fcloud, fpreprocin, chunk_size.options,
-      continueAfterAbort, be.quiet, prepd_CFSR, startyr, endyr, parallel_runs,
-      parallel_init, parallel_backend, cl)
+      continueAfterAbort, be.quiet, prepd_CFSR, startyr, endyr, do_parallel,
+      parallel_backend, cl)
 
     SWRunInformation <- temp[["SWRunInformation"]]
     sw_input_cloud_use <- temp[["sw_input_cloud_use"]]
@@ -1004,7 +1019,7 @@ if (any(actions == "check")) {
   check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
     update_workDB = check_updates_workDB || deleteTmpSQLFiles,
     do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
-    parallel_runs, parallel_init, parallel_backend, cl, dir.out, swsf_env)
+    do_parallel, parallel_backend, cl, dir.out, swsf_env)
 }
 
 #timing of check
@@ -1029,9 +1044,9 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
-	if(parallel_runs && parallel_init){
+	if (do_parallel) {
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_comp_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","parallel_runs","parallel_backend","name.OutputDB")
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_comp_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","do_parallel","parallel_backend","name.OutputDB")
 		if(identical(parallel_backend, "mpi")) {
 			export_objects_to_workers(list.export, list(global = globalenv()), "mpi")
 
@@ -1095,7 +1110,7 @@ if (!be.quiet)
 
 options(ow_prev) #sets the warning option to its previous value
 
-if (parallel_runs && parallel_init) {
+if (do_parallel) {
   clean_parallel_workers(parallel_backend, cl, verbose = print.debug)
 }
 

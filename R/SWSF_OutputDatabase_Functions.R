@@ -819,14 +819,14 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
 
 
 check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NULL,
-  update_workDB = FALSE, do_DBcurrent = FALSE, parallel_runs = FALSE, parallel_init = FALSE,
+  update_workDB = FALSE, do_DBcurrent = FALSE, do_parallel = FALSE,
   parallel_backend = NULL, cl = NULL, dir.out = getwd(), swsf_env = NULL) {
 
   Tables <- dbOutput_ListOutputTables(dbname = name.OutputDB)
 
   missing_Pids <- missing_Pids_current <- NULL
 
-  if (parallel_runs && parallel_init) {
+  if (do_parallel) {
 
     obj2exp <- gather_objects_for_export(varlist = ls(envir = swsf_env),
       list_envs = list(rSWSF = swsf_env))

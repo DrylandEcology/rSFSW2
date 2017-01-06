@@ -25,22 +25,22 @@ prepare_ExtractData_Elevation <- function(SWRunInformation, runsN_sites, runIDs_
 }
 
 
-update_elevation_input <- function(MCC, runIDs_sites, digits = 0, fmaster, fpreprocin) {
-  icolnew <- !(colnames(MCC[["data"]]) %in% colnames(MCC[["input"]]))
+update_elevation_input <- function(MMC, runIDs_sites, digits = 0, fmaster, fpreprocin) {
+  icolnew <- !(colnames(MMC[["data"]]) %in% colnames(MMC[["input"]]))
   if (any(icolnew)) {
-    MCC[["input"]] <- cbind(MCC[["input"]],
-      matrix(NA, nrow = nrow(MCC[["input"]]), ncol = sum(icolnew),
-        dimnames = list(NULL, colnames(MCC[["data"]])[icolnew])))
+    MMC[["input"]] <- cbind(MMC[["input"]],
+      matrix(NA, nrow = nrow(MMC[["input"]]), ncol = sum(icolnew),
+        dimnames = list(NULL, colnames(MMC[["data"]])[icolnew])))
   }
 
-  i_good <- complete.cases(MCC[["data"]])
-  MCC[["input"]][runIDs_sites[i_good], colnames(MCC[["data"]])] <-
-    round(MCC[["data"]][i_good, ], digits)
+  i_good <- complete.cases(MMC[["data"]])
+  MMC[["input"]][runIDs_sites[i_good], colnames(MMC[["data"]])] <-
+    round(MMC[["data"]][i_good, ], digits)
 
-  write.csv(MCC[["input"]], file = fmaster, row.names = FALSE)
+  write.csv(MMC[["input"]], file = fmaster, row.names = FALSE)
   unlink(fpreprocin)
 
-  MCC
+  MMC
 }
 
 
@@ -59,7 +59,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
     MMC[["source"]] == "Elevation_NED_USA"
 
   if (continueAfterAbort) {
-    todos <- todos & has_nodata(MCC[["input"]][runIDs_sites, ], "ELEV_m")
+    todos <- todos & has_nodata(MMC[["input"]][runIDs_sites, ], "ELEV_m")
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -131,7 +131,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
         print(paste("'ExtractElevation_NED_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MCC, runIDs_sites, digits = 0, fmaster, fpreprocin)
+      update_elevation_input(MMC, runIDs_sites, digits = 0, fmaster, fpreprocin)
     }
   }
 
@@ -227,7 +227,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
         print(paste("'ExtractElevation_HWSD_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MCC, runIDs_sites, digits = 0, fmaster, fpreprocin)
+      update_elevation_input(MMC, runIDs_sites, digits = 0, fmaster, fpreprocin)
     }
   }
 

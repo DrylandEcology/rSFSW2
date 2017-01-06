@@ -21,7 +21,7 @@ prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_sites
 }
 
 
-update_meanmonthlyclimate_input <- function(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin) {
+update_meanmonthlyclimate_input <- function(MMC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin) {
   #add data to MMC[["input"]] and set the use flags
   i.temp <- grep("RH", names(MMC[["use"]]))
   MMC[["use"]][i.temp] <- TRUE
@@ -47,8 +47,7 @@ update_meanmonthlyclimate_input <- function(MCC, runIDs_sites, digits = 2, st_mo
 #'  May 2010.
 do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sites,
   st_mo, sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
-  fcloud, fpreprocin, chunk_size.options,
-  continueAfterAbort, verbose) {
+  fcloud, fpreprocin, chunk_size.options, continueAfterAbort, verbose) {
 
   stopifnot(require(raster), require(sp), require(rgdal))
 
@@ -72,7 +71,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
   if (n_extract > 0) {
     if (verbose)
       print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =",
-      n_extract, "sites"))
+        n_extract, "sites"))
 
     #NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
     dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
@@ -202,7 +201,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
         print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
+      update_meanmonthlyclimate_input(MMC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
     }
   }
 
@@ -280,7 +279,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_s
         print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MCC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
+      update_meanmonthlyclimate_input(MMC, runIDs_sites, digits = 2, st_mo, fcloud, fpreprocin)
     }
   }
 
@@ -322,7 +321,7 @@ ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runsN
   runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
   sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
   fmaster, fcloud, fpreprocin, chunk_size.options, continueAfterAbort, be.quiet,
-  prepd_CFSR, startyr, endyr, parallel_runs, parallel_init, parallel_backend, cl) {
+  prepd_CFSR, startyr, endyr, do_parallel, parallel_backend, cl) {
 
   MMC <- prepare_ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_sites, runIDs_sites,
     extract_determine_database, sw_input_cloud_use, sw_input_cloud)
@@ -337,15 +336,15 @@ ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runsN
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
     MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, runIDs_sites,
       st_mo, prepd_CFSR, startyr, endyr, dir.out.temp, fcloud, fpreprocin,
-      do_parallel = parallel_runs && parallel_init, parallel_backend, cl,
-      chunk_size.options, continueAfterAbort, verbose = !be.quiet)
+      do_parallel, parallel_backend, cl, chunk_size.options, continueAfterAbort,
+      verbose = !be.quiet)
   }
 
-  SWRunInformation <- update_MeanMonthlyClimate_sources(MMC, SWRunInformation,
-    runIDs_sites, runsN_master, fmaster, fpreprocin)
+  temp <- update_MeanMonthlyClimate_sources(MMC, SWRunInformation, runIDs_sites,
+    runsN_master, fmaster, fpreprocin)
 
-  list(SWRunInformation = SWRunInformation, sw_input_cloud_use = sw_input_cloud_use,
-    sw_input_cloud = sw_input_cloud)
+  list(SWRunInformation = temp, sw_input_cloud_use = MMC[["use"]],
+    sw_input_cloud = MMC[["input"]])
 }
 
 #----------------------------------------------------------------------------------------#
