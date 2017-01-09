@@ -569,12 +569,14 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
 
     # Prepare output databases
     set_PRAGMAs(con, PRAGMA_settings1())
-    if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
+    if (do_DBCurrent)
+      set_PRAGMAs(con2, PRAGMA_settings1())
 
     # Check what has already been inserted in each tables
     tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(out_tables_aggr, con)
     ids_inserted <- get_inserted_ids(con, out_tables_aggr, tables_w_soillayers)
-    ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
+    if (do_DBCurrent)
+      ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
 
     # Add data to SQL databases
     for (j in seq_along(theFileList)) {
