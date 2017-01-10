@@ -28,6 +28,27 @@ missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
   as.integer(mP_ids)
 })
 
+runIDs_from_Pids <- function(dbname, Pids) {
+  resIDs <- -1L
+
+  if (file.exists(dbname)) {
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+
+    if (DBI::dbExistsTable(con, "runs")) {
+      sql <- paste("SELECT site_id FROM runs WHERE P_id IN (?) ORDER BY site_id")
+      rs <- RSQLite::dbSendQuery(con, sql)
+      RSQLite::dbBind(rs, list(Pids))
+      resIDs <- RSQLite::dbFetch(rs)[, 1]
+      RSQLite::dbClearResult(rs)
+      resIDs <- unique(resIDs)
+    }
+
+    DBI::dbDisconnect(con)
+  }
+
+  as.integer(resIDs)
+}
+
 
 dbOutput_ListDesignTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
   "scenario_labels", "sites", "experimental_labels", "treatments", "simulation_years",
@@ -569,12 +590,14 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
 
     # Prepare output databases
     set_PRAGMAs(con, PRAGMA_settings1())
-    if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
+    if (do_DBCurrent)
+      set_PRAGMAs(con2, PRAGMA_settings1())
 
     # Check what has already been inserted in each tables
     tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(out_tables_aggr, con)
     ids_inserted <- get_inserted_ids(con, out_tables_aggr, tables_w_soillayers)
-    ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
+    if (do_DBCurrent)
+      ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
 
     # Add data to SQL databases
     for (j in seq_along(theFileList)) {
@@ -874,6 +897,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 
   missing_Pids <- unique(unlist(missing_Pids))
   missing_Pids <- as.integer(sort(missing_Pids))
+  missing_runIDs <- NULL
   missing_Pids_current <- unique(unlist(missing_Pids_current))
   missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
@@ -892,7 +916,8 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 
       # Update workDB
       if (update_workDB) {
-        print("'workDB' is updated with these missing P_id for a re-run")
+        print("'workDB' is updated with these missing P_id to be prepared for a re-run")
+        missing_runIDs <- runIDs_from_Pids(name.OutputDB, missing_Pids)
         temp <- dbWork_redo(dir.out, runIDs = missing_Pids)
       }
     }
@@ -913,7 +938,8 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
    }
   }
 
-  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current))
+  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current.
+    missing_runIDs = missing_runIDs))
 }
 
 
