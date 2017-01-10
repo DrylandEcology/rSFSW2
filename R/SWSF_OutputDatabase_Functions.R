@@ -938,7 +938,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
    }
   }
 
-  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current.
+  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
     missing_runIDs = missing_runIDs))
 }
 
