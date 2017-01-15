@@ -918,7 +918,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       if (update_workDB) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
         missing_runIDs <- runIDs_from_Pids(name.OutputDB, missing_Pids)
-        temp <- dbWork_redo(dir.out, runIDs = missing_Pids)
+        temp <- dbWork_redo(dir.out, runIDs = missing_runIDs)
       }
     }
   }
