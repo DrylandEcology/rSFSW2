@@ -124,6 +124,32 @@ dbWork_redo <- compiler::cmpfun(function(path, runIDs) {
 })
 
 
+#' Check run status
+#'
+#' @inheritParams create_dbWork
+#' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
+dbWork_check <- compiler::cmpfun(function(path, runIDs) {
+  if (length(runIDs) > 0) {
+    dbWork <- file.path(path, "dbWork.sqlite3")
+    stopifnot(file.exists(dbWork))
+
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
+    rs <- DBI::dbSendStatement(con, paste("SELECT completed, failed, inwork FROM work",
+      "WHERE runID = :x"))
+    DBI::dbBind(rs, param = list(x = runIDs))
+    res <- DBI::dbFetch(rs)
+    DBI::dbClearResult(rs)
+    RSQLite::dbDisconnect(con)
+
+  } else {
+    res <- data.frame(completed = numeric(0), failed = numeric(0), inwork = numeric(0))
+  }
+
+  res
+})
+
+
+
 #' Update run information of a SWSF simulation project
 #'
 #' @inheritParams create_dbWork
