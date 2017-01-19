@@ -8,7 +8,7 @@
 #'  i.e., all (or a subset) of \code{runIDs_total}, see \code{\link{iterators}}.
 #' @return Invisibly \code{TRUE}
 create_dbWork <- function(dbWork, runIDs) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RWC)
   DBI::dbExecute(con,
     paste("CREATE TABLE work(runID INTEGER PRIMARY KEY,",
     "completed INTEGER NOT NULL, failed INTEGER NOT NULL, inwork INTEGER NOT NULL,",
@@ -39,7 +39,7 @@ setup_dbWork <- function(path, runIDs, continueAfterAbort = FALSE) {
 
   if (continueAfterAbort) {
     if (file.exists(dbWork)) {
-      con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+      con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
       setup_runIDs <- RSQLite::dbGetQuery(con, "SELECT runID FROM work ORDER BY runID")
 
       success <- identical(as.integer(setup_runIDs$runID), sort.int(runIDs))
@@ -111,7 +111,7 @@ dbWork_redo <- compiler::cmpfun(function(path, runIDs) {
     dbWork <- file.path(path, "dbWork.sqlite3")
     stopifnot(file.exists(dbWork))
 
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
     rs <- DBI::dbSendStatement(con, paste("UPDATE work SET completed = 0, failed = 0,",
       "inwork = 0, time_s = 0 WHERE runID = :x"))
     DBI::dbBind(rs, param = list(x = runIDs))
@@ -186,7 +186,7 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
       print(paste0("'dbWork_update_job': (", runID, "-", status, ") attempt to update"))
 
     lock <- lock_access(lock, verbose)
-    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork), silent = TRUE)
+    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW), silent = TRUE)
 
     if (inherits(con, "SQLiteConnection")) {
       res <- DBI::dbWithTransaction(con, {
