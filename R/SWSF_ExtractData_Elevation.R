@@ -83,18 +83,17 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
     }
 
     if (sim_cells_or_points == "point") {
-      args_extract <- list(x = sites_ned)
+      args_extract <- list(y = sites_ned, type = sim_cells_or_points)
 
     } else if (sim_cells_or_points == "cell") {
       cell_res_ned <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
         sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
-      args_extract <- list(x = cell_res_ned, coords = sites_ned, method = "block",
-        probs = MMC[["probs"]])
+      args_extract <- list(y = cell_res_ned, coords = sites_ned, method = "block",
+        probs = MMC[["probs"]], type = sim_cells_or_points)
     }
 
     #extract data for locations
-    temp <- do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp
 
@@ -102,7 +101,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
       MMC[["data"]][todos, ] <- temp[, 1, ]
 
     } else {
-      stop("Unknown object returned from 'extract_from_external_raster' when extracting",
+      stop("Unknown object returned from 'extract_swsf' when extracting",
         "elevation data.")
     }
 
@@ -181,18 +180,17 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
     }
 
     if (sim_cells_or_points == "point") {
-      args_extract <- list(x = sites_hwsd)
+      args_extract <- list(y = sites_hwsd, type = sim_cells_or_points)
 
     } else if (sim_cells_or_points == "cell") {
       cell_res_hwsd <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
         sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
-      args_extract <- list(x = cell_res_hwsd, coords = sites_hwsd, method = "block",
-        probs = MMC[["probs"]])
+      args_extract <- list(y = cell_res_hwsd, coords = sites_hwsd, method = "block",
+        probs = MMC[["probs"]], type = sim_cells_or_points)
     }
 
     #extract data for locations
-    temp <- do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
 
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp
@@ -201,7 +199,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
       MMC[["data"]][todos, ] <- temp[, 1, ]
 
     } else {
-      stop("Unknown object returned from 'extract_from_external_raster' when",
+      stop("Unknown object returned from 'extract_swsf' when",
         "extracting elevation data.")
     }
 

@@ -200,13 +200,15 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
   sw_input_weather_use <- temp[["use"]]
   sw_input_weather <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios),
-    nrowsClasses = nrowsClasses), error = print)
+  fclimscen <- file.path(dir.sw.dat, datafile.climatescenarios)
+  temp <- tryCatch(swsf_read_inputfile(fclimscen, nrowsClasses = nrowsClasses),
+    error = print)
   sw_input_climscen_use <- temp[["use"]]
   sw_input_climscen <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.climatescenarios_values),
-    nrowsClasses = nrowsClasses), error = print)
+  fclimscen_values <- file.path(dir.sw.dat, datafile.climatescenarios_values)
+  temp <- tryCatch(swsf_read_inputfile(fclimscen_values, nrowsClasses = nrowsClasses),
+    error = print)
   sw_input_climscen_values_use <- temp[["use"]]
   sw_input_climscen_values <- temp[["data"]]
 
@@ -329,7 +331,7 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
     fsoils, sw_input_soils_use, sw_input_soils,
     sw_input_weather_use, sw_input_weather,
     sw_input_climscen_use, sw_input_climscen,
-    sw_input_climscen_values_use, sw_input_climscen_values,
+    fclimscen, fclimscen_values, sw_input_climscen_values_use, sw_input_climscen_values,
     tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT,
     tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code,
     tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD,
@@ -388,6 +390,7 @@ runsN_Pid <- runsN_incl * scenario_No
 
 runIDs_total <- seq_len(runsN_total) # consecutive number of all (tr x exp) simulations to be executed
 counter.digitsN <- 1 + ceiling(log10(runsN_incl))	#max index digits
+nextn(runsN_incl, 10)
 
 success <- setup_dbWork(dir.out, runIDs_total, continueAfterAbort)
 if (!success)
@@ -428,6 +431,10 @@ exinfo$use_sim_spatial <-
 	exinfo$ExtractElevation_HWSD_Global					||
 	exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA		||
 	exinfo$ExtractSkyDataFromNCEPCFSR_Global
+
+exinfo$which_NEX <- grepl("NEX", opt_climsc_extr)
+exinfo$which_netCDF <- grepl("(GDODCPUCLLNL)|(SageSeer)", opt_climsc_extr)
+exinfo$which_ClimateWizard <- grepl("ClimateWizardEnsembles", opt_climsc_extr)
 
 
 #------------------------SPATIAL SETUP OF SIMULATIONS
@@ -758,15 +765,11 @@ if(accountNSHemispheres_agg){
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(exinfo))] > 0)){
-  setwd(dir.prj)
-
   if (!be.quiet)
     print(paste("SWSF extracts information from external datasets prior to simulation",
       "runs: started at", t1 <- Sys.time()))
 
   stopifnot(file.exists(dir.external))
-  source(file.path(dir.code, "R", "2_SWSF_p3of5_ExternalDataExtractions_v51.R"),
-    verbose = FALSE, chdir = FALSE)
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
     exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
@@ -799,11 +802,37 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   }
 
   if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
-    temp <- ExtractData_Elevation(SWRunInformation, runsN_master, runsN_sites,
+    SWRunInformation <- ExtractData_Elevation(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
       sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, be.quiet)
+  }
 
-    SWRunInformation <- temp[["SWRunInformation"]]
+  if (exinfo$ExtractClimateChangeScenarios) {
+    climDB_metas <- climscen_metadata()
+
+    SWRunInformation <- climscen_determine_sources(extract_determine_database,
+      opt_climsc_extr, runIDs_sites, runsN_sites, SWRunInformation, fmaster, fpreprocin)
+
+    if (any(exinfo$which_NEX) || any(exinfo$which_netCDF)) {
+      SWRunInformation <- ExtractClimateChangeScenarios(opt_climsc_extr, climDB_metas,
+        opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
+        dbWeatherDataFile, climate.ambient, climate.conditions, runsN_master, runsN_sites,
+        runIDs_sites, SWRunInformation, fmaster, fpreprocin, dir.out.temp,
+        verbose = !be.quiet, print.debug, cl)
+    }
+
+    if (any(exinfo$which_ClimateWizard)) {
+      temp <- ExtractClimateWizard(opt_climsc_extr, SWRunInformation, fmaster, fpreprocin,
+        sw_input_climscen_use, sw_input_climscen, fclimscen,
+        sw_input_climscen_values_use, sw_input_climscen_values, fclimscen_values,
+        dir.ex.fut, runsN_master, verbose = !be.quiet)
+
+      SWRunInformation <- temp[["SWRunInformation"]]
+      sw_input_climscen_use <- temp[["sw_input_climscen_use"]]
+      sw_input_climscen <- temp[["sw_input_climscen"]]
+      sw_input_climscen_values_use <- temp[["sw_input_climscen_values_use"]]
+      sw_input_climscen_values <- temp[["sw_input_climscen_values"]]
+    }
   }
 
   do_check_include <- TRUE

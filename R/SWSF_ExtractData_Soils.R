@@ -126,12 +126,13 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
 
     if (sim_cells_or_points == "point") {
       cell_res_conus <- NULL
-      args_extract <- list(x = sites_conus)
+      args_extract <- list(y = sites_conus, type = sim_cells_or_points)
 
     } else if (sim_cells_or_points == "cell") {
       cell_res_conus <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
         sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
-      args_extract <- list(x = cell_res_conus, coords = sites_conus, method = "block")
+      args_extract <- list(y = cell_res_conus, coords = sites_conus, method = "block",
+        type = sim_cells_or_points)
     }
 
     #---extract data
@@ -146,8 +147,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
         # bulk density of less than 0.3 g / cm3 should be treated as no soil
         raster::calc(g, fun = cond30, filename = ftemp)
       }
-    temp <- round(do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g))))
+    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
     MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]] <- temp / 100
 
     # Convert bulk density to matric density
@@ -166,13 +166,11 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
         raster::calc(raster::raster(file.path(dir.ex.conus, "rockdepm.tif")),
           fun = cond0, filename = ftemp)
       }
-    rockdep_cm <- do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g)))
+    rockdep_cm <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
 
     # rock volume
     g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
-    temp <- do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g)))
+    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
     temp <- ifelse(is.finite(temp), temp, NA)
     # eq. 7 of Miller et al. 1998
     temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk=total soil
@@ -195,8 +193,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
         raster::calc(raster::brick(file.path(dir.ex.conus, "sand.tif")), fun = cond0,
           filename = ftemp)
       }
-    sand <- do.call("extract_from_external_raster", args = c(args_extract,
-      data = list(g)))
+    sand <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
 
     ftemp <- file.path(dir.ex.conus, "clay_cond0.tif")
     g <- if (file.exists(ftemp)) {
@@ -205,7 +202,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
         raster::calc(raster::brick(file.path(dir.ex.conus, "clay.tif")), fun = cond0,
           filename = ftemp)
       }
-    clay <- do.call("extract_from_external_raster", args = c(args_extract, data = list(g)))
+    clay <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
 
     ftemp <- file.path(dir.ex.conus, "silt_cond0.tif")
     g <- if (file.exists(ftemp)) {
@@ -214,7 +211,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
         raster::calc(raster::brick(file.path(dir.ex.conus, "silt.tif")), fun = cond0,
           filename = ftemp)
       }
-    silt <- do.call("extract_from_external_raster", args = c(args_extract, data = list(g)))
+    silt <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
 
     if (FALSE) {#visualize in interactive sessions
       temp <- sand

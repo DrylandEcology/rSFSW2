@@ -345,12 +345,6 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
 
 #------auxiliary functions
 
-in_box <- compiler::cmpfun(function(xy, xbounds, ybounds, i_use) {
-  !i_use &
-  xy[, 1] >= xbounds[1] & xy[, 1] <= xbounds[2] &
-  xy[, 2] >= ybounds[1] & xy[, 2] <= ybounds[2]
-})
-
 adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_depth[seq_len(d)])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
 getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
 setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
@@ -418,20 +412,6 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
         sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]], simTime2)
       } else NA
   )
-})
-
-cut0Inf <- compiler::cmpfun(function(x, val = NA) {
-  x[x < 0] <- val
-  x
-})
-NAto0 <- compiler::cmpfun(function(x) {
-  x[is.na(x)] <- 0
-  x
-})
-finite01 <- compiler::cmpfun(function(x, val_low = 0, val_high = 1) {
-  x[x < 0 | is.na(x)] <- val_low
-  x[x > 1] <- val_high
-  x
 })
 
 PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun(function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
@@ -586,22 +566,6 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun
                                        grass.Annual.fractionG))
 })
 
-calc.loess_coeff <- compiler::cmpfun(function(N, span) {
-  #prevent call to loessc.c:ehg182(104): "span too small.   fewer data values than degrees of freedom"
-  lcoef <- list(span = min(1, span), degree = 2)
-  if (span <= 1) {
-    nf <- floor(lcoef$span * N) - 1 #see R/trunk/src/library/stats/src/loessf.f:ehg136()
-    if (nf > 2) {
-      lcoef$degree <- 2
-    } else if(nf > 1){
-      lcoef$degree <- 1
-    } else {
-      lcoef <- Recall(N, lcoef$span + 0.1)
-    }
-  }
-  lcoef
-})
-
 predict.season <- compiler::cmpfun(function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq) {
   #length(std.season.seq) >= 3 because of padding and test that season duration > 0
   lcoef <- calc.loess_coeff(N = length(std.season.seq), span = 0.4)
@@ -675,11 +639,6 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
        biom_annuals = biom_annuals)
 })
 
-calc_starts <- compiler::cmpfun(function(x) {
-  temp1 <- rle(as.logical(x))
-  temp2 <- cumsum(c(0, temp1$lengths)) + 1
-  temp2[-length(temp2)][temp1$values]
-})
 
 AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
                 do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
@@ -875,47 +834,6 @@ check_soil_data <- compiler::cmpfun(function(data) {
 })
 
 
-#Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
-circ.mean <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
-  if (!all(is.na(x))) {
-    circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
-    x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
-
-    round(as.numeric(x_int) - 1, 13) %% int + 1	# map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
-  } else {
-    NA
-  }
-})
-
-circ.range <- compiler::cmpfun(function(x, int, na.rm = FALSE) {
-  if (!all(is.na(x))) {
-    circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
-    x_int <- range(x_circ, na.rm = na.rm) / circ
-    as.numeric(x_int)
-
-  } else {
-    NA
-  }
-})
-
-circ.sd <- compiler::cmpfun(function(x, int, na.rm=FALSE){
-  if (length(x) - sum(is.na(x)) > 1) {
-    if (sd(x, na.rm = TRUE) > 0) {
-      circ <- 2 * pi / int
-      x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
-      x_int <- circular::sd.circular(x_circ, na.rm = na.rm) / circ
-      as.numeric(x_int)
-    } else {
-      0
-    }
-  } else {
-    NA
-  }
-})
-
-
 #functions wet and dry periods
 
 #' Saturation vapor pressure
@@ -945,24 +863,7 @@ vpd <- compiler::cmpfun(function(Tmin, Tmax, RHmean = NULL) {
 })
 
 
-#' @param x A numeric vector
-#' @param fun A function which requires one argument. \code{fun} will be applied to
-#'    the k-largest values of \code{x}.
-#' @param k An integer value. The k-largest value(s) of \code{x} will be used. The largest
-#'    value will be used if 0 or negative.
-#' @param na.rm A logical value
-#' @param ... Optional arguments to be passed to \code{fun}
-#'
-#' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},
-#'    otherwise the result of applying \code{fun} to the k-largest values.
-fun_kLargest <- compiler::cmpfun(function(x, fun = NULL, k = 10L, na.rm = FALSE, ...) {
-  if (na.rm)
-    x <- na.exclude(x)
-  x <- sort.int(x, decreasing = TRUE, na.last = !na.rm, method = if (getRversion() >= "3.3.0") "radix" else "quick")
-  x <- x[seq_len(max(1L, min(length(x), as.integer(k))))]
 
-  if (is.null(fun)) x else fun(x, ...)
-})
 
 max.duration <- compiler::cmpfun(function(x, target_val = 1L, return_doys = FALSE) {
   r <- rle(x)
@@ -1072,23 +973,6 @@ extreme_values_and_doys <- compiler::cmpfun(function(x, tol = sqrt(.Machine$doub
     circ.mean(which(abs(x - tmin) < tol), int = 365, na.rm = na.rm))
 })
 
-
-handle_NAs <- compiler::cmpfun(function(x, na.index, na.act) {
-  if (length(na.index) > 0) {
-    napredict(na.act, x)
-  } else {
-    x
-  }
-})
-
-scale_by_sum <- compiler::cmpfun(function(x) {
-  temp <- sum(x, na.rm = TRUE)
-  if (temp > 0 && is.finite(temp)) {
-    x / temp
-  } else {
-    x
-  }
-})
 
 
 
@@ -1315,11 +1199,6 @@ setBottomLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
 tempError <- compiler::cmpfun(function() .Call("tempError"))
 
 
-cor2  <- compiler::cmpfun(function(y) {
-	res <- try(cor(y[, 1], y[, 2]), silent = TRUE)
-	if (inherits(res, "try-error")) NA else res
-})
-
 #data is the values for one year adj for SWPcrit_MPa; TRUE==dry
 EventDistribution <- compiler::cmpfun(function(data, N, size) {
   bins <- rep(0, times = N)
@@ -1438,3 +1317,37 @@ benchmark_BLAS <- function(platform) {
       shQuote(platform)))
   }
 }
+
+
+#' Converts precipitation data to values in cm / month
+convert_precipitation <- compiler::cmpfun(function(x, unit_conv, dpm) {
+  if (unit_conv %in% c("mm/month", "mm month-1")) {
+    x <- x / 10
+
+  } else if (unit_conv %in% c("mm/d", "mm d-1")) {
+    x <- x * dpm / 10
+
+  } else if (unit_conv %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
+    x <- x * dpm * 8640
+
+  } else if (unit_conv %in% c("cm/month", "cm month-1")) {
+
+  } else stop("Unknown precipitation unit: ", unit_conv)
+
+  x
+})
+
+#' Converts temperature data to values in degree Celsius
+convert_temperature <- compiler::cmpfun(function(x, unit_conv) {
+  if (unit_conv == "K") {
+    x <- x - 273.15
+
+  } else if (unit_conv == "F") {
+    x <- (x - 32) * 0.5555556
+
+  } else if (unit_conv == "C") {
+
+  } else stop("Unknown temperature unit: ", unit_conv[1])
+
+  x
+})

@@ -108,12 +108,12 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
     }
 
     if (sim_cells_or_points == "point") {
-      args_extract <- list(x = sites_noaaca)
+      args_extract <- list(y = sites_noaaca)
 
     } else if (sim_cells_or_points == "cell") {
       cell_res_noaaca <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
         sp = sites_noaaca, crs_sp = crs_sites, crs_to = crs_data)
-      args_extract <- list(x = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)
+      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)
     }
 
     # determine NOAA CA extractions to do
@@ -158,14 +158,13 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
 
       iextr <- i_extract[do_chunks[[ic]]]
       args_chunk <- args_extract
-      args_chunk[["x"]] <- args_chunk[["x"]][do_chunks[[ic]], ]
+      args_chunk[["y"]] <- args_chunk[["y"]][do_chunks[[ic]], ]
       if (!is.null(args_chunk[["coords"]]))
         args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
 
-      MMC[["data"]][iextr, iv, m] <- do.call("extract_from_external_shapefile",
-        args = c(args_chunk, file_path = list(dir_noaaca[[iv]]),
-        file_shp = list(files_shp[[iv]][m]), fields = list("GRIDCODE"),
-        code = list(var_codes[[iv]])))
+      MMC[["data"]][iextr, iv, m] <- do.call("extract_swsf", args = c(args_chunk,
+        x = list(dir_noaaca[[iv]]), file_shp = list(files_shp[[iv]][m]),
+        fields = list("GRIDCODE"), code = list(var_codes[[iv]])))
 
       if (ic < n_chunks) {
         ic <- ic + 1
