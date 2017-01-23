@@ -38,73 +38,6 @@ temp <- "Timing_Simulation.csv"
 timerfile2 <- file.path(dir.out, temp)
 init_timer(timerfile2)
 
-#------load libraries
-dir.libraries <- .libPaths()[1]
-if (.Platform$OS.type == "windows") {
-	#test if user has write permission to standard library path
-	err <- try(write.table(1, file=ftemp <- file.path(dir.libraries, "testPermission.txt")))
-	if(inherits(err, "try-error")){
-		print(paste("User has no write permission for:", dir.libraries, ". A local path is attempted instead, but this is known to likely fail for the setup of 'snow' under Windows XP"))
-		dir.create2(path=dir.libraries <- file.path(dir.in, "RLibrary"),showWarnings=FALSE,recursive=FALSE)
-		if(!any(.libPaths() == dir.libraries)) .libPaths(dir.libraries)
-	} else {
-		file.remove(ftemp)
-	}
-}
-
-if (!require(Rsoilwat31, quietly = TRUE) || (require(Rsoilwat31, quietly = TRUE) &&
-  packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
-
-  print("Going to try to install Rsoilwat library")
-
-  temp <- getwd()
-  setwd(dir.in)
-  system2(command = "git", args = "clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git Rsoilwat")
-  tools::Rcmd(args = paste("INSTALL Rsoilwat"))
-  setwd(temp)
-
-  stopifnot(require(Rsoilwat31) && packageVersion("Rsoilwat31") >= minVersionRsoilwat)
-}
-
-if(!require(circular, quietly=TRUE)) {
-  # loads via a namespace: boot
-	tryCatch(install.packages("circular",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("circular failed to install"); stop("Stopping") })
-	stopifnot(require(circular, quietly=TRUE))
-}
-if(!require(SPEI, quietly=TRUE)) {
-  # attaches: lmomco; loads via a namespace: MASS, Lmoments, goftest
-	tryCatch(install.packages("SPEI",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("SPEI failed to install"); stop("Stopping") })
-	stopifnot(require(SPEI, quietly=TRUE))
-}
-if(!require(RSQLite,quietly = TRUE)) {
-  # loads via a namespace: DBI, memoise, Rcpp, digest
-	tryCatch(install.packages("RSQLite",repos=url.Rrepos,lib=dir.libraries), warning=function(w) { print(w); print("RSQLite failed to install"); stop("Stopping") })
-	stopifnot(require(RSQLite, quietly = TRUE))
-}
-
-if (parallel_runs && identical(parallel_backend, "mpi")) {
-  if (!require(Rmpi, quietly = TRUE)) {
-    # loads via a namespace: parallel
-    print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
-      shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
-      shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
-    print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
-      "the error message: 'Cannot find mpi.h header file'"))
-    tryCatch(install.packages("Rmpi", repos = url.Rrepos, lib = dir.libraries),
-      warning = function(w) {
-        print(w)
-        print("Rmpi failed to install")
-        stop("Stopping")
-    })
-    stopifnot(require(Rmpi, quietly = TRUE))
-  }
-
-} else if(parallel_runs && identical(parallel_backend, "cluster")) {
-  stopifnot(require("parallel")) # parallel is a base-package since R v2.14.0
-
-} else if(parallel_runs) {
-  stop("Parallel backend ", shQuote(parallel_backend), " is not available to SWSF")
-}
 
 #if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
 
@@ -491,6 +424,14 @@ if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.en
     lockfile <- tempfile(pattern = "swsflock", tmpdir = normalizePath(tempdir()))
 
     if (identical(parallel_backend, "mpi")) {
+      if (!require(Rmpi, quietly = TRUE)) {
+        print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
+          shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
+          shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
+        print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
+          "the error message: 'Cannot find mpi.h header file'"))
+      }
+
       Rmpi::mpi.spawn.Rslaves(nslaves = num_cores)
 
       .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
