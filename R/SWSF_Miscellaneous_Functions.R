@@ -173,81 +173,45 @@ isLeapYear <- compiler::cmpfun(function(y) {
   y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)
 })
 
-#' Iterator functions
-#'
-#' @param isim An integer value. A value of \code{runIDs_todo} as subset of \code{runIDs_total}, i.e., a consecutive index across loops 1+2b
-#' @param sc An integer value. The iterator position along \code{scenario_No}.
-#' @param scN An integer value. The number of (climate) scenarios used in the project, i.e., \eqn{scN == scenario_No}.
-#' @param runN An integer value. The number of runs/sites set up in the master input file, i.e., \eqn{runN == runsN_master}.
-#' @param runIDs An integer vector. The identification IDs of rows in the master file that are included, i.e., \eqn{runIDs == runIDs_sites}.
-#'
-#' @section NOTE:
-#'  Do not change the iterators without adjusting the design of the output databases!
-#'
-#' @section Simulation runs:
-#'  * Simulations are run over three nested loops
-#'    - loop1 (1...expN) nested in loop2b (1...runsN_sites) nested in loop3 (1...scenario_No)
-#'        - Note: loop3 (along scenarios) occurs within the function 'do_OneSite'
-#'        - Note: loop2b is a subset of loop2a (1...runsN_master)
-#'    - column 'include_YN' reduces 'site_id' to 'runIDs_sites'
-#'    - 'site_id' and 'P_id' are invariant to 'include_YN'
-#'
-#'  * Master input file: column 'include_YN' selects rows which are included in the simulation
-#'    - Note: rows of the master input file correspond to rows of the treatment input file
-#'    - column 'site_id' == consecutive identification numbers of all rows in the master file; this is treated as a unique (and stable) identifier of a site
-#'    - runsN_master == number of rows in the master file
-#'    - runsN_sites == number of rows in the master file that are included (runsN_sites <= max(site_id))
-#'    - runIDs_sites == identification of rows in the master file that are included
-#'
-#'  * Experimental input file: each row defines a condition which is applied to every runIDs_sites
-#'    - expN == number of experimental treatments
-#'
-#'  * The function 'do_OneSite' will be called n-times with n = runsN_total
-#'    - runsN_total == (number of included sites) x (number of experimental treatments)
-#'    - runIDs_total == consecutive identification numbers along runsN_total
-#'    - runIDs_done == values of runIDs_total that have already been processed by 'do_OneSite'
-#'    - runIDs_todo == values of runIDs_total that await simulation by 'do_OneSite'
-#'    - runsN_todo == number of runIDs_total that await simulation by 'do_OneSite'
-#'
-#'  * The function 'do_OneSite' could be called n-times with n = runsN_incl if all 'include_YN' were on
-#'    - runsN_incl == (number of sites) x (number of experimental treatments)
-#'
-#'  * The variable 'climate.conditions' defines climate conditions that are applied to each 'runIDs_total'
-#'    - scenario_No == number of climate conditions
-#'
-#'  * A grand total of n = runsN_Pid SoilWat runs could be carried out (n == number of rows in the output database)
-#'    - runsN_Pid == max(P_id) == runsN_incl x scenario_No
-#'    - P_id == a consecutive identification number for each possible SoilWat simulation; used as the ID for the output database
-#'
-#' @aliases it_exp it_site it_Pid
-#' @name iterators
-NULL
-#' @rdname iterators
-#' @return An integer value of the iterator position in loop 1 based on the position across loops 1+2b
-it_exp <- compiler::cmpfun(function(isim, runN) (isim - 1L) %/% runN + 1L)
-#' @rdname iterators
-#' @return An integer value of the iterator position across 'runIDs_sites', i.e., the position in loop 2 based on position across loops 1+2b
-it_site <- compiler::cmpfun(function(isim, runN, runIDs) runIDs[(isim - 1L) %% runN + 1L])
-#' @rdname iterators
-#' @return An integer value of the iterator position across all loops 1+2a+3, dependent on \code{include_YN}.
-it_Pid_old <- compiler::cmpfun(function(isim, sc, scN) (isim - 1L) * scN + sc)
-#' @rdname iterators
-#' @return An integer value of the iterator position across all loops 1+2a+3, invariant
-#'  to \code{include_YN}. A consecutive identification number for each possible SoilWat
-#'  simulation--used as the ID for the output database.
-it_Pid <- compiler::cmpfun(function(isim, sc, scN, runN, runIDs) {
-  ((it_exp(isim, runN) - 1L) * runN + it_site(isim, runN, runIDs) - 1L) * scN + sc
-})
 
+#' Test whether input represents a natural number
+#' @param x An integer, numeric, or complex vector, matrix, or array.
+#' @return A logical value.
+is.natural <- function(x) {
+  typeof(x) %in% c("integer", "double", "complex") &&
+  !is.null(x) && length(x) > 0 && !is.na(x) &&
+  isTRUE(all.equal(x, round(x))) && x > 0
+}
 
-## Tests
-#include_YN <- c(0, 0, 1, 0, 0, 1, 1, 0)
-#include_YN <- rep(1, 8)
-#t(sapply(runIDs_todo, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
-#t(sapply(runIDs_total, function(isim) c(isim, it_site(isim, 8), it_exp(isim, 8), it_Pid(isim, 1, 3, 8), it_Pid_old(isim, 1))))
+#' The intersection on any number of vectors
+#'
+#' @param ... Any number of vectors or a list of vectors.
+#' @return A vector of the same mode as inputs.
+#' @seealso \code{\link{intersect}}
+intersect2 <- function(...) {
+  x <- list(...)
+  n <- length(x)
 
+  if (is.list(x[[1]]) && n == 1) {
+    x <- x[[1]]
+    n <- length(x)
+  }
 
+  res <- NULL
+  if (n > 1) {
+    if (all(lengths(x)) > 0) {
+      res <- x[[1]]
+      for (k in 2:n) {
+        res <- intersect(res, x[[k]])
+      }
+    }
 
+  } else {
+    res <- x[[1]]
+  }
+
+  res
+}
 
 #' @examples
 #'  month1 <- function() as.POSIXlt(seq(from = ISOdate(1980, 1, 1, tz = "UTC"),

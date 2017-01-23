@@ -4,7 +4,11 @@ context("dbWork: runIDs organization")
 #setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/SoilWat_R_Wrapper/tests/testthat")
 dbpath <- tempdir()
 flock <- tempfile(pattern = "swsflock", tmpdir = normalizePath(dbpath))
-runIDs <- seq_len(100)
+runsN_master <- 25L
+include_YN <- rep(1, runsN_master)
+include_YN[c(1, 10, 24:25)] <- 0L
+expN <- 4L
+runsN_total <- runsN_master * expN
 #fname_log <- "log_dbWork.txt"
 verbose <- FALSE
 
@@ -57,7 +61,7 @@ parallel::clusterEvalQ(cl, require("RSQLite"))
 test_that("dbWork", {
   # Init
   unlink(flock, recursive = TRUE)
-  expect_true(setup_dbWork(dbpath, runIDs))
+  expect_true(setup_dbWork(dbpath, runsN_master, runsN_total, expN, include_YN))
   expect_identical(dbWork_todos(dbpath), runIDs)
 
   #--- Error due to locked database
@@ -69,7 +73,7 @@ test_that("dbWork", {
 
   #--- No error expected because dbWork is run with file locking
   # Init
-  expect_true(setup_dbWork(dbpath, runIDs))
+  expect_true(setup_dbWork(dbpath, runsN_master, runsN_total, expN, include_YN))
   expect_identical(dbWork_todos(dbpath), runIDs)
   expect_s3_class(pretend_sim(cl, runIDs, dbpath, flock, verbose), "table")
 })

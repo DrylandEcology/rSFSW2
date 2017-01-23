@@ -135,7 +135,7 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
     !grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
     !grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
   )
-  include_YN <- SWRunInformation$Include_YN
+  include_YN <- as.logical(SWRunInformation$Include_YN)
   nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
   fslayers <- file.path(dir.in, datafile.soillayers)
@@ -375,29 +375,29 @@ if(do.ensembles){
 
 
 #------Determine simulation runs
-# see ?iterators, ?it_exp, ?it_site, ?it_Pid
+# see ?indices, ?it_exp, ?it_site, ?it_Pid
 runsN_master <- nrow(SWRunInformation)
-runIDs_sites <- which(include_YN > 0)
+runIDs_sites <- which(include_YN)
 runsN_sites <- length(runIDs_sites)
 if (!(runsN_sites > 0))
 	stop(paste("at least 1 SoilWat-run needed for simulation, but", runsN_sites, "found"))
 
 # identify how many SoilWat-runs = rows are to be carried out
 expN <- NROW(sw_input_experimentals)
-runsN_total <- runsN_sites * max(expN, 1L)
-runsN_incl <- runsN_master * max(expN, 1L)
-runsN_Pid <- runsN_incl * scenario_No
-
-runIDs_total <- seq_len(runsN_total) # consecutive number of all (tr x exp) simulations to be executed
-counter.digitsN <- 1 + ceiling(log10(runsN_incl))	#max index digits
+runsN_total <- runsN_master * max(expN, 1L)
+runIDs_total <- seq_len(runsN_total) # consecutive number of all possible (tr x exp) simulations
+digitsN_total <- 1 + ceiling(log10(runsN_total))  #max index digits
+runsN_job <- runsN_sites * max(expN, 1L)
+runsN_Pid <- runsN_total * scenario_No
 nextn(runsN_incl, 10)
 
-success <- setup_dbWork(dir.out, runIDs_total, continueAfterAbort)
+success <- setup_dbWork(dir.out, runsN_master, runsN_total, expN, include_YN, continueAfterAbort)
 if (!success)
   stop("Work database failed to setup or an existing one is from a different simulation design")
 
-runIDs_todo <- dbWork_todos(dir.out)
+runIDs_todo <- dbWork_todos(dir.out) # elements of runIDs_total
 runsN_todo <- length(runIDs_todo)
+
 
 #------outputing data
 ExpInput_Seperator <- "X!X"
@@ -715,9 +715,9 @@ do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
 if (!file.exists(name.OutputDB) || do.clean) {
   temp <- try(make_dbOutput(name.OutputDB, SWRunInformation, Index_RunInformation,
-      runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+      runsN_master, runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
       create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
-      sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr, counter.digitsN,
+      sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr, digitsN_total,
       aon, daily_no, daily_lyr_agg, output_aggregate_daily, SoilLayer_MaxNo, SWPcrit_MPa,
       Tmin_crit_C, Tmax_crit_C, Tmean_crit_C, bin.prcpSizes, bin.prcpfreeDurations,
       DegreeDayBase, st_mo, no.species_regeneration, param.species_regeneration,
@@ -954,6 +954,10 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
 }
 
 
+
+
+
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------RUN RSOILWAT
 
@@ -973,6 +977,7 @@ if (actionWithSoilWat && runsN_todo > 0) {
     SWRunInformation, sw_input_soillayers, sw_input_treatments, sw_input_cloud,
     sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
     sw_input_climscen_values, MoreArgs = args_do_OneSite)
+
 
 } else {
   runs.completed <- 0

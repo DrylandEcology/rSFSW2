@@ -6,7 +6,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   i_sw_input_soils, i_sw_input_weather, i_sw_input_climscen, i_sw_input_climscen_values,
   SimParams) {
 
-#i_sim: a value of runIDs_total, i.e., counting the simulation runs
+#i_sim: a value of runIDs_total, i.e., index for each simulation run
 #i_xxx = the i_site-row of xxx for the i-th simulation run; if expN > 0 then these will eventually be repeated, and below replaced with experimental values
 #i_exp = the row of sw_input_experimentals for the i_sim-th simulation run
 #P_id is a unique id number for each scenario in each run
@@ -31,7 +31,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
   dbWork_update_job(dir.out, i_sim, status = "inwork",
     with_filelock = lockfile, verbose = print.debug)
 
-	flag.icounter <- formatC(i_sim, width=counter.digitsN, format = "d", flag="0")
+	flag.icounter <- formatC(i_sim, width=digitsN_total, format = "d", flag="0")
 
   if (debug.dump.objects) {
     print(paste0("'last.dump.do_OneSite_", i_sim, ".RData' will be produced if 'do_OneSite' fails"))
@@ -701,7 +701,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 
 		if (!getCurrentWeatherDataFromDatabase) {
 			if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
-				dirname.sw.runs.weather <- with(i_SWRunInformation, create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+				dirname.sw.runs.weather <- with(i_SWRunInformation,
+				  create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
 				          dir_data = dir.ex.maurer2002,
 				          cellname = dirname.sw.runs.weather,
@@ -716,33 +717,37 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 				    coords_WGS84 = c(X_WGS84, Y_WGS84),
 				    start_year = simstartyr, end_year = endyr))
 
-			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {	# Read weather data from folder
-				i_sw_weatherList[[1]] <- try(Rsoilwat31::getWeatherData_folders(
-						LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
-						weatherDirName = local_weatherDirName(i_sim, scenario_No, runsN_master, runIDs_sites, name.OutputDB),
-						filebasename = basename(Rsoilwat31::swFiles_WeatherPrefix(swRunScenariosData[[1]])),
-						startYear = simstartyr,
-						endYear = endyr),
-					silent = TRUE)
+			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {
+        # Read weather data from folder
+        i_sw_weatherList[[1]] <- try(getWeatherData_folders(
+          LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+          weatherDirName = local_weatherDirName(i_sim, runsN_master, scenario_No,
+            name.OutputDB), filebasename = filebasename, startYear = simstartyr,
+          endYear = endyr), silent = TRUE)
 			}
 
 		} else {
-			#---Extract weather data
-			weather_label_cur <- try(local_weatherDirName(i_sim, scenario_No, runsN_master, runIDs_sites, name.OutputDB), silent = TRUE)
-			if (is.na(weather_label_cur))
-				weather_label_cur <- try({function() stop("Output DB ", basename(name.OutputDB), " has no information about weather data for run ", i_sim)}(), silent = TRUE)
+      #---Extract weather data
+      weather_label_cur <- try(local_weatherDirName(i_sim, runsN_master, scenario_No,
+        name.OutputDB), silent = TRUE)
 
-			if (inherits(weather_label_cur, "try-error")) {
-				i_sw_weatherList <- weather_label_cur
+      if (is.na(weather_label_cur))
+        weather_label_cur <- try({function() stop("Output DB ", basename(name.OutputDB),
+          " has no information about weather data for run ", i_sim)}(), silent = TRUE)
 
-			} else {
-        temp <- if (getScenarioWeatherDataFromDatabase) seq_along(climate.conditions) else 1L
+      if (inherits(weather_label_cur, "try-error")) {
+        i_sw_weatherList <- weather_label_cur
+
+      } else {
+        temp <- if (getScenarioWeatherDataFromDatabase) {
+            seq_along(climate.conditions)
+          } else 1L
+
         i_sw_weatherList <- try(lapply(climate.conditions[temp], function(scen)
           Rsoilwat31::dbW_getWeatherData(Label = weather_label_cur,
-            startYear = simstartyr, endYear = endyr, Scenario = scen)),
-          silent = TRUE)
-			}
-		}
+            startYear = simstartyr, endYear = endyr, Scenario = scen)), silent = TRUE)
+      }
+    }
 
 		#Check that extraction of weather data was successful
 		if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
@@ -1442,7 +1447,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:scenario_No) {
-    P_id <- it_Pid(i_sim, sc, scenario_No, runsN_master, runIDs_sites)
+    P_id <- it_Pid(i_sim, runsN_master, sc, scenario_No)
 
     if (print.debug)
       print(paste("Start of SoilWat execution for P_id =", P_id, "scenario =", sc))
@@ -4517,10 +4522,10 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
     if (!be.quiet) {
       n <- length(times) - 1
       temp <- paste0(i_sim, ": ", i_label, " done in ", delta.do_OneSite, " ", units(delta.do_OneSite), ": ",
-                    round(n / runsN_total * 100, 2), "% complete")
+                    round(n / runsN_job * 100, 2), "% complete")
 
       if (eta.estimate) {
-        deta <- round(ceiling((runsN_total - n) / workersN) *
+        deta <- round(ceiling((runsN_job - n) / workersN) *
           sapply(list(mean, sd), function(f) f(times, na.rm = TRUE)))
         pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) qt(0.975, n) else NA}# 95% prediction interval
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
@@ -4554,12 +4559,12 @@ run_simulation_experiment <- function(rSWSF, cl, runIDs_todo, use_rcpp,
   sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
   sw_input_climscen_values, MoreArgs) {
 
-  i_sites <- it_site(runIDs_todo, MoreArgs[["runsN_master"]], MoreArgs[["runIDs_sites"]])
+  i_sites <- it_site(runIDs_todo, MoreArgs[["runsN_master"]])
 
   #ETA calculation
   if (!MoreArgs[["be.quiet"]])
     print(paste("SWSF simulation runs:", MoreArgs[["runsN_todo"]], "out of",
-      MoreArgs[["runsN_total"]], "runs will be carried out on", MoreArgs[["workersN"]],
+      MoreArgs[["runsN_job"]], "runs will be carried out on", MoreArgs[["workersN"]],
       "cores: started at", t1 <- Sys.time()))
 
   if (MoreArgs[["do_parallel"]]) {
@@ -4632,7 +4637,7 @@ tryCatch({
 
           # slave is ready for a task. Give it the next task, or tell it tasks
           # are done if there are none.
-          if ((runs.completed <= length(runIDs_todo)) && has_time_to_simulate) {
+          if ((runs.completed <= runsN_todo) && has_time_to_simulate) {
             # Send a task, and then remove it from the task list
             i_site <- i_sites[runs.completed]
 
@@ -4710,7 +4715,7 @@ if (use_rcpp) {
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SWRunInformation, sw_input_soillayers, ...) to the workers. clusterLapplyLB does
-# not work because do_OneSite has two 'iterators' (i.e., i_sim and i_site). clusterMap
+# not work because do_OneSite has two indices (i.e., i_sim and i_site). clusterMap
 # operates on elements (i.e., columns of data.frames); hence, I use split() to convert
 # the data.frames to lists where the elements correspond to the rows.
 
@@ -4775,7 +4780,7 @@ if (use_rcpp) {
 gather_args_do_OneSite <- function() {
   list.args <- c("accountNSHemispheres_agg", "accountNSHemispheres_veg",
     "adjust.soilDepth", "aon", "be.quiet", "bin.prcpfreeDurations", "bin.prcpSizes",
-    "climate.conditions", "continueAfterAbort", "counter.digitsN",
+    "climate.conditions", "continueAfterAbort", "digitsN_total",
     "create_experimentals", "create_treatments", "daily_lyr_agg",
     "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
     "dbWeatherDataFile", "debug.dump.objects", "DegreeDayBase", "Depth_TopLayers",
@@ -4790,8 +4795,8 @@ gather_args_do_OneSite <- function() {
     "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
     "opt_comp_time", "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily",
     "parallel_backend", "do_parallel", "param.species_regeneration", "pcalcs",
-    "print.debug", "runIDs_sites", "runsN_master", "runsN_sites", "runsN_todo",
-    "runsN_total", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
+    "print.debug", "runsN_master", "runsN_todo",
+    "runsN_total", "runsN_job", "saveRsoilwatInput", "saveRsoilwatOutput", "scenario_No",
     "season.end", "season.start", "shrub.fraction.limit", "simstartyr",
     "simTime", "simTime_ForEachUsedTimeUnit_North", "simTime_ForEachUsedTimeUnit_South",
     "startyr", "sw_input_climscen_use", "sw_input_climscen_values_use",
