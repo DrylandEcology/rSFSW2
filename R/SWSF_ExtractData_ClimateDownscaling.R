@@ -1993,14 +1993,14 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 
-  if (do_parallel) {
+  if (opt_parallel[["do_parallel"]]) {
     is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
     obj2exp <- gather_objects_for_export(varlist = list.export,
       list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
     # extract the GCM data depending on parallel backend
-    if (identical(parallel_backend, "mpi")) {
+    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
       export_objects_to_workers(obj2exp, "mpi")
       Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
@@ -2024,13 +2024,13 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
       Rmpi::mpi.bcast.cmd(rm(list=ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
-    } else if (identical(parallel_backend, "cluster")) {
-      export_objects_to_workers(obj2exp, "cluster", cl)
+    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+      export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
-      parallel::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
-      parallel::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], library("Rsoilwat31", quietly=TRUE))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-      i_Done <- parallel::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
+      i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
           reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2045,9 +2045,9 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
           dir.out.temp = dir.out.temp,
           verbose = verbose, print.debug = print.debug)
 
-      parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-      parallel::clusterEvalQ(cl, rm(list=ls()))
-      parallel::clusterEvalQ(cl, gc())
+      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_disconnectConnection())
+      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list=ls()))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
 
     } else {
       i_Done <- NULL
