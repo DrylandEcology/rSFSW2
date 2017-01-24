@@ -17,7 +17,7 @@
   if (any(toset)) options(op_SWSF[toset])
 
   #--- Define package level variables that should be hidden from package user and should not be changed
-  assign("var1", 0L, envir = swsf_vars) #test
+  assign("minVersion_dbWeather", numeric_version("3.1.0"), envir = swsf_glovars)
 
   invisible()
 }

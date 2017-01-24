@@ -1,9 +1,14 @@
+
+simulate_SOILWAT_experiment <- function(opt_parallel, use_rcpp, opt_verbosity) {
+
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
+t.overall <- Sys.time()
 
-if (!be.quiet)
+
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at",
-    Sys.time()))
+    t.overall))
 
 #------
 actionWithSoilWat <- any(actions == "create") || any(actions == "execute") ||
@@ -39,7 +44,7 @@ timerfile2 <- file.path(dir.out, temp)
 init_timer(timerfile2)
 
 
-#if(print.debug) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
+#if(opt_verbosity[["print.debug"]]) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
 
 #------prepare output
 temp <- matrix(output_aggregates, ncol = 2, nrow = length(output_aggregates) / 2,
@@ -48,7 +53,7 @@ aon <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
 names(aon) <- temp[, 1]
 
 #------import data
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF reads input data: started at", t1 <- Sys.time()))
 
 # Read data from files
@@ -273,7 +278,7 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
     file = fpreprocin, compress = FALSE)
 }
 
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF reads input data: ended after",
     round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 
@@ -411,62 +416,11 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 #------------------------SET UP PARALLELIZATION
 #used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
 
-workersN <- 1
-do_parallel <- FALSE
-cl <- NULL
-lockfile <- NULL
+opt_parallel <- setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out = dir.prj)
 
-if (any(actions == "external") || (actionWithSoilWat && runsN_todo > 0) || do.ensembles) {
-  if (parallel_runs) {
-    if (!be.quiet)
-      print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
-
-    lockfile <- tempfile(pattern = "swsflock", tmpdir = normalizePath(tempdir()))
-
-    if (identical(parallel_backend, "mpi")) {
-      if (!require(Rmpi, quietly = TRUE)) {
-        print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
-          shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
-          shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
-        print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
-          "the error message: 'Cannot find mpi.h header file'"))
-      }
-
-      Rmpi::mpi.spawn.Rslaves(nslaves = num_cores)
-
-      .Last <- function() { #Properly end mpi slaves before quitting R (e.g., at a crash)
-        # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
-        if (is.loaded("mpi_initialize")) {
-          if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
-            Rmpi::mpi.close.Rslaves()
-          .Call("mpi_finalize")
-        }
-      }
-
-    } else if (identical(parallel_backend, "cluster")) {
-      cl <- parallel::makePSOCKcluster(num_cores, outfile = if (!be.quiet) "" else {
-        file.path(dir.prj, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
-      # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
-      parallel::clusterApplyLB(cl, seq_len(num_cores), function(x) .nodeNumber <<- x)
-      #parallel::clusterSetRNGStream(cl, seed) #random numbers setup
-    }
-
-    workersN <- if (identical(parallel_backend, "mpi")) {
-        Rmpi::mpi.comm.size() - 1
-      } else {
-        num_cores #parallel::detectCores(all.tests = TRUE)
-      }
-
-    do_parallel <- TRUE
-    if (!be.quiet)
-      print(paste("SWSF prepares parallelization: initialization of", workersN,
-        "workers ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-  }
-}
-
-if (!identical(parallel_backend, "mpi")) {
+if (!identical(opt_parallel[["parallel_backend"]], "mpi")) {
   # Only enforce wall-time on MPI systems
-  opt_comp_time[["wall_time_s"]] <- Inf
+  opt_job_time[["wall_time_s"]] <- Inf
 }
 #--------------------------------------------------------------------------------------------------#
 
@@ -572,7 +526,7 @@ if (do_weather_source) {
     create_treatments, runIDs_sites, SWRunInformation, sw_input_treatments_use,
     sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, simstartyr,
     endyr, fmaster, fpreprocin, dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr,
-    verbose = !be.quiet)
+    verbose = opt_verbosity[["verbose"]])
 }
 
 if (anyNA(SWRunInformation[runIDs_sites, "dailyweather_source"])) {
@@ -604,7 +558,7 @@ if (getCurrentWeatherDataFromDatabase){
 
 #----------------------------------------------------------------------------------------#
 #------------ORGANIZE DATABASES FOR DAILY WEATHER AND FOR SIMULATION OUTPUT
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF sets up the database: started at", t1 <- Sys.time()))
 
 #--- Create weather database and populate with weather for current conditions
@@ -624,10 +578,8 @@ if (createAndPopulateWeatherDatabase) {
   make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    do_parallel, parallel_backend, num_cores, cl,
-    dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
-    dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
-    verbose = !be.quiet)
+    opt_parallel, dir.ex.maurer2002, dir.ex.daymet, dir.ex.NRCan, prepd_CFSR,
+    verbose = opt_verbosity[["verbose"]])
 }
 
 if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
@@ -635,12 +587,13 @@ if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 	dbW_setConnection(dbWeatherDataFile)
 	v_dbW <- dbW_version()
 
-	if (v_dbW < minVersion_dbWeather) {
+	if (v_dbW < swsf_glovars[["minVersion_dbWeather"]]) {
 		print(paste0("The version (", v_dbW, ") of the daily weather database is outdated; ",
-		  "min. version required: ", minVersion_dbWeather))
+		  "min. version required: ", swsf_glovars[["minVersion_dbWeather"]]))
 		if (v_dbW >= "1")
 		  print(paste("Use function 'Rsoilwat31:::dbW_upgrade_v1to2' etc. to upgrade your",
-		    "version 1.y.z weather database to version >=", minVersion_dbWeather))
+		    "version 1.y.z weather database to version >=",
+		    swsf_glovars[["minVersion_dbWeather"]]))
 		stop("Outdated weather database")
 	}
 
@@ -679,7 +632,7 @@ dbOverallColumns <- length(temp) - 1L
 RSQLite::dbDisconnect(con_dbOut)
 
 
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF sets up the database: ended after",
     round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 
@@ -706,7 +659,7 @@ if(accountNSHemispheres_agg){
 #--------------------------------------------------------------------------------------------------#
 #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
 if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(exinfo))] > 0)){
-  if (!be.quiet)
+  if (opt_verbosity[["verbose"]])
     print(paste("SWSF extracts information from external datasets prior to simulation",
       "runs: started at", t1 <- Sys.time()))
 
@@ -718,8 +671,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
     temp <- ExtractData_Soils(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
       extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-      dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, be.quiet,
-      do_parallel, parallel_backend, cl)
+      dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, opt_verbosity[["verbose"]],
+      opt_parallel)
 
     SWRunInformation <- temp[["SWRunInformation"]]
     sw_input_soillayers <- temp[["sw_input_soillayers"]]
@@ -734,8 +687,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
       runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo,
       extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
       dir.ex.weather, dir.out.temp, fmaster, fcloud, fpreprocin, chunk_size.options,
-      continueAfterAbort, be.quiet, prepd_CFSR, startyr, endyr, do_parallel,
-      parallel_backend, cl)
+      continueAfterAbort, opt_verbosity[["verbose"]], prepd_CFSR, startyr, endyr, opt_parallel)
 
     SWRunInformation <- temp[["SWRunInformation"]]
     sw_input_cloud_use <- temp[["sw_input_cloud_use"]]
@@ -745,7 +697,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
     SWRunInformation <- ExtractData_Elevation(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
-      sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, be.quiet)
+      sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, opt_verbosity[["verbose"]])
   }
 
   if (exinfo$ExtractClimateChangeScenarios) {
@@ -758,15 +710,15 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
       SWRunInformation <- ExtractClimateChangeScenarios(opt_climsc_extr, climDB_metas,
         opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
         dbWeatherDataFile, climate.ambient, climate.conditions, runsN_master, runsN_sites,
-        runIDs_sites, SWRunInformation, fmaster, fpreprocin, dir.out.temp,
-        verbose = !be.quiet, print.debug, cl)
+        runIDs_sites, SWRunInformation, fmaster, fpreprocin, dir.out.temp, opt_parallel,
+        verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
     }
 
     if (any(exinfo$which_ClimateWizard)) {
       temp <- ExtractClimateWizard(opt_climsc_extr, SWRunInformation, fmaster, fpreprocin,
         sw_input_climscen_use, sw_input_climscen, fclimscen,
         sw_input_climscen_values_use, sw_input_climscen_values, fclimscen_values,
-        dir.ex.fut, runsN_master, verbose = !be.quiet)
+        dir.ex.fut, runsN_master, verbose = opt_verbosity[["verbose"]])
 
       SWRunInformation <- temp[["SWRunInformation"]]
       sw_input_climscen_use <- temp[["sw_input_climscen_use"]]
@@ -778,7 +730,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 
   do_check_include <- TRUE
 
-  if (!be.quiet)
+  if (opt_verbosity[["verbose"]])
     print(paste("SWSF extracts information from external datasets prior to simulation",
       "runs: ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
@@ -789,7 +741,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
 #------------------------CHECK THAT INCLUDE_YN* ARE INCLUSIVE
 if (do_check_include) {
   SWRunInformation <- check_requested_sites(include_YN, SWRunInformation, fmaster,
-    fpreprocin, verbose = !be.quiet)
+    fpreprocin, verbose = opt_verbosity[["verbose"]])
 }
 
 
@@ -814,7 +766,7 @@ if (actionWithSoilWat) {
 }
 
 if (any(unlist(pcalcs))) {
-  if (!be.quiet)
+  if (opt_verbosity[["verbose"]])
     print(paste("SWSF makes calculations prior to simulation runs: started at",
       t1 <- Sys.time()))
 
@@ -823,7 +775,7 @@ if (any(unlist(pcalcs))) {
   if (pcalcs$ExtendSoilDatafileToRequestedSoilLayers) {
     temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(requested_soil_layers,
       runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-      fpreprocin, fslayers, fsoils, verbose = !be.quiet)
+      fpreprocin, fslayers, fsoils, verbose = opt_verbosity[["verbose"]])
 
     sw_input_soillayers <- temp[["sw_input_soillayers"]]
     sw_input_soils_use <- temp[["sw_input_soils_use"]]
@@ -836,7 +788,7 @@ if (any(unlist(pcalcs))) {
 
     temp <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(runIDs_adjust,
       sw_input_soils_use, sw_input_soils, fpreprocin, fsoils, continueAfterAbort,
-      verbose = !be.quiet)
+      verbose = opt_verbosity[["verbose"]])
 
     sw_input_soils_use <- temp[["sw_input_soils_use"]]
     sw_input_soils <- temp[["sw_input_soils"]]
@@ -860,7 +812,7 @@ if (any(unlist(pcalcs))) {
 		sw_input_soils_use[index.soilTemp] <- TRUE
 	}
 
-	if (!be.quiet)
+	if (opt_verbosity[["verbose"]])
 	  print(paste("SWSF makes calculations prior to simulation runs: ended after",
 	    round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 }
@@ -873,7 +825,7 @@ if (any(actions == "create")) {
   temp <- do_prior_TableLookups(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
     create_treatments, SoilLayer_MaxNo, sw_input_experimentals_use, sw_input_experimentals,
     sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
-    fpreprocin, fsoils, fcloud, continueAfterAbort, verbose = !be.quiet)
+    fpreprocin, fsoils, fcloud, continueAfterAbort, verbose = opt_verbosity[["verbose"]])
 
   done_prior <- temp[["done_prior"]]
   sw_input_soils_use <- temp[["sw_input_soils_use"]]
@@ -891,7 +843,7 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
     sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather,
     sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
     sw_input_climscen_values, runIDs_sites, sim_cells_or_points, run_sites, crs_sites,
-    sim_crs, sim_raster, dir.out, verbose = !be.quiet)
+    sim_crs, sim_raster, dir.out, verbose = opt_verbosity[["verbose"]])
 }
 
 
@@ -914,10 +866,10 @@ if (actionWithSoilWat && runsN_todo > 0) {
   swDataFromFiles <- read_SoilWat_FileDefaults(dir.sw.in, swFilesIn)
   args_do_OneSite <- gather_args_do_OneSite()
 
-  runs.completed <- run_simulation_experiment(rSWSF, cl, runIDs_todo, use_rcpp,
+  runs.completed <- run_simulation_experiment(rSWSF, runIDs_todo, use_rcpp,
     SWRunInformation, sw_input_soillayers, sw_input_treatments, sw_input_cloud,
     sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
-    sw_input_climscen_values, MoreArgs = args_do_OneSite)
+    sw_input_climscen_values, MoreArgs = args_do_OneSite, opt_parallel, opt_verbosity)
 
 
 } else {
@@ -938,40 +890,40 @@ if (actionWithSoilWat && runsN_todo > 0) {
 t.outputDB <- Sys.time()
 
 if (any(actions == "concatenate")) {
-  if (!be.quiet)
+  if (opt_verbosity[["verbose"]])
     print(paste("SWSF inserting temporary data to outputDB: started at", t.outputDB))
 
   has_time_to_concat <- (difftime(t.outputDB, t.overall, units = "secs") +
-    opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
+    opt_job_time[["one_concat_s"]]) < opt_job_time[["wall_time_s"]]
 
   if (has_time_to_concat) {
     move_temporary_to_outputDB(dir.out.temp, name.OutputDB,
-      name.OutputDBCurrent, t.overall, opt_comp_time,
+      name.OutputDBCurrent, t.overall, opt_job_time,
       copyCurrentConditionsFromTempSQL && !copyCurrentConditionsFromDatabase,
-      cleanDB, deleteTmpSQLFiles, continueAfterAbort, print.debug, verbose = !be.quiet)
+      cleanDB, deleteTmpSQLFiles, continueAfterAbort, print.debug = opt_verbosity[["print.debug"]], verbose = opt_verbosity[["verbose"]])
 
   } else {
-    print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
+    print(paste("Need at least", opt_job_time[["one_concat_s"]], "seconds to put SQL in output DB."))
   }
 
 
   if (copyCurrentConditionsFromDatabase && !copyCurrentConditionsFromTempSQL) {
     has_time_to_concat <- {difftime(Sys.time(), t.overall, units = "secs") +
-      opt_comp_time[["one_concat_s"]]} < opt_comp_time[["wall_time_s"]]
+      opt_job_time[["one_concat_s"]]} < opt_job_time[["wall_time_s"]]
 
     if (has_time_to_concat) {
       do_copyCurrentConditionsFromDatabase(name.OutputDB, name.OutputDBCurrent,
-        verbose = !be.quiet)
+        verbose = opt_verbosity[["verbose"]])
 
     } else {
-      print(paste("Need at least", opt_comp_time[["one_concat_s"]], "seconds to put SQL in output DB."))
+      print(paste("Need at least", opt_job_time[["one_concat_s"]], "seconds to put SQL in output DB."))
     }
   }
 }
 
 #timing of outputDB
 delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
-if (!be.quiet & any(actions == "concatenate")) {
+if (opt_verbosity[["verbose"]] && any(actions == "concatenate")) {
   print(paste("SWSF inserting temporary data to outputDB: ended after",
     round(delta.outputDB, 2), "s"))
 }
@@ -982,7 +934,7 @@ if (!be.quiet & any(actions == "concatenate")) {
 t.check <- Sys.time()
 
 if (any(actions == "check")) {
-  if (!be.quiet)
+  if (opt_verbosity[["verbose"]])
     print(paste("SWSF checks simulations and output: started at", t.check))
 
   #------ Remove when this becomes a R package
@@ -994,12 +946,12 @@ if (any(actions == "check")) {
   check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
     update_workDB = check_updates_workDB || deleteTmpSQLFiles,
     do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
-    do_parallel, parallel_backend, cl, dir.out, swsf_env)
+    opt_parallel, dir.out, swsf_env)
 }
 
 #timing of check
 delta.check <- difftime(Sys.time(), t.check, units = "secs")
-if (!be.quiet & any(actions == "check"))
+if (opt_verbosity[["verbose"]] && any(actions == "check"))
   print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2), "s"))
 
 #--------------------------------------------------------------------------------------------------#
@@ -1008,7 +960,7 @@ t.ensembles <- Sys.time()	#timing of ensemble calculation
 
 if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN_todo || actionWithSWSFOutput && !actionWithSoilWat) ){
 
-	if(!be.quiet) print(paste("SWSF calculates ensembles: started at", t.ensembles))
+	if(opt_verbosity[["verbose"]]) print(paste("SWSF calculates ensembles: started at", t.ensembles))
 
 	#save(ensembles.maker,ensemble.levels, ensemble.families, file=file.path(dir.out, "ensembleObjects.r"))
 
@@ -1019,17 +971,17 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
-	if (do_parallel) {
+	if (opt_parallel[["do_parallel"]]) {
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_comp_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","do_parallel","parallel_backend","name.OutputDB")
-		if(identical(parallel_backend, "mpi")) {
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_job_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","opt_parallel","name.OutputDB")
+		if(identical(opt_parallel[["parallel_backend"]], "mpi")) {
 			export_objects_to_workers(list.export, list(global = globalenv()), "mpi")
 
 			Rmpi::mpi.bcast.cmd(library(RSQLite,quietly = TRUE))
 
 			ensembles.completed <- Rmpi::mpi.applyLB(X = Tables, FUN = collect_EnsembleFromScenarios)
 
-		} else if(identical(parallel_backend, "cluster")) {
+		} else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
 			export_obj_local <- list.export[list.export %in% ls(name=environment())]
 			export_obj_in_parent <- list.export[list.export %in% ls(name=parent.frame())]
 			export_obj_in_parent <- export_obj_in_parent[!(export_obj_in_parent %in% export_obj_local)]
@@ -1037,13 +989,13 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 			export_obj_in_globenv <- export_obj_in_globenv[!(export_obj_in_globenv %in% c(export_obj_local, export_obj_in_parent))]
 			stopifnot(c(export_obj_local, export_obj_in_parent, export_obj_in_globenv) %in% list.export)
 
-			if(length(export_obj_local) > 0) parallel::clusterExport(cl, export_obj_local, envir=environment())
-			if(length(export_obj_in_parent) > 0) parallel::clusterExport(cl, export_obj_in_parent, envir=parent.frame())
-			if(length(export_obj_in_globenv) > 0) parallel::clusterExport(cl, export_obj_in_globenv, envir=globalenv())
+			if(length(export_obj_local) > 0) parallel::clusterExport(opt_parallel[["cl"]], export_obj_local, envir=environment())
+			if(length(export_obj_in_parent) > 0) parallel::clusterExport(opt_parallel[["cl"]], export_obj_in_parent, envir=parent.frame())
+			if(length(export_obj_in_globenv) > 0) parallel::clusterExport(opt_parallel[["cl"]], export_obj_in_globenv, envir=globalenv())
 
-			parallel::clusterEvalQ(cl, library(RSQLite,quietly = TRUE))
+			parallel::clusterEvalQ(opt_parallel[["cl"]], library(RSQLite,quietly = TRUE))
 
-      ensembles.completed <- parallel::clusterApplyLB(cl, x = seq_along(Tables), function(i)
+      ensembles.completed <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = seq_along(Tables), function(i)
         collect_EnsembleFromScenarios(Tables[i]))
 		}
 
@@ -1062,20 +1014,20 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 
 #timing of ensemble calculation
 delta.ensembles <- difftime(Sys.time(), t.ensembles, units="secs")
-if(!be.quiet && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
+if(opt_verbosity[["verbose"]] && do.ensembles) print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
 
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------OVERALL TIMING
 delta.overall <- difftime(Sys.time(), t.overall, units = "secs")
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
  print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
-compile_overall_timer(timerfile2, dir.out, workersN, runs.completed, scenario_No,
+compile_overall_timer(timerfile2, dir.out, opt_parallel[["workersN"]], runs.completed, scenario_No,
   ensembles.completed, delta.overall, delta.outputDB, delta.check, delta.ensembles)
 
 
-if (!be.quiet)
+if (opt_verbosity[["verbose"]])
   print(paste("SWSF: ended with actions =", paste(actions, collapse = ", "), "at",
     Sys.time()))
 
@@ -1085,10 +1037,12 @@ if (!be.quiet)
 
 options(ow_prev) #sets the warning option to its previous value
 
-if (do_parallel) {
-  clean_parallel_workers(parallel_backend, cl, verbose = print.debug)
+if (opt_parallel[["do_parallel"]]) {
+  clean_SWSF_cluster(opt_parallel[["parallel_backend"]], cl = opt_parallel[["cl"]],
+    verbose = opt_verbosity[["print.debug"]])
 }
 
 
 #--------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------#
+}

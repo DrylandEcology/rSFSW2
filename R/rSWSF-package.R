@@ -11,7 +11,7 @@
 NULL
 
 ##------ Package level variables
-swsf_vars <- new.env()
+swsf_glovars <- new.env()
 
 
 ##------ Package uses S3 classes - they are defined in package:methods

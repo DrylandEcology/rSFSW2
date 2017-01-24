@@ -31,28 +31,27 @@
 #--------------------------------------------------------------------------------------------------#
 #---------------------------------------------SETUP------------------------------------------------#
 
-#------Clean the working environment
-rm(list=ls(all=TRUE))
 
-#------Overall timing
-t.overall <- Sys.time()
-be.quiet <- FALSE
-eta.estimate <- interactive()
-print.debug <- interactive()
-debug.warn.level <- sum(c(print.debug, interactive()))
-debug.dump.objects <- interactive()
+#------Options for printing progress and debugging information
+opt_verbosity <- list(
+  verbose = TRUE,
+  print.eta = interactive(),
+  print.debug = interactive(),
+  debug.warn.level = 2 * interactive(),
+  debug.dump.objects = interactive()
+)
 
-#------Mode of framework
-minVersionRsoilwat <- "1.1.4"
-minVersion_dbWeather <- "3.1.0"
+#------Options for parallel framework
 use_rcpp <- TRUE
-num_cores <- 2
-parallel_backend <- "cluster" # "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-parallel_runs <- !interactive()
+opt_parallel <- list(
+  num_cores = 2,
+  parallel_backend = "cluster", # "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
+  parallel_runs = !interactive()
+)
 
 #------Computation time requests------#
 # These limits are only enforced if parallel_backend == "mpi"
-opt_comp_time <- list(
+opt_job_time <- list(
   wall_time_s = 12 * 3600, # requested wall time
   one_sim_s = 60, # time needed to complete one call to do_OneSite()
   one_concat_s = 60 # time needed to process one temporary SQL file

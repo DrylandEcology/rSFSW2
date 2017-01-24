@@ -3,9 +3,8 @@
 make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
     climate.conditions, dir.sw.in.tr, dir.out.temp,
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    do_parallel, parallel_backend, num_cores, cl = NULL,
-    dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL, prepd_CFSR = NULL,
-    verbose = FALSE) {
+    opt_parallel, dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL,
+    prepd_CFSR = NULL, verbose = FALSE) {
 
   stopifnot(requireNamespace("Rsoilwat31"))
   dw_source <- SWRunInformation[runIDs_sites, "dailyweather_source"]
@@ -103,8 +102,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       end_year = endyr,
       dir_temp = dir.out.temp,
       dbW_compression_type = dbW_compression_type,
-      do_parallel = do_parallel && identical(parallel_backend, "cluster"),
-      ncores = num_cores)
+      opt_parallel)
   }
 
   temp <- dw_source == "NCEPCFSR_Global"
@@ -118,9 +116,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       end_year = endyr,
       meta_cfsr = prepd_CFSR,
       n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
-      do_parallel = do_parallel,
-      parallel_backend = parallel_backend,
-      cl = cl,
+      opt_parallel = opt_parallel,
       rm_temp = deleteTmpSQLFiles,
       continueAfterAbort = continueAfterAbort,
       dir_temp = dir.out.temp,
@@ -442,7 +438,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
 #' Units are [degree Celsius] for temperature and [cm / day] and for precipitation.
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir_data,
   site_ids, coords_WGS84, start_year, end_year,
-  dir_temp = tempdir(), dbW_compression_type = "gzip", do_parallel = FALSE, ncores = 1L) {
+  dir_temp = tempdir(), dbW_compression_type = "gzip", opt_parallel) {
 
   print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
@@ -457,8 +453,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
   sp_locs <- sp::SpatialPoints(coords=coords_WGS84, proj4string=prj_geographicWGS84)
   sp_locs <- sp::spTransform(sp_locs, CRSobj=prj_geographicNAD83)
 
-  if (do_parallel)
-    raster::beginCluster(n = ncores, type = "SOCK")
+  if (opt_parallel[["do_parallel"]])
+    raster::beginCluster(n = opt_parallel[["ncores"]], type = "SOCK")
 
   #TODO: re-write for a more memory friendly approach
 
@@ -497,7 +493,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
     save(NRC_weather, iy, file=wtemp_file)
   }
   setwd(pwd)
-  if (do_parallel)
+  if (opt_parallel[["do_parallel"]])
     raster::endCluster()
 
 
@@ -541,7 +537,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
                 cfsr_so,
                 yearLow, yearHigh, dir.in.cfsr, dir_temp,
                 n_site_per_core = 100,
-                do_parallel = FALSE, parallel_backend = "cluster", cl = NULL,
+                opt_parallel,
                 rm_mc_files = FALSE, continueAfterAbort = FALSE) {
 
 #str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
@@ -606,20 +602,20 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
     setwd(dir.in.cfsr)
 
     # set up parallel
-    if (do_parallel) {
+    if (opt_parallel[["do_parallel"]]) {
       obj2exp <- gather_objects_for_export(
         varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr"),
         list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
-      if (identical(parallel_backend, "mpi")) {
+      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
         export_objects_to_workers(obj2exp, "mpi")
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
         Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
 
-      } else if (identical(parallel_backend, "cluster")) {
-        export_objects_to_workers(obj2exp, "cluster", cl)
-        parallel::clusterEvalQ(cl, load_NCEPCFSR_shlib(cfsr_so))
-        parallel::clusterEvalQ(cl, setwd(dir.in.cfsr))
+      } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
+        parallel::clusterEvalQ(opt_parallel[["cl"]], load_NCEPCFSR_shlib(cfsr_so))
+        parallel::clusterEvalQ(opt_parallel[["cl"]], setwd(dir.in.cfsr))
       }
     }
 
@@ -637,11 +633,11 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
       lats <- dat_sites_todo[irows, "Y_WGS84"]
       dtemp <- dir_temp.sitesC[irows]
 
-#      if (print.debug)
+#      if (opt_verbosity[["print.debug"]])
 #        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command="lsof", args="-c R | wc -l", stdout=TRUE)))
 
-      if (do_parallel) {
-        if (identical(parallel_backend, "mpi")) {
+      if (opt_parallel[["do_parallel"]]) {
+        if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
           if (daily) {
             nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
               FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
@@ -661,23 +657,23 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
               FUN = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
 
-        } else if (identical(parallel_backend, "cluster")) {
+        } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
           if (daily) {
-            nDailyReads <- parallel::clusterApplyLB(cl, x = seq_len(nrow(do_daily)),
+            nDailyReads <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = seq_len(nrow(do_daily)),
               fun = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
               latitudes = lats, longitudes = longs)
 
-            nDailyWrites <- parallel::clusterApplyLB(cl, x = years, fun = writeDailyWeatherData,
+            nDailyWrites <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = years, fun = writeDailyWeatherData,
               nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
               siteDirsC = dtemp)
           }
           if (monthly) {
-            nMonthlyReads <- parallel::clusterApplyLB(cl, x = 0L:(n_climvars - 1L),
+            nMonthlyReads <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = 0L:(n_climvars - 1L),
               fun = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
               longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- parallel::clusterApplyLB(cl, x = seq_len(n_sites_all),
+            nMonthlyWrites <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = seq_len(n_sites_all),
               fun = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
         }
@@ -720,14 +716,14 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
     }
 
     # clean up parallel
-    if (do_parallel) {
-      if (identical(parallel_backend, "mpi")) {
+    if (opt_parallel[["do_parallel"]]) {
+      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
         Rmpi::mpi.bcast.cmd(rm(list = ls()))
         Rmpi::mpi.bcast.cmd(gc())
       }
-      if (identical(parallel_backend, "cluster")) {
-        parallel::clusterEvalQ(cl, rm(list = ls()))
-        parallel::clusterEvalQ(cl, gc())
+      if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+        parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
+        parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
       }
     }
 
@@ -761,7 +757,7 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
 
 
 GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, dat_sites, start_year, end_year,
-  meta_cfsr, n_site_per_core = 100, do_parallel = FALSE, parallel_backend = "cluster", cl = NULL,
+  meta_cfsr, n_site_per_core = 100, opt_parallel,
   rm_temp = TRUE, continueAfterAbort = FALSE, dir_temp = tempdir(),
   dbW_compression_type = "gzip") {
 
@@ -776,8 +772,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
     dir.in.cfsr = meta_cfsr$dir.in.cfsr,
     dir_temp = dir_temp,
     n_site_per_core = n_site_per_core,
-    do_parallel = do_parallel,
-    parallel_backend = parallel_backend, cl = cl,
+    opt_parallel = opt_parallel,
     rm_mc_files = TRUE,
     continueAfterAbort = continueAfterAbort)
 

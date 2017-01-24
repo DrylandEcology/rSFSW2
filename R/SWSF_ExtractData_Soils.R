@@ -280,8 +280,9 @@ ISRICWISE12_extract_SUIDs <- compiler::cmpfun(function(i, res = c(0, 0), grid, s
         method = "block"))
 
   if (inherits(out, "try-error")) {
-    if (print.debug) print(out)
+    print(out)
     list(i = i, SUIDs_N = -1, SUID = NULL, fraction = NULL)
+
   } else {
     list(i = i, SUIDs_N = out[[1]][["N"]][[1]],
           SUID = out[[1]][["values"]][[1]],
@@ -393,7 +394,7 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, si
 #'  6997 = Water, 6694 = Rock, or 6998 = Glacier)}
 do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sites,
   sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
-  fpreprocin, do_parallel, parallel_backend, cl, continueAfterAbort, verbose) {
+  fpreprocin, opt_parallel, continueAfterAbort, verbose) {
 
   if (verbose)
     print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
@@ -438,15 +439,15 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
       cell_res_wise <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
         sp = run_sites_wise, crs_sp = crs_sites, crs_to = raster::crs(grid_wise))
 
-      if (do_parallel) {
+      if (opt_parallel[["do_parallel"]]) {
         #objects that need exporting to slaves
         list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise",
-          "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
+          "reaggregate_raster", "extract_blocks", "add_weights")
         obj2exp <- gather_objects_for_export(varlist = list.export,
           list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
         #call the simulations depending on parallel backend
-        if (identical(parallel_backend, "mpi")) {
+        if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
           export_objects_to_workers(obj2exp, "mpi")
           Rmpi::mpi.bcast.cmd(library(raster, quietly = TRUE))
 
@@ -457,16 +458,16 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
           Rmpi::mpi.bcast.cmd(rm(list=ls()))
           Rmpi::mpi.bcast.cmd(gc())
 
-        } else if (identical(parallel_backend, "cluster")) {
-          export_objects_to_workers(obj2exp, "cluster", cl)
-          parallel::clusterEvalQ(cl, library(raster, quietly = TRUE))
+        } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+          export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
+          parallel::clusterEvalQ(opt_parallel[["cl"]], library(raster, quietly = TRUE))
 
-          sim_cells_SUIDs <- parallel::clusterApplyLB(cl, x = is_ToDo,
+          sim_cells_SUIDs <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
             fun = ISRICWISE12_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise)
 
-          parallel::clusterEvalQ(cl, rm(list=ls()))
-          parallel::clusterEvalQ(cl, gc())
+          parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list=ls()))
+          parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
 
         } else {
           sim_cells_SUIDs <- NULL
@@ -488,7 +489,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
     template_simulationSoils[] <- NA
     template_simulationSoils["depth"] <- 0
 
-    if (do_parallel) {
+    if (opt_parallel[["do_parallel"]]) {
       list.export <- c("sim_cells_SUIDs", "dat_wise", "ldepth_WISEv12", "layer_N",
         "layer_Nsim", "template_simulationSoils",
         "ISRICWISE12_get_prids", "ISRICWISE12_get_SoilDatValuesForLayer",
@@ -498,7 +499,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
         list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
       #call the simulations depending on parallel backend
-      if (identical(parallel_backend, "mpi")) {
+      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
         export_objects_to_workers(obj2exp, "mpi")
 
         ws <- Rmpi::mpi.applyLB(X = is_ToDo,
@@ -511,18 +512,18 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
         Rmpi::mpi.bcast.cmd(rm(list=ls()))
         Rmpi::mpi.bcast.cmd(gc())
 
-      } else if (identical(parallel_backend, "cluster")) {
-        export_objects_to_workers(obj2exp, "cluster", cl)
+      } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
-        ws <- parallel::clusterApplyLB(cl, x = is_ToDo,
+        ws <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
           fun = ISRICWISE12_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISEv12,
           dat_wise = dat_wise, nvars = MMC[["nvars"]])
 
-        parallel::clusterEvalQ(cl, rm(list=ls()))
-        parallel::clusterEvalQ(cl, gc())
+        parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list=ls()))
+        parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
       }
 
     } else {
@@ -612,8 +613,8 @@ update_soils_sources <- function(MMC, SWRunInformation, runIDs_sites,
 ExtractData_Soils <- function(SWRunInformation, runsN_master, runsN_sites,
   runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
   extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-  dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, be.quiet,
-  do_parallel, parallel_backend, cl) {
+  dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, verbose,
+  opt_parallel) {
 
   MMC <- prepare_ExtractData_Soils(SWRunInformation, runsN_sites, runIDs_sites,
     extract_determine_database, sw_input_soillayers, sw_input_soils_use, sw_input_soils)
@@ -621,14 +622,13 @@ ExtractData_Soils <- function(SWRunInformation, runsN_master, runsN_sites,
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
     MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, run_sites, runIDs_sites,
       sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
-      fpreprocin, continueAfterAbort, verbose = !be.quiet)
+      fpreprocin, continueAfterAbort, verbose = verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
     MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC, run_sites, runIDs_sites,
       sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
-      fpreprocin, do_parallel, parallel_backend, cl,
-      continueAfterAbort, verbose)
+      fpreprocin, opt_parallel, continueAfterAbort, verbose)
   }
 
   temp <- update_soils_sources(MMC, SWRunInformation, runIDs_sites, runsN_master,

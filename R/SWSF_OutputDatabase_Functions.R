@@ -549,7 +549,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 
 
 move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
-  name.OutputDBCurrent = NULL, t.overall = Sys.time(), opt_comp_time = NULL,
+  name.OutputDBCurrent = NULL, t.overall = Sys.time(), opt_job_time = NULL,
   do_DBCurrent = FALSE, cleanDB = FALSE, deleteTmpSQLFiles = FALSE, continueAfterAbort = TRUE,
   print.debug = FALSE, verbose = FALSE) {
 
@@ -604,7 +604,7 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
     for (j in seq_along(theFileList)) {
       tDB1 <- Sys.time()
       has_time_to_concat <- (difftime(tDB1, t.overall, units = "secs") +
-        opt_comp_time[["one_concat_s"]]) < opt_comp_time[["wall_time_s"]]
+        opt_job_time[["one_concat_s"]]) < opt_job_time[["wall_time_s"]]
       if (!has_time_to_concat)
         break
 
@@ -843,20 +843,20 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
 
 
 check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NULL,
-  update_workDB = FALSE, do_DBcurrent = FALSE, do_parallel = FALSE,
-  parallel_backend = NULL, cl = NULL, dir.out = getwd(), swsf_env = NULL) {
+  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir.out = getwd(),
+  swsf_env = NULL) {
 
   Tables <- dbOutput_ListOutputTables(dbname = name.OutputDB)
 
   missing_Pids <- missing_Pids_current <- NULL
 
-  if (do_parallel) {
+  if (opt_parallel[["do_parallel"]]) {
 
     obj2exp <- gather_objects_for_export(varlist = ls(envir = swsf_env),
       list_envs = list(rSWSF = swsf_env))
 
     #call the simulations depending on parallel backend
-    if (identical(parallel_backend, "mpi")) {
+    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
       Rmpi::mpi.bcast.cmd(require(RSQLite, quietly = TRUE))
       export_objects_to_workers(obj2exp, "mpi")
 
@@ -871,20 +871,20 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
-    } else if(identical(parallel_backend, "cluster")) {
-      parallel::clusterEvalQ(cl, require(RSQLite, quietly = TRUE))
-      export_objects_to_workers(obj2exp, "cluster", cl)
+    } else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
+      parallel::clusterEvalQ(opt_parallel[["cl"]], require(RSQLite, quietly = TRUE))
+      export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
-      missing_Pids <- parallel::clusterApplyLB(cl, x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
         dbname = name.OutputDB)
 
       if (do_DBcurrent) {
-        missing_Pids_current <- parallel::clusterApplyLB(cl, x = Tables,
+        missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
           fun = missing_Pids_outputDB, dbname = name.OutputDBCurrent)
       }
 
-      parallel::clusterEvalQ(cl, rm(list = ls()))
-      parallel::clusterEvalQ(cl, gc())
+      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
     }
 
   } else {

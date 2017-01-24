@@ -81,7 +81,7 @@
 			}
 		}
 
-		if(!(TableTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) | !do_parallel | !identical(parallel_backend,"mpi")) {#figure need at least 3 hours for big ones
+		if(!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !opt_parallel[["do_parallel"]] | !identical(opt_parallel[["parallel_backend"]],"mpi")) {#figure need at least 3 hours for big ones
 			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
 
@@ -95,7 +95,7 @@
 				EnsembleTimeStop <- Sys.time() - t.overall
 				units(EnsembleTimeStop) <- "secs"
 				EnsembleTimeStop <- as.double(EnsembleTimeStop)
-				if((EnsembleTimeStop > (opt_comp_time[["wall_time_s"]]-1*60)) & do_parallel & identical(parallel_backend,"mpi")) {#figure need at least 4 hours for a ensemble
+				if((EnsembleTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) & opt_parallel[["do_parallel"]] & identical(opt_parallel[["parallel_backend"]],"mpi")) {#figure need at least 4 hours for a ensemble
 					break
 				}
 				print(paste("Table: ",Table,", Ensemble: ",ensemble.families[j]," started at ",EnsembleTime <- Sys.time(),sep=""))

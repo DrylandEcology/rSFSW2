@@ -2,10 +2,6 @@
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
-#' @param parallel_backend A character vector, either 'mpi' or 'cluster'
-#' @param cl A parallel (socket) cluster object
-#'
-#' @return A logical value. \code{TRUE} if every object was exported successfully.
 gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
   #---Determine environments
   obj_env <- new.env(parent = emptyenv())
@@ -37,6 +33,10 @@ do_import_objects <- compiler::cmpfun(function(obj_env) {
 })
 
 
+#' @param parallel_backend A character vector, either 'mpi' or 'cluster'
+#' @param cl A parallel (socket) cluster object
+#'
+#' @return A logical value. \code{TRUE} if every object was exported successfully.
 export_objects_to_workers <- compiler::cmpfun(function(obj_env,
   parallel_backend = c("mpi", "cluster"), cl = NULL) {
 
@@ -147,8 +147,10 @@ mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
 })
 
 
-clean_parallel_workers <- function(parallel_backend, cl = NULL, verbose = FALSE) {
+clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL,
+  verbose = FALSE) {
 
+  parallel_backend <- match.arg(parallel_backend)
   if (verbose) {
     print(paste0("SWSF: started to clean parallel ", parallel_backend,
       "-workers at ", Sys.time()))
@@ -175,4 +177,66 @@ clean_parallel_workers <- function(parallel_backend, cl = NULL, verbose = FALSE)
   }
 
   invisible(TRUE)
+}
+
+
+setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
+
+  opt_parallel <- c(opt_parallel, list(workersN = 1, worker_tag = ".worker_id",
+    do_parallel = FALSE, cl = NULL, lockfile = NULL))
+
+  if (opt_parallel[["parallel_runs"]]) {
+    if (opt_verbosity[["verbose"]])
+      print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+
+    opt_parallel[["lockfile"]] <- tempfile(pattern = "swsflock",
+      tmpdir = normalizePath(tempdir()))
+
+    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      if (!require("Rmpi", quietly = TRUE)) {
+        print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
+          shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
+          shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
+        print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
+          "the error message: 'Cannot find mpi.h header file'"))
+      }
+
+      Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
+
+      mpi_last <- function(x) { #Properly end mpi slaves before quitting R (e.g., at a crash)
+        # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+        if (is.loaded("mpi_initialize")) {
+          if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
+            Rmpi::mpi.close.Rslaves()
+          .Call("mpi_finalize")
+        }
+      }
+      reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)
+
+    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+      opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
+        outfile = if (opt_verbosity[["verbose"]]) "" else {
+        file.path(dir_out, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
+
+      # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
+      parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
+        function(x) assign(opt_parallel[["worker_tag"]], x, envir = globalenv()))
+      #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
+    }
+
+    opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+        Rmpi::mpi.comm.size() - 1
+      } else {
+        opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
+      }
+
+    opt_parallel[["do_parallel"]] <- TRUE
+
+    if (opt_verbosity[["verbose"]])
+      print(paste("SWSF prepares parallelization: initialization of",
+        opt_parallel[["workersN"]], "workers ended after",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+  }
+
+  opt_parallel
 }

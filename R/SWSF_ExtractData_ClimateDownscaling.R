@@ -1985,7 +1985,9 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
 #' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 #'
 #' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears, assocYears, cl = NULL) {
+tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF,
+  is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
+  locations, getYears, assocYears, opt_parallel) {
   #requests is_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2161,8 +2163,8 @@ climscen_determine_sources <- function(extract_determine_database = c("SWRunInfo
 get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX,
   do_SWRun_sites, include_YN_climscen, climDB_meta, opt_DS, simstartyr, endyr,
   DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, climate.ambient, dir.out.temp, verbose = FALSE,
-  print.debug = FALSE, cl = NULL) {
+  dbW_iScenarioTable, dbW_compression_type, climate.ambient, dir.out.temp, opt_parallel,
+  verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2343,7 +2345,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 
     out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
       clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-      reqDownscalingsPerGCM, locations, getYears, assocYears, cl)
+      reqDownscalingsPerGCM, locations, getYears, assocYears, opt_parallel)
 
     i_Done <- sort(unique(c(i_Done, out)))
     saveRDS(i_Done, file = logFile)
@@ -2381,8 +2383,8 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
   simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile,
   climate.ambient, climate.conditions, runsN_master, runsN_sites, runIDs_sites,
-  SWRunInformation, fmaster, fpreprocin, dir.out.temp, verbose = FALSE,
-  print.debug = FALSE, cl = NULL) {
+  SWRunInformation, fmaster, fpreprocin, dir.out.temp, opt_parallel, verbose = FALSE,
+  print.debug = FALSE) {
 
   Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
   dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
@@ -2424,7 +2426,7 @@ ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
         do_SWRun_sites, include_YN_climscen, climDB_meta = climDB_metas[[ics]],
         opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
         dbWeatherDataFile, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-        climate.ambient, dir.out.temp, verbose, print.debug, cl)
+        climate.ambient, dir.out.temp, opt_parallel, verbose, print.debug)
   }
 
   SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen

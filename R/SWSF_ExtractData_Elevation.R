@@ -113,7 +113,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
       i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
       MMC[["source"]][i_Done] <- "Elevation_NED_USA"
-      if (!be.quiet)
+      if (verbose)
         print(paste("'ExtractElevation_NED_USA' was extracted for n =", sum(i_good),
           "out of", n_extract, "sites"))
     }
@@ -212,7 +212,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
       MMC[["source"]][i_Done] <- "Elevation_HWSD_Global"
-      if (!be.quiet)
+      if (verbose)
         print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good),
           "out of", n_extract, "sites"))
     }
@@ -262,7 +262,7 @@ update_Elevation_sources <- function(MMC, runIDs_sites, runsN_master, fmaster, f
 #' @export
 ExtractData_Elevation <- function(SWRunInformation, runsN_master, runsN_sites,
   runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
-  sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, be.quiet) {
+  sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, verbose) {
 
   MMC <- prepare_ExtractData_Elevation(SWRunInformation, runsN_sites, runIDs_sites,
     extract_determine_database, sim_cells_or_points)
@@ -270,13 +270,13 @@ ExtractData_Elevation <- function(SWRunInformation, runsN_master, runsN_sites,
   if (exinfo$ExtractElevation_NED_USA) {
     MMC <- do_ExtractElevation_NED_USA(MMC, run_sites, runIDs_sites,
       sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
-      continueAfterAbort, verbose = !be.quiet)
+      continueAfterAbort, verbose = verbose)
   }
 
   if (exinfo$ExtractElevation_HWSD_Global) {
     MMC <- do_ExtractElevation_HWSD_Global(MMC, run_sites, runIDs_sites,
       sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
-      continueAfterAbort, verbose = !be.quiet)
+      continueAfterAbort, verbose = verbose)
   }
 
   # returns 'SWRunInformation'
