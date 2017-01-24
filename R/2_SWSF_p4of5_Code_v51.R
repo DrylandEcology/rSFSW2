@@ -863,7 +863,7 @@ if (check.blas)
 # run the simulation experiment
 if (actionWithSoilWat && runsN_todo > 0) {
   swof <- sw_out_flags()
-  swDataFromFiles <- read_SoilWat_FileDefaults(dir.sw.in, swFilesIn)
+  swDataFromFiles <- read_SoilWat_FileDefaults(dir.sw.in)
   args_do_OneSite <- gather_args_do_OneSite()
 
   runs.completed <- run_simulation_experiment(rSWSF, runIDs_todo, use_rcpp,

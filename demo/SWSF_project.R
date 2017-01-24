@@ -57,9 +57,6 @@ opt_job_time <- list(
   one_concat_s = 60 # time needed to process one temporary SQL file
 )
 
-#------Repository in case installation of additional R packages is required
-url.Rrepos <- "https://cran.us.r-project.org"
-
 #--------------------------------------------------------------------------------------------------#
 #------------------------USER INPUT
 
@@ -83,7 +80,7 @@ dir.ex.dem <- file.path(dir.external,"Topography")
 #paths to sub-folder hierarchy
 dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
 dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add information to SoilWat input files
-dir.sw.in <- file.path(dir.in, "swrun")	#folder with complete SoilWat run setup (without yearly weather files, cloudin is in 'Input' folder and not in weather-folder: needs to be moved appropiately)
+dir.sw.in <- file.path(dir.in, "swrun")	#folder with default SoilWat run setup
 dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
 dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
 dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
@@ -487,9 +484,6 @@ opt_NRCS_SMTRs <- list(
   SWP_sat = -0.033,     #saturated means SWP above -0.033 MPa
   impermeability = 0.9  #impermeable layer
 )
-
-#------SoilWat files
-swFilesIn <- "files_v30.in"
 
 ##############################################################################
 ########################Source of the code base###############################

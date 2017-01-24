@@ -282,7 +282,14 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
   invisible(TRUE)
 }
 
-read_SoilWat_FileDefaults <- function(dir.sw.in, swFilesIn) {
+read_SoilWat_FileDefaults <- function(dir.sw.in, swFiles_tag = "file") {
+  temp <- list.files(dir.sw.in)
+  swFilesIn <- grep(swFiles_tag, temp, value = TRUE)[1]
+
+  if (length(swFilesIn) == 0 || is.na(swFilesIn))
+    stop("'read_SoilWat_FileDefaults': cannot find SOILWAT's overview file ",
+      shQuote(swFiles_tag), " in folder ", shQuote(dir.sw.in))
+
   # 'swDataFromFiles' acts as the basis for all runs
   swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir.sw.in, files.in = swFilesIn)
   # we don't need the example weather data; the code will get weather data separately
