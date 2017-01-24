@@ -1854,7 +1854,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           Tree_HydRed_OnOff, Forb_HydRed_OnOff))[use_it]
         temp1 <- !is.finite(temp)
         if (any(temp1)) {
-          print(paste("ERROR: flag(s) for hydraulic redistribution",
+          print(paste("ERROR: flag(s) for hydraulic redistribution", paste(
             shQuote(names(use_it)[use_it][temp1]), collapse = "-"),
             "contain(s) unsuitable values"))
           tasks$create <- 0L
@@ -1869,7 +1869,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           Forbs = Forb_SWPcrit_MPa))[use_it]
         temp1 <- !is.finite(temp)
         if (any(temp1)) {
-          print(paste("ERROR: column(s) of critical SWP",
+          print(paste("ERROR: column(s) of critical SWP", paste(
             shQuote(names(use_it)[use_it][temp1]), collapse = "-"),
             "contain(s) unsuitable values"))
           tasks$create <- 0L
