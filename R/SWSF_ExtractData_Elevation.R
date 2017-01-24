@@ -46,7 +46,7 @@ update_elevation_input <- function(MMC, runIDs_sites, digits = 0, fmaster, fprep
 
 #' @references
 do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
+  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_dem, fmaster, fpreprocin,
   continueAfterAbort, verbose) {
 
   stopifnot(require(raster), require(sp), require(rgdal))
@@ -69,7 +69,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
       print(paste("'ExtractElevation_NED_USA' will be extracted for n =",
       n_extract, "sites"))
 
-    dir.ex.ned <- file.path(dir.ex.dem, 'NED_USA', "NED_1arcsec")
+    dir.ex.ned <- file.path(dir_ex_dem, 'NED_USA', "NED_1arcsec")
 
     #read raster data
     g.elev <- raster::raster(file.path(dir.ex.ned, "ned_1s_westernUS_GeogrNAD83.tif"))
@@ -143,7 +143,7 @@ do_ExtractElevation_NED_USA <- function(MMC, run_sites, runIDs_sites,
 
 #' @references
 do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
+  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_dem, fmaster, fpreprocin,
   continueAfterAbort, verbose) {
 
   if (verbose)
@@ -166,7 +166,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, run_sites, runIDs_sites,
       print(paste("'ExtractElevation_HWSD_Global' will be extracted for n =",
         n_extract, "sites"))
 
-    dir.ex.hwsd <- file.path(dir.ex.dem, "HWSD")
+    dir.ex.hwsd <- file.path(dir_ex_dem, "HWSD")
 
     #read raster data
     g.elev <- raster(file.path(dir.ex.hwsd, "GloElev_30as.asc"))
@@ -238,7 +238,7 @@ update_Elevation_sources <- function(MMC, runIDs_sites, runsN_master, fmaster, f
   notDone <- NULL
 
   if (any(MMC[["idone"]])) {
-    #write data to datafile.SWRunInformation
+    #write data to disk
     MMC[["input"]]$Elevation_source[runIDs_sites] <- as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
@@ -262,20 +262,20 @@ update_Elevation_sources <- function(MMC, runIDs_sites, runsN_master, fmaster, f
 #' @export
 ExtractData_Elevation <- function(SWRunInformation, runsN_master, runsN_sites,
   runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
-  sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, verbose) {
+  sim_crs, crs_sites, dir_ex_dem, fmaster, fpreprocin, continueAfterAbort, verbose) {
 
   MMC <- prepare_ExtractData_Elevation(SWRunInformation, runsN_sites, runIDs_sites,
     extract_determine_database, sim_cells_or_points)
 
   if (exinfo$ExtractElevation_NED_USA) {
     MMC <- do_ExtractElevation_NED_USA(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
+      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_dem, fmaster, fpreprocin,
       continueAfterAbort, verbose = verbose)
   }
 
   if (exinfo$ExtractElevation_HWSD_Global) {
     MMC <- do_ExtractElevation_HWSD_Global(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin,
+      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_dem, fmaster, fpreprocin,
       continueAfterAbort, verbose = verbose)
   }
 

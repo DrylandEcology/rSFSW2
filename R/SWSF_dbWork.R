@@ -216,16 +216,16 @@ dbWork_check <- compiler::cmpfun(function(path, runIDs) {
 #' Re-create dbWork based on dbOutput
 #'
 #' @inheritParams create_dbWork
-#' @param name.OutputDB
+#' @param dbOutput
 #' @return A logical vector indicating success.
-recreate_dbWork <- function(path, name.OutputDB) {
-  if (file.exists(name.OutputDB)) {
+recreate_dbWork <- function(path, dbOutput) {
+  if (file.exists(dbOutput)) {
     dbWork <- file.path(path, "dbWork.sqlite3")
 
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB, flags = RSQLite::SQLITE_RO)
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
 
     if (!all(sapply(c("runs", "sites"), function(x) DBI::dbExistsTable(con, x)))) {
-      stop("'recreate_dbWork': OutputDB ", shQuote(name.OutputDB), " has ",
+      stop("'recreate_dbWork': OutputDB ", shQuote(dbOutput), " has ",
         "incomplete structure; dbWork cannot be recreated from it.")
     }
 
@@ -279,7 +279,7 @@ recreate_dbWork <- function(path, name.OutputDB) {
     }
 
     # Update completed
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB, flags = RSQLite::SQLITE_RO)
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
     tables <- dbOutput_ListOutputTables(con)
     # get Pids for which simulation output is in the outputDB
     has_pids <- lapply(tables, function(x) RSQLite::dbGetQuery(con,
@@ -298,7 +298,7 @@ recreate_dbWork <- function(path, name.OutputDB) {
     }
 
   } else {
-    stop("OutputDB ", shQuote(name.OutputDB), " not found on disk.")
+    stop("OutputDB ", shQuote(dbOutput), " not found on disk.")
   }
 }
 

@@ -83,9 +83,8 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
     }
 
     if (has_changed) {
-      #write data to datafile.soillayers
+      #write data to disk
       write.csv(sw_input_soillayers, file = fslayers, row.names = FALSE)
-      #write data to datafile.soils
       write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
         file = fsoils, row.names = FALSE)
       unlink(fpreprocin)
@@ -191,7 +190,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
 
     stopifnot(!is.na(sw_input_soils[runIDs_adjust, icols_bsE_used]))
 
-    #write data to datafile.soils
+    #write data to disk
     write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
       file = fsoils, row.names = FALSE)
     unlink(fpreprocin)

@@ -1,10 +1,8 @@
 #------------------------DAILY WEATHER
 
 make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
-    climate.conditions, dir.sw.in.tr, dir.out.temp,
-    chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    opt_parallel, dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL,
-    prepd_CFSR = NULL, verbose = FALSE) {
+    climate.conditions, project_paths, opt_chunks, continueAfterAbort, deleteTmpSQLFiles,
+    dbW_compression_type, opt_parallel, prepd_CFSR = NULL, verbose = FALSE) {
 
   stopifnot(requireNamespace("Rsoilwat31"))
   dw_source <- SWRunInformation[runIDs_sites, "dailyweather_source"]
@@ -46,13 +44,13 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
       if (dw_source[i_idss] == "LookupWeatherFolder") {
         weatherData <- ExtractLookupWeatherFolder(dir.weather =
-          file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+          file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
           weatherfoldername = SWRunInformation$WeatherFolder[i_site])
 
       } else if (dw_source[i_idss] == "Maurer2002_NorthAmerica") {
         weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-          dir_data = dir.ex.maurer2002, cellname = Maurer[i], startYear = simstartyr,
-          endYear = endyr)
+          dir_data = project_paths[["dir_maurer2002"]], cellname = Maurer[i],
+          startYear = simstartyr, endYear = endyr)
 
       } else {
         stop(paste(dw_source[i_idss], "not implemented"))
@@ -79,13 +77,13 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-      dir_data = dir.ex.daymet,
+      dir_data = project_paths[["dir.ex.daymet"]],
       site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
       coords_WGS84 = SWRunInformation[ids_DayMet_extraction,
         c("X_WGS84", "Y_WGS84"), drop = FALSE],
       start_year = simstartyr,
       end_year = endyr,
-      dir_temp = dir.out.temp,
+      dir_temp = project_paths[["dir_out_temp"]],
       dbW_compression_type = dbW_compression_type)
   }
 
@@ -94,13 +92,13 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
   if (length(ids_NRCan_extraction) > 0) {
     ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
-      dir_data = dir.ex.NRCan,
+      dir_data = project_paths[["dir.ex.NRCan"]],
       site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
       coords_WGS84 = SWRunInformation[ids_NRCan_extraction,
         c("X_WGS84", "Y_WGS84"), drop = FALSE],
       start_year = simstartyr,
       end_year = endyr,
-      dir_temp = dir.out.temp,
+      dir_temp = project_paths[["dir_out_temp"]],
       dbW_compression_type = dbW_compression_type,
       opt_parallel)
   }
@@ -115,11 +113,11 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       start_year = simstartyr,
       end_year = endyr,
       meta_cfsr = prepd_CFSR,
-      n_site_per_core = chunk_size.options[["DailyWeatherFromNCEPCFSR_Global"]],
+      n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel,
       rm_temp = deleteTmpSQLFiles,
       continueAfterAbort = continueAfterAbort,
-      dir_temp = dir.out.temp,
+      dir_temp = project_paths[["dir_out_temp"]],
       dbW_compression_type = dbW_compression_type)
   }
 
@@ -133,9 +131,9 @@ load_NCEPCFSR_shlib <- compiler::cmpfun(function(cfsr_so){
   invisible(0)
 })
 
-prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir.big, dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
-  dir.create(dir.in.cfsr <- file.path(dir.big, "ncepcfsr"), showWarnings=FALSE)
-  fname_cfsr <- file.path(dir.in.cfsr, "cfsr_convert.so")
+prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir_in, dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
+  dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings=FALSE)
+  fname_cfsr <- file.path(dir_ex_cfsr, "cfsr_convert.so")
 
   .local <- function(){
     #Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
@@ -150,7 +148,7 @@ prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir.big, dir.cfsr.data,
     load_NCEPCFSR_shlib(fname_cfsr)
 
     #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
-    if(!file.exists(wgrib2 <- file.path(dir.in.cfsr, "wgrib2"))){
+    if(!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))){
       temp2 <- if(nchar(temp <- Sys.which("wgrib2")) > 0) temp else if(file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
       stopifnot(nchar(temp2) > 0)
       file.copy(from=temp2, to=wgrib2)
@@ -158,20 +156,20 @@ prepare_NCEPCFSR_extraction <- compiler::cmpfun(function(dir.big, dir.cfsr.data,
 
     #Soft link to gribbed data
     fname_gribDir <- "griblargeC2"
-    dir.grib <- file.path(dir.in.cfsr, fname_gribDir)
+    dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
     if(!file.exists(dir.grib)){ # value of gribDir defined in cfsr_convert.c
       stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
     }
 
     #Set up temporary directory for C code to store objects
-    if(file.exists(ftemp <- file.path(dir.in.cfsr, "temporary_dy"))) unlink(ftemp, recursive=TRUE)
+    if(file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) unlink(ftemp, recursive=TRUE)
     temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN=function(x) file.path(ftemp, x)), FUN=function(x) dir.create(x, recursive=TRUE, showWarnings=FALSE))
 
     0L
   }
 
   temp <- .local()
-  res <- if(!inherits(temp, "try-error")) list(dir.in.cfsr=dir.in.cfsr, cfsr_so=fname_cfsr)  else temp
+  res <- if(!inherits(temp, "try-error")) list(dir_ex_cfsr=dir_ex_cfsr, cfsr_so=fname_cfsr)  else temp
 
   res
 })
@@ -535,7 +533,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
 
 get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly = FALSE,
                 cfsr_so,
-                yearLow, yearHigh, dir.in.cfsr, dir_temp,
+                yearLow, yearHigh, dir_ex_cfsr, dir_temp,
                 n_site_per_core = 100,
                 opt_parallel,
                 rm_mc_files = FALSE, continueAfterAbort = FALSE) {
@@ -599,23 +597,23 @@ get_NCEPCFSR_data <- compiler::cmpfun(function(dat_sites, daily = FALSE, monthly
     do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = st_mo, years = years)
 
     dtemp <- getwd()
-    setwd(dir.in.cfsr)
+    setwd(dir_ex_cfsr)
 
     # set up parallel
     if (opt_parallel[["do_parallel"]]) {
       obj2exp <- gather_objects_for_export(
-        varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir.in.cfsr"),
+        varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir_ex_cfsr"),
         list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
         export_objects_to_workers(obj2exp, "mpi")
         Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
-        Rmpi::mpi.bcast.cmd(setwd(dir.in.cfsr))
+        Rmpi::mpi.bcast.cmd(setwd(dir_ex_cfsr))
 
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
         export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
         parallel::clusterEvalQ(opt_parallel[["cl"]], load_NCEPCFSR_shlib(cfsr_so))
-        parallel::clusterEvalQ(opt_parallel[["cl"]], setwd(dir.in.cfsr))
+        parallel::clusterEvalQ(opt_parallel[["cl"]], setwd(dir_ex_cfsr))
       }
     }
 
@@ -769,7 +767,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
     daily = TRUE, monthly =  FALSE,
     cfsr_so = meta_cfsr$cfsr_so,
     yearLow = start_year, yearHigh = end_year,
-    dir.in.cfsr = meta_cfsr$dir.in.cfsr,
+    dir_ex_cfsr = meta_cfsr$dir_ex_cfsr,
     dir_temp = dir_temp,
     n_site_per_core = n_site_per_core,
     opt_parallel = opt_parallel,
@@ -797,7 +795,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
   if (rm_temp) {
     dir.remove(etemp$dir_temp_cfsr)
     temp <- lapply(c("ppt", "tmax", "tmin"), function(x)
-      dir.remove(file.path(meta_cfsr$dir.in.cfsr, "temporary_dy", x)))
+      dir.remove(file.path(meta_cfsr$dir_ex_cfsr, "temporary_dy", x)))
   }
 
   print(paste("Finished 'ExtractGriddedDailyWeatherFromNCEPCFSR_Global' at", Sys.time()))
@@ -975,15 +973,15 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, simstartyr
 dw_determine_sources <- function(dw_source, exinfo, dailyweather_options, create_treatments,
   runIDs_sites, SWRunInformation, sw_input_treatments_use, sw_input_treatments,
   sw_input_experimentals_use, sw_input_experimentals, simstartyr, endyr,
-  fmaster, fpreprocin, dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr, verbose = FALSE) {
+  fmaster, fpreprocin, project_paths, verbose = FALSE) {
 
   dw_names <- rep(NA, times = length(dw_source))
   dailyweather_options2 <- rev(dailyweather_options)
   fun_dw_source <- paste("dw", dailyweather_options2, sep = "_")
   path_dw_source <- list(
-    NRCan_10km_Canada = dir.ex.NRCan,
-    Maurer2002_NorthAmerica = dir.ex.maurer2002,
-    LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"))
+    NRCan_10km_Canada = project_paths[["dir.ex.NRCan"]],
+    Maurer2002_NorthAmerica = project_paths[["dir_maurer2002"]],
+    LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"))
   MoreArgs <- list(LookupWeatherFolder = list(
     create_treatments = create_treatments, runIDs_sites = runIDs_sites,
     ri_lwf = SWRunInformation[runIDs_sites, "WeatherFolder"],

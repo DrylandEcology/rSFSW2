@@ -4,7 +4,7 @@
 do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   i_sw_input_treatments, i_sw_input_cloud, i_sw_input_prod, i_sw_input_site,
   i_sw_input_soils, i_sw_input_weather, i_sw_input_climscen, i_sw_input_climscen_values,
-  SimParams, opt_parallel, opt_verbosity) {
+  SimParams, project_paths, output_names, opt_parallel, opt_verbosity) {
 
 #i_sim: a value of runIDs_total, i.e., index for each simulation run
 #i_xxx = the i_site-row of xxx for the i-th simulation run; if expN > 0 then these will eventually be repeated, and below replaced with experimental values
@@ -28,7 +28,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
   if (!has_time_to_simulate)
     stop("Not enough time to simulate ", i_sim)
 
-  dbWork_update_job(dir.out, i_sim, status = "inwork",
+  dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
     with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
 	flag.icounter <- formatC(i_sim, width=digitsN_total, format = "d", flag="0")
@@ -43,7 +43,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
       list2env(as.list(parent.frame()), envir = env_tosave)
       list2env(as.list(environment()), envir = env_tosave)
       save(list = ls(envir = env_tosave), envir = env_tosave,
-          file = file.path(dir.prj, paste0("last.dump.do_OneSite_", i_sim, ".RData")))
+        file = file.path(project_paths[["dir_prj"]], paste0("last.dump.do_OneSite_",
+        i_sim, ".RData")))
       options(op_prev)
     })
   }
@@ -86,7 +87,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 
 	#Prepare directory structure in case SoilWat input/output is requested to be stored on disk
   if (saveRsoilwatInput || saveRsoilwatOutput) {
-    temp <- file.path(dir.sw.runs, i_label)
+    temp <- file.path(project_paths[["dir_out_sw"]], i_label)
     dir.create2(temp, showWarnings = FALSE)
     f_sw_input <- file.path(temp, "sw_input.RData")
     f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(scenario_No), ".RData"))
@@ -169,19 +170,16 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 		grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), scenario_No) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
 		ClimatePerturbationsVals <- matrix(data=c(rep(1,12),rep(0,24)),nrow=scenario_No, ncol=12*3, byrow=TRUE) #, dimnames=list(NULL,paste(rep(paste("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), st_mo, rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 
-		#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir.sw.in
+		#------1. Step: Information for this SoilWat-run from prepared SoilWat-run stored in dir_in_sw
 		#Make a local copy of the swInput object do not want to destroy orignal
 		swRunScenariosData <- list()
 		swRunScenariosData[[1]] <- swDataFromFiles
-
-		#get folder and file names
-		dir.sw.runs.weather <- i_sw_input_treatments$LookupWeatherFolder
 
 		#adjust simulation years
 		Rsoilwat31::swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(simstartyr)
 		Rsoilwat31::swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(endyr)
 
-		#------2. Step: a) Information for this SoilWat-run from treatment SoilWat input files stored in dir.sw.in.tr
+		#------2. Step: a) Information for this SoilWat-run from treatment SoilWat input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
       print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
     if (any(create_treatments == "filesin"))
@@ -201,7 +199,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
     if (any(create_treatments == "cloudin"))
       Rsoilwat31::set_swCloud(swRunScenariosData[[1]]) <- tr_cloud[[i_sw_input_treatments$cloudin]]
 
-		#------2. Step: b) Information for this SoilWat-run from treatment chunks stored in dir.sw.in.tr
+		#------2. Step: b) Information for this SoilWat-run from treatment chunks stored in dir_in_treat
 		#Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
@@ -704,7 +702,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 				dirname.sw.runs.weather <- with(i_SWRunInformation,
 				  create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 				i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-				          dir_data = dir.ex.maurer2002,
+				          dir_data = project_paths[["dir_maurer2002"]],
 				          cellname = dirname.sw.runs.weather,
 									startYear = simstartyr,
 									endYear = endyr)
@@ -720,19 +718,19 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 			} else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {
         # Read weather data from folder
         i_sw_weatherList[[1]] <- try(getWeatherData_folders(
-          LookupWeatherFolder = file.path(dir.sw.in.tr, "LookupWeatherFolder"),
+          LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
           weatherDirName = local_weatherDirName(i_sim, runsN_master, scenario_No,
-            name.OutputDB), filebasename = filebasename, startYear = simstartyr,
+            output_names[["dbOutput"]]), filebasename = filebasename, startYear = simstartyr,
           endYear = endyr), silent = TRUE)
 			}
 
 		} else {
       #---Extract weather data
       weather_label_cur <- try(local_weatherDirName(i_sim, runsN_master, scenario_No,
-        name.OutputDB), silent = TRUE)
+        output_names[["dbOutput"]]), silent = TRUE)
 
       if (is.na(weather_label_cur))
-        weather_label_cur <- try({function() stop("Output DB ", basename(name.OutputDB),
+        weather_label_cur <- try({function() stop("Output DB ", basename(output_names[["dbOutput"]]),
           " has no information about weather data for run ", i_sim)}(), silent = TRUE)
 
       if (inherits(weather_label_cur, "try-error")) {
@@ -977,7 +975,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 				soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
 				#temporaly save data
 				#out.temp <- data.frame(i_sim, i_label, soilTUpper, soilTlower)
-				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_atLowerBoundary.csv", sep=""), quote=FALSE, row.names=FALSE)
+				#write.csv(out.temp, file=paste(project_paths[["dir_out_temp"]], .Platform$file.sep, flag.icounter, "_", "SoilTempC_atLowerBoundary.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
 			if (sw_input_site_use["SoilTempC_atUpperBoundary"]) {
 				soilTUpper <- if (exists("soilTUpper")) soilTUpper else i_sw_input_site$SoilTempC_atUpperBoundary
@@ -990,7 +988,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
 				#out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times=SoilLayer_MaxNo-length(init.soilTprofile)))))
-				#write.csv(out.temp, file=paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv", sep=""), quote=FALSE, row.names=FALSE)
+				#write.csv(out.temp, file=paste(project_paths[["dir_out_temp"]], .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv", sep=""), quote=FALSE, row.names=FALSE)
 			}
 
 			#adjust init soil temperatures to climatic conditions
@@ -1037,7 +1035,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 				BareGround_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction
 
 				#TODO: Include forbs or bareground in PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
-				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(dir.sw.runs, paste("Rsoilwat_composition_",i_sim,"_",sc,sep="")))
+				#save(SiteClimate_Ambient,SiteClimate_Scenario,MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,use_Annuals_Fraction, Annuals_Fraction,use_C4_Fraction, C4_Fraction,use_C3_Fraction, C3_Fraction,use_Shrubs_Fraction, Shrubs_Fraction,shrub.fraction.limit,file=file.path(project_paths[["dir_out_sw"]], paste("Rsoilwat_composition_",i_sim,"_",sc,sep="")))
 				temp <- try(PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
 						use_Annuals_Fraction, Annuals_Fraction,
 						use_C4_Fraction, C4_Fraction,
@@ -1358,7 +1356,8 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
 		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen_values[-1], collapse = ExpInput_Seperator), sep=ExpInput_Seperator))
 
-		infilename <- paste(dir.out.temp, .Platform$file.sep, flag.icounter, "_", "Experimental_InputData_All.csv", sep="")
+		infilename <- file.path(project_paths[["dir_out_expDesign"]],
+		  paste0(flag.icounter, "_", "Experimental_InputData_All.csv"))
 		infile <- file(infilename, "w+b")
 		writeLines(text = infiletext, con = infile, sep = "\n")
 		close(infile)
@@ -1427,8 +1426,9 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
         0L
       }
 
-		dbTempFile <- file.path(dir.out, "temp", paste0("SQL_Node_", fid, ".sql"))
-		dbTempFileCurrent <- file.path(dir.out, "temp",
+		dbTempFile <- file.path(project_paths[["dir_out_temp"]],
+		  paste0("SQL_Node_", fid, ".sql"))
+		dbTempFileCurrent <- file.path(project_paths[["dir_out_temp"]],
 		  paste0("SQL_Current_Node_", fid, ".sql"))
   }
 
@@ -4512,12 +4512,13 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
-  dbWork_update_job(dir.out, i_sim, status = if (status) "completed" else "failed",
-    time_s = delta.do_OneSite, with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+  dbWork_update_job(project_paths[["dir_out"]], i_sim,
+    status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
+    with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
   if (status) {
     #ETA estimation
-    times <- dbWork_timing(dir.out)
+    times <- dbWork_timing(project_paths[["dir_out"]])
 
     if (opt_verbosity[["verbose"]]) {
       n <- length(times) - 1
@@ -4557,7 +4558,7 @@ setFALSE_SeedlingSurvival_1stSeason <- get("setFALSE_SeedlingSurvival_1stSeason"
 run_simulation_experiment <- function(rSWSF, runIDs_todo, use_rcpp,
   SWRunInformation, sw_input_soillayers, sw_input_treatments, sw_input_cloud,
   sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
-  sw_input_climscen_values, MoreArgs, opt_parallel, opt_verbosity) {
+  sw_input_climscen_values, MoreArgs, project_paths, output_names, opt_parallel, opt_verbosity) {
 
   i_sites <- it_site(runIDs_todo, MoreArgs[["runsN_master"]])
 
@@ -4654,6 +4655,7 @@ tryCatch({
               i_sw_input_climscen = sw_input_climscen[i_site, ],
               i_sw_input_climscen_values = sw_input_climscen_values[i_site, ],
               SimParams = MoreArgs,
+              project_paths = project_paths, output_names = output_names,
               opt_parallel = opt_parallel,
               opt_verbosity = opt_verbosity)
 
@@ -4686,7 +4688,7 @@ tryCatch({
         } else if (tag == 4L) {
           #The slave had a problem with Soilwat record Slave number and the Run number.
           print("Problem with run:", complete, "on slave:", save_id, "at", Sys.time())
-          ftemp <- file.path(MoreArgs[["dir.out"]], "ProblemRuns.csv")
+          ftemp <- file.path(project_paths[["dir_out"]], "ProblemRuns.csv")
           if (!file.exists(ftemp))
             cat("Slave,Run", file = ftemp, sep = "\n")
           cat(paste(slave_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
@@ -4737,6 +4739,7 @@ if (use_rcpp) {
         i_sw_input_climscen = split(sw_input_climscen[temp_ids[, "i_site"], ], temp_seqs),
         i_sw_input_climscen_values = split(sw_input_climscen_values[temp_ids[, "i_site"], ], temp_seqs),
         MoreArgs = list(SimParams = MoreArgs),
+        project_paths = project_paths, output_names = output_names,
         opt_parallel = opt_parallel,
         opt_verbosity = opt_verbosity,
         RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
@@ -4766,6 +4769,7 @@ if (use_rcpp) {
         i_sw_input_climscen = sw_input_climscen[i_site, ],
         i_sw_input_climscen_values = sw_input_climscen_values[i_site, ],
         SimParams = MoreArgs,
+        project_paths = project_paths, output_names = output_names,
         opt_parallel = opt_parallel,
         opt_verbosity = opt_verbosity)
     })
@@ -4790,15 +4794,14 @@ gather_args_do_OneSite <- function() {
     "create_experimentals", "create_treatments", "daily_lyr_agg",
     "daily_no", "datafile.windspeedAtHeightAboveGround", "dbOverallColumns",
     "dbWeatherDataFile", "DegreeDayBase", "Depth_TopLayers",
-    "dir.code", "dir.ex.daymet", "dir.ex.maurer2002", "dir.out", "dir.out.temp",
-    "dir.prj", "dir.sw.in.tr", "dir.sw.runs", "dirname.sw.runs.weather",
+    "dirname.sw.runs.weather",
     "do_OneSite", "do.GetClimateMeans", "done_prior", "endyr",
     "establishment.delay", "establishment.duration", "establishment.swp.surface",
     "ExpInput_Seperator", "expN",
     "germination.duration", "germination.swp.surface",
     "getCurrentWeatherDataFromDatabase", "getScenarioWeatherDataFromDatabase",
     "growing.season.threshold.tempC", "increment_soiltemperature_deltaX_cm",
-    "makeInputForExperimentalDesign", "name.OutputDB", "no.species_regeneration",
+    "makeInputForExperimentalDesign", "no.species_regeneration",
     "opt_job_time", "opt_NRCS_SMTRs", "ouput_aggregated_ts", "output_aggregate_daily",
     "param.species_regeneration", "pcalcs",
     "runsN_master", "runsN_todo",

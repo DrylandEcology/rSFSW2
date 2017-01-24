@@ -57,7 +57,7 @@ update_soils_input <- function(MMC, runIDs_sites, digits = 2, i_Done, ldepths_cm
     }
   }
 
-  #write data to datafile.soils
+  #write data to disk
   write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]), file = fsoils,
     row.names = FALSE)
   unlink(fpreprocin)
@@ -85,7 +85,7 @@ adjust_soils_todos <- function(todos, MMC, runIDs_sites) {
 #' @section Note(drs): it appears that NODATA values are recorded as 0
 #'
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
+  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
   fpreprocin, continueAfterAbort, verbose) {
 
   if (verbose)
@@ -107,7 +107,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
       print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' will be extracted for",
         "n =", n_extract, "sites"))
 
-    dir.ex.conus <- file.path(dir.ex.soil, "CONUSSoil", "output", "albers")
+    dir.ex.conus <- file.path(dir_ex_soil, "CONUSSoil", "output", "albers")
     stopifnot(file.exists(dir.ex.conus))
 
     ldepth_CONUS <- c(0, 5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)  #in cm
@@ -393,7 +393,7 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, si
 #' @section Note: Cells with no soil values include those with \code{SUID = c(0 = Water,
 #'  6997 = Water, 6694 = Rock, or 6998 = Glacier)}
 do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
+  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
   fpreprocin, opt_parallel, continueAfterAbort, verbose) {
 
   if (verbose)
@@ -419,7 +419,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
     layer_Nsim <- length(ldepth_WISEv12) - 1L  #WISE contains five soil layers for each prid; I added one layer to account for lithosols (Ix), which have a depth of 10 cm; for all other soil types, my layers 0-10 cm and 10-20 cm contain the same wise information
     layer_N <- layer_Nsim - 1L  #WISE contains five soil layers for each prid
 
-    dir.ex.dat <- file.path(dir.ex.soil, "WISE", "wise5by5min_v1b")
+    dir.ex.dat <- file.path(dir_ex_soil, "WISE", "wise5by5min_v1b")
     stopifnot(file.exists(dir.ex.dat))
 
     #run_sites_wise of simulation runs
@@ -587,7 +587,7 @@ update_soils_sources <- function(MMC, SWRunInformation, runIDs_sites,
   notDone <- NULL
 
   if (any(MMC[["idone"]])) {
-    #write data to datafile.SWRunInformation
+    #write data to disk
     SWRunInformation$SoilTexture_source[runIDs_sites] <- as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
@@ -613,7 +613,7 @@ update_soils_sources <- function(MMC, SWRunInformation, runIDs_sites,
 ExtractData_Soils <- function(SWRunInformation, runsN_master, runsN_sites,
   runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
   extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-  dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, verbose,
+  dir_ex_soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, verbose,
   opt_parallel) {
 
   MMC <- prepare_ExtractData_Soils(SWRunInformation, runsN_sites, runIDs_sites,
@@ -621,13 +621,13 @@ ExtractData_Soils <- function(SWRunInformation, runsN_master, runsN_sites,
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
     MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
+      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
       fpreprocin, continueAfterAbort, verbose = verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
     MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.soil, fslayers, fsoils,
+      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
       fpreprocin, opt_parallel, continueAfterAbort, verbose)
   }
 

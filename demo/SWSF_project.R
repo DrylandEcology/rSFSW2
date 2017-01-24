@@ -61,36 +61,69 @@ opt_job_time <- list(
 #------------------------USER INPUT
 
 #------Set paths to simulation framework folders
-#parent folder of simulation project
-dir.prj <- "~/YOURPROJECT"
-if (interactive()) setwd(dir.prj)
-dir.prj <- dir.big <- getwd()
-dir.code <- dir.prj
+project_paths <- list(
+  dir_prj = dir_prj <- {
+    temp <- "~" #/YOURPROJECT" # path to simulation project
+    if (interactive()) setwd(temp)
+    getwd()},
 
+  dir_in = dir_in <- file.path(dir_prj, "1_Data_SWInput"),  # path to inputs
+  dir_in_dat = file.path(dir_in, "datafiles"),  #folder with datafiles to add information to SoilWat input files
+  dir_in_sw = file.path(dir_in, "swrun"),  #folder with default SoilWat run setup
+  dir_in_treat = file.path(dir_in, "treatments"),  #folder with treatment input files according to treatment instructions
+  dir_in_gissm = file.path(dir_in, "regeneration"),  #folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
 
-#parent folder containing external data
-dir.external <- "/Volumes/YOURBIGDATA/SoilWat_SimulationFrameworks/SoilWat_DataSet_External"
+  dir_big = dir_big <- dir_prj, # path to large outputs
+  dir_out_sw = file.path(dir_big, "3_Runs"), # path to Rsoilwat objects
+  dir_out = dir_out <- file.path(dir_big, "4_Data_SWOutputAggregated"), # path to aggregated output
+  dir_out_temp = file.path(dir_out, "temp"), # path to temporary files
 
-#paths to external subfolder
-dir.ex.weather <- file.path(dir.external,"Weather_Past")#historic weather data. Used with Livneh and Maurer Data and ClimateAtlas and NCEPCFSR data.
-dir.ex.fut <- file.path(dir.external,"Weather_Future")#future scenario data.
-dir.ex.soil <- file.path(dir.external,"Soils")
-dir.ex.dem <- file.path(dir.external,"Topography")
+  dir_external = dir_ex <- file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"), # path to external data
+  dir_ex_weather = file.path(dir_ex, "Weather_Past"), #historic weather data. Used with Livneh and Maurer Data and ClimateAtlas and NCEPCFSR data.
+  dir_ex_fut = file.path(dir_ex, "Weather_Future"), #future scenario data.
+  dir_ex_soil = file.path(dir_ex, "Soils"),
+  dir_ex_dem = file.path(dir_ex, "Topography")
+)
 
-#paths to sub-folder hierarchy
-dir.in <- file.path(dir.prj, "1_Data_SWInput")	#path to input data of SoilWat-runs)
-dir.sw.dat <- file.path(dir.in, "datafiles")	#folder with datafiles to add information to SoilWat input files
-dir.sw.in <- file.path(dir.in, "swrun")	#folder with default SoilWat run setup
-dir.sw.in.tr <- file.path(dir.in, "treatments")	#folder with treatment input files according to treatment instructions
-dir.sw.in.reg <- file.path(dir.in, "regeneration")	#folder with regeneration files, one for each species = run of 'dailyRegeneration_byTempSWPSnow'
-dir.sw.runs <- file.path(dir.big, "3_Runs")	#path to SoilWat-runs
-dir.out <- file.path(dir.big, "4_Data_SWOutputAggregated")	#path to aggregated output
+#------Names of files that contain input data or treatment codes
+input_names <- list(
+  master = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
+
+  soillayers = "SWRuns_InputData_SoilLayers_v9.csv",
+  treatDesign = "SWRuns_InputData_TreatmentDesign_v14.csv",
+  expDesign = "SWRuns_InputData_ExperimentalDesign_v06.csv",
+
+  climscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
+  climscen_vals = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
+  climnorm = "SWRuns_InputData_cloud_v10.csv",
+  vegetation = "SWRuns_InputData_prod_v11.csv",
+  site_desc = "SWRuns_InputData_siteparam_v14.csv",
+  soils = "SWRuns_InputData_soils_v12.csv",
+  weathersetup = "SWRuns_InputData_weathersetup_v10.csv",
+
+  LookupClimatePPTScenarios = "climate.ppt.csv",
+  LookupClimateTempScenarios = "climate.temp.csv",
+  LookupShiftedPPTScenarios = "shifted.ppt.csv",
+  LookupEvapCoeffFromTable = "BareSoilEvaporationCoefficientsPerSoilLayer.csv",
+  LookupTranspCoeffFromTable = "TranspirationCoefficients_v2.csv",
+  LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
+  LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
+  LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+
+  preprocessed = "SWRuns_InputAll_PreProcessed.RData" # Storage file of input data for repeated access (faster) instead of re-reading from (slower) csv files if flag 'usePreProcessedInput' is TRUE
+)
+
+output_names <- list(
+  name.OutputDB = file.path(project_paths[["dir_out"]], "dbTables.sqlite3"),
+  name.OutputDBCurrent = file.path(project_paths[["dir_out"]], "dbTables_current.sqlite3"),
+  timerfile <- file.path(project_paths[["dir_out"]], "Timing_Simulation.csv")
+)
 
 
 #------Define actions to be carried out by simulation framework
 #actions are at least one of c("external", "map_input", "create", "execute", "aggregate", "concatenate", "ensemble")
 #	- data preparation
-#		- "external": pulls data from 'external' data sources from 'dir.external' as specified by 'do.ExtractExternalDatasets'
+#		- "external": pulls data from 'external' data sources from 'dir_external' as specified by 'do.ExtractExternalDatasets'
 #		- "map_input": creates maps of input data as specified by 'map_vars'
 #	- simulation runs ('create', 'execute', and 'aggregate' can be used individually if 'saveRsoilwatInput' and/or 'saveRsoilwatOutput')
 #		- "create": puts information and files together for each simulation run
@@ -161,7 +194,7 @@ dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
-dbWeatherDataFile <- file.path(dir.big, "1_Data_SWInput", "dbWeatherData.sqlite3")
+dbWeatherDataFile <- file.path(project_paths[["dir_in"]], "1_Data_SWInput", "dbWeatherData.sqlite3")
 createAndPopulateWeatherDatabase <- FALSE #TRUE, will create a new(!) database and populate with current data
 dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this only affects dbWeather if createAndPopulateWeatherDatabase
 
@@ -176,14 +209,14 @@ dbW_compression_type <- "gzip" # one of eval(formals(memCompress)[[2]]); this on
 sim_cells_or_points <- "point" # one of c("point", "cell"), whether to extract for point locations or averaged over a cell area
 if (sim_cells_or_points == "cell") {
 	# provide either path to raster file (takes precedence) or (grid resolution and grid crs)
-	fname_sim_raster <- file.path(dir.in, "YOURRASTER.FILE")
+	fname_sim_raster <- file.path(project_paths[["dir_in"]], "YOURRASTER.FILE")
 	sim_res <- c(1e4, 1e4)
 	sim_crs <- "+init=epsg:5072" # NAD83(HARN) / Conus Albers
 } else {
 	sim_crs <- "+init=epsg:4326" # WGS84
 }
 
-#Indicate if actions contains "external" which external information (1/0) to obtain from dir.external, don't delete any labels; GIS extractions not supported on JANUS
+#Indicate if actions contains "external" which external information (1/0) to obtain from dir_external, don't delete any labels; GIS extractions not supported on JANUS
 # if extract_determine_database == "order", then
 # - Elevation: 'ExtractElevation_NED_USA' has priority over 'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data is available for both
 # - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over 'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested and data is available for both
@@ -215,7 +248,7 @@ do.ExtractExternalDatasets <- c(
 		"ExtractSoilDataFromISRICWISEv12_Global", 0
 )
 
-chunk_size.options <- list(
+opt_chunks <- list(
 		ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,	# chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
 		ExtractSkyDataFromNCEPCFSR_Global = 100,	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
 		DailyWeatherFromNCEPCFSR_Global = 100	# this is also OS-limited by the number of concurrently open files (on 'unix' platforms, check with 'ulimit -a')
@@ -306,31 +339,6 @@ ensemble.families <- NULL #c("RCP45", "RCP85") # NULL or from c("SRESA2", "SRESA
 ensemble.levels <- c(2, 8, 15)  #if(!is.null(ensemble.families)) then this needs to have at least one value; this variable defines which ranked climate.conditions the ensembles are representing for each ensemble.families
 save.scenario.ranks <- TRUE #if TRUE then for each ensemble.levels a file is saved with the scenario numbers corresponding to the ensemble.levels
 
-#------Names of files that contain input data or treatment codes
-datafile.SWRunInformation <- "SWRuns_InputMaster_YOURPROJECT_v11.csv"
-
-datafile.soillayers <- "SWRuns_InputData_SoilLayers_v9.csv"
-datafile.treatments <- "SWRuns_InputData_TreatmentDesign_v14.csv"
-datafile.Experimentals <- "SWRuns_InputData_ExperimentalDesign_v06.csv"
-
-datafile.climatescenarios <- "SWRuns_InputData_ClimateScenarios_Change_v11.csv"
-datafile.climatescenarios_values <- "SWRuns_InputData_ClimateScenarios_Values_v11.csv"
-datafile.cloud <- "SWRuns_InputData_cloud_v10.csv"
-datafile.prod <- "SWRuns_InputData_prod_v11.csv"
-datafile.siteparam <- "SWRuns_InputData_siteparam_v14.csv"
-datafile.soils <- "SWRuns_InputData_soils_v12.csv"
-datafile.weathersetup <- "SWRuns_InputData_weathersetup_v10.csv"
-
-trfile.LookupClimatePPTScenarios <- "climate.ppt.csv"
-trfile.LookupClimateTempScenarios <- "climate.temp.csv"
-trfile.LookupShiftedPPTScenarios <- "shifted.ppt.csv"
-trfile.LookupEvapCoeffFromTable <- "BareSoilEvaporationCoefficientsPerSoilLayer.csv"
-trfile.LookupTranspCoeffFromTable <- "TranspirationCoefficients_v2.csv"
-trfile.LookupTranspRegionsFromTable <- "TranspirationRegionsPerSoilLayer.csv"
-trfile.LookupSnowDensityFromTable <- "MeanMonthlySnowDensities_v2.csv"
-trfile.LookupVegetationComposition <- "VegetationComposition_MeanMonthly_v5.csv"
-
-datafile.SWRWinputs_preprocessed <- "SWRuns_InputAll_PreProcessed.RData" # Storage file of input data for repeated access (faster) instead of re-reading from (slower) csv files if flag 'usePreProcessedInput' is TRUE
 
 #------Northern/Southern Hemisphere adjustments
 accountNSHemispheres_agg <- TRUE	#if TRUE and latitude < 0 (i.e., southern hemisphere) then the counting of timing variables is shifted by 6 months (e.g., July becomes 1st month, etc.)

@@ -18,11 +18,11 @@
 
 #------USER INPUT OPTIONS
 #Folder hierarchy
-#	SWSF consists of one main project folder (dir.prj)
+#	SWSF consists of one main project folder (dir_prj)
 #	the main project folder contains three sub-folders
-#		- 'dir.sw.in': for the input data (with three sub-folders: SoilWat-run project, datafiles, and  treatments),
-#		- 'dir.sw.runs': for the individual simulation SoilWat-runs (these can also be under a different parent directory defined by 'dir.runs', e.g., at a external hard disk with lots of space), and
-#		- 'dir.out': for the aggregated output files
+#		- 'dir_in_sw': for the input data (with three sub-folders: SoilWat-run project, datafiles, and  treatments),
+#		- 'dir_out_sw': for the individual simulation SoilWat-runs (these can also be under a different parent directory defined by 'dir.runs', e.g., at a external hard disk with lots of space), and
+#		- 'dir_out': for the aggregated output files
 
 #SWSF abilities include four different 'actions'
 #	= "create": puts information and files together for each simulation SoilWat run
@@ -38,7 +38,7 @@
 #												- 'extract sky/climate data from Climate Atlas for the US by NOAA' (data is written to 'datafile.cloud'),
 #												- 'extract climate change scenarios' (data is written to 'datafile.weathersetup'),
 #												- 'extract topography and elevation' (elevation, aspect, and slope is written to 'datafile.SWRunInformation'),
-#									- 2. step: code creates SoilWat-runs with copies of SoilWat input files from 'dir.sw.in'
+#									- 2. step: code creates SoilWat-runs with copies of SoilWat input files from 'dir_in_sw'
 #									- 3. step: if flagged in 'datafile.treatments', then entire SoilWat input files or substantial chunks are replaced with files from folder 'dir.sw.tr' 
 #												Options for input files: sw, filesin, prodin, siteparamin, soilsin, weathersetupin, cloudin
 #												Options for chunks:
@@ -52,10 +52,10 @@
 #													- 'lookup snow density based on a table' (data is written to 'datafile.cloud'): snow density category for each SoilWat-run is loaded from 'datafile.treatments';
 #									- 4-. step: if flagged in variable 'do.ExternalInformation', then data from external sources is accessed during each simulations runs and added to the SoilWat-run. Options include
 #												- 'extract gridded daily weather from Maurer et al. 2002' (entire 'dirname.sw.runs.weather' is replaced), [data = Daily 1/8-degree gridded meteorological data [1 Jan 1949 - 31 Dec 2010]; http://www.engr.scu.edu/~emaurer/gridded_obs/index_gridded_obs.html; Maurer, E.P., A.W. Wood, J.C. Adam, D.P. Lettenmaier, and B. Nijssen, 2002, A Long-Term Hydrologically-Based Data Set of Land Surface Fluxes and States for the Conterminous United States, J. Climate 15, 3237-3251.]
-#									- 4. step: if flagged in 'datafile.X' (with X = input file name), then information is added per flagged element to SoilWat input files taken from .csv datafiles in 'dir.sw.dat'
-#								- if actions does not include "create", then code assumes that all SoilWat-runs are pre-prepared in the directory 'dir.sw.runs' (5. source);
+#									- 4. step: if flagged in 'datafile.X' (with X = input file name), then information is added per flagged element to SoilWat input files taken from .csv datafiles in 'dir_in_dat'
+#								- if actions does not include "create", then code assumes that all SoilWat-runs are pre-prepared in the directory 'dir_out_sw' (5. source);
 #								  i.e., code obtains the list of simulation runs from 'datafile.SWRunInformation' and executes and/or aggregates the runs
-#	= "folders":	assumes that all SoilWat-runs are pre-prepared in the directory 'dir.sw.runs' (5. source); 'actions' == "create" is ignored
+#	= "folders":	assumes that all SoilWat-runs are pre-prepared in the directory 'dir_out_sw' (5. source); 'actions' == "create" is ignored
 #					i.e., unlike above, code obtains the list of simulation runs from reading the folder content and executes and/or aggregates the runs (this mode doesn't rely on 'SWRunInformation' for SoilWat input);
 #					except if Index_RunInformation != NULL, then selected 'SWRunInformation' columns are appended to aggregated output
 
@@ -67,7 +67,7 @@
 #							- 'Include_YN' (0/1) = whether (1) or not (0) the run is included in the simulations;
 #							- 'Scenario_No' (integer) = number of climate scenarios in addition to the standard scenario (e.g., Scenario_No == 2, for scenarios current, B1, and A2)
 #						Additional mandatory columns if 'source_input' == "datafiles&treatments":
-#							- 'ScenarioX' (string) = name of scenario number X; NOTE: if extracting climate change information then these scenario names must correspond in alphabetical order to the folder names in dir.external/ExtractClimateScenarios
+#							- 'ScenarioX' (string) = name of scenario number X; NOTE: if extracting climate change information then these scenario names must correspond in alphabetical order to the folder names in dir_external/ExtractClimateScenarios
 #						Additional mandatory columns if 'source_input' == "datafiles&treatments" & 'actions' == "create":
 #							- 'X_WGS84' (double) = longitude in degrees (WGS84)
 #							- 'Y_WGS84' (double) = latitude in degrees (WGS84)
@@ -79,13 +79,13 @@
 
 #	'datafile.treatments': datafile describes the treatment design
 #						- the first line ('UseInformationToCreateSoilWatRuns') specifies which treatments are to be included (flags) (1) or not (0)
-#						- Options for input files: for each SoilWat-run, enter name of input file to be copied from 'dir.sw.in.tr' to the SoilWat-run folder
+#						- Options for input files: for each SoilWat-run, enter name of input file to be copied from 'dir_in_treat' to the SoilWat-run folder
 #							- sw, filesin, prodin, siteparamin, soilsin, weathersetupin, cloudin
 #						- Options for information chunks:
-#							- 'LookupWeatherFolder': enter name of weather folder to be copied from 'dir.sw.in.tr' to the SoilWat-run folder
-#							- 'LookupClimateTempScenarios' and 'LookupClimatePPTScenarios': enter name of column of table in 'dir.sw.in.tr' that is to be written to the weathersetup input file of the SoilWat-run folder
-#							- 'LookupShiftedPPTScenarios': enter name of column-group of table in 'dir.sw.in.tr' that is to be written (multiplied to existing factors) to the weathersetup input file of the SoilWat-run folder
-#							- 'LookupShiftedPPTCategory': enter name of row of table in 'dir.sw.in.tr'
+#							- 'LookupWeatherFolder': enter name of weather folder to be copied from 'dir_in_treat' to the SoilWat-run folder
+#							- 'LookupClimateTempScenarios' and 'LookupClimatePPTScenarios': enter name of column of table in 'dir_in_treat' that is to be written to the weathersetup input file of the SoilWat-run folder
+#							- 'LookupShiftedPPTScenarios': enter name of column-group of table in 'dir_in_treat' that is to be written (multiplied to existing factors) to the weathersetup input file of the SoilWat-run folder
+#							- 'LookupShiftedPPTCategory': enter name of row of table in 'dir_in_treat'
 #							- 'LookupSnowDensityFromTable_Category': enter name of row in snow-density table
 #							- 'LookupTranspRegionsFromTable_Type': enter name of row in transpiration-region table
 #							- 'LookupTranspCoeffFromTable_Type'{Grass, Shrub, Tree}: enter name of column in transpiration coefficient table
@@ -185,7 +185,7 @@
 #	v37 (20111213):
 #	v38	(20111227-20120104):
 #		- added to datafile.treatments: YearStart and YearEnd to adjust simulation period for each SoilWat-run individually
-#		- adjusted for treatment = 'LookupWeatherFolder' so that if the weather folder does not contain cloudin and treatment != 'cloudin', then cloudin is copied from 'dir.sw.in'
+#		- adjusted for treatment = 'LookupWeatherFolder' so that if the weather folder does not contain cloudin and treatment != 'cloudin', then cloudin is copied from 'dir_in_sw'
 #		- fixed bug in function 'TranspCoeffByVegType' where if 'DepthCM', the coefficients for the deepest soil layer were not added up if the soil layer was deeper than the coefficients
 #		- fixed bug in 'ExtractSkyDataFromNOAAClimateAtlasUS': codes for cover and wind were erroneous
 #		- fixed bug in 'ExtractSoilDataFromCONUSSOILFromSTATSGO': extraction of values was erroneous
@@ -278,9 +278,9 @@
 #	v47 (20120725-20120829)
 #		- implemented parallelization with doSNOW/snow as an option to doMC/multicore - JANUS: only use snow, because multicore cannot access cores outside master node
 #		- calculation of 'calculate doy_ForEachUsedDay, month_ForEachUsedDay, and year_ForEachUsedDay' is expensive for many years: creation of these vectors once before each simulation is started if possible, i.e., already executed and all simulations have same simulation years
-#		- temporary files written to a run-specific sub-directory in dir.out.temp instead of all files to dir.out.temp: linear increase in computation time per run if too many files in dir.out.temp (limit ca. 600,000 files)
+#		- temporary files written to a run-specific sub-directory in dir_out.temp instead of all files to dir_out.temp: linear increase in computation time per run if too many files in dir_out.temp (limit ca. 600,000 files)
 #		- (DLM) added function dir.create2: made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-#		- added option 'deleteTemporaryAggregationFiles' to delete all temporary aggregation files in folder dir.out.temp after successful concatenation (or not if FALSE)
+#		- added option 'deleteTemporaryAggregationFiles' to delete all temporary aggregation files in folder dir_out.temp after successful concatenation (or not if FALSE)
 #		- (DLM) concatenation made much faster: concatenation step only creates the file list once instead of each time
 #		- concatenation of temporary aggregated output is now performed in parallel
 #		- added option to check completeness of SoilWat simulation directories and of temporary output aggregation files 'checkCompleteness'; creates a list with missing directories and files

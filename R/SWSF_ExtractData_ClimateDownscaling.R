@@ -1327,7 +1327,9 @@ downscale.wgen_package <- compiler::cmpfun(function(
 
 
 #--- NEX climate data source
-get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp) {
+get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen, gcm, lon, lat,
+  startyear, endyear, dir_out_temp) {
+
   if (requireNamespace("RCurl")) {
     success <- try(RCurl::getURL(request, .opts=list(timeout=5*60, connecttimeout=60)))
     if (!inherits(success, "try-error")) {
@@ -1344,8 +1346,10 @@ get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen
       }
     }
   } else {
-    if (service == "opendap") stop("Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)")
-    ftemp <- file.path(dir.out.temp, paste0("NEX_", gcm, "_", scen, "_", variable, "_", round(lat, 5), "&", round(lon, 5), ".csv"))
+    if (service == "opendap")
+      stop("Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)")
+    ftemp <- file.path(dir_out_temp, paste0("NEX_", gcm, "_", scen, "_", variable, "_",
+      round(lat, 5), "&", round(lon, 5), ".csv"))
     success <- try(download.file(url=request, destfile=ftemp, quiet=TRUE))
   }
 
@@ -1376,7 +1380,9 @@ get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen
 })
 
 
-extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, lat, bbox, tbox, startyear, endyear, dir.out.temp) {
+extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, lat, bbox,
+  tbox, startyear, endyear, dir_out_temp) {
+
   gcmrun <- "r1i1p1"
   #1st attempt: TRHEDDS ncss/netCDF subsetting service
   request <- paste0(paste("http://dataserver.nccs.nasa.gov", "thredds/ncss/grid/bypass/NEX-DCP30/bcsd", scen, gcmrun,
@@ -1384,7 +1390,9 @@ extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, l
             "&latitude=", lat, "&longitude=", ifelse(lon > 180, lon - 360, lon),
             paste0("&time_start=", startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear, "-12-31T23%3A59%3A59Z&timeStride=1"),
             "&accept=csv")
-  dat <- get_request_NEX(service="ncss", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp)
+  dat <- get_request_NEX(service="ncss", request, i, variable, scen, gcm, lon, lat,
+    startyear, endyear, dir_out_temp)
+
   if (inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5, na.rm=TRUE)) { #thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values, e.g., 9.969210e+36 and sometimes 2.670153e+42 for pr, tasmin, and tasmax for the month of May in every fifth year (2071, 2076, ...): bug report to NASA NCCS Support Team on June 2, 2014 - confirmed on June 8, 2014 by Yingshuo Shen (issue=48932)
     #2nd attempt: TRHEDDS opendap/dodsC
     lat.index <- round((lat - bbox$lat[1]) / 0.0083333333, 0)
@@ -1401,7 +1409,8 @@ extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, l
             "?lat[", lat.index, "],lon[", lon.index, "],",
             gcm, "_", variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][", lon.index, "]")
 
-    dat <- get_request_NEX(service="opendap", request, i, variable, scen, gcm, lon, lat, startyear, endyear, dir.out.temp)
+    dat <- get_request_NEX(service="opendap", request, i, variable, scen, gcm, lon, lat,
+      startyear, endyear, dir_out_temp)
     stopifnot(!inherits(dat, "try-error"), all(dat < 1e5 & dat > -1e5, na.rm=TRUE))
   }
 
@@ -1412,8 +1421,9 @@ extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, l
 #' @return A list of one data.frame object with 5 columns and names of
 #' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
 #' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
-get_GCMdata_NEX <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear, climDB_meta, ...) {
-  dots <- list(...) # dir.out.temp
+get_GCMdata_NEX <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat,
+  startyear, endyear, climDB_meta, ...) {
+  dots <- list(...) # dir_out_temp
 
   n_var <- 3
   clim <- vector("list", length = n_var)
@@ -1427,7 +1437,7 @@ get_GCMdata_NEX <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, la
     clim[[iv]] <- extract_variable_NEX(i, variable = var_tag,
       scen = scen, gcm = gcm, lon = lon, lat = lat,
       bbox = climDB_meta[["bbox"]], tbox = climDB_meta[["tbox"]],
-      startyear = startyear, endyear = endyear, dir.out.temp = dots[["dir.out.temp"]])
+      startyear = startyear, endyear = endyear, dir_out_temp = dots[["dir_out_temp"]])
 
     #Adjust units
     if (var_tag == "pr") {
@@ -1686,14 +1696,13 @@ get_GCMdata_netCDF <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon,
 
 #----Extraction function
 calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX,
-                        climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-                        reqDownscalingsPerGCM, climate.ambient, locations,
-                        dbW_iSiteTable, compression_type, getYears, assocYears,
-                        future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr,
-                        opt_DS, dir.out.temp, verbose, print.debug) {
+  climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
+  climate.ambient, locations, dbW_iSiteTable, compression_type, getYears, assocYears,
+  future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS, project_paths,
+  verbose, print.debug) {
 
-  on.exit({save(list = ls(),
-    file = file.path(dir.out.temp, paste0("ClimScen_failed_", i, "_l2.RData")))})
+  on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
+    paste0("ClimScen_failed_", i, "_l2.RData")))})
 
   #Identify index for site and scenario
   ig <- (i - 1) %% length(reqGCMs) + 1
@@ -1735,7 +1744,7 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
   }
 
   if (is_NEX) {
-    args_extract1 <- c(args_extract1, dir.out.temp = dir.out.temp)
+    args_extract1 <- c(args_extract1, dir_out_temp = project_paths[["dir_out_temp"]])
   }
 
   for (it in seq_len(getYears$n_first)) {
@@ -1938,7 +1947,7 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
   }
 
   saveRDS(wdataOut,
-    file = file.path(dir.out.temp, gcm, paste0(clim_source, "_", i, ".rds")))
+    file = file.path(project_paths[["dir_out_temp"]], gcm, paste0(clim_source, "_", i, ".rds")))
   res <- i
   on.exit()
 
@@ -1950,7 +1959,12 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
 #' A wrapper function for \code{calc.ScenarioWeather} with error control.
 #'
 #' @inheritParams calc.ScenarioWeather
-try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations, dbW_iSiteTable, compression_type, getYears, assocYears, future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS, dir.out.temp, verbose, print.debug) {
+try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX,
+  climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
+  climate.ambient, locations, dbW_iSiteTable, compression_type, getYears, assocYears,
+  future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS, project_paths,
+  verbose, print.debug) {
+
   temp <- try(calc.ScenarioWeather(i = i,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
@@ -1963,17 +1977,18 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
           simstartyr = simstartyr, endyr = endyr,
           DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
           opt_DS = opt_DS,
-          dir.out.temp = dir.out.temp,
+          project_paths = project_paths,
           verbose = verbose, print.debug = print.debug))
 
   if (inherits(temp, "try-error")) {
     print(paste(Sys.time(), temp))
-    save(i, temp, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-        reqDownscalingsPerGCM, climate.ambient, locations, dbW_iSiteTable,
+    save(i, temp, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs,
+        reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations, dbW_iSiteTable,
         compression_type, getYears, assocYears, future_yrs,
         simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS,
-        dir.out.temp, verbose,
-        file = file.path(dir.out.temp, paste0("ClimScen_failed_", i, "_l1.RData")))
+        project_paths, verbose,
+        file = file.path(project_paths[["dir_out_temp"]],
+          paste0("ClimScen_failed_", i, "_l1.RData")))
     res <- NULL
   } else {
     res <- i
@@ -1987,7 +2002,7 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
 #' This function assumes that a whole bunch of global variables exist and contain appropriate values.
 tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF,
   is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  locations, getYears, assocYears, opt_parallel) {
+  locations, getYears, assocYears, project_paths, opt_parallel) {
   #requests is_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2017,7 +2032,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
           simstartyr = simstartyr, endyr = endyr,
           DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
           opt_DS = opt_DS,
-          dir.out.temp = dir.out.temp,
+          project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
 
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
@@ -2042,7 +2057,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
           simstartyr = simstartyr, endyr = endyr,
           DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
           opt_DS = opt_DS,
-          dir.out.temp = dir.out.temp,
+          project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_disconnectConnection())
@@ -2069,7 +2084,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
       simstartyr = simstartyr, endyr = endyr,
       DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
       opt_DS = opt_DS,
-      dir.out.temp = dir.out.temp,
+      project_paths = project_paths,
       verbose = verbose, print.debug = print.debug)
     i_Done <- do.call(c, i_Done)
 
@@ -2083,10 +2098,10 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
     "' at", Sys.time()))
 
   Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-  temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+  temp.files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
   if (length(temp.files) > 0) {
     for (k in seq_along(temp.files)) {
-      ftemp <- file.path(dir.out.temp, temp.files[k])
+      ftemp <- file.path(project_paths[["dir_out_temp"]], temp.files[k])
       wdataOut <- readRDS(file = ftemp)
 
       for (j in seq_along(wdataOut)) {
@@ -2146,7 +2161,7 @@ climscen_determine_sources <- function(extract_determine_database = c("SWRunInfo
     sites_GCM_source[i_use] <- ds
   }
 
-  #write data to datafile.SWRunInformation
+  #write data to disk
   SWRunInformation$GCM_sources[runIDs_sites] <- as.character(sites_GCM_source)
   write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
   unlink(fpreprocin)
@@ -2163,7 +2178,7 @@ climscen_determine_sources <- function(extract_determine_database = c("SWRunInfo
 get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX,
   do_SWRun_sites, include_YN_climscen, climDB_meta, opt_DS, simstartyr, endyr,
   DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, climate.ambient, dir.out.temp, opt_parallel,
+  dbW_iScenarioTable, dbW_compression_type, climate.ambient, project_paths, opt_parallel,
   verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
@@ -2172,7 +2187,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
   #Global flags
   repeatExtractionLoops_maxN <- 3
   temp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
-  dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios",
+  dir.ex.dat <- file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios",
     temp[1], paste(temp[-1], collapse = "_"))
 
   #Specific flags
@@ -2317,7 +2332,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 
   #objects that need exporting to workers
   list.export <- c("verbose", "climate.ambient", "dbW_compression_type",
-    "dbW_iScenarioTable", "dbW_iSiteTable", "dbWeatherDataFile", "dir.out.temp",
+    "dbW_iScenarioTable", "dbW_iSiteTable", "dbWeatherDataFile",
     "opt_DS", "DScur_endyr", "DScur_startyr", "endyr", "future_yrs", "getYears",
     "print.debug", "print_int", "simstartyr", "tol")
 
@@ -2327,11 +2342,12 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
   i_AllToDo <- seq_len(requestN)
   i_Done <- NULL
 
-  logFile <- file.path(dir.out, paste0("extractionsDone_", clim_source, ".rds"))
+  logFile <- file.path(project_paths[["dir_out_temp"]], paste0("extractionsDone_",
+    clim_source, ".rds"))
   if (file.exists(logFile)) {
     i_Done <- sort(unique(c(i_Done, readRDS(file=logFile))))
   }
-  temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+  temp.files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
   if (length(temp.files) > 0) {
     # extract i_done number from file name
     temp <- lapply(strsplit(temp.files, split = "_", fixed = TRUE), function(x) x[length(x)])
@@ -2345,7 +2361,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 
     out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
       clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-      reqDownscalingsPerGCM, locations, getYears, assocYears, opt_parallel)
+      reqDownscalingsPerGCM, locations, getYears, assocYears, project_paths, opt_parallel)
 
     i_Done <- sort(unique(c(i_Done, out)))
     saveRDS(i_Done, file = logFile)
@@ -2371,7 +2387,8 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 
     include_YN_updateFailed <- include_YN
     include_YN_updateFailed[do_SWRun_sites][ils_notdone] <- 0
-    save(failedLocations_DB, include_YN_updateFailed, file=file.path(dir.in, paste0("ClimDB_failedLocations_", clim_source, ".RData")))
+    save(failedLocations_DB, include_YN_updateFailed, file = file.path(project_paths[["dir_out"]],
+      paste0("ClimDB_failedLocations_", clim_source, ".RData")))
   }
 
   if (verbose) print(paste("Finished '", clim_source, "' at", Sys.time()))
@@ -2383,7 +2400,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
   simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile,
   climate.ambient, climate.conditions, runsN_master, runsN_sites, runIDs_sites,
-  SWRunInformation, fmaster, fpreprocin, dir.out.temp, opt_parallel, verbose = FALSE,
+  SWRunInformation, fmaster, fpreprocin, project_paths, opt_parallel, verbose = FALSE,
   print.debug = FALSE) {
 
   Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
@@ -2408,8 +2425,8 @@ ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
     unique(climScen[x == climScen[, 4], 1]))
 
   for (i in seq_along(reqGCMs)) {
-    dir.create2(file.path(dir.out.temp, reqGCMs[i]), showWarnings = FALSE,
-      recursive = TRUE)
+    dir.create2(file.path(project_paths[["dir_out_temp"]], reqGCMs[i]),
+      showWarnings = FALSE, recursive = TRUE)
   }
 
   # keep track of successful/unsuccessful climate scenarios
@@ -2426,7 +2443,7 @@ ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
         do_SWRun_sites, include_YN_climscen, climDB_meta = climDB_metas[[ics]],
         opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
         dbWeatherDataFile, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-        climate.ambient, dir.out.temp, opt_parallel, verbose, print.debug)
+        climate.ambient, project_paths, opt_parallel, verbose, print.debug)
   }
 
   SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
@@ -2440,24 +2457,24 @@ ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
 ExtractClimateWizard <- function(opt_climsc_extr, SWRunInformation, fmaster, fpreprocin,
   sw_input_climscen_use, sw_input_climscen, fclimscen,
   sw_input_climscen_values_use, sw_input_climscen_values, fclimscen_values,
-  dir.ex.fut, runsN_master, verbose = FALSE) {
+  dir_ex_fut, runsN_master, verbose = FALSE) {
 
   if (verbose)
     print(paste("Started 'ExtractClimateWizard' at", Sys.time()))
 
   list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 
-  if (length(list.scenarios.datafile) > 0) { #extracts only information requested in the 'datafile.SWRunInformation'
+  if (length(list.scenarios.datafile) > 0) {
 
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% opt_climsc_extr)) {
       #Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
       #accessed via climatewizard.org on July 10, 2012
-      dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios", "ClimateWizardEnsembles_Global")
+      dir.ex.dat <- file.path(dir_ex_fut, "ClimateScenarios", "ClimateWizardEnsembles_Global")
     }
     if (any("CMIP3_ClimateWizardEnsembles_USA" %in% opt_climsc_extr)) {
       #Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
       #accessed via climatewizard.org
-      dir.ex.dat <- file.path(dir.ex.fut, "ClimateScenarios", "ClimateWizardEnsembles_USA")
+      dir.ex.dat <- file.path(dir_ex_fut, "ClimateScenarios", "ClimateWizardEnsembles_USA")
     }
 
     list.scenarios.external <- basename(list.dirs2(path = dir.ex.dat, full.names = FALSE,
@@ -2556,8 +2573,8 @@ ExtractClimateWizard <- function(opt_climsc_extr, SWRunInformation, fmaster, fpr
         print(paste("'ExtractClimateWizard':", res, "sites didn't extract climate data"))
 
     } else {
-      print(paste("Not all scenarios requested in 'datafile.SWRunInformation' are",
-        "available in with 'ExtractClimateWizard'"))
+      print(paste("Not all scenarios requested in 'master file' are",
+        "available with 'ExtractClimateWizard'"))
     }
   }
 

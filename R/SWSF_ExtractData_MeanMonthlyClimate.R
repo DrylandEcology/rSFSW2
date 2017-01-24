@@ -33,7 +33,7 @@ update_meanmonthlyclimate_input <- function(MMC, runIDs_sites, digits = 2, st_mo
   MMC[["use"]][i.temp] <- TRUE
   MMC[["input"]][runIDs_sites[i_good], i.temp][, st_mo] <- round(MMC[["data"]][i_good, "wind", ], digits)
 
-  #write data to datafile.cloud
+  #write data to disk
   write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]), file = fcloud,
     row.names = FALSE)
   unlink(fpreprocin)
@@ -46,8 +46,8 @@ update_meanmonthlyclimate_input <- function(MMC, runIDs_sites, digits = 2, st_mo
 #'  Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed
 #'  May 2010.
 do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sites,
-  st_mo, sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
-  fcloud, fpreprocin, chunk_size.options, continueAfterAbort, verbose) {
+  st_mo, sim_cells_or_points, sim_res, sim_crs, crs_sites, project_paths,
+  fcloud, fpreprocin, opt_chunks, continueAfterAbort, verbose) {
 
   stopifnot(require(raster), require(sp), require(rgdal))
 
@@ -74,7 +74,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
         n_extract, "sites"))
 
     #NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SoilWat
-    dir.ex.dat <- file.path(dir.ex.weather, "ClimateAtlasUS")
+    dir.ex.dat <- file.path(project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
     stopifnot(file.exists(dir.ex.dat))
 
     dir_noaaca <- list(
@@ -118,7 +118,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
 
     # determine NOAA CA extractions to do
     do_chunks <- parallel::splitIndices(n_extract,
-      ceiling(n_extract / chunk_size.options[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]))
+      ceiling(n_extract / opt_chunks[["ExtractSkyDataFromNOAAClimateAtlas_USA"]]))
 
     n_vars <- ncol(MMC[["data"]])
     n_months <- 12L
@@ -126,7 +126,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
     iv <- m <- ic <- 1
 
     # determine start location based on interrupted data extraction
-    ftemp_noaaca <- file.path(dir.out.temp, "NOAA_ClimateAtlas_extraction.rds")
+    ftemp_noaaca <- file.path(project_paths[["dir_out_temp"]], "NOAA_ClimateAtlas_extraction.rds")
 
     if (continueAfterAbort && file.exists(ftemp_noaaca)) {
       prev_noaaca <- readRDS(ftemp_noaaca)
@@ -218,8 +218,8 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, run_sites, runIDs_sit
 #'  Computational and Information Systems Laboratory.
 #'  http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
 do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_sites,
-  st_mo, prepd_CFSR, startyr, endyr, dir.out.temp, fcloud, fpreprocin, opt_parallel,
-  chunk_size.options, continueAfterAbort, verbose) {
+  st_mo, prepd_CFSR, startyr, endyr, project_paths, fcloud, fpreprocin, opt_parallel,
+  opt_chunks, continueAfterAbort, verbose) {
 
   if (verbose)
     print(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
@@ -248,9 +248,9 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, runIDs_s
     locations <- SWRunInformation[runIDs_sites[todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
     # do the extractions
     temp <- try(get_NCEPCFSR_data(dat_sites = locations, daily = FALSE, monthly = TRUE,
-      yearLow = startyr, yearHigh = endyr, dir.in.cfsr = prepd_CFSR$dir.in.cfsr,
-      dir_temp = dir.out.temp, cfsr_so = prepd_CFSR$cfsr_so,
-      n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
+      yearLow = startyr, yearHigh = endyr, dir_ex_cfsr = prepd_CFSR$dir_ex_cfsr,
+      dir_temp = project_paths[["dir_out_temp"]], cfsr_so = prepd_CFSR$cfsr_so,
+      n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel, rm_mc_files = TRUE,
       continueAfterAbort = continueAfterAbort))
 
@@ -294,7 +294,7 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, runIDs_site
   notDone <- NULL
 
   if (any(MMC[["idone"]])) {
-    #write data to datafile.SWRunInformation
+    #write data to disk
     SWRunInformation$ClimateNormals_source[runIDs_sites] <- as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
@@ -318,8 +318,8 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, runIDs_site
 #' @export
 ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runsN_sites,
   runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo, extract_determine_database,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather, dir.out.temp,
-  fmaster, fcloud, fpreprocin, chunk_size.options, continueAfterAbort, verbose,
+  sim_cells_or_points, sim_res, sim_crs, crs_sites, project_paths,
+  fmaster, fcloud, fpreprocin, opt_chunks, continueAfterAbort, verbose,
   prepd_CFSR, startyr, endyr, opt_parallel) {
 
   MMC <- prepare_ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_sites, runIDs_sites,
@@ -327,15 +327,15 @@ ExtractData_MeanMonthlyClimate <- function(SWRunInformation, runsN_master, runsN
 
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
     MMC <- do_ExtractSkyDataFromNOAAClimateAtlas_USA(MMC, run_sites, runIDs_sites,
-      st_mo, sim_cells_or_points, sim_res, sim_crs, crs_sites, dir.ex.weather,
-      dir.out.temp, fcloud, fpreprocin, chunk_size.options, continueAfterAbort,
+      st_mo, sim_cells_or_points, sim_res, sim_crs, crs_sites,
+      project_paths, fcloud, fpreprocin, opt_chunks, continueAfterAbort,
       verbose = verbose)
   }
 
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
     MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, runIDs_sites,
-      st_mo, prepd_CFSR, startyr, endyr, dir.out.temp, fcloud, fpreprocin,
-      opt_parallel, chunk_size.options, continueAfterAbort, verbose = verbose)
+      st_mo, prepd_CFSR, startyr, endyr, project_paths, fcloud, fpreprocin,
+      opt_parallel, opt_chunks, continueAfterAbort, verbose = verbose)
   }
 
   temp <- update_MeanMonthlyClimate_sources(MMC, SWRunInformation, runIDs_sites,

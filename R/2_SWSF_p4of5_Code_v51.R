@@ -1,5 +1,6 @@
 
-simulate_SOILWAT_experiment <- function(opt_parallel, use_rcpp, opt_verbosity) {
+simulate_SOILWAT_experiment <- function(project_paths, input_names, output_names,
+  opt_parallel, use_rcpp, opt_verbosity) {
 
 #--------------------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT SIMULATIONS
@@ -7,7 +8,7 @@ t.overall <- Sys.time()
 
 
 if (opt_verbosity[["verbose"]])
-  print(paste("SWSF is executed for:", sQuote(basename(dir.prj)), "and started at",
+  print(paste("SWSF is executed for:", sQuote(basename(project_paths[["dir_prj"]])), "and started at",
     t.overall))
 
 #------
@@ -21,27 +22,22 @@ if (daily_no > 0)
   output_aggregate_daily <- sort(output_aggregate_daily)
 
 #------
-ow_prev <- set_options_warn_error(debug.warn.level, debug.dump.objects, dir.prj)
+ow_prev <- set_options_warn_error(debug.warn.level, debug.dump.objects, project_paths[["dir_prj"]])
 
 
 #create simulation directory structure
-dir.sw.in <- normalizePath(dir.sw.in)
 if (makeInputForExperimentalDesign)
-  dir.out.experimentalInput <- file.path(dir.out, "Experimentals_Input_Data")
-dir.out.temp <- file.path(dir.out, "temp")
-dir.create2(dir.out, showWarnings = FALSE, recursive = TRUE)
-dir.create2(dir.big, showWarnings = FALSE, recursive = TRUE)
-if (saveRsoilwatInput || saveRsoilwatOutput)
-  dir.create2(dir.sw.runs, showWarnings = FALSE, recursive = TRUE)
-dir.create2(dir.out.temp, showWarnings = FALSE, recursive = TRUE)
-if (makeInputForExperimentalDesign)
-  dir.create2(dir.out.experimentalInput, showWarnings = FALSE, recursive = TRUE)
+  project_paths[["dir_out_expDesign"]] <- file.path(project_paths[["dir_out"]], "Experimentals_Input_Data")
 dirname.sw.runs.weather <- "WeatherData"
 
+for (k in seq_along(project_paths)) {
+  temp <- project_paths[[k]]
+  if (!is.null(temp) && is.character(temp) && nchar(temp) > 0)
+    dir.create2(temp, showWarnings = FALSE, recursive = TRUE)
+}
+
 #timing: output for overall timing information
-temp <- "Timing_Simulation.csv"
-timerfile2 <- file.path(dir.out, temp)
-init_timer(timerfile2)
+init_timer(output_names[["timerfile"]])
 
 
 #if(opt_verbosity[["print.debug"]]) trace(what=circular:::SdCircularRad, tracer=quote({print(x); print(sys.calls()[[6]]); print(paste(rbar, circsd))}), at=4)
@@ -58,14 +54,14 @@ if (opt_verbosity[["verbose"]])
 
 # Read data from files
 do_check_include <- FALSE
-fpreprocin <- file.path(dir.in, datafile.SWRWinputs_preprocessed)
+fpreprocin <- file.path(project_paths[["dir_in"]], input_names[["preprocessed"]])
 
 if (usePreProcessedInput && file.exists(fpreprocin)) {
   # This however annihilates all objects in globalenv() with the same names !
   load(file = fpreprocin, envir = globalenv())
 
 } else {
-  fmaster <- file.path(dir.in, datafile.SWRunInformation)
+  fmaster <- file.path(project_paths[["dir_in"]], input_names[["master"]])
   SWRunInformation <- tryCatch(swsf_read_csv(fmaster), error = print)
   stopifnot(sapply(required_colnames_SWRunInformation(),
       function(x) x %in% names(SWRunInformation)),		# required columns
@@ -76,11 +72,11 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
   include_YN <- as.logical(SWRunInformation$Include_YN)
   nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
-  fslayers <- file.path(dir.in, datafile.soillayers)
+  fslayers <- file.path(project_paths[["dir_in"]], input_names[["soillayers"]])
   sw_input_soillayers <- tryCatch(swsf_read_csv(fslayers, nrowsClasses = nrowsClasses),
     error = print)
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.treatments),
+  temp <- tryCatch(swsf_read_inputfile(file.path(project_paths[["dir_in"]], input_names[["treatDesign"]]),
     nrowsClasses = nrowsClasses), error = print)
   sw_input_treatments_use <- temp[["use"]]
   sw_input_treatments <- temp[["data"]]
@@ -88,7 +84,7 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
     !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
   )
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.in, datafile.Experimentals),
+  temp <- tryCatch(swsf_read_inputfile(file.path(project_paths[["dir_in"]], input_names[["expDesign"]]),
     nrowsClasses = nrowsClasses), error = print)
   sw_input_experimentals_use <- temp[["use"]]
   sw_input_experimentals <- temp[["data"]]
@@ -110,41 +106,41 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
   if (dim(sw_input_experimentals)[2] < 2)
     stop("Experimentals might be tab separated instead of comma.")
 
-  fcloud <- file.path(dir.sw.dat, datafile.cloud)
+  fcloud <- file.path(project_paths[["dir_in_dat"]], input_names[["climnorm"]])
   temp <- tryCatch(swsf_read_inputfile(fcloud, nrowsClasses = nrowsClasses), error = print)
   sw_input_cloud_use <- temp[["use"]]
   sw_input_cloud <- temp[["data"]]
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.prod),
+  temp <- tryCatch(swsf_read_inputfile(file.path(project_paths[["dir_in_dat"]], input_names[["vegetation"]]),
     nrowsClasses = nrowsClasses), error = print)
   sw_input_prod <- temp[["data"]]
   sw_input_prod_use <- temp[["use"]]
   sw_input_prod_use <- sw_input_prod_use | names(sw_input_prod_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.siteparam),
+  temp <- tryCatch(swsf_read_inputfile(file.path(project_paths[["dir_in_dat"]], input_names[["site_desc"]]),
     nrowsClasses = nrowsClasses), error = print)
   sw_input_site <- temp[["data"]]
   sw_input_site_use <- temp[["use"]]
   sw_input_site_use <- sw_input_site_use | names(sw_input_site_use) %in% create_experimentals	#update specifications based on experimental design
 
-  fsoils <- file.path(dir.sw.dat, datafile.soils)
+  fsoils <- file.path(project_paths[["dir_in_dat"]], input_names[["soils"]])
   temp <- tryCatch(swsf_read_inputfile(fsoils, nrowsClasses = nrowsClasses), error = print)
   sw_input_soils <- temp[["data"]]
   sw_input_soils_use <- temp[["use"]]
   sw_input_soils_use <- sw_input_soils_use | names(sw_input_soils_use) %in% create_experimentals	#update specifications based on experimental design
 
-  temp <- tryCatch(swsf_read_inputfile(file.path(dir.sw.dat, datafile.weathersetup),
+  temp <- tryCatch(swsf_read_inputfile(file.path(project_paths[["dir_in_dat"]], input_names[["weathersetup"]]),
     nrowsClasses = nrowsClasses), error = print)
   sw_input_weather_use <- temp[["use"]]
   sw_input_weather <- temp[["data"]]
 
-  fclimscen <- file.path(dir.sw.dat, datafile.climatescenarios)
+  fclimscen <- file.path(project_paths[["dir_in_dat"]], input_names[["climscen_delta"]])
   temp <- tryCatch(swsf_read_inputfile(fclimscen, nrowsClasses = nrowsClasses),
     error = print)
   sw_input_climscen_use <- temp[["use"]]
   sw_input_climscen <- temp[["data"]]
 
-  fclimscen_values <- file.path(dir.sw.dat, datafile.climatescenarios_values)
+  fclimscen_values <- file.path(project_paths[["dir_in_dat"]], input_names[["climscen_vals"]])
   temp <- tryCatch(swsf_read_inputfile(fclimscen_values, nrowsClasses = nrowsClasses),
     error = print)
   sw_input_climscen_values_use <- temp[["use"]]
@@ -172,50 +168,50 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
 	if(any(create_treatments=="sw"))
 		print("SW treatment is not used because library Rsoilwat only uses one version of soilwat. Sorry")
 	if(any(create_treatments=="filesin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "filesin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_files[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swFiles")),x))))
 	}
 	if(any(create_treatments=="prodin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "prodin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_prod[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swProd")),x))))
 	}
 	if(any(create_treatments=="siteparamin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "siteparamin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_site[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSite")),x))))
 	}
 	if(any(create_treatments=="soilsin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "soilsin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_soil[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swSoils")),x))))
 	}
 	if(any(create_treatments=="weathersetupin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "weatherin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_weather[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swWeather")),x))))
 	}
 	if(any(create_treatments=="cloudin")) {
-		temp<-list.files(path=file.path(dir.sw.in.tr, "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
+		temp<-list.files(path=file.path(project_paths[["dir_in_treat"]], "cloudin"),pattern="in",include.dirs=FALSE,recursive=TRUE,full.names=TRUE)
 		tr_cloud[basename(temp)] <-unlist(lapply(temp,FUN=function(x) return(swReadLines(swClear(new("swCloud")),x))))
 	}
 
 	if (any(create_treatments == "LookupClimatePPTScenarios")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupClimatePPTScenarios", trfile.LookupClimatePPTScenarios)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupClimatePPTScenarios", input_names[["LookupClimatePPTScenarios"]])
 	  tr_input_climPPT <- swsf_read_csv(temp)
 	}
 	if (any(create_treatments == "LookupClimateTempScenarios")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupClimateTempScenarios", trfile.LookupClimateTempScenarios)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupClimateTempScenarios", input_names[["LookupClimateTempScenarios"]])
 	  tr_input_climTemp <- swsf_read_csv(temp)
 	}
 	if (any(create_treatments == "LookupShiftedPPTScenarios")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupShiftedPPTScenarios", trfile.LookupShiftedPPTScenarios)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupShiftedPPTScenarios", input_names[["LookupShiftedPPTScenarios"]])
 	  tr_input_shiftedPPT <- swsf_read_csv(temp, row.names = 1)
 	}
 	if (any(create_treatments == "LookupEvapCoeffFromTable")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupEvapCoeffFromTable", trfile.LookupEvapCoeffFromTable)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupEvapCoeffFromTable", input_names[["LookupEvapCoeffFromTable"]])
 	  tr_input_EvapCoeff <- swsf_read_csv(temp, row.names = 1)
 	}
 
 	if (any(grepl("LookupTranspCoeffFromTable_", create_treatments),
 	    create_treatments == "AdjRootProfile")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupTranspCoeffFromTable", trfile.LookupTranspCoeffFromTable)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupTranspCoeffFromTable", input_names[["LookupTranspCoeffFromTable"]])
 		tr_input_TranspCoeff_Code <- tryCatch(read.csv(temp, nrows = 2, stringsAsFactors = FALSE), error = print)
 		tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
 		tr_input_TranspCoeff <- read.csv(temp, skip = 2, stringsAsFactors = FALSE)
@@ -223,31 +219,31 @@ if (usePreProcessedInput && file.exists(fpreprocin)) {
 	}
 
 	if (any(create_treatments == "LookupTranspRegionsFromTable")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupTranspRegionsFromTable", trfile.LookupTranspRegionsFromTable)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupTranspRegionsFromTable", input_names[["LookupTranspRegionsFromTable"]])
 	  tr_input_TranspRegions <- read.csv(temp, row.names = 1, stringsAsFactors = FALSE)
 	}
 	if (any(create_treatments == "LookupSnowDensityFromTable")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupSnowDensityFromTable", trfile.LookupSnowDensityFromTable)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupSnowDensityFromTable", input_names[["LookupSnowDensityFromTable"]])
 	  tr_input_SnowD <- read.csv(temp, row.names = 1, stringsAsFactors = FALSE)
 	}
 	if (any(create_treatments == "AdjMonthlyBioMass_Temperature")) {
-	  temp <- file.path(dir.sw.in.tr, "LookupVegetationComposition", trfile.LookupVegetationComposition)
+	  temp <- file.path(project_paths[["dir_in_treat"]], "LookupVegetationComposition", input_names[["LookupVegetationComposition"]])
 	  tr_VegetationComposition <- read.csv(temp, skip = 1, row.names = 1, stringsAsFactors = FALSE)
 	}
 
 	#-import regeneration data
 	param.species_regeneration <- list()
 	if(aon$dailyRegeneration_GISSM) {
-		list.species_regeneration <- list.files(dir.sw.in.reg, pattern=".csv")
+		list.species_regeneration <- list.files(project_paths[["dir_in_gissm"]], pattern=".csv")
 		no.species_regeneration <- length(list.species_regeneration)
 		if(no.species_regeneration > 0){
-			f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[1]), stringsAsFactors = FALSE)
+			f.temp <- read.csv(file.path(project_paths[["dir_in_gissm"]], list.species_regeneration[1]), stringsAsFactors = FALSE)
 			param.species_regeneration <- matrix(NA, ncol=no.species_regeneration, nrow=nrow(f.temp))
 			colnames(param.species_regeneration) <- sub(".csv", "", list.species_regeneration)
 			rownames(param.species_regeneration) <- f.temp[, 1]
 			param.species_regeneration[, 1] <- f.temp[, 2]
 			if(no.species_regeneration > 1) for(f in 2:no.species_regeneration){
-					f.temp <- read.csv(file.path(dir.sw.in.reg, list.species_regeneration[f]), stringsAsFactors = FALSE)
+					f.temp <- read.csv(file.path(project_paths[["dir_in_gissm"]], list.species_regeneration[f]), stringsAsFactors = FALSE)
 					param.species_regeneration[, f] <- f.temp[, 2]
 				}
 			rm(f.temp)
@@ -329,11 +325,12 @@ runsN_job <- runsN_sites * max(expN, 1L)
 runsN_Pid <- runsN_total * scenario_No
 nextn(runsN_incl, 10)
 
-success <- setup_dbWork(dir.out, runsN_master, runsN_total, expN, include_YN, continueAfterAbort)
+success <- setup_dbWork(project_paths[["dir_out"]], runsN_master, runsN_total, expN,
+  include_YN, continueAfterAbort)
 if (!success)
   stop("Work database failed to setup or an existing one is from a different simulation design")
 
-runIDs_todo <- dbWork_todos(dir.out) # elements of runIDs_total
+runIDs_todo <- dbWork_todos(project_paths[["dir_out"]]) # elements of runIDs_total
 runsN_todo <- length(runIDs_todo)
 
 
@@ -373,7 +370,6 @@ exinfo$use_sim_spatial <-
 exinfo$which_NEX <- grepl("NEX", opt_climsc_extr)
 exinfo$which_netCDF <- grepl("(GDODCPUCLLNL)|(SageSeer)", opt_climsc_extr)
 exinfo$which_ClimateWizard <- grepl("ClimateWizardEnsembles", opt_climsc_extr)
-
 
 #------------------------SPATIAL SETUP OF SIMULATIONS
 if (exinfo$use_sim_spatial || any(actions == "map_input")) {
@@ -416,7 +412,7 @@ if (exinfo$use_sim_spatial || any(actions == "map_input")) {
 #------------------------SET UP PARALLELIZATION
 #used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
 
-opt_parallel <- setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out = dir.prj)
+opt_parallel <- setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out = project_paths[["dir_prj"]])
 
 if (!identical(opt_parallel[["parallel_backend"]], "mpi")) {
   # Only enforce wall-time on MPI systems
@@ -450,10 +446,10 @@ if(exinfo$GriddedDailyWeatherFromNCEPCFSR_Global || exinfo$ExtractSkyDataFromNCE
 	#	-> flxf06.gdas.T_CDC.EATM.grb2 --> means for Jan-Dec
 
 
-	dir.ex.CFSR <- file.path(dir.ex.weather, "NCEPCFSR_Global", "CFSR_weather_prog08032012")
-	stopifnot(file.exists(dir.ex.CFSR))
+	temp <- file.path(project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+	stopifnot(file.exists(temp))
 
-	prepd_CFSR <- prepare_NCEPCFSR_extraction(dir.big, dir.ex.CFSR)
+	prepd_CFSR <- prepare_NCEPCFSR_extraction(project_paths[["dir_in"]], temp)
 	stopifnot(!inherits(prepd_CFSR, "try-error"))
 } else {
   prepd_CFSR <- NULL
@@ -480,11 +476,12 @@ if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
 	#extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
 	#Citation: Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
 
-	dir.ex.maurer2002 <- file.path(dir.ex.weather, "Maurer+_2002updated", "DAILY_FORCINGS")
-	stopifnot(file.exists(dir.ex.maurer2002))
+	project_paths[["dir_maurer2002"]] <- file.path(project_paths[["dir_ex_weather"]],
+	  "Maurer+_2002updated", "DAILY_FORCINGS")
+	stopifnot(file.exists(project_paths[["dir_maurer2002"]]))
 
 } else {
-  dir.ex.maurer2002 <- NULL
+  project_paths[["dir_maurer2002"]] <- NA
 }
 
 if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
@@ -495,14 +492,17 @@ if(exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica){
 	#	- dataset v2: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
   # - dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S. Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
 
-  #dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv2_NorthAmerica")
-  dir.ex.daymet <- file.path(dir.ex.weather, "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
-	if (!file.exists(dir.ex.daymet))
-	  stop("Directory for external dataset 'DayMet' does not exist:", shQuote(dir.ex.daymet))
+#  project_paths[["dir_daymet"]] <- file.path(project_paths[["dir_ex_weather"]],
+#    "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv2_NorthAmerica")
+  project_paths[["dir_daymet"]] <- file.path(project_paths[["dir_ex_weather"]],
+    "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
+	if (!file.exists(project_paths[["dir_daymet"]]))
+	  stop("Directory for external dataset 'DayMet' does not exist:",
+	    shQuote(project_paths[["dir_daymet"]]))
 	stopifnot(require(DaymetR)) #https://github.com/khufkens/daymetr
 
 } else {
-  dir.ex.daymet <- NULL
+  project_paths[["dir_daymet"]] <- NULL
 }
 
 if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDatabase){
@@ -510,11 +510,11 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 	#	- Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson, P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of Applied Meteorology and Climatology 50:1654-1665.
 	#	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
 	#	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
-	dir.ex.NRCan <- file.path(dir.ex.weather, "NRCan_10km_Canada", "DAILY_GRIDS")
-	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
+	project_paths[["dir.ex.NRCan"]] <- file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+	stopifnot(file.exists(project_paths[["dir.ex.NRCan"]]), require(raster), require(sp), require(rgdal))
 
 } else {
-  dir.ex.NRCan <- NULL
+  project_paths[["dir.ex.NRCan"]] <- NULL
 }
 
 
@@ -525,8 +525,7 @@ if (do_weather_source) {
   SWRunInformation <- dw_determine_sources(dw_source, exinfo, dailyweather_options,
     create_treatments, runIDs_sites, SWRunInformation, sw_input_treatments_use,
     sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals, simstartyr,
-    endyr, fmaster, fpreprocin, dir.ex.NRCan, dir.ex.maurer2002, dir.sw.in.tr,
-    verbose = opt_verbosity[["verbose"]])
+    endyr, fmaster, fpreprocin, project_paths, verbose = opt_verbosity[["verbose"]])
 }
 
 if (anyNA(SWRunInformation[runIDs_sites, "dailyweather_source"])) {
@@ -576,9 +575,9 @@ if (createAndPopulateWeatherDatabase) {
 	}
 
   make_dbW(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstartyr, endyr,
-    climate.conditions, dir.sw.in.tr, dir.out.temp,
-    chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
-    opt_parallel, dir.ex.maurer2002, dir.ex.daymet, dir.ex.NRCan, prepd_CFSR,
+    climate.conditions, project_paths,
+    opt_chunks, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
+    opt_parallel, prepd_CFSR,
     verbose = opt_verbosity[["verbose"]])
 }
 
@@ -601,14 +600,10 @@ if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 
 
 #--- Prepare output database
-name.OutputDB <- file.path(dir.out, "dbTables.sqlite3")
-if (copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL)
-  name.OutputDBCurrent <- file.path(dir.out, "dbTables_current.sqlite3")
-
 do.clean <- (cleanDB && !(length(actions) == 1 && actions == "ensemble"))
 
-if (!file.exists(name.OutputDB) || do.clean) {
-  temp <- try(make_dbOutput(name.OutputDB, SWRunInformation, Index_RunInformation,
+if (!file.exists(output_names[["dbOutput"]]) || do.clean) {
+  temp <- try(make_dbOutput(output_names[["dbOutput"]], SWRunInformation, Index_RunInformation,
       runsN_master, runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
       create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
       sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr, digitsN_total,
@@ -618,12 +613,12 @@ if (!file.exists(name.OutputDB) || do.clean) {
       do_clean = do.clean))
 
   if (inherits(temp, "try-error")) {
-    unlink(name.OutputDB)
+    unlink(output_names[["dbOutput"]])
     stop(paste("Creation of output database failed:", temp, collapse = ", "))
   }
 }
 
-con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = output_names[["dbOutput"]])
 set_PRAGMAs(con_dbOut, PRAGMA_settings2())
 
 temp <- RSQLite::dbListFields(con_dbOut, "aggregation_overall_mean")
@@ -663,7 +658,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
     print(paste("SWSF extracts information from external datasets prior to simulation",
       "runs: started at", t1 <- Sys.time()))
 
-  stopifnot(file.exists(dir.external))
+  stopifnot(file.exists(project_paths[["dir_external"]]))
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA ||
     exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
@@ -671,8 +666,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
     temp <- ExtractData_Soils(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
       extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-      dir.ex.soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, opt_verbosity[["verbose"]],
-      opt_parallel)
+      project_paths[["dir_ex_soil"]], fmaster, fslayers, fsoils, fpreprocin,
+      continueAfterAbort, opt_verbosity[["verbose"]], opt_parallel)
 
     SWRunInformation <- temp[["SWRunInformation"]]
     sw_input_soillayers <- temp[["sw_input_soillayers"]]
@@ -686,7 +681,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
     temp <- ExtractData_MeanMonthlyClimate(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, sw_input_cloud_use, sw_input_cloud, st_mo,
       extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-      dir.ex.weather, dir.out.temp, fmaster, fcloud, fpreprocin, chunk_size.options,
+      project_paths, fmaster, fcloud, fpreprocin, opt_chunks,
       continueAfterAbort, opt_verbosity[["verbose"]], prepd_CFSR, startyr, endyr, opt_parallel)
 
     SWRunInformation <- temp[["SWRunInformation"]]
@@ -697,7 +692,8 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
   if (exinfo$ExtractElevation_NED_USA || exinfo$ExtractElevation_HWSD_Global) {
     SWRunInformation <- ExtractData_Elevation(SWRunInformation, runsN_master, runsN_sites,
       runIDs_sites, run_sites, extract_determine_database, sim_cells_or_points, sim_res,
-      sim_crs, crs_sites, dir.ex.dem, fmaster, fpreprocin, continueAfterAbort, opt_verbosity[["verbose"]])
+      sim_crs, crs_sites, project_paths[["dir_ex_dem"]], fmaster, fpreprocin,
+      continueAfterAbort, opt_verbosity[["verbose"]])
   }
 
   if (exinfo$ExtractClimateChangeScenarios) {
@@ -710,7 +706,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
       SWRunInformation <- ExtractClimateChangeScenarios(opt_climsc_extr, climDB_metas,
         opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
         dbWeatherDataFile, climate.ambient, climate.conditions, runsN_master, runsN_sites,
-        runIDs_sites, SWRunInformation, fmaster, fpreprocin, dir.out.temp, opt_parallel,
+        runIDs_sites, SWRunInformation, fmaster, fpreprocin, project_paths, opt_parallel,
         verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
     }
 
@@ -718,7 +714,7 @@ if(any(actions == "external") && any(exinfo[!grepl("GriddedDailyWeather", names(
       temp <- ExtractClimateWizard(opt_climsc_extr, SWRunInformation, fmaster, fpreprocin,
         sw_input_climscen_use, sw_input_climscen, fclimscen,
         sw_input_climscen_values_use, sw_input_climscen_values, fclimscen_values,
-        dir.ex.fut, runsN_master, verbose = opt_verbosity[["verbose"]])
+        project_paths[["dir_ex_fut"]], runsN_master, verbose = opt_verbosity[["verbose"]])
 
       SWRunInformation <- temp[["SWRunInformation"]]
       sw_input_climscen_use <- temp[["sw_input_climscen_use"]]
@@ -843,7 +839,7 @@ if (any(actions == "map_input") && length(map_vars) > 0) {
     sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather,
     sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
     sw_input_climscen_values, runIDs_sites, sim_cells_or_points, run_sites, crs_sites,
-    sim_crs, sim_raster, dir.out, verbose = opt_verbosity[["verbose"]])
+    sim_crs, sim_raster, project_paths[["dir_out"]], verbose = opt_verbosity[["verbose"]])
 }
 
 
@@ -863,13 +859,14 @@ if (check.blas)
 # run the simulation experiment
 if (actionWithSoilWat && runsN_todo > 0) {
   swof <- sw_out_flags()
-  swDataFromFiles <- read_SoilWat_FileDefaults(dir.sw.in)
+  swDataFromFiles <- read_SoilWat_FileDefaults(project_paths[["dir_in_sw"]])
   args_do_OneSite <- gather_args_do_OneSite()
 
   runs.completed <- run_simulation_experiment(rSWSF, runIDs_todo, use_rcpp,
     SWRunInformation, sw_input_soillayers, sw_input_treatments, sw_input_cloud,
     sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
-    sw_input_climscen_values, MoreArgs = args_do_OneSite, opt_parallel, opt_verbosity)
+    sw_input_climscen_values, MoreArgs = args_do_OneSite, project_paths, output_names,
+    opt_parallel, opt_verbosity)
 
 
 } else {
@@ -897,7 +894,7 @@ if (any(actions == "concatenate")) {
     opt_job_time[["one_concat_s"]]) < opt_job_time[["wall_time_s"]]
 
   if (has_time_to_concat) {
-    move_temporary_to_outputDB(dir.out.temp, name.OutputDB,
+    move_temporary_to_outputDB(project_paths[["dir_out_temp"]], output_names[["dbOutput"]],
       name.OutputDBCurrent, t.overall, opt_job_time,
       copyCurrentConditionsFromTempSQL && !copyCurrentConditionsFromDatabase,
       cleanDB, deleteTmpSQLFiles, continueAfterAbort, print.debug = opt_verbosity[["print.debug"]], verbose = opt_verbosity[["verbose"]])
@@ -912,7 +909,7 @@ if (any(actions == "concatenate")) {
       opt_job_time[["one_concat_s"]]} < opt_job_time[["wall_time_s"]]
 
     if (has_time_to_concat) {
-      do_copyCurrentConditionsFromDatabase(name.OutputDB, name.OutputDBCurrent,
+      do_copyCurrentConditionsFromDatabase(output_names[["dbOutput"]], name.OutputDBCurrent,
         verbose = opt_verbosity[["verbose"]])
 
     } else {
@@ -943,10 +940,10 @@ if (any(actions == "check")) {
     suppressWarnings(load(rSWSF, envir = swsf_env))
   }
 
-  check_outputDB_completeness(name.OutputDB, name.OutputDBCurrent,
+  check_outputDB_completeness(output_names[["dbOutput"]], name.OutputDBCurrent,
     update_workDB = check_updates_workDB || deleteTmpSQLFiles,
     do_DBcurrent = copyCurrentConditionsFromDatabase || copyCurrentConditionsFromTempSQL,
-    opt_parallel, dir.out, swsf_env)
+    opt_parallel, project_paths[["dir_out"]], swsf_env)
 }
 
 #timing of check
@@ -962,18 +959,18 @@ if(do.ensembles && all.complete && (actionWithSoilWat && runs.completed == runsN
 
 	if(opt_verbosity[["verbose"]]) print(paste("SWSF calculates ensembles: started at", t.ensembles))
 
-	#save(ensembles.maker,ensemble.levels, ensemble.families, file=file.path(dir.out, "ensembleObjects.r"))
+	#save(ensembles.maker,ensemble.levels, ensemble.families, file=file.path(project_paths[["dir_out"]], "ensembleObjects.r"))
 
 
 	library(RSQLite,quietly = TRUE)
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = output_names[["dbOutput"]])
 
 	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
 	if (opt_parallel[["do_parallel"]]) {
 		#call the simulations depending on parallel backend
-		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_job_time", "collect_EnsembleFromScenarios","dir.out","ensemble.families","t.overall","opt_parallel","name.OutputDB")
+		list.export <- c("ensembleCollectSize","Tables","save.scenario.ranks","ensemble.levels","calc.ensembles","scenario_No","opt_job_time", "collect_EnsembleFromScenarios","ensemble.families","t.overall","opt_parallel")
 		if(identical(opt_parallel[["parallel_backend"]], "mpi")) {
 			export_objects_to_workers(list.export, list(global = globalenv()), "mpi")
 
@@ -1023,8 +1020,9 @@ delta.overall <- difftime(Sys.time(), t.overall, units = "secs")
 if (opt_verbosity[["verbose"]])
  print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
 
-compile_overall_timer(timerfile2, dir.out, opt_parallel[["workersN"]], runs.completed, scenario_No,
-  ensembles.completed, delta.overall, delta.outputDB, delta.check, delta.ensembles)
+compile_overall_timer(output_names[["timerfile"]], project_paths[["dir_out"]], opt_parallel[["workersN"]],
+  runs.completed, scenario_No, ensembles.completed, delta.overall, delta.outputDB,
+  delta.check, delta.ensembles)
 
 
 if (opt_verbosity[["verbose"]])

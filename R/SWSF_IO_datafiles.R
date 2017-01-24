@@ -152,13 +152,13 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
   sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use,
   sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
   sw_input_climscen_values, runIDs_sites, sim_cells_or_points, run_sites, crs_sites,
-  sim_crs, sim_raster, dir.out, verbose = FALSE) {
+  sim_crs, sim_raster, dir_out, verbose = FALSE) {
 
   if (verbose)
     print(paste("SWSF generates maps of input variables for quality control: started at",
     t1 <- Sys.time()))
 
-  dir.inmap <- file.path(dir.out, "Input_maps")
+  dir.inmap <- file.path(dir_out, "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)
 
   input_avail <- list(
@@ -282,16 +282,16 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
   invisible(TRUE)
 }
 
-read_SoilWat_FileDefaults <- function(dir.sw.in, swFiles_tag = "file") {
-  temp <- list.files(dir.sw.in)
+read_SoilWat_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
+  temp <- list.files(dir_in_sw)
   swFilesIn <- grep(swFiles_tag, temp, value = TRUE)[1]
 
   if (length(swFilesIn) == 0 || is.na(swFilesIn))
     stop("'read_SoilWat_FileDefaults': cannot find SOILWAT's overview file ",
-      shQuote(swFiles_tag), " in folder ", shQuote(dir.sw.in))
+      shQuote(swFiles_tag), " in folder ", shQuote(dir_in_sw))
 
   # 'swDataFromFiles' acts as the basis for all runs
-  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir.sw.in, files.in = swFilesIn)
+  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir_in_sw, files.in = swFilesIn)
   # we don't need the example weather data; the code will get weather data separately
   if (length(swDataFromFiles@weatherHistory) > 0)
     swDataFromFiles@weatherHistory <- list(Rsoilwat31::swClear(swDataFromFiles@weatherHistory[[1]]))

@@ -82,7 +82,7 @@
 		}
 
 		if(!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !opt_parallel[["do_parallel"]] | !identical(opt_parallel[["parallel_backend"]],"mpi")) {#figure need at least 3 hours for big ones
-			tfile <- file.path(dir.out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
+			tfile <- file.path(dir_out, paste("dbEnsemble_",sub(pattern="_Mean", replacement="", Table, ignore.case=TRUE),".sqlite3",sep=""))
 			conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname=tfile)
 
 			nfiles <- 0

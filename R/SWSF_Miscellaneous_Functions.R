@@ -17,7 +17,7 @@ toln <- sqrt(.Machine$double.neg.eps)
 #------ Funtions
 
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
-  dir.prj = ".") {
+  dir_prj = ".") {
 
   ow_prev <- options("warn", "error")
   #    - warn < 0: warnings are ignored
@@ -29,7 +29,7 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
   if (debug.dump.objects) {
     # dumps objects and frames to files, and (if not interactive) quits
     # Note: view dumped frames with
-    # load(file.path(dir.prj, "last.dump.rda"))
+    # load(file.path(dir_prj, "last.dump.rda"))
     # debugger(`path/to/file/last.dump.rda`)
     options(error = quote({
       dump_objs <- new.env()
@@ -43,9 +43,9 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
       }
 
       save(list = ls(name = dump_objs), envir = dump_objs,
-        file = file.path(dir.prj, "last.dump.save.RData"))
+        file = file.path(dir_prj, "last.dump.save.RData"))
 
-      dump.frames(dumpto = file.path(dir.prj, "last.dump"), to.file = TRUE)
+      dump.frames(dumpto = file.path(dir_prj, "last.dump"), to.file = TRUE)
 
       if (!interactive())
         q("no")

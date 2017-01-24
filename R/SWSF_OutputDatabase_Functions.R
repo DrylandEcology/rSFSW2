@@ -125,8 +125,8 @@ getSiteIds <- compiler::cmpfun(function(con, folderNames) {
 })
 
 #' Get name of weather file from output database
-local_weatherDirName <- compiler::cmpfun(function(i_sim, runN, scN, name.OutputDB) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB, flags = RSQLite::SQLITE_RO)
+local_weatherDirName <- compiler::cmpfun(function(i_sim, runN, scN, dbOutput) {
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
   temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
     it_Pid(i_sim, runN, 1, scN)))[1, 1]
   DBI::dbDisconnect(con)
@@ -548,7 +548,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 }
 
 
-move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
+move_temporary_to_outputDB <- function(path, dbOutput,
   name.OutputDBCurrent = NULL, t.overall = Sys.time(), opt_job_time = NULL,
   do_DBCurrent = FALSE, cleanDB = FALSE, deleteTmpSQLFiles = FALSE, continueAfterAbort = TRUE,
   print.debug = FALSE, verbose = FALSE) {
@@ -559,12 +559,12 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
   concatFile <- "sqlFilesInserted.txt"
 
   # Locate temporary SQL files
-  theFileList <- list.files(path = dir.out.temp, pattern = "SQL",
+  theFileList <- list.files(path = path, pattern = "SQL",
     full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
 
   # remove any already inserted files from list
   if (!deleteTmpSQLFiles && continueAfterAbort) {
-    temp <- file.path(dir.out.temp, concatFile)
+    temp <- file.path(path, concatFile)
     completedFiles <- if (file.exists(temp)) {
         basename(readLines(temp))
       } else {
@@ -578,12 +578,12 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
 
   if (length(theFileList) > 0) {
     # Connect to the Database
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
     out_tables_aggr <- dbOutput_ListOutputTables(con)
 
     reset_DBCurrent <- do_DBCurrent && (cleanDB || !file.exists(name.OutputDBCurrent))
     if (reset_DBCurrent)
-      file.copy(from = name.OutputDB, to = name.OutputDBCurrent)
+      file.copy(from = dbOutput, to = name.OutputDBCurrent)
     if (do_DBCurrent)
       con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDBCurrent)
     if (reset_DBCurrent)
@@ -609,7 +609,7 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
         break
 
       # Read SQL statements from temporary file
-      sql_cmds <- readLines(file.path(dir.out.temp, theFileList[j]))
+      sql_cmds <- readLines(file.path(path, theFileList[j]))
       add_to_DBCurrent <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
 
       if (verbose)
@@ -754,16 +754,16 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
         OK_tempfile <- FALSE
         # Write failed lines to new file
         writeLines(sql_cmds[notOK_lines],
-          con = file.path(dir.out.temp, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
+          con = file.path(path, sub(".", "_failed.", theFileList[j], fixed = TRUE)))
       }
 
       # Clean up and report
       if (OK_tempfile || !is.null(notOK_lines)) {
-        cat(file.path(dir.out.temp, theFileList[j]),
-            file = file.path(dir.out.temp, concatFile), append = TRUE, sep = "\n")
+        cat(file.path(path, theFileList[j]),
+            file = file.path(path, concatFile), append = TRUE, sep = "\n")
 
         if (deleteTmpSQLFiles)
-          try(file.remove(file.path(dir.out.temp, theFileList[j])), silent = TRUE)
+          try(file.remove(file.path(path, theFileList[j])), silent = TRUE)
       }
 
       if (print.debug) {
@@ -785,7 +785,7 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
 }
 
 
-do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCurrent,
+do_copyCurrentConditionsFromDatabase <- function(dbOutput, name.OutputDBCurrent,
   verbose = FALSE) {
 
   if (verbose)
@@ -811,7 +811,7 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
   }
   DBI::dbGetQuery(con, sqlView)
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
   #Get Tables minus ones we do not want
   Tables <- dbOutput_ListOutputTables(con)
 
@@ -819,7 +819,7 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
   lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
   writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
 
-  system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
+  system(paste("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
   system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
 
   unlink(paste(Tables,".sql",sep=""))
@@ -830,7 +830,7 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
   lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
   writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
 
-  system(paste("cat dump.txt | sqlite3 ", shQuote(name.OutputDB)))
+  system(paste("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
   system(paste("cat insert.txt | sqlite3 ", shQuote(name.OutputDBCurrent)))
 
   unlink(paste(Tables,".sql",sep=""))
@@ -842,11 +842,11 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
 }
 
 
-check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NULL,
-  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir.out = getwd(),
+check_outputDB_completeness <- function(dbOutput, name.OutputDBCurrent = NULL,
+  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir_out = getwd(),
   swsf_env = NULL) {
 
-  Tables <- dbOutput_ListOutputTables(dbname = name.OutputDB)
+  Tables <- dbOutput_ListOutputTables(dbname = dbOutput)
 
   missing_Pids <- missing_Pids_current <- NULL
 
@@ -861,7 +861,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       export_objects_to_workers(obj2exp, "mpi")
 
       missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
-        dbname = name.OutputDB)
+        dbname = dbOutput)
 
       if (do_DBcurrent) {
         missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
@@ -876,7 +876,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
       missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
-        dbname = name.OutputDB)
+        dbname = dbOutput)
 
       if (do_DBcurrent) {
         missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
@@ -888,7 +888,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
     }
 
   } else {
-    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = name.OutputDB)
+    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = dbOutput)
 
     if (do_DBcurrent) {
       missing_Pids_current <- lapply(Tables, missing_Pids_outputDB,
@@ -903,12 +903,12 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
   missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
-    ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
+    ftemp <- file.path(dir_out, "dbTables_Pids_missing.rds")
     if (identical(missing_Pids, -1L)) {
-      print(paste("Output DB", shQuote(name.OutputDB), "is empty and not complete"))
+      print(paste("Output DB", shQuote(dbOutput), "is empty and not complete"))
 
     } else {
-      print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
+      print(paste("Output DB", shQuote(dbOutput), "is missing n =",
         length(missing_Pids), "records"))
 
      # Output missing Pids to rds file
@@ -919,19 +919,19 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       if (update_workDB) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
 
-        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB,
+        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbOutput,
           flags = RSQLite::SQLITE_RO)
         scN <- RSQLite::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
         RSQLite::dbDisconnect(con)
 
         missing_runIDs <- it_sim2(missing_Pids, scN)
-        temp <- dbWork_redo(dir.out, runIDs = missing_runIDs)
+        temp <- dbWork_redo(dir_out, runIDs = missing_runIDs)
       }
     }
   }
 
   if (length(missing_Pids_current) > 0) {
-    ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
+    ftemp <- file.path(dir_out, "dbTablesCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
       print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is empty",
@@ -2077,7 +2077,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 
 #' @section: NOTE: Do not change the design of the output database without adjusting the index
 #'   functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
-make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
+make_dbOutput <- function(dbOutput, SWRunInformation, Index_RunInformation,
     runsN_master, runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
     create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
     sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
@@ -2086,11 +2086,11 @@ make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
     bin.prcpfreeDurations, DegreeDayBase, st_mo, no.species_regeneration,
     param.species_regeneration, do_clean) {
 
-  if (do_clean && file.exists(name.OutputDB)) {
-    unlink(name.OutputDB)
+  if (do_clean && file.exists(dbOutput)) {
+    unlink(dbOutput)
   }
 
-  con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+  con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
   set_PRAGMAs(con_dbOut, PRAGMA_settings2())
 
   n_tables <- RSQLite::dbListTables(con_dbOut)
@@ -2112,7 +2112,7 @@ make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
 
 
   ##########################################ENSEMBLE GENERATION#################################################
-  #&& ((do_clean && (temp <- length(list.files(dir.out, pattern="dbEnsemble_"))) > 0) || !do_clean && temp == 0)
+  #&& ((do_clean && (temp <- length(list.files(dir_out, pattern="dbEnsemble_"))) > 0) || !do_clean && temp == 0)
   Tables <- dbOutput_ListOutputTables(con_dbOut)
   RSQLite::dbDisconnect(con_dbOut)
 
@@ -2123,7 +2123,7 @@ make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
     respName<-sub(pattern="doy_",replacement="",x=respName,ignore.case = T)
     respName<-sub(pattern="atSWPcrit[0-9]+kPa",replacement="",x=respName)
 
-    dbEnsemblesFilePaths <- file.path(dir.out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
+    dbEnsemblesFilePaths <- file.path(dir_out, paste("dbEnsemble_",Tables,".sqlite3",sep=""))
     for (i in seq_along(dbEnsemblesFilePaths)) {
       if (do_clean && file.exists(dbEnsemblesFilePaths[i])) {
         unlink(dbEnsemblesFilePaths[i])
