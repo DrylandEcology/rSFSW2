@@ -17,16 +17,36 @@ missing_Pids_outputDB <- compiler::cmpfun(function(Table, dbname) {
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
       sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
-        Table, ".P_id) WHERE ", Table, ".P_id is NULL AND header.Include_YN = 1 ",
+        Table, ".P_id) WHERE header.Include_YN = 1 AND ", Table, ".P_id is NULL ",
         "ORDER BY header.P_id")
-      mP_ids <- RSQLite::dbGetQuery(con, sql)[, "header.P_id"]
+      mP_ids <- RSQLite::dbGetQuery(con, sql)[, 1]
     }
 
     DBI::dbDisconnect(con)
   }
 
-  mP_ids
+  as.integer(mP_ids)
 })
+
+getIDs_from_db_Pids <- function(dbname, Pids) {
+  res <- data.frame(site_id = -1L, treatment_id = -1L)[-1, ]
+
+  if (file.exists(dbname)) {
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+
+    if (DBI::dbExistsTable(con, "runs")) {
+      sql <- paste("SELECT site_id, treatment_id FROM runs WHERE P_id IN (?) ORDER BY site_id")
+      rs <- RSQLite::dbSendQuery(con, sql)
+      RSQLite::dbBind(rs, list(Pids))
+      res <- RSQLite::dbFetch(rs)
+      RSQLite::dbClearResult(rs)
+    }
+
+    DBI::dbDisconnect(con)
+  }
+
+  res
+}
 
 
 dbOutput_ListDesignTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
@@ -104,9 +124,11 @@ getSiteIds <- compiler::cmpfun(function(con, folderNames) {
   wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
 })
 
-local_weatherDirName <- compiler::cmpfun(function(i_sim, scN, runN, runIDs, name.OutputDB) {	# Get name of weather file from output database
+#' Get name of weather file from output database
+local_weatherDirName <- compiler::cmpfun(function(i_sim, runN, scN, name.OutputDB) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB, flags = RSQLite::SQLITE_RO)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=", it_Pid(i_sim, 1, scN, runN, runIDs)))[1,1]
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
+    it_Pid(i_sim, runN, 1, scN)))[1, 1]
   DBI::dbDisconnect(con)
   temp
 })
@@ -569,12 +591,14 @@ move_temporary_to_outputDB <- function(dir.out.temp, name.OutputDB,
 
     # Prepare output databases
     set_PRAGMAs(con, PRAGMA_settings1())
-    if (do_DBCurrent) set_PRAGMAs(con2, PRAGMA_settings1())
+    if (do_DBCurrent)
+      set_PRAGMAs(con2, PRAGMA_settings1())
 
     # Check what has already been inserted in each tables
     tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(out_tables_aggr, con)
     ids_inserted <- get_inserted_ids(con, out_tables_aggr, tables_w_soillayers)
-    ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
+    if (do_DBCurrent)
+      ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
 
     # Add data to SQL databases
     for (j in seq_along(theFileList)) {
@@ -819,7 +843,7 @@ do_copyCurrentConditionsFromDatabase <- function(name.OutputDB, name.OutputDBCur
 
 
 check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NULL,
-  do_DBcurrent = FALSE, parallel_runs = FALSE, parallel_init = FALSE,
+  update_workDB = FALSE, do_DBcurrent = FALSE, parallel_runs = FALSE, parallel_init = FALSE,
   parallel_backend = NULL, cl = NULL, dir.out = getwd(), swsf_env = NULL) {
 
   Tables <- dbOutput_ListOutputTables(dbname = name.OutputDB)
@@ -873,25 +897,40 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
   }
 
   missing_Pids <- unique(unlist(missing_Pids))
+  missing_Pids <- as.integer(sort(missing_Pids))
+  missing_runIDs <- NULL
   missing_Pids_current <- unique(unlist(missing_Pids_current))
+  missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
-    missing_Pids <- as.integer(sort(missing_Pids))
     ftemp <- file.path(dir.out, "dbTables_Pids_missing.rds")
-
     if (identical(missing_Pids, -1L)) {
       print(paste("Output DB", shQuote(name.OutputDB), "is empty and not complete"))
 
     } else {
       print(paste("Output DB", shQuote(name.OutputDB), "is missing n =",
-        length(missing_Pids), "records; P_id of these records are saved to file",
-        shQuote(ftemp)))
+        length(missing_Pids), "records"))
+
+     # Output missing Pids to rds file
+      print(paste("P_id of these records are saved to file", shQuote(ftemp)))
+      saveRDS(missing_Pids, file = ftemp)
+
+      # Update workDB
+      if (update_workDB) {
+        print("'workDB' is updated with these missing P_id to be prepared for a re-run")
+
+        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB,
+          flags = RSQLite::SQLITE_RO)
+        scN <- RSQLite::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
+        RSQLite::dbDisconnect(con)
+
+        missing_runIDs <- it_sim2(missing_Pids, scN)
+        temp <- dbWork_redo(dir.out, runIDs = missing_runIDs)
+      }
     }
-    saveRDS(missing_Pids, file = ftemp)
   }
 
   if (length(missing_Pids_current) > 0) {
-    missing_Pids_current <- as.integer(sort(missing_Pids_current))
     ftemp <- file.path(dir.out, "dbTablesCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
@@ -902,19 +941,20 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
       print(paste("Current output DB", shQuote(name.OutputDBCurrent), "is missing n =",
         length(missing_Pids_current), "records; P_id of these records are saved to file",
         shQuote(ftemp)))
-    }
-    saveRDS(missing_Pids_current, file = ftemp)
+     saveRDS(missing_Pids_current, file = ftemp)
+   }
   }
 
-  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current))
+  invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
+    missing_runIDs = missing_runIDs))
 }
 
 
   dbOutput_create_Design <- function(con_dbOut, SWRunInformation, Index_RunInformation,
-      site_labels, runsN_master,runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+      site_labels, runsN_master,runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
       create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
       sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
-      counter.digitsN) {
+      digitsN_total) {
 
 		RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
       "weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL)"))
@@ -1299,7 +1339,7 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 		RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
 		  "run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);"))
 		temp <- if (useExperimentals) {
-        temp1 <- formatC(SWRunInformation[, "site_id"], width = counter.digitsN,
+        temp1 <- formatC(SWRunInformation[, "site_id"], width = digitsN_total,
           format = "d", flag = "0")
         temp2 <- rep(sw_input_experimentals[, "Label"], each = runsN_master)
         paste(temp1, temp2, site_labels, sep = "_")
@@ -1326,9 +1366,9 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 		  dimnames = list(NULL, c("P_id", "label_id", "site_id", "treatment_id",
 		  "scenario_id"))))
 		db_runs$P_id <- seq_len(runsN_Pid)
-		db_runs$label_id <- rep(seq_len(runsN_incl), each = scenario_No)
+		db_runs$label_id <- rep(seq_len(runsN_total), each = scenario_No)
 		db_runs$site_id <- rep(rep(SWRunInformation$site_id, times = max(expN, 1L)), each = scenario_No)
-		db_runs$scenario_id <- rep(seq_len(scenario_No), times = runsN_incl)
+		db_runs$scenario_id <- rep(seq_len(scenario_No), times = runsN_total)
 
     temp <- if (useExperimentals) {
         as.vector(matrix(data = exp_start_rows, nrow = runsN_master,
@@ -2035,13 +2075,13 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 	}
 
 
-#' @section: NOTE: Do not change the design of the output database without adjusting the iterator
+#' @section: NOTE: Do not change the design of the output database without adjusting the index
 #'   functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
 make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
-    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
     create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
     sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
-    counter.digitsN, aon, daily_no, daily_lyr_agg, output_aggregate_daily, SoilLayer_MaxNo,
+    digitsN_total, aon, daily_no, daily_lyr_agg, output_aggregate_daily, SoilLayer_MaxNo,
     SWPcrit_MPa, Tmin_crit_C, Tmax_crit_C, Tmean_crit_C, bin.prcpSizes,
     bin.prcpfreeDurations, DegreeDayBase, st_mo, no.species_regeneration,
     param.species_regeneration, do_clean) {
@@ -2058,10 +2098,10 @@ make_dbOutput <- function(name.OutputDB, SWRunInformation, Index_RunInformation,
     return(n_tables)
 
   dbOutput_create_Design(con_dbOut, SWRunInformation, Index_RunInformation,
-    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_incl, scenario_No, expN,
+    site_labels, runsN_master, runIDs_sites, runsN_Pid, runsN_total, scenario_No, expN,
     create_treatments, create_experimentals, sw_input_treatments, sw_input_treatments_use,
     sw_input_experimentals, climate.conditions, simstartyr, startyr, endyr,
-    counter.digitsN)
+    digitsN_total)
 
   dbOverallColumns <- dbOutput_create_OverallAggregationTable(con_dbOut, aon,
     daily_lyr_agg, SoilLayer_MaxNo, SWPcrit_MPa, Tmin_crit_C, Tmax_crit_C, Tmean_crit_C,

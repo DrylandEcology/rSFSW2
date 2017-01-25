@@ -156,12 +156,13 @@ deleteTmpSQLFiles <- TRUE
 copyCurrentConditionsFromTempSQL <- FALSE
 copyCurrentConditionsFromDatabase <- FALSE #Creates a copy of the main database containing the scenario==climate.ambient subset
 ensembleCollectSize <- 500 #This value is the chunk size for reads of 'runID' from the database, i.e., chunk size = ensembleCollectSize * scenario_No. Yellowstone 500 seems to work. Balance between available memory, cores, read/write times, etc..
+check_updates_workDB <- TRUE # If action == "check" detects missing Pids, then workDB is updated (so that a new run of the script can be started to add missing runs)
 
 #------Define type of simulations and source of input data
 #Daily weather data: must be one of dailyweather_options; WeatherFolder in MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
 # If a run has multiple sources for daily weather, then take the one in the first position of dailyweather_options if availble, if not then second etc.
 #	do not change/remove/add entries; only re-order to set different priorities
-dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2002_NorthAmerica", "Livneh_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global")
+dailyweather_options <- c("DayMet_NorthAmerica", "LookupWeatherFolder", "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global", "Livneh_NorthAmerica")
 #Daily weather database
 getCurrentWeatherDataFromDatabase <- TRUE
 getScenarioWeatherDataFromDatabase <- TRUE
@@ -202,7 +203,7 @@ do.ExtractExternalDatasets <- c(
 		"GriddedDailyWeatherFromDayMet_NorthAmerica", 0,	#1-km resolution
 		"GriddedDailyWeatherFromNRCan_10km_Canada", 0,	# can only be used together with database
 		"GriddedDailyWeatherFromNCEPCFSR_Global", 0, # can only be used together with database
-		"GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0, # 1/16 degree resolution
+    "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0, # 1/16 degree resolution
 
 		#Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL, climate condition names must be of the form SCENARIO.GCM with SCENARIO being used for ensembles; if using climatewizard, climate condition names must be equal to what is in the respective directories
 		"ExtractClimateChangeScenarios", 0,
@@ -287,7 +288,7 @@ climate.conditions <- c(climate.ambient)
 
 #Downscaling method: monthly scenario -> daily forcing variables
 #Will be applied to each climate.conditions
-downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), or "hybrid-delta-3mod"
+downscaling.method			<- c("hybrid-delta-3mod")				#one or multiple of "raw", "delta" (Hay et al. 2002), "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod" or "wgen-package"
 
 opt_DS <- list(
   daily_ppt_limit = 1.5,							#
@@ -480,9 +481,9 @@ growing.season.threshold.tempC <- 4 # based on standard input of mean monthly bi
 # NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
 opt_NRCS_SMTRs <- list(
   # Approach for regime determination ('data' -> 'conditions' -> 'regime')
-  aggregate_at = "regime",
+  aggregate_at = "conditions",
   # Aggregation agreement level (e.g., 0.5 = majority; 1 = all)
-  crit_agree_frac = 1,
+  crit_agree_frac = 0.9,
   # Restrict data to normal years (as defined by SSS 2014) if TRUE; if FALSE, use all years
   use_normal = TRUE,
   SWP_dry = -1.5,       #dry means SWP below -1.5 MPa (Soil Survey Staff 2014: p.29)
