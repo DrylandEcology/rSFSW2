@@ -400,55 +400,60 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
 			if (any(use_it)) {
         temp <- with(i_sw_input_prod, c(Grass_Albedo, Shrub_Albedo, Tree_Albedo,
-          Forb_Albedo, BareGround_Albedo))
-        if (any(!is.finite(temp))) {
-          print(paste("ERROR: albedo column(s)", paste(shQuote(use_it[!is.finite(temp)]),
+          Forb_Albedo, BareGround_Albedo))[use_it]
+        temp1 <- !is.finite(temp)
+        if (any(temp1)) {
+          print(paste("ERROR: albedo column(s)", paste(shQuote(names(use_it)[use_it][temp1]),
             collapse = "-"), "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-				Rsoilwat31::swProd_Albedo(swRunScenariosData[[1]])[use_it] <-
-				  as.numeric(temp[use_it])
+				Rsoilwat31::swProd_Albedo(swRunScenariosData[[1]])[use_it] <- as.numeric(temp)
 			}
+
 			#constant canopy height
 			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
 			if (any(use_it)) {
         temp <- with(i_sw_input_prod, c(Grass_CanopyHeight_Constant_cm,
           Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,
-          Forb_CanopyHeight_Constant_cm))
-        if (any(!is.finite(temp))) {
-          print(paste("ERROR: canopy height column(s)", paste(shQuote(use_it[!is.finite(temp)]),
+          Forb_CanopyHeight_Constant_cm))[use_it]
+        temp1 <- !is.finite(temp)
+        if (any(temp1)) {
+          print(paste("ERROR: canopy height column(s)", paste(shQuote(names(use_it)[use_it][temp1]),
             collapse = "-"), "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
-        Rsoilwat31::swProd_CanopyHeight(swRunScenariosData[[1]])[5, use_it] <- temp[use_it]
+        Rsoilwat31::swProd_CanopyHeight(swRunScenariosData[[1]])[5, use_it] <- temp
 			}
 			#flag for hydraulic redistribution
 			use_it <- sw_input_prod_use[grepl("HydRed", names(sw_input_prod_use))]
 			if (any(use_it)) {
         temp <- with(i_sw_input_prod, c(Grass_HydRed_OnOff, Shrub_HydRed_OnOff,
-          Tree_HydRed_OnOff, Forb_HydRed_OnOff))
-        if (any(!is.finite(temp))) {
+          Tree_HydRed_OnOff, Forb_HydRed_OnOff))[use_it]
+        temp1 <- !is.finite(temp)
+        if (any(temp1)) {
           print(paste("ERROR: flag(s) for hydraulic redistribution",
-            paste(shQuote(use_it[!is.finite(temp)]),  collapse = "-"),
+            paste(shQuote(names(use_it)[use_it][temp1]), collapse = "-"),
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
 				Rsoilwat31::swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <-
-				  as.logical(temp[use_it])
+				  as.logical(temp)
 			}
       #flag for transpiration-critical SWP (MPa)
       use_it <- grepl("SWPcrit_MPa", names(sw_input_prod_use))
       if (any(use_it)) {
         temp <- with(i_sw_input_prod, c(Grasses = Grass_SWPcrit_MPa,
-          Shrubs = Shrub_SWPcrit_MPa, Trees = Tree_SWPcrit_MPa, Forbs = Forb_SWPcrit_MPa))
-        if (any(!is.finite(temp))) {
+          Shrubs = Shrub_SWPcrit_MPa, Trees = Tree_SWPcrit_MPa,
+          Forbs = Forb_SWPcrit_MPa))[use_it]
+        temp1 <- !is.finite(temp)
+        if (any(temp1)) {
           print(paste("ERROR: column(s) of critical SWP",
-            paste(shQuote(sw_input_prod_use[use_it[!is.finite(temp)]]),  collapse = "-"),
+            paste(shQuote(names(use_it)[use_it][temp1]),  collapse = "-"),
             "contain(s) unsuitable values"))
           tasks$create <- 0L
         }
         Rsoilwat31::swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <-
-          as.numeric(temp[use_it])
+          as.numeric(temp)
       }
 
       Rsoilwat31::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
