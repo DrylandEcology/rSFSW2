@@ -10,26 +10,28 @@
 #' @name pedotransfer
 NULL
 
+#' @export
 #' @rdname pedotransfer
 #' @section Note:
 #'  either swp or sand/clay needs be a single value
-pdf_to_vwc <- compiler::cmpfun(function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_conversion = 1024) {
+pdf_to_vwc <- function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_conversion = 1024) {
   thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100
-})
+}
 
+#' @export
 #' @rdname pedotransfer
 #' @section Note:
 #'  either vwc or sand/clay needs be a single value
-pdf_to_swp <- compiler::cmpfun(function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1, bar_conversion = 1024) {
+pdf_to_swp <- function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1, bar_conversion = 1024) {
   psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa
-})
+}
 
-pedotransfer <- compiler::cmpfun(function(x, sand, clay, pdf) {
+pedotransfer <- function(x, sand, clay, pdf) {
   stopifnot(length(sand) && length(sand) == length(clay))
   sand <- finite01(sand, NA, NA)
   clay <- finite01(clay, NA, NA)
 
-  if (any(complete.cases(sand, clay))) {
+  if (any(stats::complete.cases(sand, clay))) {
     thetas <- -14.2 * sand - 3.7 * clay + 50.5
     psis <- 10 ^ (-1.58 * sand - 0.63 * clay + 2.17)
     b <- -0.3 * sand + 15.7 * clay + 3.10
@@ -75,15 +77,16 @@ pedotransfer <- compiler::cmpfun(function(x, sand, clay, pdf) {
   }
 
   res #if SWP then in units of MPa [-Inf, 0]; if VWC then in units of m3/m3 [0, 1]
-})
+}
 
+#' @export
 #' @rdname pedotransfer
 #' @param swp A numeric value, vector, or 2-dimensional object (matrix or data.frame).
 #'  The soil water potential (of the soil matrix) in units of MPa, i.e.,
 #'  the soil without the volume of rock and gravel.
 #'
 #' @return Volumetric water content in units of m^3 (of water) / m^3 (of soil) [0, 1].
-#'  There are six use cases:\enumarate{
+#'  There are six use cases:\enumerate{
 #'    \item 1) \itemize{
 #'                \item Input: SWP [single value]; sand and clay [single values]
 #'                \item Output: VWC [single value]}
@@ -103,17 +106,18 @@ pedotransfer <- compiler::cmpfun(function(x, sand, clay, pdf) {
 #'                \item Input: SWP [l x d matrix]; sand and clay [vectors of length d]
 #'                \item Output: VWC [l x d matrix], sand and clay vectors are repeated for each row}
 #'  }
-SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
+SWPtoVWC <- function(swp, sand, clay) {
   pedotransfer(swp, sand, clay, pdf = pdf_to_vwc)
-})
+}
 
 
+#' @export
 #' @rdname pedotransfer
 #' @param vwc A numeric value, vector, or 2-dimensional object (matrix or data.frame).
 #'  The matric soil moisture, i.e., reduced by the volume of rock and gravel.
 #'
 #' @return Soil water potential in units of MPa [-Inf, 0]. There are six use cases:
-#'  \enumarate{
+#'  \enumerate{
 #'    \item 1) \itemize{
 #'                \item Input: VWC [single value]; sand and clay [single values]
 #'                \item Output: SWP [single value]}
@@ -133,6 +137,6 @@ SWPtoVWC <- compiler::cmpfun(function(swp, sand, clay) {
 #'                \item Input: VWC [l x d matrix]; sand and clay [vectors of length d]
 #'                \item Output: SWP [l x d matrix], sand and clay vectors are repeated for each row}
 #'  }
-VWCtoSWP <- compiler::cmpfun(function(vwc, sand, clay) {
+VWCtoSWP <- function(vwc, sand, clay) {
   pedotransfer(vwc, sand, clay, pdf = pdf_to_swp)
-})
+}

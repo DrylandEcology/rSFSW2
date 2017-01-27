@@ -1,5 +1,6 @@
 #---Downscaling/bias-correction functions
 
+#' @export
 climscen_metadata <- function() {
   #--- Meta information of climate datasets
   template_bbox <- data.frame(matrix(NA, nrow = 2, ncol = 2,
@@ -8,7 +9,7 @@ climscen_metadata <- function() {
     dimnames = list(c("start", "end"), c("first", "second"))))
 
 
-  # SoilWat required units are c("cm/day", "C", "C")
+  # SOILWAT2 required units are c("cm/day", "C", "C")
   var_names_fixed <- c("prcp", "tmin", "tmax", "tmean")
 
   climDB_metas <- list(
@@ -88,9 +89,9 @@ climscen_metadata <- function() {
 
 
 #Helper functions
-unique_times <- compiler::cmpfun(function(timeSlices, slice) {
-  starts <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
-  ends <- na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
+unique_times <- function(timeSlices, slice) {
+  starts <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
+  ends <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
   temp <- lapply(seq_along(starts), function(x) starts[x]:ends[x])
   temp1 <- vector("integer", length = 0)
   for (it in seq_along(temp)) temp1 <- union(temp1, temp[[it]])
@@ -100,9 +101,9 @@ unique_times <- compiler::cmpfun(function(timeSlices, slice) {
   for (it in 1:n) res[it, ] <- c(temp1[temp2[it]], temp1[temp2[it+1] - 1])
 
   res
-})
+}
 
-useSlices <- compiler::cmpfun(function(getYears, timeSlices, run, slice) {
+useSlices <- function(getYears, timeSlices, run, slice) {
   res <- rep(FALSE, length = nrow(getYears[[slice]]))
   temp <- timeSlices$Year[timeSlices$Run == run & timeSlices$Slice == slice]
   if (!anyNA(temp)) {
@@ -112,7 +113,7 @@ useSlices <- compiler::cmpfun(function(getYears, timeSlices, run, slice) {
   }
 
   res
-})
+}
 
 fill_bounding_box <- function(box, vals) {
   box[] <- vals
@@ -138,7 +139,7 @@ fill_bounding_box <- function(box, vals) {
 #'    \item{data}{A copy of \code{data} with adjusted values.}
 #'    \item{PPT_to_remove}{The total amount of precipitation that couldn't be removed from \code{data} due to lack of precipitation.}
 #'  }
-add_delta_to_PPT <- compiler::cmpfun(function(data, ind_events = NULL, addDelta = NULL, deltaPerEvent = NULL) {
+add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerEvent = NULL) {
   stopifnot(xor(is.null(deltaPerEvent), is.null(addDelta)))
 
   if (is.null(ind_events)) ind_events <- data > 0
@@ -173,7 +174,7 @@ add_delta_to_PPT <- compiler::cmpfun(function(data, ind_events = NULL, addDelta 
   }
 
   list(data = data, PPT_to_remove = StillToSubtract)
-})
+}
 
 #' Adds/removes elements of data
 #'
@@ -187,7 +188,7 @@ add_delta_to_PPT <- compiler::cmpfun(function(data, ind_events = NULL, addDelta 
 #' @param targetLength An integer value.
 #'
 #' @return A copy of \code{data} with adjusted length.
-fix_PPTdata_length <- compiler::cmpfun(function(data, targetLength) {
+fix_PPTdata_length <- function(data, targetLength) {
   targetLength <- as.integer(targetLength)
   stopifnot(targetLength >= 0)
 
@@ -211,25 +212,28 @@ fix_PPTdata_length <- compiler::cmpfun(function(data, targetLength) {
   }
 
   data
-})
+}
 
+#' Distribute precipitation among days without too extreme values
+#'
 #' @param data_N An integer value. The number of days of the precipitation record to consider.
 #' @param this_newPPTevent_N An integer value. The number of days which will received 'spill-over' precipitation.
 #' @param sigmaN An integer value. The multiplicator of \code{this_newPPTevent_N} to determine the range of days to consider.
 #' @param this_i_extreme. An integer value. The index indicating for which day in the precipitation record, precipitation is removed and redistributed.
 #' @param this_pptToDistribute. An integer value. The amount of precipitation that was removed from day \code{this_i_extreme} and is now redistributed to other days.
-calc_Days_withLoweredPPT <- compiler::cmpfun(function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme, this_pptToDistribute) {
+calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme, this_pptToDistribute) {
   this_newPPTevent_N <- max(0L, as.integer(this_newPPTevent_N))
 
-  #Randomly select days within ± sigmaN days from a normal distribution
+  #Randomly select days within plus/minus sigmaN days from a normal distribution
   temp <- (-sigmaN * this_newPPTevent_N):(sigmaN * this_newPPTevent_N)
   xt <- temp[this_i_extreme + temp > 0]
   this_xt <- this_i_extreme + xt
   xt <- xt[1 <= this_xt & this_xt <= data_N] #do not select days from previous or next year
-  probs <- dnorm(x = xt, mean = 0, sd = this_newPPTevent_N)
+  probs <- stats::dnorm(x = xt, mean = 0, sd = this_newPPTevent_N)
   probs[which.max(probs)] <- 0
   temp <- sample(x = xt, size = this_newPPTevent_N, replace = FALSE, prob = probs)
-  dayDelta <- temp[.Internal(order(na.last = TRUE, decreasing = FALSE, abs(temp)))]
+  # dayDelta <- temp[.Internal(order(na.last = TRUE, decreasing = FALSE, abs(temp)))] # .Internal() is not allowed in packages
+  dayDelta <- temp[(order(abs(temp), na.last = TRUE, decreasing = FALSE))]
 
   #Distribute PPT to add among the selected days with a linear decay function
   newDays <- this_i_extreme + dayDelta
@@ -237,19 +241,24 @@ calc_Days_withLoweredPPT <- compiler::cmpfun(function(data_N, this_newPPTevent_N
   newPPT <- this_pptToDistribute * temp / sum(temp)
 
   list(newDays = newDays, newPPT = newPPT)
-})
+}
 
 
-
-
+#' Check for and handle days with too extreme precipitation values
+#'
 #' @param data A numeric vector. Daily values of precipitation.
-#' @param dailyPPTceiling A numeric value. The maximum value of daily precipitation. Values above this limit will be removed and redistributed to other days.
+#' @param dailyPPTceiling A numeric value. The maximum value of daily precipitation.
+#'  Values above this limit will be removed and redistributed to other days.
 #' @param do_checks A logical value. See details.
-#' @param sigmaN An integer value. A multiplicator of \code{sd} for data checks.
+#' @param sigmaN An integer value. A multiplicator of \code{stats::sd} for data checks.
 #' @param mfact A numeric value. See details.
-#' @details IF \code{TRUE} and any daily precipitation is equal or larger than \code{mfact * dailyPPTceiling}, then the code will error out.
-controlExtremePPTevents <- compiler::cmpfun(function(data, dailyPPTceiling, sigmaN, do_checks = FALSE, mfact = 10) {
-  if (do_checks) stopifnot(data < mfact * dailyPPTceiling) #something went wrong, e.g., GCM data is off; (10 / 1.5 * dailyPPTceiling) -> dailyPPTtoExtremeToBeReal  #if more than 1000% of observed value then assume that something went wrong and error out
+#'
+#' @details If \code{do_check == TRUE} and any daily precipitation is equal or larger than
+#'  \code{mfact * dailyPPTceiling}, then the code will error out.
+controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = FALSE, mfact = 10) {
+
+  if (do_checks)
+    stopifnot(data < mfact * dailyPPTceiling) #something went wrong, e.g., GCM data is off; (10 / 1.5 * dailyPPTceiling) -> dailyPPTtoExtremeToBeReal  #if more than 1000% of observed value then assume that something went wrong and error out
 
   data_N <- length(data)
   i_extreme <- which(data > dailyPPTceiling)
@@ -257,7 +266,7 @@ controlExtremePPTevents <- compiler::cmpfun(function(data, dailyPPTceiling, sigm
 
   while (length(i_extreme) > 0 && irep < 30) {
     # limit calls: if too many wet days, then not possible to distribute all the water!
-    newValues <- dailyPPTceiling * runif(n = length(i_extreme), min = 0.9, max = 1)
+    newValues <- dailyPPTceiling * stats::runif(n = length(i_extreme), min = 0.9, max = 1)
     pptToDistribute <- data[i_extreme] - newValues
     data[i_extreme] <- newValues
     newPPTevent_N <- ceiling(pptToDistribute / dailyPPTceiling)
@@ -279,12 +288,12 @@ controlExtremePPTevents <- compiler::cmpfun(function(data, dailyPPTceiling, sigm
   if (do_checks) test_sigmaGamma(data = data, sigmaN)
 
   data
-})
+}
 
-#' Add/multiply deltas to historic daily data to generate future daily SoilWat-formatted weather.
+#' Add/multiply deltas to historic daily data to generate future daily SOILWAT2-formatted weather.
 #' Used by \code{downscale.raw}, \code{downscale.delta}, and \code{downscale.deltahybrid}
-applyDeltas <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks=FALSE) {
-  dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by “spreading out” very large daily precipitation values into one or more adjacent days"
+applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks=FALSE) {
+  dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN=function(obs) max(obs@data[,4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by "spreading out" very large daily precipitation values into one or more adjacent days"
 
   res <- lapply(obs.hist.daily, function(obs) {
         month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep="-"), format="%Y-%j", tz = "UTC")$mon + 1
@@ -345,19 +354,30 @@ applyDeltas <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly, delta
       })
 
   res
-})
+}
 
 
 
-#' Add/multiply deltas to historic daily precipitation to generate future daily precipitation without checks
+#' Add/multiply deltas to historic daily precipitation to generate future daily
+#'  precipitation without checks
 #'
-#' @param m An integer vector. Each element corresponds to a day (i.e., length(m) is 365 or 366 days) and the values are the number of the month.
+#' @param m An integer vector. Each element corresponds to a day (i.e., length(m) is 365
+#'  or 366 days) and the values are the number of the month.
 #' @param data A numeric vector. Precipitation of each day.
-#' @param ydelta A numeric vector. Delta values for each day. If computed deltas are monthly, then they must be repeated for each day before passed as argument to this function.
-#' @param add_days A logical vector. \code{TRUE} for each day for which \code{ydelta} is applied additively.
-#' @param mult_days A logical vector. \code{TRUE} for each day for which \code{ydelta} is applied multiplicatively.
+#' @param ydelta A numeric vector. Delta values for each day. If computed deltas are
+#'  monthly, then they must be repeated for each day before passed as argument to this
+#'  function.
+#' @param add_days A logical vector. \code{TRUE} for each day for which \code{ydelta} is
+#'  applied additively.
+#' @param mult_days A logical vector. \code{TRUE} for each day for which \code{ydelta} is
+#'  applied multiplicatively.
+#' @param set_negPPT_to0 A logical value. If \code{TRUE} (default) then force days with
+#'  resulting negative values of precipitation to 0 -- thereby introducing a positive bias.
+#'
 #' @return A copy of \code{data} with adjusted values.
-applyPPTdelta_simple <- compiler::cmpfun(function(m, data, ydelta, add_days, mult_days) {
+applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
+  set_negPPT_to0 = TRUE) {
+
   ppt <- rep(0, length(data))
   ievents <- data > 0
 
@@ -367,10 +387,15 @@ applyPPTdelta_simple <- compiler::cmpfun(function(m, data, ydelta, add_days, mul
     events_per_month <- tapply(as.integer(ievents), m, sum)[m]
     itemp <- add_days & ievents
     ppt[itemp] <- data[itemp] + ydelta[itemp] / events_per_month[itemp]
+
     # Simple correction for negative precipitation that can arise from subtractive deltas
-    negppt <- ppt[itemp] < 0
-    if (any(negppt)) ppt[itemp][negppt] <- 0
+    if (set_negPPT_to0) {
+      negppt <- ppt[itemp] < 0
+      if (any(negppt))
+        ppt[itemp][negppt] <- 0
+    }
   }
+
   # multiplicative delta
   if (any(mult_days)) {
     itemp <- mult_days & ievents
@@ -378,7 +403,7 @@ applyPPTdelta_simple <- compiler::cmpfun(function(m, data, ydelta, add_days, mul
   }
 
   ppt
-})
+}
 
 #' Add/multiply deltas to historic daily precipitation to generate future daily precipitation with checks
 #'
@@ -389,7 +414,7 @@ applyPPTdelta_simple <- compiler::cmpfun(function(m, data, ydelta, add_days, mul
 #'    \item{data}{A copy of \code{data} with adjusted values.}
 #'    \item{PPT_to_remove}{The total amount of precipitation that couldn't be removed from \code{data} due to lack of precipitation.}
 #'  }
-applyPPTdelta_detailed <- compiler::cmpfun(function(m, data, ydelta, add_days, mult_days, daily, monthly) {
+applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, monthly) {
   ppt <- rep(0, length(data))
   PPT_to_remove <- 0
 
@@ -475,10 +500,10 @@ applyPPTdelta_detailed <- compiler::cmpfun(function(m, data, ydelta, add_days, m
   }
 
   list(data = ppt, PPT_to_remove = PPT_to_remove)
-})
+}
 
 
-applyDelta_oneYear <- compiler::cmpfun(function(obs, delta_ts, ppt_fun, daily, monthly,
+applyDelta_oneYear <- function(obs, delta_ts, ppt_fun, daily, monthly,
                       ppt_type = NULL, dailyPPTceiling, sigmaN, do_checks) {
 
   ppt_type <- match.arg(ppt_type, c(NA, "detailed", "simple"))
@@ -527,10 +552,10 @@ applyDelta_oneYear <- compiler::cmpfun(function(obs, delta_ts, ppt_fun, daily, m
             2),
       year = obs@year)
   list(sw = sw, PPT_to_remove = PPT_to_remove)
-})
+}
 
 
-applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_fun,
+applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
                 ppt_type = NULL, dailyPPTceiling, sigmaN, do_checks = FALSE) {
 
   sw_list <- list()
@@ -550,7 +575,7 @@ applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_f
     # Some years didn't have sufficient precipitation for the removal of the requested delta precipitation
     # Here, crude approach to remove this additional quantity by spreading it across all years
 
-    daily2 <- dbW_weatherData_to_dataframe(sw_list)
+    daily2 <- Rsoilwat31::dbW_weatherData_to_dataframe(sw_list)
     totalPPT <- sum(daily2[, "PPT_cm"])
 
     if (totalPPT > abs(totalPPT_to_remove)) {
@@ -561,12 +586,12 @@ applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_f
       daily2[, "PPT_cm"] <- 0
     }
 
-    sw_list <- dbW_dataframe_to_weatherData(daily2, years)
+    sw_list <- Rsoilwat31::dbW_dataframe_to_weatherData(daily2, years)
   }
     names(sw_list) <- years
 
   sw_list
-})
+}
 
 
 
@@ -574,21 +599,22 @@ applyDeltas2 <- compiler::cmpfun(function(daily, monthly, years, delta_ts, ppt_f
 #'
 #' @details Units are [degree Celsius] for temperature and [cm / day] or [cm / month], respectively, for precipitation
 #'
-#' @param obs.hist.daily A list. Each element corresponds to one year of simstartyr:endyris and is an object of class \linkS4class{swWeatherData}.
-#' @param daily A list. Each element corresponds to one year of simstartyr:endyris and is an object of class \linkS4class{swWeatherData}.
+#' @param obs.hist.daily A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.
+#' @param daily A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.
 #' @param obs.hist.monthly A numeric matrix. Monthly time-series of observed weather calculated from \code{obs.hist.daily} for the years simstartyr:endyr.
 #' @param monthly A numeric matrix. Monthly time-series of observed weather calculated from \code{daily} for the years simstartyr:endyr.
 #' @param scen.hist.monthly A numeric matrix. Monthly time-series of scenario weather during the historic time period DScur_startyr:DScur_endyr
 #' @param scen.fut.monthly A numeric matrix. Monthly time-series of scenario weather during the projected time period DSfut_startyr:DSfut_endyr
 #' @param opt_DS A named list.
 #' @param do_checks A logical value. If \code{TRUE} perform several sanity checks on the data.
-downscale <- function(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, opt_DS, do_checks = TRUE) {}
+downscale <- function(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, itime, years,
+  sim_time, opt_DS, do_checks = TRUE, ...) {}
 
 
 
 #' Time periods for downscaling functions
 #' @inheritParams downscale
-downscale.periods <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
+downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
                       scen.hist.monthly = NULL, scen.fut.monthly = NULL, years = NULL,
                       DScur_startyear = NULL, DScur_endyear = NULL,
                       DSfut_startyear = NULL, DSfut_endyear = NULL) {
@@ -639,26 +665,34 @@ downscale.periods <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
     DSfut_startyear = DSfut_startyear, DSfut_endyear = DSfut_endyear,
     iuse_obs_hist_d = iuse_obs_hist_d, iuse_obs_hist_m = iuse_obs_hist_m,
     iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
-})
+}
 
 #'
 #' Calculate Deltas, used for downscaling functionality
 
-calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
+calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
 
   # 1. Calculate mean monthly values in historic and future scenario values
-  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
+  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], scen.fut.monthly[, "month"],
+    mean, na.rm = TRUE)
+  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], scen.fut.monthly[, "month"],
+    mean, na.rm = TRUE)
+  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], scen.fut.monthly[, "month"],
+    sum, na.rm = TRUE)
 
-  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], obs.hist.monthly[, "Month"],
+    mean, na.rm = TRUE)
+  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], obs.hist.monthly[, "Month"],
+    mean, na.rm = TRUE)
+  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], obs.hist.monthly[, "Month"],
+    sum, na.rm = TRUE)
 
   # 2. Calculate deltas between observed historic and future mean scenario values
-  #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+  #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very
+  #     large PPT ratios
   #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
-  delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+  delta_ts <- matrix(NA, nrow = nrow(obs.hist.monthly), ncol = 5, dimnames = list(NULL,
+    c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
   delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
   ppt_fun <- rep("*", 12)
 
@@ -666,17 +700,19 @@ calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  temp_add <- obs.hist.mean_ppt < tol |
+  temp_add <- obs.hist.mean_ppt < swsf_glovars[["tol"]] |
     delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
     delta_ppts > opt_DS[["PPTratioCutoff"]]
+
   if (any(temp_add)) {
     ppt_fun[temp_add] <- "+"
     delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
   }
+
   delta_ts[, "PPT_cm"] <- delta_ppts
 
   list(delta_ts, ppt_fun)
-  })
+}
 
 #' Downscale with the 'direct approach'
 #'
@@ -686,17 +722,16 @@ calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
 #'
 #' @references Lenderink, G., A. Buishand, and W. van Deursen. 2007. Estimates of future discharges of the river Rhine using two scenario methodologies: direct versus delta approach. Hydrology and Earth System Sciences 11:1145-1159.
 #' @export
-downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
-                  scen.fut.monthly, years = NULL,
-                  DScur_startyear = NULL, DScur_endyear = NULL,
-                  DSfut_startyear = NULL, DSfut_endyear = NULL,
+downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
+                  scen.fut.monthly, itime, years = NULL, sim_time = NULL,
                   opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
                   dailyPPTceiling, do_checks = TRUE, ...) {
 
   # Time periods
   tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
-    scen.fut.monthly, years, DScur_startyear, DScur_endyear,
-    DSfut_startyear, DSfut_endyear)
+    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
 
   if (any(!tp$iuse_obs_hist_d))
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
@@ -725,7 +760,7 @@ downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
   # delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   # delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   # delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  # temp_add <- obs.hist.mean_ppt < tol |
+  # temp_add <- obs.hist.mean_ppt < swsf_glovars[["tol"]] |
   #             delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
   #             delta_ppts > opt_DS[["PPTratioCutoff"]]
   # if (any(temp_add)) {
@@ -733,7 +768,7 @@ downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
   #   delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
   # }
   # delta_ts[, "PPT_cm"] <- delta_ppts
-  delta_ts <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
+  delta_ts <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)
   ppt_fun <- delta_ts[[2]]
   delta_ts <- delta_ts[[1]]
   # 3. Apply deltas to historic daily weather
@@ -741,24 +776,24 @@ downscale.raw <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
       years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
       ppt_type = opt_DS[["ppt_type"]], dailyPPTceiling = dailyPPTceiling,
       sigmaN = opt_DS[["sigmaN"]], do_checks = do_checks)
-})
+}
 
 #' Downscale with the 'delta approach'
 #'
 #' @inheritParams downscale
 #'
 #' @references Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta change and downscaled gcm scenarios for three mountainous basins in the United States. Journal of the American Water Resources Association 36:387-397.
-#' @references Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 #' @export
-downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
-                    scen.hist.monthly, scen.fut.monthly, years = NULL,
-                    DScur_startyear = NULL, DScur_endyear = NULL,
-                    DSfut_startyear = NULL, DSfut_endyear = NULL,
+downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
+                    scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
                     opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
                     dailyPPTceiling, do_checks = TRUE, ...) {
   # Time periods
   tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
-    scen.fut.monthly, years, DScur_startyear, DScur_endyear, DSfut_startyear, DSfut_endyear)
+    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
 
   if (any(!tp$iuse_obs_hist_d))
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
@@ -790,7 +825,7 @@ downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - scen.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - scen.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / scen.hist.mean_ppt
-  temp_add <- scen.hist.mean_ppt < tol |
+  temp_add <- scen.hist.mean_ppt < swsf_glovars[["tol"]] |
               delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
               delta_ppts > opt_DS[["PPTratioCutoff"]]
 
@@ -806,7 +841,7 @@ downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
       years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
       ppt_type = opt_DS[["ppt_type"]], dailyPPTceiling = dailyPPTceiling,
       sigmaN = opt_DS[["sigmaN"]], do_checks = do_checks)
-})
+}
 
 #' Downscale with the 'delta-hybrid approach' old version (prior to May 2016)
 #'
@@ -815,16 +850,14 @@ downscale.delta <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
 #'
 #' @inheritParams downscale
 #'
-#' @references Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 #' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association, 50, 1461-1476.
 #' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
 #' @export
-downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.monthly,
-                          scen.hist.monthly, scen.fut.monthly, years = NULL,
-                          DScur_startyear = NULL, DScur_endyear = NULL,
-                          DSfut_startyear = NULL, DSfut_endyear = NULL,
+downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
+                          scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
                           opt_DS = list(sigmaN = 6, PPTratioCutoff = 10),
                           do_checks = TRUE, ...) {
   #Functions
@@ -837,12 +870,16 @@ downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.mont
     }
     n <- length(x)
     q <- (1:n - 0.4) / (n + 0.2) #Cunnane (1978)
-    f <- splinefun(x=q, y=x, method="monoH.FC", ties=mean) #'hyman' produces too extreme large values
+    f <- stats::splinefun(x=q, y=x, method="monoH.FC", ties=mean) #'hyman' produces too extreme large values
     return(list(x=x, q=q, fun=f))
   }
 
   # Time periods
-  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly, years, DScur_startyear, DScur_endyear, DSfut_startyear, DSfut_endyear)
+  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
+    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
+
   if (any(!tp$iuse_obs_hist_d)) obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
   if (any(!tp$iuse_obs_hist_m)) obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
   if (any(!tp$iuse_scen_hist_m)) scen.hist.monthly <- scen.hist.monthly[tp$iuse_scen_hist_m, ]
@@ -861,9 +898,9 @@ downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.mont
       scen.fut.x <- scen.fut.monthly[rep(1:12, times=nrow(scen.fut.monthly) / 12) == m, 2 + iv]
 
       #NA values are assumed to represent median conditions
-      if (any(i_na <- is.na(obs.hist.x))) obs.hist.x[i_na] <- median(obs.hist.x, na.rm=TRUE)
-      if (any(i_na <- is.na(scen.hist.x))) scen.hist.x[i_na] <- median(scen.hist.x, na.rm=TRUE)
-      if (any(i_na <- is.na(scen.fut.x))) scen.fut.x[i_na] <- median(scen.fut.x, na.rm=TRUE)
+      if (any(i_na <- is.na(obs.hist.x))) obs.hist.x[i_na] <- stats::median(obs.hist.x, na.rm=TRUE)
+      if (any(i_na <- is.na(scen.hist.x))) scen.hist.x[i_na] <- stats::median(scen.hist.x, na.rm=TRUE)
+      if (any(i_na <- is.na(scen.fut.x))) scen.fut.x[i_na] <- stats::median(scen.fut.x, na.rm=TRUE)
 
       #eCDFs
       obs.hist.ecdf <- eCDF.Cunnane(obs.hist.x)
@@ -924,10 +961,10 @@ downscale.deltahybrid <- compiler::cmpfun(function(obs.hist.daily, obs.hist.mont
 
   # 6. Apply deltas to historic daily weather
   applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, opt_DS[["sigmaN"]], do_checks=do_checks)
-})
+}
 
 #------------------------
-doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type = NULL,
+doQmapQUANT.default_drs <- function(x, fobj, type = NULL,
                           lin_extrapol = NULL, spline_method = NULL,
                           monthly_extremes = NULL, fix_spline = NULL, ...) {
 
@@ -947,26 +984,26 @@ doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type = NULL,
   out <- rep(NA, length.out = length(x))
 
   if (isTRUE(type == "linear")) {
-    out[wet] <- approx(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], xout = x[wet],
+    out[wet] <- stats::approx(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1], xout = x[wet],
       method = "linear", rule = 2, ties = mean)$y
 
     if (!isTRUE(lin_extrapol == "none")) {
       # "same extrapolation as Boe et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
       qid <- switch(lin_extrapol, Boe = 0, Thermessl2012CC.QMv1b = 3)
-      nq <- nrow(fobj$par$modq)
-      largex <- x > fobj$par$modq[nq, 1] + tol
+      nq <- nrow(fobj[["par"]]$modq)
+      largex <- x > fobj[["par"]]$modq[nq, 1] + swsf_glovars[["tol"]]
       if (any(largex)) {
-        max.delta <- fobj$par$modq[nq - qid, 1] - fobj$par$fitq[nq - qid, 1]
+        max.delta <- fobj[["par"]]$modq[nq - qid, 1] - fobj[["par"]]$fitq[nq - qid, 1]
         out[largex] <- x[largex] - max.delta
       }
-      smallx <- x < fobj$par$modq[1, 1] - tol
+      smallx <- x < fobj[["par"]]$modq[1, 1] - swsf_glovars[["tol"]]
       if (any(smallx)) {
-        min.delta <- fobj$par$modq[1 + qid, 1] - fobj$par$fitq[1 + qid, 1]
+        min.delta <- fobj[["par"]]$modq[1 + qid, 1] - fobj[["par"]]$fitq[1 + qid, 1]
         out[smallx] <- x[smallx] - min.delta
       }
     }
   } else if (isTRUE(type == "tricub")) {
-    sfun <- splinefun(x = fobj$par$modq[, 1], y = fobj$par$fitq[, 1], method = spline_method) #only "monoH.FC" would be appropriate here because we would want a monotone function if possible
+    sfun <- stats::splinefun(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1], method = spline_method) #only "monoH.FC" would be appropriate here because we would want a monotone function if possible
     temp <- sfun(x[wet])
 
     #There seem to be at least two causes for abnormally high values from sfun()
@@ -978,11 +1015,11 @@ doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type = NULL,
     if (!is.null(monthly_extremes) && !isTRUE(fix_spline == "none")) {
       # version previous to 20150705 didn't catch several bad cases, e.g., ix = 180099
       # to prevent huge oscillation in 'fmm' and 'natural', we need to bound values between some small and some not-too large number
-      # apparently 'monoH.FC' does also show huge oscillations, e.g., ix=82529 because of numerical instabilities in the exact monotonicity in fobj$par$modq[, 1]
+      # apparently 'monoH.FC' does also show huge oscillations, e.g., ix=82529 because of numerical instabilities in the exact monotonicity in fobj[["par"]]$modq[, 1]
       icount <- 1
       while ((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 && icount < 10) {
         if (fix_spline == "fail") stop("Out-of-range splinefun values and 'fix_spline' set to fail")
-        sfun <- splinefun(x=jitter(fobj$par$modq[, 1]), y=jitter(fobj$par$fitq[, 1]), method=spline_method)
+        sfun <- stats::splinefun(x=jitter(fobj[["par"]]$modq[, 1]), y=jitter(fobj[["par"]]$fitq[, 1]), method=spline_method)
         temp <- sfun(x[wet])
         icount <- icount + 1
       }
@@ -1001,9 +1038,9 @@ doQmapQUANT.default_drs <- compiler::cmpfun(function(x, fobj, type = NULL,
     out[out < 0] <- 0
 
   out
-})
+}
 
-doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type = NULL, montly_obs_base = NULL,
+doQmapQUANT_drs <- function(x, fobj, type = NULL, montly_obs_base = NULL,
                     monthly_extremes = NULL, fix_spline = NULL, ...) {
 
   fix_spline <- match.arg(fix_spline, c(NA, "fail", "none", "attempt"))
@@ -1028,12 +1065,13 @@ doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type = NULL, montly_obs_ba
     out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = "Boe",
       monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
 
-    target_range <- c(-Inf, fobj$par$modq[1, 1] -  tol, max(fobj$par$modq[, 1]) + tol, Inf) # -Inf, smallest observed value, largest observed value, Inf
+    target_range <- c(-Inf, fobj[["par"]]$modq[1, 1] -  swsf_glovars[["tol"]],
+      max(fobj[["par"]]$modq[, 1]) + swsf_glovars[["tol"]], Inf) # -Inf, smallest observed value, largest observed value, Inf
     out_of_range <- !(findInterval(x, target_range) == 2)
 
     if (any(out_of_range)) {
-      tscore_x <- (x[out_of_range] - mean(montly_obs_base)) / sd(montly_obs_base)
-      out[out_of_range] <- mean(out[!out_of_range]) + sd(out[!out_of_range]) * tscore_x
+      tscore_x <- (x[out_of_range] - mean(montly_obs_base)) / stats::sd(montly_obs_base)
+      out[out_of_range] <- mean(out[!out_of_range]) + stats::sd(out[!out_of_range]) * tscore_x
     }
 
   } else {
@@ -1041,7 +1079,7 @@ doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type = NULL, montly_obs_ba
   }
 
   out
-})
+}
 
 
 #------------------------
@@ -1054,18 +1092,16 @@ doQmapQUANT_drs <- compiler::cmpfun(function(x, fobj, type = NULL, montly_obs_ba
 #'
 #' @inheritParams downscale
 #'
-#' @references Hamlet, A. F., E. P. Salathé, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
 #' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association, 50, 1461-1476.
 #' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
 #' @references Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012). Technical Note: Downscaling RCM precipitation to the station scale using statistical transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
 #' @export
-downscale.deltahybrid3mod <- compiler::cmpfun(function(
+downscale.deltahybrid3mod <- function(
               obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-              deltaFuture_yr, years = NULL,
-              DScur_startyear = NULL, DScur_endyear = NULL,
-              DSfut_startyear = NULL, DSfut_endyear = NULL,
+              itime, years = NULL, sim_time = NULL,
               opt_DS = list(
                   extrapol_type = "linear_Thermessl2012CC.QMv1b",
                   ppt_type = "detailed",
@@ -1081,7 +1117,9 @@ downscale.deltahybrid3mod <- compiler::cmpfun(function(
 
   # Time periods
   tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-    years, DScur_startyear, DScur_endyear, DSfut_startyear, DSfut_endyear)
+    years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
 
   if (any(!tp$iuse_obs_hist_d))
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
@@ -1105,7 +1143,7 @@ downscale.deltahybrid3mod <- compiler::cmpfun(function(
   hd.fut.monthly <- delta_ts <- matrix(NA, nrow = nrow(obs.hist.monthly), ncol = 5,
     dimnames = list(NULL, colnames(obs.hist.monthly)))
   hd.fut.monthly[, 1:2] <- delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
-  hd.fut.monthly[, 1] <- hd.fut.monthly[, 1] + deltaFuture_yr
+  hd.fut.monthly[, 1] <- hd.fut.monthly[, 1] + sim_time[["future_yrs"]][itime, "delta"]
 
 
   #------STEPS 1-4 based on the appendix of Tohver et al. 2014
@@ -1114,12 +1152,12 @@ downscale.deltahybrid3mod <- compiler::cmpfun(function(
     # TODO(drs): implement a more sophisticated imputation scheme; this one biases variation downwards
     if (anyNA(scen.hist.monthly[, 2 + iv])) {
       id_nas <- is.na(scen.hist.monthly[, 2 + iv])
-      scen.hist.monthly[id_nas, 2 + iv] <- median(scen.hist.monthly[, 2 + iv], na.rm = TRUE)
+      scen.hist.monthly[id_nas, 2 + iv] <- stats::median(scen.hist.monthly[, 2 + iv], na.rm = TRUE)
     }
 
     if (anyNA(scen.fut.monthly[, 2 + iv])) {
       id_nas <- is.na(scen.fut.monthly[, 2 + iv])
-      scen.fut.monthly[id_nas, 2 + iv] <- median(scen.fut.monthly[, 2 + iv], na.rm = TRUE)
+      scen.fut.monthly[id_nas, 2 + iv] <- stats::median(scen.fut.monthly[, 2 + iv], na.rm = TRUE)
     }
 
     #---STEP 1: Statistical bias correction of GCM data
@@ -1189,14 +1227,12 @@ downscale.deltahybrid3mod <- compiler::cmpfun(function(
   applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly, years = tp$years,
     delta_ts, ppt_fun, ppt_type = opt_DS[["ppt_type"]], dailyPPTceiling,
     sigmaN = opt_DS[["sigmaN"]], do_checks = do_checks)
-})
+}
 
 
-downscale.wgen_package <- compiler::cmpfun(function(
+downscale.wgen_package <- function(
               obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-              deltaFuture_yr, years = NULL,
-              DScur_startyear = NULL, DScur_endyear = NULL,
-              DSfut_startyear = NULL, DSfut_endyear = NULL,
+              itime, years = NULL, sim_time = NULL,
               opt_DS = list(
                 extrapol_type = "linear_Thermessl2012CC.QMv1b",
                 ppt_type = "detailed",
@@ -1205,18 +1241,24 @@ downscale.wgen_package <- compiler::cmpfun(function(
                 fix_spline = "attempt"),
               dailyPPTceiling, monthly_extremes,
               do_checks = TRUE, ...){
-  if (verbose) print(paste("downscale.wgen_package start(deltaFuture_yr =", deltaFuture_yr, "years", years, "DScur_startyear", DScur_startyear,"DScur_endyear", DScur_endyear, "DSfut_startyear", DSfut_startyear,
-                             "DSfut_endyear", DSfut_endyear, sep = " "))
 
-  require("zoo")
-  require("weathergen")
-  require("dplyr")
-  library("lubridate")
+  dots <- list(...)
+
+  if (isTRUE(dots[["verbose"]]))
+    print(paste("downscale.wgen_package start(deltaFuture_yr =", sim_time[["future_yrs"]][itime, "delta"], "years",
+      paste(years, collapse = "-"), "DScur_startyear", sim_time[["DScur_startyr"]],"DScur_endyear",
+      sim_time[["DScur_endyr"]], "DSfut_startyear", sim_time[["future_yrs"]][itime, "DSfut_startyr"], "DSfut_endyear", sim_time[["future_yrs"]][itime, "DSfut_endyr"]))
+
+  stopifnot(requireNamespace("zoo"), requireNamespace("weathergen"),
+    requireNamespace("dplyr"), requireNamespace("lubridate"))
+
   #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]
   # Time periods
   tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
-                          scen.fut.monthly, years, DScur_startyear, DScur_endyear,
-                          DSfut_startyear, DSfut_endyear)
+    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
+
   if (any(!tp$iuse_obs_hist_d))
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
   if (any(!tp$iuse_obs_hist_m))
@@ -1224,11 +1266,11 @@ downscale.wgen_package <- compiler::cmpfun(function(
   if (any(!tp$iuse_scen_fut_m))
     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
 
-  day_data <- dbW_weatherData_to_dataframe(obs.hist.daily)
+  day_data <- Rsoilwat31::dbW_weatherData_to_dataframe(obs.hist.daily)
 
   dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
 
-  day_data <- data.frame(WYEAR = wyear(dates),
+  day_data <- data.frame(WYEAR = weathergen::wyear(dates),
                          MONTH = format(dates, "%m"),
                          DATE  = dates,
                          PRCP  = day_data[,'PPT_cm'],
@@ -1241,8 +1283,8 @@ downscale.wgen_package <- compiler::cmpfun(function(
   #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m" ))==10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m" ))==9)),]
   start_month <- as.numeric(format(min(day_data$DATE), "%m" ))
 
-  climwyear <- group_by(day_data, WYEAR=wyear(DATE, start_month = start_month)) %>%
-    summarise(N    = n(),
+  climwyear <- dplyr::group_by(day_data, WYEAR=weathergen::wyear(DATE, start_month = start_month)) %>%
+    dplyr::summarise(N    = n(),
               PRCP = sum(PRCP),
               TMAX = mean(TMAX),
               TMIN = mean(TMIN),
@@ -1259,58 +1301,55 @@ downscale.wgen_package <- compiler::cmpfun(function(
   )
 
   obs_dat <- list(day=day_data, wyr=wyr_data)
-  zoo_day <- zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
+  zoo_day <- zoo::zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
                  order.by = obs_dat[['day']][['DATE']])
   start_yr <- as.integer(format(dates[1],"%Y")) ##
   end_yr <- as.integer(format(max(dates),"%Y"))
 
   dry_wet_threshold <- 0.3
   wet_extreme_threshold <- 0.8
-  # read additional parameters, if provided
-  if (hasArg("add_params"))
-  {
-    additional <- list(...)
-    if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes))
-    {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
-    } else dry_spell_changes <- 1 # can be one value or a vector of 12
 
-    if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes))
-    {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
-    } else wet_spell_changes <- 1 # can be one value or a vector of 12
+  # can be one value or a vector of 12
+  dry_spell_changes <- if (!is.null(dots[["add_params"]][["wgen_dry_spell_changes"]])) {
+      dots[["add_params"]][["wgen_dry_spell_changes"]]
+    } else 1
 
-    if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes))
-    {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
-    } else prcp_cv_changes <- 1 # can be one value or a vector of 12
-  } else {
-    dry_spell_changes <- 1
-    wet_spell_changes <- 1
-    prcp_cv_changes <- 1
-  }
+  wet_spell_changes <- if (!is.null(dots[["add_params"]][["wgen_wet_spell_changes"]])) {
+      dots[["add_params"]][["wgen_wet_spell_changes"]]
+    } else 1
 
-  changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)[[1]]
+  prcp_cv_changes <- if (!is.null(dots[["add_params"]][["wgen_prcp_cv_changes"]])) {
+      dots[["add_params"]][["wgen_prcp_cv_changes"]]
+    } else 1
 
-  prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
+  changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
 
-  temp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"]))
+  # replace with tapply()?
+  prcp_mean_changes <- sapply(swsf_glovars[["st_mo"]], function(x)
+    mean(changes[ changes[, "Month"] == x, "PPT_cm"]))
+
+  temp_mean_changes <- sapply(swsf_glovars[["st_mo"]], function(x)
+    mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"])) / 2
 
   # set.seed(1) # for testing
-  if (verbose) print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
-                             ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
-                             "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
-                             wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
+  if (isTRUE(dots[["verbose"]]))
+    print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1,
+      ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
+      "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
+      wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
 
   # consider setting more parameters
   # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
   scen.fut.daily <- weathergen::wgen_daily(zoo_day,
-                                           n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
-                                           start_water_year = start_yr, #DScur_startyear,
-                                           start_month = start_month,
-                                           dry_wet_threshold=dry_wet_threshold,
-                                           wet_extreme_quantile_threshold=wet_extreme_threshold,
-                                           include_leap_days = TRUE,
-                                           dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
-                                           prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
-                                           )
+    n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
+    start_water_year = start_yr, #DScur_startyear,
+    start_month = start_month,
+    dry_wet_threshold=dry_wet_threshold,
+    wet_extreme_quantile_threshold=wet_extreme_threshold,
+    include_leap_days = TRUE,
+    dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
+    prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
+  )
 
   scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
                                DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
@@ -1320,14 +1359,14 @@ downscale.wgen_package <- compiler::cmpfun(function(
 
   # year start back to 1/1, probably only needed when setting start_month != 1
   # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
-  scen.fut.daily <- dbW_dataframe_to_weatherData(scen.fut.daily, round=FALSE)
+  scen.fut.daily <- Rsoilwat31::dbW_dataframe_to_weatherData(scen.fut.daily, round = FALSE)
   scen.fut.daily
-})
+}
 
 
 
 #--- NEX climate data source
-get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen, gcm, lon, lat,
+get_request_NEX <- function(service, request, i, variable, scen, gcm, lon, lat,
   startyear, endyear, dir_out_temp) {
 
   if (requireNamespace("RCurl")) {
@@ -1350,25 +1389,25 @@ get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen
       stop("Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)")
     ftemp <- file.path(dir_out_temp, paste0("NEX_", gcm, "_", scen, "_", variable, "_",
       round(lat, 5), "&", round(lon, 5), ".csv"))
-    success <- try(download.file(url=request, destfile=ftemp, quiet=TRUE))
+    success <- try(utils::download.file(url=request, destfile=ftemp, quiet=TRUE))
   }
 
   yearsN <- endyear - startyear + 1
   dat <- rep(NA, times=12*yearsN)
   if (!inherits(success, "try-error") && success == 0) {
     if (service == "ncss") {
-      temp <- read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
+      temp <- utils::read.csv(ftemp, colClasses=c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
       vtemp <- temp[, 2]
       ttemp <- as.POSIXlt(temp[, 1], tz = "UTC")
     } else if (service == "opendap") {
-      vtemp <- read.csv(ftemp, colClasses=c("NULL", "numeric"), header=FALSE)[-1, ] #columns = Index, Variable
+      vtemp <- utils::read.csv(ftemp, colClasses=c("NULL", "numeric"), header=FALSE)[-1, ] #columns = Index, Variable
     }
     if (file.exists(ftemp)) unlink(ftemp)
     if (length(vtemp) < 12*yearsN) { #some GCMs only have values up to Nov 2099
       tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep="_")
       targetYearMonth <- paste(rep(startyear:endyear, each=12), rep(1:12, times=yearsN), sep="_")
       iavail <- match(targetYearMonth, tempYearMonth, nomatch = 0)
-      dat[iaval > 0] <- vtemp[iavail]
+      dat[iavail > 0] <- vtemp[iavail]
     } else {
       dat <- vtemp
     }
@@ -1377,10 +1416,10 @@ get_request_NEX <- compiler::cmpfun(function(service, request, i, variable, scen
   }
 
   dat
-})
+}
 
 
-extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, lat, bbox,
+extract_variable_NEX <- function(i, variable, scen, gcm, lon, lat, bbox,
   tbox, startyear, endyear, dir_out_temp) {
 
   gcmrun <- "r1i1p1"
@@ -1415,13 +1454,14 @@ extract_variable_NEX <- compiler::cmpfun(function(i, variable, scen, gcm, lon, l
   }
 
   dat
-})
+}
 
-
+#' Download downscaled GCM projections from NEX
+#'
 #' @return A list of one data.frame object with 5 columns and names of
 #' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
 #' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
-get_GCMdata_NEX <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat,
+get_GCMdata_NEX <- function(i, ts_mons, dpm, gcm, scen, lon, lat,
   startyear, endyear, climDB_meta, ...) {
   dots <- list(...) # dir_out_temp
 
@@ -1452,11 +1492,11 @@ get_GCMdata_NEX <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, la
   list(cbind(year = ts_mons$year + 1900,
             month = ts_mons$mon + 1,
             tmax = clim[["tmax"]], tmin = clim[["tmin"]], prcp = clim[["prcp"]]))
-})
+}
 #--- end NEX
 
 #--- netCDF climate data source
-get_SpatialIndices_netCDF <- compiler::cmpfun(function(filename, lon, lat) {
+get_SpatialIndices_netCDF <- function(filename, lon, lat) {
   stopifnot(requireNamespace("ncdf4"))
 
   nc <- ncdf4::nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
@@ -1475,9 +1515,9 @@ get_SpatialIndices_netCDF <- compiler::cmpfun(function(filename, lon, lat) {
   ncg$iy <- whereNearest(val=lat, matrix=lats)
 
   ncg
-})
+}
 
-get_TimeIndices_netCDF <- compiler::cmpfun(function(filename, startyear, endyear) {
+get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
   stopifnot(requireNamespace("ncdf4"))
 
   nc <- ncdf4::nc_open(filename=filename, write=FALSE, readunlim=TRUE, verbose=FALSE)
@@ -1567,9 +1607,9 @@ get_TimeIndices_netCDF <- compiler::cmpfun(function(filename, startyear, endyear
   list(timeStartIndex = timeStartIndex,
     timeCount = timeCount,
     addMissingMonthAtEnd = addMissingMonthAtEnd)
-})
+}
 
-do_ncvar_netCDF <- compiler::cmpfun(function(nc, nc_perm, variable, ncg, nct) {
+do_ncvar_netCDF <- function(nc, nc_perm, variable, ncg, nct) {
   stopifnot(requireNamespace("ncdf4"))
 
   index <- which("time" == nc_perm)
@@ -1587,9 +1627,9 @@ do_ncvar_netCDF <- compiler::cmpfun(function(nc, nc_perm, variable, ncg, nct) {
   } else {
     stop("do_ncvar_netCDF: dimension 'time' must be either in first or third place, but is instead at ", index)
   }
-})
+}
 
-extract_variable_netCDF <- compiler::cmpfun(function(filepath, variable, unit, ncg, nct, lon, lat, startyear, endyear) {
+extract_variable_netCDF <- function(filepath, variable, unit, ncg, nct, lon, lat, startyear, endyear) {
   stopifnot(requireNamespace("ncdf4"))
   # the 'raster' package (version <= '2.5.2') cannot handle non-equally spaced cells
   nc <- ncdf4::nc_open(filename = filepath, write = FALSE, readunlim = TRUE, verbose = FALSE)
@@ -1614,16 +1654,17 @@ extract_variable_netCDF <- compiler::cmpfun(function(filepath, variable, unit, n
   if (all(is.na(res)) || inherits(res, "try-error"))
     stop("'extract_variable_netCDF' at (", round(lon, 5), ", ", round(lat, 5), "): ",
         "extraction failed or no data available. Error message: ",
-        paste(head(res), collapse = "/"))
+        paste(utils::head(res), collapse = "/"))
 
   res
-})
+}
 
-
+#' Extract GCM projection from a netCDF file
+#'
 #' @return A list of one data.frame object with 5 columns and names of
 #' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
 #' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
-get_GCMdata_netCDF <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear, climDB_meta, ...) {
+get_GCMdata_netCDF <- function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear, climDB_meta, ...) {
   dots <- list(...) # ncFiles, ncg, nct
 
   # Extract precipitation data
@@ -1689,16 +1730,17 @@ get_GCMdata_netCDF <- compiler::cmpfun(function(i, ts_mons, dpm, gcm, scen, lon,
   list(cbind(year = ts_mons$year + 1900,
             month = ts_mons$mon + 1,
             tmax = tmax, tmin = tmin, prcp = prcp))
-})
+}
 
 #--- end netCDF
 
 
 #----Extraction function
-calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX,
+#' Extract climate scenario data and downscale to daily weather data
+calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, dbW_iSiteTable, compression_type, getYears, assocYears,
-  future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS, project_paths,
+  climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
+  getYears, assocYears, sim_time, opt_DS, project_paths,
   verbose, print.debug) {
 
   on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
@@ -1802,10 +1844,10 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
   #Observed historic daily weather from weather database
   if (print.debug)
     print(paste0(i, "-th extraction: observed historic daily weather from weather DB: ",
-          simstartyr, "-", endyr))
+          sim_time[["simstartyr"]], "-", sim_time[["endyr"]]))
 
   obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id = site_id,
-    startYear = simstartyr, endYear = endyr, Scenario = climate.ambient)
+    startYear = sim_time[["simstartyr"]], endYear = sim_time[["endyr"]], Scenario = climate.ambient)
 
   if (obs.hist.daily[[1]]@year < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
     print("Note: subsetting years 'obs.hist.daily' because 'simstartyr < 1950'")
@@ -1814,10 +1856,10 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
   }
 
   sim_years <- as.integer(names(obs.hist.daily))
-  obs.hist.monthly <- dbW_weatherData_to_monthly(dailySW = obs.hist.daily)
+  obs.hist.monthly <- Rsoilwat31::dbW_weatherData_to_monthly(dailySW = obs.hist.daily)
 
   if (print.debug) {
-    obs.hist.monthly_mean <- aggregate(obs.hist.monthly[, -(1:2)],
+    obs.hist.monthly_mean <- stats::aggregate(obs.hist.monthly[, -(1:2)],
       list(obs.hist.monthly[, "Month"]), mean)
   }
 
@@ -1842,7 +1884,7 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
     }
 
     if (print.debug && !is.null(scen.hist.monthly)) {
-      scen.hist.monthly_mean <- aggregate(scen.hist.monthly[, -(1:2)],
+      scen.hist.monthly_mean <- stats::aggregate(scen.hist.monthly[, -(1:2)],
         list(scen.hist.monthly[, "month"]), mean, na.rm = TRUE)
 
       temp <- apply(scen.hist.monthly_mean[, -1] - obs.hist.monthly_mean[, -1], 2, mean)
@@ -1851,8 +1893,8 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
     }
 
     types <- list()
-    for (it in seq_len(nrow(future_yrs))) {
-      tag <- paste0(rownames(future_yrs)[it], ".", rcps[ir])
+    for (it in seq_len(sim_time[["future_N"]])) {
+      tag <- paste0(rownames(sim_time[["future_yrs"]])[it], ".", rcps[ir])
 
       #Put future data together
       scen.fut.monthly <- NULL
@@ -1863,7 +1905,7 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
         scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 
       if (print.debug) {
-        scen.fut.monthly_mean <- aggregate(scen.fut.monthly[, -(1:2)],
+        scen.fut.monthly_mean <- stats::aggregate(scen.fut.monthly[, -(1:2)],
           list(scen.fut.monthly[, "month"]), mean, na.rm = TRUE)
       }
 
@@ -1900,12 +1942,8 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
         for (do_checks in c(TRUE, FALSE)) {
           scen.fut.daily <- try(dm_fun(
             obs.hist.daily = obs.hist.daily, obs.hist.monthly = obs.hist.monthly,
-            scen.hist.monthly = scen.hist.monthly, scen.fut.monthly= scen.fut.monthly,
-            deltaFuture_yr = future_yrs[it, "delta"], years = sim_years,
-            DScur_startyear = DScur_startyr, DScur_endyear = DScur_endyr,
-            DSfut_startyear = future_yrs[it, "DSfut_startyr"],
-            DSfut_endyear = future_yrs[it, "DSfut_endyr"],
-            opt_DS = opt_DS,
+            scen.hist.monthly = scen.hist.monthly, scen.fut.monthly = scen.fut.monthly,
+            itime = it, years = sim_years, sim_time = sim_time, opt_DS = opt_DS,
             dailyPPTceiling = dailyPPTceiling, monthly_extremes = monthly_extremes,
             do_checks = do_checks, add_params = dm_add_params))
 
@@ -1921,8 +1959,8 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
           stop(scen.fut.daily)
 
         if (print.debug) {
-          temp <- dbW_weatherData_to_monthly(scen.fut.daily)
-          scen.fut.down_mean <- aggregate(temp[, -(1:2)], list(temp[, "Month"]), mean)
+          temp <- Rsoilwat31::dbW_weatherData_to_monthly(scen.fut.daily)
+          scen.fut.down_mean <- stats::aggregate(temp[, -(1:2)], list(temp[, "Month"]), mean)
 
           temp <- apply(scen.fut.down_mean[, -1] - obs.hist.monthly_mean[, -1], 2, mean)
           print(paste0(i, "-th extraction: ", tag, ": ", shQuote(dm),
@@ -1935,7 +1973,7 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
             paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
         }
 
-        data_blob <- dbW_weatherData_to_blob(scen.fut.daily, compression_type)
+        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(scen.fut.daily, compression_type)
         years <- as.integer(names(scen.fut.daily))
 
         types[[length(types) + 1]] <- list(Site_id = site_id, Scenario_id = scenario_id,
@@ -1952,18 +1990,17 @@ calc.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_
   on.exit()
 
   res
-})
+}
 
 #' Make daily weather for a scenario
 #'
 #' A wrapper function for \code{calc.ScenarioWeather} with error control.
 #'
 #' @inheritParams calc.ScenarioWeather
-try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_NEX,
+try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, dbW_iSiteTable, compression_type, getYears, assocYears,
-  future_yrs, simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS, project_paths,
-  verbose, print.debug) {
+  climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
+  getYears, assocYears, sim_time, opt_DS, project_paths, verbose, print.debug) {
 
   temp <- try(calc.ScenarioWeather(i = i,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -1971,11 +2008,10 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
           reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iSiteTable = dbW_iSiteTable,
+          dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = compression_type,
-          getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-          simstartyr = simstartyr, endyr = endyr,
-          DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+          getYears = getYears, assocYears = assocYears,
+          sim_time = sim_time,
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug))
@@ -1984,9 +2020,7 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
     print(paste(Sys.time(), temp))
     save(i, temp, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs,
         reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations, dbW_iSiteTable,
-        compression_type, getYears, assocYears, future_yrs,
-        simstartyr, endyr, DScur_startyr, DScur_endyr, opt_DS,
-        project_paths, verbose,
+        compression_type, getYears, assocYears, sim_time, opt_DS, project_paths, verbose,
         file = file.path(project_paths[["dir_out_temp"]],
           paste0("ClimScen_failed_", i, "_l1.RData")))
     res <- NULL
@@ -1995,14 +2029,14 @@ try.ScenarioWeather <- compiler::cmpfun(function(i, clim_source, is_netCDF, is_N
   }
 
   res
-})
+}
 
 #' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 #'
 #' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF,
+tryToGet_ClimDB <- function(is_ToDo, list.export, clim_source, is_netCDF,
   is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  locations, getYears, assocYears, project_paths, opt_parallel) {
+  locations, getYears, assocYears, project_paths, fdbWeather, opt_parallel) {
   #requests is_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2017,8 +2051,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
     # extract the GCM data depending on parallel backend
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
       export_objects_to_workers(obj2exp, "mpi")
-      Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
-      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2026,11 +2059,10 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
           reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iSiteTable = dbW_iSiteTable,
+          dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
-          getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-          simstartyr = simstartyr, endyr = endyr,
-          DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+          getYears = getYears, assocYears = assocYears,
+          sim_time = sim_time,
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
@@ -2042,8 +2074,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
       export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], library("Rsoilwat31", quietly=TRUE))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2051,11 +2082,10 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
           reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iSiteTable = dbW_iSiteTable,
+          dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
-          getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-          simstartyr = simstartyr, endyr = endyr,
-          DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+          getYears = getYears, assocYears = assocYears,
+          sim_time = sim_time,
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
@@ -2069,7 +2099,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
     }
 
   } else {
-    Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+    Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather)
 
     i_Done <- lapply(is_ToDo, FUN = try.ScenarioWeather,
       clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2078,11 +2108,10 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
       reqDownscalingsPerGCM = reqDownscalingsPerGCM,
       climate.ambient = climate.ambient,
       locations = locations,
-      dbW_iSiteTable = dbW_iSiteTable,
+      dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
       compression_type = dbW_compression_type,
-      getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-      simstartyr = simstartyr, endyr = endyr,
-      DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+      getYears = getYears, assocYears = assocYears,
+      sim_time = sim_time,
       opt_DS = opt_DS,
       project_paths = project_paths,
       verbose = verbose, print.debug = print.debug)
@@ -2097,7 +2126,7 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
     print(paste("Started adding temporary files into database '", clim_source,
     "' at", Sys.time()))
 
-  Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+  Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather)
   temp.files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
   if (length(temp.files) > 0) {
     for (k in seq_along(temp.files)) {
@@ -2128,32 +2157,33 @@ tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, 
   Rsoilwat31::dbW_disconnectConnection()
 
   sort(unlist(i_Done))
-})
+}
 
 
 #' Determine climate scenario data sources
 #'
 #' Allow for multiple data sources among sites but not multiple sources per site
 #' (for that you need a new row in the MasterInput spreadsheet)
-climscen_determine_sources <- function(extract_determine_database = c("SWRunInformation", "order"),
-  opt_climsc_extr, runIDs_sites, runsN_sites, SWRunInformation, fmaster, fpreprocin) {
+climscen_determine_sources <- function(climDB_metas,
+  how_determine_sources = c("SWRunInformation", "order"), opt_climsc_extr, sim_size,
+  SWRunInformation, fnames_in) {
 
-  extract_determine_database <- match.arg(extract_determine_database)
-  xy <- with(SWRunInformation[runIDs_sites,], data.frame(X_WGS84, Y_WGS84))
+  how_determine_sources <- match.arg(how_determine_sources)
+  xy <- with(SWRunInformation[sim_size[["runIDs_sites"]],], data.frame(X_WGS84, Y_WGS84))
 
   update_SWRunInformation <- FALSE
 
-  sites_GCM_source <- if (extract_determine_database == "SWRunInformation" &&
+  sites_GCM_source <- if (how_determine_sources == "SWRunInformation" &&
       "GCM_sources" %in% colnames(SWRunInformation)) {
-      sites_GCM_source <- SWRunInformation$GCM_sources[runIDs_sites]
+      sites_GCM_source <- SWRunInformation$GCM_sources[sim_size[["runIDs_sites"]]]
 
-    } else if (extract_determine_database == "order" ||
+    } else if (how_determine_sources == "order" ||
       !("GCM_sources" %in% colnames(SWRunInformation))) {
-      rep(NA, times = runsN_sites)
+      rep(NA, times = sim_size[["runsN_sites"]])
     }
 
   # determine which data product to use for each site based on bounding boxes of datasets
-  i_use <- rep(FALSE, times = runsN_sites)
+  i_use <- rep(FALSE, times = sim_size[["runsN_sites"]])
   for (ds in opt_climsc_extr) {
     i_use <- in_box(xy, climDB_metas[[ds]][["bbox"]]$lon,
       climDB_metas[[ds]][["bbox"]]$lat, i_use)
@@ -2161,25 +2191,24 @@ climscen_determine_sources <- function(extract_determine_database = c("SWRunInfo
     sites_GCM_source[i_use] <- ds
   }
 
-  #write data to disk
-  SWRunInformation$GCM_sources[runIDs_sites] <- as.character(sites_GCM_source)
-  write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
-  unlink(fpreprocin)
-
-
   if (anyNA(sites_GCM_source))
-    print(paste("No climate change data available for", sum(is.na(sites_GCM_source)), "sites"))
+    print(paste("No climate change data available for", sum(is.na(sites_GCM_source)),
+      "sites"))
+
+  #write data to disk
+  SWRunInformation$GCM_sources[sim_size[["runIDs_sites"]]] <- as.character(sites_GCM_source)
+  utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+  unlink(fnames_in[["fpreprocin"]])
 
   SWRunInformation
 }
 
 
 #access climate change data
-get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX,
-  do_SWRun_sites, include_YN_climscen, climDB_meta, opt_DS, simstartyr, endyr,
-  DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, climate.ambient, project_paths, opt_parallel,
-  verbose = FALSE, print.debug = FALSE) {
+get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treatments, is_netCDF, is_NEX,
+  do_SWRun_sites, include_YN_climscen, climDB_meta, reqDownscalingsPerGCM, opt_DS, sim_time,
+  fdbWeather, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
+  climate.ambient, project_paths, opt_parallel, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2275,25 +2304,25 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
     print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
   #timing: time slices: data is organized into 'historical' runs 1950-2005 (="first") and future 'rcp' runs 2006-2099 (="second")
-  timeSlices <- data.frame(matrix(NA, ncol=4, nrow = 4 + 4 * nrow(future_yrs), dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))))
-  timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", rownames(future_yrs)))[, 3:1]
+  timeSlices <- data.frame(matrix(NA, ncol=4, nrow = 4 + 4 * sim_time[["future_N"]], dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))))
+  timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"), c("historical", rownames(sim_time[["future_yrs"]])))[, 3:1]
   #historic conditions for downscaling
-  timeSlices[1, 4] <- max(climDB_meta[["tbox"]]["start", "first"], DScur_startyr)
-  timeSlices[2, 4] <- min(climDB_meta[["tbox"]]["end", "first"], DScur_endyr)
-  if (DScur_endyr > climDB_meta[["tbox"]]["end", "first"]) {
+  timeSlices[1, 4] <- max(climDB_meta[["tbox"]]["start", "first"], sim_time[["DScur_startyr"]])
+  timeSlices[2, 4] <- min(climDB_meta[["tbox"]]["end", "first"], sim_time[["DScur_endyr"]])
+  if (sim_time[["DScur_endyr"]] > climDB_meta[["tbox"]]["end", "first"]) {
     timeSlices[3, 4] <- climDB_meta[["tbox"]]["start", "second"]
-    timeSlices[4, 4] <- min(climDB_meta[["tbox"]]["end", "second"], DScur_endyr)
+    timeSlices[4, 4] <- min(climDB_meta[["tbox"]]["end", "second"], sim_time[["DScur_endyr"]])
   }
   #future conditions for downscaling
-  for (it in 1:nrow(future_yrs)) {
-    timeSlices[3 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "second"], future_yrs[it, "DSfut_startyr"])
-    timeSlices[4 + 4*it, 4] <- min(climDB_meta[["tbox"]]["end", "second"], future_yrs[it, "DSfut_endyr"])	#limits timeSlices to 2099
-    if (DScur_startyr < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
+  for (it in seq_len(sim_time[["future_N"]])) {
+    timeSlices[3 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "second"], sim_time[["future_yrs"]][it, "DSfut_startyr"])
+    timeSlices[4 + 4*it, 4] <- min(climDB_meta[["tbox"]]["end", "second"], sim_time[["future_yrs"]][it, "DSfut_endyr"])	#limits timeSlices to 2099
+    if (sim_time[["DScur_startyr"]] < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
       print("Note: adjustment to 'timeSlices' because 'DScur_startyr < 1950'")
       timeSlices[4 + 4*it, 4] <- min(timeSlices[4 + 4*it, 4], timeSlices[4 + 3*it, 4]+(timeSlices[4,4]-timeSlices[1,4]))
     }
-    if (future_yrs[it, "DSfut_startyr"] < climDB_meta[["tbox"]]["start", "second"]) {
-      timeSlices[1 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "first"], future_yrs[it, "DSfut_startyr"])
+    if (sim_time[["future_yrs"]][it, "DSfut_startyr"] < climDB_meta[["tbox"]]["start", "second"]) {
+      timeSlices[1 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "first"], sim_time[["future_yrs"]][it, "DSfut_startyr"])
       timeSlices[2 + 4*it, 4] <- climDB_meta[["tbox"]]["start", "second"]
     }
   }
@@ -2319,8 +2348,8 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
     rle(as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 day"))$mon)$lengths)
 
   #Logical on how to select from getYears
-  assocYears <- vector("list", length = 1 + length(reqRCPs) * nrow(future_yrs))
-  names_assocYears <- c("historical", paste0(rownames(future_yrs), ".", rep(reqRCPs, each = nrow(future_yrs))))
+  assocYears <- vector("list", length = 1 + length(reqRCPs) * sim_time[["future_N"]])
+  names_assocYears <- c("historical", paste0(rownames(sim_time[["future_yrs"]]), ".", rep(reqRCPs, each = sim_time[["future_N"]])))
   for (it in seq_along(assocYears)) {
     temp <- strsplit(names_assocYears[it], ".", fixed=TRUE)[[1]][[1]]
     assocYears[[it]] <- list(first = useSlices(getYears, timeSlices, run = temp, slice = "first"),
@@ -2328,13 +2357,12 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
   }
   names(assocYears) <- names_assocYears
 
-  print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(na.omit(timeSlices[,4]))))
+  print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(stats::na.omit(timeSlices[,4]))))
 
   #objects that need exporting to workers
   list.export <- c("verbose", "climate.ambient", "dbW_compression_type",
-    "dbW_iScenarioTable", "dbW_iSiteTable", "dbWeatherDataFile",
-    "opt_DS", "DScur_endyr", "DScur_startyr", "endyr", "future_yrs", "getYears",
-    "print.debug", "print_int", "simstartyr", "tol")
+    "dbW_iScenarioTable", "dbW_iSiteTable",
+    "opt_DS", "getYears", "print.debug", "print_int", "sim_time")
 
 
   #Repeat call to get climate data for all requests until complete
@@ -2361,7 +2389,8 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
 
     out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
       clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-      reqDownscalingsPerGCM, locations, getYears, assocYears, project_paths, opt_parallel)
+      reqDownscalingsPerGCM, locations, getYears, assocYears, project_paths,
+      fdbWeather, opt_parallel)
 
     i_Done <- sort(unique(c(i_Done, out)))
     saveRDS(i_Done, file = logFile)
@@ -2385,7 +2414,7 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
     ils_notdone <- unique((i_ToDo - 1) %/% length(reqGCMs) + 1)
     failedLocations_DB <- locations[ils_notdone, ]
 
-    include_YN_updateFailed <- include_YN
+    include_YN_updateFailed <- include_YN_climscen
     include_YN_updateFailed[do_SWRun_sites][ils_notdone] <- 0
     save(failedLocations_DB, include_YN_updateFailed, file = file.path(project_paths[["dir_out"]],
       paste0("ClimDB_failedLocations_", clim_source, ".RData")))
@@ -2394,29 +2423,28 @@ get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_N
   if (verbose) print(paste("Finished '", clim_source, "' at", Sys.time()))
 
   include_YN_climscen
-})
+}
 
 
-ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
-  simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs, dbWeatherDataFile,
-  climate.ambient, climate.conditions, runsN_master, runsN_sites, runIDs_sites,
-  SWRunInformation, fmaster, fpreprocin, project_paths, opt_parallel, verbose = FALSE,
-  print.debug = FALSE) {
+#' @export
+ExtractClimateChangeScenarios <- function(sim_scens, climDB_metas, sim_time,
+  climate.ambient, sim_size, SWRunInformation, sw_input_treatments, fnames_in,
+  project_paths, opt_parallel, verbose = FALSE, print.debug = FALSE) {
 
-  Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+  Rsoilwat31::dbW_setConnection(dbFilePath = fnames_in[["fdbWeather"]])
   dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
   dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
   dbW_compression_type <- Rsoilwat31:::dbW_compression()
 
-  sctemp <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
-  temp <- strsplit(sctemp, split = ".", fixed = TRUE)
+  temp <- strsplit(sim_scens[["models"]], split = ".", fixed = TRUE)
   if (!all(lengths(temp) == 4L))
     stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
       "concatenated by '.'")
 
   climScen <- data.frame(matrix(unlist(temp), ncol = 4, byrow = TRUE),
     stringsAsFactors = FALSE)
-  climScen$imap_todbW <- match(sctemp, table = dbW_iScenarioTable$Scenario, nomatch = 0)
+  climScen$imap_todbW <- match(sim_scens[["models"]], table = dbW_iScenarioTable$Scenario,
+    nomatch = 0)
   dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
   reqGCMs <- unique(climScen[, 4])
   reqRCPs <- unique(climScen[, 3])
@@ -2430,48 +2458,49 @@ ExtractClimateChangeScenarios <- function(opt_climsc_extr, climDB_metas, opt_DS,
   }
 
   # keep track of successful/unsuccessful climate scenarios
-  include_YN_climscen <- rep(0, runsN_master)
+  include_YN_climscen <- rep(0, sim_size[["runsN_master"]])
 
   # loop through data sources
-  for (ics in opt_climsc_extr) {
-    do_SWRun_sites <- runIDs_sites[sites_GCM_source == ics]
+  sites_GCM_source <- SWRunInformation$GCM_sources[sim_size[["runIDs_sites"]]]
+
+  for (ics in unique(sites_GCM_source)) {
+    do_SWRun_sites <- sim_size[["runIDs_sites"]][sites_GCM_source == ics]
 
     if (length(do_SWRun_sites) > 0)
-      include_YN_climscen <- get_climatechange_data(ics,
+      include_YN_climscen <- get_climatechange_data(ics, SWRunInformation, sw_input_treatments,
         is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", ics),
-        is_NEX = grepl("NEX", ics),
-        do_SWRun_sites, include_YN_climscen, climDB_meta = climDB_metas[[ics]],
-        opt_DS, simstartyr, endyr, DScur_startyr, DScur_endyr, future_yrs,
-        dbWeatherDataFile, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-        climate.ambient, project_paths, opt_parallel, verbose, print.debug)
+        is_NEX = grepl("NEX", ics), do_SWRun_sites, include_YN_climscen,
+        climDB_meta = climDB_metas[[ics]], reqDownscalingsPerGCM, sim_scens[["opt_DS"]], sim_time,
+        fnames_in[["fdbWeather"]], dbW_iSiteTable, dbW_iScenarioTable,
+        dbW_compression_type, climate.ambient, project_paths, opt_parallel,
+        verbose, print.debug)
   }
 
   SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
-  write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
-  unlink(fpreprocin)
+  utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+  unlink(fnames_in[["fpreprocin"]])
 
   SWRunInformation
 }
 
 
-ExtractClimateWizard <- function(opt_climsc_extr, SWRunInformation, fmaster, fpreprocin,
-  sw_input_climscen_use, sw_input_climscen, fclimscen,
-  sw_input_climscen_values_use, sw_input_climscen_values, fclimscen_values,
-  dir_ex_fut, runsN_master, verbose = FALSE) {
+#' @export
+ExtractClimateWizard <- function(sim_scens, SWRunInformation, fnames_in,
+  sw_input_climscen_use, sw_input_climscen,
+  sw_input_climscen_values_use, sw_input_climscen_values,
+  dir_ex_fut, sim_size, verbose = FALSE) {
 
   if (verbose)
     print(paste("Started 'ExtractClimateWizard' at", Sys.time()))
 
-  list.scenarios.datafile <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
+  if (length(sim_scens[["models"]]) > 0) {
 
-  if (length(list.scenarios.datafile) > 0) {
-
-    if (any("CMIP3_ClimateWizardEnsembles_Global" %in% opt_climsc_extr)) {
+    if (any("CMIP3_ClimateWizardEnsembles_Global" %in% sim_scens[["sources"]])) {
       #Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
       #accessed via climatewizard.org on July 10, 2012
       dir.ex.dat <- file.path(dir_ex_fut, "ClimateScenarios", "ClimateWizardEnsembles_Global")
     }
-    if (any("CMIP3_ClimateWizardEnsembles_USA" %in% opt_climsc_extr)) {
+    if (any("CMIP3_ClimateWizardEnsembles_USA" %in% sim_scens[["sources"]])) {
       #Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
       #accessed via climatewizard.org
       dir.ex.dat <- file.path(dir_ex_fut, "ClimateScenarios", "ClimateWizardEnsembles_USA")
@@ -2480,26 +2509,26 @@ ExtractClimateWizard <- function(opt_climsc_extr, SWRunInformation, fmaster, fpr
     list.scenarios.external <- basename(list.dirs2(path = dir.ex.dat, full.names = FALSE,
       recursive = FALSE))
 
-    if (all(list.scenarios.datafile %in% list.scenarios.external)) {
+    if (all(sim_scens[["models"]] %in% list.scenarios.external)) {
       #locations of simulation runs
       locations <- sp::SpatialPoints(coords = with(SWRunInformation,
-        data.frame(X_WGS84, Y_WGS84)), proj4string = CRS("+proj=longlat +datum=WGS84"))
+        data.frame(X_WGS84, Y_WGS84)), proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
 
       # keep track of successful/unsuccessful climate scenarios
-      include_YN_climscen <- rep(FALSE, runsN_master)
+      include_YN_climscen <- rep(FALSE, sim_size[["runsN_master"]])
 
-      for (sc in seq_along(list.scenarios.datafile)) {
-        dir.ex.dat.sc <- file.path(dir.ex.dat, list.scenarios.datafile[sc])
+      for (sc in seq_along(sim_scens[["models"]])) {
+        dir.ex.dat.sc <- file.path(dir.ex.dat, sim_scens[["models"]][sc])
         temp <- basename(list.dirs2(path = dir.ex.dat.sc, full.names = FALSE,
           recursive = FALSE))
 
-        if ("CMIP3_ClimateWizardEnsembles_Global" %in% opt_climsc_extr) {
+        if ("CMIP3_ClimateWizardEnsembles_Global" %in% sim_scens[["sources"]]) {
           dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, grep("Precipitation_Value", temp,
             value = TRUE))
           dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, grep("Tmean_Value", temp,
             value = TRUE))
         }
-        if ("CMIP3_ClimateWizardEnsembles_USA" %in% opt_climsc_extr) {
+        if ("CMIP3_ClimateWizardEnsembles_USA" %in% sim_scens[["sources"]]) {
           dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, grep("Precipitation_Change", temp,
             value = TRUE))
           dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, grep("Tmean_Change", temp,
@@ -2511,66 +2540,68 @@ ExtractClimateWizard <- function(opt_climsc_extr, SWRunInformation, fmaster, fpr
         #extract data
         get.month <- function(path, grid, locations) {
           g <- raster::raster(file.path(path, grid))
-          locations.CoordG <- sp::spTransform(locations, CRS = sp::CRS(proj4string(g)))	#transform points to grid-coords
+          locations.CoordG <- sp::spTransform(locations, CRS = raster::crs(g))	#transform graphics::points to grid-coords
           vals <- raster::extract(g, locations.CoordG)
         }
-        sc.temp <- sapply(st_mo, function(m) {
+        sc.temp <- sapply(swsf_glovars[["st_mo"]], function(m) {
             temp <- grep(paste0("_", m, "_"), list.temp.asc, value = TRUE)
             get.month(path = dir.ex.dat.sc.temp, grid = temp, locations)
           })
-        sc.ppt <- sapply(st_mo, function(m) {
+        sc.ppt <- sapply(swsf_glovars[["st_mo"]], function(m) {
             temp <- grep(paste0("_", m, "_"), list.ppt.asc, value = TRUE)
             get.month(path=dir.ex.dat.sc.ppt, grid = temp, locations)
           })
 
-        if ("CMIP3_ClimateWizardEnsembles_Global" %in% opt_climsc_extr) {
+        if ("CMIP3_ClimateWizardEnsembles_Global" %in% sim_scens[["sources"]]) {
           #temp value in C
           #ppt value in mm
           #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTmm_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+          itemp1 <- paste0("PPTmm_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
           sw_input_climscen_values_use[itemp1] <- TRUE
           sw_input_climscen_values[, itemp1] <- sc.ppt
-          itemp2 <- paste0("TempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+          itemp2 <- paste0("TempC_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
           sw_input_climscen_values_use[itemp2] <- TRUE
           sw_input_climscen_values[, itemp2] <- sc.temp
 
           include_YN_climscen <- include_YN_climscen &
-            complete.cases(sw_input_climscen_values[, c(itemp1, itemp2)])
+            stats::complete.cases(sw_input_climscen_values[, c(itemp1, itemp2)])
         }
 
-        if ("CMIP3_ClimateWizardEnsembles_USA" %in% opt_climsc_extr) {
+        if ("CMIP3_ClimateWizardEnsembles_USA" %in% sim_scens[["sources"]]) {
           sc.temp <- sc.temp * 5/9	#temp addand in C
           sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
           #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTfactor_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+          itemp1 <- paste0("PPTfactor_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
           sw_input_climscen_use[itemp1] <- TRUE
           sw_input_climscen[, itemp1] <- sc.ppt
-          itemp2 <- paste0("deltaTempC_m", st_mo, "_sc", formatC(sc, width=2,format="d", flag="0"))
+          itemp2 <- paste0("deltaTempC_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
           sw_input_climscen_use[itemp2] <- TRUE
           sw_input_climscen[, itemp2] <- sc.temp
 
           include_YN_climscen <- include_YN_climscen &
-            complete.cases(sw_input_climscen_values[, c(itemp1, itemp2)])
+            stats::complete.cases(sw_input_climscen_values[, c(itemp1, itemp2)])
         }
       }
 
 
       #write data to disk
-      write.csv(reconstitute_inputfile(sw_input_climscen_values_use, sw_input_climscen_values),
-        file = file.path(fclimscen_values), row.names = FALSE)
-      unlink(fpreprocin)
+      utils::write.csv(reconstitute_inputfile(sw_input_climscen_values_use, sw_input_climscen_values),
+        file = file.path(fnames_in[["fclimscen_values"]]), row.names = FALSE)
+      unlink(fnames_in[["fpreprocin"]])
 
-      write.csv(reconstitute_inputfile(sw_input_climscen_use, sw_input_climscen),
-        file = file.path(fclimscen), row.names = FALSE)
-      unlink(fpreprocin)
+      utils::write.csv(reconstitute_inputfile(sw_input_climscen_use, sw_input_climscen),
+        file = file.path(fnames_in[["fclimscen_delta"]]), row.names = FALSE)
+      unlink(fnames_in[["fpreprocin"]])
 
-      include_YN_climscen <- as.numeric(include_YN_climscen >= length(list.scenarios.datafile))
+      include_YN_climscen <- as.numeric(include_YN_climscen >= length(sim_scens[["models"]]))
       SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
-      write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
-      unlink(fpreprocin)
+      utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+      unlink(fnames_in[["fpreprocin"]])
 
-      if (res > 0)
-        print(paste("'ExtractClimateWizard':", res, "sites didn't extract climate data"))
+      no_ecw <- sum(include_YN_climscen == 0)
+      if (no_ecw > 0)
+        print(paste("'ExtractClimateWizard':", no_ecw, "sites didn't extract climate",
+          "data"))
 
     } else {
       print(paste("Not all scenarios requested in 'master file' are",

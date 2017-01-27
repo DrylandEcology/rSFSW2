@@ -1,7 +1,7 @@
 # TODO: Add comment
-# 
+#
 # Author: ryan
-# 
+#
 #	Walk you through connecting and then dumping one or all tables from the database.
 #
 ###############################################################################
@@ -28,9 +28,9 @@ for(dbIndex in seq_along(filesInDBdir)){
 
 	for(i in 1:length(Tables)) {
 		temp <- dbReadTable(con, Tables[i])
-		write.csv(x=temp, file=file.path(dir_out.db, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
+		utils::write.csv(x=temp, file=file.path(dir_out.db, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
 	}
 	con <- dbConnect(drv, file.path(dir.DB, "dbTables.sqlite3"))
 	temp <- dbReadTable(con, "header")
-	write.csv(x=temp, file=file.path(dir_out.db, paste("header",".csv",sep="")), row.names=FALSE, )
+	utils::write.csv(x=temp, file=file.path(dir_out.db, paste("header",".csv",sep="")), row.names=FALSE, )
 }

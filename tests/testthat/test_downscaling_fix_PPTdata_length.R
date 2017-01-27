@@ -18,7 +18,7 @@ test_that("fix_PPTdata_length: result == input", {
 	# Target length == length of data --> result is input
 	expect_equal(fix_PPTdata_length(ppt0, targetLength0a), ppt0)
 })
-	
+
 test_that("fix_PPTdata_length: adjust length", {
 	# Randomly remove days
 	expect_length(fix_PPTdata_length(ppt0, targetLength1a), targetLength1a)
@@ -60,14 +60,14 @@ test_that("fix_PPTdata_length: maintain mean and variance of data", {
 if (FALSE) {
 	reps <- 2^(0:10)
 	n <- sample(50, 1)
-	dats <- runif(n)
+	dats <- stats::runif(n)
 	vars <- sapply(reps, function(i) var(rep(dats, i)))
-	
+
 	plot(reps, vars, ylim = c(0, max(vars)), xlab = "# data repeats", ylab = "Variance")
 	var0l <- c(var(dats), vars[length(vars)])
 	abline(h = var0l, col = "gray", lty = 2)
-	
-	mtext(side = 3, text = paste("var(data) =", signif(var0l[1], 3), "vs.",
+
+	graphics::mtext(side = 3, text = paste("var(data) =", signif(var0l[1], 3), "vs.",
 								"var(limit) =", signif(var0l[2], 3), "\n",
 								"#(data) =", n, ": var(data) / n =", signif(var0l[1] / n, 3), "vs.",
 								"diff(var0l) =", abs(signif(diff(var0l), 3))))

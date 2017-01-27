@@ -1,13 +1,16 @@
+#' @export
 init_timer <- function(timerfile2) {
   cat(",Time_s,Number", file = timerfile2, sep = "\n")
 }
 
+#' @export
 write_timer <- function(timerfile2, label, time_sec = "", number = "") {
   cat(paste(label, time_sec, number, sep = ","), file = timerfile2, append = TRUE,
     sep = "\n")
 }
 
 
+#' @export
 compile_overall_timer <- function(timerfile2, dir_out, workersN = 0, runs.completed = 0,
   scenario_No = 0, ensembles.completed = 0, delta.overall = 0, delta.outputDB = 0,
   delta.check = 0, delta.ensembles = 0) {
@@ -20,8 +23,8 @@ compile_overall_timer <- function(timerfile2, dir_out, workersN = 0, runs.comple
   times <- dbWork_timing(dir_out)
   if (length(times) > 0) {
     write_timer(timerfile2, "Time_OneRun_Mean", time_sec = mean(times))
-    write_timer(timerfile2, "Time_OneRun_SD", time_sec = sd(times))
-    write_timer(timerfile2, "Time_OneRun_Median", time_sec = median(times))
+    write_timer(timerfile2, "Time_OneRun_SD", time_sec = stats::sd(times))
+    write_timer(timerfile2, "Time_OneRun_Median", time_sec = stats::median(times))
     write_timer(timerfile2, "Time_OneRun_Min", time_sec = min(times))
     write_timer(timerfile2, "Time_OneRun_Max", time_sec = max(times))
   }

@@ -5,23 +5,30 @@ context("dbWork: runIDs organization")
 dbpath <- tempdir()
 flock <- tempfile(pattern = "swsflock", tmpdir = normalizePath(dbpath))
 runsN_master <- 25L
-include_YN <- rep(1, runsN_master)
-include_YN[c(1, 10, 24:25)] <- 0L
+include_YN <- rep(TRUE, runsN_master)
+include_YN[c(1, 10, 24:25)] <- FALSE
 expN <- 4L
 runsN_total <- runsN_master * expN
+runIDs_total <- seq_len(runsN_total)
+runIDs <- runIDs_total[rep(include_YN, times = expN)]
+sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total, expN = expN)
 #fname_log <- "log_dbWork.txt"
 verbose <- FALSE
 
 test_update <- function(i, dbpath, flock = NULL, verbose) {
   is_inwork <- dbWork_update_job(dbpath, i, "inwork", with_filelock = flock, verbose = verbose)
+
   if (is_inwork) {
     todos <- dbWork_todos(dbpath)
+
     if (any(i == todos)) {
       dbWork_update_job(dbpath, i, "failed", with_filelock = flock, verbose = verbose)
+
     } else {
       dbWork_update_job(dbpath, i, "completed", time_s = .node_id,
         with_filelock = flock, verbose = verbose)
     }
+
   } else {
     FALSE
   }
@@ -61,7 +68,7 @@ parallel::clusterEvalQ(cl, require("RSQLite"))
 test_that("dbWork", {
   # Init
   unlink(flock, recursive = TRUE)
-  expect_true(setup_dbWork(dbpath, runsN_master, runsN_total, expN, include_YN))
+  expect_true(setup_dbWork(dbpath, sim_size, include_YN))
   expect_identical(dbWork_todos(dbpath), runIDs)
 
   #--- Error due to locked database
@@ -73,7 +80,7 @@ test_that("dbWork", {
 
   #--- No error expected because dbWork is run with file locking
   # Init
-  expect_true(setup_dbWork(dbpath, runsN_master, runsN_total, expN, include_YN))
+  expect_true(setup_dbWork(dbpath, sim_size, include_YN))
   expect_identical(dbWork_todos(dbpath), runIDs)
   expect_s3_class(pretend_sim(cl, runIDs, dbpath, flock, verbose), "table")
 })

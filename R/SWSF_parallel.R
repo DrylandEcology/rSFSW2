@@ -2,7 +2,8 @@
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
-gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
+#' @export
+gather_objects_for_export <- function(varlist, list_envs) {
   #---Determine environments
   obj_env <- new.env(parent = emptyenv())
   vtemp <- NULL
@@ -23,21 +24,23 @@ gather_objects_for_export <- compiler::cmpfun(function(varlist, list_envs) {
           paste(varlist[cannot_export], collapse = ", ")))
 
   obj_env
-})
+}
 
 
-do_import_objects <- compiler::cmpfun(function(obj_env) {
+do_import_objects <- function(obj_env) {
   temp <- list2env(as.list(obj_env), envir = globalenv())
 
   NULL
-})
+}
 
-
+#' Export objects to workers
+#'
 #' @param parallel_backend A character vector, either 'mpi' or 'cluster'
 #' @param cl A parallel (socket) cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
-export_objects_to_workers <- compiler::cmpfun(function(obj_env,
+#' @export
+export_objects_to_workers <- function(obj_env,
   parallel_backend = c("mpi", "cluster"), cl = NULL) {
 
   t.bcast <- Sys.time()
@@ -91,7 +94,7 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
   }
 
   success
-})
+}
 
 
 
@@ -106,7 +109,8 @@ export_objects_to_workers <- compiler::cmpfun(function(obj_env,
 #' @section Note:
 #'  If an error occurs, then the slave will likely not report back to master because
 #'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
-mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
+#' @export
+mpi_work <- function(verbose = FALSE) {
   # Note the use of the tag for sent messages:
   #     1=ready_for_task, 2=done_task, 3=exiting
   # Note the use of the tag for received messages:
@@ -144,9 +148,10 @@ mpi_work <- compiler::cmpfun(function(verbose = FALSE) {
     # We'll just ignore any unknown messages
   }
   Rmpi::mpi.send.Robj(junk, 0, 3)
-})
+}
 
 
+#' @export
 clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL,
   verbose = FALSE) {
 
@@ -163,7 +168,6 @@ clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL
     # Rmpi::mpi.close.Rslaves(dellog = FALSE)
 
     Rmpi::mpi.exit()
-    rm(.Last, pos = globalenv())
   }
 
   if (identical(parallel_backend, "cluster") && !is.null(cl)) {
@@ -180,6 +184,7 @@ clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL
 }
 
 
+#' @export
 setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
 
   opt_parallel <- c(opt_parallel, list(workersN = 1, worker_tag = ".worker_id",
@@ -193,7 +198,7 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
       tmpdir = normalizePath(tempdir()))
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      if (!require("Rmpi", quietly = TRUE)) {
+      if (!requireNamespace("Rmpi", quietly = TRUE)) {
         print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
           shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
           shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
@@ -202,6 +207,8 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
       }
 
       Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
+
+      Rmpi::mpi.bcast.cmd(require("rSWSF", quietly = TRUE))
 
       mpi_last <- function(x) { #Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
@@ -214,6 +221,7 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
       reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+
       opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
         outfile = if (opt_verbosity[["verbose"]]) "" else {
         file.path(dir_out, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
@@ -222,6 +230,8 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
         function(x) assign(opt_parallel[["worker_tag"]], x, envir = globalenv()))
       #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
+
+      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSWSF", quietly = TRUE))
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {

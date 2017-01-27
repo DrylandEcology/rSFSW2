@@ -1,11 +1,12 @@
 Package: rSWSF
-Title: SOILWAT Simulation Framework
-Version: 1.12.0-move_more_code_to_functions
-Date: 2017-01-23
+Title: SOILWAT2 Simulation Framework
+Version: 2.0.0-9000
+Date: 2017-01-27
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
-Description: An R wrapper for simulation experiments with SOILWAT
+Description: Setting up, carrying out, and analyzing ecosystem water balance simulation
+  experiments with SOILWAT2.
 Depends:
     R (>= 3.3.0)
 Imports:
@@ -15,14 +16,15 @@ Imports:
     circular (>= 0.4.7),
     Rcpp (>= 0.12.7),
     SPEI (>= 1.6),
+    raster (>= 2.5.8),
+    sp (>= 1.2.3),
+    methods,
     testthat
 Suggests:
     Rmpi (>= 0.6.6),
     parallel,
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
-    raster (>= 2.5.8),
-    sp (>= 1.2.3),
     ncdf4 (>= 1.15),
     maps (>= 3.1.0),
     RCurl (>= 1.95.4.8),
@@ -31,8 +33,13 @@ Suggests:
     Hmisc (>= 3.17.4),
     qmap (>= 1.0.4),
     DaymetR (>= 0.1),
+    weathergen,
+        lubridate,
+        zoo,
+        dplyr,
     knitr,
-    rmarkdown
+    rmarkdown,
+    covr
 LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
@@ -40,5 +47,5 @@ NeedsCompilation: yes
 License: GPL (>= 3)
 URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
 BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
-RoxygenNote: 5.0.1
+RoxygenNote: 5.0.1.9000
 VignetteBuilder: knitr

@@ -1,0 +1,4 @@
+^appveyor\.yml$
+^\.travis\.yml$
+^codecov\.yml$
+^CONDUCT\.md$

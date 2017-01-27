@@ -1,7 +1,28 @@
-if (!methods::isGeneric("extract_swsf")) {
-  methods::setGeneric("extract_swsf", function(x, y, type, ...)
-    methods::standardGeneric("extract_swsf"))
-}
+#' Extract raster data for point or cell locations
+#'
+#' Several methods defined for different use cases described below.
+#'
+#' @param x A \linkS4class{Raster} object from which data are extracted.
+#' @param y Locations for which data, provided by \code{x}, are extracted.
+#' @param type A character string. One of 'point' or 'cell'. \itemize{
+#'  \item If \code{type == "point"}, then y represents point locations
+#'        by a two-column matrix or data.frame, by \linkS4class{SpatialPoints},
+#'        or by a numeric vector of cell numbers.
+#'  \item If \code{type == "cell"}, then y represents cells locations, see
+#'        \code{\link{extract_swsf_cells_from_raster}}.
+#'  }
+#'
+#' @seealso \code{\link[raster]{extract}}
+#'
+#' @importClassesFrom raster Raster
+#' @importClassesFrom sp SpatialPolygons SpatialPoints
+#'
+#' @name extract_swsf
+NULL
+
+setGeneric("extract_swsf", function(x, y, type, ...)
+  standardGeneric("extract_swsf"))
+
 
 
 #' Extract the weighted mean (and sample quantiles) for raster cells or rectangles.
@@ -15,18 +36,20 @@ if (!methods::isGeneric("extract_swsf")) {
 #'    in x- and y-coordinates.
 #'    If a matrix, then rows must match \code{coords}.
 #' @param ...
-#'  \describe{
-#'    \item{method}{A character string. The method argument passed to
-#'      \code{reaggregate_raster}. Default is 'block' which is the fastest.}
-#'    \item{coords}{Cell centers (corresponding to !NA cells of \code{y}) that are
-#'      represented by a two-column matrix of xy coordinates. If not provided, then extracted from \code{y}.}
-#'    \item{probs}{A numeric vector of probabilities with values in \code{[0,1]} at which
-#'      sample quantiles are returned.}
+#'  \itemize{
+#'    \item \code{method} A character string. The method argument passed to
+#'      \code{reaggregate_raster}. Default is 'block' which is the fastest.
+#'    \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
+#'      represented by a two-column matrix of xy coordinates. If not provided, then
+#'      extracted from \code{y}.
+#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0,1]} at
+#'      which sample quantiles are returned.
 #'  }
 #' @seealso \code{\link[raster]{extract}}
 #' @return A matrix with rows corresponding to the !NA cells of \code{y} and columns to
 #'   layers of \code{x}.
-extract_swsf_cells_from_raster <- compiler::cmpfun(function(x, y, ...) {
+#' @export
+extract_swsf_cells_from_raster <- function(x, y, ...) {
   dots <- list(...)
 
   if (!("method" %in% names(dots)))
@@ -58,25 +81,8 @@ extract_swsf_cells_from_raster <- compiler::cmpfun(function(x, y, ...) {
     with_weights = TRUE, method = dots[["method"]], tol = 1e-2)
 
   weighted.agg(reagg, probs = dots[["probs"]])
-})
+}
 
-
-#' Extract raster data for point (site) or cell locations
-#'
-#' @param x A raster* object from which data are extracted.
-#' @param y Locations for which data from \code{x} are extracted.
-#' @param type A character string. One of 'point' or 'cell'. See details.
-#'
-#' @section Details: If \code{type} is 'point', then y represents point locations
-#'  by a two-column matrix or data.frame, by SpatialPoints*, or by a numeric vector of
-#'  cell numbers.
-#'  If \code{type} is \code{cell}, then y represents cells locations (see
-#'  \code{\link{extract_swsf_cells_from_raster}}).
-#' @seealso \code{\link[raster]{extract}}
-#'
-#' @export
-#' @rdname extract_swsf
-NULL
 
 extract_swsf_default <- function(x, y, type, ...) {
   if (identical(type, "point")) {
@@ -89,13 +95,16 @@ extract_swsf_default <- function(x, y, type, ...) {
 }
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "vector", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "Raster", y = "vector", type = "character"),
   extract_swsf_default)
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "matrix", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "Raster", y = "matrix", type = "character"),
   extract_swsf_default)
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "data.frame", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "Raster", y = "data.frame", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
       raster::extract(x = x, y = y, ...)
@@ -104,7 +113,8 @@ methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "data.fr
     }
   })
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "SpatialPoints", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "Raster", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
       raster::extract(x = x, y = y, ...)
@@ -113,7 +123,8 @@ methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "Spatial
     }
   })
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "Raster", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "Raster", y = "Raster", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       extract_swsf_cells_from_raster(x, y, ...)
@@ -123,30 +134,35 @@ methods::setMethod("extract_swsf", methods::signature(x = "Raster", y = "Raster"
   })
 
 
-#' extract spatial polygon data for point locations
+#' Extract spatial polygon data for point locations
 #'
-#' @param x An object inheriting from \linkS4class{SpatialPolygons} from which data are extracted.
-#' @param y Points represented by an object inheriting from \linkS4class{SpatialPoints}.
+#' @param x An object inheriting from \linkS4class{SpatialPolygons} from which data are
+#'  extracted.
+#' @param y graphics::points represented by an object inheriting from
+#'  \linkS4class{SpatialPoints}.
 #' @param file_shp A character string. The filename of the shapefile.
-#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects columns of the extracted object.
-#' @param code A vector. If not \code{NULL}, then the extracted data are treated as integer codes of a factor whose levels are encoded by \code{code}.
+#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
+#'  columns of the extracted object.
+#' @param code A vector. If not \code{NULL}, then the extracted data are treated as
+#'  integer codes of a factor whose levels are encoded by \code{code}.
 #'
 #' @seealso \code{\link[sp]{over}}
 #'
 #' @return A vector or matrix with length/rows corresponding to the elements of \code{y}
 #'  and available columns requested by \code{fields}. If \code{!is.null(code)},
 #'  then the encoded 'factor levels' are returned.
-extract_swsf_points_from_shp <- compiler::cmpfun(function(x, y, fields = NULL, code = NULL, ...) {
+#' @export
+extract_swsf_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
   val <- sp::over(x = y, y = x)
   if (!is.null(fields))
     val <- val[, colnames(val) %in% fields, drop = FALSE]
 
   if (!is.null(code)) apply(val, 2, function(x) code[as.integer(x)]) else val
-})
+}
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf",
-  methods::signature(x = "SpatialPolygons", y = "SpatialPoints", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "SpatialPolygons", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
       extract_swsf_points_from_shp(x, y, ...)
@@ -156,8 +172,8 @@ methods::setMethod("extract_swsf",
   })
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf",
-  methods::signature(x = "character", y = "ANY", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "character", y = "ANY", type = "character"),
   function(x, y, type, ...) {
     if (!requireNamespace("rgdal"))
       stop("'extract_swsf' requires package 'rgdal' but it is not available")
@@ -188,16 +204,15 @@ methods::setMethod("extract_swsf",
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as
 #'  integer codes of a factor whose levels are encoded by \code{code}.
-#' @param ...
-#'  \describe{
-#'    \item{coords}{Cell centers (corresponding to each resolution of \code{y}) that are
-#'      represented by a two-column matrix of xy coordinates. Ignored if \code{y} is
-#'      inheriting from \linkS4class{SpatialPolygons}.}
-#'    \item{crs_data}{A \linkS4class{CRS} object indicating the coordinate reference
+#' @param ... \itemize{
+#'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
+#'      that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
+#'      is inheriting from \linkS4class{SpatialPolygons}.
+#'    \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
 #'      system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from
-#'      \linkS4class{SpatialPolygons}.}
-#'    \item{probs}{A numeric vector of probabilities with values in \code{[0,1]} at which
-#'      sample quantiles are returned.}
+#'      \linkS4class{SpatialPolygons}.
+#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0,1]} at
+#'      which sample quantiles are returned.
 #'  }
 #'
 #' @seealso \code{\link[sp]{over}}
@@ -205,20 +220,21 @@ methods::setMethod("extract_swsf",
 #' @return A vector or matrix with length/rows corresponding to the elements of \code{y}
 #'  and available columns requested by \code{fields}. If \code{!is.null(code)}, then the
 #'  encoded 'factor levels' are returned.
-extract_swsf_cells_from_shp <- compiler::cmpfun(function(x, y, fields = NULL, code = NULL, ...) {
+#' @export
+extract_swsf_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
 
   dots <- list(...)
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
-  if (!raster::compareCRS(raster::crs(y), raster::crs(data))) {
-    y <- sp::spTransform(y, CRS = raster::crs(data))
+  if (!raster::compareCRS(raster::crs(y), raster::crs(x))) {
+    y <- sp::spTransform(y, CRS = raster::crs(x))
   }
 
   reagg <- reaggregate_shapefile(x = x, by = y, fields = fields, code = code)
 
   weighted.agg(reagg, probs = dots[["probs"]])
-})
+}
 
 #' Convert resolution/rectangles into SpatialPolygons
 res_to_polygons <- function(x, y, ...) {
@@ -249,8 +265,8 @@ res_to_polygons <- function(x, y, ...) {
 
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf",
-  methods::signature(x = "SpatialPolygons", y = "SpatialPolygons", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "SpatialPolygons", y = "SpatialPolygons", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       extract_swsf_points_from_shp(x, y, ...)
@@ -261,8 +277,8 @@ methods::setMethod("extract_swsf",
 
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf",
-  methods::signature(x = "SpatialPolygons", y = "vector", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "SpatialPolygons", y = "vector", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       y <- res_to_polygons(x, y, ...)
@@ -274,8 +290,8 @@ methods::setMethod("extract_swsf",
   })
 
 #' @rdname extract_swsf
-methods::setMethod("extract_swsf",
-  methods::signature(x = "SpatialPolygons", y = "matrix", type = "character"),
+setMethod("extract_swsf",
+  signature(x = "SpatialPolygons", y = "matrix", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       y <- res_to_polygons(x, y, ...)
@@ -290,7 +306,7 @@ methods::setMethod("extract_swsf",
 
 #-----
 
-add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres, exts) {
+add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
   if (length(cell_blocks[[i]]) > 0) {
     xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
     xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
@@ -303,21 +319,26 @@ add_weights <- compiler::cmpfun(function(i, vals, x, cell_blocks, halfres, exts)
   } else {
     cbind(vals[[i]], weight = numeric(0))
   }
-})
+}
 
 #' Extract values from Raster* objects that are covered by an extent rectangle.
 #'
-#' A cell is covered if its center is inside the polygon (but see the weights option for considering partly covered cells).
+#' A cell is covered if its center is inside the polygon (but see the weights option for
+#'  considering partly covered cells).
 #'
-#' @paramInherits raster::extract
-#' @param y A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the corners of an \code{\linkS4class{Extent}} object.
+#' @inheritParams raster::extract
+#' @param y A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the
+#   corners of an \code{\linkS4class{Extent}} object.
 #' @seealso \code{\link[raster]{extract}}
 #'
 #' @return A list with one item for each extent of \code{y}.
-#'   Each element is a matrix where each row corresponds to one of the cells of \code{x} contained in a SpatialPolygon
+#'   Each element is a matrix where each row corresponds to one of the cells of \code{x}
+#     contained in a SpatialPolygon
 #'   and where columns correspond to layers of \code{x}.
-#'  If \code{weights} is \code{TRUE}, then an additional last column is added which contains the weights of the rows.
-extract_blocks <- compiler::cmpfun(function(x, y, weights = FALSE) {
+#'  If \code{weights} is \code{TRUE}, then an additional last column is added which
+#    contains the weights of the rows.
+#' @export
+extract_blocks <- function(x, y, weights = FALSE) {
   fun_match <- if (requireNamespace("fastmatch")) fastmatch::fmatch else match
   stopifnot(ncol(y) == 4L)
 
@@ -344,7 +365,7 @@ extract_blocks <- compiler::cmpfun(function(x, y, weights = FALSE) {
   }
 
   vals
-})
+}
 
 extract2_Raster_SpatialPolygons <- function(x, ...) {
   stop("Function 'extract2_Raster_SpatialPolygons' is not defined")
@@ -364,22 +385,34 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 #'        scales with the number of 'rectangles' to be extracted [not implemented].}
 #'     \item{block}{Uses the function \code{extract_blocks}.
 #'   }
-#' The weighted mean of the extracted values can be calculated as weighted.mean(values, w = weights)
+#' The weighted mean of the extracted values can be calculated as
+#'  stats::weighted.mean(values, w = weights)
 #'
 #' @param x A raster* object from which data are extracted.
-#' @param coord A numeric vector of length two or a matrix with two columns. The x and y coordinates of the center(s) of the rectangle(s).
+#' @param coord A numeric vector of length two or a matrix with two columns. The x and
+#'   y coordinates of the center(s) of the rectangle(s).
 #' @param to_res A numeric vector of length two. The x- and y-extent of the rectangle(s).
-#' @param with_weigths A logical value or \code{NULL}. If \code{NULL}, then code attempts to determine whether weights are required for the call to \code{\link[raster]{extract}}.
+#' @param with_weigths A logical value or \code{NULL}. If \code{NULL}, then code attempts
+#'  to determine whether weights are required for the call to
+#'  \code{\link[raster]{extract}}.
 #' @param method A character string. Selects the extraction method, see details.
-#' @param tol A numeric value. The absolute tolerance for deviation used if \code{is.null(with_weights)}.
+#' @param tol A numeric value. The absolute tolerance for deviation used if
+#'  \code{is.null(with_weights)}.
 #'
-#' @return A list of length corresponding to the number of rectangles. Each element is a list which contains three items each
+#' @return A list of length corresponding to the number of rectangles. Each element is a
+#'  list which contains three items each
 #'  \describe{
-#'    \item{N}{An integer vector. The number of unique values within the rectangle for each layer of \code{x}.}
-#'    \item{values}{A list of numeric vectors. The sorted unique values as vector for each layer.}
-#'    \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
+#'    \item{N}{An integer vector. The number of unique values within the rectangle for
+#'      each layer of \code{x}.}
+#'    \item{values}{A list of numeric vectors. The sorted unique values as vector for
+#'      each layer.}
+#'    \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each
+#'      layer.}
 #'  }
-reaggregate_raster <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), with_weights = NULL, method = c("raster", "raster_con", "block"), tol = 1e-2) {
+#' @export
+reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
+  method = c("raster", "raster_con", "block"), tol = 1e-2) {
+
   if (is.null(dim(coords)) && length(coords) == 2L) {
     coords <- matrix(coords, ncol = 2)
   }
@@ -400,12 +433,14 @@ reaggregate_raster <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), wit
 
   if (method %in% c("raster", "raster_con")) {
     # Create SpatialPolygons with #features == # rectangles
-    ptemp0 <- lapply(seq_len(nrow(coords)),
-              function(i) matrix(c(cxy[i, 1], cxy[i, 3], cxy[i, 1], cxy[i, 4], cxy[i, 2], cxy[i, 4], cxy[i, 2], cxy[i, 3]),
-                    ncol = 2, byrow = TRUE))
+    ptemp0 <- lapply(seq_len(nrow(coords)), function(i) matrix(c(cxy[i, 1], cxy[i, 3],
+      cxy[i, 1], cxy[i, 4], cxy[i, 2], cxy[i, 4], cxy[i, 2], cxy[i, 3]), ncol = 2,
+      byrow = TRUE))
+
     ptemp1 <- lapply(ptemp0, sp::Polygon)
     ptemp2 <- lapply(seq_along(ptemp1), function(i) sp::Polygons(ptemp1[i], ID = i))
     ys <- sp::SpatialPolygons(ptemp2, proj4string = raster::crs(x))
+
   } else if (method == "block") {
     ys <- cxy
   }
@@ -419,14 +454,17 @@ reaggregate_raster <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), wit
       fact <- to_res[1, ] / raster::res(x)
       #  - corners of cell_poly align with the origin of grid
       orig <- (c(cxy[1, 1], cxy[1, 3]) - raster::origin(x)) / to_res[1, ]
-      with_weights <- !all(sapply(c(fact, orig), function(f) isTRUE(all.equal(round(f), f, tolerance = tol, scale = 1))))
+      with_weights <- !all(sapply(c(fact, orig), function(f) isTRUE(all.equal(round(f),
+        f, tolerance = tol, scale = 1))))
     }
   }
 
   # extract
   nl <- raster::nlayers(x)
 
-  # @param sval A list with one item for each 'ys'. Each element is a matrix where each row corresponds to one of the cells contained in the 'rectangle' and where columns correspond to layers in 'x' plus the last column which contain the weights of the rows.
+  # sval A list with one item for each 'ys'. Each element is a matrix where each
+  # row corresponds to one of the cells contained in the 'rectangle' and where columns
+  # correspond to layers in 'x' plus the last column which contain the weights of the rows.
   if (with_weights) {
     sval <- fun_extract(x = x, y = ys, weights = TRUE)
   } else {
@@ -444,19 +482,26 @@ reaggregate_raster <- compiler::cmpfun(function(x, coords, to_res = c(0, 0), wit
     } else {
       list(N = -1, values = NULL, fraction = NULL)
     })
-})
+}
 
 
 
 #' The 'weighted mean' (and sample quantiles) of re-aggregation output
 #'
-#' @param reagg A list. The output object of a call to \code{reaggregate_raster} or to \code{reaggregate_shapefile}.
-#' @param probs A numeric vector of probabilities with values in \code{[0,1]} at which sample quantiles are returned or \code{NA}.
+#' @param reagg A list. The output object of a call to \code{reaggregate_raster} or to
+#'  \code{reaggregate_shapefile}.
+#' @param probs A numeric vector of probabilities with values in \code{[0,1]} at which
+#'  sample quantiles are returned or \code{NA}.
 #'
-#' @return An array. The first dimension corresponds to each rectangle, i.e., a row of \code{coords};
-#' the second dimension corresponds to the layers of the re-aggregated and -sampled Raster* object \code{x};
-#' And the third dimension corresponds to the aggregation type(s) (weighted mean, and sample quantiles if any).
-weighted.agg <- compiler::cmpfun(function(reagg, probs = NA) {
+#' @return An array. The first dimension corresponds to each rectangle, i.e., a row of
+#'  \code{coords};
+#' the second dimension corresponds to the layers of the re-aggregated and -sampled
+#'  Raster* object \code{x};
+#' And the third dimension corresponds to the aggregation type(s) (weighted mean, and
+#'  sample quantiles if any).
+#'
+#' @export
+weighted.agg <- function(reagg, probs = NA) {
   stopifnot(requireNamespace("Hmisc"))
 
   nf <- 1 + if (anyNA(probs)) 0 else length(probs)
@@ -464,13 +509,14 @@ weighted.agg <- compiler::cmpfun(function(reagg, probs = NA) {
 
   res <- array(NA_real_,
     dim = c(length(reagg), nl, nf),
-    dimnames = list(NULL, paste0("Layer", seq_len(nl)), c("wmean", if (!anyNA(probs)) paste0("q", probs))))
+    dimnames = list(NULL, paste0("Layer", seq_len(nl)), c("wmean", if (!anyNA(probs))
+    paste0("q", probs))))
   FUN.VALUE <- rep(NA_real_, nf)
 
   for (k in seq_along(reagg)) {
     res[k, , ] <- t(vapply(seq_along(reagg[[k]][["N"]]), function(i) {
         if (reagg[[k]][["N"]][i] > 0 && reagg[[k]][["fraction"]][[i]] > 0) {
-          out <- weighted.mean(reagg[[k]][["values"]][[i]],
+          out <- stats::weighted.mean(reagg[[k]][["values"]][[i]],
             w = reagg[[k]][["fraction"]][[i]])
           if (!anyNA(probs)) {
             out <- c(wmean = out,
@@ -485,25 +531,35 @@ weighted.agg <- compiler::cmpfun(function(reagg, probs = NA) {
   }
 
   res
-})
+}
 
 
 #' function to extract data for raster cells
 #'
 #' @description This function is slow because of the call to \code{\link[raster]{resample}}.
-#' The result is also too smooth because of 'two' smoothing steps: (i) aggregation and (ii) 'bilinear' resampling method.
+#'  The result is also too smooth because of 'two' smoothing steps: (i) aggregation and
+#'  (ii) 'bilinear' resampling method.
 #'
-#' @param x A RasterLayer object for which !NA cells, values of 'data' are resampled and extracted
+#' @param x A RasterLayer object for which !NA cells, values of 'data' are resampled and
+#'  extracted
 #' @param data A raster* object from which data are extracted
 #' @param ...
 #'  \describe{
-#'    \item{method}{A character string. The method used to resample values for the new RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using the nearest neighbor.}
-#'    \item{coords}{Points represented by a two-column matrix or data.frame, or SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector representing cell numbers.}
-#'    \item{crit_v_exclude}{A character string representing a logical expression based on a variable named 'v'. If present, then the condition(s) are applied to 'data' before resampling.}
+#'    \item{method}{A character string. The method used to resample values for the new
+#'      RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using
+#'      the nearest neighbor.}
+#'    \item{coords}{graphics::points represented by a two-column matrix or data.frame, or
+#'      SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector
+#'      representing cell numbers.}
+#'    \item{crit_v_exclude}{A character string representing a logical expression based
+#'      on a variable named 'v'. If present, then the condition(s) are applied to 'data'
+#'      before resampling.}
 #'  }
 #' @seealso \code{\link[raster]{extract}}
-#' @return A vector or matrix with length/rows corresponding to the !NA cells of \code{x} and columns to layers of \code{data}.
-extract_from_external_raster_old <- compiler::cmpfun(function(x, data, ...) {
+#' @return A vector or matrix with length/rows corresponding to the !NA cells of \code{x}
+#'  and columns to layers of \code{data}.
+#' @export
+extract_from_external_raster_old <- function(x, data, ...) {
   dots <- list(...)  # coords, method
   if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
   if ("crit_v_exclude" %in% names(dots)) {
@@ -514,43 +570,54 @@ extract_from_external_raster_old <- compiler::cmpfun(function(x, data, ...) {
 
   data2 <- raster::resample(x = data, y = x, method = dots[["method"]])
   raster::extract(x = data2, y = dots[["coords"]])  # extract by coords == run_sites[do_extract, ] to get the correct order
-})
+}
 
 
 
 #' Re-aggregation of spatial polygon data by spatial rectangles/polygons
 #'
-#' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete information and not the area-weigthed sum.
+#' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
+#'  information and not the area-weigthed sum.
 #'
 #' @param x A \linkS4class{SpatialPolygons} object from which data are extracted.
-#' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the rectangle(s) for which data are re-aggregated.
-#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects columns of the extracted object.
-#' @param code A vector. If not \code{NULL}, then the extracted data are treated as integer codes of a factor whose levels are encoded by \code{code}.
+#' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the
+#'  rectangle(s) for which data are re-aggregated.
+#' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
+#'  columns of the extracted object.
+#' @param code A vector. If not \code{NULL}, then the extracted data are treated as
+#'  integer codes of a factor whose levels are encoded by \code{code}.
 #'
-#' @return A list of length corresponding to the number of rectangles. Each element is a list which contains three items each
+#' @return A list of length corresponding to the number of rectangles. Each element is a
+#'  list which contains three items each
 #'  \describe{
-#'    \item{N}{An integer vector. The number of unique values within the rectangle for each layer of \code{x}.}
-#'    \item{values}{A list of numeric vectors or matrices. The sorted unique values as vector or matrix for each layer.}
-#'    \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each layer.}
+#'    \item{N}{An integer vector. The number of unique values within the rectangle for
+#'      each layer of \code{x}.}
+#'    \item{values}{A list of numeric vectors or matrices. The sorted unique values as
+#'      vector or matrix for each layer.}
+#'    \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each
+#'      layer.}
 #'  }
-reaggregate_shapefile <- compiler::cmpfun(function(x, by, fields = NULL, code = NULL) {
+#' @export
+reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
   # Code from sp:::aggregatePolyWeighted version 1.2.3
   if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
 
   i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
 
   # Modified code
-  if (is.null(i)) return(rep(list(list(N = -1, values = NULL, fraction = NULL)), length(by)))
+  if (is.null(i))
+    return(rep(list(list(N = -1, values = NULL, fraction = NULL)), length(by)))
 
   rect_subs <- t(sapply(i@polygons, function(p) {
           IDs <- as.integer(strsplit(slot(p, name = "ID"), " ")[[1]])
-          if (!(length(IDs) == 2)) stop("IDs contain spaces: this breaks identification after gIntersection()")
+          if (!(length(IDs) == 2))
+            stop("IDs contain spaces: this breaks identification after gIntersection()")
 
           c(  area = slot(p, name = "area"),
             ID_data = which(row.names(x) == IDs[1]),
             ID_rect = which(row.names(by) == IDs[2]))
         }))
-  subs_agg <- aggregate(rect_subs[, "area"],
+  subs_agg <- stats::aggregate(rect_subs[, "area"],
               by = list(rect_subs[, "ID_data"], rect_subs[, "ID_rect"]),
               sum)
 
@@ -569,15 +636,17 @@ reaggregate_shapefile <- compiler::cmpfun(function(x, by, fields = NULL, code = 
         list(N = -1, values = NULL, fraction = NULL)
       }
     })
-  })
+}
 
 
 
 #' Extracts the 'units' argument from a CRS object
 #'
-#' @param CRS A Raster*, Spatial*, CRS, or character object with a coordinate reference system (CRS).
+#' @param CRS A Raster*, Spatial*, CRS, or character object with a coordinate reference
+#'  system (CRS).
 #' @return A character string or \code{NA}.
-crs_units <- compiler::cmpfun(function(CRS) {
+#' @export
+crs_units <- function(CRS) {
   args_crs <- raster::crs(CRS, asText = TRUE)
   stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
 
@@ -586,21 +655,27 @@ crs_units <- compiler::cmpfun(function(CRS) {
   if (length(units) > 0) {
     strsplit(units, split = "=", fixed = TRUE)[[1]][2]
   } else NA
-})
+}
 
 #' Aligns 'grid_from' with 'grid_to' for certain cells
 #'
 #' @param grid_from A RasterLayer object.
-#' @param coords A matrix of x and y coordinates, or a SpatialPoints or SpatialPointsDataFrame object indicating which cells of projected 'grid_from' will be used.
+#' @param coords A matrix of x and y coordinates, or a SpatialPoints or
+#'  SpatialPointsDataFrame object indicating which cells of projected 'grid_from' will
+#'  be used.
 #' @param grid_to A RasterLayer object.
-#' @param crs_to A CRS object or \code{NULL} in which case it will be extracted from \code{grid_to}.
+#' @param crs_to A CRS object or \code{NULL} in which case it will be extracted from
+#'  \code{grid_to}.
 #'
 #' @return A list with two elements
 #'  \describe{
-#'    \item{x}{A RasterLayer object. Cells values are \code{NA} or 1 if they contain points of \code{coords}.}
-#'    \item{index}{An integer vector. The cell numbers of \code{x} that correspond to \code{coords}.}
+#'    \item{x}{A RasterLayer object. Cells values are \code{NA} or 1 if they contain
+#'      graphics::points of \code{coords}.}
+#'    \item{index}{An integer vector. The cell numbers of \code{x} that correspond to
+#'      \code{coords}.}
 #' }
-align_with_target_grid <- compiler::cmpfun(function(grid_from, coords, grid_to, crs_to = NULL) {
+#' @export
+align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
   if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
 
   # Align with data crs
@@ -621,26 +696,32 @@ align_with_target_grid <- compiler::cmpfun(function(grid_from, coords, grid_to, 
   x[imatch] <- 1
 
   list(x = x, index = imatch)
-})
+}
 
 
-#' Calculate resolution of one coordinate system for points in their coordinate system transformed to a target coordinate system
+#' Calculate resolution of one coordinate system for points in their coordinate
+#'  system transformed to a target coordinate system
 #'
-#' @param res_from A numeric vector of length two. The resolution in x and y direction in the coordinate system \code{crs_from}.
+#' @param res_from A numeric vector of length two. The resolution in x and y direction in
+#'  the coordinate system \code{crs_from}.
 #' @param crs_from A CRS object. The coordinate system of \code{res_from}.
-#' @param sp A SpatialPoints object. Cell center points for which new resolutions will be calculated.
+#' @param sp A SpatialPoints object. Cell center graphics::points for which new
+#'  resolutions will be calculated.
 #' @param crs_sp A CRS object. The coordinate system of \code{sp}.
-#' @param crs_to A CRS object. The coordinate system in which the resulting resolution will be calculated.
+#' @param crs_to A CRS object. The coordinate system in which the resulting resolution
+#'  will be calculated.
 #'
-#' @return A numeric vector of length two (if resolution is constant for each point) or a matrix with two columns for the x- and y-resolutions per row for each point.
-align_with_target_res <- compiler::cmpfun(function(res_from, crs_from, sp, crs_sp, crs_to) {
+#' @return A numeric vector of length two (if resolution is constant for each point) or a
+#'  matrix with two columns for the x- and y-resolutions per row for each point.
+#' @export
+align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
   if (identical(crs_units(crs_from), crs_units(crs_to))) {
     res_from
   } else {
     sp_from <- if (raster::compareCRS(crs_sp, crs_from)) {
             sp
           } else {
-            # transform points to same coordinate system as resolution
+            # transform graphics::points to same coordinate system as resolution
             sp::spTransform(sp, CRS = crs_from)
           }
 
@@ -660,11 +741,63 @@ align_with_target_res <- compiler::cmpfun(function(res_from, crs_from, sp, crs_s
     cxy0_to_sp <- sp::spTransform(cxy0_from_sp, CRS = crs_to)
     cxy1_to_sp <- sp::spTransform(cxy1_from_sp, CRS = crs_to)
 
-    # resolution varies with latitude of points in crs_to
+    # resolution varies with latitude of graphics::points in crs_to
     cxy0_to <- sp::coordinates(cxy0_to_sp)
     cxy1_to <- sp::coordinates(cxy1_to_sp)
 
     abs(cxy1_to - cxy0_to)
   }
-})
+}
+
+
+
+#' @export
+setup_spatial_simulation <- function(SWRunInformation, sim_space, sim_size,
+  fsimraster = "", use_sim_spatial = FALSE) {
+
+  if (use_sim_spatial) {
+    if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
+      stop("The packages 'rgdal', 'sp', and 'raster' are required for spatial simulations, ",
+        "but one or multiple of them are not installed.")
+    }
+
+    # make sure that flag 'scorp' has a valid option
+    sim_space[["scorp"]] <- match.arg(sim_space[["scorp"]], c("point", "cell"))
+
+    # make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
+    if (sim_space[["scorp"]] == "cell") {
+      if (file.exists(fsimraster)) {
+        sim_space[["sim_raster"]] <- raster::raster(fsimraster)
+        sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
+      }
+
+      # make sure that sim_res is valid
+      stopifnot(is.finite(sim_space[["sim_res"]]), length(sim_space[["sim_res"]]) == 2L,
+        sim_space[["sim_res"]] > 0)
+
+    } else {
+      sim_space[["sim_raster"]] <- NULL
+    }
+
+    # make sure that sim_crs is valid
+    #   - package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
+    temp <- rgdal::checkCRSArgs(as.character(sim_space[["sim_crs"]]))
+    stopifnot(temp[[1]])
+    sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+
+    # SpatialPoints of simulation cell centers/sites in WGS84
+    sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")	# sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
+    sim_space[["run_sites"]] <- sp::SpatialPoints(coords =
+      with(SWRunInformation[sim_size[["runIDs_sites"]], ], data.frame(X_WGS84, Y_WGS84)),
+      proj4string = sim_space[["crs_sites"]])
+
+  } else {
+    sim_space[["run_sites"]] <- sim_space[["sim_raster"]] <- NULL
+    sim_space[["crs_sites"]] <- sim_space[["sim_res"]] <- sim_space[["sim_crs"]] <- NULL
+  }
+
+  sim_space
+}
+
 

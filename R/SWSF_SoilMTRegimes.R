@@ -4,14 +4,17 @@
 # Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 # Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
 
+#' @export
 STR_names <- function() {
   c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
 }
 
+#' @export
 SMR_names <- function() {
   c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic", "Aquic")
 }
 
+#' @export
 SMRq_names <- function() {
   c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic", #Aridic
     "Dry-Xeric", "Typic-Xeric", # Xeric
@@ -20,9 +23,10 @@ SMRq_names <- function() {
     "Typic-Udic", "Dry-Tropudic", "Dry-Tempudic") # Udic
 }
 
-#---Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
-#we ignore distinction between iso- and not iso-
-STR_logic <- compiler::cmpfun(function(MAST, MSST, SatSoilSummer_days, has_permafrost, has_Ohorizon) {
+#' Soil temperature regime: based on Soil Survey Staff 2014 (Key to Soil Taxonomy): p.31
+#'  we ignore distinction between iso- and not iso-
+#' @export
+STR_logic <- function(MAST, MSST, SatSoilSummer_days, has_permafrost, has_Ohorizon) {
   temp <- STR_names()
   Tregime <- rep(0, length(temp))
   names(Tregime) <- temp
@@ -76,11 +80,12 @@ STR_logic <- compiler::cmpfun(function(MAST, MSST, SatSoilSummer_days, has_perma
   }
 
   Tregime
-})
+}
 
 
-#---Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
-SMR_logic <- compiler::cmpfun(function(ACS_COND1, ACS_COND2, ACS_COND3, MCS_COND0,
+#' Soil moisture regime: Soil Survey Staff 2014 (Key to Soil Taxonomy): p.28-31
+#' @export
+SMR_logic <- function(ACS_COND1, ACS_COND2, ACS_COND3, MCS_COND0,
   MCS_COND1, MCS_COND2, MCS_COND2_1, MCS_COND2_2, MCS_COND2_3, MCS_COND3, MCS_COND3_1,
   MCS_COND4, MCS_COND5, MCS_COND6, MCS_COND6_1, MCS_COND7, MCS_COND8, MCS_COND9,
   MCS_COND10, has_permafrost) {
@@ -169,7 +174,7 @@ SMR_logic <- compiler::cmpfun(function(ACS_COND1, ACS_COND2, ACS_COND3, MCS_COND
   }
 
   Sregime
-})
+}
 
 
 #------ End of SMTR functions

@@ -13,7 +13,7 @@ dbGetQuery(con, "CREATE TABLE \"WeatherData\" (\"Site_id\" INT NOT NULL, \"Scena
 string <- character(length=length(odata))
 for(i in 1:length(odata)) {
 	zz <- textConnection("dataString","w")
-	write.table(x=odata[[i]]@data[,2:4], file=zz,col.names=FALSE,sep=",",row.names=FALSE)
+	utils::write.table(x=odata[[i]]@data[,2:4], file=zz,col.names=FALSE,sep=",",row.names=FALSE)
 	close(zz)
 	string[i] <-paste(dataString,collapse="\n")
 }
@@ -32,7 +32,7 @@ years <- seq(from=result$StartYear, to=result$EndYear)
 
 weatherData <- list()
 for(i in 1:length(years)) {
-	ydata <- read.csv(textConnection(data[i]),header=FALSE,sep=",",stringsAsFactors=FALSE)
+	ydata <- utils::read.csv(textConnection(data[i]),header=FALSE,sep=",",stringsAsFactors=FALSE)
 	ydata <- as.matrix(cbind(seq(from=1,to=dim(ydata)[1]),ydata))
 	colnames(ydata) <- c("DOY","Tmax_C","Tmin_C","PPT_cm")
 	weatherData[[i]] <- methods::new("swWeatherData",year=years[i],data=ydata)

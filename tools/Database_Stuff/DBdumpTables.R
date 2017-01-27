@@ -1,7 +1,7 @@
 # TODO: Add comment
-# 
+#
 # Author: ryan
-# 
+#
 #	Walk you through connecting and then dumping one or all tables from the database.
 #
 ###############################################################################
@@ -61,18 +61,18 @@ readNumberRePrompt("TableNumber", "Please select table to dump, 0=all : ")
 if(TableNumber == 0) {
 	for(i in 1:length(Tables)) {
 		temp <- dbReadTable(con, Tables[i])
-		write.csv(x=temp, file=file.path(dir_out, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
+		utils::write.csv(x=temp, file=file.path(dir_out, paste(Tables[i],".csv",sep="")), row.names=FALSE, )
 	}
 	con <- dbConnect(drv, file.path(dir.DB, "dbTables.sqlite3"))
 	temp <- dbReadTable(con, "header")
-	write.csv(x=temp, file=file.path(dir_out, paste("header",".csv",sep="")), row.names=FALSE, )
+	utils::write.csv(x=temp, file=file.path(dir_out, paste("header",".csv",sep="")), row.names=FALSE, )
 } else {
 	temp <- dbReadTable(con, Tables[TableNumber])
-	write.csv(x=temp, file=file.path(dir_out, paste(Tables[TableNumber], ".csv", sep="")), row.names=FALSE)
+	utils::write.csv(x=temp, file=file.path(dir_out, paste(Tables[TableNumber], ".csv", sep="")), row.names=FALSE)
 	if(as.logical(readline(paste("Write Header Table (TRUE or FALSE) : ",sep="")))) {
 		con <- dbConnect(drv, file.path(dir.DB, "dbTables.sqlite3"))
 		temp <- dbReadTable(con, "header")
-		write.csv(x=temp, file=file.path(dir_out, paste("header",".csv",sep="")), row.names=FALSE, )
+		utils::write.csv(x=temp, file=file.path(dir_out, paste("header",".csv",sep="")), row.names=FALSE, )
 	}
 }
 

@@ -21,6 +21,7 @@ add_dbWork_index <- function(con) {
 #'  the site_id (row number in master input file), and a flag whether site is being
 #'  simulated or not. See \code{\link{indices}}.
 #' @return Invisibly \code{TRUE}
+#' @export
 create_dbWork <- function(dbWork, jobs) {
   stopifnot(colnames_job_df() %in% dimnames(jobs)[[2]])
 
@@ -41,14 +42,15 @@ colnames_job_df <- function() {
   c("runID_total", "runID_sites", "include_YN", "completed", "failed", "inwork", "time_s")
 }
 
-create_job_df <- function(runsN_master, runsN_total, expN, include_YN) {
+create_job_df <- function(sim_size, include_YN) {
   temp <- colnames_job_df()
-  jobs <- matrix(data = 0L, nrow = runsN_total, ncol = length(temp),
+  jobs <- matrix(data = 0L, nrow = sim_size[["runsN_total"]], ncol = length(temp),
     dimnames = list(NULL, temp))
 
-  jobs[, "runID_total"] <- seq_len(runsN_total)
-  jobs[, "runID_sites"] <- rep(seq_len(runsN_master), times = max(expN, 1L))
-  temp <- rep(include_YN, times = max(expN, 1L))
+  jobs[, "runID_total"] <- seq_len(sim_size[["runsN_total"]])
+  jobs[, "runID_sites"] <- rep(seq_len(sim_size[["runsN_master"]]),
+    times = max(sim_size[["expN"]], 1L))
+  temp <- rep(include_YN, times = max(sim_size[["expN"]], 1L))
   jobs[temp, "include_YN"] <- 1L
 
   jobs
@@ -59,19 +61,19 @@ create_job_df <- function(runsN_master, runsN_total, expN, include_YN) {
 #'  project
 #'
 #' @inheritParams create_dbWork
-#' @param continueAfterAbort A logical value. If \code{TRUE} and \code{dbWork} exists,
+#' @param resume A logical value. If \code{TRUE} and \code{dbWork} exists,
 #'  then function connects to the existing database. If \code{FALSE}, then a new database
 #'  is created (possibly overwriting an existing one).
 #' @return A logical value indicating success/failure of setting up/connecting to
 #'  \code{dbWork} and initializing with \code{runIDs}.
-setup_dbWork <- function(path, runsN_master, runsN_total, expN, include_YN,
-  continueAfterAbort = FALSE) {
+#' @export
+setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE) {
 
   dbWork <- file.path(path, "dbWork.sqlite3")
   success <- create <- FALSE
-  jobs <- create_job_df(runsN_master, runsN_total, expN, include_YN)
+  jobs <- create_job_df(sim_size, include_YN)
 
-  if (continueAfterAbort) {
+  if (resume) {
     if (file.exists(dbWork)) {
       con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
 
@@ -135,23 +137,25 @@ setup_dbWork <- function(path, runsN_master, runsN_total, expN, include_YN,
 #'
 #' @inheritParams create_dbWork
 #' @return An integer vector of \code{runIDs}.
-dbWork_todos <- compiler::cmpfun(function(path) {
+#' @export
+dbWork_todos <- function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-  runIDs_todo <- RSQLite::dbGetQuery(con, paste("SELECT runID_total FROM work ",
+  x <- RSQLite::dbGetQuery(con, paste("SELECT runID_total FROM work ",
     "WHERE include_YN = 1 AND completed = 0 AND inwork = 0 ORDER BY runID_total"))
   RSQLite::dbDisconnect(con)
 
-  as.integer(runIDs_todo[, 1])
-})
+  as.integer(x[, 1])
+}
 
 #' Extract stored execution times of completed runs of a SWSF simulation project
 #'
 #' @inheritParams create_dbWork
 #' @return A numeric vector of execution time in seconds.
-dbWork_timing <- compiler::cmpfun(function(path) {
+#' @export
+dbWork_timing <- function(path) {
   dbWork <- file.path(path, "dbWork.sqlite3")
   stopifnot(file.exists(dbWork))
 
@@ -160,7 +164,8 @@ dbWork_timing <- compiler::cmpfun(function(path) {
     "AND completed > 0"))
   RSQLite::dbDisconnect(con)
 
-  as.numeric(times[, 1])})
+  as.numeric(times[, 1])
+}
 
 
 
@@ -168,7 +173,8 @@ dbWork_timing <- compiler::cmpfun(function(path) {
 #'
 #' @inheritParams create_dbWork
 #' @return A logical vector indicating success.
-dbWork_redo <- compiler::cmpfun(function(path, runIDs) {
+#' @export
+dbWork_redo <- function(path, runIDs) {
   if (length(runIDs) > 0) {
     dbWork <- file.path(path, "dbWork.sqlite3")
     stopifnot(file.exists(dbWork))
@@ -183,14 +189,15 @@ dbWork_redo <- compiler::cmpfun(function(path, runIDs) {
   } else {
     TRUE
   }
-})
+}
 
 
 #' Check run status
 #'
 #' @inheritParams create_dbWork
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
-dbWork_check <- compiler::cmpfun(function(path, runIDs) {
+#' @export
+dbWork_check <- function(path, runIDs) {
   if (length(runIDs) > 0) {
     dbWork <- file.path(path, "dbWork.sqlite3")
     stopifnot(file.exists(dbWork))
@@ -208,7 +215,7 @@ dbWork_check <- compiler::cmpfun(function(path, runIDs) {
   }
 
   res
-})
+}
 
 
 
@@ -216,8 +223,9 @@ dbWork_check <- compiler::cmpfun(function(path, runIDs) {
 #' Re-create dbWork based on dbOutput
 #'
 #' @inheritParams create_dbWork
-#' @param dbOutput
+#' @param dbOutput A character string. Full name to the output database.
 #' @return A logical vector indicating success.
+#' @export
 recreate_dbWork <- function(path, dbOutput) {
   if (file.exists(dbOutput)) {
     dbWork <- file.path(path, "dbWork.sqlite3")
@@ -263,11 +271,12 @@ recreate_dbWork <- function(path, dbOutput) {
 
     if (do_new_dbWork) {
       # Create new dbWork
-      setup_dbWork(path, runsN_master = infer_runsN_master,
-        runsN_total = infer_runsN_total, expN = infer_expN, include_YN = infer_include_YN)
+      infer_sim_size <- list(runsN_master = infer_runsN_master,
+        runsN_total = infer_runsN_total, expN = infer_expN)
+      setup_dbWork(path, infer_sim_size, include_YN = infer_include_YN)
 
     } else {
-      if (!identical(as.logical(is_work[, "include_YN"]), infer_include_YN)) {
+      if (!identical(as.logical(has_work[, "include_YN"]), infer_include_YN)) {
         # Update include_YN
         con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
         rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET include_YN = :x1",
@@ -308,7 +317,8 @@ recreate_dbWork <- function(path, dbOutput) {
 #'
 #' @inheritParams create_dbWork
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
-dbWork_check <- compiler::cmpfun(function(path, runIDs) {
+#' @export
+dbWork_check <- function(path, runIDs) {
   if (length(runIDs) > 0) {
     dbWork <- file.path(path, "dbWork.sqlite3")
     stopifnot(file.exists(dbWork))
@@ -326,7 +336,7 @@ dbWork_check <- compiler::cmpfun(function(path, runIDs) {
   }
 
   res
-})
+}
 
 
 
@@ -345,7 +355,8 @@ dbWork_check <- compiler::cmpfun(function(path, runIDs) {
 #'  database access are printed
 #'
 #' @return A logical value whether the status was successfully updated.
-dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("completed", "failed", "inwork"),
+#' @export
+dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"),
   time_s = "NULL", with_filelock = NULL, verbose = FALSE) {
 
   status <- match.arg(status)
@@ -427,7 +438,7 @@ dbWork_update_job <- compiler::cmpfun(function(path, runID, status = c("complete
   }
 
   !is.na(res) && res == 1L
-})
+}
 
 
 #------ End of dbWork functions

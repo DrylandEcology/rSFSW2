@@ -5,9 +5,13 @@
 #' @param file A character string. The file path to the datafile to upgrade.
 #' @param new_name A character string. The basename of the upgraded file. If \code{NULL}
 #'  then the code attempts to replace 'vOLD' with 'vNEW' in \code{file}.
+#' @param insert_after_tag A character string. A string identifying existing column(s)
+#'  after which new columns are added.
+#' @param inserted_colnames A character vector. Column name(s) to be added to \code{file}.
 #'
 #' @return A logical value. \code{TRUE} if upgrade was successful.
 #' @name upgrade_datafile
+#' @export
 upgrade_datafile <- function(file, new_name, insert_after_tag, inserted_colnames) {
   temp <- file.exists(file)
   if (!temp) return(FALSE)
@@ -55,6 +59,7 @@ upgrade_datafile <- function(file, new_name, insert_after_tag, inserted_colnames
 #' Add a column of critical soil water potential (SWPcrit) for each functional type
 #'
 #' @rdname upgrade_datafile
+#' @export
 upgrade_prodin_v10_to_v11 <- function(file, new_name = NULL) {
   if (is.null(new_name)) {
     new_name <- sub("v10", "v11", basename(file))
@@ -70,6 +75,7 @@ upgrade_prodin_v10_to_v11 <- function(file, new_name = NULL) {
 #' Add a column of total organic content (TOC) for each soil layer
 #'
 #' @rdname upgrade_datafile
+#' @export
 upgrade_soilsin_v11_to_v12 <- function(file, new_name = NULL) {
   if (is.null(new_name)) {
     new_name <- sub("v11", "v12", basename(file))

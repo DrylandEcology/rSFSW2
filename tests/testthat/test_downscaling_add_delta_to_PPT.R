@@ -45,7 +45,7 @@ test_that("add_delta_to_PPT: calls with argument 'addDelta'", {
 		, list(data = ppt1, PPT_to_remove = 0))
 	# No precip-day index
 	expect_equal(
-		add_delta_to_PPT(data = ppt0, ind_events = rainyElems = NULL, addDelta = delta1a)
+		add_delta_to_PPT(data = ppt0, ind_events = NULL, addDelta = delta1a)
 		, list(data = ppt1, PPT_to_remove = 0))
 
 	# There are subtractions, but all positive

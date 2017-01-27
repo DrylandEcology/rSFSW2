@@ -9,8 +9,8 @@ inputFileValue<-"/Users/drschlaep/Documents/drschlaepfer/2_Research/200907_UofWy
 outFileChange<-sub(pattern="v10.",replacement = "v11.",inputFileChange)
 outFileValue<-sub(pattern="v10.",replacement = "v11.",inputFileValue)
 
-sw_input_climscen_use <- tryCatch(read.csv(temp <- file.path(inputFileChange), nrows=1, stringsAsFactors=F),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
-sw_input_climscen <- read.csv(temp, skip=1)
+sw_input_climscen_use <- tryCatch(utils::read.csv(temp <- file.path(inputFileChange), nrows=1, stringsAsFactors=F),error=function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
+sw_input_climscen <- utils::read.csv(temp, skip=1)
 colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
 
 maxSc <- max(temp<-as.numeric(numberString<-sub(pattern="[PPTfactordeltaTempC]+_m[1234567890]+_sc",replacement = "", x=colnames(sw_input_climscen_use)[-1])))
@@ -29,7 +29,7 @@ for(sc in minSc:maxSc) {
 	} else {
 		sw_input_climscen_use <- cbind(sw_input_climscen_use[,1:(start-1)],replacement)
 	}
-	
+
 	values<-sw_input_climscen[start:stop]
 	replacement<-cbind(values,values)
 	colnames(replacement) <- columnNames
@@ -40,14 +40,14 @@ for(sc in minSc:maxSc) {
 	}
 }
 newFileData<-rbind(sw_input_climscen_use, sw_input_climscen)
-write.csv(newFileData, file=file.path(outFileChange), row.names=FALSE)
+utils::write.csv(newFileData, file=file.path(outFileChange), row.names=FALSE)
 
 ############################
 ############################
 ############################
 
-sw_input_climscen_values_use <- tryCatch(read.csv(temp <- file.path(inputFileValue), nrows=1,stringsAsFactors = FALSE),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
-sw_input_climscen_values <- read.csv(temp, skip=1)
+sw_input_climscen_values_use <- tryCatch(utils::read.csv(temp <- file.path(inputFileValue), nrows=1,stringsAsFactors = FALSE),error=function(e) { print("datafile.climatescenarios_values: Bad Path"); print(e)})
+sw_input_climscen_values <- utils::read.csv(temp, skip=1)
 colnames(sw_input_climscen_values) <- colnames(sw_input_climscen_values_use)
 
 maxSc <- max(temp<-as.numeric(numberString<-sub(pattern="[PPTmTempC]+_m[1234567890]+_sc",replacement = "", x=colnames(sw_input_climscen_values_use)[-1])))
@@ -66,7 +66,7 @@ for(sc in minSc:maxSc) {
 	} else {
 		sw_input_climscen_values_use <- cbind(sw_input_climscen_values_use[,1:(start-1)],replacement)
 	}
-	
+
 	values<-sw_input_climscen_values[start:stop]
 	replacement<-cbind(values,values)
 	colnames(replacement) <- columnNames
@@ -77,4 +77,4 @@ for(sc in minSc:maxSc) {
 	}
 }
 newFileData<-rbind(sw_input_climscen_values_use, sw_input_climscen_values)
-write.csv(newFileData, file=file.path(outFileValue), row.names=FALSE)
+utils::write.csv(newFileData, file=file.path(outFileValue), row.names=FALSE)

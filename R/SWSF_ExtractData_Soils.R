@@ -1,26 +1,26 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
 
-prepare_ExtractData_Soils <- function(SWRunInformation, runsN_sites, runIDs_sites,
-  extract_determine_database, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
+prepare_ExtractData_Soils <- function(SWRunInformation, sim_size,
+  how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
 
-  sites_soils_source <- rep(NA, times = runsN_sites)
+  sites_soils_source <- rep(NA, times = sim_size[["runsN_sites"]])
   has_cns_field <- "SoilTexture_source" %in% colnames(SWRunInformation)
 
-  if (extract_determine_database == "SWRunInformation" && has_cns_field) {
-    sites_soils_source <- SWRunInformation$ClimateNormals_source[runIDs_sites]
-  } else if (extract_determine_database == "order" || !has_cns_field) {
+  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
+    sites_soils_source <- SWRunInformation$ClimateNormals_source[sim_size[["runIDs_sites"]]]
+  } else if (how_determine_sources == "order" || !has_cns_field) {
   } else {
-    message("Value of 'extract_determine_database'", extract_determine_database,
+    message("Value of 'how_determine_sources'", how_determine_sources,
       " not implemented")
   }
 
   lvars <- c("density", "sand", "clay", "rock", "carbon")
   nvars <- length(lvars)
-  coln <- c("i", "depth", paste0(rep(lvars, SoilLayer_MaxNo), "_L",
-    rep(seq_len(SoilLayer_MaxNo), each = nvars)))
-  dtemp <- matrix(NA, nrow = runsN_sites, ncol = 2 + nvars * SoilLayer_MaxNo, dimnames =
-    list(NULL, coln))
+  coln <- c("i", "depth", paste0(rep(lvars, swsf_glovars[["slyrs_maxN"]]), "_L",
+    rep(swsf_glovars[["slyrs_ids"]], each = nvars)))
+  dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
+    ncol = 2 + nvars * swsf_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
   vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "GravelContent_L", "Sand_L",
     "Clay_L", "TOC_GperKG_L"),
     intern = c("depth", lvars))
@@ -31,45 +31,45 @@ prepare_ExtractData_Soils <- function(SWRunInformation, runsN_sites, runIDs_site
 }
 
 
-update_soils_input <- function(MMC, runIDs_sites, digits = 2, i_Done, ldepths_cm, lys,
-  fslayers, fsoils, fpreprocin) {
+update_soils_input <- function(MMC, sim_size, digits = 2, i_Done, ldepths_cm, lys,
+  fnames_in) {
 
   #add data to MMC[["input"]] and set the use flags
   #set and save soil layer structure
   temp <- MMC[["data"]][i_Done, MMC[["vars"]][1, "intern"]]
-  MMC[["input2"]][runIDs_sites[i_Done], MMC[["vars"]][1, "input"]] <- round(temp)
+  MMC[["input2"]][sim_size[["runIDs_sites"]][i_Done], MMC[["vars"]][1, "input"]] <- round(temp)
   i.temp <- grep("depth_L", colnames(MMC[["input2"]]))
   temp <- rep(ldepths_cm[lys], sum(i_good))
-  MMC[["input2"]][runIDs_sites[i_Done], i.temp[lys]] <- matrix(temp, nrow = length(temp),
+  MMC[["input2"]][sim_size[["runIDs_sites"]][i_Done], i.temp[lys]] <- matrix(temp, nrow = length(temp),
     ncol = length(lys), byrow = TRUE)
-  MMC[["input2"]][runIDs_sites[i_Done], i.temp[-lys]] <- NA
-  write.csv(MMC[["input2"]], file = fslayers, row.names = FALSE)
-  unlink(fpreprocin)
+  MMC[["input2"]][sim_size[["runIDs_sites"]][i_Done], i.temp[-lys]] <- NA
+  utils::write.csv(MMC[["input2"]], file = fnames_in[["fslayers"]], row.names = FALSE)
+  unlink(fnames_in[["fpreprocin"]])
 
   #set and save soil texture
   for (k in 1 + seq_len(MMC[["nvars"]])) {
     icol <- grep(MMC[["vars"]][1, "input"], names(MMC[["use"]]))
     temp <- MMC[["data"]][i_Done, paste0(MMC[["vars"]][1, "intern"], "_L", lys)]
     if (!all(is.na(temp))) {
-      MMC[["input"]][runIDs_sites[i_Done], icol[lys]] <- round(temp, digits)
+      MMC[["input"]][sim_size[["runIDs_sites"]][i_Done], icol[lys]] <- round(temp, digits)
       MMC[["use"]][icol[lys]] <- TRUE
       MMC[["use"]][icol[-lys]] <- FALSE
     }
   }
 
   #write data to disk
-  write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]), file = fsoils,
-    row.names = FALSE)
-  unlink(fpreprocin)
+  utils::write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]),
+    file = fnames_in[["fsoils"]], row.names = FALSE)
+  unlink(fnames_in[["fpreprocin"]])
 
   MMC
 }
 
-adjust_soils_todos <- function(todos, MMC, runIDs_sites) {
-  temp <- is.na(MMC[["input2"]][runIDs_sites, MMC[["vars"]][1, "input"]])
+adjust_soils_todos <- function(todos, MMC, sim_size) {
+  temp <- is.na(MMC[["input2"]][sim_size[["runIDs_sites"]], MMC[["vars"]][1, "input"]])
 
   for (k in 1 + seq_len(MMC[["nvars"]])) {
-    temp <- temp | has_nodata(MMC[["input"]][runIDs_sites, ], MMC[["vars"]][k, "input"])
+    temp <- temp | has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], MMC[["vars"]][k, "input"])
   }
   todos <- todos & temp
 }
@@ -84,20 +84,19 @@ adjust_soils_todos <- function(todos, MMC, runIDs_sites) {
 #'  Earth Interactions 2:1-26.
 #' @section Note(drs): it appears that NODATA values are recorded as 0
 #'
-do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
-  fpreprocin, continueAfterAbort, verbose) {
+do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_space,
+  dir_ex_soil, fnames_in, resume, verbose) {
 
   if (verbose)
     print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
 
-  stopifnot(require(raster), require(sp), require(rgdal))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <- is.na(MMC[["source"]]) |  MMC[["source"]] == "CONUSSOILFromSTATSGO_USA"
 
-  if (continueAfterAbort) {
-    todos <- adjust_soils_todos(todos, MMC, runIDs_sites)
+  if (resume) {
+    todos <- adjust_soils_todos(todos, MMC, sim_size)
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -118,21 +117,22 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
     crs_data <- raster::crs(g)
 
     #locations of simulation runs
-    sites_conus <- run_sites[todos, ]
+    sites_conus <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
-    if (!raster::compareCRS(crs_sites, crs_data)) {
-      sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)  #transform points to grid-coords
+    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+      sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
-    if (sim_cells_or_points == "point") {
+    if (sim_space[["scorp"]] == "point") {
       cell_res_conus <- NULL
-      args_extract <- list(y = sites_conus, type = sim_cells_or_points)
+      args_extract <- list(y = sites_conus, type = sim_space[["scorp"]])
 
-    } else if (sim_cells_or_points == "cell") {
-      cell_res_conus <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-        sp = run_sites[todos, ], crs_sp = crs_sites, crs_to = crs_data)
+    } else if (sim_space[["scorp"]] == "cell") {
+      cell_res_conus <- align_with_target_res(res_from = sim_space[["sim_res"]],
+        crs_from = sim_space[["sim_crs"]], sp = sim_space[["run_sites"]][todos, ],
+        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
       args_extract <- list(y = cell_res_conus, coords = sites_conus, method = "block",
-        type = sim_cells_or_points)
+        type = sim_space[["scorp"]])
     }
 
     #---extract data
@@ -176,7 +176,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
     temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk=total soil
 
     # adjust soil depth by layers with 100% rock volume
-    solid_rock_nl <- apply(temp >= 1 - toln, 1, sum, na.rm = TRUE)
+    solid_rock_nl <- apply(temp >= 1 - swsf_glovars[["toln"]], 1, sum, na.rm = TRUE)
     solid_rock_nl <- 1 + layer_N - solid_rock_nl
     solid_rock_cm <- ldepth_CONUS[solid_rock_nl]
     MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]] <- temp
@@ -213,15 +213,6 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
       }
     silt <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
 
-    if (FALSE) {#visualize in interactive sessions
-      temp <- sand
-      cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=layer_N)))
-      cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
-      plot(run_sites, pch=15, cex=0.5, col=cols[cats])
-      legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
-      if (require("maps")) map("state", add=TRUE)
-    }
-
     #Normalize to 0-1
     total_matric <- sand + clay + silt # values between 0.99 and 1.01 (of the matric component)
     sand <- ifelse(is.finite(sand), sand, NA) / total_matric / 100 # mass fraction of matric component
@@ -230,17 +221,17 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
     MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay
 
     # Determine successful extractions
-    i_good <- complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
+    i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (any(i_good)) {
       MMC[["idone"]]["CONUSSOIL1"] <- TRUE
-      i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
+      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
       MMC[["source"]][i_Done] <- "CONUSSOILFromSTATSGO_USA"
-      update_soils_input(MMC, runIDs_sites, digits = 2, i_Done,
-        ldepths_cm = ldepth_CONUS[-1], lys, fslayers, fsoils, fpreprocin)
+      update_soils_input(MMC, sim_size, digits = 2, i_Done, ldepths_cm = ldepth_CONUS[-1],
+        lys, fnames_in)
     }
 
     if (verbose)
@@ -271,10 +262,10 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, run_sites, runID
 #'    \item{SUID}{A numeric vectors. The sorted unique values.}
 #'    \item{fraction}{A numeric vector. The relative areas covered by \code{values}.}
 #'  }
-ISRICWISE12_extract_SUIDs <- compiler::cmpfun(function(i, res = c(0, 0), grid, sp_sites) {
+ISRICWISE12_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
   # raster::nlayers(grid_wise) == 1
   out <- try(reaggregate_raster(x = grid,
-        coord = sp::coordinates(sp_sites[i, ]),
+        coords = sp::coordinates(sp_sites[i, ]),
         to_res = if (is.null(dim(res))) res else res[i, ],
         with_weights = TRUE,
         method = "block"))
@@ -288,9 +279,9 @@ ISRICWISE12_extract_SUIDs <- compiler::cmpfun(function(i, res = c(0, 0), grid, s
           SUID = out[[1]][["values"]][[1]],
           fraction = out[[1]][["fraction"]][[1]])
   }
-})
+}
 
-ISRICWISE12_get_prids <- compiler::cmpfun(function(suid, dat_wise) {
+ISRICWISE12_get_prids <- function(suid, dat_wise, layer_N) {
   soils <- dat_wise[dat_wise$SUID == suid, ]
   frac <- unique(soils[, c("PROP", "PRID")])
   depth <- tapply(soils$BotDep, soils$PRID, max)
@@ -301,13 +292,13 @@ ISRICWISE12_get_prids <- compiler::cmpfun(function(suid, dat_wise) {
      fraction = frac$PROP / 100,
      depth = ifelse(idepth > 0, idepth, NA),
      soildat = soils)
-})
+}
 
-ISRICWISE12_get_SoilDatValuesForLayer <- compiler::cmpfun(function(dat, soildat_rows, frac) {
+ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
   sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
-})
+}
 
-ISRICWISE12_calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i,
+ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i,
   i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
 
   #Init
@@ -320,7 +311,7 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i,
   #Do calculations if any soils in this simulation cell
   if (i_sim_cells_SUIDs$SUIDs_N > 0) {
     this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
-      FUN = ISRICWISE12_get_prids, dat_wise = dat_wise))))
+      FUN = ISRICWISE12_get_prids, dat_wise = dat_wise, layer_N = layer_N))))
 
     for (is in seq_len(this_simCell$SUIDs_N)) {  #loop through the suids within this simulation cell; each suid may be composed of several prids
       prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]  #vector of the fractions of each prid in relation to the simulation cell
@@ -366,10 +357,10 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i,
   }
 
   simulationSoils
-})
+}
 
 
-ISRICWISE12_try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs,
+ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
   template_simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise = dat_wise,
   nvars) {
 
@@ -382,30 +373,29 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, si
         nvars = nvars))
 
   if (inherits(temp, "try-error")) template_simulationSoils else temp
-})
+}
 
 
 
-#' @refereces Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
+#' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
 #'  arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
 #'  www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
 #'  http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
 #' @section Note: Cells with no soil values include those with \code{SUID = c(0 = Water,
 #'  6997 = Water, 6694 = Rock, or 6998 = Glacier)}
-do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sites,
-  sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
-  fpreprocin, opt_parallel, continueAfterAbort, verbose) {
+do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
+  dir_ex_soil, fnames_in, opt_parallel, resume, verbose) {
 
   if (verbose)
     print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
 
-  stopifnot(require(raster), require(sp), require(rgdal))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["ISRICWISEv12"] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRICWISEv12_Global"
 
-  if (continueAfterAbort) {
-    todos <- adjust_soils_todos(todos, MMC, runIDs_sites)
+  if (resume) {
+    todos <- adjust_soils_todos(todos, MMC, sim_size)
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -423,33 +413,27 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
     stopifnot(file.exists(dir.ex.dat))
 
     #run_sites_wise of simulation runs
-    run_sites_wise <- run_sites[todos, ]
+    run_sites_wise <- sim_space[["run_sites"]][todos, ]
     is_ToDo <- seq_along(run_sites_wise)
 
     #---extract data
     grid_wise <- raster::raster(file.path(dir.ex.dat, "Grid", "smw5by5min"))
 
     #- List all the wise cells that are covered by the grid cell or point location
-    if (sim_cells_or_points == "point") {
+    if (sim_space[["scorp"]] == "point") {
       cell_res_wise <- NULL
       suids <- raster::extract(grid_wise, run_sites_wise)
       sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
 
-    } else if (sim_cells_or_points == "cell") {
-      cell_res_wise <- align_with_target_res(res_from = sim_res, crs_from = sim_crs,
-        sp = run_sites_wise, crs_sp = crs_sites, crs_to = raster::crs(grid_wise))
+    } else if (sim_space[["scorp"]] == "cell") {
+      cell_res_wise <- align_with_target_res(res_from = sim_space[["sim_res"]],
+        crs_from = sim_space[["sim_crs"]], sp = run_sites_wise,
+        crs_sp = sim_space[["crs_sites"]], crs_to = raster::crs(grid_wise))
 
       if (opt_parallel[["do_parallel"]]) {
-        #objects that need exporting to slaves
-        list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise",
-          "reaggregate_raster", "extract_blocks", "add_weights")
-        obj2exp <- gather_objects_for_export(varlist = list.export,
-          list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
         #call the simulations depending on parallel backend
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-          export_objects_to_workers(obj2exp, "mpi")
-          Rmpi::mpi.bcast.cmd(library(raster, quietly = TRUE))
 
           sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo,
             FUN = ISRICWISE12_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
@@ -459,8 +443,6 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
           Rmpi::mpi.bcast.cmd(gc())
 
         } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-          export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
-          parallel::clusterEvalQ(opt_parallel[["cl"]], library(raster, quietly = TRUE))
 
           sim_cells_SUIDs <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
             fun = ISRICWISE12_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
@@ -483,24 +465,15 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
     sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[, "i"])), ]
 
     #- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
-    dat_wise <- read.csv(file = file.path(dir.ex.dat, "WISEsummaryFile.csv"))
+    dat_wise <- utils::read.csv(file = file.path(dir.ex.dat, "WISEsummaryFile.csv"))
 
     template_simulationSoils <- unlist(MMC[["data"]][1, ])
     template_simulationSoils[] <- NA
     template_simulationSoils["depth"] <- 0
 
     if (opt_parallel[["do_parallel"]]) {
-      list.export <- c("sim_cells_SUIDs", "dat_wise", "ldepth_WISEv12", "layer_N",
-        "layer_Nsim", "template_simulationSoils",
-        "ISRICWISE12_get_prids", "ISRICWISE12_get_SoilDatValuesForLayer",
-        "ISRICWISE12_calc_weightedMeanForSimulationCell",
-        "ISRICWISE12_try_weightedMeanForSimulationCell")
-      obj2exp <- gather_objects_for_export(varlist = list.export,
-        list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
-
       #call the simulations depending on parallel backend
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-        export_objects_to_workers(obj2exp, "mpi")
 
         ws <- Rmpi::mpi.applyLB(X = is_ToDo,
           FUN = ISRICWISE12_try_weightedMeanForSimulationCell,
@@ -513,7 +486,6 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
         Rmpi::mpi.bcast.cmd(gc())
 
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
 
         ws <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
           fun = ISRICWISE12_try_weightedMeanForSimulationCell,
@@ -541,33 +513,24 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
       grepl("sand", colnames(ws)) | grepl("clay", colnames(ws))
     ws[, icol] <- ws[, icol] / 100
 
-    if (FALSE) {#visualize in interactive sessions
-      temp <- ws[, grep("density", colnames(ws))]
-      cats <- addNA(cut(temp[, 1], breaks=seq(0, to=max(1, max(temp, na.rm=TRUE)), length.out=10)))
-      cols <- c(head(rainbow(n=nlevels(cats)), n=-1), "gray")
-      plot(run_sites_wise, pch=15, cex=0.5, col=cols[cats])
-      legend(x="bottomleft", legend=sQuote(levels(cats)), pch=19, col=cols)
-      if (require("maps")) map("state", add=TRUE)
-    }
-
     #Convert bulk density to matric density
     #  eqn. 20 from Saxton et al. 2006: bulkd <- matricd * (1 - rockvol) + rockvol * 2.65
     # 'bulk density' here is of the matric component, i.e., what we call matric density
     #matricd <- (ws[, grep("bulk", colnames(ws))] - 2.65 * ws[, grep("rock", colnames(ws))]) / (1 - ws[, grep("rock", colnames(ws))])
 
     i_good <- rep(FALSE, n_extract)
-    i_good[ws[complete.cases(ws), "i"]] <- TRUE # i is index for todos
+    i_good[ws[stats::complete.cases(ws), "i"]] <- TRUE # i is index for todos
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (any(i_good)) {
       MMC[["idone"]]["ISRICWISEv12"] <- TRUE
-      i_Done <- rep(FALSE, times = runsN_sites) #length(i_Done) == length(runIDs_sites) == runsN_sites
+      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
       MMC[["data"]][todos, seq_len(dim(ws)[2])] <- ws
 
       MMC[["source"]][i_Done] <- "ISRICWISEv12_Global"
-      update_soils_input(MMC, runIDs_sites, digits = 2, i_Done,
-        ldepths_cm = ldepth_CONUS[-1], lys, fslayers, fsoils, fpreprocin)
+      update_soils_input(MMC, sim_size, digits = 2, i_Done,
+        ldepths_cm = ldepth_WISEv12[-1], lys = layer_Nsim, fnames_in)
     }
 
     if (verbose)
@@ -581,26 +544,25 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, run_sites, runIDs_sit
   MMC
 }
 
-update_soils_sources <- function(MMC, SWRunInformation, runIDs_sites,
-  runsN_master, fmaster, fpreprocin) {
+update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
 
   notDone <- NULL
 
   if (any(MMC[["idone"]])) {
     #write data to disk
-    SWRunInformation$SoilTexture_source[runIDs_sites] <- as.character(MMC[["source"]])
+    SWRunInformation$SoilTexture_source[sim_size[["runIDs_sites"]]] <- as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
-    include_YN_soils <- rep(0, runsN_master)
-    include_YN_soils[runIDs_sites[!notDone]] <- 1
+    include_YN_soils <- rep(0, sim_size[["runsN_master"]])
+    include_YN_soils[sim_size[["runIDs_sites"]][!notDone]] <- 1
     SWRunInformation$Include_YN_SoilSources <- include_YN_soils
 
-    write.csv(SWRunInformation, file = fmaster, row.names = FALSE)
-    unlink(fpreprocin)
+    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+    unlink(fnames_in[["fpreprocin"]])
 
     if (any(notDone))
       print(paste("'ExtractSoilData': no soil information for n =", sum(notDone),
-        "sites (e.g., sand or clay is 0): this will likely lead to crashes of SoilWat"))
+        "sites (e.g., sand or clay is 0): this will likely lead to crashes of SOILWAT2"))
 
   } else {
       print("'ExtractSoilData': no data extracted because already available")
@@ -610,29 +572,24 @@ update_soils_sources <- function(MMC, SWRunInformation, runIDs_sites,
 }
 
 #' @export
-ExtractData_Soils <- function(SWRunInformation, runsN_master, runsN_sites,
-  runIDs_sites, run_sites, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-  extract_determine_database, sim_cells_or_points, sim_res, sim_crs, crs_sites,
-  dir_ex_soil, fmaster, fslayers, fsoils, fpreprocin, continueAfterAbort, verbose,
-  opt_parallel) {
+ExtractData_Soils <- function(exinfo, SWRunInformation, sim_size, sw_input_soillayers,
+  sw_input_soils_use, sw_input_soils, how_determine_sources, sim_space, dir_ex_soil,
+  fnames_in, resume, verbose, opt_parallel) {
 
-  MMC <- prepare_ExtractData_Soils(SWRunInformation, runsN_sites, runIDs_sites,
-    extract_determine_database, sw_input_soillayers, sw_input_soils_use, sw_input_soils)
+  MMC <- prepare_ExtractData_Soils(SWRunInformation, sim_size, how_determine_sources,
+    sw_input_soillayers, sw_input_soils_use, sw_input_soils)
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
-    MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
-      fpreprocin, continueAfterAbort, verbose = verbose)
+    MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, sim_size, sim_space,
+      dir_ex_soil, fnames_in, resume, verbose = verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
-    MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC, run_sites, runIDs_sites,
-      sim_cells_or_points, sim_res, sim_crs, crs_sites, dir_ex_soil, fslayers, fsoils,
-      fpreprocin, opt_parallel, continueAfterAbort, verbose)
+    MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC, sim_size, sim_space,
+      dir_ex_soil, fnames_in, opt_parallel, resume, verbose)
   }
 
-  temp <- update_soils_sources(MMC, SWRunInformation, runIDs_sites, runsN_master,
-    fmaster, fpreprocin)
+  temp <- update_soils_sources(MMC, SWRunInformation, sim_size, fnames_in)
 
   list(SWRunInformation = temp, sw_input_soillayers = MMC[["input2"]],
     sw_input_soils_use = MMC[["use"]], sw_input_soils = MMC[["input"]])

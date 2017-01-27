@@ -1,18 +1,17 @@
 #' Checks data in a weather database
 #'
 #' @param dir_prj A character string. The directory path the SWSF simulation project.
-#' @param dbWeatherDataFile A character string. The file path of weather database.
+#' @param fdbWeather A character string. The file path of weather database.
 #' @param repeats An integer value. The number of times each weather object is extracted
 #   (repeats > 1 enable comparison of the duplicates).
 #' @param do_preprocess_tempfiles A logial value. Set to TRUE, for instance, if a
 #'   previous run was prematurely aborted.
 #'
-check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
+#' @export
+check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979, endyear = 2010) {
 
   #---Settings
-  stopifnot(require(Rsoilwat31), require(parallel), require(compiler))
-
   name_wid <- ".wid"
 
   vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
@@ -33,22 +32,22 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
 
   #---Calculate in parallel
-  cl <- makeCluster(n_cores, type = "PSOCK", outfile = "workers_log.txt")
-  temp <- clusterExport(cl, c("name_wid"))
-  #temp <- clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-'))
-  temp <- clusterApply(cl, seq_len(n_cores), function(x)
+  cl <- parallel::makeCluster(n_cores, type = "PSOCK", outfile = "workers_log.txt")
+  temp <- parallel::clusterExport(cl, c("name_wid"))
+  #temp <- parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-'))
+  temp <- parallel::clusterApply(cl, seq_len(n_cores), function(x)
     assign(name_wid, x, envir = globalenv())) # worker identification number
 
 
   merge_workers_tempfiles <- function(dir_temp, pattern, file) {
     ftemps <- list.files(dir_temp, pattern = pattern, full.names = TRUE)
     if (length(ftemps) > 0) {
-      temps <- lapply(ftemps, function(f) read.csv(f, header = TRUE))
+      temps <- lapply(ftemps, function(f) utils::read.csv(f, header = TRUE))
       res <- do.call("rbind", temps)
 
       stopifnot(nrow(res) == sum(vapply(temps, nrow, NA_integer_)))
 
-      write.table(res, file = file, append = TRUE, sep = ",", dec = ".",
+      utils::write.table(res, file = file, append = TRUE, sep = ",", dec = ".",
         qmethod = "double", row.names = FALSE, col.names = FALSE)
       unlink(ftemps)
     }
@@ -56,22 +55,22 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
 
   #---Connect to weather database
-  dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
+  Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   fsite <- file.path(file.path(dir_out, "Sites.cvs"))
   if (!file.exists(fsite)) {
-    dbW_iSiteTable <- dbW_getSiteTable()
-    write.csv(dbW_iSiteTable, file = fsite, row.names = FALSE)
+    dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
+    utils::write.csv(dbW_iSiteTable, file = fsite, row.names = FALSE)
   } else {
-    dbW_iSiteTable <- read.csv(fsite, header = TRUE)
+    dbW_iSiteTable <- utils::read.csv(fsite, header = TRUE)
   }
   fscen <- file.path(file.path(dir_out, "Scenarios.cvs"))
   if (!file.exists(fscen)) {
-    dbW_iScenarioTable <- dbW_getScenariosTable()
-    write.csv(dbW_iScenarioTable, file = fscen, row.names = FALSE)
+    dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
+    utils::write.csv(dbW_iScenarioTable, file = fscen, row.names = FALSE)
   } else {
-    dbW_iScenarioTable <- read.csv(fscen, header = TRUE)
+    dbW_iScenarioTable <- utils::read.csv(fscen, header = TRUE)
   }
-  dbW_disconnectConnection()
+  Rsoilwat31::dbW_disconnectConnection()
 
 
 
@@ -123,7 +122,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
   process_good_extractions <- function(climate, ids_todo, var_out = vars, file = fout) {
     if (file.exists(fout)) {
-      climate_good <- read.csv(fout, header = TRUE)
+      climate_good <- utils::read.csv(fout, header = TRUE)
 
       # Transfer to output
       if (nrow(climate_good) > 0) {
@@ -136,7 +135,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
       }
     } else {
       climate_good <- climate[0, ]
-      write.table(climate_good, file = file, append = FALSE, sep = ",", dec = ".",
+      utils::write.table(climate_good, file = file, append = FALSE, sep = ",", dec = ".",
         qmethod = "double", row.names = FALSE, col.names = TRUE)
     }
 
@@ -169,7 +168,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
     if (NROW(tr) >= repeats) {
       variation <- apply(tr[, c("Status", vars)], 2, function(x)
               # duplicates with and without NAs OR with different values among non-NAs
-              anyNA(x) && !all(is.na(x)) || any(abs(diff(na.omit(x))) > sqrt(.Machine$double.eps)))
+              anyNA(x) && !all(is.na(x)) || any(abs(diff(stats::na.omit(x))) > sqrt(.Machine$double.eps)))
       res["Status"] <- if (any(variation)) 0L else 1L
     }
 
@@ -183,7 +182,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
     merge_workers_tempfiles(dir_temp, pattern = pattern_temp, file = ftemp)
 
     if (file.exists(ftemp)) {
-      climate_progress <- read.csv(ftemp, header = TRUE)
+      climate_progress <- utils::read.csv(ftemp, header = TRUE)
 
       if (nrow(climate_progress) > 0) {
         ids_progress <- as.vector(apply(climate_progress[, c("Site_id", "Scenario_id")],
@@ -202,16 +201,16 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
         if (do_calc_status) {
           saveRDS(ids_unique, file = fstat1)
-          clusterExport(cl, c("climate_progress", "idus_ss", "repeats", "vars",
+          parallel::clusterExport(cl, c("climate_progress", "idus_ss", "repeats", "vars",
             "check_entry"), envir = environment())
 
           print(paste0(Sys.time(), ": 'process_tempfiles' check status of n = ",
             length(ids_unique), " extractions; this may take a while."))
-          status <- data.frame(t(parSapply(cl, X = seq_along(ids_unique), FUN = function(i)
+          status <- data.frame(t(parallel::parSapply(cl, X = seq_along(ids_unique), FUN = function(i)
             check_entry(i, idss = idus_ss[i, ], data = climate_progress, vars = vars,
               repeats = repeats))))
           saveRDS(status, file = fstat2)
-          temp <- clusterEvalQ(cl, rm(list = ls()))
+          temp <- parallel::clusterEvalQ(cl, rm(list = ls()))
         } else {
           status <- readRDS(fstat2)
         }
@@ -227,7 +226,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
         stopifnot(nrow(climate_good) == sum(igood), sum(ids_good) == sum(status[igood, "Dups_N"]))
 
         if (nrow(climate_good) > 0) {
-          write.table(climate_good, file = fout, append = TRUE, sep = ",", dec = ".",
+          utils::write.table(climate_good, file = fout, append = TRUE, sep = ",", dec = ".",
             qmethod = "double", row.names = FALSE, col.names = FALSE)
           temp <- copy_matches(out = climate, data = climate_good,
                     match_vars = c("Site_id", "Scenario_id"),
@@ -246,17 +245,17 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
         climate_dups <- climate_progress[idups, ]
         appD <- file.exists(fdups)
-        write.table(climate_dups, file = fdups, append = appD, sep = ",", dec = ".",
+        utils::write.table(climate_dups, file = fdups, append = appD, sep = ",", dec = ".",
           qmethod = "double", row.names = FALSE, col.names = !appD)
 
         ids_keep <- ids_keep & !idups
-        write.table(climate_progress[ids_keep, ], file = ftemp, append = FALSE, sep = ",",
+        utils::write.table(climate_progress[ids_keep, ], file = ftemp, append = FALSE, sep = ",",
           dec = ".", qmethod = "double", row.names = FALSE, col.names = TRUE)
       }
 
     } else {
       climate_progress <- climate[0, ]
-      write.table(climate_progress, file = ftemp, append = FALSE, sep = ",", dec = ".",
+      utils::write.table(climate_progress, file = ftemp, append = FALSE, sep = ",", dec = ".",
         qmethod = "double", row.names = FALSE, col.names = TRUE)
     }
 
@@ -284,17 +283,17 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
         iclimate["Site_id"], "/", scen))
 
     # Access data from database
-    wtemp <- try(dbW_getWeatherData(Site_id = iclimate["Site_id"],
+    wtemp <- try(Rsoilwat31::dbW_getWeatherData(Site_id = iclimate["Site_id"],
             startYear = startyear, endYear = endyear,
             Scenario = scen),
           silent = TRUE)
 
     if (inherits(wtemp, "try-error")) {
       # Maybe the connection to the database failed? Re-set connection and attempt extraction once more
-      dbW_disconnectConnection()
-      dbW_setConnection(dbFilePath = db_name, FALSE)
+      Rsoilwat31::dbW_disconnectConnection()
+      Rsoilwat31::dbW_setConnection(dbFilePath = db_name, FALSE)
 
-      wtemp <- try(dbW_getWeatherData(Site_id = iclimate["Site_id"],
+      wtemp <- try(Rsoilwat31::dbW_getWeatherData(Site_id = iclimate["Site_id"],
               startYear = startyear, endYear = endyear,
               Scenario = scen),
             silent = TRUE)
@@ -307,12 +306,12 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
     } else {
       iclimate["Status"] <- 1
-      wd <- dbW_weatherData_to_dataframe(wtemp)
+      wd <- Rsoilwat31::dbW_weatherData_to_dataframe(wtemp)
 
       # Calculate climate variables (this is the slow part of the function)
       wy_ppt <- tapply(wd[, "PPT_cm"], wd[, "Year"], sum)
       iclimate["MAP_mm"] <- round(mean(wy_ppt))
-      iclimate["aPPT_mm_sd"] <- round(sd(wy_ppt), 2)
+      iclimate["aPPT_mm_sd"] <- round(stats::sd(wy_ppt), 2)
 
       wy_tmax <- tapply(wd[, "Tmax_C"], wd[, "Year"], mean)
       iclimate["MATmax_C"] <- round(mean(wy_tmax), 2)
@@ -327,7 +326,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
     }
 
     # Temporary output
-    write.table(iclimate, file = outfile, append = TRUE, sep = ",", dec = ".",
+    utils::write.table(iclimate, file = outfile, append = TRUE, sep = ",", dec = ".",
       qmethod = "double", row.names = FALSE, col.names = FALSE)
 
     i
@@ -338,27 +337,27 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
   if (length(ids_todo) > 0) {
     print(paste0(Sys.time(), ": # run =", length(ids_todo), " out of", nrow(climate)))
 
-    clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid",
-      "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
-    temp <- clusterEvalQ(cl, {
+    parallel::clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid",
+      "summarize_weather", "fdbWeather", "dbW_iScenarioTable", "startyear", "endyear"))
+    temp <- parallel::clusterEvalQ(cl, {
       require(Rsoilwat31)
-      dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
+      Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
     })
-    temp <- clusterEvalQ(cl, {
+    temp <- parallel::clusterEvalQ(cl, {
       outfile <- file.path(dir_temp, paste0(pattern_temp, "-", get(name_wid), ".csv"))
-      write.table(climate[0, ], file = outfile, append = FALSE, sep = ",", dec = ".",
+      utils::write.table(climate[0, ], file = outfile, append = FALSE, sep = ",", dec = ".",
         qmethod = "double", row.names = FALSE, col.names = TRUE)
     })
 
     itests <- unlist(lapply(seq_len(repeats), function(i) sample(x = ids_todo,
       size = length(ids_todo))))
 
-    idone <- parSapply(cl, X = itests, FUN = function(i) summarize_weather(i,
+    idone <- parallel::parSapply(cl, X = itests, FUN = function(i) summarize_weather(i,
       iclimate = climate[i, ],
       scen = dbW_iScenarioTable[as.integer(climate[i, "Scenario_id"]), "Scenario"],
-      startyear = startyear, endyear = endyear, db_name = dbWeatherDataFile))
+      startyear = startyear, endyear = endyear, db_name = fdbWeather))
 
-    temp <- clusterEvalQ(cl, dbW_disconnectConnection())
+    temp <- parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
   }
 
   #---Final save
@@ -378,7 +377,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
   saveRDS(climate, file = fclimate)
 
   #---Clean-up
-  stopCluster(cl)
+  parallel::stopCluster(cl)
 
 
   #---Report on extracted 'climate'
@@ -396,7 +395,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
   failed_siteID_freq <- tapply(rep(1, sum(failed)), failed_siteID, sum)
   probs <- c(0, 0.01, 0.5, 0.99, 1)
   print(paste0("Unsuccessful extractions per scenario: quantiles: ", paste(probs,
-    quantile(failed_siteID_freq, probs = probs), sep = "% = ", collapse = ", ")))
+    stats::quantile(failed_siteID_freq, probs = probs), sep = "% = ", collapse = ", ")))
 
   failed_scenID <- climate[failed, "Scenario_id"]
   print(paste0("Scenarios with at least one unsuccessful extractions: n = ",
@@ -426,7 +425,7 @@ check_weatherDB <- function(dir_prj, dbWeatherDataFile, repeats = 2L,
 
   for (iv in vars) {
     print(paste0("Mean variation within sites among downscaled scenarios for variable ", iv))
-    temp <- aggregate(dat_diff[, iv], by = list(dat_diff$Site_id), FUN = function(x) {
+    temp <- stats::aggregate(dat_diff[, iv], by = list(dat_diff$Site_id), FUN = function(x) {
       rx <- range(x)
       c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
     })

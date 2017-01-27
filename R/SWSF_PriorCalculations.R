@@ -1,6 +1,7 @@
+#' @export
 calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
-  runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-  fpreprocin, fslayers, fsoils, verbose = FALSE) {
+  runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils, fnames_in,
+  verbose = FALSE) {
 
   if (verbose)
     print(paste(Sys.time(), "'InterpolateSoilDatafileToRequestedSoilLayers' of",
@@ -49,7 +50,7 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
       if (sum(il_set, na.rm = TRUE) == 0) next
 
       # Identify which requested layers to add
-      ldset <- na.exclude(layers_depth[which(il_set)[1], ])
+      ldset <- stats::na.exclude(layers_depth[which(il_set)[1], ])
       req_sl_toadd <- setdiff(requested_soil_layers, ldset)
       req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
       if (length(req_sd_toadd) == 0) next
@@ -84,10 +85,10 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
 
     if (has_changed) {
       #write data to disk
-      write.csv(sw_input_soillayers, file = fslayers, row.names = FALSE)
-      write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-        file = fsoils, row.names = FALSE)
-      unlink(fpreprocin)
+      utils::write.csv(sw_input_soillayers, file = fnames_in[["fslayers"]], row.names = FALSE)
+      utils::write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+        file = fnames_in[["fsoils"]], row.names = FALSE)
+      unlink(fnames_in[["fpreprocin"]])
 
       print(paste0("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
         "adjust lookup tables with per-layer values if applicable for this project"))
@@ -102,8 +103,9 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
 }
 
 
+#' @export
 calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_adjust,
-  sw_input_soils_use, sw_input_soils, fpreprocin, fsoils, continueAfterAbort = TRUE,
+  sw_input_soils_use, sw_input_soils, sw_input_soillayers, fnames_in, resume = TRUE,
   verbose = FALSE) {
 
  if (verbose)
@@ -121,7 +123,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
   stopifnot(length(use_layers) > 0)
 
   do_calc <- TRUE
-  if (continueAfterAbort) {
+  if (resume) {
     temp <- icol_bsE[use_layers]
     icols <- temp[sw_input_soils_use[temp]]
     if (length(icols) > 0L) {
@@ -136,11 +138,11 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
       names(sw_input_soillayers))[use_layers], drop = FALSE]
     layers_depth <- as.matrix(temp)
     depth_min_bs_evap <- min(layers_depth[, 1])
-    stopifnot(na.exclude(depth_min_bs_evap < depth_max_bs_evap))
+    stopifnot(stats::na.exclude(depth_min_bs_evap < depth_max_bs_evap))
 
     lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
       xdm <- depth_max_bs_evap - x
-      i0 <- abs(xdm) < tol
+      i0 <- abs(xdm) < swsf_glovars[["tol"]]
       ld <- if (any(i0, na.rm = TRUE)) {
         which(i0)
       } else {
@@ -161,7 +163,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
     depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE),
       depth_max_bs_evap, na.rm = TRUE)
     lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
-      i0 <- abs(x) < tol
+      i0 <- abs(x) < swsf_glovars[["tol"]]
       ld <- if (any(i0, na.rm = TRUE)) {
         which(i0)
       } else {
@@ -178,7 +180,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
     coeff_bs_evap <- coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
 
     #add data to sw_input_soils and set the use flags
-    icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > tol))))
+    icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > swsf_glovars[["tol"]]))))
     icols_bsE_used <- icol_bsE[icol]
     icols_bse_notused <- icol_bsE[-icol]
 
@@ -191,9 +193,9 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
     stopifnot(!is.na(sw_input_soils[runIDs_adjust, icols_bsE_used]))
 
     #write data to disk
-    write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
-      file = fsoils, row.names = FALSE)
-    unlink(fpreprocin)
+    utils::write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
+      file = fnames_in[["fsoils"]], row.names = FALSE)
+    unlink(fnames_in[["fpreprocin"]])
   }
 
   if (verbose)
@@ -204,10 +206,11 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
 }
 
 
+#' @export
 do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
-  create_treatments, SoilLayer_MaxNo, sw_input_experimentals_use, sw_input_experimentals,
+  create_treatments, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals,
   sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
-  fpreprocin, fsoils, fcloud, continueAfterAbort = TRUE, verbose = FALSE) {
+  fnames_in, resume = TRUE, verbose = FALSE) {
 
   if (verbose)
     print(paste("SWSF obtains information prior to simulation runs: started at",
@@ -223,9 +226,9 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         tr_input = tr_input_EvapCoeff,
         sw_input_use = "sw_input_soils_use",
         sw_input = "sw_input_soils",
-        nvars = SoilLayer_MaxNo,
+        nvars = swsf_glovars[["slyrs_maxN"]],
         do_fill = FALSE,
-        datafile = fsoils),
+        datafile = fnames_in[["fsoils"]]),
 
       LookupTranspRegionsFromTable = list(
         flag = "LookupTranspRegionsFromTable",
@@ -233,9 +236,9 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         tr_input = tr_input_TranspRegions,
         sw_input_use = "sw_input_soils_use",
         sw_input = "sw_input_soils",
-        nvars = SoilLayer_MaxNo,
+        nvars = swsf_glovars[["slyrs_maxN"]],
         do_fill = FALSE,
-        datafile = fsoils),
+        datafile = fnames_in[["fsoils"]]),
 
       LookupSnowDensityFromTable = list(
         flag = "LookupSnowDensityFromTable",
@@ -247,7 +250,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         do_fill = TRUE,
         fill_pattern = "snowd",
         fill_value = 76,  	# 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
-        datafile = fcloud)
+        datafile = fnames_in[["fclimnorm"]])
     )
 
     done_prior <- rep(FALSE, length(do_prior_lookup))
@@ -260,7 +263,7 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
         if (!temp || (temp && (length(unique(sw_input_experimentals[, pc$flag])) == 1L))) {
           # Lookup prior to do_OneSite() only if option is off in sw_input_experimentals or constant
 
-          if (continueAfterAbort) {
+          if (resume) {
             # Determine whether lookup already carried out and stored to file
             sw_input_use <- get(pc$sw_input_use)
 
@@ -307,9 +310,9 @@ do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr
             assign(pc$sw_input, tempdat$sw_input)
 
             #write data to datafile
-            write.csv(reconstitute_inputfile(tempdat$sw_input_use, tempdat$sw_input),
+            utils::write.csv(reconstitute_inputfile(tempdat$sw_input_use, tempdat$sw_input),
               file = pc$datafile, row.names = FALSE)
-            unlink(fpreprocin)
+            unlink(fnames_in[["fpreprocin"]])
           }
 
         } else {

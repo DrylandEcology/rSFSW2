@@ -1,20 +1,3 @@
-#------ Remove when this becomes a R package
-# - compiler::cmpfun
-# - move constants to package environment
-
-slot <- methods::slot
-as <- methods::as
-
-#------ Constants
-output_timescales_maxNo <- 4L
-SoilLayer_MaxNo <- 20L
-lmax <- seq_len(SoilLayer_MaxNo)
-SoilWat.windspeedAtHeightAboveGround <- 2	#m
-st_mo <- seq_len(12L)
-tol <- sqrt(.Machine$double.eps)
-toln <- sqrt(.Machine$double.neg.eps)
-
-#------ Funtions
 
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".") {
@@ -59,28 +42,30 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 }
 
 
-getStartYear <- compiler::cmpfun(function(simstartyr) simstartyr + 1)
+getStartYear <- function(simstartyr, spinup_N = 1L) {
+  as.integer(simstartyr + spinup_N)
+}
 
 
-has_nodata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
+has_nodata <- function(data, tag = NULL, MARGIN = 1) {
   if (is.null(tag)) {
     apply(data, MARGIN, function(x) all(is.na(x)))
   } else {
     apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, function(x) all(is.na(x)))
   }
-})
+}
 
-has_incompletedata <- compiler::cmpfun(function(data, tag = NULL, MARGIN = 1) {
+has_incompletedata <- function(data, tag = NULL, MARGIN = 1) {
   if (is.null(tag)) {
     apply(data, MARGIN, anyNA)
   } else {
     apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, anyNA)
   }
-})
+}
 
 #custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
 #note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
-list.dirs2 <- compiler::cmpfun(function(path, full.names=TRUE, recursive=TRUE) {
+list.dirs2 <- function(path, full.names=TRUE, recursive=TRUE) {
   dir.list <- list.dirs(path, full.names)
 
   if(is.null(dir.list))
@@ -100,9 +85,9 @@ list.dirs2 <- compiler::cmpfun(function(path, full.names=TRUE, recursive=TRUE) {
       dir.list <- dir.list[-i]
 
   return (dir.list)
-})
+}
 #custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
-file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
+file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
   file.copy(from, to, overwrite, FALSE, copy.mode)
   if(times < 24)
     if(file.exists(from))
@@ -124,9 +109,9 @@ file.copy2 <- compiler::cmpfun(function(from="", to="", overwrite=TRUE, copy.mod
   #	if(copy.mode == TRUE) command <- paste(command, "-p")
   #	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
   #}
-})
+}
 #made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
+dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
   dir.create(path, showWarnings, recursive, mode)
   if(times < 24)
     if(!dir.exists(path)) {
@@ -137,9 +122,9 @@ dir.create2 <- compiler::cmpfun(function(path, showWarnings = TRUE, recursive = 
   #	system(paste("mkdir -p", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
   #else
   #	system(paste("mkdir", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
-})
+}
 #copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
-dir.copy <- compiler::cmpfun(function(dir.from, dir.to, overwrite=FALSE){
+dir.copy <- function(dir.from, dir.to, overwrite=FALSE){
   dir.create2(dir.to, recursive=TRUE)
   dir.list <- basename(list.dirs2(dir.from, full.names=FALSE, recursive=FALSE))
   file.list <- list.files(dir.from)
@@ -152,9 +137,9 @@ dir.copy <- compiler::cmpfun(function(dir.from, dir.to, overwrite=FALSE){
     sapply(file.list, function(x) {file.copy2(from=file.path(dir.from, x), to=file.path(dir.to, x), overwrite=overwrite, copy.mode=TRUE)})
   }
   invisible(1)
-})
+}
 #remove directory and content
-dir.remove <- compiler::cmpfun(function(dir){
+dir.remove <- function(dir){
   file.list <- try(list.files(dir, all.files=TRUE))
   file.list <- file.list[-which(file.list %in% c(".", ".."))]
   dir.list <- basename(list.dirs2(dir, full.names=FALSE, recursive=FALSE))
@@ -166,63 +151,39 @@ dir.remove <- compiler::cmpfun(function(dir){
     sapply(file.list, function(x) {file.remove(file.path(dir, x))})
   }
   file.remove(dir)
-})
+}
 
-isLeapYear <- compiler::cmpfun(function(y) {
+
+dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
+  temp <- lapply(paths, function(path) {
+      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0)
+        try(dir.create2(path, showWarnings = showWarnings, recursive = recursive,
+          mode = mode), silent = TRUE)
+    })
+
+  invisible(temp)
+}
+
+
+
+isLeapYear <- function(y) {
   #from package: tis
   y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)
-})
-
-
-#' Test whether input represents a natural number
-#' @param x An integer, numeric, or complex vector, matrix, or array.
-#' @return A logical value.
-is.natural <- function(x) {
-  typeof(x) %in% c("integer", "double", "complex") &&
-  !is.null(x) && length(x) > 0 && !is.na(x) &&
-  isTRUE(all.equal(x, round(x))) && x > 0
 }
 
-#' The intersection on any number of vectors
+#' The sequence of month numbers for each day in the period from - to
 #'
-#' @param ... Any number of vectors or a list of vectors.
-#' @return A vector of the same mode as inputs.
-#' @seealso \code{\link{intersect}}
-intersect2 <- function(...) {
-  x <- list(...)
-  n <- length(x)
-
-  if (is.list(x[[1]]) && n == 1) {
-    x <- x[[1]]
-    n <- length(x)
-  }
-
-  res <- NULL
-  if (n > 1) {
-    if (all(lengths(x)) > 0) {
-      res <- x[[1]]
-      for (k in 2:n) {
-        res <- intersect(res, x[[k]])
-      }
-    }
-
-  } else {
-    res <- x[[1]]
-  }
-
-  res
-}
-
 #' @examples
 #'  month1 <- function() as.POSIXlt(seq(from = ISOdate(1980, 1, 1, tz = "UTC"),
 #'     to = ISOdate(2010, 12, 31, tz = "UTC"), by = "1 day"))$mon + 1
 #'  month2 <- function() seq_month_ofeach_day(list(1980, 1, 1),
 #'    list(2010, 12, 31), tz = "UTC")
 #'
-#'  if (requireNamespace("microbenchmark", quietly = TRUE))
-#'    microbenchmark::microbenchmark(month1(), month2())    # barely any difference
-#'
-seq_month_ofeach_day <- compiler::cmpfun(function(from = list(year = 1900, month = 1, day = 1),
+#' \dontrun{
+#'    if (requireNamespace("microbenchmark", quietly = TRUE))
+#'      microbenchmark::microbenchmark(month1(), month2())    # barely any difference
+#'  }
+seq_month_ofeach_day <- function(from = list(year = 1900, month = 1, day = 1),
   to = list(year = 1900, month = 12, day = 31), tz = "UTC") {
 
   x <- paste(from[[1]], from[[2]], from[[3]], 12, 0, 0, sep = "-")
@@ -232,33 +193,77 @@ seq_month_ofeach_day <- compiler::cmpfun(function(from = list(year = 1900, month
 
   res <- seq.int(0, to0 - from0, by = 86400) + from0
   as.POSIXlt.POSIXct(.POSIXct(res, tz = tz))$mon + 1
-})
+}
 
 
-simTiming <- compiler::cmpfun(function(startyr, simstartyr, endyr) {
-  res <- list()
+setup_simulation_time <- function(sim_time, add_st2 = FALSE,
+  adjust_NS = FALSE) {
+
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
-  temp <- ISOdate(startyr, 1, 1, tz = "UTC")
+  if (is.null(sim_time[["spinup_N"]])) {
+    sim_time[["spinup_N"]] <- sim_time[["startyr"]] - sim_time[["simstartyr"]]
 
-  res[["useyrs"]] <- startyr:endyr
+  } else {
+    sim_time[["startyr"]] <- getStartYear(sim_time[["simstartyr"]], sim_time[["spinup_N"]])
+  }
 
-  res[["no.useyr"]] <- endyr - startyr + 1
-  res[["no.usemo"]] <- res[["no.useyr"]] * 12
-  res[["no.usedy"]] <- as.numeric(ISOdate(endyr, 12, 31, tz = "UTC") - temp) + 1
+  stopifnot(!is.null(sim_time[["spinup_N"]]), !is.null(sim_time[["simstartyr"]]),
+    !is.null(sim_time[["startyr"]]), !is.null(sim_time[["endyr"]]))
 
-  res[["discardyr"]] <- startyr - simstartyr
-  res[["discardmo"]] <- res[["discardyr"]] * 12
-  res[["discarddy"]] <- as.numeric(temp - ISOdate(simstartyr, 1, 1, tz = "UTC"))
+  if (is.matrix(sim_time[["future_yrs"]])) {
+    stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)
 
-  res[["index.useyr"]] <- res[["discardyr"]] + seq_len(res[["no.useyr"]])
-  res[["index.usemo"]] <- res[["discardmo"]] + seq_len(res[["no.usemo"]])
-  res[["index.usedy"]] <- res[["discarddy"]] + seq_len(res[["no.usedy"]])
+  } else if (is.list(sim_time[["future_yrs"]]) &&
+    all(lengths(sim_time[["future_yrs"]]) == 3)) {
 
-  res
-})
+    ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
+    temp <- matrix(unlist(sim_time[["future_yrs"]]), ncol = length(ctemp), byrow = TRUE,
+      dimnames = list(NULL, ctemp))
+    rownames(temp) <- make.names(paste0("d", temp[, "delta"], "yrs"), unique = TRUE)
+    sim_time[["future_yrs"]] <- temp
 
-simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, latitude = 90, account_NorthSouth = TRUE) {	#positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+  } else {
+    stop("'setup_simulation_time': incorrect format of 'future_yrs'")
+  }
+
+  sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
+
+  temp <- ISOdate(sim_time[["startyr"]], 1, 1, tz = "UTC")
+  discarddy <- as.numeric(temp - ISOdate(sim_time[["simstartyr"]], 1, 1, tz = "UTC"))
+
+  sim_time[["useyrs"]] <- sim_time[["startyr"]]:sim_time[["endyr"]]
+
+  sim_time[["no.useyr"]] <- sim_time[["endyr"]] - sim_time[["startyr"]] + 1
+  sim_time[["no.usemo"]] <- sim_time[["no.useyr"]] * 12
+  sim_time[["no.usedy"]] <- as.numeric(ISOdate(sim_time[["endyr"]], 12, 31, tz = "UTC") - temp) + 1
+
+  sim_time[["index.useyr"]] <- sim_time[["spinup_N"]] + seq_len(sim_time[["no.useyr"]])
+  sim_time[["index.usemo"]] <- sim_time[["spinup_N"]] * 12 + seq_len(sim_time[["no.usemo"]])
+  sim_time[["index.usedy"]] <- discarddy + seq_len(sim_time[["no.usedy"]])
+
+  if (add_st2) {
+    sim_time["sim_time2_North"] <- simTiming_ForEachUsedTimeUnit(sim_time,
+      sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
+      account_NorthSouth = adjust_NS)
+
+    if (adjust_NS) {
+      sim_time["sim_time2_South"] <- simTiming_ForEachUsedTimeUnit(sim_time,
+        sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
+        account_NorthSouth = TRUE)
+
+    } else {
+      sim_time["sim_time2_South"] <- sim_time["sim_time2_North"]
+    }
+  }
+
+  sim_time
+}
+
+simTiming_ForEachUsedTimeUnit <- function(st,
+  sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
+  account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+
   res <- list()
 
   if (any(sim_tscales == "daily")) {
@@ -292,7 +297,7 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
 
   if (any(sim_tscales == "monthly")) {
     res$yearno_ForEachUsedMonth <- res$yearno_ForEachUsedMonth_NSadj <- rep(seq_len(st$no.useyr), each = 12)
-    res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(st_mo, times = st$no.useyr)
+    res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(swsf_glovars[["st_mo"]], times = st$no.useyr)
 
     if (latitude < 0 && account_NorthSouth) {
       res$month_ForEachUsedMonth_NSadj <- (res$month_ForEachUsedMonth + 5) %% 12 + 1
@@ -304,16 +309,16 @@ simTiming_ForEachUsedTimeUnit <- compiler::cmpfun(function(st, sim_tscales, lati
   }
 
   res
-})
+}
 
 
 #------auxiliary functions
 
-adjustLayersDepth <- compiler::cmpfun(function(layers_depth, d) round(layers_depth[seq_len(d)])) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
-getLayersWidth <- compiler::cmpfun(function(layers_depth) diff(c(0, layers_depth)))
-setLayerSequence <- compiler::cmpfun(function(d) seq_len(d))
+adjustLayersDepth <- function(layers_depth, d) round(layers_depth[seq_len(d)]) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
+getLayersWidth <- function(layers_depth) diff(c(0, layers_depth))
+setLayerSequence <- function(d) seq_len(d)
 
-sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, simTime2) {
+sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
@@ -331,16 +336,17 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
   temp <- cbind(Month7th_MinTemp_C[nyrs],
                 LengthFreezeFreeGrowingPeriod_Days[nyrs],
                 DegreeDaysAbove65F_DaysC[nyrs])
-  res <- c(apply(temp, 2, mean), apply(temp, 2, sd))
+  res <- c(apply(temp, 2, mean), apply(temp, 2, stats::sd))
   temp <- c("Month7th_NSadj_MinTemp_C",
             "LengthFreezeFreeGrowingPeriod_NSadj_Days",
             "DegreeDaysAbove65F_NSadj_DaysC")
-  names(res) <- c(temp, paste0(temp, ".sd"))
+  names(res) <- c(temp, paste0(temp, ".stats::sd"))
 
   res
-})
+}
 
-sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
+#' @export
+sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
   x <- Rsoilwat31::dbW_weatherData_to_dataframe(weatherList)
 
   # Trim to years
@@ -376,9 +382,10 @@ sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, yea
         sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]], simTime2)
       } else NA
   )
-})
+}
 
-PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun(function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub.fraction.limit,
+#' @export
+PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub_limit,
     use_Annuals_Fraction,Annuals_Fraction,
     use_C4_Fraction,C4_Fraction,
     use_C3_Fraction,C3_Fraction,
@@ -464,7 +471,7 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun
       grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
       grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
     }
-    grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub.fraction.limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
+    grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub_limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
 
     grass.Annual.fraction <- AnnC4C3ShrubForbBareGroundFraction[1] #Ann will be 0 or something <= 1
 
@@ -528,34 +535,43 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- compiler::cmpfun
        grasses.c3c4ann.fractions = c(grass.c3.fractionG,
                                        grass.c4.fractionG,
                                        grass.Annual.fractionG))
-})
+}
 
-predict.season <- compiler::cmpfun(function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq) {
+predict_season <- function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq) {
   #length(std.season.seq) >= 3 because of padding and test that season duration > 0
   lcoef <- calc.loess_coeff(N = length(std.season.seq), span = 0.4)
 
   op <- options(c("warn", "error"))
   on.exit(options(op))
-  options(warn = -1, error = traceback) #loess throws many warnings: 'pseudoinverse used', see calc.loess_coeff(), etc.
+  options(warn = -1, error = traceback) #stats::loess throws many warnings: 'pseudoinverse used', see calc.loess_coeff(), etc.
 
   sapply(apply(biomass_Standard, 2, function(x) {
-      lf <- loess(x[std.season.padded] ~ std.season.seq, span = lcoef$span, degree = lcoef$degree)
-      predict(lf, newdata = data.frame(std.season.seq = site.season.seq))
+      lf <- stats::loess(x[std.season.padded] ~ std.season.seq, span = lcoef$span, degree = lcoef$degree)
+      stats::predict(lf, newdata = data.frame(std.season.seq = site.season.seq))
     }),
     FUN = function(x) max(0, x)) # guarantee that > 0
-})
+}
 
-#Equations: Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
-Shrub_ANPP <- compiler::cmpfun(function(MAP_mm) 0.393 * MAP_mm - 10.2)
-Grass_ANPP <- compiler::cmpfun(function(MAP_mm) 0.646 * MAP_mm - 102.5)
+#' Biomass equations
+#' @references Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
+#' @name biomass
+NULL
+
+#' @export
+#' @rdname biomass
+Shrub_ANPP <- function(MAP_mm) 0.393 * MAP_mm - 10.2
+#' @export
+#' @rdname biomass
+Grass_ANPP <- function(MAP_mm) 0.646 * MAP_mm - 102.5
 
 #' @section Default inputs:
 #'    - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
 #'    - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
-adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs,
+#' @export
+adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs,
          map_mm_shrubs, map_mm_std_shrubs,
          map_mm_grasses, map_mm_std_grasses,
-         vegcomp_std_shrubs, vegcomp_std_grass, tol. = tol) {
+         vegcomp_std_shrubs, vegcomp_std_grass) {
 
   #Intercepts to match outcomes of M & L 1993 equations under 'default' MAP with our previous default inputs for shrubs and sgs-grasslands
   #Whereas these intercepts were introduced artificially, they could also be interpreted as perennial storage, e.g., Lauenroth & Whitman (1977) found "Accumulation in the standing dead was 63% of inputs, in the litter 8%, and belowground 37%.". Lauenroth, W.K. & Whitman, W.C. (1977) Dynamics of dry matter production in a mixed-grass prairie in western North Dakota. Oecologia, 27, 339-351.
@@ -569,7 +585,7 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
                           Grass_ANPP(map_mm_std_grasses)
 
   #Get scaling values for scaled biomass; guarantee that > minimum.totalBiomass
-  minimum.totalBiomass <- 0 #This is a SoilWat parameter
+  minimum.totalBiomass <- 0 #This is a SOILWAT2 parameter
   Shrub_BiomassScaler <- max(minimum.totalBiomass, Shrub_ANPP(map_mm_shrubs) + Shrub_ANPPintercept)
   Grass_BiomassScaler <- max(minimum.totalBiomass, Grass_ANPP(map_mm_grasses) + Grasses_ANPPintercept)
 
@@ -586,10 +602,10 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
   biom_annuals$Annual.Litter <- biom_annuals$Annual.Litter * Grass_BiomassScaler * biom_maxs["Annual.Litter"] / biom_maxs["Annual.Amount.Live"]
 
   #Guarantee that live fraction = ]0, 1]
-  biom_shrubs$Sh.Perc.Live <- pmin(1, pmax(tol., biom_shrubs$Sh.Perc.Live))
-  biom_C3$C3.Perc.Live <- pmin(1, pmax(tol., biom_C3$C3.Perc.Live))
-  biom_C4$C4.Perc.Live <- pmin(1, pmax(tol., biom_C4$C4.Perc.Live))
-  biom_annuals$Annual.Perc.Live <- pmin(1, pmax(tol., biom_annuals$Annual.Perc.Live))
+  biom_shrubs$Sh.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_shrubs$Sh.Perc.Live))
+  biom_C3$C3.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_C3$C3.Perc.Live))
+  biom_C4$C4.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_C4$C4.Perc.Live))
+  biom_annuals$Annual.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_annuals$Annual.Perc.Live))
 
   #Calculate total biomass based on scaled live biomass amount
   biom_shrubs$Sh.Biomass <- biom_shrubs$Sh.Amount.Live / biom_shrubs$Sh.Perc.Live
@@ -601,10 +617,11 @@ adjBiom_by_ppt <- compiler::cmpfun(function(biom_shrubs, biom_C3, biom_C4, biom_
        biom_C3 = biom_C3,
        biom_C4 = biom_C4,
        biom_annuals = biom_annuals)
-})
+}
 
 
-AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
+#' @export
+AdjMonthlyBioMass <- function(tr_VegBiom,
                 do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
                 fgrass_c3c4ann, growing_limit_C = 4,
                 isNorth = TRUE, MAP_mm = 450, monthly.temp) {
@@ -612,7 +629,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
   #Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
   #Describe conditions for which the default vegetation biomass values are valid
   std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing_limit_C == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
-  std.growing <- seq_len(12L)[-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+  std.growing <- swsf_glovars[["st_mo"]][-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
   #Default site for the grass description is SGS LTER
   StandardGrasses_MAP_mm <- 340
   StandardGrasses_VegComposition <- c(0.12, 0.22, 0.66) #Fraction of shrubs, C3, and C4
@@ -657,10 +674,10 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         site.winter.start <- starts[length(starts)] #Calculate first month of winter == last start of non-growing season
         site.winter.months <- (site.winter.start + seq_len(n_nonseason) - 2) %% 12 + 1
 
-        biom_shrubs[site.winter.months,] <- predict.season(biom_std_shrubs, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_C3[site.winter.months,] <- predict.season(biom_std_C3, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_C4[site.winter.months,] <- predict.season(biom_std_C4, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_annuals[site.winter.months,] <- predict.season(biom_std_annuals, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_shrubs[site.winter.months,] <- predict_season(biom_std_shrubs, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_C3[site.winter.months,] <- predict_season(biom_std_C3, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_C4[site.winter.months,] <- predict_season(biom_std_C4, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_annuals[site.winter.months,] <- predict_season(biom_std_annuals, std.winter.padded, std.winter.seq, site.winter.seq)
 
       } else { #if winter lasts 12 months
         #Take the mean of the winter months
@@ -681,10 +698,10 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
         site.growing.start <- starts[1] #Calculate first month of growing season == first start of growing season
         site.growing.months <- (site.growing.start + seq_len(n_season) - 2) %% 12 + 1
 
-        biom_shrubs[site.growing.months,] <- predict.season(biom_std_shrubs, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_C3[site.growing.months,] <- predict.season(biom_std_C3, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_C4[site.growing.months,] <- predict.season(biom_std_C4, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_annuals[site.growing.months,] <- predict.season(biom_std_annuals, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_shrubs[site.growing.months,] <- predict_season(biom_std_shrubs, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_C3[site.growing.months,] <- predict_season(biom_std_C3, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_C4[site.growing.months,] <- predict_season(biom_std_C4, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_annuals[site.growing.months,] <- predict_season(biom_std_annuals, std.growing.padded, std.growing.seq, site.growing.seq)
 
       } else { #if growing season lasts 12 months
         biom_shrubs[] <- matrix(apply(biom_std_shrubs[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_shrubs), byrow=TRUE)
@@ -724,7 +741,7 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
 
   list(grass = as.matrix(biom_grasses),
        shrub = as.matrix(biom_shrubs))
-})
+}
 
 #' Lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'
 #'
@@ -733,14 +750,15 @@ AdjMonthlyBioMass <- compiler::cmpfun(function(tr_VegBiom,
 #' the other rows contain the data for each distribution type = columns
 #' @section Note:
 #'  cannot write data from sw_input_soils to datafile.soils
-TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
+#' @export
+TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
   soillayer_no, trco_type, layers_depth,
   adjustType = c("positive", "inverse", "allToLast")) {
 
   #extract data from table by category
   trco.code <- as.character(tr_input_code[, which(colnames(tr_input_code) == trco_type)])
   trco <- rep(0, times = soillayer_no)
-  trco.raw <- na.omit(tr_input_coeff[, which(colnames(tr_input_coeff) == trco_type)])
+  trco.raw <- stats::na.omit(tr_input_coeff[, which(colnames(tr_input_coeff) == trco_type)])
 
   if (trco.code == "DepthCM") {
     temp <- sum(trco.raw, na.rm = TRUE)
@@ -777,10 +795,10 @@ TranspCoeffByVegType <- compiler::cmpfun(function(tr_input_code, tr_input_coeff,
   }
 
   trco
-})
+}
 
 
-check_soil_data <- compiler::cmpfun(function(data) {
+check_soil_data <- function(data) {
     check_soil <- is.finite(data)
     check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] & data[, "depth_cm"] > 0 &
       diff(c(0, data[, "depth_cm"])) > 0
@@ -795,7 +813,7 @@ check_soil_data <- compiler::cmpfun(function(data) {
     check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 & data[, itemp] <= 1
 
     check_soil
-})
+}
 
 
 #functions wet and dry periods
@@ -806,9 +824,9 @@ check_soil_data <- compiler::cmpfun(function(data) {
 #' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at
 #'    temperature T
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
-vp0 <- compiler::cmpfun(function(T) {
+vp0 <- function(T) {
   0.6108 * exp(17.27 * T / (T + 273.3))	# eq. 5 of Yoder et al. 2005
-})
+}
 
 
 #' Vapor pressure deficit
@@ -818,18 +836,18 @@ vp0 <- compiler::cmpfun(function(T) {
 #' @param RHmean A numeric vector of daily mean relative humidity (percentage)
 #' @return A numeric vector of length \code{T} of vapor pressure deficit (kPa)
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
-vpd <- compiler::cmpfun(function(Tmin, Tmax, RHmean = NULL) {
+vpd <- function(Tmin, Tmax, RHmean = NULL) {
   if (is.null(RHmean)) {
     (vp0(Tmax) - vp0(Tmin)) / 2	# eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
   } else {
     (vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)	# eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
   }
-})
+}
 
 
 
 
-max.duration <- compiler::cmpfun(function(x, target_val = 1L, return_doys = FALSE) {
+max_duration <- function(x, target_val = 1L, return_doys = FALSE) {
   r <- rle(x)
   rgood <- r$values == target_val
   igood <- which(rgood)
@@ -858,9 +876,9 @@ max.duration <- compiler::cmpfun(function(x, target_val = 1L, return_doys = FALS
     return(c(len, doys))
 
   len
-})
+}
 
-startDoyOfDuration <- compiler::cmpfun(function(x, duration=10) {
+startDoyOfDuration <- function(x, duration=10) {
   r <- rle(x)
   if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
     return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=10)==0, NA, 1)[1])
@@ -879,9 +897,9 @@ startDoyOfDuration <- compiler::cmpfun(function(x, duration=10) {
       return(cumsum(r$lengths)[ind-1]+1)
     }
   }
-})
+}
 
-endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
+endDoyAfterDuration <- function(x, duration=10) {
   r <- rle(x)
   if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
     return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=duration)==0, 365, NA)[1])
@@ -898,7 +916,7 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
       return(cumsum(r$lengths)[ind])
     }
   }
-})
+}
 
 
 #' Calculates temperate dryland criteria
@@ -906,7 +924,7 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
 #' @param annualPPT A numeric vector. Annual precipitation values.
 #' @param annualPET A numeric vector. Annual potential evapotranspiration values.
 #'  The values must be in the same units as those of \code{annualPPT}, e.g., \code{mm}.
-#' @monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius for each
+#' @param monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius for each
 #'  year for which precipitation and PET values are provided.
 #' @param ai_limit A numeric value. Used for return item \code{criteria_12}.
 #'
@@ -917,7 +935,7 @@ endDoyAfterDuration <- compiler::cmpfun(function(x, duration=10) {
 #' @return
 #'  A list with three items: UN-aridity index (numeric value), temperateness (logical value),
 #'  and temperate drylands (logical value).
-calc_drylandindices <- compiler::cmpfun(function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
+calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
   ai <- annualPPT / annualPET	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
   temp <- matrix(monthlyTemp >= 10, nrow = 12)
   temp <- .colSums(temp, nrow(temp), ncol(temp))
@@ -925,32 +943,32 @@ calc_drylandindices <- compiler::cmpfun(function(annualPPT, annualPET, monthlyTe
   criteria12 <- as.integer(TD & ai < ai_limit)
 
   list(ai = ai, temperateness = TD, criteria12 = criteria12)
-})
+}
 
 
-extreme_values_and_doys <- compiler::cmpfun(function(x, tol = sqrt(.Machine$double.eps), na.rm = FALSE) {
+extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmax <- max(x, na.rm = na.rm)
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ.mean(which(abs(x - tmax) < tol), int = 365, na.rm = na.rm),
-    circ.mean(which(abs(x - tmin) < tol), int = 365, na.rm = na.rm))
-})
+    circ_mean(which(abs(x - tmax) < swsf_glovars[["tol"]]), int = 365, na.rm = na.rm),
+    circ_mean(which(abs(x - tmin) < swsf_glovars[["tol"]]), int = 365, na.rm = na.rm))
+}
 
 
 
 
 
 #two, three, or four layer aggregation for average daily aggregation output
-setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, daily_lyr_agg){
+setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg){
   d <- length(layers_depth)
   vals <- list()
   #first layer
-  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
+  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
   vals[[1]] <- seq_len(DeepestFirstDailyAggLayer)
   #second layer
   if(!is.null(daily_lyr_agg[["second_cm"]])){
-    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
+    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
   } else {
     DeepestSecondDailyAggLayer <- d
   }
@@ -960,7 +978,7 @@ setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, d
   #third layer
   if(!is.null(daily_lyr_agg[["third_cm"]])){
     if(!is.na(daily_lyr_agg[["third_cm"]])){
-      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
+      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
     } else {
       DeepestThirdDailyAggLayer <- NULL
     }
@@ -973,7 +991,7 @@ setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, d
   #fourth layer
   if(!is.null(daily_lyr_agg[["fourth_cm"]])){
     if(!is.na(daily_lyr_agg[["fourth_cm"]])){
-      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + tol, all.inside=TRUE)
+      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
     } else {
       DeepestFourthDailyAggLayer <- NULL
     }
@@ -985,21 +1003,21 @@ setAggSoilLayerForAggDailyResponses <- compiler::cmpfun(function(layers_depth, d
   }
 
   return(vals)
-})
+}
 
 
-#function to extrapolate windspeeds measured at heights different than SoilWat required 2-m above ground
-adjust.WindspeedHeight <- compiler::cmpfun(function(uz, height){
+#function to extrapolate windspeeds measured at heights different than SOILWAT2 required 2-m above ground
+adjust.WindspeedHeight <- function(uz, height){
   # Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005) In The ASCE standardized reference evapotranspiration equation, pp. 59. ASCE-EWRI Task Committee Report.
   # input: windspeed [m/s] at height x
   # output: windspeed [m/s] at height 2 m
 
   stopifnot(all(uz >= 0) && height >= 2 )
   return( uz * 4.87 / log(67.8 * height - 5.42) )	# eqn. 33 in Allen et al. (2005)
-})
+}
 
 
-get.LookupFromTable <- compiler::cmpfun(function(pattern, trtype, tr_input, sw_input_use, sw_input, nvars) {
+get.LookupFromTable <- function(pattern, trtype, tr_input, sw_input_use, sw_input, nvars) {
   nruns <- NROW(sw_input)
   if (length(trtype) == 1L && nruns > 1L)
     trtype <- rep(trtype, nruns)
@@ -1027,9 +1045,9 @@ get.LookupFromTable <- compiler::cmpfun(function(pattern, trtype, tr_input, sw_i
 
   list(sw_input_use = sw_input_use,
        sw_input = sw_input)
-})
+}
 
-fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
+fill_empty <- function(data, pattern, fill) {
   stopifnot(names(data) %in% c("sw_input", "sw_input_use"))
 
   icols <- sapply(data, function(x) grep(pattern, names(x)))
@@ -1045,21 +1063,22 @@ fill_empty <- compiler::cmpfun(function(data, pattern, fill, tol = tol) {
   }
 
   data
-})
+}
 
 #' Split soil layer in two layers
-#'
-#' @details The method \code{interpolate} calculates the weighted mean of the columns/layers
-#'  \code{il} and \code{il + 1}.
-#'  The method \code{exhaust} distributes the value of \code{il + 1} according to the weights.
 #'
 #' @param x A numeric data.frame or matrix. Columns are soil layers.
 #' @param il An integer value. The column/soil layer number after which a new layer is added.
 #' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
-#' @param method A character string. \link{@details}
+#' @param method A character string. See \code{Details}.
+#'
+#' @section Details: The method \code{interpolate} calculates the weighted mean of the
+#'  columns/layers \code{il} and \code{il + 1}.
+#'  The method \code{exhaust} distributes the value of \code{il + 1} according to the
+#'  weights.
 #'
 #' @return An object like x with one column more at position \code{il + 1}.
-add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate", "exhaust")) {
+add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
   method <- match.arg(method)
   if (!is.matrix(x))
     x <- as.matrix(x)
@@ -1096,20 +1115,20 @@ add_layer_to_soil <- compiler::cmpfun(function(x, il, w, method = c("interpolate
   }
 
   x
-})
+}
 
-identify_soillayers <- compiler::cmpfun(function(depths, sdepth) {
+identify_soillayers <- function(depths, sdepth) {
   it <- findInterval(depths, sdepth)
   if (any(is.na(it))) {
-    as.integer(na.exclude(it))
+    as.integer(stats::na.exclude(it))
   } else if (length(it) > 1 && diff(it) > 0) {
     (1 + it[1]):(it[2])
   } else {
     it[1]
   }
-})
+}
 
-adjustLayer_byImp <- compiler::cmpfun(function(depths, imp_depth, sdepths) {
+adjustLayer_byImp <- function(depths, imp_depth, sdepths) {
   if (any(imp_depth < depths[1])) {
     depths <- imp_depth
     if (length(sdepths) >= 2) {
@@ -1125,16 +1144,17 @@ adjustLayer_byImp <- compiler::cmpfun(function(depths, imp_depth, sdepths) {
   }
 
   depths
-})
+}
 
-EstimateInitialSoilTemperatureForEachSoilLayer <- compiler::cmpfun(function(layers_depth, lower.Tdepth, soilTupper, soilTlower){
+EstimateInitialSoilTemperatureForEachSoilLayer <- function(layers_depth, lower.Tdepth, soilTupper, soilTlower){
   sl <- c(0, lower.Tdepth)
   st <- c(soilTupper, soilTlower)
-  return( predict(lm(st ~ sl), data.frame(sl=layers_depth)) )
-})
+
+  stats::predict(stats::lm(st ~ sl), data.frame(sl = layers_depth))
+}
 
 #--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
-transferExpDesignToInput <- compiler::cmpfun(function(x, i_exp, df_exp, df_exp_use) {
+transferExpDesignToInput <- function(x, i_exp, df_exp, df_exp_use) {
   temp <- match(names(df_exp)[df_exp_use], names(x), nomatch = 0)
   ctemp <- temp[!(temp == 0)]
   if (length(ctemp) > 0) {
@@ -1142,29 +1162,29 @@ transferExpDesignToInput <- compiler::cmpfun(function(x, i_exp, df_exp, df_exp_u
     x[ctemp] <- df_exp[i_exp, cexp]
   }
   x
-})
+}
 
-setDeepestTopLayer <- compiler::cmpfun(function(layers_depth, Depth_TopLayers) {
-  max(1, findInterval(Depth_TopLayers, layers_depth))
-})
+setDeepestTopLayer <- function(layers_depth, Depth_TopLayers_cm) {
+  max(1, findInterval(Depth_TopLayers_cm, layers_depth))
+}
 
-setTopLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
+setTopLayer <- function(d, DeepestTopLayer) {
   seq_len(if(d < DeepestTopLayer) d else DeepestTopLayer)
-})
+}
 
-setBottomLayer <- compiler::cmpfun(function(d, DeepestTopLayer) {
+setBottomLayer <- function(d, DeepestTopLayer) {
   if (d <= DeepestTopLayer) {
     NULL
   } else {
     (DeepestTopLayer + 1L):d
   }
-})
+}
 
-tempError <- compiler::cmpfun(function() .Call("tempError"))
+tempError <- function() .Call("tempError")
 
 
 #data is the values for one year adj for SWPcrit_MPa; TRUE==dry
-EventDistribution <- compiler::cmpfun(function(data, N, size) {
+EventDistribution <- function(data, N, size) {
   bins <- rep(0, times = N)
   temp <- rle(data)
   temp <- temp$lengths[temp$values]
@@ -1173,9 +1193,9 @@ EventDistribution <- compiler::cmpfun(function(data, N, size) {
     bins[ix] <- bins[ix] + 1
   }
   bins
-})
+}
 
-daily_spells_permonth <- compiler::cmpfun(function(x, simTime2) {
+daily_spells_permonth <- function(x, simTime2) {
   temp <- tapply(x,
     simTime2$month_ForEachUsedDay_NSadj + 100 * simTime2$year_ForEachUsedDay_NSadj,
     function(xm) {
@@ -1188,9 +1208,9 @@ daily_spells_permonth <- compiler::cmpfun(function(x, simTime2) {
     })
 
   matrix(temp, nrow = 12)
-})
+}
 
-tabulate_values_in_bins <- compiler::cmpfun(function(x, method = c("duration", "values"),
+tabulate_values_in_bins <- function(x, method = c("duration", "values"),
   vcrit = NULL, bins, nbins, simTime, simTime2) {
   method <- match.arg(method)
 
@@ -1229,11 +1249,11 @@ tabulate_values_in_bins <- compiler::cmpfun(function(x, method = c("duration", "
   }
 
   list(eventsPerYear = eventsPerYear, freq.summary = freq.summary)
-})
+}
 
 
 
-update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input, prod_default) {
+update_biomass <- function(funct_veg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input, prod_default) {
   funct_veg <- match.arg(funct_veg)
 
   comps <- c("_Litter", "_Biomass", "_FractionLive", "_LAIconv")
@@ -1248,7 +1268,7 @@ update_biomass <- compiler::cmpfun(function(funct_veg = c("Grass", "Shrub", "Tre
   }
 
   temp
-})
+}
 
 
 benchmark_BLAS <- function(platform) {
@@ -1261,7 +1281,7 @@ benchmark_BLAS <- function(platform) {
     temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
     print("Check linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
-    print(system.time({ x <- replicate(5e3, rnorm(5e3)); tcrossprod(x) }))
+    print(system.time({ x <- replicate(5e3, stats::rnorm(5e3)); tcrossprod(x) }))
 
     # Example values:
     # Apple's Accelerate framework:
@@ -1284,7 +1304,7 @@ benchmark_BLAS <- function(platform) {
 
 
 #' Converts precipitation data to values in cm / month
-convert_precipitation <- compiler::cmpfun(function(x, unit_conv, dpm) {
+convert_precipitation <- function(x, unit_conv, dpm) {
   if (unit_conv %in% c("mm/month", "mm month-1")) {
     x <- x / 10
 
@@ -1299,10 +1319,10 @@ convert_precipitation <- compiler::cmpfun(function(x, unit_conv, dpm) {
   } else stop("Unknown precipitation unit: ", unit_conv)
 
   x
-})
+}
 
 #' Converts temperature data to values in degree Celsius
-convert_temperature <- compiler::cmpfun(function(x, unit_conv) {
+convert_temperature <- function(x, unit_conv) {
   if (unit_conv == "K") {
     x <- x - 273.15
 
@@ -1314,7 +1334,7 @@ convert_temperature <- compiler::cmpfun(function(x, unit_conv) {
   } else stop("Unknown temperature unit: ", unit_conv[1])
 
   x
-})
+}
 
 
 #' Merge two soil input datafiles
@@ -1342,12 +1362,12 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer
   fstexture, fstexture1, fstexture2, var_from2 = NULL) {
 
   #------ MASTER FILES
-  master1 <- read.csv(fmaster1)
-  master2 <- read.csv(fmaster2)
-  master <- if (file.exists(fmaster)) read.csv(fmaster) else master1
+  master1 <- utils::read.csv(fmaster1)
+  master2 <- utils::read.csv(fmaster2)
+  master <- if (file.exists(fmaster)) utils::read.csv(fmaster) else master1
 
-  source1 <- as.character(unique(na.exclude(master1$SoilTexture_source)))
-  source2 <- as.character(unique(na.exclude(master2$SoilTexture_source)))
+  source1 <- as.character(unique(stats::na.exclude(master1$SoilTexture_source)))
+  source2 <- as.character(unique(stats::na.exclude(master2$SoilTexture_source)))
 
   stopifnot(length(source1) == 1, length(source2) == 1)
 
@@ -1381,13 +1401,13 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer
   master[!idnot, "Include_YN_SoilSources"] <- 1
 
   # Save to disk
-  write.csv(master, file = fmaster, row.names = FALSE)
+  utils::write.csv(master, file = fmaster, row.names = FALSE)
 
 
   #------SOIL LAYERS
-  sl1 <- read.csv(fslayer1)
-  sl2 <- read.csv(fslayer2)
-  sl <- if (file.exists(fslayer)) read.csv(fslayer) else sl1
+  sl1 <- utils::read.csv(fslayer1)
+  sl2 <- utils::read.csv(fslayer2)
+  sl <- if (file.exists(fslayer)) utils::read.csv(fslayer) else sl1
 
   # Copy data
   sl[idnot, -1] <- NA
@@ -1395,17 +1415,17 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer
   sl[id2c, ] <- sl2[id2c, ]
 
   # Save to disk
-  write.csv(sl, file = fslayer, row.names = FALSE)
+  utils::write.csv(sl, file = fslayer, row.names = FALSE)
 
 
   #------SOIL TEXTURE DATA
-  st1_use <- read.csv(fstexture1, nrows = 1)
-  st1 <- read.csv(fstexture1, skip = 1)
-  st2_use <- read.csv(fstexture2, nrows = 1)
-  st2 <- read.csv(fstexture2, skip = 1)
+  st1_use <- utils::read.csv(fstexture1, nrows = 1)
+  st1 <- utils::read.csv(fstexture1, skip = 1)
+  st2_use <- utils::read.csv(fstexture2, nrows = 1)
+  st2 <- utils::read.csv(fstexture2, skip = 1)
   st_use <- ifelse(st1_use == 1 | st2_use == 1, 1, 0)
 
-  st <- if (file.exists(fstexture)) read.csv(fstexture, skip = 1) else st1
+  st <- if (file.exists(fstexture)) utils::read.csv(fstexture, skip = 1) else st1
   names(st1) <- names(st2) <- names(st) <- names(st_use) <- names(st1_use)
 
   # Copy data
@@ -1432,7 +1452,69 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer
     "updated values before a simulation can be run successfully."))
 
   # Save to disk
-  write.csv(rbind(st_use, st), file = fstexture, row.names = FALSE)
+  utils::write.csv(rbind(st_use, st), file = fstexture, row.names = FALSE)
 
   TRUE
+}
+
+
+convert_to_todo_list <- function(x) {
+  temp <- matrix(x, ncol = 2, nrow = length(x) / 2, byrow = TRUE)
+  todo <- lapply(temp[, 2], function(x) as.logical(as.numeric(x)))
+  names(todo) <- temp[, 1]
+
+  todo
+}
+
+
+
+setup_scenarios <- function(sim_scens, future_yrs) {
+  # make sure 'ambient' is not among models
+  sim_scens[["models"]] <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
+    invert = TRUE, value = TRUE)
+
+  if (length(sim_scens[["models"]]) > 0) {
+    # add (multiple) future_yrs
+    sim_scens[["models"]] <- paste0(rownames(future_yrs), ".", rep(sim_scens[["models"]],
+      each = nrow(future_yrs)))
+    # add (multiple) downscaling.method
+    sim_scens[["models"]] <- paste0(sim_scens[["method_DS"]], ".",
+      rep(sim_scens[["models"]], each = length(sim_scens[["method_DS"]])))
+  }
+
+  # make sure 'ambient' is first entry
+  temp <- c(sim_scens[["ambient"]], sim_scens[["models"]])
+
+  c(sim_scens, list(id = temp, N = length(temp)))
+}
+
+setup_mean_daily_output_requests <- function(req_mean_daily, opt_agg) {
+  N <- length(req_mean_daily)
+
+  if (N > 0) {
+    req_mean_daily <- sort(req_mean_daily)
+
+    temp <- req_mean_daily == "SWAbulk"
+    if (any(temp) && opt_agg[["SWPcrit_N"]] > 0) {
+      req_mean_daily <- req_mean_daily[!temp]
+      req_mean_daily <- c(req_mean_daily, paste0("SWAbulkatSWPcrit",
+        abs(round(-1000 * opt_agg[["SWPcrit_MPa"]], 0)), "kPa"))
+
+      N <- length(req_mean_daily)
+    }
+  }
+
+  list(tag = req_mean_daily, N = N)
+}
+
+setup_aggregation_options <- function(opt_agg, ...) {
+  more_options <- list(...)
+
+  for (k in names(more_options)) {
+    opt_agg[[k]] <- more_options[[k]]
+  }
+
+  opt_agg[["SWPcrit_N"]] <- length(opt_agg[["SWPcrit_MPa"]])
+
+  opt_agg
 }
