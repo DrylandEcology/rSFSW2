@@ -11,7 +11,7 @@ using namespace Rcpp;
 //'  simulated soil layers. The number indicates the depth to which a seedling has grown
 //'  roots and over which layers \code{kill.conditions} will be evaluated.
 //'
-//' @section: Note: The Rcpp version of the function is about 165x faster than the version
+//' @section Note: The Rcpp version of the function is about 165x faster than the version
 //'  previous to commit 6344857a9cdb08acf68fa031c43cf4a596613aad 'Small speed improvements'
 //'  and about 70x faster than the R version. The Rcpp version also reduced the memory
 //'  footprint by a factor of 200.
