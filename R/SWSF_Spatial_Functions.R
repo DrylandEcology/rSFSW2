@@ -383,7 +383,7 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 #'        'connection' to the raster file is open for the entire extraction call and
 #'        not re-opened/closed for each read event. This allows a massive speed-up which
 #'        scales with the number of 'rectangles' to be extracted [not implemented].}
-#'     \item{block}{Uses the function \code{extract_blocks}.
+#'     \item{block}{Uses the function \code{extract_blocks}.}
 #'   }
 #' The weighted mean of the extracted values can be calculated as
 #'  stats::weighted.mean(values, w = weights)
