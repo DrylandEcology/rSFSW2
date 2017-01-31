@@ -1,4 +1,4 @@
-update_scenarios_with_ensembles <- function(sim_scens, sim_time) {
+update_scenarios_with_ensembles <- function(sim_scens, sim_time, prj_todos) {
 
   if (length(sim_scens[["ensemble.levels"]]) > 0)
     sim_scens[["ensemble.levels"]] <- sort(sim_scens[["ensemble.levels"]])

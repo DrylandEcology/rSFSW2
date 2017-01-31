@@ -4727,7 +4727,7 @@ tryCatch({
       }
 
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
-      Rmpi::mpi.bcast.cmd(rm(list=ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
+      Rmpi::mpi.bcast.cmd(rm(list = ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
       Rmpi::mpi.bcast.cmd(gc())
       print(runs.completed)
     }

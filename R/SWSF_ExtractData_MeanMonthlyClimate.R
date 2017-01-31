@@ -21,17 +21,22 @@ prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
 }
 
 
-update_meanmonthlyclimate_input <- function(MMC, sim_size, digits = 2, fnames_in) {
+update_meanmonthlyclimate_input <- function(MMC, use_site, sim_size, digits = 2,
+  fnames_in) {
+
   #add data to MMC[["input"]] and set the use flags
-  i.temp <- grep("RH", names(MMC[["use"]]))
-  MMC[["use"]][i.temp] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][i_good], i.temp][, swsf_glovars[["st_mo"]]] <- round(MMC[["data"]][i_good, "RH", ], digits)
-  i.temp <- grep("SkyC", names(MMC[["use"]]))
-  MMC[["use"]][i.temp] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][i_good], i.temp][, swsf_glovars[["st_mo"]]] <- round(MMC[["data"]][i_good, "cover", ], digits)
-  i.temp <- grep("wind", names(MMC[["use"]]))
-  MMC[["use"]][i.temp] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][i_good], i.temp][, swsf_glovars[["st_mo"]]] <- round(MMC[["data"]][i_good, "wind", ], digits)
+  icol <- grep("RH", names(MMC[["use"]]))
+  MMC[["use"]][icol] <- TRUE
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+    round(MMC[["data"]][use_site, "RH", ], digits)
+  icol <- grep("SkyC", names(MMC[["use"]]))
+  MMC[["use"]][icol] <- TRUE
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+    round(MMC[["data"]][use_site, "cover", ], digits)
+  icol <- grep("wind", names(MMC[["use"]]))
+  MMC[["use"]][icol] <- TRUE
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+    round(MMC[["data"]][use_site, "wind", ], digits)
 
   #write data to disk
   utils::write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]),
@@ -200,7 +205,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
         print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, sim_size, digits = 2, fnames_in)
+      update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
     }
   }
 
@@ -278,7 +283,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size
         print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, sim_size, digits = 2, fnames_in)
+      update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
     }
   }
 

@@ -2034,23 +2034,20 @@ try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 #' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 #'
 #' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-tryToGet_ClimDB <- function(is_ToDo, list.export, clim_source, is_netCDF,
-  is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  locations, getYears, assocYears, project_paths, fdbWeather, opt_parallel) {
+tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
+  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
+  assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient, dbW_iSiteTable,
+  dbW_iScenarioTable, dbW_compression_type, sim_time, opt_DS,  verbose, print.debug) {
   #requests is_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 
   if (opt_parallel[["do_parallel"]]) {
-    is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
-
-    obj2exp <- gather_objects_for_export(varlist = list.export,
-      list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
+    is_ToDo <- sample(x = is_ToDo, size = length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
     # extract the GCM data depending on parallel backend
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      export_objects_to_workers(obj2exp, "mpi")
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
@@ -2068,13 +2065,12 @@ tryToGet_ClimDB <- function(is_ToDo, list.export, clim_source, is_netCDF,
           verbose = verbose, print.debug = print.debug)
 
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
-      Rmpi::mpi.bcast.cmd(rm(list=ls()))
+      Rmpi::mpi.bcast.cmd(rm(list = ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-      export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
+      parallel::clusterEvalQ(opt_parallel[["cl"]],
+        Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2091,7 +2087,7 @@ tryToGet_ClimDB <- function(is_ToDo, list.export, clim_source, is_netCDF,
           verbose = verbose, print.debug = print.debug)
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_disconnectConnection())
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list=ls()))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
       parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
 
     } else {
@@ -2250,9 +2246,8 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
 
     temp <- matrix(unlist(climDB_fname_meta), ncol = length(climDB_fname_meta))
     climDB_struct <- lapply(climDB_meta[["str_fname"]], function(id) unique(temp[id, ]))
-
-    print_int <- 100
   }
+
   if (is_NEX) {
     ##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
     opt <- options("timeout")
@@ -2281,8 +2276,6 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
       id_time = NULL
     )
     climDB_files <- NULL
-
-    print_int <- 1
   }
 
   #Force dataset specific lower/uper case for GCMs and RCPs, i.e., use values from climbDB_struct and not reqGCMs and reqRCPs
@@ -2359,12 +2352,6 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
 
   print(paste("Future scenario data will be extracted for a time period spanning ", timeSlices[7,4], "through",  max(stats::na.omit(timeSlices[,4]))))
 
-  #objects that need exporting to workers
-  list.export <- c("verbose", "climate.ambient", "dbW_compression_type",
-    "dbW_iScenarioTable", "dbW_iSiteTable",
-    "opt_DS", "getYears", "print.debug", "print_int", "sim_time")
-
-
   #Repeat call to get climate data for all requests until complete
   repeatN <- 0
   i_AllToDo <- seq_len(requestN)
@@ -2387,10 +2374,11 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
     repeatN <- repeatN + 1
     if (verbose) print(paste(shQuote(clim_source), "will run the", repeatN, ". time to extract", length(i_ToDo), "requests" ))
 
-    out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
-      clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-      reqDownscalingsPerGCM, locations, getYears, assocYears, project_paths,
-      fdbWeather, opt_parallel)
+    out <- tryToGet_ClimDB(is_ToDo = i_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
+      climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
+      assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient,
+      dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type, sim_time, opt_DS,
+      verbose, print.debug)
 
     i_Done <- sort(unique(c(i_Done, out)))
     saveRDS(i_Done, file = logFile)

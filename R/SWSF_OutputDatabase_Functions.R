@@ -2183,7 +2183,7 @@ make_dbOutput <- function(dbOutput, prj_todos, opt_agg, SWRunInformation,
   con_dbOut <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbOutput))
 
   if (inherits(con_dbOut, "try-error")) {
-    unlink(fnames_out[["dbOutput"]])
+    unlink(dbOutput)
     stop(paste("Creation of output database failed:", con_dbOut, collapse = ", "))
   }
 

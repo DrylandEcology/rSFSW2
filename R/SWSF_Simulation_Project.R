@@ -104,7 +104,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
     fnames_in[["fsimraster"]], prj_todos[["use_sim_spatial"]])
 
   #--- Determine requested ensembles across climate scenarios
-  temp <- update_scenarios_with_ensembles(sim_scens, sim_time)
+  temp <- update_scenarios_with_ensembles(sim_scens, sim_time, prj_todos)
   prj_todos[["do_ensembles"]] <- temp[["do_ensembles"]]
   sim_scens <- temp[["sim_scens"]]
 

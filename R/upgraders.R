@@ -47,7 +47,7 @@ upgrade_datafile <- function(file, new_name, insert_after_tag, inserted_colnames
   names(data2) <- colnames2
 
   # write data to disk
-  temp <- write.csv(reconstitute_inputfile(use2, data2),
+  temp <- utils::write.csv(reconstitute_inputfile(use2, data2),
     file = file.path(dirname(file), new_name), row.names = FALSE)
 
   is.null(temp)
