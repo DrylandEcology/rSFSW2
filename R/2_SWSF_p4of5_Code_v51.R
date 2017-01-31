@@ -811,7 +811,7 @@ if (createAndPopulateWeatherDatabase) {
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
     parallel_init, parallel_runs, parallel_backend, num_cores, cl,
     dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
-    dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
+    dir.ex.NRCan = dir.ex.NRCan, dir.ex.Livneh = dir.ex.Livneh, prepd_CFSR = prepd_CFSR,
     verbose = !be.quiet)
 }
 
