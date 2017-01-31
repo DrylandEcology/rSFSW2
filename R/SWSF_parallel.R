@@ -215,7 +215,7 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
         if (is.loaded("mpi_initialize")) {
           if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
             Rmpi::mpi.close.Rslaves()
-          .Call("mpi_finalize")
+          .Call("mpi_finalize", PACKAGE = "Rmpi")
         }
       }
       reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)

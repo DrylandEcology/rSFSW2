@@ -210,7 +210,8 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 
 # Wrapper functions for C code to access NCEP/CFSR data and write out to temporary files
 gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
-  if(id %% 36 == 1) print(paste(Sys.time(), ": NCEP/CFSR extraction: year=", do_daily[id, "years"]))
+  if (id %% 36 == 1)
+    print(paste(Sys.time(), ": NCEP/CFSR extraction: year=", do_daily[id, "years"]))
 
   gribData <- .C("dailyWeather2_R",
             nSites = as.integer(nSites),
@@ -218,7 +219,8 @@ gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
             longitudes = as.double(longitudes),
             year = as.integer(do_daily[id, "years"]),
             month = as.integer(do_daily[id, "months"]),
-            type = as.integer(do_daily[id, "types"]))
+            type = as.integer(do_daily[id, "types"]),
+            PACKAGE = "rSWSF")
   1L
 }
 
@@ -227,7 +229,8 @@ writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
             nSites = as.integer(nSites),
             siteNames = as.character(siteNames),
             siteDirs = as.character(siteDirsC),
-            year = as.integer(year))
+            year = as.integer(year),
+            PACKAGE = "rSWSF")
   1L
 }
 
@@ -239,12 +242,14 @@ gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, y
             siteDirs = as.character(siteDirsC),
             yearLow = as.integer(yearLow),
             yearHigh = as.integer(yearHigh),
-            type = as.integer(type))
+            type = as.integer(type),
+            PACKAGE = "rSWSF")
   1L
 }
 
 writeMonthlyClimate <- function(id, siteDirsC) {
-  dataWrite <- .C("writeMonthlyClimate2_R", siteDir = as.character(siteDirsC[id]))
+  dataWrite <- .C("writeMonthlyClimate2_R", siteDir = as.character(siteDirsC[id]),
+    PACKAGE = "rSWSF")
   1L
 }
 
@@ -655,6 +660,9 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
 
     dtemp <- getwd()
     setwd(dir_ex_cfsr)
+
+    stopifnot(daily, is.loaded("dailyWeather2_R"), is.loaded("dailyWeather2Write_R"))
+    stopifnot(monthly, is.loaded("monthlyClimate2_R"), is.loaded("writeMonthlyClimate2_R"))
 
     # set up parallel
     if (opt_parallel[["do_parallel"]]) {
