@@ -44,6 +44,8 @@ Remotes:
     github::Burke-Lauenroth-Lab/Rsoilwat,
     github::khufkens/daymetr,
     github::dschlaep/weathergen
+LinkingTo:
+    Rcpp
 LazyData: true
 ByteCompile: true
 NeedsCompilation: yes
