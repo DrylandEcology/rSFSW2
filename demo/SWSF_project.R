@@ -36,11 +36,11 @@ opt_verbosity <- list(
 #------ Options for parallel framework
 opt_parallel <- list(
   # Should job be run in parallel
-  parallel_runs = !interactive()
+  parallel_runs = !interactive(),
   # Number of cores/workers/slaves if job is run in parallel
   num_cores = 2,
   # Parallel_backend: "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "cluster",
+  parallel_backend = "cluster"
 )
 
 
