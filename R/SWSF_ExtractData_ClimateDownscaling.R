@@ -2123,10 +2123,11 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
     "' at", Sys.time()))
 
   Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather)
-  temp.files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
-  if (length(temp.files) > 0) {
-    for (k in seq_along(temp.files)) {
-      ftemp <- file.path(project_paths[["dir_out_temp"]], temp.files[k])
+  temp_files <- list.files(path = project_paths[["dir_out_temp"]], pattern = clim_source,
+    recursive = TRUE, include.dirs = FALSE, no.. = TRUE)
+  if (length(temp_files) > 0) {
+    for (k in seq_along(temp_files)) {
+      ftemp <- file.path(project_paths[["dir_out_temp"]], temp_files[k])
       wdataOut <- readRDS(file = ftemp)
 
       for (j in seq_along(wdataOut)) {
@@ -2137,11 +2138,12 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
                 StartYear =   wdataOut[[j]][[l]]$StartYear,
                 EndYear =     wdataOut[[j]][[l]]$EndYear,
                 weather_blob =   wdataOut[[j]][[l]]$weatherData))
+
           if (inherits(res, "try-error")) {
             if (verbose)
               print(paste("Adding downscaled data for Site_id",
                           wdataOut[[j]][[l]]$Site_id, "scenario",
-                          wdataOut[[j]][[l]]$Scenario_id, "was unsuccessful:", temp))
+                          wdataOut[[j]][[l]]$Scenario_id, "was unsuccessful:", res))
             break
           }
         }
@@ -2362,10 +2364,10 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
   if (file.exists(logFile)) {
     i_Done <- sort(unique(c(i_Done, readRDS(file=logFile))))
   }
-  temp.files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
-  if (length(temp.files) > 0) {
+  temp_files <- list.files(path=project_paths[["dir_out_temp"]], pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
+  if (length(temp_files) > 0) {
     # extract i_done number from file name
-    temp <- lapply(strsplit(temp.files, split = "_", fixed = TRUE), function(x) x[length(x)])
+    temp <- lapply(strsplit(temp_files, split = "_", fixed = TRUE), function(x) x[length(x)])
     temp <- lapply(strsplit(unlist(temp), split = ".", fixed = TRUE), function(x) x[1])
     i_Done <- sort(unique(c(i_Done, as.integer(unlist(temp)))))
   }

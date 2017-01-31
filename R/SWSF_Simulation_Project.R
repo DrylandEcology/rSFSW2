@@ -48,8 +48,8 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
   fnames_in <- complete_with_defaultpaths(project_paths, fnames_in)
   do_check_include <- process_inputs(project_paths, fnames_in, opt_behave[["use_preprocin"]],
     verbose = opt_verbosity[["verbose"]])
-  #TODO (drs): do not load into globalenv() - bad practice for a package:
-  # 'load' annihilates all objects in globalenv() with the same names !
+#TODO (drs): do not load into globalenv() - bad practice for a package:
+# 'load' annihilates all objects in globalenv() with the same names !
   load(file = fnames_in[["fpreprocin"]], envir = globalenv())
 
   #--- Update todo list
@@ -216,7 +216,7 @@ if (prj_todos[["GriddedDailyWeatherFromDayMet_NorthAmerica"]]) {
 	if (!file.exists(project_paths[["dir_daymet"]]))
 	  stop("Directory for external dataset 'DayMet' does not exist:",
 	    shQuote(project_paths[["dir_daymet"]]))
-	stopifnot(requireNamespace(DaymetR)) #https://github.com/khufkens/daymetr
+	stopifnot(requireNamespace("DaymetR")) #https://github.com/khufkens/daymetr
 
 } else {
   project_paths[["dir_daymet"]] <- NULL
@@ -230,8 +230,8 @@ if (prj_todos[["GriddedDailyWeatherFromNRCan_10km_Canada"]] &&
 	#	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
 	project_paths[["dir.ex.NRCan"]] <- file.path(project_paths[["dir_ex_weather"]],
 	  "NRCan_10km_Canada", "DAILY_GRIDS")
-	stopifnot(file.exists(project_paths[["dir.ex.NRCan"]]), requireNamespace(raster),
-	  requireNamespace(sp), requireNamespace(rgdal))
+	stopifnot(file.exists(project_paths[["dir.ex.NRCan"]]), requireNamespace("raster"),
+	  requireNamespace("sp"), requireNamespace("rgdal"))
 
 } else {
   project_paths[["dir.ex.NRCan"]] <- NULL
@@ -509,7 +509,7 @@ if (prj_todos[["use_SOILWAT2"]] && sim_size[["runsN_todo"]] > 0) {
   swDataFromFiles <- read_SOILWAT2_FileDefaults(project_paths[["dir_in_sw"]])
   args_do_OneSite <- gather_args_do_OneSite()
 
-  runs.completed <- run_simulation_experiment(rSWSF, sim_size, SWRunInformation,
+  runs.completed <- run_simulation_experiment(sim_size, SWRunInformation,
     sw_input_soillayers, sw_input_treatments, sw_input_cloud, sw_input_prod,
     sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
     sw_input_climscen_values, MoreArgs = args_do_OneSite)

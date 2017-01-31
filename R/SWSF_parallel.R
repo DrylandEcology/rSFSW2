@@ -227,6 +227,8 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
         file.path(dir_out, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
 
       # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
+#TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
+#  -> R CMD CHECK reports this nevertheless as issue
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
         function(x) assign(opt_parallel[["worker_tag"]], x, envir = globalenv()))
       #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup

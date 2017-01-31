@@ -1443,6 +1443,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (opt_parallel[["parallel_backend"]] == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (opt_parallel[["parallel_backend"]] == "cluster") {
+#TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
+#  -> R CMD CHECK reports this nevertheless as issue
           get(opt_parallel[["worker_tag"]], envir = globalenv())
         }
       } else {
@@ -4602,10 +4604,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #' @export
-run_simulation_experiment <- function(rSWSF, sim_size,
-  SWRunInformation, sw_input_soillayers, sw_input_treatments, sw_input_cloud,
-  sw_input_prod, sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
-  sw_input_climscen_values, MoreArgs) {
+run_simulation_experiment <- function(sim_size, SWRunInformation, sw_input_soillayers,
+  sw_input_treatments, sw_input_cloud, sw_input_prod, sw_input_site, sw_input_soils,
+  sw_input_weather, sw_input_climscen, sw_input_climscen_values, MoreArgs) {
 
   i_sites <- it_site(sim_size[["runIDs_todo"]], sim_size[["runsN_master"]])
 
@@ -4713,7 +4714,7 @@ tryCatch({
 
         } else if (tag == 4L) {
           #The slave had a problem with Soilwat record Slave number and the Run number.
-          print("Problem with run:", complete, "on slave:", save_id, "at", Sys.time())
+          print("Problem with run:", complete, "on slave:", slave_id, "at", Sys.time())
           ftemp <- file.path(project_paths[["dir_out"]], "ProblemRuns.csv")
           if (!file.exists(ftemp))
             cat("Slave,Run", file = ftemp, sep = "\n")
