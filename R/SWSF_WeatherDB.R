@@ -126,7 +126,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
                                                      parallel_runs &&
                                                      identical(parallel_backend, "cluster"),
                                       num_cores    = num_cores,
-                                      be_quiet     = TRUE)
+                                      be_quiet     = FALSE)
   }
 
   temp <- sites_dailyweather_source == "NCEPCFSR_Global"
@@ -955,16 +955,17 @@ extract_daily_weather_from_livneh <- compiler::cmpfun(function(dir_data,
     xy_wgs84              <- matrix(apply(xy_wgs84, 2, conv_res), ncol = 2)
 
     # Create coordinates as spatial points for extraction with raster layers
-    prj_geographicWGS84   <- CRS("+proj=longlat +ellps=WGS84
-                                 +datum=WGS84 +no_defs +towgs84=0,0,0")
-    sp_locs               <- SpatialPoints(coords = xy_wgs84,
-                                           proj4string = prj_geographicWGS84)
+    prj_geographicWGS84   <- sp::CRS("+proj=longlat +ellps=WGS84 
+                                      +datum=WGS84 +no_defs +towgs84=0,0,0")
+    sp_locs               <- sp::SpatialPoints(coords = xy_wgs84,
+                                               proj4string = prj_geographicWGS84)
 
     # Create necessary variables and containers for extraction
     seq_years             <-  seq(start_year, end_year)
     len_years             <-  length(seq_years)
     site_length           <-  length(site_ids)
     data_sw               <-  array(dim = c(site_length, 366, 3, len_years))
+    files                 <-  vector("character", 12)
 
     if (!be_quiet) {
       print("Extracting data for supplied sequence of years.")
@@ -980,11 +981,17 @@ extract_daily_weather_from_livneh <- compiler::cmpfun(function(dir_data,
     #######################
 
     # Extract the data for each site for each year for each month
-    j <- 1
+    j <- start_year
     for (i in 1:len_years) {
 
       # Get data files for respective year
-      files <- db_files[j:(j + 11)]
+      for (l in 1:12) {
+        if (l < 10) {
+          files[l] = paste("Meteorology_Livneh_CONUSExt_v.1.2_2013.", seq_years[i], "0", l, ".nc", sep="")
+        } else {
+          files[l] = paste("Meteorology_Livneh_CONUSExt_v.1.2_2013.", seq_years[i], l, ".nc", sep="")
+        }
+      }
 
       if (!be_quiet) {
         print(paste("Extracting data for year ", seq_years[i], sep=""))
@@ -1027,7 +1034,7 @@ extract_daily_weather_from_livneh <- compiler::cmpfun(function(dir_data,
 
 
       # Increment j to the next year
-      j = j + 12
+      j = j + 1
     }
 
     # Stop parallel execution
