@@ -61,9 +61,10 @@ cl <- parallel::makePSOCKcluster(ncores)
 parallel::clusterApply(cl, seq_len(ncores),
   function(i) assign(".node_id", i, envir = globalenv()))
 parallel::clusterSetRNGStream(cl, iseed = 127)
-parallel::clusterEvalQ(cl, require("rSWSF"))
-test_env <- list2env(list(test_update = test_update, pretend_sim = pretend_sim))
-parallel::clusterExport(cl, varlist = c("test_update", "pretend_sim"), envir = test_env)
+parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",
+  "dbWork_timing", "dbWork_update_job", "lock_access", "unlock_access", "lock_attempt",
+  "lock_init", "check_lock_content", "remove_lock"))
+
 
 #--- Unit tests
 test_that("dbWork", {
