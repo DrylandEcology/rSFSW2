@@ -12,6 +12,10 @@ Grass_ANPP(MAP_mm)
 }
 \description{
 Biomass equations
+
+Estimate shrub biomass density from mean annual precipitation
+
+Estimate grass biomass density from mean annual precipitation
 }
 \references{
 Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2

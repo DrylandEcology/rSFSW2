@@ -259,6 +259,7 @@ update_Elevation_sources <- function(MMC, sim_size, fnames_in) {
   MMC[["input"]]
 }
 
+#' Extract elevation data
 #' @export
 ExtractData_Elevation <- function(exinfo, SWRunInformation, sim_size,
   how_determine_sources, sim_space, dir_ex_dem, fnames_in, resume, verbose) {

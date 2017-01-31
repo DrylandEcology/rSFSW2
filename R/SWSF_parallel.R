@@ -150,7 +150,7 @@ mpi_work <- function(verbose = FALSE) {
   Rmpi::mpi.send.Robj(junk, 0, 3)
 }
 
-
+#' Clean the parallel cluster used for a rSWSF simulation project
 #' @export
 clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL,
   verbose = FALSE) {
@@ -184,6 +184,7 @@ clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL
 }
 
 
+#' Set-up a parallel cluster to be used for a rSWSF simulation project
 #' @export
 setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
 
@@ -212,12 +213,14 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
 
       mpi_last <- function(x) { #Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
-        if (is.loaded("mpi_initialize")) {
-          if (requireNamespace("Rmpi") && Rmpi::mpi.comm.size(1) > 0)
+        if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
+          if (Rmpi::mpi.comm.size(1) > 0)
             Rmpi::mpi.close.Rslaves()
-          .Call("mpi_finalize", PACKAGE = "Rmpi")
+          # .Call("mpi_finalize", PACKAGE = "Rmpi")
+          Rmpi::mpi.exit()
         }
       }
+
       reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {

@@ -9,6 +9,7 @@
 #MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #---------------------------------------------------------------------------------------#
 
+#' Identify P_id for which output is not completely available in the dbOutput
 #' @export
 missing_Pids_outputDB <- function(Table, dbname) {
   mP_ids <- -1L
@@ -49,13 +50,14 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
   res
 }
 
-
+#' List the design tables of dbOutput
 #' @export
 dbOutput_ListDesignTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
   "scenario_labels", "sites", "experimental_labels", "treatments", "simulation_years",
   "weatherfolders")
 
 
+#' List the available output tables of dbOutput
 #' @export
 dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") && DBI::dbIsValid(con)
@@ -78,6 +80,8 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 }
 
 
+#' List the available output tables of dbOutput which record output of variables per
+#'  soil layer
 #' @export
 dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, dbname = NULL) {
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") && DBI::dbIsValid(con)
@@ -860,6 +864,7 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 }
 
 
+#' Check whether dbOutput contains a complete set of output/simulation results
 #' @export
 check_outputDB_completeness <- function(dbOutput, dbOutput_current = NULL,
   update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir_out = getwd()) {

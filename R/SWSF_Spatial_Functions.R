@@ -750,7 +750,7 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 }
 
 
-
+#' Set-up information for a spatially aware simulation project
 #' @export
 setup_spatial_simulation <- function(SWRunInformation, sim_space, sim_size,
   fsimraster = "", use_sim_spatial = FALSE) {

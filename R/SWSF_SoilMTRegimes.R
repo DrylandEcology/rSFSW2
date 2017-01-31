@@ -2,18 +2,37 @@
 #------ SMTR functions
 
 # Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
-# Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
+#
 
+#' Categories of soil temperature regimes and soil moisture regimes
+#'
+#' @section Definitions: Soil temperature and moisture regimes are defined in
+#'  SSS 2014. Our operationalization is explained in the vignette
+#'  'SoilMoistureRegimes_SoilTemperatureRegimes'.
+#'
+#' @references Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural
+#'  Resources Conservation Service, Washington, DC.
+#' @examples
+#'  vignette("SoilMoistureRegimes_SoilTemperatureRegimes", package = "rSWSF")
+#' @name STMR
+NULL
+
+#' Soil temperature regime categories
+#' @rdname STMR
 #' @export
 STR_names <- function() {
   c("Hyperthermic", "Thermic", "Mesic", "Frigid", "Cryic", "Gelic")
 }
 
+#' Soil moisture regime categories
+#' @rdname STMR
 #' @export
 SMR_names <- function() {
   c("Anhydrous", "Aridic", "Xeric", "Ustic", "Udic", "Perudic", "Aquic")
 }
 
+#' Soil moisture regime categories including qualifiers
+#' @rdname STMR
 #' @export
 SMRq_names <- function() {
   c("Extreme-Aridic", "Typic-Aridic", "Weak-Aridic", #Aridic

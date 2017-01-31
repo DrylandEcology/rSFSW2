@@ -1,5 +1,6 @@
 #---Downscaling/bias-correction functions
 
+#' Meta data for climate scenarios
 #' @export
 climscen_metadata <- function() {
   #--- Meta information of climate datasets
@@ -2415,7 +2416,7 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
   include_YN_climscen
 }
 
-
+#' Extract climate scenarios
 #' @export
 ExtractClimateChangeScenarios <- function(sim_scens, climDB_metas, sim_time,
   climate.ambient, sim_size, SWRunInformation, sw_input_treatments, fnames_in,
@@ -2424,7 +2425,7 @@ ExtractClimateChangeScenarios <- function(sim_scens, climDB_metas, sim_time,
   Rsoilwat31::dbW_setConnection(dbFilePath = fnames_in[["fdbWeather"]])
   dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
   dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
-  dbW_compression_type <- Rsoilwat31:::dbW_compression()
+  dbW_compression_type <- Rsoilwat31::dbW_compression()
 
   temp <- strsplit(sim_scens[["models"]], split = ".", fixed = TRUE)
   if (!all(lengths(temp) == 4L))
@@ -2473,7 +2474,7 @@ ExtractClimateChangeScenarios <- function(sim_scens, climDB_metas, sim_time,
   SWRunInformation
 }
 
-
+#' Extract climate scenarios from downloaded ClimateWizard.org data
 #' @export
 ExtractClimateWizard <- function(sim_scens, SWRunInformation, fnames_in,
   sw_input_climscen_use, sw_input_climscen,

@@ -345,8 +345,9 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   res
 }
 
+#' Calculate several climate variables from daily weather
 #' @export
-sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
+calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
   x <- Rsoilwat31::dbW_weatherData_to_dataframe(weatherList)
 
   # Trim to years
@@ -384,6 +385,8 @@ sw_SiteClimate_Ambient <- function(weatherList, year.start, year.end, do.C4vars 
   )
 }
 
+#' Calculate potential natural vegetation composition for the shrub, C3 grass, and C4
+#'  grass components
 #' @export
 PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub_limit,
     use_Annuals_Fraction,Annuals_Fraction,
@@ -557,17 +560,16 @@ predict_season <- function(biomass_Standard, std.season.padded, std.season.seq, 
 #' @name biomass
 NULL
 
+#' Estimate shrub biomass density from mean annual precipitation
 #' @export
 #' @rdname biomass
 Shrub_ANPP <- function(MAP_mm) 0.393 * MAP_mm - 10.2
+
+#' Estimate grass biomass density from mean annual precipitation
 #' @export
 #' @rdname biomass
 Grass_ANPP <- function(MAP_mm) 0.646 * MAP_mm - 102.5
 
-#' @section Default inputs:
-#'    - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at MAP = 450 mm/yr
-#'    - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at MAP = 340 mm/yr
-#' @export
 adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs,
          map_mm_shrubs, map_mm_std_shrubs,
          map_mm_grasses, map_mm_std_grasses,
@@ -620,6 +622,13 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
 }
 
 
+#' Adjust mean monthly biomass values by climate input
+#'
+#' @section Default inputs:
+#'  - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at
+#'    MAP = 450 mm/yr
+#'  - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at
+#'    MAP = 340 mm/yr
 #' @export
 AdjMonthlyBioMass <- function(tr_VegBiom,
                 do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,

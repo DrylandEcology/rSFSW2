@@ -1,15 +1,15 @@
+#' Initialize a timing file for a simulation job
 #' @export
 init_timer <- function(timerfile2) {
   cat(",Time_s,Number", file = timerfile2, sep = "\n")
 }
 
-#' @export
 write_timer <- function(timerfile2, label, time_sec = "", number = "") {
   cat(paste(label, time_sec, number, sep = ","), file = timerfile2, append = TRUE,
     sep = "\n")
 }
 
-
+#' Write timing information to the timing file
 #' @export
 compile_overall_timer <- function(timerfile2, dir_out, workersN = 0, runs.completed = 0,
   scenario_No = 0, ensembles.completed = 0, delta.overall = 0, delta.outputDB = 0,

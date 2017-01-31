@@ -1,3 +1,5 @@
+
+#' Carry out an entire rSWSF simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_sim,
   req_scens, req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space,

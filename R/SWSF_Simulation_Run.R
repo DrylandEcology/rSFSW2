@@ -780,7 +780,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 					if (opt_verbosity[["print.debug"]]) print("Start of get SiteClimate")
 					do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || prj_todos[["aon"]]$dailyC4_TempVar
 					#redo SiteClimate_Ambient
-					SiteClimate_Ambient <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[1]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
+					SiteClimate_Ambient <- calc_SiteClimate(weatherList=i_sw_weatherList[[1]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 				}
 			}
 			if (!opt_sim[["use_dbW_future"]]) {
@@ -885,7 +885,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 					}
 				}
 			} else {
-				SiteClimate_Scenario <- sw_SiteClimate_Ambient(weatherList=i_sw_weatherList[[sc]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
+				SiteClimate_Scenario <- calc_SiteClimate(weatherList=i_sw_weatherList[[sc]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
 				if(sc > 1){
 					ppt_sc <- (temp <- Rsoilwat31::swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
 					t_max <- temp[,2]
@@ -4602,7 +4602,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 } #end do_OneSite()
 
 
-
+#' Run a rSWSF simulation experiment
 #' @export
 run_simulation_experiment <- function(sim_size, SWRunInformation, sw_input_soillayers,
   sw_input_treatments, sw_input_cloud, sw_input_prod, sw_input_site, sw_input_soils,

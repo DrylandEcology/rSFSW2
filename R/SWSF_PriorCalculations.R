@@ -1,3 +1,5 @@
+
+#' Add soil layers (by interpolation) if not already present
 #' @export
 calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
   runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils, fnames_in,
@@ -103,6 +105,7 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(requested_soil_layers,
 }
 
 
+#' Calculate potential bare soil evaporation coefficients per soil layer
 #' @export
 calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_adjust,
   sw_input_soils_use, sw_input_soils, sw_input_soillayers, fnames_in, resume = TRUE,
@@ -206,6 +209,7 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(runIDs_
 }
 
 
+#' Look-up input values from spreadsheet tables
 #' @export
 do_prior_TableLookups <- function(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
   create_treatments, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals,

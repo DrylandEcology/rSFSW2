@@ -572,6 +572,7 @@ update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
   SWRunInformation
 }
 
+#' Extract soil characteristics
 #' @export
 ExtractData_Soils <- function(exinfo, SWRunInformation, sim_size, sw_input_soillayers,
   sw_input_soils_use, sw_input_soils, how_determine_sources, sim_space, dir_ex_soil,

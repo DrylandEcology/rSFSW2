@@ -1,15 +1,16 @@
-.onAttach <- function(lib, pkg) {
+
+.onAttach <- function(libname, pkgname) {
   if (interactive()) {
-      meta <- utils::packageDescription("rSWSF")
-      packageStartupMessage("Package 'rSWSF', ", meta$Version, " (", meta$Date,
-        ") attached/loaded.")
+      meta <- utils::packageDescription(pkgname)
+      packageStartupMessage("Package ", shQuote(pkgname), " v", meta$Version, " (",
+        meta$Date,") attached/loaded.")
   }
 
   invisible()
 }
 
 
-.onLoad <- function(lib, pgk) {
+.onLoad <- function(libname, pkgname) {
   #--- Define options and set default values
   # based on chapter "When you do need side-effects" by Wickham, H. 2015. R packages. O'Reilly and Associates.
   op_old <- options()

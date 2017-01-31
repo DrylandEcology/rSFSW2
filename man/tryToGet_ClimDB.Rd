@@ -4,9 +4,11 @@
 \alias{tryToGet_ClimDB}
 \title{Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources}
 \usage{
-tryToGet_ClimDB(is_ToDo, list.export, clim_source, is_netCDF, is_NEX,
-  climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  locations, getYears, assocYears, project_paths, fdbWeather, opt_parallel)
+tryToGet_ClimDB(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
+  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
+  getYears, assocYears, project_paths, fdbWeather, opt_parallel,
+  climate.ambient, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
+  sim_time, opt_DS, verbose, print.debug)
 }
 \description{
 This function assumes that a whole bunch of global variables exist and contain appropriate values.

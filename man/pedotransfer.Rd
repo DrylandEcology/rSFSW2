@@ -79,6 +79,10 @@ Soil water potential in units of MPa [-Inf, 0]. There are six use cases:
 \description{
 Pedotransfer functions to convert between soil moisture (volumetric water content, VWC)
  and soil water potential (SWP)
+
+Calculate volumetric water content from soil water potential and soil texture
+
+Calculate soil water potential from volumetric water content and soil texture
 }
 \section{Note}{
 

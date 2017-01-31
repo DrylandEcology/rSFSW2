@@ -285,6 +285,7 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
   invisible(TRUE)
 }
 
+#' Read from disk the default input files of SOILWAT2
 #' @export
 read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
   temp <- list.files(dir_in_sw)

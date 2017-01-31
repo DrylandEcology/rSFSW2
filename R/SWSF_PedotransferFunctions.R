@@ -10,7 +10,6 @@
 #' @name pedotransfer
 NULL
 
-#' @export
 #' @rdname pedotransfer
 #' @section Note:
 #'  either swp or sand/clay needs be a single value
@@ -18,7 +17,6 @@ pdf_to_vwc <- function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_co
   thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100
 }
 
-#' @export
 #' @rdname pedotransfer
 #' @section Note:
 #'  either vwc or sand/clay needs be a single value
@@ -79,7 +77,7 @@ pedotransfer <- function(x, sand, clay, pdf) {
   res #if SWP then in units of MPa [-Inf, 0]; if VWC then in units of m3/m3 [0, 1]
 }
 
-#' @export
+#' Calculate volumetric water content from soil water potential and soil texture
 #' @rdname pedotransfer
 #' @param swp A numeric value, vector, or 2-dimensional object (matrix or data.frame).
 #'  The soil water potential (of the soil matrix) in units of MPa, i.e.,
@@ -106,12 +104,13 @@ pedotransfer <- function(x, sand, clay, pdf) {
 #'                \item Input: SWP [l x d matrix]; sand and clay [vectors of length d]
 #'                \item Output: VWC [l x d matrix], sand and clay vectors are repeated for each row}
 #'  }
+#' @export
 SWPtoVWC <- function(swp, sand, clay) {
   pedotransfer(swp, sand, clay, pdf = pdf_to_vwc)
 }
 
 
-#' @export
+#' Calculate soil water potential from volumetric water content and soil texture
 #' @rdname pedotransfer
 #' @param vwc A numeric value, vector, or 2-dimensional object (matrix or data.frame).
 #'  The matric soil moisture, i.e., reduced by the volume of rock and gravel.
@@ -137,6 +136,7 @@ SWPtoVWC <- function(swp, sand, clay) {
 #'                \item Input: VWC [l x d matrix]; sand and clay [vectors of length d]
 #'                \item Output: SWP [l x d matrix], sand and clay vectors are repeated for each row}
 #'  }
+#' @export
 VWCtoSWP <- function(vwc, sand, clay) {
   pedotransfer(vwc, sand, clay, pdf = pdf_to_swp)
 }

@@ -1,5 +1,6 @@
 #------------------------DAILY WEATHER
 
+#' Create and populate a 'Rsoilwat31' daily weather SQLite database
 #' @export
 make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens,
   project_paths, opt_chunks, resume, deleteTmpSQLFiles, dbW_compression_type,
@@ -253,7 +254,6 @@ writeMonthlyClimate <- function(id, siteDirsC) {
   1L
 }
 
-#' @export
 create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
   gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_"))
 }

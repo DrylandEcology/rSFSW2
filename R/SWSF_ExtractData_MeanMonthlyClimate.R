@@ -319,6 +319,7 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, sim_size, f
   SWRunInformation
 }
 
+#' Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
 #' @export
 ExtractData_MeanMonthlyClimate <- function(exinfo, SWRunInformation, sim_size,
   sw_input_cloud_use, sw_input_cloud, how_determine_sources, sim_space,
