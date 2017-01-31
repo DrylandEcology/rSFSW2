@@ -1508,7 +1508,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 								silent = TRUE)
 
 				## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-				is_SOILTEMP_INSTABLE <- tempError()
+				is_SOILTEMP_INSTABLE <- Rsoilwat31::has_soilTemp_failed()
 
 				if (is_SOILTEMP_INSTABLE) {
 					## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
@@ -1532,7 +1532,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 								silent = TRUE)
 
 						## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-						is_SOILTEMP_INSTABLE <- tempError()
+						is_SOILTEMP_INSTABLE <- Rsoilwat31::has_soilTemp_failed()
 						i_soil_rep <- i_soil_rep + 1
 					}
 

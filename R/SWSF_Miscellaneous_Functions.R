@@ -1180,8 +1180,6 @@ setBottomLayer <- function(d, DeepestTopLayer) {
   }
 }
 
-tempError <- function() .Call("tempError", PACKAGE = "Rsoilwat31")
-
 
 #data is the values for one year adj for SWPcrit_MPa; TRUE==dry
 EventDistribution <- function(data, N, size) {

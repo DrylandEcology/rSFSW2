@@ -10,8 +10,8 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
 Depends:
     R (>= 3.3.0)
 Imports:
-    Rsoilwat31 (>= 1.2.2),
-    RSQLite (>= 1.0.0),
+    Rsoilwat31 (>= 1.2.3),
+    RSQLite (>= 1.1),
     DBI (>= 0.5),
     circular (>= 0.4.7),
     Rcpp (>= 0.12.7),
@@ -30,7 +30,7 @@ Suggests:
     RCurl (>= 1.95.4.8),
     fastmatch (>= 1.0.4),
     iotools (>= 0.1-12),
-    Hmisc (>= 3.17.4),
+    Hmisc (>= 4.0-2),
     qmap (>= 1.0.4),
     DaymetR (>= 0.1),
     weathergen,
