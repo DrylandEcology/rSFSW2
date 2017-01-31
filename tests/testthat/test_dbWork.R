@@ -57,11 +57,7 @@ cl <- parallel::makePSOCKcluster(ncores)
 parallel::clusterApply(cl, seq_len(ncores),
   function(i) assign(".node_id", i, envir = globalenv()))
 parallel::clusterSetRNGStream(cl, iseed = 127)
-#TODO: replace next two lines when SWSF has become a package
-parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",
-  "dbWork_timing", "dbWork_update_job", "lock_access", "unlock_access", "lock_attempt",
-  "lock_init", "check_lock_content", "remove_lock"))
-parallel::clusterEvalQ(cl, require("RSQLite"))
+parallel::clusterEvalQ(cl, require("rSWSF"))
 
 
 #--- Unit tests
