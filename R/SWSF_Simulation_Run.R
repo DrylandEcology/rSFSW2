@@ -1,6 +1,32 @@
 #---------------------------------------------------------------------------------------#
 #------------------------FUNCTIONS FOR SOILWAT2 SIMULATIONS
 
+#' List of objects to export which are required by do_OneSite and are not in rSWSF
+#'  (sorted alphabetically)
+#' @export
+global_args_do_OneSite <- function() {
+  c("create_experimentals", "create_treatments", "done_prior", "fnames_out",
+    "opt_agg", "opt_behave", "opt_job_time", "opt_out", "opt_parallel", "opt_sim",
+    "opt_verbosity", "prj_todos", "project_paths", "sim_scens", "sim_size",
+    "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
+    "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
+    "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
+    "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
+    "tr_files", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+    "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
+    "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
+    "tr_VegetationComposition", "tr_weather")
+}
+
+if (getRversion() >= "2.15.1")
+  utils::globalVariables(c("MoreArgs", global_args_do_OneSite()))
+
+gather_args_do_OneSite <- function() {
+  gather_objects_for_export(varlist = global_args_do_OneSite(),
+    list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
+}
+
+
 #' The main simulation function which does all the heavy lifting
 #' @export
 do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
@@ -4801,31 +4827,3 @@ tryCatch({
   runs.completed
 }
 
-
-#' List of objects to export which are required by do_OneSite and are not in rSWSF (sorted alphabetically)
-#' @export
-gather_args_do_OneSite <- function() {
-  list.args <- c(
-    "create_experimentals", "create_treatments", "done_prior",
-
-    "swDataFromFiles", "swof",
-
-    "sw_input_climscen_use", "sw_input_climscen_values_use",
-    "sw_input_cloud_use", "sw_input_experimentals", "sw_input_experimentals_use",
-    "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
-    "sw_input_weather_use",
-
-    "tr_cloud", "tr_files", "tr_input_climPPT", "tr_input_climTemp",
-    "tr_input_EvapCoeff", "tr_input_shiftedPPT", "tr_input_SnowD",
-    "tr_input_TranspCoeff", "tr_input_TranspCoeff_Code", "tr_input_TranspRegions",
-    "tr_prod", "tr_site", "tr_soil", "tr_VegetationComposition",
-    "tr_weather",
-
-    "t_job_start", "prj_todos", "opt_agg", "project_paths", "fnames_out", "opt_parallel",
-    "opt_verbosity", "sim_scens", "sim_time", "opt_job_time", "opt_out", "opt_behave",
-    "opt_sim", "sim_size")
-  #list.args <- list.args[!duplicated(list.args)]
-
-  gather_objects_for_export(varlist = list.args,
-    list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
-}

@@ -1,4 +1,5 @@
 context("dbWork: runIDs organization")
+# skip_on_cran()
 
 #--- Inputs
 #setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/SoilWat_R_Wrapper/tests/testthat")

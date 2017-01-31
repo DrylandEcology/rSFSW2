@@ -1,4 +1,17 @@
 
+#' List of objects to export which are required by simulate_SOILWAT2_experiment and are
+#'  not in rSWSF (sorted alphabetically)
+#' @export
+global_args_simulate_SOILWAT2_experiment <- function() {
+  c("GISSM_species_No", "GISSM_params", "include_YN", "sw_input_treatments",
+    "sw_input_treatments_use", "Index_RunInformation", "sw_input_prod",
+    "sw_input_site", "sw_input_weather")
+}
+
+if (getRversion() >= "2.15.1")
+  utils::globalVariables(global_args_simulate_SOILWAT2_experiment())
+
+
 #' Carry out an entire rSWSF simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_sim,
