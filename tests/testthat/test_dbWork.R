@@ -17,13 +17,15 @@ sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total, expN = 
 verbose <- FALSE
 
 test_update <- function(i, dbpath, flock = NULL, verbose) {
-  is_inwork <- dbWork_update_job(dbpath, i, "inwork", with_filelock = flock, verbose = verbose)
+  is_inwork <- dbWork_update_job(dbpath, i, "inwork", with_filelock = flock,
+    verbose = verbose)
 
   if (is_inwork) {
     todos <- dbWork_todos(dbpath)
 
     if (any(i == todos)) {
-      dbWork_update_job(dbpath, i, "failed", with_filelock = flock, verbose = verbose)
+      dbWork_update_job(dbpath, i, "failed", with_filelock = flock,
+        verbose = verbose)
 
     } else {
       dbWork_update_job(dbpath, i, "completed", time_s = .node_id,
@@ -49,6 +51,7 @@ pretend_sim <- function(cl, runIDs, dbpath, flock, verbose) {
 }
 
 
+
 # Parallel
 temp <- max(2L, min(10L, parallel::detectCores() - 2L))
 ncores <- if (is.finite(temp)) temp else 2L
@@ -59,7 +62,8 @@ parallel::clusterApply(cl, seq_len(ncores),
   function(i) assign(".node_id", i, envir = globalenv()))
 parallel::clusterSetRNGStream(cl, iseed = 127)
 parallel::clusterEvalQ(cl, require("rSWSF"))
-
+test_env <- list2env(list(test_update = test_update, pretend_sim = pretend_sim))
+parallel::clusterExport(cl, varlist = c("test_update", "pretend_sim"), envir = test_env)
 
 #--- Unit tests
 test_that("dbWork", {
