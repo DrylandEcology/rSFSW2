@@ -35,7 +35,7 @@ setGeneric("extract_swsf", function(x, y, type, ...)
 #'    If the latter, then the vector or matrix represents the rectangle extent/resolution
 #'    in x- and y-coordinates.
 #'    If a matrix, then rows must match \code{coords}.
-#' @param ...
+#' @param \dots
 #'  \itemize{
 #'    \item \code{method} A character string. The method argument passed to
 #'      \code{reaggregate_raster}. Default is 'block' which is the fastest.
@@ -204,7 +204,7 @@ setMethod("extract_swsf",
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as
 #'  integer codes of a factor whose levels are encoded by \code{code}.
-#' @param ... \itemize{
+#' @param \dots \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
 #'      that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
 #'      is inheriting from \linkS4class{SpatialPolygons}.
@@ -543,7 +543,7 @@ weighted.agg <- function(reagg, probs = NA) {
 #' @param x A RasterLayer object for which !NA cells, values of 'data' are resampled and
 #'  extracted
 #' @param data A raster* object from which data are extracted
-#' @param ...
+#' @param \dots
 #'  \describe{
 #'    \item{method}{A character string. The method used to resample values for the new
 #'      RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using

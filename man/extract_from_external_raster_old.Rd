@@ -12,7 +12,7 @@ extracted}
 
 \item{data}{A raster* object from which data are extracted}
 
-\item{...}{\describe{
+\item{\dots}{\describe{
   \item{method}{A character string. The method used to resample values for the new
     RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using
     the nearest neighbor.}

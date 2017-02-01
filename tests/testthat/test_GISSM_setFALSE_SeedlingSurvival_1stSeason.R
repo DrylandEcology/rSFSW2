@@ -23,21 +23,29 @@ test_data <- list(
   ref = temp)
 )
 
+# rSWSF version of function 'setFALSE_SeedlingSurvival_1stSeason()' uses argument "PACKAGE = 'rSWSF'"
+# in .Call; however, this is not available when run with R CMD check
+setFALSE_SeedlingSurvival_1stSeason2 <- function(ss1s, ry_year_day, ry_useyrs, y, doy) {
+    .Call('rSWSF_setFALSE_SeedlingSurvival_1stSeason', ss1s, ry_year_day, ry_useyrs, y, doy)
+}
+
 
 test_that("setFALSE_SeedlingSurvival_1stSeason", {
+  skip_if_not(is.loaded("rSWSF_setFALSE_SeedlingSurvival_1stSeason"))
+
   for (k in seq_along(test_data))
     with(test_data[[k]],
       expect_equal(
-        setFALSE_SeedlingSurvival_1stSeason(ss1s, ry_year_day, ry_useyrs, y, doy),
+        setFALSE_SeedlingSurvival_1stSeason2(ss1s, ry_year_day, ry_useyrs, y, doy),
         ref,
         info = paste("Test dataset =", shQuote(names(test_data)[k]))))
 
   #--- Errors
   if (requireNamespace("Rcpp")) {
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 7), rep(1, 10), 1, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 7), 1, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 7, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 1, 7, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 1, 1, 70))
+    expect_error(setFALSE_SeedlingSurvival_1stSeason2(rep(TRUE, 7), rep(1, 10), 1, 1, 1))
+    expect_error(setFALSE_SeedlingSurvival_1stSeason2(rep(TRUE, 10), rep(1, 7), 1, 1, 1))
+    expect_error(setFALSE_SeedlingSurvival_1stSeason2(rep(TRUE, 10), rep(1, 10), 7, 1, 1))
+    expect_error(setFALSE_SeedlingSurvival_1stSeason2(rep(TRUE, 10), rep(1, 10), 1, 7, 1))
+    expect_error(setFALSE_SeedlingSurvival_1stSeason2(rep(TRUE, 10), rep(1, 10), 1, 1, 70))
   }
 })

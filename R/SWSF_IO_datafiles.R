@@ -18,7 +18,7 @@ required_colnames_SWRunInformation <- function()
 #' @param use_iotools A logical value. If \code{TRUE} and if \pkg{iotools} available,
 #'  then \code{\link[iotools]{read.csv.raw}} instead of \code{\link[utils]{read.csv}} is
 #'  used to read the \code{file}.
-#' @param ... Further arguments to be passed to \code{\link[iotools]{read.csv.raw}} or
+#' @param \dots Further arguments to be passed to \code{\link[iotools]{read.csv.raw}} or
 #'  \code{\link[utils]{read.csv}}.
 #'
 #' @return A data frame (\code{\link[base]{data.frame}}) containing a representation of

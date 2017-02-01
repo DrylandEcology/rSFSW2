@@ -17,7 +17,7 @@ value will be used if 0 or negative.}
 
 \item{na.rm}{A logical value}
 
-\item{...}{Optional arguments to be passed to \code{fun}}
+\item{\dots}{Optional arguments to be passed to \code{fun}}
 }
 \value{
 A vector with the k-largest values of \code{x} if \code{is.null(fun)},

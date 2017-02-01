@@ -16,7 +16,7 @@ factors?}
 then \code{\link[iotools]{read.csv.raw}} instead of \code{\link[utils]{read.csv}} is
 used to read the \code{file}.}
 
-\item{...}{Further arguments to be passed to \code{\link[iotools]{read.csv.raw}} or
+\item{\dots}{Further arguments to be passed to \code{\link[iotools]{read.csv.raw}} or
 \code{\link[utils]{read.csv}}.}
 }
 \value{

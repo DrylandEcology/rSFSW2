@@ -4,13 +4,23 @@
 # rSWSF: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 
-#------ DISCLAIMER: This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#----- LICENSE
+#    Copyright (C) 2017 by `r packageDescription("Rsoilwat31")[["Author"]]`
+#    Contact information `r packageDescription("Rsoilwat31")[["Maintainer"]]`
+
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+
+#------ DISCLAIMER:
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
 
 #------ NOTES:
-#  - You get an overview by: > package?rSWSF
-#  - An index of functionality is displayed by: > help(package = "rSWSF")
+#  - You get an overview by: `r package?rSWSF`
+#  - An index of functionality is displayed by: `r help(package = "rSWSF")`
 #----------------------------------------------------------------------------------------#
 
 

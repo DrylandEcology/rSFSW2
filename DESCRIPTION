@@ -1,6 +1,6 @@
 Package: rSWSF
 Title: SOILWAT2 Simulation Framework
-Version: 2.0.0-9001
+Version: 2.0.0-9002
 Date: 2017-01-31
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
@@ -18,8 +18,7 @@ Imports:
     SPEI (>= 1.6),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
-    methods,
-    testthat
+    methods
 Suggests:
     Rmpi (>= 0.6-6),
     parallel,
@@ -39,6 +38,7 @@ Suggests:
       dplyr,
     knitr,
     rmarkdown,
+    testthat,
     covr
 Remotes:
     github::Burke-Lauenroth-Lab/Rsoilwat,

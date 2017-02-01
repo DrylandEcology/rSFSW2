@@ -17,7 +17,7 @@ If the latter, then the vector or matrix represents the rectangle extent/resolut
 in x- and y-coordinates.
 If a matrix, then rows must match \code{coords}.}
 
-\item{...}{\itemize{
+\item{\dots}{\itemize{
   \item \code{method} A character string. The method argument passed to
     \code{reaggregate_raster}. Default is 'block' which is the fastest.
   \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are

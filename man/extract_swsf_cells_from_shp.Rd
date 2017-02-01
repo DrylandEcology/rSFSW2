@@ -25,7 +25,7 @@ columns of the extracted object.}
 \item{code}{A vector. If not \code{NULL}, then the extracted data are treated as
 integer codes of a factor whose levels are encoded by \code{code}.}
 
-\item{...}{\itemize{
+\item{\dots}{\itemize{
   \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
     that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
     is inheriting from \linkS4class{SpatialPolygons}.

@@ -104,7 +104,7 @@ circ_sd <- function(x, int, na.rm=FALSE){
 #' @param k An integer value. The k-largest value(s) of \code{x} will be used. The largest
 #'    value will be used if 0 or negative.
 #' @param na.rm A logical value
-#' @param ... Optional arguments to be passed to \code{fun}
+#' @param \dots Optional arguments to be passed to \code{fun}
 #'
 #' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},
 #'    otherwise the result of applying \code{fun} to the k-largest values.
@@ -187,7 +187,7 @@ is.natural <- function(x) {
 
 #' The intersection on any number of vectors
 #'
-#' @param ... Any number of vectors or a list of vectors.
+#' @param \dots Any number of vectors or a list of vectors.
 #' @return A vector of the same mode as inputs.
 #' @seealso \code{\link{intersect}}
 intersect2 <- function(...) {

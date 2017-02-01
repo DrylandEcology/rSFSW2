@@ -7,7 +7,7 @@
 intersect2(...)
 }
 \arguments{
-\item{...}{Any number of vectors or a list of vectors.}
+\item{\dots}{Any number of vectors or a list of vectors.}
 }
 \value{
 A vector of the same mode as inputs.
