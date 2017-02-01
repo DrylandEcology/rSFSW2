@@ -4610,8 +4610,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else {
             paste(round(pi95), "s")
           }
-        temp <- paste0(temp, ", ETA (mean 95%-PI) = ",
-                      Sys.time() + deta[1], "  ", pi95)
+        temp <- paste0(temp, ", ETA (mean plus/minus 95%-PI) = ",
+                      Sys.time() + deta[1], " +/- ", pi95)
       }
 
       print(temp)
