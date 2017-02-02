@@ -1094,8 +1094,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 				}
 			}
 
-			if(opt_verbosity[["print.debug"]]) print("Start of biomass adjustments")
-			if(any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 && ((any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature) | (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation) )){
+			if (opt_verbosity[["print.debug"]])
+			  print("Start of biomass adjustments")
+
+			if (any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
+			  i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 &&
+			  ((any(create_treatments == "AdjMonthlyBioMass_Temperature") &&
+			  i_sw_input_treatments$AdjMonthlyBioMass_Temperature) |
+			  (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
+			  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
 
 				temp <- AdjMonthlyBioMass(tr_VegBiom = tr_VegetationComposition,
 				  do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,

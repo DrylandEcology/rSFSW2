@@ -73,7 +73,7 @@ project_paths <- list(
   # Path to inputs
   dir_in = dir_in <- file.path(dir_prj, "1_Data_SWInput"),
   # Folder with default standalone SOILWAT2 input files
-  dir_in_sw = file.path(dir_in, "swrun"),
+  dir_in_sw = file.path(dir_in, "SoilWat2_defaults"),
   # Folder with data input files
   dir_in_dat = file.path(dir_in, "datafiles"),
   # Folder with treatment input files according to treatment instructions
@@ -715,6 +715,12 @@ opt_agg <- list(
     impermeability = 0.9  #impermeable layer
   )
 )
+
+##############################################################################
+######################## CREATE A NEW SIMULATION PROJECT #####################
+
+setup_rSWSF_project_infrastructure(project_paths, opt_verbosity)
+
 
 
 ##############################################################################

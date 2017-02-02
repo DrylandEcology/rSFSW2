@@ -341,7 +341,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
   tr_list <- list()
 
   if (any(create_treatments == ftag)) {
-    temp <- file.path(project_paths[["dir_in_treat"]], ftag)
+    temp <- file.path(project_paths[["dir_in_treat"]], paste0("tr_", ftag))
     stopifnot(dir.exists(temp))
 
     temp <- list.files(temp, pattern = ".in", include.dirs = FALSE, recursive = TRUE,
