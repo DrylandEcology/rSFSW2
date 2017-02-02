@@ -57,6 +57,20 @@ setup_rSWSF_project_infrastructure <- function(project_paths, opt_verbosity) {
 }
 
 
+#' Populate rSWSF project with input data
+#' @export
+populate_rSWSF_project_with_data <- function() {
+  print("not implemented yet")
+}
+
+
+#' Attempt to check input data of a rSWSF project for consistency
+#' @export
+check_rSWSF_project_input_data <- function() {
+  print("not implemented yet")
+}
+
+
 #' Carry out an entire rSWSF simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_sim,

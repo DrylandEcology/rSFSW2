@@ -717,15 +717,32 @@ opt_agg <- list(
 )
 
 ##############################################################################
-######################## CREATE A NEW SIMULATION PROJECT #####################
+#----------------------- CREATE A NEW SIMULATION PROJECT ---------------------
 
 setup_rSWSF_project_infrastructure(project_paths, opt_verbosity)
 
 
 
 ##############################################################################
-######################## RUN SIMULATION PROJECT ##############################
+#----------------------- POPULATE PROJECT WITH INPUT DATA --------------------
+
+populate_rSWSF_project_with_data()
+
+
+
+##############################################################################
+#----------------------- ATTEMPT TO CHECK INPUT DATA -------------------------
+
+check_rSWSF_project_input_data()
+
+
+
+##############################################################################
+#----------------------- RUN SIMULATION EXPERIMENT ---------------------------
 
 simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim, req_scens,
   req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
   opt_chunks, opt_job_time, opt_verbosity)
+
+
+##############################################################################
