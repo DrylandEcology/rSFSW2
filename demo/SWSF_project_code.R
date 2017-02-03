@@ -25,6 +25,8 @@
 
 
 ##############################################################################
+library("rSWSF")
+
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
 dir_prj <- "SWSF_default_project"
