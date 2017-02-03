@@ -49,7 +49,7 @@ LinkingTo:
 LazyData: true
 ByteCompile: true
 NeedsCompilation: yes
-License: GPL (>= 3)
+License: GPL (>= 3) + file LICENSE
 URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
 BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
 RoxygenNote: 5.0.1.9000

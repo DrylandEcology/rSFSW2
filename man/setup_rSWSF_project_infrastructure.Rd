@@ -4,7 +4,16 @@
 \alias{setup_rSWSF_project_infrastructure}
 \title{Setup infrastructure (skeleton) for a new rSWSF simulation experiment}
 \usage{
-setup_rSWSF_project_infrastructure(project_paths, opt_verbosity)
+setup_rSWSF_project_infrastructure(dir_prj, verbose = TRUE)
+}
+\arguments{
+\item{dir_prj}{A character string. The path to the new simulation project. Folders are
+recursively created if not already existing.}
+
+\item{verbose}{A logical value.}
+}
+\value{
+Invisibly \code{dir_prj} on success
 }
 \description{
 Setup infrastructure (skeleton) for a new rSWSF simulation experiment

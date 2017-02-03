@@ -1,74 +1,30 @@
-#!/usr/bin/env Rscript
-
 #----------------------------------------------------------------------------------------#
 # rSWSF: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
-
-#----- LICENSE
-#    Copyright (C) 2017 by `r packageDescription("Rsoilwat31")[["Author"]]`
-#    Contact information `r packageDescription("Rsoilwat31")[["Maintainer"]]`
-
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, version 3 of the License.
-
-#------ DISCLAIMER:
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-
-#------ NOTES:
-#  - You get an overview by: `r package?rSWSF`
-#  - An index of functionality is displayed by: `r help(package = "rSWSF")`
+#
+# See demo/SWSF_project_code.R for details
 #----------------------------------------------------------------------------------------#
 
 
+##############################################################################
+#----------------------- DESCRIPTION OF SIMULATION PROJECT ---------------------
 
-#------ Options for printing progress and debugging information
-opt_verbosity <- list(
-  # Prints status of progress to standard output
-  verbose = TRUE,
-  # Prints details of progress to standard output
-  print.debug = interactive(),
-  # Calculates and prints estimated time of job completion at end of each call of
-  #   'do_OneSite' (a somewhat expensive operation)
-  print.eta = interactive(),
-
-  # Sets global option 'warn' for the duration of a simulation project
-  #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
-  debug.warn.level = 2 * interactive(),
-  # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
-  debug.dump.objects = interactive()
-)
-
-
-#------ Options for parallel framework
-opt_parallel <- list(
-  # Should job be run in parallel
-  parallel_runs = !interactive(),
-  # Number of cores/workers/slaves if job is run in parallel
-  num_cores = 2,
-  # Parallel_backend: "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "cluster"
-)
-
-
-#------ Computation time requests
-# Time limits are only enforced if parallel_backend == "mpi"
-opt_job_time <- list(
-  wall_time_s = 12 * 3600, # requested wall time
-  one_sim_s = 60, # time needed to complete one call to do_OneSite()
-  one_concat_s = 60 # time needed to process one temporary SQL file
-)
+# NOTE: The values cannot be changed once a SWSF simulation project is set up. The
+#  values of settings (file demo/SWSF_project_settings.R) may be changed from run to run.
 
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
-    temp <- "~" # "~/YOURPROJECT"
-    if (interactive()) setwd(temp)
-    getwd()},
+    temp <- "SWSF_default_project" # "~/YOURPROJECT"
+    if (dir.exists(temp)) {
+      if (interactive()) setwd(temp)
+    } else {
+      print(paste("'project_paths[['dir_prj']]' =", shQuote(temp), "does not exist. Code",
+        "uses", shQuote(getwd()), "instead."))
+    }
+    getwd()
+  },
 
   # Path to inputs
   dir_in = dir_in <- file.path(dir_prj, "1_Data_SWInput"),
@@ -156,116 +112,6 @@ fnames_out <- list(
 )
 
 
-#------ Define actions to be carried out by simulation framework
-# Actions are at least one of c("dbW", "external", "map_input", "create", "execute",
-#  "aggregate", "concatenate", "ensemble")
-#  - Data preparation
-#   - "dbW": formerly 'createAndPopulateWeatherDatabase'; if TRUE, will create a new(!)
-#'     weather database and populate with current weather data
-#    - "external": pulls data from 'external' data sources from 'dir_external' as
-#'     specified by 'req_data'
-#    - "map_input": creates maps of input data as specified by 'map_vars'
-#  - Simulation runs ('create', 'execute', and 'aggregate' can be used individually if
-#    'saveRsoilwatInput' and/or 'saveRsoilwatOutput')
-#    - "create": puts information and files together for each simulation run
-#    - "execute": executes the SOILWAT2 simulation
-#    - "aggregate": calculates aggregated response variables from the SOILWAT2 output and
-#      writes results to temporary text files
-#  - Output handling
-#    - "concatenate": moves results from the simulation runs (temporary text files) to a
-#      SQL-database
-#    - "ensemble": calculates 'ensembles' across climate scenarios and stores the results
-#      in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-#   - "check": check completeness of output database
-actions <- c("create", "execute", "aggregate", "concatenate", "check")
-
-opt_behave <- list(
-  # Resumes/continues with unfinished part of simulation after abort if TRUE, i.e.,
-  #  - It doesn't delete an existing weather database, if a new one is requested
-  #  - It doesn't re-extract external information (soils, elevation, climate normals,
-  #     NCEPCFSR) if already extracted
-  #  - It doesn't lookup values from tables if already available in input datafiles, i.e.,
-  #     'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and
-  #     'LookupSnowDensityFromTable'
-  #  - It doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
-  resume = TRUE,
-  # Use preprocessed input data if available
-  use_preprocin = TRUE,
-  # If action == "check" detects missing Pids, then workDB is updated (so that a new run
-  #   of the script can be started to add missing runs)
-  check_updates_dbWork = TRUE,
-  # Check linked BLAS library before simulation runs
-  check_blas = FALSE
-)
-
-
-#------ Options for preparation of a project for a simulation experiment
-opt_prepare <- list(
-  prior_calculations = c(
-      "AddRequestedSoilLayers", 0,
-      "EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 1,
-      "EstimateInitialSoilTemperatureForEachSoilLayer", 1,
-      "CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
-  ),
-
-  # Interpolate and add soil layers if not available if 'AddRequestedSoilLayers'
-  requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150),
-
-  # Request data from datasets ('external' to a rSWSF-project)
-  req_data = c(
-      # Daily weather data for current conditions
-      "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,  # 1/8-degree resolution
-      "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,  # 1-km resolution
-      "GriddedDailyWeatherFromNRCan_10km_Canada", 0,  # must be used with dbW
-      "GriddedDailyWeatherFromNCEPCFSR_Global", 0, # must be used with dbW
-
-      # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
-      #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being
-      #   used for ensembles; if using climatewizard, climate condition names must be
-      #   equal to what is in the respective directories
-      "ExtractClimateChangeScenarios", 0,
-
-      # Mean monthly wind, relative humidity, and 100% - sunshine
-      "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-      "ExtractSkyDataFromNCEPCFSR_Global", 0,
-
-      # Topography
-      "ExtractElevation_NED_USA", 0,  #1-arcsec res: National Elevation Dataset
-        # (ned.usgs.gov), currently downloaded only for western US
-      "ExtractElevation_HWSD_Global", 0, #30-arcsec res: Harmonized World Soil Database
-
-      # Soil texture
-      "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-      "ExtractSoilDataFromISRICWISEv12_Global", 0
-  ),
-
-  # Approach to determine prioprities of external data source extractions
-  # - If how_determine_sources == "order", then
-  #   - Elevation: 'ExtractElevation_NED_USA' has priority over
-  #     'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data
-  #     is available for both
-  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over
-  #     'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested
-  #     and data is available for both
-  #   - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over
-  #     'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and
-  #     data is available for both
-  # - If how_determine_sources == "SWRunInformation", then use information in suitable
-  #   columns of spreadsheet 'SWRunInformation' if available; if not available, then fall
-  #   back to option 'order'
-  how_determine_sources = "SWRunInformation",
-
-  # If a run has multiple sources for daily weather, then take the one in the first
-  #   position of 'dw_source_priority' if available, if not then second etc.
-  # Do not change/remove/add entries; only re-order to set different priorities
-  dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-    "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global"),
-
-  # Creation of dbWeather
-  # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
-  set_dbW_compresstype = "gzip"
-)
-
 
 #------ Options for simulation and meta-information of input data
 opt_sim <- list(
@@ -309,27 +155,14 @@ opt_sim <- list(
 
 
 #------ Output options
-opt_out <- list(
+opt_out_fix <- list(
   # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or NULL:
   #   Selected columns will be part of 'header' table in dbOutput in addition to those of
   #   create_treatments, experimental_treatments, and climate scenario
   Index_RunInformation = NULL,
 
-  # Write Rsoilwat input and output objects to disk for each SOILWAT2 simulation
-  saveRsoilwatInput = FALSE,
-  saveRsoilwatOutput = FALSE,
-
-  # Write data to big input files for experimental design x treatment design
-  makeInputForExperimentalDesign = FALSE,
-
   # Text separator if 'makeInputForExperimentalDesign'
   ExpInput_Seperator = "X!X",
-
-  # Delete any previous dbOutput; be careful to not wipe your data!
-  wipe_dbOutput = FALSE,
-  # Delete temporary text files produced by workers (temporary storage of simulation
-  #   output which is copied to dbOutput byu action 'concatenate')
-  deleteTmpSQLFiles = TRUE,
 
   # Current subset of dbOutput
   #   - Create from a subset of temporary text files (fast)
@@ -364,22 +197,6 @@ sim_space <- list(
     } else {
       "+init=epsg:4326" # WGS84
     }
-)
-
-
-#----- Define chunk size for operations on massive data
-opt_chunks <- list(
-  # chunk_size == 1e4 && n_extract 6e4 will use about 30 GB of memory
-  ExtractSkyDataFromNOAAClimateAtlas_USA = 10000,
-  # Extracting data from NCEP/CFSR is also OS-limited by the number of concurrently open
-  #   files (on 'unix' platforms, check with 'ulimit -a')
-  ExtractSkyDataFromNCEPCFSR_Global = 100,
-  DailyWeatherFromNCEPCFSR_Global = 100,
-  # This value is the chunk size for reads of 'runID' from the database, i.e.,
-  #   chunk size = ensembleCollectSize * scenario_No.
-  #   Find a balance between available memory, cores, read/write times, etc. For instance,
-  #   on Yellowstone, 500 seems to work well.
-  ensembleCollectSize = 500
 )
 
 
@@ -715,34 +532,5 @@ opt_agg <- list(
     impermeability = 0.9  #impermeable layer
   )
 )
-
-##############################################################################
-#----------------------- CREATE A NEW SIMULATION PROJECT ---------------------
-
-setup_rSWSF_project_infrastructure(project_paths, opt_verbosity)
-
-
-
-##############################################################################
-#----------------------- POPULATE PROJECT WITH INPUT DATA --------------------
-
-populate_rSWSF_project_with_data()
-
-
-
-##############################################################################
-#----------------------- ATTEMPT TO CHECK INPUT DATA -------------------------
-
-check_rSWSF_project_input_data()
-
-
-
-##############################################################################
-#----------------------- RUN SIMULATION EXPERIMENT ---------------------------
-
-simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim, req_scens,
-  req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
-  opt_chunks, opt_job_time, opt_verbosity)
-
 
 ##############################################################################
