@@ -100,7 +100,7 @@ if (file.exists(fmeta)) {
 
 if (actions[["prep_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "prepared"])) {
 
-  SWSF_prj_meta <- populate_rSWSF_project_with_data(SWSF_prj_meta)
+  SWSF_prj_meta <- populate_rSWSF_project_with_data(SWSF_prj_meta, fmeta)
 
   saveRDS(SWSF_prj_meta, file = fmeta)
 }
@@ -112,7 +112,7 @@ if (actions[["prep_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "prepared
 
 if (actions[["check_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "checked"])) {
 
-  SWSF_prj_meta <- check_rSWSF_project_input_data(SWSF_prj_meta)
+  SWSF_prj_meta <- check_rSWSF_project_input_data(SWSF_prj_meta, fmeta)
 
   saveRDS(SWSF_prj_meta, file = fmeta)
 }

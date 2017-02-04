@@ -190,6 +190,8 @@ opt_sim <- list(
   use_dbW_current = TRUE,
   # Use daily weather from dbWeather for future scenario conditions
   use_dbW_future = TRUE,
+  # Number of decimal places to which weather data is rounded
+  dbW_digits = 2,
 
   # Approach if there is no soil texture information for the deepest layer(s)
   #   - [TRUE] adjust soil depth

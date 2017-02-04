@@ -108,8 +108,9 @@ init_rSWSF_project <- function(SWSF_prj_meta) {
 
 #' Populate rSWSF project with input data
 #' @export
-populate_rSWSF_project_with_data <- function(SWSF_prj_meta) {
+populate_rSWSF_project_with_data <- function(SWSF_prj_meta, fmeta) {
   stop("not implemented yet")
+  saveRDS(SWSF_prj_meta, file = fmeta)
 
 
   #------------------------DAILY WEATHER
@@ -245,6 +246,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta) {
       sim_scens, project_paths, opt_chunks, opt_behave[["resume"]],
       opt_out[["deleteTmpSQLFiles"]], SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
       tag_WeatherFolder = project_paths[["tag_WeatherFolder"]], opt_parallel,
+      dbW_digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
       prepd_CFSR, verbose = opt_verbosity[["verbose"]])
   }
 
@@ -276,8 +278,9 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta) {
 
       temp <- ExtractData_MeanMonthlyClimate(SWSF_prj_meta[["exinfo"]], SWRunInformation,
         sim_size, sw_input_cloud_use, sw_input_cloud,
-        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space, project_paths, fnames_in,
-        opt_chunks,opt_behave[["resume"]], opt_verbosity[["verbose"]], prepd_CFSR, sim_time,
+        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space,
+        SWSF_prj_meta[["opt_sim"]][["dbW_digits"]], project_paths, fnames_in,
+        opt_chunks, opt_behave[["resume"]], opt_verbosity[["verbose"]], prepd_CFSR, sim_time,
         opt_parallel)
 
       SWRunInformation <- temp[["SWRunInformation"]]
@@ -413,8 +416,9 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta) {
 
 #' Attempt to check input data of a rSWSF project for consistency
 #' @export
-check_rSWSF_project_input_data <- function(SWSF_prj_meta) {
+check_rSWSF_project_input_data <- function(SWSF_prj_meta, fmeta) {
   stop("not implemented yet")
+  saveRDS(SWSF_prj_meta, file = fmeta)
 
   if (anyNA(SWRunInformation[sim_size[["runIDs_sites"]], "dailyweather_source"])) {
     stop("There are sites without daily weather. Provide data for all runs")

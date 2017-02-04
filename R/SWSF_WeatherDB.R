@@ -4,7 +4,7 @@
 #' @export
 make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens,
   project_paths, opt_chunks, resume, deleteTmpSQLFiles, dbW_compression_type,
-  tag_WeatherFolder, opt_parallel, prepd_CFSR = NULL, verbose = FALSE) {
+  tag_WeatherFolder, opt_parallel, dbW_digits = 2, prepd_CFSR = NULL, verbose = FALSE) {
 
   if (file.exists(fdbWeather)) {
     if (resume) {
@@ -59,12 +59,12 @@ make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens
       if (dw_source[i_idss] == "LookupWeatherFolder") {
         weatherData <- ExtractLookupWeatherFolder(dir.weather =
           file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
-          weatherfoldername = SWRunInformation$WeatherFolder[i_site])
+          weatherfoldername = SWRunInformation$WeatherFolder[i_site], dbW_digits)
 
       } else if (dw_source[i_idss] == "Maurer2002_NorthAmerica") {
         weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
           dir_data = project_paths[["dir_maurer2002"]], cellname = Maurer[i],
-          startYear = sim_time[["simstartyr"]], endYear = sim_time[["endyr"]])
+          startYear = sim_time[["simstartyr"]], endYear = sim_time[["endyr"]], dbW_digits)
 
       } else {
         stop(paste(dw_source[i_idss], "not implemented"))
@@ -98,7 +98,7 @@ make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens
       start_year = sim_time[["simstartyr"]],
       end_year = sim_time[["endyr"]],
       dir_temp = project_paths[["dir_out_temp"]],
-      dbW_compression_type = dbW_compression_type)
+      dbW_compression_type = dbW_compression_type, dbW_digits)
   }
 
   temp <- dw_source == "NRCan_10km_Canada"
@@ -114,7 +114,7 @@ make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens
       end_year = sim_time[["endyr"]],
       dir_temp = project_paths[["dir_out_temp"]],
       dbW_compression_type = dbW_compression_type,
-      opt_parallel)
+      opt_parallel, dbW_digits)
   }
 
   temp <- dw_source == "NCEPCFSR_Global"
@@ -133,7 +133,7 @@ make_dbW <- function(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens
       rm_temp = deleteTmpSQLFiles,
       resume = resume,
       dir_temp = project_paths[["dir_out_temp"]],
-      dbW_compression_type = dbW_compression_type)
+      dbW_compression_type = dbW_compression_type, dbW_digits)
   }
 
   Rsoilwat31::dbW_disconnectConnection()
@@ -260,7 +260,8 @@ create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
 
 
 #TODO replace with Rsoilwat31::getWeatherData_folders
-ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername) {
+ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername, dbW_digits) {
+
   WeatherFolder <- file.path(dir.weather, weatherfoldername)
   weath <- list.files(WeatherFolder, pattern = "weath.")
   years <- as.numeric(sub(pattern = "weath.", replacement = "", weath))
@@ -271,7 +272,7 @@ ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername) {
     temp <- utils::read.table(file.path(WeatherFolder, weath[j]), header = FALSE,
       comment.char = "#", blank.lines.skip = TRUE, sep = "\t")
     data_sw <- as.matrix(temp)
-    data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+    data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
     colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
     weatherData[[j]] <- methods::new("swWeatherData",
                             year = years[j],
@@ -290,7 +291,7 @@ ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername) {
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
 #'    precipitation.
 #' @export
-ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cellname, startYear, endYear) {
+ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cellname, startYear, endYear, dbW_digits) {
   #read data from Maurer et al. 2002
   weath.data <- try(utils::read.table(file=file.path(dir_data, cellname), comment.char=""), silent=TRUE)
   weathDataList <- list()
@@ -313,7 +314,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cell
       stop("simstartyr or endyr out of weather data range")
     for(y in seq_along(years)) {
       data_sw <- data_all[weath.data$year == years[y], ]
-      data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+      data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
       weathDataList[[y]] <- methods::new("swWeatherData",
                               year = years[y],
                               data = data.matrix(data_sw, rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
@@ -348,7 +349,7 @@ get_DayMet_cellID <- function(coords_WGS84) {
   list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84)
 }
 
-get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year, end_year) {
+get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year, end_year, dbW_digits) {
   # Filename for data of this 1-km cell
   ftemp <- file.path(dir_data, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
 
@@ -386,7 +387,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
       if(isLeapYear(years[y])){
         data_sw[366, ] <- c(366, data_sw[365, -1])
       }
-      data_sw[, -1] <- round(data_sw[, -1], 2) #weather.digits
+      data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
       weathDataList[[y]] <- methods::new("swWeatherData",
                                 year=years[y],
                                 data = data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE)) #strip row.names, otherwise they consume about 60% of file size
@@ -409,16 +410,14 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 #' @rdname ExtractDayMet
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data,
-  site_ids, coords_WGS84, start_year, end_year) {
+  site_ids, coords_WGS84, start_year, end_year, dbW_digits) {
 
   xy_WGS84 <- matrix(unlist(coords_WGS84), ncol = 2)[1, , drop = FALSE]
   dm <- get_DayMet_cellID(xy_WGS84)
 
-  get_DayMet_NorthAmerica(
-    dir_data = dir_data,
-    cellID = dm$cellID[1],
+  get_DayMet_NorthAmerica(dir_data = dir_data, cellID = dm$cellID[1],
     Xdm_WGS84 = dm$dm_WGS84[1, 1], Ydm_WGS84 = dm$dm_WGS84[1, 2],
-    start_year, end_year)
+    start_year, end_year, dbW_digits)
 }
 
 #' Extract gridded daily weather from DayMet for North American sites
@@ -441,7 +440,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
 #' @name ExtractDayMet
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site_ids,
-  coords_WGS84, start_year, end_year, dir_temp = tempdir(), dbW_compression_type = "gzip") {
+  coords_WGS84, start_year, end_year, dir_temp = tempdir(), dbW_compression_type = "gzip",
+  dbW_digits) {
 
   print(paste("Started 'ExtractGriddedDailyWeatherFromDayMet_NorthAmerica' at", Sys.time()))
 
@@ -461,11 +461,9 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
       print(paste(Sys.time(), "DayMet data extraction of site", site_ids_todo[idm], "at",
         paste(round(coords_WGS84[idm, ], 4), collapse = "/")))
 
-      weatherData <- get_DayMet_NorthAmerica(
-        dir_data = dir_data,
-        cellID = dm$cellID[idm],
+      weatherData <- get_DayMet_NorthAmerica(dir_data = dir_data, cellID = dm$cellID[idm],
         Xdm_WGS84 = dm$dm_WGS84[idm, 1], Ydm_WGS84 = dm$dm_WGS84[idm, 2],
-        start_year, end_year)
+        start_year, end_year, dbW_digits)
 
       if (!inherits(weatherData, "try-error")) {
         # Store site weather data in weather database
@@ -496,9 +494,9 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
 #'    precipitation.
 #' @export
-ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data,
-  site_ids, coords_WGS84, start_year, end_year,
-  dir_temp = tempdir(), dbW_compression_type = "gzip", opt_parallel) {
+ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
+  coords_WGS84, start_year, end_year, dir_temp = tempdir(),
+  dbW_compression_type = "gzip", opt_parallel, dbW_digits) {
 
   print(paste("Started 'ExtractGriddedDailyWeatherFromNRCan_10km_Canada' at", Sys.time()))
 
@@ -542,7 +540,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data,
     # Stack rasters for each day and extract data
     NRC_stack <- raster::stack(NRC_days, RAT=FALSE, quick=TRUE)
     raster::projection(NRC_stack) <- prj_geographicNAD83
-    temp <- round(raster::extract(NRC_stack, sp_locs), 2) #weather.digits; [sp_locs, NRC_days x vars]
+    temp <- round(raster::extract(NRC_stack, sp_locs), dbW_digits) # [sp_locs, NRC_days x vars]
 
     # Convert extraction information to array
     ivars <- substr(NRC_days, 1, 3) # sapply(vars, nchar) == 3
@@ -593,7 +591,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data,
   invisible(0)
 }
 
-get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
+get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_digits = 2,
                 cfsr_so,
                 yearLow, yearHigh, dir_ex_cfsr, dir_temp,
                 n_site_per_core = 100,
@@ -832,12 +830,12 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
 #'    Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
 #' @export
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_WeatherFolder,
-  start_year, end_year, meta_cfsr, n_site_per_core = 100, opt_parallel,
-  rm_temp = TRUE, resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip") {
+  start_year, end_year, meta_cfsr, n_site_per_core = 100, opt_parallel, rm_temp = TRUE,
+  resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits) {
 
   # do the extractions
   etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
-    daily = TRUE, monthly =  FALSE,
+    daily = TRUE, monthly =  FALSE, dbW_digits,
     cfsr_so = meta_cfsr$cfsr_so,
     yearLow = start_year, yearHigh = end_year,
     dir_ex_cfsr = meta_cfsr$dir_ex_cfsr,

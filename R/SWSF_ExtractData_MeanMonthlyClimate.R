@@ -223,7 +223,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 #'  Computational and Information Systems Laboratory.
 #'  http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
 do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size,
-  prepd_CFSR, sim_time, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
+  prepd_CFSR, sim_time, dbW_digits, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
   verbose) {
 
   if (verbose)
@@ -253,11 +253,11 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size
     locations <- SWRunInformation[sim_size[["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
     # do the extractions
     temp <- try(get_NCEPCFSR_data(dat_sites = locations, daily = FALSE, monthly = TRUE,
-      yearLow = sim_time[["startyr"]], yearHigh = sim_time[["endyr"]], dir_ex_cfsr = prepd_CFSR$dir_ex_cfsr,
-      dir_temp = project_paths[["dir_out_temp"]], cfsr_so = prepd_CFSR$cfsr_so,
+      dbW_digits, yearLow = sim_time[["startyr"]], yearHigh = sim_time[["endyr"]],
+      dir_ex_cfsr = prepd_CFSR$dir_ex_cfsr, dir_temp = project_paths[["dir_out_temp"]],
+      cfsr_so = prepd_CFSR$cfsr_so,
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
-      opt_parallel = opt_parallel, rm_mc_files = TRUE,
-      resume = resume))
+      opt_parallel = opt_parallel, rm_mc_files = TRUE, resume = resume))
 
     if (inherits(temp, "try-error"))
       stop(temp)
@@ -322,7 +322,7 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, sim_size, f
 #' Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
 #' @export
 ExtractData_MeanMonthlyClimate <- function(exinfo, SWRunInformation, sim_size,
-  sw_input_cloud_use, sw_input_cloud, how_determine_sources, sim_space,
+  sw_input_cloud_use, sw_input_cloud, how_determine_sources, sim_space, dbW_digits,
   project_paths, fnames_in, opt_chunks, resume, verbose, prepd_CFSR, sim_time,
   opt_parallel) {
 
@@ -336,7 +336,7 @@ ExtractData_MeanMonthlyClimate <- function(exinfo, SWRunInformation, sim_size,
 
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
     MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, sim_size,
-      prepd_CFSR, sim_time, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
+      prepd_CFSR, sim_time, dbW_digits, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
       verbose)
   }
 
