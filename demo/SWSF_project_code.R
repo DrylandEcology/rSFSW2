@@ -27,6 +27,44 @@
 ##############################################################################
 library("rSWSF")
 
+#------ Turn on/off actions to be carried out by simulation framework
+actions <- list(
+  # Input preparation
+  #   - Create a new(!) weather database and populate with current weather data
+  #     (formerly 'createAndPopulateWeatherDatabase')
+  #   - "external": pulls data from 'external' data sources from 'dir_external' as
+  #     specified by 'req_data'
+  prep_inputs = FALSE,
+
+  # Input checking
+  #   - "check_inputs": creates maps of input data as specified by 'map_vars'
+  check_inputs = FALSE,
+
+  # Simulation runs
+  # "sim_create", "sim_execute", and "sim_aggregate" can be used individually if
+  # "saveRsoilwatInput" and/or "saveRsoilwatOutput" are true
+  #   - Prepare/collect inputs for a Rsoilwat run (formerly, 'create')
+  sim_create = FALSE,
+  #   - Execute SOILWAT2 simulations (formerly 'execute')
+  sim_execute = FALSE,
+  #   - Calculate aggregated response variables from  SOILWAT2 output and store results
+  #     in temporary text files on disk (formerly, "aggregate')
+  sim_aggregate = FALSE,
+
+  # Output handling
+  #   - Copy simulation results from temporary text files to a output SQL-database
+  #     (formerly, 'concatenate')
+  concat_dbOut = FALSE,
+  #   - Calculate 'ensembles' across climate scenarios and stores the results
+  #     in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
+  ensemble = FALSE,
+  #   - Check completeness of output database
+  check_dbOut = FALSE
+)
+
+
+
+##############################################################################
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
 dir_prj <- "SWSF_default_project"
@@ -43,7 +81,7 @@ if (file.exists(fmeta)) {
   setup_rSWSF_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SWSF_project_description.R")
-  stop("Specify project description/metadata in file 'SWSF_project_descriptions.R'")
+  stop("Specify project description/metadata via file 'SWSF_project_descriptions.R'")
 
   # 1c) Load and prepare project description
   SWSF_prj_meta <- new.env()
@@ -60,26 +98,30 @@ if (file.exists(fmeta)) {
 ##############################################################################
 #------ 2) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ----------
 
-# Load variable 'opt_prepare'
-source(file.path(dir_prj, "SWSF_project_extdata.R"), keep.source = FALSE)
+if (actions[["prep_inputs"]]) {
+  # Load variable 'opt_prepare'
+  source(file.path(dir_prj, "SWSF_project_extdata.R"), keep.source = FALSE)
 
-populate_rSWSF_project_with_data(SWSF_prj_meta, opt_prepare)
-
+  populate_rSWSF_project_with_data(SWSF_prj_meta, opt_prepare)
+}
 
 
 ##############################################################################
 #------ 3) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
 
-check_rSWSF_project_input_data()
-
+if (actions[["check_inputs"]]) {
+  check_rSWSF_project_input_data()
+}
 
 
 ##############################################################################
 #------ 4) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
-simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim, req_scens,
-  req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
-  opt_chunks, opt_job_time, opt_verbosity)
-
+if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut",
+  "ensemble", "check_dbOut")]))) {
+  simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim, req_scens,
+    req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
+    opt_chunks, opt_job_time, opt_verbosity)
+}
 
 ##############################################################################

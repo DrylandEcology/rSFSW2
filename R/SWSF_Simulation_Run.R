@@ -107,16 +107,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 	#   for now: ignoring to check time-series aggregations, i.e., assuming that if
 	#   overallAggs is done, then time-series output was also completed
   tasks <- list(
-    create = 1L,
-    execute = rep(1L, sim_scens[["N"]]),
-    aggregate = rep(1L, sim_scens[["N"]]))
+    create = if (prj_todos[["actions"]][["sim_create"]]) 1L else -1L,
+    execute = rep(if (prj_todos[["actions"]][["sim_execute"]]) 1L else -1L, sim_scens[["N"]]),
+    aggregate = rep(if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L,
+      sim_scens[["N"]]))
 
 	#Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
+  temp <- file.path(project_paths[["dir_out_sw"]], i_label)
+  f_sw_input <- file.path(temp, "sw_input.RData")
+  f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(sim_scens[["N"]]),
+    ".RData"))
+
   if (opt_out[["saveRsoilwatInput"]] || opt_out[["saveRsoilwatOutput"]]) {
-    temp <- file.path(project_paths[["dir_out_sw"]], i_label)
     dir.create2(temp, showWarnings = FALSE)
-    f_sw_input <- file.path(temp, "sw_input.RData")
-    f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(sim_scens[["N"]]), ".RData"))
   }
 
 	#----Get preparations done
@@ -188,12 +191,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------CREATE RUNS
-	if (tasks$create == 1L && opt_behave[["resume"]] && opt_out[["saveRsoilwatInput"]] &&
-	  file.exists(f_sw_input)) {
+  # Load previously created Rsoilwat run objets
+  if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
+    (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
 
-		load(f_sw_input)	# load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals
-		tasks$create <- 2L
-	}
+    load(f_sw_input)	# load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals
+    tasks$create <- 2L
+  }
 
 	if (tasks$create == 1L) {
 		if(opt_verbosity[["print.debug"]]) print("Start of section 'create'")
@@ -1510,10 +1514,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (opt_verbosity[["print.debug"]])
       print(paste("Start of SOILWAT2 execution for P_id =", P_id, "scenario =", sc))
 
-    if (tasks$execute[sc] == 1L && opt_behave[["resume"]] &&
-      opt_out[["saveRsoilwatOutput"]] && file.exists(f_sw_output[sc])) {
+    if (file.exists(f_sw_input) && ((tasks$execute[sc] == 1L && opt_behave[["resume"]]) ||
+      (tasks$execute[sc] == -1L && any(tasks$aggregate == 1L)))) {
 
-      load(f_sw_output[sc])	# load objects: runDataSC
+      load(f_sw_output[sc])	# load object: runDataSC
       tasks$execute[sc] <- 2L
     }
 

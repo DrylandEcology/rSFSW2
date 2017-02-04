@@ -104,6 +104,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   # external data extraction
   exinfo <- convert_to_todo_list(opt_prepare[["req_data"]])
 
+
   #------------------------DAILY WEATHER
   if (opt_prepare[["how_determine_sources"]] == "SWRunInformation" &&
     "dailyweather_source" %in% colnames(SWRunInformation)) {
@@ -155,7 +156,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   }
 
   if (prj_todos[["GriddedDailyWeatherFromNRCan_10km_Canada"]] &&
-    prj_todos[["actions"]]["dbW"]) {
+    prj_todos[["actions"]]["prep_dbW"]) {
     #Citations:
     #	- Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson, P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of Applied Meteorology and Climatology 50:1654-1665.
     #	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
@@ -232,7 +233,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   #------------ORGANIZE DATABASES FOR DAILY WEATHER AND FOR SIMULATION OUTPUT
 
   #--- Create weather database and populate with weather for current conditions
-  if (prj_todos[["actions"]]["dbW"]) {
+  if (prj_todos[["actions"]]["prep_dbW"]) {
     make_dbW(fnames_in[["fdbWeather"]], sim_size, SWRunInformation, sim_time,
       sim_scens, project_paths, opt_chunks, opt_behave[["resume"]],
       opt_out[["deleteTmpSQLFiles"]], opt_prepare[["set_dbW_compresstype"]],
@@ -242,7 +243,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
 
   #---------------------------------------------------------------------------------------#
   #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
-  if (any(prj_todos[["actions"]] == "external") && prj_todos[["ex_besides_weather"]]) {
+  if (prj_todos[["actions"]][["prep_inputs"]] && prj_todos[["ex_besides_weather"]]) {
     if (opt_verbosity[["verbose"]])
       print(paste("SWSF extracts information from external datasets prior to simulation",
         "runs: started at", t1 <- Sys.time()))
@@ -357,7 +358,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
     }
 
     #------used during each simulation run: define functions here
-    if (any(prj_todos[["actions"]] == "create") &&
+    if (prj_todos[["actions"]][["sim_create"]] &&
       prj_todos[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
 
       sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
@@ -365,7 +366,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
       #call function 'SiteClimate' in each SOILWAT2-run
     }
 
-    if (any(prj_todos[["actions"]] == "create") &&
+    if (prj_todos[["actions"]][["sim_create"]] &&
       prj_todos[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
 
       #set use flags
@@ -384,7 +385,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   #---------------------------------------------------------------------------------------#
   #------------------------OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS TO CREATE THEM
 
-  if (any(prj_todos[["actions"]] == "create")) {
+  if (prj_todos[["actions"]][["sim_create"]]) {
     temp <- do_prior_TableLookups(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
       create_treatments, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals,
       sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
@@ -412,7 +413,7 @@ check_rSWSF_project_input_data <- function() {
   }
 
   if (opt_sim[["use_dbW_current"]]) {
-    if (!(prj_todos[["actions"]]["dbW"] || file.exists(fnames_in[["fdbWeather"]]))) {
+    if (!(prj_todos[["actions"]]["prep_dbW"] || file.exists(fnames_in[["fdbWeather"]]))) {
       stop("Create or use existing Weather database with Scenario data inside.")
     }
 
@@ -441,8 +442,8 @@ check_rSWSF_project_input_data <- function() {
 
   #---------------------------------------------------------------------------------------#
   #------------------------MAP INPUT VARIABLES (FOR QUALITY CONTROL)
-  if (any(prj_todos[["actions"]] == "map_input") && length(prj_todos[["map_input"]]) > 0) {
-    map_input_variables(prj_todos[["map_input"]], SWRunInformation, sw_input_soillayers,
+  if (prj_todos[["actions"]][["check_inputs"]] && length(prj_todos[["check_inputs"]]) > 0) {
+    map_input_variables(prj_todos[["check_inputs"]], SWRunInformation, sw_input_soillayers,
       sw_input_cloud_use,
       sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site,
       sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather,
@@ -484,7 +485,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
   #--- Determine todos for simulation project
   prj_todos <- list(
     actions = actions,
-    use_SOILWAT2 = any(c("create", "execute", "aggregate") %in% actions),
+    use_SOILWAT2 = any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")])),
     # output maps of input variables
     map_input = req_out[["map_vars"]],
     # output aggregate overall
@@ -519,7 +520,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
       any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
       any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")),
 
-    use_sim_spatial = any(prj_todos[["actions"]] == "map_input") ||
+    use_sim_spatial = prj_todos[["actions"]][["check_inputs"]] ||
       prj_todos[["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
       prj_todos[["ExtractSoilDataFromISRICWISEv12_Global"]] ||
       prj_todos[["ExtractElevation_NED_USA"]] ||
@@ -528,7 +529,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
       prj_todos[["ExtractSkyDataFromNCEPCFSR_Global"]],
 
     wipe_dbOut = opt_out[["wipe_dbOutput"]] &&
-      !(length(prj_todos[["actions"]]) == 1 && prj_todos[["actions"]] == "ensemble")
+      !(sum(prj_todos[["actions"]]) == 1 && prj_todos[["actions"]][["ensemble"]])
   ))
 
   #--- Update output aggregation options
@@ -654,7 +655,7 @@ if (prj_todos[["use_SOILWAT2"]] && sim_size[["runsN_todo"]] > 0) {
 
 t.outputDB <- Sys.time()
 
-if (any(prj_todos[["actions"]] == "concatenate")) {
+if (prj_todos[["actions"]][["concat_dbOut"]]) {
   if (opt_verbosity[["verbose"]])
     print(paste("SWSF inserting temporary data to outputDB: started at", t.outputDB))
 
@@ -691,7 +692,7 @@ if (any(prj_todos[["actions"]] == "concatenate")) {
 
 #timing of outputDB
 delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
-if (opt_verbosity[["verbose"]] && any(prj_todos[["actions"]] == "concatenate")) {
+if (opt_verbosity[["verbose"]] && prj_todos[["actions"]][["concat_dbOut"]]) {
   print(paste("SWSF inserting temporary data to outputDB: ended after",
     round(delta.outputDB, 2), "s"))
 }
@@ -701,7 +702,7 @@ if (opt_verbosity[["verbose"]] && any(prj_todos[["actions"]] == "concatenate")) 
 #------------------------CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION
 t.check <- Sys.time()
 
-if (any(prj_todos[["actions"]] == "check")) {
+if (prj_todos[["actions"]][["check_dbOut"]]) {
   if (opt_verbosity[["verbose"]])
     print(paste("SWSF checks simulations and output: started at", t.check))
 
@@ -713,7 +714,7 @@ if (any(prj_todos[["actions"]] == "check")) {
 
 #timing of check
 delta.check <- difftime(Sys.time(), t.check, units = "secs")
-if (opt_verbosity[["verbose"]] && any(prj_todos[["actions"]] == "check"))
+if (opt_verbosity[["verbose"]] && prj_todos[["actions"]][["check_dbOut"]])
   print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2),
     "s"))
 
@@ -793,9 +794,11 @@ compile_overall_timer(fnames_out[["timerfile"]], project_paths[["dir_out"]],
   delta.overall, delta.outputDB, delta.check, delta.ensembles)
 
 
-if (opt_verbosity[["verbose"]])
-  print(paste("SWSF: ended with actions =", paste(prj_todos[["actions"]],
-    collapse = ", "), "at", Sys.time()))
+if (opt_verbosity[["verbose"]]) {
+  temp <- names(prj_todos[["actions"]])[prj_todos[["actions"]]]
+  print(paste("SWSF: ended with actions =", paste(temp, collapse = ", "), "at",
+    Sys.time()))
+}
 
 
 #---------------------------------------------------------------------------------------#

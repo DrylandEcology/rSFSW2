@@ -15,29 +15,6 @@
 
 
 
-#------ Define actions to be carried out by simulation framework
-# Actions are at least one of c("dbW", "external", "map_input", "create", "execute",
-#  "aggregate", "concatenate", "ensemble")
-#  - Data preparation
-#   - "dbW": formerly 'createAndPopulateWeatherDatabase'; if TRUE, will create a new(!)
-#'     weather database and populate with current weather data
-#    - "external": pulls data from 'external' data sources from 'dir_external' as
-#'     specified by 'req_data'
-#    - "map_input": creates maps of input data as specified by 'map_vars'
-#  - Simulation runs ('create', 'execute', and 'aggregate' can be used individually if
-#    'saveRsoilwatInput' and/or 'saveRsoilwatOutput')
-#    - "create": puts information and files together for each simulation run
-#    - "execute": executes the SOILWAT2 simulation
-#    - "aggregate": calculates aggregated response variables from the SOILWAT2 output and
-#      writes results to temporary text files
-#  - Output handling
-#    - "concatenate": moves results from the simulation runs (temporary text files) to a
-#      SQL-database
-#    - "ensemble": calculates 'ensembles' across climate scenarios and stores the results
-#      in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-#   - "check": check completeness of output database
-actions <- c("create", "execute", "aggregate", "concatenate", "check")
-
 opt_behave <- list(
   # Resumes/continues with unfinished part of simulation after abort if TRUE, i.e.,
   #  - It doesn't delete an existing weather database, if a new one is requested
@@ -50,7 +27,7 @@ opt_behave <- list(
   resume = TRUE,
   # Use preprocessed input data if available
   use_preprocin = TRUE,
-  # If action == "check" detects missing Pids, then workDB is updated (so that a new run
+  # If action == "check_dbOut" detects missing Pids, then workDB is updated (so that a new run
   #   of the script can be started to add missing runs)
   check_updates_dbWork = TRUE,
   # Check linked BLAS library before simulation runs

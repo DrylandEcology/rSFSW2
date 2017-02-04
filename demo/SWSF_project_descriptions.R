@@ -179,7 +179,7 @@ opt_out_fix <- list(
 # If scorp == "cell" then provide either valid path to 'fsimraster' (takes precedence) or
 #   (grid resolution and grid crs)
 # Currently, implemented for
-# - actions == "map_inputs"
+# - actions[["map_inputs"]]
 # - external extractions:
 #  - soils: "ExtractSoilDataFromISRICWISEv12_Global",
 #     "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
@@ -356,7 +356,7 @@ req_scens <- list(
 #------ Requested output
 # Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
-  # Fields/variables of input data for which to create maps if any(actions == "map_input")
+  # Fields/variables of input data for which to create maps if actions[["check_inputs"]]
   map_vars = c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
     "TOC_GperKG", "EvapCoeff", "RH", "SkyC", "Wind", "snowd"),
 
