@@ -98,28 +98,34 @@ if (file.exists(fmeta)) {
 ##############################################################################
 #------ 2) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ----------
 
-if (actions[["prep_inputs"]]) {
-  # Load variable 'opt_prepare'
-  source(file.path(dir_prj, "SWSF_project_extdata.R"), keep.source = FALSE)
+if (actions[["prep_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "prepared"])) {
 
-  populate_rSWSF_project_with_data(SWSF_prj_meta, opt_prepare)
+  SWSF_prj_meta <- populate_rSWSF_project_with_data(SWSF_prj_meta)
+
+  saveRDS(SWSF_prj_meta, file = fmeta)
 }
+
 
 
 ##############################################################################
 #------ 3) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
 
-if (actions[["check_inputs"]]) {
-  check_rSWSF_project_input_data()
+if (actions[["check_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "checked"])) {
+
+  SWSF_prj_meta <- check_rSWSF_project_input_data(SWSF_prj_meta)
+
+  saveRDS(SWSF_prj_meta, file = fmeta)
 }
+
 
 
 ##############################################################################
 #------ 4) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
 if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut",
-  "ensemble", "check_dbOut")]))) {
-  simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim, req_scens,
+  "ensemble", "check_dbOut")])) && all(SWSF_prj_meta[["input_status"]])) {
+
+  simulate_SOILWAT2_experiment(actions, opt_behave, opt_sim, req_scens,
     req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
     opt_chunks, opt_job_time, opt_verbosity)
 }

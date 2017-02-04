@@ -1017,7 +1017,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			#------3. Step: Lookup or extract external information that needs to be executed for each run
 			if(opt_verbosity[["print.debug"]]) print("Start of set soil temperature")
 			#TODO get this working LOW PR
-			if(prj_todos[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]){
+			if(prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]){
 				soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
 				soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1,12)]))
 				#temporaly save data
@@ -1031,7 +1031,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 				soilTlower <- if (exists("soilTlower")) soilTlower else i_sw_input_site$SoilTempC_atLowerBoundary
 				Rsoilwat31::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])[8] <- soilTlower
 			}
-			if (prj_todos[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
+			if (prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
 				init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth=layers_depth, lower.Tdepth=as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper=soilTUpper, soilTlower=soilTlower)	#lower.Tdepth needs to be adjusted if it changes in soilparam.in
 				#temporaly save data #TODO get this working
 				#out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times=swsf_glovars[["slyrs_maxN"]]-length(init.soilTprofile)))))

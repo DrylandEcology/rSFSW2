@@ -87,6 +87,19 @@ init_rSWSF_project <- function(SWSF_prj_meta) {
   SWSF_prj_meta[["sim_scens"]] <- setup_scenarios(SWSF_prj_meta[["req_scens"]],
     SWSF_prj_meta[["sim_time"]][["future_yrs"]])
 
+  #--- Prior calculations
+  SWSF_prj_meta[["pcalcs"]] <- convert_to_todo_list(SWSF_prj_meta[["opt_input"]][["prior_calculations"]])
+
+  #--- External data extraction
+  SWSF_prj_meta[["exinfo"]] <- convert_to_todo_list(SWSF_prj_meta[["opt_input"]][["req_data"]])
+
+  #--- Matrix to track progress with input preparations
+  temp <- c("dbW_current", "dbW_scenarios", "sim_years", "coef_evap", "coef_transp",
+    "reg_transp", "climate_normals", "veg_composition", "veg_biomass",
+    "soil_texture", "soil_temperature")
+  SWSF_prj_meta[["input_status"]] <- matrix(FALSE, nrow = length(temp), ncol = 2,
+    dimnames = list(temp, c("prepared", "checked")))
+
   SWSF_prj_meta
 }
 
@@ -95,27 +108,21 @@ init_rSWSF_project <- function(SWSF_prj_meta) {
 
 #' Populate rSWSF project with input data
 #' @export
-populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
+populate_rSWSF_project_with_data <- function(SWSF_prj_meta) {
   stop("not implemented yet")
-
-  # prior calculations
-  pcalcs <- convert_to_todo_list(opt_prepare[["prior_calculations"]])
-
-  # external data extraction
-  exinfo <- convert_to_todo_list(opt_prepare[["req_data"]])
 
 
   #------------------------DAILY WEATHER
-  if (opt_prepare[["how_determine_sources"]] == "SWRunInformation" &&
+  if (SWSF_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
     "dailyweather_source" %in% colnames(SWRunInformation)) {
 
     dw_source <- factor(SWRunInformation$dailyweather_source[sim_size[["runIDs_sites"]]],
-      levels = opt_prepare[["dw_source_priority"]])
+      levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
     do_weather_source <- anyNA(dw_source)
 
   } else {
     dw_source <- factor(rep(NA, sim_size[["runsN_sites"]]),
-      levels = opt_prepare[["dw_source_priority"]])
+      levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
     do_weather_source <- TRUE
   }
 
@@ -175,8 +182,8 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   #------------------------CHECK THAT DAILY WEATHER DATA IS AVAILABLE
   if (do_weather_source) {
     #--- Determine sources of daily weather
-    SWRunInformation <- dw_determine_sources(dw_source, prj_todos[["exinfo"]],
-      opt_prepare[["dw_source_priority"]], create_treatments, sim_size, SWRunInformation,
+    SWRunInformation <- dw_determine_sources(dw_source, SWSF_prj_meta[["exinfo"]],
+      SWSF_prj_meta[["opt_input"]][["dw_source_priority"]], create_treatments, sim_size, SWRunInformation,
       sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use,
       sw_input_experimentals, sim_time, fnames_in, project_paths,
       verbose = opt_verbosity[["verbose"]])
@@ -236,7 +243,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   if (prj_todos[["actions"]]["prep_dbW"]) {
     make_dbW(fnames_in[["fdbWeather"]], sim_size, SWRunInformation, sim_time,
       sim_scens, project_paths, opt_chunks, opt_behave[["resume"]],
-      opt_out[["deleteTmpSQLFiles"]], opt_prepare[["set_dbW_compresstype"]],
+      opt_out[["deleteTmpSQLFiles"]], SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
       tag_WeatherFolder = project_paths[["tag_WeatherFolder"]], opt_parallel,
       prepd_CFSR, verbose = opt_verbosity[["verbose"]])
   }
@@ -250,12 +257,12 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
 
     stopifnot(file.exists(project_paths[["dir_external"]]))
 
-    if (prj_todos[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-      prj_todos[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
+    if (SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
+      SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
 
-      temp <- ExtractData_Soils(prj_todos[["exinfo"]], SWRunInformation, sim_size,
+      temp <- ExtractData_Soils(SWSF_prj_meta[["exinfo"]], SWRunInformation, sim_size,
         sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-        opt_prepare[["how_determine_sources"]], sim_space, project_paths[["dir_ex_soil"]],
+        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space, project_paths[["dir_ex_soil"]],
         fnames_in, opt_behave[["resume"]], opt_verbosity[["verbose"]], opt_parallel)
 
       SWRunInformation <- temp[["SWRunInformation"]]
@@ -264,12 +271,12 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
       sw_input_soils <- temp[["sw_input_soils"]]
     }
 
-    if (prj_todos[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
-      prj_todos[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]) {
+    if (SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
+      SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]) {
 
-      temp <- ExtractData_MeanMonthlyClimate(prj_todos[["exinfo"]], SWRunInformation,
+      temp <- ExtractData_MeanMonthlyClimate(SWSF_prj_meta[["exinfo"]], SWRunInformation,
         sim_size, sw_input_cloud_use, sw_input_cloud,
-        opt_prepare[["how_determine_sources"]], sim_space, project_paths, fnames_in,
+        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space, project_paths, fnames_in,
         opt_chunks,opt_behave[["resume"]], opt_verbosity[["verbose"]], prepd_CFSR, sim_time,
         opt_parallel)
 
@@ -278,19 +285,19 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
       sw_input_cloud <- temp[["sw_input_cloud"]]
     }
 
-    if (prj_todos[["exinfo"]][["ExtractElevation_NED_USA"]] ||
-      prj_todos[["exinfo"]][["ExtractElevation_HWSD_Global"]]) {
-      SWRunInformation <- ExtractData_Elevation(prj_todos[["exinfo"]], SWRunInformation,
-        sim_size, opt_prepare[["how_determine_sources"]], sim_space,
+    if (SWSF_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
+      SWSF_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]]) {
+      SWRunInformation <- ExtractData_Elevation(SWSF_prj_meta[["exinfo"]], SWRunInformation,
+        sim_size, SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space,
         project_paths[["dir_ex_dem"]], fnames_in, opt_behave[["resume"]],
         opt_verbosity[["verbose"]])
     }
 
-    if (prj_todos[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
+    if (SWSF_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
       climDB_metas <- climscen_metadata()
 
       SWRunInformation <- climscen_determine_sources(climDB_metas,
-        opt_prepare[["how_determine_sources"]], sim_scens[["sources"]], sim_size,
+        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_scens[["sources"]], sim_size,
         SWRunInformation, fnames_in)
 
       which_NEX <- grepl("NEX", sim_scens[["sources"]])
@@ -328,15 +335,15 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   #---------------------------------------------------------------------------------------#
   #------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
 
-  if (any(unlist(prj_todos[["pcalcs"]]))) {
+  if (any(unlist(SWSF_prj_meta[["pcalcs"]]))) {
     if (opt_verbosity[["verbose"]])
       print(paste("SWSF makes calculations prior to simulation runs: started at",
         t1 <- Sys.time()))
 
       runIDs_adjust <- seq_len(sim_size[["runsN_master"]])  # if not all, then runIDs_sites
 
-    if (prj_todos[["pcalcs"]][["AddRequestedSoilLayers"]]) {
-      temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(opt_prepare[["requested_soil_layers"]],
+    if (SWSF_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
+      temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(SWSF_prj_meta[["opt_input"]][["requested_soil_layers"]],
         runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
         fnames_in, verbose = opt_verbosity[["verbose"]])
 
@@ -345,7 +352,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
       sw_input_soils <- temp[["sw_input_soils"]]
     }
 
-    if (prj_todos[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
+    if (SWSF_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
       #calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
       # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 
@@ -359,7 +366,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
 
     #------used during each simulation run: define functions here
     if (prj_todos[["actions"]][["sim_create"]] &&
-      prj_todos[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
+      SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
 
       sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
       sw_input_site_use["SoilTempC_atUpperBoundary"] <- TRUE
@@ -367,7 +374,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
     }
 
     if (prj_todos[["actions"]][["sim_create"]] &&
-      prj_todos[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
+      SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
 
       #set use flags
       use.layers <- which(sw_input_soils_use[paste0("Sand_L", swsf_glovars[["slyrs_ids"]])])
@@ -399,13 +406,14 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_prepare) {
   }
 
 
+  SWSF_prj_meta
 }
 
 
 
 #' Attempt to check input data of a rSWSF project for consistency
 #' @export
-check_rSWSF_project_input_data <- function() {
+check_rSWSF_project_input_data <- function(SWSF_prj_meta) {
   stop("not implemented yet")
 
   if (anyNA(SWRunInformation[sim_size[["runIDs_sites"]], "dailyweather_source"])) {
@@ -452,7 +460,7 @@ check_rSWSF_project_input_data <- function() {
       verbose = opt_verbosity[["verbose"]])
   }
 
-
+  SWSF_prj_meta
 }
 
 
@@ -461,7 +469,7 @@ check_rSWSF_project_input_data <- function() {
 
 #' Carry out an entire rSWSF simulation experiment
 #' @export
-simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_sim,
+simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
   req_scens, req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space,
   opt_parallel, opt_chunks, opt_job_time, opt_verbosity) {
 
@@ -486,6 +494,10 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
   prj_todos <- list(
     actions = actions,
     use_SOILWAT2 = any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")])),
+    EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature =
+      SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]],
+    EstimateInitialSoilTemperatureForEachSoilLayer =
+      SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]],
     # output maps of input variables
     map_input = req_out[["map_vars"]],
     # output aggregate overall
@@ -506,15 +518,15 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_prepare, opt_s
   #--- Update todo list
   prj_todos <- c(prj_todos, list(
     ex_besides_weather = {
-      temp <- !grepl("GriddedDailyWeather", names(prj_todos[["exinfo"]]))
-      any(as.logical(prj_todos[["exinfo"]])[temp])},
+      temp <- !grepl("GriddedDailyWeather", names(SWSF_prj_meta[["exinfo"]]))
+      any(as.logical(SWSF_prj_meta[["exinfo"]])[temp])},
 
     need_cli_means = prj_todos[["use_SOILWAT2"]] && (
       any(sw_input_climscen_values_use) ||
-      prj_todos[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]] ||
+      prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]] ||
       sw_input_site_use["SoilTempC_atLowerBoundary"] ||
       sw_input_site_use["SoilTempC_atUpperBoundary"] ||
-      prj_todos[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]] ||
+      prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]] ||
       any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
       any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
       any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
