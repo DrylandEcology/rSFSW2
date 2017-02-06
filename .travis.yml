@@ -3,3 +3,7 @@
 language: R
 sudo: false
 cache: packages
+before_install:
+  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git /tmp/Rsoilwat
+  - cd /tmp/Rsoilwat
+  - ./tools/TarAndInstall_31n.sh
