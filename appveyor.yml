@@ -2,20 +2,22 @@
 
 # Download script file from GitHub
 init:
-  - ps: |
+  ps: |
         $ErrorActionPreference = "Stop"
         Invoke-WebRequest http://raw.github.com/krlmlr/r-appveyor/master/scripts/appveyor-tool.ps1 -OutFile "..\appveyor-tool.ps1"
         Import-Module '..\appveyor-tool.ps1'
+
+
+install:
+  - ps: Bootstrap
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git /tmp/Rsoilwat
   - cd /tmp
   - R CMD BUILD Rsoilwat
   - R CMD INSTALL Rsoilwat*
 
-
-install:
-  ps: Bootstrap
-
 # Adapt as necessary starting from here
+environment:
+  USE_RTOOLS: true
 
 cache:
   - C:\RLibrary
