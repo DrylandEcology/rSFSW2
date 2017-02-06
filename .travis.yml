@@ -3,6 +3,7 @@
 language: R
 sudo: false
 cache: packages
+warnings_are_errors: false # this is only needed for Rsoilwat
 before_install:
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git /tmp/Rsoilwat
   - cd /tmp/Rsoilwat
