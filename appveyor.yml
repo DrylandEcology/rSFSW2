@@ -11,9 +11,7 @@ init:
 install:
   - ps: Bootstrap
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git /tmp/Rsoilwat
-  - cd /tmp
-  - R CMD BUILD Rsoilwat
-  - R CMD INSTALL Rsoilwat*
+  - Rscript -e {install.packages("/tmp/Rsoilwat", repos = NULL, type = "source")}
 
 # Adapt as necessary starting from here
 environment:
