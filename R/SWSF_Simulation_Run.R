@@ -487,16 +487,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       Rsoilwat31::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
-        funct_veg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        fg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
         prod_default = swRunScenariosData[[1]]@prod)
       Rsoilwat31::swProd_MonProd_shrub(swRunScenariosData[[1]]) <- update_biomass(
-        funct_veg = "Shrub", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        fg = "Shrub", use = sw_input_prod_use, prod_input = i_sw_input_prod,
         prod_default = swRunScenariosData[[1]]@prod)
       Rsoilwat31::swProd_MonProd_tree(swRunScenariosData[[1]]) <- update_biomass(
-        funct_veg = "Tree", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        fg = "Tree", use = sw_input_prod_use, prod_input = i_sw_input_prod,
         prod_default = swRunScenariosData[[1]]@prod)
       Rsoilwat31::swProd_MonProd_forb(swRunScenariosData[[1]]) <- update_biomass(
-        funct_veg = "Forb", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+        fg = "Forb", use = sw_input_prod_use, prod_input = i_sw_input_prod,
         prod_default = swRunScenariosData[[1]]@prod)
 		}
 		#Moved adjust to southern Hemi

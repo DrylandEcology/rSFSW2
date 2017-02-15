@@ -10,6 +10,8 @@ update_biomass(fg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input,
 \arguments{
 \item{fg}{A character string. One of the functional groups represented by
 \code{Rsoilwat}}
+
+\item{use}{A logical vector.}
 }
 \description{
 Replace selected biomass values of a \linkS4class{swProd}-object

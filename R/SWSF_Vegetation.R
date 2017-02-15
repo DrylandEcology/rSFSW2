@@ -323,11 +323,14 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
 #' @param mean_monthly_temp_C A numeric vector of length 12. Mean monthly temperature
 #'  in Celcius. The default inputs considered March-October as growing season.
 #'
-#' @section Default inputs:
-#'  - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at
-#'    MAP = 450 mm/yr
-#'  - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at
-#'    MAP = 340 mm/yr
+#' @section Default inputs: \itemize{
+#'    \item Shrubs are based on location 'IM_USC00107648_Reynolds' which resulted in a
+#'      vegetation composition of 70 \% shrubs and 30 \% C3-grasses. Default monthly
+#'      biomass values were estimated for MAP = 450 mm yr-1.
+#'    \item Grasses are based on location 'GP_SGSLTER' (shortgrass steppe) which resulted
+#'      in 12 \% shrubs, 22 \% C3-grasses, and 66 \% C4-grasses. Default biomass values
+#'      were estimated for MAP = 340 mm yr-1.
+#'  }
 #'
 #' @return A list with two elements \code{grass}, \code{shrub}. Each element is a matrix
 #'  with 12 rows (one for each month) and columns \code{Biomass}, \code{Amount.Live},

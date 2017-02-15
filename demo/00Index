@@ -1,6 +1,4 @@
 SWSF_project_code	Demonstration code for running a SOILWAT SIMULATION FRAMEWORK (SWSF)
   project
 SWSF_project_descriptions	Default metadata/description for a rSWSF project
-SWSF_project_extdata	Default inputs for extracting/preparing input data of a rSWSF
-  project
 SWSF_project_settings	Default settings for a run/execution of a rSWSF project
