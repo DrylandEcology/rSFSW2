@@ -1,14 +1,74 @@
 
-#' Calculate potential natural vegetation composition for the shrub, C3 grass, and C4
-#'  grass components
+#' Calculate the composition of a potential natural vegetation based of shrub, C3 grass,
+#'  and C4 grass functional group components using climate relationships
+#'
+#' Equations by Paruelo & Lauenroth 1996 are used to estimate shrub, C3 grass, and C3
+#'  grass components. Equations by Teeri & Stowe 1976 are used to limit occurrence of
+#'  C4 grasses.
+#'
+#' @param MAP_mm A numeric value. Mean annual precipitation in millimeter of the location.
+#' @param MAT_C A numeric value. Mean annual temperature in degree Celcius.
+#' @param mean_monthly_ppt_mm A numeric vector of length 12. Mean monthly precipitation
+#'  in millimeter.
+#' @param dailyC4vars A named numeric vector of length 3. \describe{
+#'    \item{\code{Month7th_NSadj_MinTemp_C}}{Mean minimum temperature of July on the
+#'      northern hemisphere and January on the southern hemisphere}
+#'    \item{\code{DegreeDaysAbove65F_NSadj_DaysC}}{Degree days above 65 F = 18.33 C in units
+#'      of days x degree Celcius}
+#'    \item{\code{LengthFreezeFreeGrowingPeriod_NSadj_Days}}{Mean annual number of days
+#'      of the longest continuous period where minimum daily temperature remain above
+#'      freezing}
+#'  }
+#' @param isNorth A logical value. \code{TRUE} for locations on northern hemisphere.
+#' @param shrub_limit A numeric value. Default value is 0.2 based on page 1213 of
+#'  Paruelo & Lauenroth 1996.
+#' @param fix_annuals A logical value. If \code{TRUE}, then value for the annual component
+#'  is fixed at \code{Annuals_Fraction}.
+#' @param Annuals_Fraction A numeric value. Default value is 0. A value between 0 and 1.
+#' @param fix_C4grasses A logical value. If \code{TRUE}, then value for the C4-grass
+#'  component is fixed at \code{C4_Fraction} instead of calculated from climatic
+#'  relationships.
+#' @param C4_Fraction A numeric value between 0 and 1. \code{NA} is treated as if
+#'  \code{fix_C4grasses} is \code{FALSE}.
+#' @param fix_C3grasses A logical value. If \code{TRUE}, then value for the C3-grass
+#'  component is fixed at \code{C3_Fraction} instead of calculated from climatic
+#'  relationships.
+#' @param C3_Fraction A numeric value between 0 and 1. \code{NA} is treated as if
+#'  \code{fix_C3grasses} is \code{FALSE}.
+#' @param fix_shrubs A logical value. If \code{TRUE}, then value for the shrub
+#'  component is fixed at \code{Shrubs_Fraction} instead of calculated from climatic
+#'  relationships.
+#' @param Shrubs_Fraction A numeric value between 0 and 1. \code{NA} is treated as if
+#'  \code{fix_shrubs} is \code{FALSE}.
+#' @param fix_forbs A logical value. If \code{TRUE}, then value for the forb component
+#'  is fixed at \code{Forbs_Fraction}.
+#' @param Forbs_Fraction A numeric value. Default value is 0. A value between 0 and 1.
+#' @param fix_BareGround A logical value. If \code{TRUE}, then value for the bare ground
+#'  component is fixed at \code{BareGround_Fraction}.
+#' @param BareGround_Fraction A numeric value. Default value is 0. A value between 0 and 1.
+#'
+#' @return A list with two named numeric vectors. \describe{
+#'    \item{Composition}{Relative composition [0-1] of the vegetation for \code{Grasses},
+#'      \code{Shrubs}, \code{Trees}, \code{Forbs}, and \code{BareGround}. \code{Grasses}
+#'      are the sum of C3-grasses, C4-grasses, and annuals functional groups. \code{Trees}
+#'      is set to zero. The sum of \code{Composition} is 1.}
+#'  \item{grasses.c3c4ann.fractions}{Relative contribution [0-1] of the C3-grasses,
+#'      C4-grasses, and annuals functional groups. The sum of
+#'      \code{grasses.c3c4ann.fractions} is 1.}
+#' }
+#'
+#' @references Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional
+#'  types in grasslands and shrublands of North America. Ecological Applications, 6,
+#'  1212-1224.
+#' @references Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4
+#'  grasses in North America. Oecologia, 23, 1-12.
+#'
 #' @export
-PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,MAT_C,monthly.ppt,monthly.temp,dailyC4vars,isNorth,shrub_limit,
-    use_Annuals_Fraction,Annuals_Fraction,
-    use_C4_Fraction,C4_Fraction,
-    use_C3_Fraction,C3_Fraction,
-    use_Shrubs_Fraction,Shrubs_Fraction,
-    use_Forbs_Fraction, Forbs_Fraction,
-    use_BareGround_Fraction, BareGround_Fraction) {
+PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
+  mean_monthly_ppt_mm, dailyC4vars, isNorth = TRUE, shrub_limit = 0.2,
+  fix_annuals = TRUE, Annuals_Fraction = 0, fix_C4grasses = FALSE, C4_Fraction = NA,
+  fix_C3grasses = FALSE, C3_Fraction = NA, fix_shrubs = FALSE, Shrubs_Fraction = NA,
+  fix_forbs = FALSE, Forbs_Fraction = NA, fix_BareGround = TRUE, BareGround_Fraction = 0) {
 
   f.digits <- 3
   tolerance <- 1.1*10^-f.digits
@@ -18,24 +78,24 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
   forb.fraction <- 0
   bareGround.fraction <- 0
   AnnC4C3ShrubForbBareGroundFraction <- rep(NA, 6)
-  if(use_Annuals_Fraction){
+  if(fix_annuals){
     AnnC4C3ShrubForbBareGroundFraction[1] <- finite01(Annuals_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[1] <- 0 #Annuals can not be NA
   }
-  if(use_C4_Fraction)
+  if(fix_C4grasses)
     AnnC4C3ShrubForbBareGroundFraction[2] <- C4_Fraction
-  if(use_C3_Fraction)
+  if(fix_C3grasses)
     AnnC4C3ShrubForbBareGroundFraction[3] <- C3_Fraction
-  if(use_Shrubs_Fraction)
+  if(fix_shrubs)
     AnnC4C3ShrubForbBareGroundFraction[4] <- Shrubs_Fraction
 
-  if(use_Forbs_Fraction) {
+  if(fix_forbs) {
     AnnC4C3ShrubForbBareGroundFraction[5] <- finite01(Forbs_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[5] <- forb.fraction
   }
-  if(use_BareGround_Fraction) {
+  if(fix_BareGround) {
     AnnC4C3ShrubForbBareGroundFraction[6] <- finite01(BareGround_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[6] <- bareGround.fraction
@@ -67,8 +127,8 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
       Months_WinterTF <- c(6:8)
       Months_SummerTF <- c(12, 1:2)
     }
-    ppt.SummerToMAP <- sum(monthly.ppt[Months_SummerTF]) / MAP_mm
-    ppt.WinterToMAP <- sum(monthly.ppt[Months_WinterTF]) / MAP_mm
+    ppt.SummerToMAP <- sum(mean_monthly_ppt_mm[Months_SummerTF]) / MAP_mm
+    ppt.WinterToMAP <- sum(mean_monthly_ppt_mm[Months_WinterTF]) / MAP_mm
 
     #---Potential natural vegetation
     #1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
@@ -144,14 +204,19 @@ PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 <- function(MAP_mm,
   }
   grass.fraction <- sum(AnnC4C3ShrubForbBareGroundFraction[c(1:3)])
 
-  list(Composition = c(Grasses = grass.fraction,
-                         Shrubs = AnnC4C3ShrubForbBareGroundFraction[4],
-                         Trees = tree.fraction,
-                         Forbs = AnnC4C3ShrubForbBareGroundFraction[5],
-                         BareGround = AnnC4C3ShrubForbBareGroundFraction[6]),
-       grasses.c3c4ann.fractions = c(grass.c3.fractionG,
-                                       grass.c4.fractionG,
-                                       grass.Annual.fractionG))
+  list(
+    Composition = c(
+      Grasses = grass.fraction,
+      Shrubs = AnnC4C3ShrubForbBareGroundFraction[4],
+      Trees = tree.fraction,
+      Forbs = AnnC4C3ShrubForbBareGroundFraction[5],
+      BareGround = AnnC4C3ShrubForbBareGroundFraction[6]),
+
+    grasses.c3c4ann.fractions = c(
+      C3 = grass.c3.fractionG,
+      C4 = grass.c4.fractionG,
+      Annuals = grass.Annual.fractionG)
+  )
 }
 
 predict_season <- function(biomass_Standard, std.season.padded, std.season.seq, site.season.seq) {
@@ -236,18 +301,48 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
 }
 
 
-#' Adjust mean monthly biomass values by climate input
+#' Adjust mean monthly biomass values of grass and shrub functional groups by climate
+#'  relationships
+#'
+#' @param tr_VegBiom A data.frame with 12 rows (one for each month) and columns
+#'  \code{X.Biomass}, \code{X.Amount.Live}, \code{X.Perc.Live}, and \code{X.Litter} where
+#'  \code{X} are for the functional groups shrubs, \code{X = Sh}; C3-grasses,
+#'  \code{X = C3}; C4-grasses, \code{X = C4}; and annuals, \code{X = Annual} containing
+#'  default input values.
+#' @param do_adjBiom_by_temp A logical value. If \code{TRUE} then monthly phenology is
+#'  adjusted by temperature.
+#' @param do_adjBiom_by_ppt A logical value. If \code{TRUE} then monthly biomass is
+#'  adjusted by precipitation.
+#' @param fgrass_c3c4ann A numeric vector of length 3. Relative contribution [0-1] of
+#'  the C3-grasses, C4-grasses, and annuals functional groups. The sum of
+#'  \code{fgrass_c3c4ann} is 1.
+#' @param growing_limit_C A numeric value. Mean monthly temperatures equal or above this
+#'  limit are here considered suitable for growth (growing season). Default value is 4 C.
+#' @param isNorth A logical value. \code{TRUE} for locations on northern hemisphere.
+#' @param MAP_mm A numeric value. Mean annual precipitation in millimeter of the location.
+#' @param mean_monthly_temp_C A numeric vector of length 12. Mean monthly temperature
+#'  in Celcius. The default inputs considered March-October as growing season.
 #'
 #' @section Default inputs:
 #'  - shrubs (IM_USC00107648_Reynolds; 70% shrubs, 30% C3): biomass was estimated at
 #'    MAP = 450 mm/yr
 #'  - sgs-grassland (GP_SGSLTER; 12% shrubs, 22% C3, and 66% C4): biomass was estimated at
 #'    MAP = 340 mm/yr
+#'
+#' @return A list with two elements \code{grass}, \code{shrub}. Each element is a matrix
+#'  with 12 rows (one for each month) and columns \code{Biomass}, \code{Amount.Live},
+#'  \code{Perc.Live}, and \code{Litter}.
+#'
+#' @references Bradford, J.B., Schlaepfer, D.R., Lauenroth, W.K. & Burke, I.C. (2014).
+#'  Shifts in plant functional types have time-dependent and regionally variable impacts
+#'  on dryland ecosystem water balance. J Ecol, 102, 1408-1418.
+#'
 #' @export
-AdjMonthlyBioMass <- function(tr_VegBiom,
-                do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE,
-                fgrass_c3c4ann, growing_limit_C = 4,
-                isNorth = TRUE, MAP_mm = 450, monthly.temp) {
+PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
+  do_adjBiom_by_temp = FALSE, do_adjBiom_by_ppt = FALSE, fgrass_c3c4ann = c(1, 0, 0),
+  growing_limit_C = 4, isNorth = TRUE, MAP_mm = 450,
+  mean_monthly_temp_C = c(rep(growing_limit_C - 1, 2), rep(growing_limit_C + 1, 8),
+    rep(growing_limit_C - 1, 2))) {
 
   #Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
   #Describe conditions for which the default vegetation biomass values are valid
@@ -269,7 +364,7 @@ AdjMonthlyBioMass <- function(tr_VegBiom,
   #Scale monthly values of litter and live biomass amount by column-max; total biomass will be back calculated from 'live biomass amount' / 'percent live'
   itemp <- grepl("Litter", names(tr_VegBiom)) | grepl("Amount.Live", names(tr_VegBiom))
   colmax <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=max)
-#  colmin <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=min)
+  #  colmin <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=min)
   tr_VegBiom[, itemp] <- sweep(tr_VegBiom[, itemp], MARGIN=2, STATS=colmax, FUN="/")
 
   #Pull different vegetation types
@@ -280,57 +375,76 @@ AdjMonthlyBioMass <- function(tr_VegBiom,
 
   #adjust phenology for mean monthly temperatures
   if (do_adjBiom_by_temp) {
-    growing.season <- as.vector(monthly.temp >= growing_limit_C)
+    growing.season <- as.vector(mean_monthly_temp_C >= growing_limit_C)
     n_nonseason <- sum(!growing.season)
     n_season <- sum(growing.season)
 
     if (!isNorth)
-      growing.season <- c(growing.season[7:12], growing.season[1:6]) #Standard growing season needs to be adjusted for southern Hemi
+      # Standard growing season needs to be adjusted for southern Hemisphere
+      growing.season <- c(growing.season[7:12], growing.season[1:6])
 
     #Adjust for timing and duration of non-growing season
     if (n_nonseason > 0) {
       if (n_nonseason < 12) {
-        std.winter.padded <- (c(std.winter[1] - 1, std.winter, std.winter[length(std.winter)] + 1) - 1) %% 12 + 1
+        temp <- c(std.winter[1] - 1, std.winter, std.winter[length(std.winter)] + 1) - 1
+        std.winter.padded <- temp %% 12 + 1
         std.winter.seq <- 0:(length(std.winter.padded) - 1)
         site.winter.seq <- seq(from = 1, to = length(std.winter), length = n_nonseason)
         starts <- calc_starts(!growing.season)
         site.winter.start <- starts[length(starts)] #Calculate first month of winter == last start of non-growing season
         site.winter.months <- (site.winter.start + seq_len(n_nonseason) - 2) %% 12 + 1
 
-        biom_shrubs[site.winter.months,] <- predict_season(biom_std_shrubs, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_C3[site.winter.months,] <- predict_season(biom_std_C3, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_C4[site.winter.months,] <- predict_season(biom_std_C4, std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_annuals[site.winter.months,] <- predict_season(biom_std_annuals, std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_shrubs[site.winter.months,] <- predict_season(biom_std_shrubs,
+          std.winter.padded, std.winter.seq, site.winter.seq)
+        biom_C3[site.winter.months,] <- predict_season(biom_std_C3, std.winter.padded,
+          std.winter.seq, site.winter.seq)
+        biom_C4[site.winter.months,] <- predict_season(biom_std_C4, std.winter.padded,
+          std.winter.seq, site.winter.seq)
+        biom_annuals[site.winter.months,] <- predict_season(biom_std_annuals,
+          std.winter.padded, std.winter.seq, site.winter.seq)
 
       } else { #if winter lasts 12 months
         #Take the mean of the winter months
-        biom_shrubs[] <- matrix(apply(biom_std_shrubs[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_shrubs), byrow=TRUE)
-        biom_C3[] <- matrix(apply(biom_std_C3[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_C3), byrow=TRUE)
-        biom_C4[] <- matrix(apply(biom_std_C4[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_C4), byrow=TRUE)
-        biom_annuals[] <- matrix(apply(biom_std_annuals[std.winter,], 2, mean), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
+        temp <- apply(biom_std_shrubs[std.winter,], 2, mean)
+        biom_shrubs[] <- matrix(temp, nrow = 12, ncol = ncol(biom_shrubs), byrow = TRUE)
+        temp <- apply(biom_std_C3[std.winter,], 2, mean)
+        biom_C3[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C3), byrow = TRUE)
+        temp <- apply(biom_std_C4[std.winter,], 2, mean)
+        biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
+        temp <- apply(biom_std_annuals[std.winter,], 2, mean)
+        biom_annuals[] <- matrix(, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 
     #Adjust for timing and duration of growing season
     if (n_season > 0) {
       if (n_season < 12) {
-        std.growing.padded <- (c(std.growing[1] - 1, std.growing, std.growing[length(std.growing)] + 1) - 1) %% 12 + 1
+        temp <- c(std.growing[1] - 1, std.growing, std.growing[length(std.growing)] + 1) - 1
+        std.growing.padded <- temp %% 12 + 1
         std.growing.seq <- 0:(length(std.growing.padded) - 1)
         site.growing.seq <- seq(from = 1, to = length(std.growing), length = n_season)
         starts <- calc_starts(growing.season)
         site.growing.start <- starts[1] #Calculate first month of growing season == first start of growing season
         site.growing.months <- (site.growing.start + seq_len(n_season) - 2) %% 12 + 1
 
-        biom_shrubs[site.growing.months,] <- predict_season(biom_std_shrubs, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_C3[site.growing.months,] <- predict_season(biom_std_C3, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_C4[site.growing.months,] <- predict_season(biom_std_C4, std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_annuals[site.growing.months,] <- predict_season(biom_std_annuals, std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_shrubs[site.growing.months,] <- predict_season(biom_std_shrubs,
+          std.growing.padded, std.growing.seq, site.growing.seq)
+        biom_C3[site.growing.months,] <- predict_season(biom_std_C3, std.growing.padded,
+          std.growing.seq, site.growing.seq)
+        biom_C4[site.growing.months,] <- predict_season(biom_std_C4, std.growing.padded,
+          std.growing.seq, site.growing.seq)
+        biom_annuals[site.growing.months,] <- predict_season(biom_std_annuals,
+          std.growing.padded, std.growing.seq, site.growing.seq)
 
       } else { #if growing season lasts 12 months
-        biom_shrubs[] <- matrix(apply(biom_std_shrubs[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_shrubs), byrow=TRUE)
-        biom_C3[] <- matrix(apply(biom_std_C3[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_C3), byrow=TRUE)
-        biom_C4[] <- matrix(apply(biom_std_C4[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_C4), byrow=TRUE)
-        biom_annuals[] <- matrix(apply(biom_std_annuals[std.growing,], MARGIN=2, FUN=max), nrow=12, ncol=ncol(biom_annuals), byrow=TRUE)
+        temp <- apply(biom_std_shrubs[std.growing,], 2, max)
+        biom_shrubs[] <- matrix(temp, nrow = 12, ncol = ncol(biom_shrubs), byrow = TRUE)
+        temp <- apply(biom_std_C3[std.growing,], 2, max)
+        biom_C3[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C3), byrow = TRUE)
+        temp <- apply(biom_std_C4[std.growing,], 2, max)
+        biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
+        temp <- apply(biom_std_annuals[std.growing,], 2, max)
+        biom_annuals[] <- matrix(temp, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 
@@ -343,9 +457,7 @@ AdjMonthlyBioMass <- function(tr_VegBiom,
   }
 
   # if (do_adjBiom_by_ppt) then adjust biomass amounts by productivity relationship with MAP
-  temp <- adjBiom_by_ppt(
-    biom_shrubs, biom_C3, biom_C4, biom_annuals,
-    biom_maxs = colmax,
+  temp <- adjBiom_by_ppt(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_maxs = colmax,
     map_mm_shrubs = if (do_adjBiom_by_ppt) MAP_mm else StandardShrub_MAP_mm,
     map_mm_std_shrubs = StandardShrub_MAP_mm,
     map_mm_grasses = if (do_adjBiom_by_ppt) MAP_mm else StandardGrasses_MAP_mm,
@@ -353,14 +465,15 @@ AdjMonthlyBioMass <- function(tr_VegBiom,
     vegcomp_std_shrubs = StandardShrub_VegComposition,
     vegcomp_std_grass = StandardGrasses_VegComposition)
 
-  biom_shrubs <- temp$biom_shrubs
-  biom_C3 <- temp$biom_C3
-  biom_C4 <- temp$biom_C4
-  biom_annuals <- temp$biom_annuals
+  biom_grasses <- temp$biom_C3 * fgrass_c3c4ann[1] + temp$biom_C4 * fgrass_c3c4ann[2] +
+    temp$biom_annuals * fgrass_c3c4ann[3]
+  temp <- dimnames(biom_grasses)[[2]]
+  cn <- sapply(strsplit(temp, split = ".", fixed = TRUE), function(x) paste0(x[-1],
+    collapse = "."))
+  dimnames(biom_grasses)[[2]] <- cn
 
-  biom_grasses <- biom_C3 * fgrass_c3c4ann[1] +
-                  biom_C4 * fgrass_c3c4ann[2] +
-                  biom_annuals * fgrass_c3c4ann[3]
+  biom_shrubs <- temp$biom_shrubs
+  dimnames(biom_shrubs)[[2]] <- cn
 
   list(grass = as.matrix(biom_grasses),
        shrub = as.matrix(biom_shrubs))
@@ -424,7 +537,7 @@ TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
 #'
 #' @param fg A character string. One of the functional groups represented by
 #'  \code{Rsoilwat}
-#' @param
+#' @param use A logical vector.
 update_biomass <- function(fg = c("Grass", "Shrub", "Tree", "Forb"), use,
   prod_input, prod_default) {
 

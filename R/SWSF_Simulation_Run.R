@@ -1066,37 +1066,34 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 					monthly.temp <- SiteClimate_Scenario$meanMonthlyTempC
 					dailyC4vars <- SiteClimate_Scenario$dailyC4vars
 				}
-				#Rsoilwat
-				isNorth <-i_SWRunInformation$Y_WGS84 >= 0
-				use_Annuals_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction")
-				Annuals_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction
-				use_C4_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction")
-				C4_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction
-				use_C3_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction")
-				C3_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction
-				use_Shrubs_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction")
-				Shrubs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction
-				use_Forbs_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionForb_Fraction")
-				Forbs_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionForb_Fraction
-				use_BareGround_Fraction <- any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction")
-				BareGround_Fraction <- i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction
 
-				#TODO: Include forbs or bareground in PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
-				temp <- try(PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996(MAP_mm,
-				  MAT_C, monthly.ppt, monthly.temp, dailyC4vars, isNorth,
-				  opt_sim[["shrub_limit"]], use_Annuals_Fraction, Annuals_Fraction,
-					use_C4_Fraction, C4_Fraction, use_C3_Fraction, C3_Fraction, use_Shrubs_Fraction,
-					Shrubs_Fraction, use_Forbs_Fraction, Forbs_Fraction, use_BareGround_Fraction,
-					BareGround_Fraction), silent=TRUE)
+        isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-				if(inherits(temp, "try-error")){
-					tasks$create <- 0L
-				} else {
-					grass.fraction <- temp$Composition[1]
-					Rsoilwat31::swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
-					grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
-				}
-			}
+        #TODO: Include forbs and bareground in PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction
+        temp <- try(PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction(MAP_mm, MAT_C,
+          mean_monthly_ppt_mm = monthly.ppt, dailyC4vars, isNorth = isNorth,
+          shrub_limit = opt_sim[["shrub_limit"]],
+          fix_annuals = any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"),
+          Annuals_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction,
+          fix_C4grasses = any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"),
+          C4_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionC4_Fraction,
+          fix_C3grasses = any(create_treatments == "PotentialNaturalVegetation_CompositionC3_Fraction"),
+          C3_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction,
+          fix_shrubs = any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"),
+          Shrubs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction,
+          fix_forbs = any(create_treatments == "PotentialNaturalVegetation_CompositionForb_Fraction"),
+          Forbs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionForb_Fraction,
+          fix_BareGround = any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction"),
+          BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction))
+
+        if(inherits(temp, "try-error")){
+          tasks$create <- 0L
+        } else {
+          grass.fraction <- temp$Composition[1]
+          Rsoilwat31::swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
+          grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
+        }
+      }
 
 			if (opt_verbosity[["print.debug"]])
 			  print("Start of biomass adjustments")
@@ -1108,14 +1105,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			  (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
 			  i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
 
-				temp <- AdjMonthlyBioMass(tr_VegBiom = tr_VegetationComposition,
-				  do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
-				  do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
-				  fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
-				  growing_limit_C = opt_sim[["growseason_Tlimit_C"]],
-				  isNorth = isNorth,
-				  MAP_mm = MAP_mm,
-				  monthly.temp = monthly.temp)
+        temp <- PotNatVeg_MonthlyBiomassPhenology_from_Climate(
+          tr_VegBiom = tr_VegetationComposition,
+          do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
+          do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
+          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
+          growing_limit_C = opt_sim[["growseason_Tlimit_C"]],
+          isNorth = isNorth, MAP_mm = MAP_mm, mean_monthly_temp_C = monthly.temp)
 
 				Rsoilwat31::swProd_MonProd_grass(swRunScenariosData[[sc]])[,1:3] <- temp$grass[,1:3]
 				Rsoilwat31::swProd_MonProd_shrub(swRunScenariosData[[sc]])[,1:3] <- temp$shrub[,1:3]
