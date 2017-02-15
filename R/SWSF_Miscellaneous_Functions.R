@@ -1087,3 +1087,30 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
   opt_agg
 }
+
+
+
+init_input_status_tracker <- function() {
+  temp <- c("load_inputs", "calc_size")
+
+  temp <- c("dbW_current", "dbW_scenarios", "sim_years", "coef_evap", "coef_transp",
+    "reg_transp", "climate_normals", "veg_composition", "veg_biomass",
+    "soil_texture", "soil_temperature")
+  matrix(FALSE, nrow = length(temp), ncol = 2, dimnames = list(temp,
+    c("prepared", "checked")))
+}
+
+update_input_status_tracker <- function(ist, row_name, prepared = TRUE, checked = TRUE) {
+  irow <- which(row_name == dimnames(ist)[[1]])
+  if (length(irow) != 1)
+    stop("'update_input_status_tracker': 'row_name' does not exist (uniquely).")
+
+  # Upate status of requested tracker
+  ist[irow, ] <- c(prepared, checked)
+
+  # Set subsequent trackers to FALSE
+  if (irow < dim(ist)[1])
+    ist[(irow + 1):dim(ist)[1], ] <- FALSE
+
+  ist
+}
