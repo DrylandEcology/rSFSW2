@@ -243,14 +243,14 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   sim_time[["index.usedy"]] <- discarddy + seq_len(sim_time[["no.usedy"]])
 
   if (add_st2) {
-    sim_time["sim_time2_North"] <- simTiming_ForEachUsedTimeUnit(sim_time,
+    sim_time["sim_time2_North"] <- list(simTiming_ForEachUsedTimeUnit(sim_time,
       sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS)
+      account_NorthSouth = adjust_NS))
 
     if (adjust_NS) {
-      sim_time["sim_time2_South"] <- simTiming_ForEachUsedTimeUnit(sim_time,
+      sim_time["sim_time2_South"] <- list(simTiming_ForEachUsedTimeUnit(sim_time,
         sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
-        account_NorthSouth = TRUE)
+        account_NorthSouth = TRUE))
 
     } else {
       sim_time["sim_time2_South"] <- sim_time["sim_time2_North"]
@@ -340,7 +340,7 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   temp <- c("Month7th_NSadj_MinTemp_C",
             "LengthFreezeFreeGrowingPeriod_NSadj_Days",
             "DegreeDaysAbove65F_NSadj_DaysC")
-  names(res) <- c(temp, paste0(temp, ".stats::sd"))
+  names(res) <- c(temp, paste0(temp, ".sd"))
 
   res
 }
