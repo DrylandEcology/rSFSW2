@@ -290,6 +290,10 @@ ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername, dbW_digit
 #'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
 #'    precipitation.
+#'
+#' @references Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen.
+#'  2002. A long-term hydrologically based dataset of land surface fluxes and states for
+#'  the conterminous United States. Journal of Climate 15:3237-3251.
 #' @export
 ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cellname, startYear, endYear, dbW_digits) {
   #read data from Maurer et al. 2002
@@ -356,14 +360,17 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   # Get data
   pwd <- getwd()
   get_from_ornl <- TRUE
-  if(file.exists(ftemp)){
+  if (file.exists(ftemp)) {
     dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
     if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
   }
-  if(get_from_ornl){
+  if (get_from_ornl) {
     setwd(dir_data)
     # DaymetR package: https://bitbucket.org/khufkens/daymetr
-    dm_temp <- try(DaymetR::download.daymet(site=cellID, lat=Ydm_WGS84, lon=Xdm_WGS84, start_yr=start_year, end_yr=end_year, internal=TRUE, quiet=TRUE), silent=TRUE)
+    stopifnot(requireNamespace("DaymetR"))
+    dm_temp <- try(DaymetR::download.daymet(site = cellID, lat = Ydm_WGS84,
+      lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
+      quiet = TRUE), silent = TRUE)
   }
 
   # Convert to Rsoilwat format
@@ -489,6 +496,20 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 
 
 #' Extract gridded daily weather from NR Canada for Canadian sites
+#'
+#' @references Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson,
+#'  P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on
+#'  Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of
+#'  Applied Meteorology and Climatology 50:1654-1665.
+#' @references Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar,
+#'  R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of
+#'  Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and
+#'  Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
+#' @references McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar,
+#'  K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized
+#'  Spatial Climate Models for North America. Bulletin of the American Meteorological
+#'  Society 92:1611-1622.
+#'
 #' @return An invisible zero. A list of which each element represents one year of daily
 #'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
@@ -879,6 +900,9 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
 dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
 
+  if (!dir.exists(path))
+    stop("'dw_LookupWeatherFolder': ", path, " does not exist.")
+
   lwf_cond1 <- MoreArgs[["it_use"]]["LookupWeatherFolder"] && !anyNA(MoreArgs[["it_lwf"]])
   lwf_cond2 <- !anyNA(MoreArgs[["ri_lwf"]]) && !any(grepl("GriddedDailyWeatherFrom",
     names(exinfo)[unlist(exinfo)]))
@@ -912,6 +936,10 @@ dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 
 dw_Maurer2002_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
+
+  if (!dir.exists(path))
+    stop("'dw_Maurer2002_NorthAmerica': ", path, " does not exist.")
+
   there <- 0
 
   if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
@@ -937,8 +965,11 @@ dw_Maurer2002_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, si
 
 dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
-  there <- 0
 
+  if (!dir.exists(path))
+    stop("'dw_DayMet_NorthAmerica': ", path, " does not exist.")
+
+  there <- 0
   if (exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica) {
     # Check which of the DayMet weather data are available
     #	- Temperature: 2-meter air temperature in Celsius degrees
@@ -974,6 +1005,9 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 
 dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
+
+  if (!dir.exists(path))
+    stop("'dw_NRCan_10km_Canada': ", path, " does not exist.")
 
   there <- 0
   if (exinfo$GriddedDailyWeatherFromNRCan_10km_Canada &&
@@ -1013,6 +1047,9 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
 
 dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
+
+  if (!dir.exists(path))
+    stop("'dw_NCEPCFSR_Global': ", path, " does not exist.")
 
   there <- 0
   if (exinfo$GriddedDailyWeatherFromNCEPCFSR_Global) {
@@ -1086,4 +1123,21 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, create_tre
   unlink(fnames_in[["fpreprocin"]])
 
   SWRunInformation
+}
+
+
+set_paths_to_dailyweather_datasources <- function(SWSF_prj_meta) {
+
+  dir_dW <- SWSF_prj_meta[["project_paths"]][["dir_ex_weather"]]
+
+  SWSF_prj_meta[["project_paths"]][["dir_maurer2002"]] <- file.path(dir_dW,
+      "Maurer+_2002updated", "DAILY_FORCINGS")
+
+  SWSF_prj_meta[["project_paths"]][["dir_daymet"]] <- file.path(dir_dW,
+    "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
+
+  SWSF_prj_meta[["project_paths"]][["dir.ex.NRCan"]] <- file.path(dir_dW,
+    "NRCan_10km_Canada", "DAILY_GRIDS")
+
+  SWSF_prj_meta
 }
