@@ -4,9 +4,8 @@
 \alias{ExtractClimateChangeScenarios}
 \title{Extract climate scenarios}
 \usage{
-ExtractClimateChangeScenarios(sim_scens, climDB_metas, sim_time,
-  climate.ambient, sim_size, SWRunInformation, sw_input_treatments, fnames_in,
-  project_paths, opt_parallel, verbose = FALSE, print.debug = FALSE)
+ExtractClimateChangeScenarios(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
+  opt_parallel, verbose = FALSE, print.debug = FALSE)
 }
 \description{
 Extract climate scenarios

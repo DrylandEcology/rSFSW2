@@ -574,7 +574,10 @@ move_temporary_to_outputDB <- function(path, dbOutput,
   do_DBCurrent = FALSE, cleanDB = FALSE, deleteTmpSQLFiles = FALSE, resume = TRUE,
   print.debug = FALSE, verbose = FALSE) {
 
-  t1 <- Sys.time()
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
   #concatenate file keeps track of sql files inserted into data
   concatFile <- "sqlFilesInserted.txt"
@@ -793,14 +796,13 @@ move_temporary_to_outputDB <- function(path, dbOutput,
       }
     }
 
-    if (verbose)
-      print(paste("Output DB complete in :",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-
     DBI::dbDisconnect(con)
     if (do_DBCurrent) DBI::dbDisconnect(con2)
   }
 
+  if (verbose)
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   invisible(TRUE)
 }
@@ -867,13 +869,26 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 #' Check whether dbOutput contains a complete set of output/simulation results
 #' @export
 check_outputDB_completeness <- function(dbOutput, dbOutput_current = NULL,
-  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir_out = getwd()) {
+  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel, dir_out = getwd(),
+  verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
+
+  #--- SET UP PARALLELIZATION
+  opt_parallel <- setup_SWSF_cluster(opt_parallel,
+    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]])
+  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    add = TRUE)
 
   Tables <- dbOutput_ListOutputTables(dbname = dbOutput)
 
   missing_Pids <- missing_Pids_current <- NULL
 
-  if (opt_parallel[["do_parallel"]]) {
+  if (opt_parallel[["has_parallel"]]) {
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
@@ -959,6 +974,10 @@ check_outputDB_completeness <- function(dbOutput, dbOutput_current = NULL,
      saveRDS(missing_Pids_current, file = ftemp)
    }
   }
+
+  if (verbose)
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
     missing_runIDs = missing_runIDs))

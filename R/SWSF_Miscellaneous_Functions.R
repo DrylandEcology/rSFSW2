@@ -1090,26 +1090,49 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
 
 
-init_input_status_tracker <- function() {
-  temp <- c("load_inputs", "calc_size")
+init_intracker <- function() {
+  temp <- c("load_inputs", "calc_size", "spatial_setup", "dbWork", "dbW_paths",
+    "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",
+    "climnorm_data", "req_soillayers", "calc_bsevap", "table_lookup")
 
-  temp <- c("dbW_current", "dbW_scenarios", "sim_years", "coef_evap", "coef_transp",
-    "reg_transp", "climate_normals", "veg_composition", "veg_biomass",
-    "soil_texture", "soil_temperature")
-  matrix(FALSE, nrow = length(temp), ncol = 2, dimnames = list(temp,
-    c("prepared", "checked")))
+#  temp <- c("sim_years", "coef_evap", "coef_transp",
+#    "reg_transp", "veg_composition", "veg_biomass",
+#    "soil_temperature")
+
+  # NA, don't prepare/check
+  # TRUE, has been prepared/checked successfully
+  # FALSE, needs yet to be prepared/checked
+  as.data.frame(matrix(FALSE, nrow = length(temp), ncol = 4, dimnames = list(temp,
+    c("prepared", "prep_time", "checked", "check_time"))))
 }
 
-update_input_status_tracker <- function(ist, row_name, prepared = TRUE, checked = TRUE) {
-  irow <- which(row_name == dimnames(ist)[[1]])
+
+todo_intracker <- function(SWSF_prj_meta, tracker, status) {
+  x <- SWSF_prj_meta[["input_status"]][tracker, status]
+
+  !is.na(x) && identical(x, FALSE)
+}
+
+
+update_intracker <- function(ist, tracker, prepared = NULL, checked = NULL,
+  clean_subsequent = FALSE) {
+
+  irow <- which(tracker == dimnames(ist)[[1]])
   if (length(irow) != 1)
-    stop("'update_input_status_tracker': 'row_name' does not exist (uniquely).")
+    stop("'update_intracker': 'tracker' does not exist (uniquely).")
 
   # Upate status of requested tracker
-  ist[irow, ] <- c(prepared, checked)
+  if (!is.null(prepared)) {
+    ist[irow, "prepared"] <- prepared
+    ist[irow, "prep_time"] <- Sys.time()
+  }
+  if (!is.null(checked)) {
+    ist[irow, "checked"] <- checked
+    ist[irow, "check_time"] <- Sys.time()
+  }
 
   # Set subsequent trackers to FALSE
-  if (irow < dim(ist)[1])
+  if (clean_subsequent && irow < dim(ist)[1])
     ist[(irow + 1):dim(ist)[1], ] <- FALSE
 
   ist

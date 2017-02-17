@@ -17,6 +17,7 @@
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
     temp <- "SWSF_default_project" # "~/YOURPROJECT"
+
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
     } else {
@@ -60,10 +61,7 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography"),
-
-  # Identifying tag of folder names for site weather data if 'LookupWeatherFolder'
-  tag_WeatherFolder = "weath"
+  dir_ex_dem = file.path(dir_ex, "Topography")
 )
 
 
@@ -94,7 +92,7 @@ fnames_in <- list(
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
-  fpreprocin = "SWRuns_InputAll_PreProcessed.RData",
+  fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
   fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3"),
@@ -192,6 +190,8 @@ opt_sim <- list(
   use_dbW_future = TRUE,
   # Number of decimal places to which weather data is rounded
   dbW_digits = 2,
+  # Identifying tag of folder names for site weather data if 'LookupWeatherFolder'
+  tag_WeatherFolder = "weath",
 
   # Approach if there is no soil texture information for the deepest layer(s)
   #   - [TRUE] adjust soil depth
@@ -206,6 +206,10 @@ opt_sim <- list(
   #   profile layer width until a stable soil temperature solution is found or total
   #   failure is determined
   increment_soiltemperature_deltaX_cm = 5,
+
+  # Maximal soil depth for which bare-soil evaporation coefficients are calculated
+  #   if 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture' is TRUE
+  depth_max_bs_evap_cm = 15,
 
   # Shift monthly vegetation/production values in prod.in file by six months
   #   if TRUE and latitude < 0 (i.e., southern hemisphere)

@@ -4,10 +4,8 @@
 \alias{ExtractData_MeanMonthlyClimate}
 \title{Extract mean monthly climate data: cloud cover, relative humidity, and wind speed}
 \usage{
-ExtractData_MeanMonthlyClimate(exinfo, SWRunInformation, sim_size,
-  sw_input_cloud_use, sw_input_cloud, how_determine_sources, sim_space,
-  project_paths, fnames_in, opt_chunks, resume, verbose, prepd_CFSR, sim_time,
-  opt_parallel)
+ExtractData_MeanMonthlyClimate(exinfo, SWSF_prj_meta, SWSF_prj_inputs,
+  opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE)
 }
 \description{
 Extract mean monthly climate data: cloud cover, relative humidity, and wind speed

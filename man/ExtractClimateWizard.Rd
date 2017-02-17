@@ -4,9 +4,8 @@
 \alias{ExtractClimateWizard}
 \title{Extract climate scenarios from downloaded ClimateWizard.org data}
 \usage{
-ExtractClimateWizard(sim_scens, SWRunInformation, fnames_in,
-  sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
-  sw_input_climscen_values, dir_ex_fut, sim_size, verbose = FALSE)
+ExtractClimateWizard(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
+  verbose = FALSE)
 }
 \description{
 Extract climate scenarios from downloaded ClimateWizard.org data

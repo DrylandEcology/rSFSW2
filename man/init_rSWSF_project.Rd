@@ -4,7 +4,7 @@
 \alias{init_rSWSF_project}
 \title{Initialize a rSWSF project (setup description file)}
 \usage{
-init_rSWSF_project(SWSF_prj_meta)
+init_rSWSF_project(SWSF_prj_meta, fmeta, verbose = TRUE)
 }
 \arguments{
 \item{SWSF_prj_meta}{A list or environment as generated from a file comparable to

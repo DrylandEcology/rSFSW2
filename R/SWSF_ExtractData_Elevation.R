@@ -48,10 +48,12 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fnames_in,
   resume, verbose) {
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
-  if (verbose)
-    print(paste("Started 'ExtractElevation_NED_USA' at", Sys.time()))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NEDUSA1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -135,7 +137,8 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractElevation_NED_USA' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -145,8 +148,10 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
 do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem,
   fnames_in, resume, verbose) {
 
-  if (verbose)
-    print(paste("Started 'ExtractElevation_HWSD_Global' at", Sys.time()))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
@@ -229,7 +234,8 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractElevation_HWSD_Global' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -261,26 +267,33 @@ update_Elevation_sources <- function(MMC, sim_size, fnames_in) {
 
 #' Extract elevation data
 #' @export
-ExtractData_Elevation <- function(exinfo, SWRunInformation, sim_size,
-  how_determine_sources, sim_space, dir_ex_dem, fnames_in, resume, verbose) {
+ExtractData_Elevation <- function(exinfo, SWSF_prj_meta, SWSF_prj_inputs, resume = FALSE,
+  verbose = FALSE) {
 
-  MMC <- prepare_ExtractData_Elevation(SWRunInformation, sim_size, how_determine_sources,
-    sim_space[["scorp"]])
+  MMC <- prepare_ExtractData_Elevation(SWSF_prj_inputs[["SWRunInformation"]],
+    sim_size = SWSF_prj_meta[["sim_size"]],
+    how_determine_sources = SWSF_prj_meta[["opt_input"]][["how_determine_sources"]],
+    SWSF_prj_meta[["sim_space"]][["scorp"]])
 
   if (exinfo$ExtractElevation_NED_USA) {
-    MMC <- do_ExtractElevation_NED_USA(MMC, sim_size, sim_space, dir_ex_dem, fnames_in,
-      resume, verbose = verbose)
+    MMC <- do_ExtractElevation_NED_USA(MMC, sim_size = SWSF_prj_meta[["sim_size"]],
+      sim_space = SWSF_prj_meta[["sim_space"]],
+      dir_ex_dem = SWSF_prj_meta[["project_paths"]][["dir_ex_dem"]],
+      fnames_in = SWSF_prj_meta[["fnames_in"]],
+      resume, verbose)
   }
 
   if (exinfo$ExtractElevation_HWSD_Global) {
-    MMC <- do_ExtractElevation_HWSD_Global(MMC, sim_size, sim_space, dir_ex_dem,
-      fnames_in, resume, verbose = verbose)
+    MMC <- do_ExtractElevation_HWSD_Global(MMC, sim_size = SWSF_prj_meta[["sim_size"]],
+      sim_space = SWSF_prj_meta[["sim_space"]],
+      dir_ex_dem = SWSF_prj_meta[["project_paths"]][["dir_ex_dem"]],
+      fnames_in = SWSF_prj_meta[["fnames_in"]], resume, verbose)
   }
 
-  # returns 'SWRunInformation'
-  temp <- update_Elevation_sources(MMC, sim_size, fnames_in)
+  SWSF_prj_inputs[["SWRunInformation"]] <- update_Elevation_sources(MMC,
+    sim_size = SWSF_prj_meta[["sim_size"]], fnames_in = SWSF_prj_meta[["fnames_in"]])
 
-  list(SWRunInformation = temp)
+  SWSF_prj_inputs
 }
 
 #----------------------------------------------------------------------------------------#

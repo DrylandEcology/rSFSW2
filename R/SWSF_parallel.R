@@ -152,48 +152,56 @@ mpi_work <- function(verbose = FALSE) {
 
 #' Clean the parallel cluster used for a rSWSF simulation project
 #' @export
-clean_SWSF_cluster <- function(parallel_backend = c("mpi", "cluster"), cl = NULL,
-  verbose = FALSE) {
+clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
 
-  parallel_backend <- match.arg(parallel_backend)
-  if (verbose) {
-    print(paste0("SWSF: started to clean parallel ", parallel_backend,
-      "-workers at ", Sys.time()))
+  if (opt_parallel[["has_parallel"]]) {
+    if (verbose) {
+      t1 <- Sys.time()
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    }
+
+    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      #clean up mpi slaves
+
+      #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
+      # Rmpi::mpi.close.Rslaves(dellog = FALSE)
+
+      Rmpi::mpi.exit()
+    }
+
+    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
+      !is.null(opt_parallel[["cl"]])) {
+      #clean up parallel cluster
+      parallel::stopCluster(opt_parallel[["cl"]])
+    }
+
+    opt_parallel[["workersN"]] <- 1
+    opt_parallel[["cl"]] <- NULL
+    unlink(opt_parallel[["lockfile"]], recursive = TRUE)
+    opt_parallel[["lockfile"]] <- NULL
+    opt_parallel[["has_parallel"]] <- FALSE
+
+    if (verbose)
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
   }
 
-  if (identical(parallel_backend, "mpi")) {
-    #clean up mpi slaves
-
-    #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
-    # Rmpi::mpi.close.Rslaves(dellog = FALSE)
-
-    Rmpi::mpi.exit()
-  }
-
-  if (identical(parallel_backend, "cluster") && !is.null(cl)) {
-    #clean up parallel cluster
-    parallel::stopCluster(cl)
-  }
-
-  if (verbose) {
-    print(paste0("SWSF: ", parallel_backend,
-      "-workers successfully closed down at ", Sys.time()))
-  }
-
-  invisible(TRUE)
+  opt_parallel
 }
 
 
 #' Set-up a parallel cluster to be used for a rSWSF simulation project
 #' @export
-setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
+setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
   opt_parallel <- c(opt_parallel, list(workersN = 1, worker_tag = ".worker_id",
-    do_parallel = FALSE, cl = NULL, lockfile = NULL))
+    has_parallel = FALSE, cl = NULL, lockfile = NULL))
 
   if (opt_parallel[["parallel_runs"]]) {
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF prepares parallelization: started at", t1 <- Sys.time()))
+    if (verbose) {
+      t1 <- Sys.time()
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    }
 
     opt_parallel[["lockfile"]] <- tempfile(pattern = "swsflock",
       tmpdir = normalizePath(tempdir()))
@@ -226,7 +234,7 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
       opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-        outfile = if (opt_verbosity[["verbose"]]) "" else {
+        outfile = if (verbose) "" else {
         file.path(dir_out, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
 
       # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
@@ -245,12 +253,12 @@ setup_SWSF_cluster <- function(opt_parallel, opt_verbosity, dir_out) {
         opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
       }
 
-    opt_parallel[["do_parallel"]] <- TRUE
+    opt_parallel[["has_parallel"]] <- TRUE
 
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF prepares parallelization: initialization of",
-        opt_parallel[["workersN"]], "workers ended after",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+    if (verbose)
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
+        opt_parallel[["workersN"]], " workers"))
   }
 
   opt_parallel

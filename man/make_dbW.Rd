@@ -4,9 +4,8 @@
 \alias{make_dbW}
 \title{Create and populate a 'Rsoilwat31' daily weather SQLite database}
 \usage{
-make_dbW(fdbWeather, sim_size, SWRunInformation, sim_time, sim_scens,
-  project_paths, opt_chunks, resume, deleteTmpSQLFiles, dbW_compression_type,
-  tag_WeatherFolder, opt_parallel, prepd_CFSR = NULL, verbose = FALSE)
+make_dbW(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks, opt_behave,
+  deleteTmpSQLFiles, verbose = FALSE)
 }
 \description{
 Create and populate a 'Rsoilwat31' daily weather SQLite database

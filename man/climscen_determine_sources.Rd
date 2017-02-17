@@ -4,9 +4,7 @@
 \alias{climscen_determine_sources}
 \title{Determine climate scenario data sources}
 \usage{
-climscen_determine_sources(climDB_metas,
-  how_determine_sources = c("SWRunInformation", "order"), opt_climsc_extr,
-  sim_size, SWRunInformation, fnames_in)
+climscen_determine_sources(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs)
 }
 \description{
 Allow for multiple data sources among sites but not multiple sources per site

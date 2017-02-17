@@ -4,9 +4,9 @@
 \alias{simulate_SOILWAT2_experiment}
 \title{Carry out an entire rSWSF simulation experiment}
 \usage{
-simulate_SOILWAT2_experiment(actions, opt_behave, opt_prepare, opt_sim,
-  req_scens, req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space,
-  opt_parallel, opt_chunks, opt_job_time, opt_verbosity)
+simulate_SOILWAT2_experiment(actions, opt_behave, opt_sim, req_scens, req_out,
+  opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
+  opt_chunks, opt_job_time, opt_verbosity)
 }
 \description{
 Carry out an entire rSWSF simulation experiment

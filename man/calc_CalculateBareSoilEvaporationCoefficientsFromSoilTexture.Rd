@@ -4,10 +4,18 @@
 \alias{calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture}
 \title{Calculate potential bare soil evaporation coefficients per soil layer}
 \usage{
-calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(runIDs_adjust,
-  sw_input_soils_use, sw_input_soils, sw_input_soillayers, fnames_in,
-  resume = TRUE, verbose = FALSE)
+calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(SWSF_prj_meta,
+  SWSF_prj_inputs, runIDs_adjust, resume = TRUE, verbose = FALSE)
 }
 \description{
-Calculate potential bare soil evaporation coefficients per soil layer
+Soil texture influence based on re-analysis of data from Wythers et al. 1999.
+Default of depth_max_bs_evap = 15 cm from Torres et al. 2010.
+}
+\references{
+Torres EA, Calera A (2010) Bare soil evaporation under high evaporation
+ demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-
+ Journal Des Sciences Hydrologiques, 55, 303-315.
+
+Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under
+ Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 }

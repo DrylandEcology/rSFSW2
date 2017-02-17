@@ -4,8 +4,7 @@
 \alias{clean_SWSF_cluster}
 \title{Clean the parallel cluster used for a rSWSF simulation project}
 \usage{
-clean_SWSF_cluster(parallel_backend = c("mpi", "cluster"), cl = NULL,
-  verbose = FALSE)
+clean_SWSF_cluster(opt_parallel, verbose = FALSE)
 }
 \description{
 Clean the parallel cluster used for a rSWSF simulation project

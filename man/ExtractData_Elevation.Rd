@@ -4,8 +4,8 @@
 \alias{ExtractData_Elevation}
 \title{Extract elevation data}
 \usage{
-ExtractData_Elevation(exinfo, SWRunInformation, sim_size, how_determine_sources,
-  sim_space, dir_ex_dem, fnames_in, resume, verbose)
+ExtractData_Elevation(exinfo, SWSF_prj_meta, SWSF_prj_inputs, resume = FALSE,
+  verbose = FALSE)
 }
 \description{
 Extract elevation data

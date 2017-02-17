@@ -4,9 +4,8 @@
 \alias{ExtractData_Soils}
 \title{Extract soil characteristics}
 \usage{
-ExtractData_Soils(exinfo, SWRunInformation, sim_size, sw_input_soillayers,
-  sw_input_soils_use, sw_input_soils, how_determine_sources, sim_space,
-  dir_ex_soil, fnames_in, resume, verbose, opt_parallel)
+ExtractData_Soils(exinfo, SWSF_prj_meta, SWSF_prj_inputs, opt_parallel, resume,
+  verbose = FALSE)
 }
 \description{
 Extract soil characteristics

@@ -6,7 +6,7 @@
 \usage{
 check_outputDB_completeness(dbOutput, dbOutput_current = NULL,
   update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel,
-  dir_out = getwd())
+  dir_out = getwd(), verbose = FALSE)
 }
 \description{
 Check whether dbOutput contains a complete set of output/simulation results

@@ -22,9 +22,14 @@ if (getRversion() >= "2.15.1")
 #'
 #' @export
 setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste("A new rSWSF project is prepared for:", sQuote(basename(dir_prj))))
+  }
+
   if (verbose)
-    print(paste("A new rSWSF project is prepared for:", sQuote(basename(dir_prj)),
-      "and started at", Sys.time()))
 
   dir_safe_create(dir_prj)
 
@@ -40,8 +45,16 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
     if (!dir.exists(dtemp))
        dir_safe_create(dtemp)
 
-    writeLines(memDecompress(di[["data"]], type = "gzip", asChar = TRUE),
-      con = file.path(dtemp, di[["fname"]]))
+    ftemp <- file.path(dtemp, di[["fname"]])
+
+    if (file.exists(ftemp)) {
+      print(paste("File", shQuote(ftemp), "already exists in project; it is not",
+        "replaced by the default."))
+
+    } else {
+      writeLines(memDecompress(di[["data"]], type = "gzip", asChar = TRUE),
+        con = file.path(dtemp, di[["fname"]]))
+    }
   }
 
   if (verbose)
@@ -57,8 +70,11 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
       "the installation of the package 'rSWSF' may be faulty.")
 
   for (f in ftemps)
-    file.copy(from = f, to = file.path(dir_prj, basename(f)))
+    file.copy(from = f, to = file.path(dir_prj, basename(f)), overwrite = FALSE)
 
+  if (verbose)
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   invisible(dir_prj)
 }
@@ -71,17 +87,28 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 #' @return An updated version of \code{SWSF_prj_meta}
 #'
 #' @export
-init_rSWSF_project <- function(SWSF_prj_meta) {
+init_rSWSF_project <- function(SWSF_prj_meta, fmeta, verbose = TRUE) {
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
+
+  #--- Delete objects from 'SWSF_prj_meta' which were used to create initial input
+  try(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj", "endyr",
+    "scorp", "startyr", "temp"), envir = SWSF_prj_meta), silent = TRUE)
+
   #--- Update project paths and file names
   dir_safe_create(SWSF_prj_meta[["project_paths"]])
+
+  SWSF_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
   SWSF_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(SWSF_prj_meta[["project_paths"]],
     SWSF_prj_meta[["fnames_in"]])
 
   init_timer(SWSF_prj_meta[["fnames_out"]][["timerfile"]])
 
   #--- Update simulation time
-  SWSF_prj_meta[["sim_time"]] <- setup_simulation_time(sim_time, add_st2 = TRUE,
-    adjust_NS = SWSF_prj_meta[["opt_agg"]][["adjust_NorthSouth"]])
+  SWSF_prj_meta[["sim_time"]] <- setup_simulation_time(SWSF_prj_meta[["sim_time"]],
+    add_st2 = TRUE, adjust_NS = SWSF_prj_meta[["opt_agg"]][["adjust_NorthSouth"]])
 
   #--- Determine scenario names
   SWSF_prj_meta[["sim_scens"]] <- setup_scenarios(SWSF_prj_meta[["req_scens"]],
@@ -94,333 +121,352 @@ init_rSWSF_project <- function(SWSF_prj_meta) {
   SWSF_prj_meta[["exinfo"]] <- convert_to_todo_list(SWSF_prj_meta[["opt_input"]][["req_data"]])
 
   #--- Matrix to track progress with input preparations
-  temp <- c("dbW_current", "dbW_scenarios", "sim_years", "coef_evap", "coef_transp",
-    "reg_transp", "climate_normals", "veg_composition", "veg_biomass",
-    "soil_texture", "soil_temperature")
-  SWSF_prj_meta[["input_status"]] <- matrix(FALSE, nrow = length(temp), ncol = 2,
-    dimnames = list(temp, c("prepared", "checked")))
+  SWSF_prj_meta[["input_status"]] <- init_intracker()
+
+  if (verbose)
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   SWSF_prj_meta
 }
 
 
 
-
 #' Populate rSWSF project with input data
 #' @export
-populate_rSWSF_project_with_data <- function(SWSF_prj_meta, fmeta) {
-  stop("not implemented yet")
-  saveRDS(SWSF_prj_meta, file = fmeta)
+populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_parallel,
+  opt_chunks, opt_out_run, opt_verbosity) {
 
-
-  #------------------------DAILY WEATHER
-  if (SWSF_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
-    "dailyweather_source" %in% colnames(SWRunInformation)) {
-
-    dw_source <- factor(SWRunInformation$dailyweather_source[sim_size[["runIDs_sites"]]],
-      levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
-    do_weather_source <- anyNA(dw_source)
-
-  } else {
-    dw_source <- factor(rep(NA, sim_size[["runsN_sites"]]),
-      levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
-    do_weather_source <- TRUE
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
   }
-
-  weather.digits <- 2
-
-
-  if (prj_todos[["GriddedDailyWeatherFromMaurer2002_NorthAmerica"]]) {
-    #extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
-    #Citation: Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen. 2002. A long-term hydrologically based dataset of land surface fluxes and states for the conterminous United States. Journal of Climate 15:3237-3251.
-
-    project_paths[["dir_maurer2002"]] <- file.path(project_paths[["dir_ex_weather"]],
-      "Maurer+_2002updated", "DAILY_FORCINGS")
-    stopifnot(file.exists(project_paths[["dir_maurer2002"]]))
-
-  } else {
-    project_paths[["dir_maurer2002"]] <- NA
-  }
-
-  if (prj_todos[["GriddedDailyWeatherFromDayMet_NorthAmerica"]]) {
-    # https://daymet.ornl.gov/
-    #extract daily weather information for the grid cell coded by latitude/longitude for each simulation run
-    #Citation
-    #	- article: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of daily meteorological variables over large regions of complex terrain. Journal of Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
-    #	- dataset v2: Thornton, P.E., M.M. Thornton, B.W. Mayer, N. Wilhelmi, Y. Wei, R. Devarakonda, and R.B. Cook. 2014. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 2. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1219
-    # - dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S. Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD, YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD, E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
-
-  #  project_paths[["dir_daymet"]] <- file.path(project_paths[["dir_ex_weather"]],
-  #    "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv2_NorthAmerica")
-    project_paths[["dir_daymet"]] <- file.path(project_paths[["dir_ex_weather"]],
-      "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
-    if (!file.exists(project_paths[["dir_daymet"]]))
-      stop("Directory for external dataset 'DayMet' does not exist:",
-        shQuote(project_paths[["dir_daymet"]]))
-    stopifnot(requireNamespace("DaymetR")) #https://github.com/khufkens/daymetr
-
-  } else {
-    project_paths[["dir_daymet"]] <- NULL
-  }
-
-  if (prj_todos[["GriddedDailyWeatherFromNRCan_10km_Canada"]] &&
-    prj_todos[["actions"]]["prep_dbW"]) {
-    #Citations:
-    #	- Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson, P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of Applied Meteorology and Climatology 50:1654-1665.
-    #	- Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar, R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
-    #	- McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar, K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized Spatial Climate Models for North America. Bulletin of the American Meteorological Society 92:1611-1622.
-    project_paths[["dir.ex.NRCan"]] <- file.path(project_paths[["dir_ex_weather"]],
-      "NRCan_10km_Canada", "DAILY_GRIDS")
-    stopifnot(file.exists(project_paths[["dir.ex.NRCan"]]), requireNamespace("raster"),
-      requireNamespace("sp"), requireNamespace("rgdal"))
-
-  } else {
-    project_paths[["dir.ex.NRCan"]] <- NULL
-  }
+  on.exit({if (opt_verbosity[["verbose"]]) {
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
+      print(SWSF_prj_meta[["input_status"]])
+    }}, add = TRUE)
 
 
+  #--- Import data
+  if (!exists("SWSF_prj_inputs") || is.null(SWSF_prj_inputs) ||
+    todo_intracker(SWSF_prj_meta, "load_inputs", "prepared")) {
 
-  #------------------------CHECK THAT DAILY WEATHER DATA IS AVAILABLE
-  if (do_weather_source) {
-    #--- Determine sources of daily weather
-    SWRunInformation <- dw_determine_sources(dw_source, SWSF_prj_meta[["exinfo"]],
-      SWSF_prj_meta[["opt_input"]][["dw_source_priority"]], create_treatments, sim_size, SWRunInformation,
-      sw_input_treatments_use, sw_input_treatments, sw_input_experimentals_use,
-      sw_input_experimentals, sim_time, fnames_in, project_paths,
+    SWSF_prj_inputs <- process_inputs(SWSF_prj_meta[["project_paths"]],
+      SWSF_prj_meta[["fnames_in"]], use_preprocin = opt_behave[["use_preprocin"]],
       verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "load_inputs", prepared = TRUE,
+      checked = !SWSF_prj_inputs[["do_check_include"]],
+      clean_subsequent = SWSF_prj_inputs[["do_check_include"]])
   }
 
-  #---------------------------------------------------------------------------------------#
-  #------------------------SET UP PARALLELIZATION
-  #used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
 
-  opt_parallel <- setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out = project_paths[["dir_prj"]])
+  if (all(stats::na.exclude(SWSF_prj_meta[["input_status"]][, "prepared"])) &&
+    exists("SWSF_prj_inputs")) {
+    # Return if all is prepared (from a previous run) and input object exists and haven't
+    # been changed since last time ('do_check_include' is FALSE)
 
-  if (!identical(opt_parallel[["parallel_backend"]], "mpi")) {
-    # Only enforce wall-time on MPI systems
-    opt_job_time[["wall_time_s"]] <- Inf
+    return(list(SWSF_prj_meta = SWSF_prj_meta, SWSF_prj_inputs = SWSF_prj_inputs))
   }
 
-  #------------------------FUNCTIONS FOR NCEP/CFSR DATA
-  if (prj_todos[["GriddedDailyWeatherFromNCEPCFSR_Global"]] ||
-    prj_todos[["ExtractSkyDataFromNCEPCFSR_Global"]]) {
-
-    writeLines(c("'NCEPCFSR' extractions: make sure the following conditions are met:",
-      " 	1) C code for 'cfsr_convert' is located in directory 'dir.cfsr.code'",
-      "	2) Compiled 'wgrib2' executable is located in directory 'dir.cfsr.code' or '/opt/local/bin/' & have it located in the same directory as cfsr_convert.  Instructions for how to compile 'wgrib2' can be found in the 'cfsr_convert.c'. The code of wgrib2 is available from http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
-      "	3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'.  Info about the gribfiles is in 'cfsr_convert.c'"))
-
-    #daily data (http://rda.ucar.edu/datasets/ds093.1/): ds093.1 NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010, 0.313-deg: 6-hourly
-    #- maximum temperature: 2m above ground (Kelvin): 6-hour period
-    #	-> tmax.gdas.yyyymm.grb2 --> max of 4 values per day
-    #- minimum temperature: 2m above ground (Kelvin): 6-hour period
-    #	-> tmin.gdas.yyyymm.grb2 --> max of 4 values per day
-    #- precipitation rate: ground or water surface (kg m-2 s-1): 6-hour average
-    #	-> prate.gdas.yyyymm.grb2 --> sum of 4 values per day which are converted to cm/6-hour
+  # From here on: objects 'SWSF_prj_meta' and 'SWSF_prj_inputs' will be manipulated, i.e.,
+  #   save them to disk upon exiting function (by error to save intermediate state) or
+  #   by final 'return'
+  on.exit(saveRDS(SWSF_prj_meta, file = SWSF_prj_meta[["fnames_in"]][["fmeta"]]),
+    add = TRUE)
+  on.exit(saveRDS(SWSF_prj_inputs, file = SWSF_prj_meta[["fnames_in"]][["fpreprocin"]]),
+    add = TRUE)
 
 
-    #monthly data (http://rda.ucar.edu/datasets/ds093.2/): ds093.2 - NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December 2010, 0.313-deg: monthly mean (4 per day) of forecasts of 6-hour average
-    #- relative humidity (%): entire atmosphere --> 2m above ground
-    #	-> [0.5-deg] pgbh06.gdas.R_H.2m.grb2 --> means for Jan-Dec
-    #- wind (m s-1): u- and v-component at 10m above ground
-    #	-> flxf06.gdas.WND.10m.grb2 (u- and v-component) --> means for Jan-Dec
-    #- total cloud cover (%): entire atmosphere as a single layer
-    #	-> flxf06.gdas.T_CDC.EATM.grb2 --> means for Jan-Dec
+  #--- Determine size of simulation runs
+  if (todo_intracker(SWSF_prj_meta, "calc_size", "prepared")) {
+    SWSF_prj_meta[["sim_size"]] <- determine_simulation_size(
+      SWSF_prj_inputs[["SWRunInformation"]], SWSF_prj_inputs[["include_YN"]],
+      SWSF_prj_inputs[["sw_input_experimentals"]], SWSF_prj_meta[["sim_scens"]])
 
-
-    temp <- file.path(project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
-    stopifnot(file.exists(temp))
-
-    prepd_CFSR <- prepare_NCEPCFSR_extraction(project_paths[["dir_in"]], temp)
-    stopifnot(!inherits(prepd_CFSR, "try-error"))
-  } else {
-    prepd_CFSR <- NULL
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "calc_size", prepared = TRUE, clean_subsequent = TRUE)
   }
 
-  #----------------------------------------------------------------------------------------#
-  #------------ORGANIZE DATABASES FOR DAILY WEATHER AND FOR SIMULATION OUTPUT
+
+  #--- Spatial setup of simulations
+  if (todo_intracker(SWSF_prj_meta, "spatial_setup", "prepared")) {
+    use_sim_spatial <- actions[["check_inputs"]] ||
+      (todo_intracker(SWSF_prj_meta, "soil_data", "prepared") &&
+        (SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
+        SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]])) ||
+      (todo_intracker(SWSF_prj_meta, "elev_data", "prepared") &&
+        (SWSF_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
+        SWSF_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]])) ||
+      (todo_intracker(SWSF_prj_meta, "climnorm_data", "prepared") &&
+        (SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
+        SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]))
+
+    SWSF_prj_meta[["sim_space"]] <- setup_spatial_simulation(SWSF_prj_inputs[["SWRunInformation"]],
+      SWSF_prj_meta[["sim_space"]], SWSF_prj_meta[["sim_size"]],
+      SWSF_prj_meta[["fnames_in"]][["fsimraster"]], use_sim_spatial)
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "spatial_setup", prepared = TRUE, clean_subsequent = TRUE)
+  }
+
+
+  #--- Setup/connect to dbWork
+  if (todo_intracker(SWSF_prj_meta, "dbWork", "prepared")) {
+    temp <- setup_dbWork(path = SWSF_prj_meta[["project_paths"]][["dir_out"]],
+      sim_size = SWSF_prj_meta[["sim_size"]], include_YN = SWSF_prj_inputs[["include_YN"]],
+      resume = opt_behave[["resume"]])
+
+    if (!temp)
+      stop("Work database failed to setup or an existing one is from a different",
+        "simulation design")
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "dbWork", prepared = TRUE)
+  }
+
+
+  #------ DAILY WEATHER
+  if (todo_intracker(SWSF_prj_meta, "dbW_paths", "prepared")) {
+    SWSF_prj_meta <- set_paths_to_dailyweather_datasources(SWSF_prj_meta)
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "dbW_paths", prepared = TRUE)
+  }
+
+
+  #--- Determine sources of daily weather
+  if (todo_intracker(SWSF_prj_meta, "dbW_sources", "prepared")) {
+
+    if (SWSF_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
+      "dailyweather_source" %in% colnames(SWSF_prj_inputs[["SWRunInformation"]])) {
+
+      dw_source <- factor(SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "dailyweather_source"],
+        levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
+      do_weather_source <- anyNA(dw_source)
+
+    } else {
+      dw_source <- factor(rep(NA, SWSF_prj_meta[["sim_size"]][["runsN_sites"]]),
+        levels = SWSF_prj_meta[["opt_input"]][["dw_source_priority"]])
+      do_weather_source <- TRUE
+    }
+
+    if (do_weather_source) {
+      SWSF_prj_inputs[["SWRunInformation"]] <- dw_determine_sources(dw_source,
+        SWSF_prj_meta[["exinfo"]], SWSF_prj_meta[["opt_input"]][["dw_source_priority"]],
+        SWSF_prj_inputs, SWSF_prj_inputs[["SWRunInformation"]],
+        SWSF_prj_meta[["sim_size"]], SWSF_prj_meta[["sim_time"]], SWSF_prj_meta[["fnames_in"]],
+        SWSF_prj_meta[["project_paths"]], verbose = opt_verbosity[["verbose"]])
+
+        SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+          tracker = "load_inputs", prepared = TRUE, checked = FALSE)
+    }
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "dbW_sources", prepared = TRUE, clean_subsequent = TRUE)
+  }
+
 
   #--- Create weather database and populate with weather for current conditions
-  if (prj_todos[["actions"]]["prep_dbW"]) {
-    make_dbW(fnames_in[["fdbWeather"]], sim_size, SWRunInformation, sim_time,
-      sim_scens, project_paths, opt_chunks, opt_behave[["resume"]],
-      opt_out[["deleteTmpSQLFiles"]], SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      tag_WeatherFolder = project_paths[["tag_WeatherFolder"]], opt_parallel,
-      dbW_digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
-      prepd_CFSR, verbose = opt_verbosity[["verbose"]])
-  }
-
-  #---------------------------------------------------------------------------------------#
-  #------------------------OBTAIN INFORMATION FROM EXTERNAL DATASETS PRIOR TO SIMULATION RUNS TO CREATE THEM
-  if (prj_todos[["actions"]][["prep_inputs"]] && prj_todos[["ex_besides_weather"]]) {
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF extracts information from external datasets prior to simulation",
-        "runs: started at", t1 <- Sys.time()))
-
-    stopifnot(file.exists(project_paths[["dir_external"]]))
-
-    if (SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-      SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
-
-      temp <- ExtractData_Soils(SWSF_prj_meta[["exinfo"]], SWRunInformation, sim_size,
-        sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space, project_paths[["dir_ex_soil"]],
-        fnames_in, opt_behave[["resume"]], opt_verbosity[["verbose"]], opt_parallel)
-
-      SWRunInformation <- temp[["SWRunInformation"]]
-      sw_input_soillayers <- temp[["sw_input_soillayers"]]
-      sw_input_soils_use <- temp[["sw_input_soils_use"]]
-      sw_input_soils <- temp[["sw_input_soils"]]
-    }
-
-    if (SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
-      SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]) {
-
-      temp <- ExtractData_MeanMonthlyClimate(SWSF_prj_meta[["exinfo"]], SWRunInformation,
-        sim_size, sw_input_cloud_use, sw_input_cloud,
-        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space,
-        SWSF_prj_meta[["opt_sim"]][["dbW_digits"]], project_paths, fnames_in,
-        opt_chunks, opt_behave[["resume"]], opt_verbosity[["verbose"]], prepd_CFSR, sim_time,
-        opt_parallel)
-
-      SWRunInformation <- temp[["SWRunInformation"]]
-      sw_input_cloud_use <- temp[["sw_input_cloud_use"]]
-      sw_input_cloud <- temp[["sw_input_cloud"]]
-    }
-
-    if (SWSF_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
-      SWSF_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]]) {
-      SWRunInformation <- ExtractData_Elevation(SWSF_prj_meta[["exinfo"]], SWRunInformation,
-        sim_size, SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_space,
-        project_paths[["dir_ex_dem"]], fnames_in, opt_behave[["resume"]],
-        opt_verbosity[["verbose"]])
-    }
+  if (todo_intracker(SWSF_prj_meta, "dbW_current", "prepared")) {
 
     if (SWSF_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
-      climDB_metas <- climscen_metadata()
-
-      SWRunInformation <- climscen_determine_sources(climDB_metas,
-        SWSF_prj_meta[["opt_input"]][["how_determine_sources"]], sim_scens[["sources"]], sim_size,
-        SWRunInformation, fnames_in)
-
-      which_NEX <- grepl("NEX", sim_scens[["sources"]])
-      which_netCDF <- grepl("(GDODCPUCLLNL)|(SageSeer)", sim_scens[["sources"]])
-      which_ClimateWizard <- grepl("ClimateWizardEnsembles", sim_scens[["sources"]])
-
-      if (any(which_NEX) || any(which_netCDF)) {
-        SWRunInformation <- ExtractClimateChangeScenarios(sim_scens, climDB_metas, sim_time,
-          sim_size, SWRunInformation, sw_input_treatments, fnames_in, project_paths,
-          opt_parallel, verbose = opt_verbosity[["verbose"]],
-          print.debug = opt_verbosity[["print.debug"]])
-      }
-
-      if (any(which_ClimateWizard)) {
-        temp <- ExtractClimateWizard(sim_scens, SWRunInformation, fnames_in,
-          sw_input_climscen_use, sw_input_climscen,
-          sw_input_climscen_values_use, sw_input_climscen_values,
-          project_paths[["dir_ex_fut"]], sim_size, verbose = opt_verbosity[["verbose"]])
-
-        SWRunInformation <- temp[["SWRunInformation"]]
-        sw_input_climscen_use <- temp[["sw_input_climscen_use"]]
-        sw_input_climscen <- temp[["sw_input_climscen"]]
-        sw_input_climscen_values_use <- temp[["sw_input_climscen_values_use"]]
-        sw_input_climscen_values <- temp[["sw_input_climscen_values"]]
-      }
+      SWSF_prj_meta[["opt_sim"]][["use_dbW_future"]] <- TRUE
+      SWSF_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
     }
+    if (SWSF_prj_meta[["opt_sim"]][["use_dbW_future"]])
+      SWSF_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
 
-    do_check_include <- TRUE
+    if (SWSF_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
+      make_dbW(SWSF_prj_meta, SWRunInformation = SWSF_prj_inputs[["SWRunInformation"]],
+        opt_parallel, opt_chunks, opt_behave,
+        deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
+        verbose = opt_verbosity[["verbose"]])
 
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF extracts information from external datasets prior to simulation",
-        "runs: ended after",  round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-  }
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "dbW_current", prepared = TRUE, clean_subsequent = TRUE)
 
-  #---------------------------------------------------------------------------------------#
-  #------------------------CALCULATIONS PRIOR TO SIMULATION RUNS TO CREATE THEM
-
-  if (any(unlist(SWSF_prj_meta[["pcalcs"]]))) {
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF makes calculations prior to simulation runs: started at",
-        t1 <- Sys.time()))
-
-      runIDs_adjust <- seq_len(sim_size[["runsN_master"]])  # if not all, then runIDs_sites
-
-    if (SWSF_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
-      temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(SWSF_prj_meta[["opt_input"]][["requested_soil_layers"]],
-        runIDs_adjust, sw_input_soillayers, sw_input_soils_use, sw_input_soils,
-        fnames_in, verbose = opt_verbosity[["verbose"]])
-
-      sw_input_soillayers <- temp[["sw_input_soillayers"]]
-      sw_input_soils_use <- temp[["sw_input_soils_use"]]
-      sw_input_soils <- temp[["sw_input_soils"]]
+    } else {
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "dbW_current", prepared = NA)
     }
-
-    if (SWSF_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
-      #calculate bare soil evaporation coefficients per soil layer for each simulation run and copy values to 'datafile.soils'
-      # soil texture influence based on re-analysis of data from Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
-
-      temp <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(runIDs_adjust,
-        sw_input_soils_use, sw_input_soils, sw_input_soillayers, fnames_in,
-        opt_behave[["resume"]], verbose = opt_verbosity[["verbose"]])
-
-      sw_input_soils_use <- temp[["sw_input_soils_use"]]
-      sw_input_soils <- temp[["sw_input_soils"]]
-    }
-
-    #------used during each simulation run: define functions here
-    if (prj_todos[["actions"]][["sim_create"]] &&
-      SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
-
-      sw_input_site_use["SoilTempC_atLowerBoundary"] <- TRUE #set use flag
-      sw_input_site_use["SoilTempC_atUpperBoundary"] <- TRUE
-      #call function 'SiteClimate' in each SOILWAT2-run
-    }
-
-    if (prj_todos[["actions"]][["sim_create"]] &&
-      SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
-
-      #set use flags
-      use.layers <- which(sw_input_soils_use[paste0("Sand_L", swsf_glovars[["slyrs_ids"]])])
-      index.soilTemp <- paste0("SoilTemp_L", swsf_glovars[["slyrs_ids"]])[use.layers]
-      soilTemp <- sw_input_soils[runIDs_adjust, index.soilTemp, drop = FALSE]
-      sw_input_soils_use[index.soilTemp] <- TRUE
-    }
-
-    if (opt_verbosity[["verbose"]])
-      print(paste("SWSF makes calculations prior to simulation runs: ended after",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
   }
 
 
-  #---------------------------------------------------------------------------------------#
-  #------------------------OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS TO CREATE THEM
+  #------ DATA EXTRACTIONS
+  #--- Soil data
+  if (SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
+    SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
 
-  if (prj_todos[["actions"]][["sim_create"]]) {
-    temp <- do_prior_TableLookups(tr_input_EvapCoeff, tr_input_TranspRegions, tr_input_SnowD,
-      create_treatments, sw_input_treatments, sw_input_experimentals_use, sw_input_experimentals,
-      sw_input_soils_use, sw_input_soils, sw_input_cloud_use, sw_input_cloud,
-      fnames_in, opt_behave[["resume"]], verbose = opt_verbosity[["verbose"]])
+    if (todo_intracker(SWSF_prj_meta, "soil_data", "prepared")) {
 
-    done_prior <- temp[["done_prior"]]
-    sw_input_soils_use <- temp[["sw_input_soils_use"]]
-    sw_input_soils <- temp[["sw_input_soils"]]
-    sw_input_cloud_use <- temp[["sw_input_cloud_use"]]
-    sw_input_cloud <- temp[["sw_input_cloud"]]
+      SWSF_prj_inputs <- ExtractData_Soils(SWSF_prj_meta[["exinfo"]], SWSF_prj_meta,
+        SWSF_prj_inputs, opt_parallel, resume = opt_behave[["resume"]],
+        verbose = opt_verbosity[["verbose"]])
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "soil_data", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "soil_data", prepared = NA)
   }
 
 
-  SWSF_prj_meta
+  #--- Mean monthly climate data
+  if (SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
+    SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]) {
+
+    if (todo_intracker(SWSF_prj_meta, "climnorm_data", "prepared")) {
+
+      SWSF_prj_inputs <- ExtractData_MeanMonthlyClimate(SWSF_prj_meta[["exinfo"]],
+        SWSF_prj_meta, SWSF_prj_inputs, opt_parallel, opt_chunks,
+        resume = opt_behave[["resume"]], verbose = opt_verbosity[["verbose"]])
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "climnorm_data", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "climnorm_data", prepared = NA)
+  }
+
+
+  #--- Topographic data
+  if (SWSF_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
+    SWSF_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]]) {
+
+    if (todo_intracker(SWSF_prj_meta, "elev_data", "prepared")) {
+
+      SWSF_prj_inputs <- ExtractData_Elevation(SWSF_prj_meta[["exinfo"]],
+        SWSF_prj_meta, SWSF_prj_inputs, resume = opt_behave[["resume"]],
+        verbose = opt_verbosity[["verbose"]])
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "elev_data", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "elev_data", prepared = NA)
+  }
+
+
+  #--- Climate scenarios and downscaling
+  if (SWSF_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
+
+    if (todo_intracker(SWSF_prj_meta, "dbW_scenarios", "prepared")) {
+
+      SWSF_prj_inputs <- PrepareClimateScenarios(SWSF_prj_meta, SWSF_prj_inputs,
+        opt_parallel, opt_verbosity)
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "dbW_scenarios", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "dbW_scenarios", prepared = NA)
+  }
+
+
+
+  #------ CALCULATIONS PRIOR TO SIMULATION RUNS
+
+  if (any(unlist(SWSF_prj_meta[["pcalcs"]])))
+    runIDs_adjust <- seq_len(SWSF_prj_meta[["sim_size"]][["runsN_master"]])  # if not all, then runIDs_sites
+
+  if (SWSF_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
+    if (todo_intracker(SWSF_prj_meta, "req_soillayers", "prepared")) {
+
+      temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(SWSF_prj_meta, SWSF_prj_inputs,
+        runIDs_adjust, verbose = opt_verbosity[["verbose"]])
+
+      SWSF_prj_meta <- temp[["SWSF_prj_meta"]]
+      SWSF_prj_inputs <- temp[["SWSF_prj_inputs"]]
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "req_soillayers", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "req_soillayers", prepared = NA)
+  }
+
+
+  if (SWSF_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
+    if (todo_intracker(SWSF_prj_meta, "calc_bsevap", "prepared")) {
+
+      SWSF_prj_inputs <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(
+        SWSF_prj_meta, SWSF_prj_inputs, runIDs_adjust, resume = opt_behave[["resume"]],
+        verbose = opt_verbosity[["verbose"]])
+
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "calc_bsevap", prepared = TRUE)
+    }
+
+  } else {
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "calc_bsevap", prepared = NA)
+  }
+
+
+  #--- The following will be calculated by each simulation run: set flags here
+  # TODO(drs): they require knowledge of site climate which is not available at this point
+  #   by the code; such calculations can be carried out here once dbW summarizes/contains
+  #   climate variables and SWSF_prj_inputs can store inputs for each run (instead of
+  #   sites and experimentalDesign separately)
+  if (SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
+
+    # Set use-flags so that function 'SiteClimate' is called by each SOILWAT2-run
+    SWSF_prj_inputs[["sw_input_site_use"]]["SoilTempC_atLowerBoundary"] <- TRUE
+    SWSF_prj_inputs[["sw_input_site_use"]]["SoilTempC_atUpperBoundary"] <- TRUE
+  }
+
+  if (SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
+
+    use.layers <- which(SWSF_prj_inputs[["sw_input_soils_use"]][paste0("Sand_L", swsf_glovars[["slyrs_ids"]])])
+    index.soilTemp <- paste0("SoilTemp_L", swsf_glovars[["slyrs_ids"]])[use.layers]
+    SWSF_prj_inputs[["sw_input_soils_use"]][index.soilTemp] <- TRUE
+  }
+
+
+  #------ OBTAIN INFORMATION FROM TABLES PRIOR TO SIMULATION RUNS
+  # As specified by sw_input_treatments and sw_input_experimentals
+
+  if (todo_intracker(SWSF_prj_meta, "table_lookup", "prepared")) {
+
+    SWSF_prj_inputs <- do_prior_TableLookups(SWSF_prj_meta, SWSF_prj_inputs,
+      resume = opt_behave[["resume"]], verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "table_lookup", prepared = TRUE)
+  }
+
+
+  list(SWSF_prj_meta = SWSF_prj_meta, SWSF_prj_inputs = SWSF_prj_inputs)
 }
 
 
 
 #' Attempt to check input data of a rSWSF project for consistency
 #' @export
-check_rSWSF_project_input_data <- function(SWSF_prj_meta, fmeta) {
-  stop("not implemented yet")
-  saveRDS(SWSF_prj_meta, file = fmeta)
+check_rSWSF_project_input_data <- function(SWSF_prj_meta) {
 
-  if (anyNA(SWRunInformation[sim_size[["runIDs_sites"]], "dailyweather_source"])) {
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
+
+  on.exit(saveRDS(SWSF_prj_meta, file = SWSF_prj_meta[["fnames_in"]][["fmeta"]]),
+    add = TRUE)
+
+  if (anyNA(SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "dailyweather_source"])) {
     stop("There are sites without daily weather. Provide data for all runs")
   }
 
@@ -444,8 +490,8 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, fmeta) {
 
   #---------------------------------------------------------------------------------------#
   #------------------------CHECK THAT INCLUDE_YN* ARE INCLUSIVE
-  if (do_check_include) {
-    SWRunInformation <- check_requested_sites(include_YN, SWRunInformation, fnames_in,
+  if (todo_intracker(SWSF_prj_meta, "data_load", "checked")) {
+    SWSF_prj_inputs[["SWRunInformation"]] <- check_requested_sites(include_YN, SWSF_prj_inputs[["SWRunInformation"]], fnames_in,
       verbose = opt_verbosity[["verbose"]])
   }
 
@@ -455,16 +501,22 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, fmeta) {
   #---------------------------------------------------------------------------------------#
   #------------------------MAP INPUT VARIABLES (FOR QUALITY CONTROL)
   if (prj_todos[["actions"]][["check_inputs"]] && length(prj_todos[["check_inputs"]]) > 0) {
-    map_input_variables(prj_todos[["check_inputs"]], SWRunInformation, sw_input_soillayers,
+    map_input_variables(prj_todos[["check_inputs"]], SWSF_prj_inputs[["SWRunInformation"]], sw_input_soillayers,
       sw_input_cloud_use,
       sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site,
       sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather,
       sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
-      sw_input_climscen_values, sim_size, sim_space, project_paths[["dir_out"]],
+      sw_input_climscen_values, SWSF_prj_meta[["sim_size"]], sim_space, project_paths[["dir_out"]],
       verbose = opt_verbosity[["verbose"]])
   }
 
-  SWSF_prj_meta
+  if (opt_verbosity[["verbose"]]) {
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
+    print(SWSF_prj_meta[["input_status"]])
+  }
+
+  list(SWSF_prj_meta = SWSF_prj_meta, SWSF_prj_inputs = SWSF_prj_inputs)
 }
 
 
@@ -479,7 +531,22 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
 
 #---------------------------------------------------------------------------------------#
 #------------------------PREPARE SOILWAT2 SIMULATIONS
+
   t_job_start <- Sys.time()
+  if (opt_verbosity[["verbose"]]) {
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t_job_start,
+      " for project ", sQuote(basename(project_paths[["dir_prj"]]))))
+  }
+
+  #--- SET UP PARALLELIZATION
+  # used in:
+  #   - loop calling do_OneSite
+  #   - ensembles
+  opt_parallel <- setup_SWSF_cluster(opt_parallel,
+    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]])
+  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    add = TRUE)
 
   # Assigning objects from 'SWSF_prj_meta' to function environment for the time being;
   # a hack for convience
@@ -488,11 +555,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
 
   ow_prev <- set_options_warn_error(opt_verbosity[["debug.warn.level"]],
     opt_verbosity[["debug.dump.objects"]], project_paths[["dir_prj"]])
-
-  if (opt_verbosity[["verbose"]])
-    print(paste("SWSF is executed for:", sQuote(basename(project_paths[["dir_prj"]])),
-      "and started at", t_job_start))
-
+  on.exit(options(ow_prev), add = TRUE)
 
   #--- Determine todos for simulation project
   prj_todos <- list(
@@ -502,8 +565,7 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
       SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]],
     EstimateInitialSoilTemperatureForEachSoilLayer =
       SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]],
-    # output maps of input variables
-    map_input = req_out[["map_vars"]],
+
     # output aggregate overall
     aon = convert_to_todo_list(req_out[["overall_out"]]),
     # output aggregate daily
@@ -511,13 +573,6 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
     # output daily traces
     otrace = req_out[["traces"]]
   )
-
-  #--- Import data
-  do_check_include <- process_inputs(project_paths, fnames_in, opt_behave[["use_preprocin"]],
-    verbose = opt_verbosity[["verbose"]])
-#TODO (drs): do not load into globalenv() - bad practice for a package:
-# 'load' annihilates all objects in globalenv() with the same names !
-  load(file = fnames_in[["fpreprocin"]], envir = globalenv())
 
   #--- Update todo list
   prj_todos <- c(prj_todos, list(
@@ -536,13 +591,6 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
       any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
       any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")),
 
-    use_sim_spatial = prj_todos[["actions"]][["check_inputs"]] ||
-      prj_todos[["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-      prj_todos[["ExtractSoilDataFromISRICWISEv12_Global"]] ||
-      prj_todos[["ExtractElevation_NED_USA"]] ||
-      prj_todos[["ExtractElevation_HWSD_Global"]] ||
-      prj_todos[["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
-      prj_todos[["ExtractSkyDataFromNCEPCFSR_Global"]],
 
     wipe_dbOut = opt_out[["wipe_dbOutput"]] &&
       !(sum(prj_todos[["actions"]]) == 1 && prj_todos[["actions"]][["ensemble"]])
@@ -552,26 +600,12 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
   opt_agg <- setup_aggregation_options(opt_agg, GISSM_species_No = GISSM_species_No,
     GISSM_params = GISSM_params)
 
-  #--- Determine size of simulation runs
-  sim_size <- determine_simulation_size(SWRunInformation, include_YN,
-    sw_input_experimentals, sim_scens)
-
-  #--- Setup/connect to dbWork and determine which runs need to be done
-  temp <- setup_dbWork(project_paths[["dir_out"]], sim_size, include_YN,
-    opt_behave[["resume"]])
-  if (!temp)
-    stop("Work database failed to setup or an existing one is from a different",
-      "simulation design")
-
-  sim_size[["runIDs_todo"]] <- dbWork_todos(project_paths[["dir_out"]]) # elements of runIDs_total
-  sim_size[["runsN_todo"]] <- length(sim_size[["runIDs_todo"]])
-
-  #--- Spatial setup of simulations
-  sim_space <- setup_spatial_simulation(SWRunInformation, sim_space, sim_size,
-    fnames_in[["fsimraster"]], prj_todos[["use_sim_spatial"]])
+  #--- Determine which runs (still) need to be done for this round
+  SWSF_prj_meta[["sim_size"]][["runIDs_todo"]] <- dbWork_todos(project_paths[["dir_out"]]) # elements of runIDs_total
+  SWSF_prj_meta[["sim_size"]][["runsN_todo"]] <- length(SWSF_prj_meta[["sim_size"]][["runIDs_todo"]])
 
   #--- Determine requested ensembles across climate scenarios
-  temp <- update_scenarios_with_ensembles(sim_scens, sim_time, prj_todos)
+  temp <- update_scenarios_with_ensembles(sim_scens, SWSF_prj_meta[["sim_time"]], prj_todos)
   prj_todos[["do_ensembles"]] <- temp[["do_ensembles"]]
   sim_scens <- temp[["sim_scens"]]
 
@@ -590,26 +624,10 @@ if (length(create_treatments) > 0) {
 
 
 #---------------------------------------------------------------------------------------#
-#------------------------SET UP PARALLELIZATION
-#used in: GriddedDailyWeatherFromNCEPCFSR_Global, external dataset extractions, loop calling do_OneSite, and ensembles
-
-opt_parallel <- setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out = project_paths[["dir_prj"]])
-
-if (!identical(opt_parallel[["parallel_backend"]], "mpi")) {
-  # Only enforce wall-time on MPI systems
-  opt_job_time[["wall_time_s"]] <- Inf
-}
-#---------------------------------------------------------------------------------------#
 
 
 
 
-if (prj_todos[["ExtractClimateChangeScenarios"]]) {
-  opt_sim[["use_dbW_future"]] <- TRUE
-  opt_sim[["use_dbW_current"]] <- TRUE
-}
-if (opt_sim[["use_dbW_future"]])
-  opt_sim[["use_dbW_current"]] <- TRUE
 
 
   #----------------------------------------------------------------------------------------#
@@ -619,11 +637,11 @@ if (opt_sim[["use_dbW_future"]])
 
   #--- Prepare output database
   temp <- make_dbOutput(fnames_out[["dbOutput"]], prj_todos, opt_agg,
-    SWRunInformation, Index_RunInformation, sim_size, create_treatments,
+    SWSF_prj_inputs[["SWRunInformation"]], Index_RunInformation, SWSF_prj_meta[["sim_size"]], create_treatments,
     create_experimentals, sw_input_treatments, sw_input_treatments_use,
-    sw_input_experimentals, sim_scens, sim_time, verbose = opt_verbosity[["verbose"]])
+    sw_input_experimentals, sim_scens, SWSF_prj_meta[["sim_time"]], verbose = opt_verbosity[["verbose"]])
 
-  sim_size[["ncol_dbOut_overall"]] <- temp
+  SWSF_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp
 
 
 if (opt_verbosity[["verbose"]])
@@ -643,12 +661,12 @@ if (opt_verbosity[["verbose"]])
 
 
 # run the simulation experiment
-if (prj_todos[["use_SOILWAT2"]] && sim_size[["runsN_todo"]] > 0) {
+if (prj_todos[["use_SOILWAT2"]] && SWSF_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
   swof <- sw_out_flags()
   swDataFromFiles <- read_SOILWAT2_FileDefaults(project_paths[["dir_in_sw"]])
   args_do_OneSite <- gather_args_do_OneSite()
 
-  runs.completed <- run_simulation_experiment(sim_size, SWRunInformation,
+  runs.completed <- run_simulation_experiment(SWSF_prj_meta[["sim_size"]], SWSF_prj_inputs[["SWRunInformation"]],
     sw_input_soillayers, sw_input_treatments, sw_input_cloud, sw_input_prod,
     sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
     sw_input_climscen_values, MoreArgs = args_do_OneSite)
@@ -672,8 +690,6 @@ if (prj_todos[["use_SOILWAT2"]] && sim_size[["runsN_todo"]] > 0) {
 t.outputDB <- Sys.time()
 
 if (prj_todos[["actions"]][["concat_dbOut"]]) {
-  if (opt_verbosity[["verbose"]])
-    print(paste("SWSF inserting temporary data to outputDB: started at", t.outputDB))
 
   has_time_to_concat <- (difftime(t.outputDB, t_job_start, units = "secs") +
     opt_job_time[["one_concat_s"]]) < opt_job_time[["wall_time_s"]]
@@ -708,10 +724,6 @@ if (prj_todos[["actions"]][["concat_dbOut"]]) {
 
 #timing of outputDB
 delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
-if (opt_verbosity[["verbose"]] && prj_todos[["actions"]][["concat_dbOut"]]) {
-  print(paste("SWSF inserting temporary data to outputDB: ended after",
-    round(delta.outputDB, 2), "s"))
-}
 
 
 #---------------------------------------------------------------------------------------#
@@ -719,20 +731,14 @@ if (opt_verbosity[["verbose"]] && prj_todos[["actions"]][["concat_dbOut"]]) {
 t.check <- Sys.time()
 
 if (prj_todos[["actions"]][["check_dbOut"]]) {
-  if (opt_verbosity[["verbose"]])
-    print(paste("SWSF checks simulations and output: started at", t.check))
-
   check_outputDB_completeness(fnames_out[["dbOutput"]], fnames_out[["dbOutput_current"]],
     update_workDB = opt_behave[["check_updates_dbWork"]] || opt_out[["deleteTmpSQLFiles"]],
     do_DBcurrent = opt_out[["dbOutCurrent_from_dbOut"]] || opt_out[["dbOutCurrent_from_tempTXT"]],
-    opt_parallel, project_paths[["dir_out"]])
+    opt_parallel, project_paths[["dir_out"]], verbose = opt_verbosity[["verbose"]])
 }
 
 #timing of check
 delta.check <- difftime(Sys.time(), t.check, units = "secs")
-if (opt_verbosity[["verbose"]] && prj_todos[["actions"]][["check_dbOut"]])
-  print(paste("SWSF checks simulations and output: ended after", round(delta.check, 2),
-    "s"))
 
 #---------------------------------------------------------------------------------------#
 #------------------------ENSEMBLE GENERATION
@@ -749,7 +755,7 @@ if (prj_todos[["do_ensembles"]]) {
 	Tables <- dbOutput_ListOutputTables(con)
 	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
 
-	if (opt_parallel[["do_parallel"]]) {
+	if (opt_parallel[["has_parallel"]]) {
 		#call the simulations depending on parallel backend
 
 		if(identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -801,30 +807,25 @@ if (opt_verbosity[["verbose"]] && prj_todos[["do_ensembles"]])
 
 #---------------------------------------------------------------------------------------#
 #------------------------OVERALL TIMING
-delta.overall <- difftime(Sys.time(), t_job_start, units = "secs")
-if (opt_verbosity[["verbose"]])
- print(paste("SWSF: ended after", round(delta.overall, 2), "s"))
+  delta.overall <- difftime(Sys.time(), t_job_start, units = "secs")
 
-compile_overall_timer(fnames_out[["timerfile"]], project_paths[["dir_out"]],
-  opt_parallel[["workersN"]], runs.completed, sim_scens[["N"]], ensembles.completed,
-  delta.overall, delta.outputDB, delta.check, delta.ensembles)
+  compile_overall_timer(fnames_out[["timerfile"]], project_paths[["dir_out"]],
+    opt_parallel[["workersN"]], runs.completed, sim_scens[["N"]], ensembles.completed,
+    delta.overall, delta.outputDB, delta.check, delta.ensembles)
 
-
-if (opt_verbosity[["verbose"]]) {
-  temp <- names(prj_todos[["actions"]])[prj_todos[["actions"]]]
-  print(paste("SWSF: ended with actions =", paste(temp, collapse = ", "), "at",
-    Sys.time()))
-}
+  if (opt_verbosity[["verbose"]]) {
+    temp <- names(prj_todos[["actions"]])[prj_todos[["actions"]]]
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(delta.overall, 2), " s and completed actions = ",
+      paste(temp, collapse = ", ")))
+  }
 
 
 #---------------------------------------------------------------------------------------#
 #------------------------CODE CLEANUP
 
-options(ow_prev) #sets the warning option to its previous value
-
-if (opt_parallel[["do_parallel"]]) {
-  clean_SWSF_cluster(opt_parallel[["parallel_backend"]], cl = opt_parallel[["cl"]],
-    verbose = opt_verbosity[["print.debug"]])
+if (opt_parallel[["has_parallel"]]) {
+  clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["print.debug"]])
 }
 
 

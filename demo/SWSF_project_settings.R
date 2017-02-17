@@ -43,17 +43,16 @@ opt_parallel <- list(
   # Number of cores/workers/slaves if job is run in parallel
   num_cores = 2,
   # Parallel_backend: "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "cluster"
+  parallel_backend = "cluster",
+
+  # Computation time requests: time limits are only enforced if parallel_backend == "mpi"
+  opt_job_time = list(
+    wall_time_s = 12 * 3600, # requested wall time
+    one_sim_s = 60, # time needed to complete one call to do_OneSite()
+    one_concat_s = 60 # time needed to process one temporary SQL file
+  )
 )
 
-
-#------ Computation time requests
-# Time limits are only enforced if parallel_backend == "mpi"
-opt_job_time <- list(
-  wall_time_s = 12 * 3600, # requested wall time
-  one_sim_s = 60, # time needed to complete one call to do_OneSite()
-  one_concat_s = 60 # time needed to process one temporary SQL file
-)
 
 
 #------ Options for printing progress and debugging information

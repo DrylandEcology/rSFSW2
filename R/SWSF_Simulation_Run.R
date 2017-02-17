@@ -766,7 +766,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         i_sw_weatherList[[1]] <- try(Rsoilwat31::getWeatherData_folders(
           LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
           weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
-            fnames_out[["dbOutput"]]), filebasename = project_paths[["tag_WeatherFolder"]],
+            fnames_out[["dbOutput"]]), filebasename = opt_sim[["tag_WeatherFolder"]],
           startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]]),
           silent = TRUE)
 			}
@@ -1472,7 +1472,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 		#prepare SQL result container
 		SQL <- SQLcurrent <- character(0)
-    fid <- if (opt_parallel[["do_parallel"]]) {
+    fid <- if (opt_parallel[["has_parallel"]]) {
         if (opt_parallel[["parallel_backend"]] == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (opt_parallel[["parallel_backend"]] == "cluster") {
@@ -4644,12 +4644,14 @@ run_simulation_experiment <- function(sim_size, SWRunInformation, sw_input_soill
   i_sites <- it_site(sim_size[["runIDs_todo"]], sim_size[["runsN_master"]])
 
   #ETA calculation
-  if (MoreArgs[["verbose"]])
-    print(paste("SWSF simulation runs:", sim_size[["runsN_todo"]], "out of",
-      sim_size[["runsN_job"]], "runs will be carried out on",
-      opt_parallel[["workersN"]], "cores: started at", t1 <- Sys.time()))
+  if (MoreArgs[["verbose"]]) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1, " for ",
+      sim_size[["runsN_todo"]], " out of ", sim_size[["runsN_job"]], " runs on ",
+      opt_parallel[["workersN"]], " cores"))
+  }
 
-  if (opt_parallel[["do_parallel"]]) {
+  if (opt_parallel[["has_parallel"]]) {
     unlink(opt_parallel[["lockfile"]], recursive = TRUE)
 
     obj2exp <- gather_objects_for_export(varlist = names(MoreArgs),
@@ -4828,8 +4830,9 @@ tryCatch({
   }
 
   if (MoreArgs[["verbose"]])
-    print(paste("SWSF simulation runs: completed with", runs.completed, "runs: ended",
-      "after", round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
+      " runs"))
 
   runs.completed
 }

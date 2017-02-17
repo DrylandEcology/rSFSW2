@@ -4,11 +4,8 @@
 \alias{do_prior_TableLookups}
 \title{Look-up input values from spreadsheet tables}
 \usage{
-do_prior_TableLookups(tr_input_EvapCoeff, tr_input_TranspRegions,
-  tr_input_SnowD, create_treatments, sw_input_treatments,
-  sw_input_experimentals_use, sw_input_experimentals, sw_input_soils_use,
-  sw_input_soils, sw_input_cloud_use, sw_input_cloud, fnames_in,
-  resume = TRUE, verbose = FALSE)
+do_prior_TableLookups(SWSF_prj_meta, SWSF_prj_inputs, resume = TRUE,
+  verbose = FALSE)
 }
 \description{
 Look-up input values from spreadsheet tables

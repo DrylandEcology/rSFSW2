@@ -357,14 +357,14 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
 
 process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE) {
 
-  do_check_include <- FALSE
-
   if (verbose) {
     t1 <- Sys.time()
-    print(paste("SWSF's 'process_inputs': started at", t1))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  if (!(use_preprocin && file.exists(fnames_in[["fpreprocin"]]))) {
+  do_check_include <- FALSE
+
+  if (!use_preprocin || !file.exists(fnames_in[["fpreprocin"]])) {
 
     SWRunInformation <- tryCatch(swsf_read_csv(fnames_in[["fmaster"]]), error = print)
     stopifnot(sapply(required_colnames_SWRunInformation(),
@@ -526,32 +526,48 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     #--- set flag to check include_YN columns
     do_check_include <- TRUE
 
-    # No compression for fast access; RDS may be slightly faster, but would require loop
-    # over assign(, envir = globalenv())
-    save(SWRunInformation, include_YN, create_experimentals, create_treatments,
-      sw_input_soillayers,
-      sw_input_treatments_use, sw_input_treatments,
-      sw_input_experimentals_use, sw_input_experimentals,
-      sw_input_cloud_use, sw_input_cloud,
-      sw_input_prod_use, sw_input_prod,
-      sw_input_site_use, sw_input_site,
-      sw_input_soils_use, sw_input_soils,
-      sw_input_weather_use, sw_input_weather,
-      sw_input_climscen_use, sw_input_climscen,
-      sw_input_climscen_values_use, sw_input_climscen_values,
-      tr_files, tr_prod, tr_site, tr_soil, tr_weather, tr_cloud, tr_input_climPPT,
-      tr_input_climTemp, tr_input_shiftedPPT, tr_input_EvapCoeff, tr_input_TranspCoeff_Code,
-      tr_input_TranspCoeff, tr_input_TranspRegions, tr_input_SnowD,
-      tr_VegetationComposition,
-      GISSM_params, GISSM_species_No,
-      file = fnames_in[["fpreprocin"]], compress = FALSE)
+    temp <- list(do_check_include = do_check_include,
+      SWRunInformation = SWRunInformation, include_YN = include_YN,
+      create_experimentals = create_experimentals, create_treatments = create_treatments,
+      sw_input_soillayers = sw_input_soillayers,
+      sw_input_treatments_use = sw_input_treatments_use, sw_input_treatments = sw_input_treatments,
+      sw_input_experimentals_use = sw_input_experimentals_use, sw_input_experimentals = sw_input_experimentals,
+      sw_input_cloud_use = sw_input_cloud_use, sw_input_cloud = sw_input_cloud,
+      sw_input_prod_use = sw_input_prod_use, sw_input_prod = sw_input_prod,
+      sw_input_site_use = sw_input_site_use, sw_input_site = sw_input_site,
+      sw_input_soils_use = sw_input_soils_use, sw_input_soils = sw_input_soils,
+      sw_input_weather_use = sw_input_weather_use, sw_input_weather = sw_input_weather,
+      sw_input_climscen_use = sw_input_climscen_use, sw_input_climscen = sw_input_climscen,
+      sw_input_climscen_values_use = sw_input_climscen_values_use, sw_input_climscen_values = sw_input_climscen_values,
+      tr_files = tr_files, tr_prod = tr_prod, tr_site = tr_site, tr_soil = tr_soil,
+      tr_weather = tr_weather, tr_cloud = tr_cloud, tr_input_climPPT = tr_input_climPPT,
+      tr_input_climTemp = tr_input_climTemp, tr_input_shiftedPPT = tr_input_shiftedPPT,
+      tr_input_EvapCoeff = tr_input_EvapCoeff, tr_input_TranspCoeff_Code = tr_input_TranspCoeff_Code,
+      tr_input_TranspCoeff = tr_input_TranspCoeff, tr_input_TranspRegions = tr_input_TranspRegions,
+      tr_input_SnowD = tr_input_SnowD, tr_VegetationComposition = tr_VegetationComposition,
+      GISSM_params = GISSM_params, GISSM_species_No = GISSM_species_No
+    )
+
+    inputs <- list2env(x = temp, envir = new.env(parent = emptyenv()))
+
+    saveRDS(inputs, file = fnames_in[["fpreprocin"]])
+
+  } else {
+    inputs <- readRDS(fnames_in[["fpreprocin"]])
+  }
+
+  inputs[["do_check_include"]] <- do_check_include
+
+  if (!is.environment(inputs) || length(inputs) == 0) {
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": failed; 'SWSF_prj_inputs' is ",
+      "empty or not of type 'environment'."))
   }
 
   if (verbose)
-    print(paste("SWSF's 'process_inputs': ended after",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
-  do_check_include
+  inputs
 }
 
 

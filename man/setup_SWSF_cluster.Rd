@@ -4,7 +4,7 @@
 \alias{setup_SWSF_cluster}
 \title{Set-up a parallel cluster to be used for a rSWSF simulation project}
 \usage{
-setup_SWSF_cluster(opt_parallel, opt_verbosity, dir_out)
+setup_SWSF_cluster(opt_parallel, dir_out, verbose = FALSE)
 }
 \description{
 Set-up a parallel cluster to be used for a rSWSF simulation project

@@ -68,11 +68,26 @@ actions <- list(
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
 dir_prj <- "SWSF_default_project"
+
+if (FALSE) {
+  # If this is a test project:
+  #   * if interactive: current working directory must be rSWSFtools/
+  #   * if !interactive: current working directory must be folder of test projects,
+  #       * e.g., rSWSFtools/Test_projects/Test4_AllOverallAggregations
+  if (interactive()) {
+    dir_prj <- normalizePath(file.path(".", "Test_projects", "Test4_AllOverallAggregations_snow"))
+    setwd(dir_prj)
+  }
+
+  dir_prj <- getwd()
+}
+
 fmeta <- file.path(dir_prj, "SWSF_project_descriptions.rds")
+fmetar <- file.path(dir_prj, "SWSF_project_descriptions.R")
 
 if (file.exists(fmeta)) {
 
-  # Load pre-prepared project description if previously setup
+  # Load pre-prepared project description if it was setup previously
   SWSF_prj_meta <- readRDS(fmeta)
 
 } else {
@@ -81,26 +96,13 @@ if (file.exists(fmeta)) {
   setup_rSWSF_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SWSF_project_description.R")
-  stop("Specify project description/metadata via file 'SWSF_project_descriptions.R'")
+  stop("Specify project description/metadata via file ", shQuote(basename(fmetar)))
 
   # 1c) Load and prepare project description
-  SWSF_prj_meta <- new.env()
-  sys.source(file.path(dir_prj, "SWSF_project_descriptions.R"), envir = SWSF_prj_meta,
-    keep.source = FALSE)
+  SWSF_prj_meta <- new.env(parent = baseenv())
+  sys.source(fmetar, envir = SWSF_prj_meta, keep.source = FALSE)
 
-  SWSF_prj_meta <- init_rSWSF_project(SWSF_prj_meta)
-
-  saveRDS(SWSF_prj_meta, file = fmeta)
-}
-
-
-
-##############################################################################
-#------ 2) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ----------
-
-if (actions[["prep_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "prepared"])) {
-
-  SWSF_prj_meta <- populate_rSWSF_project_with_data(SWSF_prj_meta, fmeta)
+  SWSF_prj_meta <- init_rSWSF_project(SWSF_prj_meta, fmeta)
 
   saveRDS(SWSF_prj_meta, file = fmeta)
 }
@@ -108,19 +110,43 @@ if (actions[["prep_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "prepared
 
 
 ##############################################################################
-#------ 3) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
+#------ 2) LOAD SETTINGS FOR THIS RUN ----------------------------------------
+# Setting objects:
+#   opt_behave, opt_parallel, opt_job_time, opt_verbosity, opt_out_run, opt_chunks
+source(file.path(dir_prj, "SWSF_project_settings.R"), verbose = FALSE,
+  keep.source = FALSE)
 
-if (actions[["check_inputs"]] && any(!SWSF_prj_meta[["input_status"]][, "checked"])) {
 
-  SWSF_prj_meta <- check_rSWSF_project_input_data(SWSF_prj_meta, fmeta)
 
-  saveRDS(SWSF_prj_meta, file = fmeta)
+##############################################################################
+#------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ----------
+
+if (actions[["prep_inputs"]]) {
+
+  temp <- populate_rSWSF_project_with_data(SWSF_prj_meta, opt_behave,
+    opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+
+  SWSF_prj_meta <- temp[["SWSF_prj_meta"]]
+  SWSF_prj_inputs <- temp[["SWSF_prj_inputs"]]
 }
 
 
 
 ##############################################################################
-#------ 4) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
+#------ 4) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
+
+if (actions[["check_inputs"]]) {
+
+  temp <- check_rSWSF_project_input_data(SWSF_prj_meta, SWSF_prj_inputs)
+
+  SWSF_prj_meta <- temp[["SWSF_prj_meta"]]
+  SWSF_prj_inputs <- temp[["SWSF_prj_inputs"]]
+}
+
+
+
+##############################################################################
+#------ 5) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
 if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut",
   "ensemble", "check_dbOut")])) && all(SWSF_prj_meta[["input_status"]])) {

@@ -4,7 +4,8 @@
 \alias{populate_rSWSF_project_with_data}
 \title{Populate rSWSF project with input data}
 \usage{
-populate_rSWSF_project_with_data()
+populate_rSWSF_project_with_data(SWSF_prj_meta, opt_behave, opt_parallel,
+  opt_verbosity)
 }
 \description{
 Populate rSWSF project with input data

@@ -88,8 +88,10 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_space,
   dir_ex_soil, fnames_in, resume, verbose) {
 
-  if (verbose)
-    print(paste("Started 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
@@ -241,7 +243,8 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -387,8 +390,10 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
   dir_ex_soil, fnames_in, opt_parallel, resume, verbose) {
 
-  if (verbose)
-    print(paste("Started 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
@@ -431,7 +436,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
         crs_from = sim_space[["sim_crs"]], sp = run_sites_wise,
         crs_sp = sim_space[["crs_sites"]], crs_to = raster::crs(grid_wise))
 
-      if (opt_parallel[["do_parallel"]]) {
+      if (opt_parallel[["has_parallel"]]) {
 
         #call the simulations depending on parallel backend
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -472,7 +477,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
     template_simulationSoils[] <- NA
     template_simulationSoils["depth"] <- 0
 
-    if (opt_parallel[["do_parallel"]]) {
+    if (opt_parallel[["has_parallel"]]) {
       #call the simulations depending on parallel backend
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
@@ -540,7 +545,8 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractSoilDataFromISRICWISEv12_Global' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -574,27 +580,47 @@ update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
 
 #' Extract soil characteristics
 #' @export
-ExtractData_Soils <- function(exinfo, SWRunInformation, sim_size, sw_input_soillayers,
-  sw_input_soils_use, sw_input_soils, how_determine_sources, sim_space, dir_ex_soil,
-  fnames_in, resume, verbose, opt_parallel) {
+ExtractData_Soils <- function(exinfo, SWSF_prj_meta, SWSF_prj_inputs, opt_parallel,
+  resume, verbose = FALSE) {
 
-  MMC <- prepare_ExtractData_Soils(SWRunInformation, sim_size, how_determine_sources,
-    sw_input_soillayers, sw_input_soils_use, sw_input_soils)
+  #--- SET UP PARALLELIZATION
+  opt_parallel <- setup_SWSF_cluster(opt_parallel,
+    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]])
+  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    add = TRUE)
+
+  MMC <- prepare_ExtractData_Soils(SWSF_prj_inputs[["SWRunInformation"]],
+    sim_size = SWSF_prj_meta[["sim_size"]],
+    how_determine_sources = SWSF_prj_meta[["opt_input"]][["how_determine_sources"]],
+    sw_input_soillayers = SWSF_prj_inputs[["sw_input_soillayers"]],
+    sw_input_soils_use = SWSF_prj_inputs[["sw_input_soils_use"]],
+    sw_input_soils = SWSF_prj_inputs[["sw_input_soils"]])
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
-    MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, sim_size, sim_space,
-      dir_ex_soil, fnames_in, resume, verbose = verbose)
+    MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC,
+      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
+      dir_ex_soil = SWSF_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      fnames_in = SWSF_prj_meta[["fnames_in"]], resume, verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
-    MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC, sim_size, sim_space,
-      dir_ex_soil, fnames_in, opt_parallel, resume, verbose)
+    MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC,
+      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
+      dir_ex_soil = SWSF_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      fnames_in = SWSF_prj_meta[["fnames_in"]], opt_parallel, resume, verbose)
   }
 
-  temp <- update_soils_sources(MMC, SWRunInformation, sim_size, fnames_in)
+  temp <- update_soils_sources(MMC, SWSF_prj_inputs[["SWRunInformation"]],
+    sim_size = SWSF_prj_meta[["sim_size"]], fnames_in = SWSF_prj_meta[["fnames_in"]])
 
-  list(SWRunInformation = temp, sw_input_soillayers = MMC[["input2"]],
-    sw_input_soils_use = MMC[["use"]], sw_input_soils = MMC[["input"]])
+  SWSF_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
+  SWSF_prj_inputs[["sw_input_soillayers"]] <- MMC[["input2"]]
+  SWSF_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
+  SWSF_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]
+
+
+  SWSF_prj_inputs
 }
 
 

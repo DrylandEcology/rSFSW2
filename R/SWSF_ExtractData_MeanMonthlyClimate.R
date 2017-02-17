@@ -53,10 +53,12 @@ update_meanmonthlyclimate_input <- function(MMC, use_site, sim_size, digits = 2,
 do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
   project_paths, fnames_in, opt_chunks, resume, verbose) {
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
-  if (verbose)
-    print(paste("Started 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCDC1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -210,25 +212,57 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractSkyDataFromNOAAClimateAtlas_USA' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
 
 
+#' Extract gridded mean monthly data from NCEP/CFSR for sites globally
+#'
+#' @section Monthly data: (http://rda.ucar.edu/datasets/ds093.2/):
+#'  ds093.2 - NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January
+#'  1979 to December 2010, 0.313-deg: monthly mean (4 per day) of forecasts of 6-hour
+#'  average.
+#'  \describe{
+#'    \item{relative humidity}{percentage for entire atmosphere at 2 m above ground
+#'        [0.5-deg]: 'pgbh06.gdas.R_H.2m.grb2' --> means for Jan-Dec}
+#'    \item{wind (m s-1)}{u- and v-component at 10 m above ground in m s-1:
+#'        'flxf06.gdas.WND.10m.grb2' (u- and v-component) --> means for Jan-Dec}
+#'    \item{total cloud cover}{percentage of entire atmosphere as a single layer:
+#'        'flxf06.gdas.T_CDC.EATM.grb2' --> means for Jan-Dec}
+#'  }
+#'
 #' @references Environmental Modeling Center/National Centers for Environmental
 #'  Prediction/National Weather Service/NOAA/U.S. Department of Commerce. 2010. NCEP
 #'  Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December
 #'  2010. Research Data Archive at the National Center for Atmospheric Research,
 #'  Computational and Information Systems Laboratory.
 #'  http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
-do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size,
-  prepd_CFSR, sim_time, dbW_digits, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
-  verbose) {
+#' @export
+do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SWSF_prj_meta,
+  opt_parallel, opt_chunks, resume, verbose) {
 
-  if (verbose)
-    print(paste("Started 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
+  #--- SET UP PARALLELIZATION
+  opt_parallel <- setup_SWSF_cluster(opt_parallel,
+    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]])
+  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    add = TRUE)
+
+  if (is.null(SWSF_prj_meta[["prepd_CFSR"]])) {
+    SWSF_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
+      dir_in = SWSF_prj_meta[["project_paths"]][["dir_in"]],
+      dir.cfsr.data = SWSF_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+  }
+
+  stopifnot(!inherits(SWSF_prj_meta[["prepd_CFSR"]], "try-error"))
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCEPCFSR1"] <- FALSE
@@ -237,9 +271,9 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size
 
   if (resume) {
     todos <- todos & (
-      has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "RH") |
-      has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "SkyC") |
-      has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "wind"))
+      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "RH") |
+      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "SkyC") |
+      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "wind"))
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -250,12 +284,15 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size
         n_extract, "sites"))
 
     #locations of simulation runs
-    locations <- SWRunInformation[sim_size[["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
+    locations <- SWRunInformation[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
     # do the extractions
     temp <- try(get_NCEPCFSR_data(dat_sites = locations, daily = FALSE, monthly = TRUE,
-      dbW_digits, yearLow = sim_time[["startyr"]], yearHigh = sim_time[["endyr"]],
-      dir_ex_cfsr = prepd_CFSR$dir_ex_cfsr, dir_temp = project_paths[["dir_out_temp"]],
-      cfsr_so = prepd_CFSR$cfsr_so,
+      dbW_digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
+      yearLow = SWSF_prj_meta[["sim_time"]][["startyr"]],
+      yearHigh = SWSF_prj_meta[["sim_time"]][["endyr"]],
+      dir_ex_cfsr = SWSF_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
+      dir_temp = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]],
+      cfsr_so = SWSF_prj_meta[["prepd_CFSR"]]$cfsr_so,
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel, rm_mc_files = TRUE, resume = resume))
 
@@ -283,12 +320,14 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, sim_size
         print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
+      update_meanmonthlyclimate_input(MMC, i_good, SWSF_prj_meta[["sim_size"]],
+        digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]], SWSF_prj_meta[["fnames_in"]])
     }
   }
 
   if (verbose)
-    print(paste("Finished 'ExtractSkyDataFromNCEPCFSR_Global' at", Sys.time()))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -321,29 +360,37 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, sim_size, f
 
 #' Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
 #' @export
-ExtractData_MeanMonthlyClimate <- function(exinfo, SWRunInformation, sim_size,
-  sw_input_cloud_use, sw_input_cloud, how_determine_sources, sim_space, dbW_digits,
-  project_paths, fnames_in, opt_chunks, resume, verbose, prepd_CFSR, sim_time,
-  opt_parallel) {
+ExtractData_MeanMonthlyClimate <- function(exinfo, SWSF_prj_meta, SWSF_prj_inputs,
+  opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE) {
 
-  MMC <- prepare_ExtractData_MeanMonthlyClimate(SWRunInformation, sim_size,
-    how_determine_sources, sw_input_cloud_use, sw_input_cloud)
+  MMC <- prepare_ExtractData_MeanMonthlyClimate(SWSF_prj_inputs[["SWRunInformation"]],
+    sim_size = SWSF_prj_meta[["sim_size"]],
+    how_determine_sources = SWSF_prj_meta[["opt_input"]][["how_determine_sources"]],
+    sw_input_cloud_use = SWSF_prj_inputs[["sw_input_cloud_use"]],
+    sw_input_cloud = SWSF_prj_inputs[["sw_input_cloud"]])
 
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
-    MMC <- do_ExtractSkyDataFromNOAAClimateAtlas_USA(MMC, sim_size, sim_space,
-      project_paths, fnames_in, opt_chunks, resume, verbose)
+    MMC <- do_ExtractSkyDataFromNOAAClimateAtlas_USA(MMC,
+      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
+      project_paths = SWSF_prj_meta[["project_paths"]],
+      fnames_in = SWSF_prj_meta[["fnames_in"]], opt_chunks, resume, verbose)
   }
 
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
-    MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, sim_size,
-      prepd_CFSR, sim_time, dbW_digits, project_paths, fnames_in, opt_parallel, opt_chunks, resume,
-      verbose)
+    MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWSF_prj_inputs[["SWRunInformation"]],
+      SWSF_prj_meta, opt_parallel, opt_chunks, resume, verbose)
+
   }
 
-  temp <- update_MeanMonthlyClimate_sources(MMC, SWRunInformation, sim_size, fnames_in)
+  temp <- update_MeanMonthlyClimate_sources(MMC, SWSF_prj_inputs[["SWRunInformation"]],
+    sim_size = SWSF_prj_meta[["sim_size"]], fnames_in = SWSF_prj_meta[["fnames_in"]])
 
-  list(SWRunInformation = temp, sw_input_cloud_use = MMC[["use"]],
-    sw_input_cloud = MMC[["input"]])
+  SWSF_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
+  SWSF_prj_inputs[["sw_input_cloud_use"]] <- MMC[["use"]]
+  SWSF_prj_inputs[["sw_input_cloud"]] <- MMC[["input"]]
+
+
+  SWSF_prj_inputs
 }
 
 #----------------------------------------------------------------------------------------#

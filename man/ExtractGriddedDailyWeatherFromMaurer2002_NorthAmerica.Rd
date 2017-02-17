@@ -6,7 +6,7 @@
  American sites}
 \usage{
 ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(dir_data, cellname,
-  startYear, endYear)
+  startYear, endYear, dbW_digits)
 }
 \value{
 An invisible zero. A list of which each element represents one year of daily
@@ -17,4 +17,9 @@ An invisible zero. A list of which each element represents one year of daily
 \description{
 Extract gridded daily weather from Maurer et al. 2002 (updated in 2010) for North
  American sites
+}
+\references{
+Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen.
+ 2002. A long-term hydrologically based dataset of land surface fluxes and states for
+ the conterminous United States. Journal of Climate 15:3237-3251.
 }
