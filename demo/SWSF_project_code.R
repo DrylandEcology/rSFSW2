@@ -37,7 +37,6 @@ actions <- list(
   prep_inputs = FALSE,
 
   # Input checking
-  #   - "check_inputs": creates maps of input data as specified by 'map_vars'
   check_inputs = FALSE,
 
   # Simulation runs
@@ -112,7 +111,7 @@ if (file.exists(fmeta)) {
 ##############################################################################
 #------ 2) LOAD SETTINGS FOR THIS RUN ----------------------------------------
 # Setting objects:
-#   opt_behave, opt_parallel, opt_job_time, opt_verbosity, opt_out_run, opt_chunks
+#   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
 source(file.path(dir_prj, "SWSF_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
 
@@ -137,7 +136,7 @@ if (actions[["prep_inputs"]]) {
 
 if (actions[["check_inputs"]]) {
 
-  temp <- check_rSWSF_project_input_data(SWSF_prj_meta, SWSF_prj_inputs)
+  temp <- check_rSWSF_project_input_data(SWSF_prj_meta, SWSF_prj_inputs, opt_verbosity)
 
   SWSF_prj_meta <- temp[["SWSF_prj_meta"]]
   SWSF_prj_inputs <- temp[["SWSF_prj_inputs"]]

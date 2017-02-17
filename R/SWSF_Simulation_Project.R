@@ -290,7 +290,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
     } else {
       SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-        tracker = "dbW_current", prepared = NA)
+        tracker = "dbW_current", prepared = NA, checked = NA)
     }
   }
 
@@ -312,7 +312,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "soil_data", prepared = NA)
+      tracker = "soil_data", prepared = NA, checked = NA)
   }
 
 
@@ -332,7 +332,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "climnorm_data", prepared = NA)
+      tracker = "climnorm_data", prepared = NA, checked = NA)
   }
 
 
@@ -352,7 +352,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "elev_data", prepared = NA)
+      tracker = "elev_data", prepared = NA, checked = NA)
   }
 
 
@@ -370,7 +370,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "dbW_scenarios", prepared = NA)
+      tracker = "dbW_scenarios", prepared = NA, checked = NA)
   }
 
 
@@ -395,7 +395,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "req_soillayers", prepared = NA)
+      tracker = "req_soillayers", prepared = NA, checked = NA)
   }
 
 
@@ -412,7 +412,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   } else {
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
-      tracker = "calc_bsevap", prepared = NA)
+      tracker = "calc_bsevap", prepared = NA, checked = NA)
   }
 
 
@@ -456,65 +456,112 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
 #' Attempt to check input data of a rSWSF project for consistency
 #' @export
-check_rSWSF_project_input_data <- function(SWSF_prj_meta) {
+check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_verbosity) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
+  on.exit({if (opt_verbosity[["verbose"]]) {
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
+      print(SWSF_prj_meta[["input_status"]])
+    }}, add = TRUE)
+
+  if (all(stats::na.exclude(SWSF_prj_meta[["input_status"]][, "checked"]))) {
+    # Return if all is checked (from a previous run)
+
+    return(list(SWSF_prj_meta = SWSF_prj_meta, SWSF_prj_inputs = SWSF_prj_inputs))
+  }
+
   on.exit(saveRDS(SWSF_prj_meta, file = SWSF_prj_meta[["fnames_in"]][["fmeta"]]),
     add = TRUE)
+  on.exit(saveRDS(SWSF_prj_inputs, file = SWSF_prj_meta[["fnames_in"]][["fpreprocin"]]),
+    add = TRUE)
 
-  if (anyNA(SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "dailyweather_source"])) {
-    stop("There are sites without daily weather. Provide data for all runs")
-  }
 
-  if (opt_sim[["use_dbW_current"]]) {
-    if (!(prj_todos[["actions"]]["prep_dbW"] || file.exists(fnames_in[["fdbWeather"]]))) {
-      stop("Create or use existing Weather database with Scenario data inside.")
+  #--- Checking input 'SWRunInformation'
+  if (todo_intracker(SWSF_prj_meta, "load_inputs", "checked")) {
+    # Check that 'dailyweather_source' are specified
+    itemp <- SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ]
+    icheck1 <- !anyNA(itemp[, "dailyweather_source"])
+    if (!icheck1) {
+      warning("There are sites without a specified daily weather data source. ",
+        "Provide data for every requested run.")
     }
 
-  } else {
-    if (!any(create_treatments == "LookupWeatherFolder",
-      prj_todos[["GriddedDailyWeatherFromMaurer2002_NorthAmerica"]],
-      prj_todos[["GriddedDailyWeatherFromDayMet_NorthAmerica"]])) {
-      stop("Daily weather data must be provided through 'LookupWeatherFolder', ",
-        "'Maurer2002_NorthAmerica', or 'DayMet_NorthAmerica' since no weather database is ",
-        "used")
+    # Check that INCLUDE_YN* are inclusive
+    icheck2 <- check_requested_sites(
+      SWSF_prj_inputs[["include_YN"]], SWSF_prj_inputs[["SWRunInformation"]],
+      SWSF_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
+  }
+
+
+  #--- Check daily weather
+  if (todo_intracker(SWSF_prj_meta, "dbW_current", "checked") ||
+    todo_intracker(SWSF_prj_meta, "dbW_scenarios", "checked")) {
+
+    if (SWSF_prj_meta[["opt_sim"]][["use_dbW_current"]] ||
+      SWSF_prj_meta[["opt_sim"]][["use_dbW_future"]]) {
+
+      icheck1 <- file.exists(SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
+      icheck2 <- check_dbWeather_version(SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
+      icheck <- icheck1 && icheck2
+
+    } else {
+      icheck <- any(all(SWSF_prj_inputs[["create_treatments"]] == "LookupWeatherFolder"),
+      SWSF_prj_meta[["exinfo"]][["GriddedDailyWeatherFromMaurer2002_NorthAmerica"]],
+      SWSF_prj_meta[["exinfo"]][["GriddedDailyWeatherFromDayMet_NorthAmerica"]])
+
+      if (!icheck) {
+        warning("Daily weather data must be provided through 'LookupWeatherFolder', ",
+          "'Maurer2002_NorthAmerica', or 'DayMet_NorthAmerica' since no weather database ",
+          "is used")
+      }
+    }
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "dbW_current", checked = icheck)
+
+    if (todo_intracker(SWSF_prj_meta, "dbW_scenarios", "checked")) {
+      SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+        tracker = "dbW_scenarios", checked = icheck)
     }
   }
 
-  if (opt_sim[["use_dbW_current"]] || opt_sim[["use_dbW_future"]])
-    stopifnot(check_dbWeather_version(fnames_in[["fdbWeather"]]))
 
-  #---------------------------------------------------------------------------------------#
-  #------------------------CHECK THAT INCLUDE_YN* ARE INCLUSIVE
-  if (todo_intracker(SWSF_prj_meta, "data_load", "checked")) {
-    SWSF_prj_inputs[["SWRunInformation"]] <- check_requested_sites(include_YN, SWSF_prj_inputs[["SWRunInformation"]], fnames_in,
+ #---- Map input variables (for quality control)
+  if (todo_intracker(SWSF_prj_meta, "soil_data", "checked")) {
+    icheck <- map_input_variables(map_vars = c("SoilDepth", "Matricd", "GravelContent",
+      "Sand", "Clay", "TOC_GperKG", "EvapCoeff"), SWSF_prj_meta, SWSF_prj_inputs,
       verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "soil_data", checked = icheck)
   }
 
-
-
-
-  #---------------------------------------------------------------------------------------#
-  #------------------------MAP INPUT VARIABLES (FOR QUALITY CONTROL)
-  if (prj_todos[["actions"]][["check_inputs"]] && length(prj_todos[["check_inputs"]]) > 0) {
-    map_input_variables(prj_todos[["check_inputs"]], SWSF_prj_inputs[["SWRunInformation"]], sw_input_soillayers,
-      sw_input_cloud_use,
-      sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use, sw_input_site,
-      sw_input_soils_use, sw_input_soils, sw_input_weather_use, sw_input_weather,
-      sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
-      sw_input_climscen_values, SWSF_prj_meta[["sim_size"]], sim_space, project_paths[["dir_out"]],
+  if (todo_intracker(SWSF_prj_meta, "elev_data", "checked")) {
+    icheck <- map_input_variables(map_vars = "ELEV_m", SWSF_prj_meta, SWSF_prj_inputs,
       verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "elev_data", checked = icheck)
   }
 
-  if (opt_verbosity[["verbose"]]) {
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
-    print(SWSF_prj_meta[["input_status"]])
+  if (todo_intracker(SWSF_prj_meta, "climnorm_data", "checked")) {
+    icheck <- map_input_variables(map_vars = c("RH", "SkyC", "Wind", "snowd"),
+      SWSF_prj_meta, SWSF_prj_inputs, verbose = opt_verbosity[["verbose"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "climnorm_data", checked = icheck)
   }
+
 
   list(SWSF_prj_meta = SWSF_prj_meta, SWSF_prj_inputs = SWSF_prj_inputs)
 }

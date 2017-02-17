@@ -122,11 +122,15 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
   do_ignore <- includes_all_sources %in% c("Include_YN", "include_YN_available")
   includes_sources <- includes_all_sources[!do_ignore]
 
+  check <- FALSE
+
   if (length(includes_sources) > 0L) {
     include_YN_sources <- apply(SWRunInformation[, includes_sources, drop = FALSE], 1,
       function(x) all(x > 0L))
 
     if (all(include_YN_sources[include_YN > 0L])) {
+      check <- TRUE
+
       if (verbose)
         print(paste("Data sources available for all requested SWSF simulation runs"))
 
@@ -138,51 +142,63 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
       unlink(fnames_in[["fpreprocin"]])
 
-      stop("Data sources not available for every requested SWSF simulation run. ",
+      warning("Data sources not available for every requested SWSF simulation run. ",
         "New column 'include_YN_available' with updated information stored to ",
-        "MasterInput file 'SWRunInformation' on disk. SWSF is stopped so that you can ",
-        "bring 'include_YN' and 'include_YN_available' in agreement before running ",
+        "MasterInput file 'SWRunInformation' on disk. SWSF should be stopped so that you ",
+        "can bring 'include_YN' and 'include_YN_available' in agreement before running ",
         "the simulations.")
     }
 
   }
 
-  SWRunInformation
+  list(SWRunInformation = SWRunInformation, check = check)
 }
 
 
-map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
-  sw_input_cloud_use, sw_input_cloud, sw_input_prod_use, sw_input_prod, sw_input_site_use,
-  sw_input_site, sw_input_soils_use, sw_input_soils, sw_input_weather_use,
-  sw_input_weather, sw_input_climscen_use, sw_input_climscen, sw_input_climscen_values_use,
-  sw_input_climscen_values, sim_size, sim_space, dir_out, verbose = FALSE) {
+map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
+  verbose = FALSE) {
 
-  if (verbose)
-    print(paste("SWSF generates maps of input variables for quality control: started at",
-    t1 <- Sys.time()))
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+  }
 
-  dir.inmap <- file.path(dir_out, "Input_maps")
+  on.exit({if (verbose) {
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+    }}, add = TRUE)
+
+  dir.inmap <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)
 
   input_avail <- list(
     SWRunInformation = list(
-      cols = names(SWRunInformation), use = rep(TRUE, ncol(SWRunInformation))),
+      cols = names(SWSF_prj_inputs[["SWRunInformation"]]),
+      use = rep(TRUE, ncol(SWSF_prj_inputs[["SWRunInformation"]]))),
     sw_input_soillayers = list(
-      cols = names(sw_input_soillayers), use = rep(TRUE, ncol(sw_input_soillayers))),
+      cols = names(SWSF_prj_inputs[["sw_input_soillayers"]]),
+      use = rep(TRUE, ncol(SWSF_prj_inputs[["sw_input_soillayers"]]))),
     sw_input_cloud = list(
-      cols = names(sw_input_cloud), use = sw_input_cloud_use),
+      cols = names(SWSF_prj_inputs[["sw_input_cloud"]]),
+      use = SWSF_prj_inputs[["sw_input_cloud_use"]]),
     sw_input_prod = list(
-      cols = names(sw_input_prod), use = sw_input_prod_use),
+      cols = names(SWSF_prj_inputs[["sw_input_prod"]]),
+      use = SWSF_prj_inputs[["sw_input_prod_use"]]),
     sw_input_site = list(
-      cols = names(sw_input_site), use = sw_input_site_use),
+      cols = names(SWSF_prj_inputs[["sw_input_site"]]),
+      use = SWSF_prj_inputs[["sw_input_site_use"]]),
     sw_input_soils = list(
-      cols = names(sw_input_soils), use = sw_input_soils_use),
+      cols = names(SWSF_prj_inputs[["sw_input_soils"]]),
+      use = SWSF_prj_inputs[["sw_input_soils_use"]]),
     sw_input_weather = list(
-      cols = names(sw_input_weather), use = sw_input_weather_use),
+      cols = names(SWSF_prj_inputs[["sw_input_weather"]]),
+      use = SWSF_prj_inputs[["sw_input_weather_use"]]),
     sw_input_climscen = list(
-      cols = names(sw_input_climscen), use = sw_input_climscen_use),
+      cols = names(SWSF_prj_inputs[["sw_input_climscen"]]),
+      use = SWSF_prj_inputs[["sw_input_climscen_use"]]),
     sw_input_climscen_values = list(
-      cols = names(sw_input_climscen_values), use = sw_input_climscen_use)
+      cols = names(SWSF_prj_inputs[["sw_input_climscen_values"]]),
+      use = SWSF_prj_inputs[["sw_input_climscen_use"]])
   )
 
   for (iv in seq_along(map_vars)) {
@@ -194,7 +210,7 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
       dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
       for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-        dat <- get(names(iv_locs)[it1])[sim_size[["runIDs_sites"]], iv_locs[[it1]][it2]]
+        dat <- get(names(iv_locs)[it1])[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], iv_locs[[it1]][it2]]
         dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
 
         # this code plots only numeric maps
@@ -202,31 +218,31 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
           names(dat) <- iv_locs[[it1]][it2]
 
           map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2],
-            sim_space[["scorp"]], sep = "_")
+            SWSF_prj_meta[["sim_space"]][["scorp"]], sep = "_")
 
           # Convert data to spatial object
-          if (sim_space[["scorp"]] == "point") {
-            sp_dat <- as(sim_space[["run_sites"]], "SpatialPointsDataFrame")
+          if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "point") {
+            sp_dat <- as(SWSF_prj_meta[["sim_space"]][["run_sites"]], "SpatialPointsDataFrame")
             temp <- as.data.frame(dat)
             colnames(temp) <-  iv_locs[[it1]][it2]
             slot(sp_dat, "data") <- temp
 
-            if (!raster::compareCRS(sim_space[["crs_sites"]], sim_space[["sim_crs"]])) {
-              sp_dat <- sp::spTransform(sp_dat, CRS = sim_space[["sim_crs"]])
+            if (!raster::compareCRS(SWSF_prj_meta[["sim_space"]][["crs_sites"]], SWSF_prj_meta[["sim_space"]][["sim_crs"]])) {
+              sp_dat <- sp::spTransform(sp_dat, CRS = SWSF_prj_meta[["sim_space"]][["sim_crs"]])
             }
 
-          } else if (sim_space[["scorp"]] == "cell") {
+          } else if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "cell") {
             # if failing, then need a more sophisticated assignment of values than
             # implemented below
-            stopifnot(raster::canProcessInMemory(sim_space[["sim_raster"]]))
+            stopifnot(raster::canProcessInMemory(SWSF_prj_meta[["sim_space"]][["sim_raster"]]))
 
-            temp <- sim_space[["run_sites"]]
-            if (!raster::compareCRS(sim_space[["crs_sites"]], sim_space[["sim_crs"]])) {
-              temp <- sp::spTransform(temp, CRS = sim_space[["sim_crs"]])
+            temp <- SWSF_prj_meta[["sim_space"]][["run_sites"]]
+            if (!raster::compareCRS(SWSF_prj_meta[["sim_space"]][["crs_sites"]], SWSF_prj_meta[["sim_space"]][["sim_crs"]])) {
+              temp <- sp::spTransform(temp, CRS = SWSF_prj_meta[["sim_space"]][["sim_crs"]])
             }
 
             # init with NAs
-            sp_dat <- raster::init(sim_space[["sim_raster"]], fun = function(x) rep(NA, x))
+            sp_dat <- raster::init(SWSF_prj_meta[["sim_space"]][["sim_raster"]], fun = function(x) rep(NA, x))
             sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
           }
 
@@ -244,7 +260,7 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
           cols <- rev(grDevices::terrain.colors(7))
           cols[1] <- "gray"
           cols <- grDevices::colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
-          if (sim_space[["scorp"]] == "point") {
+          if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "point") {
             par1 <- graphics::par(mar = c(2.5, 2.5, 0.5, 8.5))
             cdat <- cut(dat, n_cols)
             p_size <- function(x) max(0.25, min(2, 100 / x))
@@ -260,7 +276,7 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
             graphics::text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
             graphics::par(par1)
 
-          } else if (sim_space[["scorp"]] == "cell") {
+          } else if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "cell") {
             raster::plot(sp_dat, col = cols, asp = 1)
           }
           graphics::mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"),
@@ -277,10 +293,6 @@ map_input_variables <- function(map_vars, SWRunInformation, sw_input_soillayers,
       }
     }
   }
-
-  if (verbose)
-    print(paste("SWSF input maps: ended after",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
 
   invisible(TRUE)
 }
