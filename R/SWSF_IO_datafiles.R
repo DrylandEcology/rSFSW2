@@ -308,7 +308,9 @@ read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
       shQuote(swFiles_tag), " in folder ", shQuote(dir_in_sw))
 
   # 'swDataFromFiles' acts as the basis for all runs
-  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir_in_sw, files.in = swFilesIn)
+  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir_in_sw,
+    files.in = swFilesIn)
+
   # we don't need the example weather data; the code will get weather data separately
   if (length(swDataFromFiles@weatherHistory) > 0)
     swDataFromFiles@weatherHistory <- list(Rsoilwat31::swClear(swDataFromFiles@weatherHistory[[1]]))

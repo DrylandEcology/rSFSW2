@@ -17,7 +17,7 @@ Input/mkv_covar.in	# covariance table required for markov weather
 Input/cloud.in	# general atmospheric params
 
 #Vegetation
-Input/sbe_prod.in	# productivity values
+Input/prod.in	# productivity values
 Input/estab.in	# plant establishment start file
 
 #SWC measurements
