@@ -1,17 +1,17 @@
-update_scenarios_with_ensembles <- function(sim_scens, sim_time, prj_todos) {
+update_scenarios_with_ensembles <- function(SWSF_prj_meta) {
+  sim_scens <- SWSF_prj_meta[["sim_scens"]]
 
   if (length(sim_scens[["ensemble.levels"]]) > 0)
     sim_scens[["ensemble.levels"]] <- sort(sim_scens[["ensemble.levels"]])
 
-  do_ensembles <- prj_todos[["actions"]][["ensemble"]] &&
+  sim_scens[["has_ensembles"]] <- sim_scens[["N"]] > 1 &&
     !is.null(sim_scens[["ensemble.families"]]) &&
     length(sim_scens[["ensemble.levels"]]) > 0 &&
-    is.numeric(sim_scens[["ensemble.levels"]]) &&
-    sim_scens[["N"]] > 1
+    all(is.numeric(sim_scens[["ensemble.levels"]]))
 
-  if (do_ensembles) {
-    sim_scens[["ensemble.families"]] <- paste0(rownames(sim_time[["future_yrs"]]), ".",
-      rep(sim_scens[["ensemble.families"]], each = sim_time[["future_N"]]))	#add (multiple) future_yrs
+  if (sim_scens[["has_ensembles"]]) {
+    sim_scens[["ensemble.families"]] <- paste0(rownames(SWSF_prj_meta[["sim_time"]][["future_yrs"]]), ".",
+      rep(sim_scens[["ensemble.families"]], each = SWSF_prj_meta[["sim_time"]][["future_N"]]))	#add (multiple) future_yrs
     scenarios.ineach.ensemble <- sapply(sim_scens[["ensemble.families"]], function(x)
       grepl(x, sim_scens[["id"]], ignore.case = TRUE))
     temp <- apply(scenarios.ineach.ensemble, 2, any)
@@ -30,7 +30,9 @@ update_scenarios_with_ensembles <- function(sim_scens, sim_time, prj_todos) {
     }
   }
 
-  list(sim_scens = sim_scens, do_ensembles = do_ensembles)
+  SWSF_prj_meta[["sim_scens"]] <- sim_scens
+
+  SWSF_prj_meta
 }
 
 
@@ -202,3 +204,59 @@ update_scenarios_with_ensembles <- function(sim_scens, sim_time, prj_todos) {
 
 		return(nfiles)
 	}
+
+
+generate_ensembles <- function(SWSF_prj_meta, t_job_start, opt_parallel, opt_chunks,
+  verbose = FALSE) {
+
+  con <- DBI::dbConnect(RSQLite::SQLite(),
+    dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+
+  Tables <- dbOutput_ListOutputTables(con)
+  Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
+
+  if (opt_parallel[["has_parallel"]]) {
+    #call the simulations depending on parallel backend
+
+    if(identical(opt_parallel[["parallel_backend"]], "mpi")) {
+
+      ensembles.completed <- Rmpi::mpi.applyLB(X = Tables,
+        FUN = collect_EnsembleFromScenarios,
+        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        opt_chunks = opt_chunks)
+
+    } else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
+
+      ensembles.completed <- parallel::clusterApplyLB(opt_parallel[["cl"]],
+        x = Tables, fun = collect_EnsembleFromScenarios,
+        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        opt_chunks = opt_chunks)
+    }
+
+  } else {
+    ensembles.completed <- lapply(Tables, FUN = collect_EnsembleFromScenarios,
+        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        opt_chunks = opt_chunks)
+  }
+
+  ensembles.completed <- sum(unlist(ensembles.completed))
+
+  temp <- {if (SWSF_prj_meta[["sim_scens"]][["save.scenario.ranks"]]) 3 else 2} *
+    length(Tables) * length(SWSF_prj_meta[["sim_scens"]][["ensemble.families"]]) *
+    length(SWSF_prj_meta[["sim_scens"]][["ensemble.levels"]])
+
+  if (ensembles.completed != temp)
+    print(paste("SWSF calculates ensembles: something went wrong with ensemble output:",
+      "ensembles.completed = ", ensembles.completed, " instead of ", temp, "."))
+
+  ensembles.completed
+}

@@ -4,9 +4,8 @@
 \alias{check_outputDB_completeness}
 \title{Check whether dbOutput contains a complete set of output/simulation results}
 \usage{
-check_outputDB_completeness(dbOutput, dbOutput_current = NULL,
-  update_workDB = FALSE, do_DBcurrent = FALSE, opt_parallel,
-  dir_out = getwd(), verbose = FALSE)
+check_outputDB_completeness(SWSF_prj_meta, opt_parallel, opt_behave,
+  opt_out_run, verbose = FALSE)
 }
 \description{
 Check whether dbOutput contains a complete set of output/simulation results

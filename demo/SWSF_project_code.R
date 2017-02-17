@@ -25,6 +25,8 @@
 
 
 ##############################################################################
+t_job_start <- Sys.time()
+
 library("rSWSF")
 
 #------ Turn on/off actions to be carried out by simulation framework
@@ -34,29 +36,29 @@ actions <- list(
   #     (formerly 'createAndPopulateWeatherDatabase')
   #   - "external": pulls data from 'external' data sources from 'dir_external' as
   #     specified by 'req_data'
-  prep_inputs = FALSE,
+  prep_inputs = TRUE,
 
   # Input checking
-  check_inputs = FALSE,
+  check_inputs = TRUE,
 
   # Simulation runs
   # "sim_create", "sim_execute", and "sim_aggregate" can be used individually if
   # "saveRsoilwatInput" and/or "saveRsoilwatOutput" are true
   #   - Prepare/collect inputs for a Rsoilwat run (formerly, 'create')
-  sim_create = FALSE,
+  sim_create = TRUE,
   #   - Execute SOILWAT2 simulations (formerly 'execute')
-  sim_execute = FALSE,
+  sim_execute = TRUE,
   #   - Calculate aggregated response variables from  SOILWAT2 output and store results
   #     in temporary text files on disk (formerly, "aggregate')
-  sim_aggregate = FALSE,
+  sim_aggregate = TRUE,
 
   # Output handling
   #   - Copy simulation results from temporary text files to a output SQL-database
   #     (formerly, 'concatenate')
-  concat_dbOut = FALSE,
+  concat_dbOut = TRUE,
   #   - Calculate 'ensembles' across climate scenarios and stores the results
   #     in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-  ensemble = FALSE,
+  ensemble = TRUE,
   #   - Check completeness of output database
   check_dbOut = FALSE
 )
@@ -122,8 +124,8 @@ source(file.path(dir_prj, "SWSF_project_settings.R"), verbose = FALSE,
 
 if (actions[["prep_inputs"]]) {
 
-  temp <- populate_rSWSF_project_with_data(SWSF_prj_meta, opt_behave,
-    opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+  temp <- populate_rSWSF_project_with_data(SWSF_prj_meta, opt_behave, opt_parallel,
+    opt_chunks, opt_out_run, opt_verbosity)
 
   SWSF_prj_meta <- temp[["SWSF_prj_meta"]]
   SWSF_prj_inputs <- temp[["SWSF_prj_inputs"]]
@@ -147,12 +149,34 @@ if (actions[["check_inputs"]]) {
 ##############################################################################
 #------ 5) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
-if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut",
-  "ensemble", "check_dbOut")])) && all(SWSF_prj_meta[["input_status"]])) {
+if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut")]))) {
 
-  simulate_SOILWAT2_experiment(actions, opt_behave, opt_sim, req_scens,
-    req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space, opt_parallel,
-    opt_chunks, opt_job_time, opt_verbosity)
+  SWSF_prj_meta <- simulate_SOILWAT2_experiment(actions, SWSF_prj_meta, SWSF_prj_inputs,
+    t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
 }
+
+
+
+##############################################################################
+#------ 6) ENSEMBLE GENERATION -----------------------------------------------
+
+if (actions[["ensemble"]]) {
+
+  generate_ensembles(SWSF_prj_meta, t_job_start, opt_parallel, opt_chunks,
+    verbose = opt_verbosity[["verbose"]])
+}
+
+
+
+##############################################################################
+#------ 7) CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION --------------
+
+if (actions[["check_dbOut"]]) {
+
+  check_outputDB_completeness(SWSF_prj_meta, opt_parallel, opt_behave,
+    opt_out_run, verbose = opt_verbosity[["verbose"]])
+}
+
+
 
 ##############################################################################

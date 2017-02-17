@@ -4,10 +4,7 @@
 \alias{make_dbOutput}
 \title{Create dbOutput if requested and/or not already present}
 \usage{
-make_dbOutput(dbOutput, prj_todos, opt_agg, SWRunInformation,
-  Index_RunInformation, sim_size, create_treatments, create_experimentals,
-  sw_input_treatments, sw_input_treatments_use, sw_input_experimentals,
-  sim_scens, sim_time, verbose = FALSE)
+make_dbOutput(SWSF_prj_meta, SWSF_prj_inputs, verbose = FALSE)
 }
 \value{
 An integer value. The number of fields in the 'overall_aggregation' tables

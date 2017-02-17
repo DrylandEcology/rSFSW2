@@ -1091,8 +1091,8 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
 
 init_intracker <- function() {
-  temp <- c("load_inputs", "calc_size", "spatial_setup", "dbWork", "dbW_paths",
-    "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",
+  temp <- c("load_inputs", "calc_size", "spatial_setup", "prj_todos", "dbWork",
+    "dbW_paths", "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",
     "climnorm_data", "req_soillayers", "calc_bsevap", "table_lookup")
 
 #  temp <- c("sim_years", "coef_evap", "coef_transp",
@@ -1111,6 +1111,13 @@ todo_intracker <- function(SWSF_prj_meta, tracker, status) {
   x <- SWSF_prj_meta[["input_status"]][tracker, status]
 
   !is.na(x) && identical(x, FALSE)
+}
+
+
+isdone_intracker <- function(SWSF_prj_meta, tracker, status) {
+  x <- SWSF_prj_meta[["input_status"]][tracker, status]
+
+  !is.na(x) && identical(x, TRUE)
 }
 
 

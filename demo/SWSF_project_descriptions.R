@@ -98,7 +98,7 @@ fnames_in <- list(
   fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3"),
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
-  fsimraster = file.path(project_paths[["dir_in"]], "YOURRASTER.FILE")
+  fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
 )
 
 
@@ -261,11 +261,11 @@ opt_out_fix <- list(
 #  - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
 #  - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA"
 #     NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global'
-sim_space <- list(
+in_space <- list(
   scorp = scorp <- "point",
 
   # Resolution of raster cells
-  sim_res = if (scorp == "cell") c(1e4, 1e4) else NULL,
+  sim_res = if (scorp == "cell") c(1e4, 1e4) else NA,
   # Coordinate reference system (CRS)
   sim_crs = if (scorp == "cell") {
       "+init=epsg:5072" # NAD83(HARN) / Conus Albers
@@ -431,10 +431,6 @@ req_scens <- list(
 #------ Requested output
 # Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
-  # Fields/variables of input data for which to create maps if actions[["check_inputs"]]
-  map_vars = c("ELEV_m", "SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
-    "TOC_GperKG", "EvapCoeff", "RH", "SkyC", "Wind", "snowd"),
-
   # Overall aggregated output table
   overall_out = c(
   #---Aggregation: SOILWAT2 inputs

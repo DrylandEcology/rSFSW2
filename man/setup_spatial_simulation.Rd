@@ -4,8 +4,8 @@
 \alias{setup_spatial_simulation}
 \title{Set-up information for a spatially aware simulation project}
 \usage{
-setup_spatial_simulation(SWRunInformation, sim_space, sim_size,
-  fsimraster = "", use_sim_spatial = FALSE)
+setup_spatial_simulation(SWSF_prj_meta, SWSF_prj_inputs,
+  use_sim_spatial = FALSE)
 }
 \description{
 Set-up information for a spatially aware simulation project

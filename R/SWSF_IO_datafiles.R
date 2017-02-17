@@ -142,7 +142,7 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
       unlink(fnames_in[["fpreprocin"]])
 
-      warning("Data sources not available for every requested SWSF simulation run. ",
+      stop("Data sources not available for every requested SWSF simulation run. ",
         "New column 'include_YN_available' with updated information stored to ",
         "MasterInput file 'SWRunInformation' on disk. SWSF should be stopped so that you ",
         "can bring 'include_YN' and 'include_YN_available' in agreement before running ",
@@ -210,7 +210,7 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
       dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
       for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-        dat <- get(names(iv_locs)[it1])[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], iv_locs[[it1]][it2]]
+        dat <- SWSF_prj_inputs[[names(iv_locs)[it1]]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], iv_locs[[it1]][it2]]
         dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
 
         # this code plots only numeric maps
@@ -251,7 +251,7 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
 
           # Figure
           grDevices::png(height = 10, width = 6, units = "in", res = 200,
-            file = file.path(dir.inmapvar, paste0(map_flag, ".grDevices::png")))
+            file = file.path(dir.inmapvar, paste0(map_flag, ".png")))
           par_old <- graphics::par(mfrow = c(2, 1), mar = c(2.5, 2.5, 0.5, 0.5),
             mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
 

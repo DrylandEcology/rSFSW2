@@ -4,10 +4,7 @@
 \alias{run_simulation_experiment}
 \title{Run a rSWSF simulation experiment}
 \usage{
-run_simulation_experiment(sim_size, SWRunInformation, sw_input_soillayers,
-  sw_input_treatments, sw_input_cloud, sw_input_prod, sw_input_site,
-  sw_input_soils, sw_input_weather, sw_input_climscen, sw_input_climscen_values,
-  MoreArgs)
+run_simulation_experiment(sim_size, SWSF_prj_inputs, MoreArgs)
 }
 \description{
 Run a rSWSF simulation experiment

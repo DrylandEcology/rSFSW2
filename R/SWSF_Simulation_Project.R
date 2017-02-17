@@ -1,18 +1,4 @@
 
-#' List of objects to export which are required by simulate_SOILWAT2_experiment and are
-#'  not in rSWSF (sorted alphabetically)
-#' @export
-global_args_simulate_SOILWAT2_experiment <- function() {
-  c("GISSM_species_No", "GISSM_params", "include_YN", "sw_input_treatments",
-    "sw_input_treatments_use", "Index_RunInformation", "sw_input_prod",
-    "sw_input_site", "sw_input_weather")
-}
-
-if (getRversion() >= "2.15.1")
-  utils::globalVariables(global_args_simulate_SOILWAT2_experiment())
-
-
-
 #' Setup infrastructure (skeleton) for a new rSWSF simulation experiment
 #'
 #' @param dir_prj A character string. The path to the new simulation project. Folders are
@@ -94,8 +80,8 @@ init_rSWSF_project <- function(SWSF_prj_meta, fmeta, verbose = TRUE) {
   }
 
   #--- Delete objects from 'SWSF_prj_meta' which were used to create initial input
-  try(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj", "endyr",
-    "scorp", "startyr", "temp"), envir = SWSF_prj_meta), silent = TRUE)
+  suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
+    "endyr", "scorp", "startyr", "temp"), envir = SWSF_prj_meta))
 
   #--- Update project paths and file names
   dir_safe_create(SWSF_prj_meta[["project_paths"]])
@@ -113,6 +99,9 @@ init_rSWSF_project <- function(SWSF_prj_meta, fmeta, verbose = TRUE) {
   #--- Determine scenario names
   SWSF_prj_meta[["sim_scens"]] <- setup_scenarios(SWSF_prj_meta[["req_scens"]],
     SWSF_prj_meta[["sim_time"]][["future_yrs"]])
+
+  #--- Determine requested ensembles across climate scenarios
+  SWSF_prj_meta <- update_scenarios_with_ensembles(SWSF_prj_meta)
 
   #--- Prior calculations
   SWSF_prj_meta[["pcalcs"]] <- convert_to_todo_list(SWSF_prj_meta[["opt_input"]][["prior_calculations"]])
@@ -148,6 +137,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
     }}, add = TRUE)
 
 
+  #------ PROJECT INPUTS
   #--- Import data
   if (!exists("SWSF_prj_inputs") || is.null(SWSF_prj_inputs) ||
     todo_intracker(SWSF_prj_meta, "load_inputs", "prepared")) {
@@ -193,7 +183,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
   #--- Spatial setup of simulations
   if (todo_intracker(SWSF_prj_meta, "spatial_setup", "prepared")) {
-    use_sim_spatial <- actions[["check_inputs"]] ||
+    SWSF_prj_meta[["use_sim_spatial"]] <-
       (todo_intracker(SWSF_prj_meta, "soil_data", "prepared") &&
         (SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
         SWSF_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]])) ||
@@ -204,12 +194,52 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
         (SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
         SWSF_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]))
 
-    SWSF_prj_meta[["sim_space"]] <- setup_spatial_simulation(SWSF_prj_inputs[["SWRunInformation"]],
-      SWSF_prj_meta[["sim_space"]], SWSF_prj_meta[["sim_size"]],
-      SWSF_prj_meta[["fnames_in"]][["fsimraster"]], use_sim_spatial)
+    SWSF_prj_meta <- setup_spatial_simulation(SWSF_prj_meta, SWSF_prj_inputs,
+      use_sim_spatial = SWSF_prj_meta[["use_sim_spatial"]])
 
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
       tracker = "spatial_setup", prepared = TRUE, clean_subsequent = TRUE)
+  }
+
+
+  #--- Determine todos for simulation project
+  if (todo_intracker(SWSF_prj_meta, "prj_todos", "prepared")) {
+
+    SWSF_prj_meta[["prj_todos"]] <- list(
+      EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature =
+        SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]],
+      EstimateInitialSoilTemperatureForEachSoilLayer =
+        SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]],
+
+      # output aggregate overall
+      aon = convert_to_todo_list(SWSF_prj_meta[["req_out"]][["overall_out"]]),
+      # output aggregate daily
+      adaily = setup_mean_daily_output_requests(SWSF_prj_meta[["req_out"]][["mean_daily"]],
+        SWSF_prj_meta[["opt_agg"]]),
+      # output daily traces
+      otrace = SWSF_prj_meta[["req_out"]][["traces"]]
+    )
+
+    #--- Update todo list
+    SWSF_prj_meta[["prj_todos"]][["need_cli_means"]] <-
+      any(SWSF_prj_inputs[["sw_input_climscen_values_use"]]) ||
+      SWSF_prj_meta[["prj_todos"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]] ||
+      SWSF_prj_inputs[["sw_input_site_use"]]["SoilTempC_atLowerBoundary"] ||
+      SWSF_prj_inputs[["sw_input_site_use"]]["SoilTempC_atUpperBoundary"] ||
+      SWSF_prj_meta[["prj_todos"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]] ||
+      any(SWSF_prj_inputs[["create_treatments"]] == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
+      any(SWSF_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Temperature") ||
+      any(SWSF_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Precipitation") ||
+      any(SWSF_prj_inputs[["create_treatments"]] == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
+
+
+    #--- Update output aggregation options
+    SWSF_prj_meta[["opt_agg"]] <- setup_aggregation_options(SWSF_prj_meta[["opt_agg"]],
+      GISSM_species_No = SWSF_prj_inputs[["GISSM_species_No"]],
+      GISSM_params = SWSF_prj_inputs[["GISSM_params"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "prj_todos", prepared = TRUE)
   }
 
 
@@ -228,6 +258,8 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
   }
 
 
+
+  #------ EXTERNAL INPUTS
   #------ DAILY WEATHER
   if (todo_intracker(SWSF_prj_meta, "dbW_paths", "prepared")) {
     SWSF_prj_meta <- set_paths_to_dailyweather_datasources(SWSF_prj_meta)
@@ -487,7 +519,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
     itemp <- SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ]
     icheck1 <- !anyNA(itemp[, "dailyweather_source"])
     if (!icheck1) {
-      warning("There are sites without a specified daily weather data source. ",
+      stop("There are sites without a specified daily weather data source. ",
         "Provide data for every requested run.")
     }
 
@@ -520,7 +552,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
       SWSF_prj_meta[["exinfo"]][["GriddedDailyWeatherFromDayMet_NorthAmerica"]])
 
       if (!icheck) {
-        warning("Daily weather data must be provided through 'LookupWeatherFolder', ",
+        stop("Daily weather data must be provided through 'LookupWeatherFolder', ",
           "'Maurer2002_NorthAmerica', or 'DayMet_NorthAmerica' since no weather database ",
           "is used")
       }
@@ -536,8 +568,21 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
   }
 
 
- #---- Map input variables (for quality control)
-  if (todo_intracker(SWSF_prj_meta, "soil_data", "checked")) {
+  #---- Map input variables (for quality control)
+  map_soils <- !isdone_intracker(SWSF_prj_meta, "soil_data", "checked")
+  map_elevs <- !isdone_intracker(SWSF_prj_meta, "elev_data", "checked")
+  map_climnorms <- !isdone_intracker(SWSF_prj_meta, "climnorm_data", "checked")
+
+  if (any(map_soils, map_elevs, map_climnorms) && !SWSF_prj_meta[["use_sim_spatial"]]) {
+    SWSF_prj_meta[["use_sim_spatial"]] <- TRUE
+    SWSF_prj_meta <- setup_spatial_simulation(SWSF_prj_meta, SWSF_prj_inputs,
+      use_sim_spatial = SWSF_prj_meta[["use_sim_spatial"]])
+
+    SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
+      tracker = "spatial_setup", prepared = TRUE)
+  }
+
+  if (map_soils) {
     icheck <- map_input_variables(map_vars = c("SoilDepth", "Matricd", "GravelContent",
       "Sand", "Clay", "TOC_GperKG", "EvapCoeff"), SWSF_prj_meta, SWSF_prj_inputs,
       verbose = opt_verbosity[["verbose"]])
@@ -546,7 +591,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
       tracker = "soil_data", checked = icheck)
   }
 
-  if (todo_intracker(SWSF_prj_meta, "elev_data", "checked")) {
+  if (map_elevs) {
     icheck <- map_input_variables(map_vars = "ELEV_m", SWSF_prj_meta, SWSF_prj_inputs,
       verbose = opt_verbosity[["verbose"]])
 
@@ -554,7 +599,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
       tracker = "elev_data", checked = icheck)
   }
 
-  if (todo_intracker(SWSF_prj_meta, "climnorm_data", "checked")) {
+  if (map_climnorms) {
     icheck <- map_input_variables(map_vars = c("RH", "SkyC", "Wind", "snowd"),
       SWSF_prj_meta, SWSF_prj_inputs, verbose = opt_verbosity[["verbose"]])
 
@@ -570,22 +615,27 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
 
 
 
-#' Carry out an entire rSWSF simulation experiment
+#' Carry out a rSWSF simulation experiment
 #' @export
-simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
-  req_scens, req_out, opt_agg, project_paths, fnames_in, fnames_out, sim_space,
-  opt_parallel, opt_chunks, opt_job_time, opt_verbosity) {
+simulate_SOILWAT2_experiment <- function(actions, SWSF_prj_meta, SWSF_prj_inputs,
+  t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
 
-#---------------------------------------------------------------------------------------#
-#------------------------PREPARE SOILWAT2 SIMULATIONS
 
-  t_job_start <- Sys.time()
   if (opt_verbosity[["verbose"]]) {
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t_job_start,
-      " for project ", sQuote(basename(project_paths[["dir_prj"]]))))
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1,
+      " for project ", sQuote(basename(SWSF_prj_meta[["project_paths"]][["dir_prj"]]))))
   }
 
-  #--- SET UP PARALLELIZATION
+  on.exit({if (opt_verbosity[["verbose"]])
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+
+
+  #--------------------------------------------------------------------------------------#
+  #------------------------PREPARE SOILWAT2 SIMULATIONS
+
+  #--- Set up parallelization
   # used in:
   #   - loop calling do_OneSite
   #   - ensembles
@@ -595,111 +645,41 @@ simulate_SOILWAT2_experiment <- function(actions, opt_behave, opt_sim,
   on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  # Assigning objects from 'SWSF_prj_meta' to function environment for the time being;
-  # a hack for convience
-  for (k in ls(SWSF_prj_meta))
-    assign(k, SWSF_prj_meta[[k]], envir = environment())
+#  # Assigning objects from 'SWSF_prj_meta' to function environment for the time being;
+#  # a hack for convience
+#  for (k in ls(SWSF_prj_meta))
+#    assign(k, SWSF_prj_meta[[k]], envir = environment())
 
   ow_prev <- set_options_warn_error(opt_verbosity[["debug.warn.level"]],
     opt_verbosity[["debug.dump.objects"]], project_paths[["dir_prj"]])
   on.exit(options(ow_prev), add = TRUE)
 
-  #--- Determine todos for simulation project
-  prj_todos <- list(
-    actions = actions,
-    use_SOILWAT2 = any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")])),
-    EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature =
-      SWSF_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]],
-    EstimateInitialSoilTemperatureForEachSoilLayer =
-      SWSF_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]],
 
-    # output aggregate overall
-    aon = convert_to_todo_list(req_out[["overall_out"]]),
-    # output aggregate daily
-    adaily = setup_mean_daily_output_requests(req_out[["mean_daily"]], opt_agg),
-    # output daily traces
-    otrace = req_out[["traces"]]
-  )
-
-  #--- Update todo list
-  prj_todos <- c(prj_todos, list(
-    ex_besides_weather = {
-      temp <- !grepl("GriddedDailyWeather", names(SWSF_prj_meta[["exinfo"]]))
-      any(as.logical(SWSF_prj_meta[["exinfo"]])[temp])},
-
-    need_cli_means = prj_todos[["use_SOILWAT2"]] && (
-      any(sw_input_climscen_values_use) ||
-      prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]] ||
-      sw_input_site_use["SoilTempC_atLowerBoundary"] ||
-      sw_input_site_use["SoilTempC_atUpperBoundary"] ||
-      prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]] ||
-      any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") ||
-      any(create_treatments == "AdjMonthlyBioMass_Temperature") ||
-      any(create_treatments == "AdjMonthlyBioMass_Precipitation") ||
-      any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")),
-
-
-    wipe_dbOut = opt_out[["wipe_dbOutput"]] &&
-      !(sum(prj_todos[["actions"]]) == 1 && prj_todos[["actions"]][["ensemble"]])
-  ))
-
-  #--- Update output aggregation options
-  opt_agg <- setup_aggregation_options(opt_agg, GISSM_species_No = GISSM_species_No,
-    GISSM_params = GISSM_params)
+  #--- Update todos for simulation project
+  SWSF_prj_meta[["prj_todos"]][["actions"]] <- actions
+  SWSF_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(actions[c("sim_create",
+    "sim_execute", "sim_aggregate")]))
+  SWSF_prj_meta[["prj_todos"]][["need_cli_means"]] <- SWSF_prj_meta[["prj_todos"]][["need_cli_means"]] &&
+    SWSF_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
+  SWSF_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- opt_out_run[["wipe_dbOutput"]] &&
+    !(sum(actions) == 1 && actions[["ensemble"]])
+  SWSF_prj_meta[["prj_todos"]][["do_ensembles"]] <- SWSF_prj_meta[["sim_scens"]][["has_ensembles"]] &&
+    SWSF_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
 
   #--- Determine which runs (still) need to be done for this round
-  SWSF_prj_meta[["sim_size"]][["runIDs_todo"]] <- dbWork_todos(project_paths[["dir_out"]]) # elements of runIDs_total
+  SWSF_prj_meta[["sim_size"]][["runIDs_todo"]] <- dbWork_todos(SWSF_prj_meta[["project_paths"]][["dir_out"]]) # elements of runIDs_total
   SWSF_prj_meta[["sim_size"]][["runsN_todo"]] <- length(SWSF_prj_meta[["sim_size"]][["runIDs_todo"]])
 
-  #--- Determine requested ensembles across climate scenarios
-  temp <- update_scenarios_with_ensembles(sim_scens, SWSF_prj_meta[["sim_time"]], prj_todos)
-  prj_todos[["do_ensembles"]] <- temp[["do_ensembles"]]
-  sim_scens <- temp[["sim_scens"]]
 
-
-############################################
-
-
-#append treatment information to the aggregated output in addition to selected Index_RunInformation
-Index_RunInformation_Treatments <- NULL
-if (length(create_treatments) > 0) {
-	Index_RunInformation_Treatments <- match(create_treatments, names(sw_input_treatments))
-}
-
-
-
-
-
-#---------------------------------------------------------------------------------------#
-
-
-
-
-
-
-  #----------------------------------------------------------------------------------------#
+  #--------------------------------------------------------------------------------------#
   #------------ORGANIZE DATABASES FOR SIMULATION OUTPUT
 
+  SWSF_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- make_dbOutput(SWSF_prj_meta,
+    SWSF_prj_inputs, verbose = opt_verbosity[["verbose"]])
 
 
-  #--- Prepare output database
-  temp <- make_dbOutput(fnames_out[["dbOutput"]], prj_todos, opt_agg,
-    SWSF_prj_inputs[["SWRunInformation"]], Index_RunInformation, SWSF_prj_meta[["sim_size"]], create_treatments,
-    create_experimentals, sw_input_treatments, sw_input_treatments_use,
-    sw_input_experimentals, sim_scens, SWSF_prj_meta[["sim_time"]], verbose = opt_verbosity[["verbose"]])
-
-  SWSF_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp
-
-
-if (opt_verbosity[["verbose"]])
-  print(paste("SWSF sets up the database: ended after",
-    round(difftime(Sys.time(), t1, units = "secs"), 2), "s"))
-
-
-
-
-#---------------------------------------------------------------------------------------#
-#------------------------RUN RSOILWAT
+  #--------------------------------------------------------------------------------------#
+  #------------------------RUN RSOILWAT
 
   # print system information
   print(temp <- utils::sessionInfo())
@@ -707,175 +687,81 @@ if (opt_verbosity[["verbose"]])
     benchmark_BLAS(temp$platform)
 
 
-# run the simulation experiment
-if (prj_todos[["use_SOILWAT2"]] && SWSF_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
-  swof <- sw_out_flags()
-  swDataFromFiles <- read_SOILWAT2_FileDefaults(project_paths[["dir_in_sw"]])
-  args_do_OneSite <- gather_args_do_OneSite()
+  # run the simulation experiment
+  if (SWSF_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
+    SWSF_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
 
-  runs.completed <- run_simulation_experiment(SWSF_prj_meta[["sim_size"]], SWSF_prj_inputs[["SWRunInformation"]],
-    sw_input_soillayers, sw_input_treatments, sw_input_cloud, sw_input_prod,
-    sw_input_site, sw_input_soils, sw_input_weather, sw_input_climscen,
-    sw_input_climscen_values, MoreArgs = args_do_OneSite)
+    swof <- sw_out_flags()
+    swDataFromFiles <- read_SOILWAT2_FileDefaults(SWSF_prj_meta[["project_paths"]][["dir_in_sw"]])
+    args_do_OneSite <- gather_args_do_OneSite(SWSF_prj_meta, SWSF_prj_inputs)
 
-
-} else {
-  runs.completed <- 0
-}
-#------------------------
-
-#------------------------
-# NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
-# around SQL insert statements, but instead as data.frames. Text files containing
-# data.frames may be much faster with checks for duplicate P_id entries and could be
-# inserted at once (instead of line by line) with the command
-#   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
-
-# NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
-#   may then be too large for available memory
-
-t.outputDB <- Sys.time()
-
-if (prj_todos[["actions"]][["concat_dbOut"]]) {
-
-  has_time_to_concat <- (difftime(t.outputDB, t_job_start, units = "secs") +
-    opt_job_time[["one_concat_s"]]) < opt_job_time[["wall_time_s"]]
-
-  if (has_time_to_concat) {
-    move_temporary_to_outputDB(project_paths[["dir_out_temp"]], fnames_out[["dbOutput"]],
-      fnames_out[["dbOutput_current"]], t_job_start, opt_job_time,
-      opt_out[["dbOutCurrent_from_tempTXT"]] && !opt_out[["dbOutCurrent_from_dbOut"]],
-      opt_out[["wipe_dbOutput"]], opt_out[["deleteTmpSQLFiles"]], opt_behave[["resume"]],
-      print.debug = opt_verbosity[["print.debug"]], verbose = opt_verbosity[["verbose"]])
+    runs.completed <- run_simulation_experiment(SWSF_prj_meta[["sim_size"]],
+      SWSF_prj_inputs, MoreArgs = args_do_OneSite)
 
   } else {
-    print(paste("Need at least", opt_job_time[["one_concat_s"]], "seconds to put SQL in",
-      "output DB."))
+    runs.completed <- 0
   }
 
 
-  if (opt_out[["dbOutCurrent_from_dbOut"]] && !opt_out[["dbOutCurrent_from_tempTXT"]]) {
-    has_time_to_concat <- {difftime(Sys.time(), t_job_start, units = "secs") +
-      opt_job_time[["one_concat_s"]]} < opt_job_time[["wall_time_s"]]
+  #--------------------------------------------------------------------------------------#
+  # NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
+  # around SQL insert statements, but instead as data.frames. Text files containing
+  # data.frames may be much faster with checks for duplicate P_id entries and could be
+  # inserted at once (instead of line by line) with the command
+  #   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
+
+  # NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
+  #   may then be too large for available memory
+
+  t.outputDB <- Sys.time()
+
+  if (actions[["concat_dbOut"]]) {
+
+    has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +
+      opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
+      opt_parallel[["opt_job_time"]][["wall_time_s"]]
 
     if (has_time_to_concat) {
-      do_copyCurrentConditionsFromDatabase(fnames_out[["dbOutput"]],
-        fnames_out[["dbOutput_current"]], verbose = opt_verbosity[["verbose"]])
+      move_temporary_to_outputDB(SWSF_prj_meta, t_job_start, opt_parallel, opt_behave,
+        opt_verbosity)
 
     } else {
-      print(paste("Need at least", opt_job_time[["one_concat_s"]], "seconds to put SQL",
-        "in output DB."))
+      print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
+        "seconds to put SQL in output DB."))
+    }
+
+
+    if (SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] &&
+      !SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]) {
+
+      has_time_to_concat <- {difftime(Sys.time(), t_job_start, units = "secs") +
+        opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
+        opt_parallel[["opt_job_time"]][["wall_time_s"]]
+
+      if (has_time_to_concat) {
+        do_copyCurrentConditionsFromDatabase(SWSF_prj_meta[["fnames_out"]][["dbOutput"]],
+          SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]],
+          verbose = opt_verbosity[["verbose"]])
+
+      } else {
+        print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
+          "seconds to put SQL in output DB."))
+      }
     }
   }
-}
 
-#timing of outputDB
-delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
-
-
-#---------------------------------------------------------------------------------------#
-#------------------------CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION
-t.check <- Sys.time()
-
-if (prj_todos[["actions"]][["check_dbOut"]]) {
-  check_outputDB_completeness(fnames_out[["dbOutput"]], fnames_out[["dbOutput_current"]],
-    update_workDB = opt_behave[["check_updates_dbWork"]] || opt_out[["deleteTmpSQLFiles"]],
-    do_DBcurrent = opt_out[["dbOutCurrent_from_dbOut"]] || opt_out[["dbOutCurrent_from_tempTXT"]],
-    opt_parallel, project_paths[["dir_out"]], verbose = opt_verbosity[["verbose"]])
-}
-
-#timing of check
-delta.check <- difftime(Sys.time(), t.check, units = "secs")
-
-#---------------------------------------------------------------------------------------#
-#------------------------ENSEMBLE GENERATION
-t.ensembles <- Sys.time()	#timing of ensemble calculation
-
-if (prj_todos[["do_ensembles"]]) {
-
-	if (opt_verbosity[["verbose"]])
-	  print(paste("SWSF calculates ensembles: started at", t.ensembles))
+  #timing of outputDB
+  delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
 
 
-	con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fnames_out[["dbOutput"]])
 
-	Tables <- dbOutput_ListOutputTables(con)
-	Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
+  #---------------------------------------------------------------------------------------#
+  #------------------------OVERALL TIMING
+  delta.overall <- difftime(Sys.time(), t1, units = "secs")
 
-	if (opt_parallel[["has_parallel"]]) {
-		#call the simulations depending on parallel backend
+  compile_overall_timer(SWSF_prj_meta[["fnames_out"]][["timerfile"]],
+    SWSF_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
+    runs.completed, sim_scens[["N"]], 0, delta.overall, delta.outputDB, 0, 0)
 
-		if(identical(opt_parallel[["parallel_backend"]], "mpi")) {
-
-			ensembles.completed <- Rmpi::mpi.applyLB(X = Tables,
-			  FUN = collect_EnsembleFromScenarios,
-			  name.OutputDB = fnames_out[["dbOutput"]], t.overall = t_job_start,
-			  opt_job_time = opt_job_time, opt_parallel = opt_parallel,
-			  dir_out = project_paths[["dir_out"]], sim_scens = sim_scens,
-			  opt_chunks = opt_chunks)
-
-		} else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
-
-      ensembles.completed <- parallel::clusterApplyLB(opt_parallel[["cl"]],
-        x = Tables, fun = collect_EnsembleFromScenarios,
-			  name.OutputDB = fnames_out[["dbOutput"]], t.overall = t_job_start,
-			  opt_job_time = opt_job_time, opt_parallel = opt_parallel,
-			  dir_out = project_paths[["dir_out"]], sim_scens = sim_scens,
-			  opt_chunks = opt_chunks)
-		}
-
-	} else {
-    ensembles.completed <- lapply(Tables, FUN = collect_EnsembleFromScenarios,
-			  name.OutputDB = fnames_out[["dbOutput"]], t.overall = t_job_start,
-			  opt_job_time = opt_job_time, opt_parallel = opt_parallel,
-			  dir_out = project_paths[["dir_out"]], sim_scens = sim_scens,
-			  opt_chunks = opt_chunks)
-	}
-
-  ensembles.completed <- sum(unlist(ensembles.completed))
-
-  temp <- {if (sim_scens[["save.scenario.ranks"]]) 3 else 2} * length(Tables) *
-    length(sim_scens[["ensemble.families"]]) * length(sim_scens[["ensemble.levels"]])
-
-	if (ensembles.completed != temp)
-	  print(paste("SWSF calculates ensembles: something went wrong with ensemble output:",
-	    "ensembles.completed = ", ensembles.completed, " instead of ", temp, "."))
-
-} else {
-  ensembles.completed <- 0
-}
-
-
-#timing of ensemble calculation
-delta.ensembles <- difftime(Sys.time(), t.ensembles, units="secs")
-if (opt_verbosity[["verbose"]] && prj_todos[["do_ensembles"]])
-  print(paste("SWSF calculates ensembles: ended after", round(delta.ensembles, 2), "s"))
-
-
-#---------------------------------------------------------------------------------------#
-#------------------------OVERALL TIMING
-  delta.overall <- difftime(Sys.time(), t_job_start, units = "secs")
-
-  compile_overall_timer(fnames_out[["timerfile"]], project_paths[["dir_out"]],
-    opt_parallel[["workersN"]], runs.completed, sim_scens[["N"]], ensembles.completed,
-    delta.overall, delta.outputDB, delta.check, delta.ensembles)
-
-  if (opt_verbosity[["verbose"]]) {
-    temp <- names(prj_todos[["actions"]])[prj_todos[["actions"]]]
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(delta.overall, 2), " s and completed actions = ",
-      paste(temp, collapse = ", ")))
-  }
-
-
-#---------------------------------------------------------------------------------------#
-#------------------------CODE CLEANUP
-
-if (opt_parallel[["has_parallel"]]) {
-  clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["print.debug"]])
-}
-
-
-#---------------------------------------------------------------------------------------#
-#---------------------------------------------------------------------------------------#
+  SWSF_prj_meta
 }

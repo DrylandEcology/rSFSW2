@@ -4,7 +4,7 @@
 \alias{check_rSWSF_project_input_data}
 \title{Attempt to check input data of a rSWSF project for consistency}
 \usage{
-check_rSWSF_project_input_data(SWSF_prj_meta)
+check_rSWSF_project_input_data(SWSF_prj_meta, SWSF_prj_inputs, opt_verbosity)
 }
 \description{
 Attempt to check input data of a rSWSF project for consistency

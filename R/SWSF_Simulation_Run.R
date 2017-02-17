@@ -6,8 +6,8 @@
 #' @export
 global_args_do_OneSite <- function() {
   c("create_experimentals", "create_treatments", "done_prior", "fnames_out",
-    "opt_agg", "opt_behave", "opt_job_time", "opt_out", "opt_parallel", "opt_sim",
-    "opt_verbosity", "prj_todos", "project_paths", "sim_scens", "sim_size",
+    "opt_agg", "opt_behave", "opt_out_fix", "opt_out_run", "opt_parallel",
+    "opt_sim", "opt_verbosity", "prj_todos", "project_paths", "sim_scens", "sim_size",
     "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
@@ -21,9 +21,10 @@ global_args_do_OneSite <- function() {
 if (getRversion() >= "2.15.1")
   utils::globalVariables(c("MoreArgs", global_args_do_OneSite()))
 
-gather_args_do_OneSite <- function() {
+gather_args_do_OneSite <- function(meta, inputs) {
   gather_objects_for_export(varlist = global_args_do_OneSite(),
-    list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
+    list_envs = list(meta = meta, inputs = inputs, local = environment(),
+    parent = parent.frame(), global = globalenv()))
 }
 
 
@@ -46,7 +47,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     print(paste0(i_sim, ": started at ", t.do_OneSite))
 
   has_time_to_simulate <- (difftime(t.do_OneSite, MoreArgs[["t_job_start"]], units = "secs") +
-    opt_job_time[["one_sim_s"]]) < opt_job_time[["wall_time_s"]]
+    opt_parallel[["opt_job_time"]][["one_sim_s"]]) < opt_parallel[["opt_job_time"]][["wall_time_s"]]
 
   if (!has_time_to_simulate)
     stop("Not enough time to simulate ", i_sim)
@@ -118,7 +119,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(sim_scens[["N"]]),
     ".RData"))
 
-  if (opt_out[["saveRsoilwatInput"]] || opt_out[["saveRsoilwatOutput"]]) {
+  if (opt_out_run[["saveRsoilwatInput"]] || opt_out_run[["saveRsoilwatOutput"]]) {
     dir.create2(temp, showWarnings = FALSE)
   }
 
@@ -1392,32 +1393,52 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			tasks$create <- 2L
 		}
 
-		if (opt_out[["saveRsoilwatInput"]])
+		if (opt_out_run[["saveRsoilwatInput"]])
 			save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
 			ClimatePerturbationsVals, file = f_sw_input)
 	}#end if do create runs
 
-	if (opt_out[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
-	  length(create_experimentals) > 0) {
+  if (opt_out_run[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
+    length(create_experimentals) > 0) {
 
-		#This file will be used to remake the input files for experimentals
-		infiletext <- c(paste(i_label, paste(i_SWRunInformation[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soillayers[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_treatments[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_cloud[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_prod[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_site[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soils[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_weather[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
-		infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen_values[-1], collapse = opt_out[["ExpInput_Seperator"]]), sep=opt_out[["ExpInput_Seperator"]]))
+    #This file will be used to remake the input files for experimentals
+    infiletext <- c(paste(i_label, paste(i_SWRunInformation[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soillayers[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_treatments[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_cloud[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_prod[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_site[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soils[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_weather[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_climscen_values[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
 
-		infilename <- file.path(project_paths[["dir_out_expDesign"]],
-		  paste0(flag.icounter, "_", "Experimental_InputData_All.csv"))
-		infile <- file(infilename, "w+b")
-		writeLines(text = infiletext, con = infile, sep = "\n")
-		close(infile)
-	}
+    infilename <- file.path(project_paths[["dir_out_expDesign"]],
+      paste0(flag.icounter, "_", "Experimental_InputData_All.csv"))
+    infile <- file(infilename, "w+b")
+    writeLines(text = infiletext, con = infile, sep = "\n")
+    close(infile)
+  }
 
 
 
@@ -1572,7 +1593,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 					DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
 
 					#TODO: change deltaX_Param for all [> sc] as well
-					if (opt_out[["saveRsoilwatInput"]])
+					if (opt_out_run[["saveRsoilwatInput"]])
             save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
               ClimatePerturbationsVals, file = f_sw_input)
 
@@ -1586,7 +1607,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			}
 		}
 
-		if (opt_out[["saveRsoilwatOutput"]])
+		if (opt_out_run[["saveRsoilwatOutput"]])
 			save(runDataSC, file = f_sw_output[sc])
 
 
@@ -4637,9 +4658,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 #' Run a rSWSF simulation experiment
 #' @export
-run_simulation_experiment <- function(sim_size, SWRunInformation, sw_input_soillayers,
-  sw_input_treatments, sw_input_cloud, sw_input_prod, sw_input_site, sw_input_soils,
-  sw_input_weather, sw_input_climscen, sw_input_climscen_values, MoreArgs) {
+run_simulation_experiment <- function(sim_size, SWSF_prj_inputs, MoreArgs) {
 
   i_sites <- it_site(sim_size[["runIDs_todo"]], sim_size[["runsN_master"]])
 
@@ -4654,24 +4673,21 @@ run_simulation_experiment <- function(sim_size, SWRunInformation, sw_input_soill
   if (opt_parallel[["has_parallel"]]) {
     unlink(opt_parallel[["lockfile"]], recursive = TRUE)
 
-    obj2exp <- gather_objects_for_export(varlist = names(MoreArgs),
-      list_envs = list(local = environment(), MoreArgs = MoreArgs, global = globalenv()))
-
     #--- call the simulations depending on parallel backend
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
-      temp <- export_objects_to_workers(obj2exp, "mpi")
-      if (temp) { # Check success of export to MPI workers
-        if (MoreArgs[["print.debug"]]) {
-          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
-            length(ls()), "objects")))
-        }
-
-      } else {
-        #Rmpi::mpi.close.Rslaves()
-        Rmpi::mpi.exit()
-        stop("Rmpi workers have insufficient data to execute jobs")
-      }
+#      temp <- export_objects_to_workers(MoreArgs, "mpi")
+#      if (temp) { # Check success of export to MPI workers
+#        if (MoreArgs[["print.debug"]]) {
+#          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
+#            length(ls()), "objects")))
+#        }
+#
+#      } else {
+#        #Rmpi::mpi.close.Rslaves()
+#        Rmpi::mpi.exit()
+#        stop("Rmpi workers have insufficient data to execute jobs")
+#      }
 
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath =
         MoreArgs[["fnames_out"]][["fdbWeather"]]))
@@ -4699,7 +4715,7 @@ tryCatch({
 
         if (tag == 1L) {
           has_time_to_simulate <- (difftime(Sys.time(), MoreArgs[["t_job_start"]], units = "secs") +
-            MoreArgs[["opt_job_time"]][["one_sim_s"]]) < MoreArgs[["opt_job_time"]][["wall_time_s"]]
+            MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) < MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
           # slave is ready for a task. Give it the next task, or tell it tasks
           # are done if there are none.
@@ -4709,16 +4725,16 @@ tryCatch({
 
             dataForRun <- list(do_OneSite = TRUE,
               i_sim = sim_size[["runIDs_todo"]][runs.completed],
-              i_SWRunInformation = SWRunInformation[i_site, ],
-              i_sw_input_soillayers = sw_input_soillayers[i_site, ],
-              i_sw_input_treatments = sw_input_treatments[i_site, ],
-              i_sw_input_cloud = sw_input_cloud[i_site, ],
-              i_sw_input_prod = sw_input_prod[i_site, ],
-              i_sw_input_site = sw_input_site[i_site, ],
-              i_sw_input_soils = sw_input_soils[i_site, ],
-              i_sw_input_weather = sw_input_weather[i_site, ],
-              i_sw_input_climscen = sw_input_climscen[i_site, ],
-              i_sw_input_climscen_values = sw_input_climscen_values[i_site, ],
+              i_SWRunInformation = SWSF_prj_inputs[["SWRunInformation"]][i_site, ],
+              i_sw_input_soillayers = SWSF_prj_inputs[["sw_input_soillayers"]][i_site, ],
+              i_sw_input_treatments = SWSF_prj_inputs[["sw_input_treatments"]][i_site, ],
+              i_sw_input_cloud = SWSF_prj_inputs[["sw_input_cloud"]][i_site, ],
+              i_sw_input_prod = SWSF_prj_inputs[["sw_input_prod"]][i_site, ],
+              i_sw_input_site = SWSF_prj_inputs[["sw_input_site"]][i_site, ],
+              i_sw_input_soils = SWSF_prj_inputs[["sw_input_soils"]][i_site, ],
+              i_sw_input_weather = SWSF_prj_inputs[["sw_input_weather"]][i_site, ],
+              i_sw_input_climscen = SWSF_prj_inputs[["sw_input_climscen"]][i_site, ],
+              i_sw_input_climscen_values = SWSF_prj_inputs[["sw_input_climscen_values"]][i_site, ],
               SimParams = MoreArgs)
 
             if (MoreArgs[["print.debug"]]) {
@@ -4771,12 +4787,12 @@ tryCatch({
 
     if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
-      export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
+#      export_objects_to_workers(MoreArgs, "cluster", opt_parallel[["cl"]])
       parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath =
         MoreArgs[["fnames_out"]][["fdbWeather"]]))
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
-# (e.g., SWRunInformation, sw_input_soillayers, ...) to the workers. clusterLapplyLB does
+# (e.g., SWSF_prj_inputs[["SWRunInformation"]], SWSF_prj_inputs[["sw_input_soillayers"]], ...) to the workers. clusterLapplyLB does
 # not work because do_OneSite has two indices (i.e., i_sim and i_site). clusterMap
 # operates on elements (i.e., columns of data.frames); hence, I use split() to convert
 # the data.frames to lists where the elements correspond to the rows.
@@ -4786,16 +4802,16 @@ tryCatch({
 
       runs.completed <- parallel::clusterMap(opt_parallel[["cl"]], fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
-        i_SWRunInformation = split(SWRunInformation[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_soillayers = split(sw_input_soillayers[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_treatments = split(sw_input_treatments[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_cloud = split(sw_input_cloud[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_prod = split(sw_input_prod[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_site = split(sw_input_site[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_soils = split(sw_input_soils[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_weather = split(sw_input_weather[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_climscen = split(sw_input_climscen[temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_climscen_values = split(sw_input_climscen_values[temp_ids[, "i_site"], ], temp_seqs),
+        i_SWRunInformation = split(SWSF_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_soillayers = split(SWSF_prj_inputs[["sw_input_soillayers"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_treatments = split(SWSF_prj_inputs[["sw_input_treatments"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_cloud = split(SWSF_prj_inputs[["sw_input_cloud"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_prod = split(SWSF_prj_inputs[["sw_input_prod"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_site = split(SWSF_prj_inputs[["sw_input_site"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_soils = split(SWSF_prj_inputs[["sw_input_soils"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_weather = split(SWSF_prj_inputs[["sw_input_weather"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_climscen = split(SWSF_prj_inputs[["sw_input_climscen"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_sw_input_climscen_values = split(SWSF_prj_inputs[["sw_input_climscen_values"]][temp_ids[, "i_site"], ], temp_seqs),
         MoreArgs = list(SimParams = MoreArgs),
         RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
 
@@ -4812,16 +4828,16 @@ tryCatch({
     runs.completed <- lapply(sim_size[["runIDs_todo"]], function(i_sim) {
       i_site <- i_sites[i_sim]
       do_OneSite(i_sim = i_sim,
-        i_SWRunInformation = SWRunInformation[i_site, ],
-        i_sw_input_soillayers = sw_input_soillayers[i_site, ],
-        i_sw_input_treatments = sw_input_treatments[i_site, ],
-        i_sw_input_cloud = sw_input_cloud[i_site, ],
-        i_sw_input_prod = sw_input_prod[i_site, ],
-        i_sw_input_site = sw_input_site[i_site, ],
-        i_sw_input_soils = sw_input_soils[i_site, ],
-        i_sw_input_weather = sw_input_weather[i_site, ],
-        i_sw_input_climscen = sw_input_climscen[i_site, ],
-        i_sw_input_climscen_values = sw_input_climscen_values[i_site, ],
+        i_SWRunInformation = SWSF_prj_inputs[["SWRunInformation"]][i_site, ],
+        i_sw_input_soillayers = SWSF_prj_inputs[["sw_input_soillayers"]][i_site, ],
+        i_sw_input_treatments = SWSF_prj_inputs[["sw_input_treatments"]][i_site, ],
+        i_sw_input_cloud = SWSF_prj_inputs[["sw_input_cloud"]][i_site, ],
+        i_sw_input_prod = SWSF_prj_inputs[["sw_input_prod"]][i_site, ],
+        i_sw_input_site = SWSF_prj_inputs[["sw_input_site"]][i_site, ],
+        i_sw_input_soils = SWSF_prj_inputs[["sw_input_soils"]][i_site, ],
+        i_sw_input_weather = SWSF_prj_inputs[["sw_input_weather"]][i_site, ],
+        i_sw_input_climscen = SWSF_prj_inputs[["sw_input_climscen"]][i_site, ],
+        i_sw_input_climscen_values = SWSF_prj_inputs[["sw_input_climscen_values"]][i_site, ],
         SimParams = MoreArgs)
     })
     runs.completed <- sum(unlist(runs.completed))
