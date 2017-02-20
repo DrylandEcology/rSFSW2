@@ -5,7 +5,7 @@
 #'  (sorted alphabetically)
 #' @export
 global_args_do_OneSite <- function() {
-  c("create_experimentals", "create_treatments", "done_prior", "fnames_out",
+  c("create_experimentals", "create_treatments", "done_prior", "fnames_in", "fnames_out",
     "opt_agg", "opt_behave", "opt_out_fix", "opt_out_run", "opt_parallel",
     "opt_sim", "opt_verbosity", "prj_todos", "project_paths", "sim_scens", "sim_size",
     "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
@@ -46,7 +46,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   if (opt_verbosity[["verbose"]])
     print(paste0(i_sim, ": started at ", t.do_OneSite))
 
-  has_time_to_simulate <- (difftime(t.do_OneSite, MoreArgs[["t_job_start"]], units = "secs") +
+  has_time_to_simulate <- (difftime(t.do_OneSite, t_job_start, units = "secs") +
     opt_parallel[["opt_job_time"]][["one_sim_s"]]) < opt_parallel[["opt_job_time"]][["wall_time_s"]]
 
   if (!has_time_to_simulate)
@@ -415,77 +415,43 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 		}
 
 		#add vegetation information	from datafile to prodin
-		if(opt_verbosity[["print.debug"]]) print("Start of prodin")
+		if (opt_verbosity[["print.debug"]]) print("Start of prodin")
 
 		if (any(sw_input_prod_use)) {
-			#composition
-			use_it <- sw_input_prod_use[grepl("Composition", names(sw_input_prod_use))]
-			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, c(
-          Composition_GrassFraction, Composition_ShrubFraction, Composition_TreeFraction,
-          Composition_ForbFraction, Composition_BareGround))
-        temp[!is.finite(temp) | !use_it] <- 0 # if some are requested, then put others to 0
-				Rsoilwat31::swProd_Composition(swRunScenariosData[[1]]) <- as.numeric(temp)
-			}
-			#albedo
-			use_it <- sw_input_prod_use[grepl("Albedo", names(sw_input_prod_use))]
-			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, c(Grass_Albedo, Shrub_Albedo, Tree_Albedo,
-          Forb_Albedo, BareGround_Albedo))[use_it]
-        temp1 <- !is.finite(temp)
-        if (any(temp1)) {
-          print(paste("ERROR: albedo column(s)", paste(shQuote(names(use_it)[use_it][temp1]),
-            collapse = "-"), "contain(s) unsuitable values"))
-          tasks$create <- 0L
-        }
-				Rsoilwat31::swProd_Albedo(swRunScenariosData[[1]])[use_it] <- as.numeric(temp)
-			}
+      #composition
+      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+        tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
+        fun = "swProd_Composition")
+      swRunScenariosData[[1]] <- temp[["swIn"]]
+      tasks <- temp[["tasks"]]
 
-			#constant canopy height
-			use_it <- sw_input_prod_use[grepl("CanopyHeight_Constant", names(sw_input_prod_use))]
-			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, c(Grass_CanopyHeight_Constant_cm,
-          Shrub_CanopyHeight_Constant_cm, Tree_CanopyHeight_Constant_cm,
-          Forb_CanopyHeight_Constant_cm))[use_it]
-        temp1 <- !is.finite(temp)
-        if (any(temp1)) {
-          print(paste("ERROR: canopy height column(s)", paste(shQuote(names(use_it)[use_it][temp1]),
-            collapse = "-"), "contain(s) unsuitable values"))
-          tasks$create <- 0L
-        }
-        Rsoilwat31::swProd_CanopyHeight(swRunScenariosData[[1]])[5, use_it] <- temp
-			}
-			#flag for hydraulic redistribution
-			use_it <- sw_input_prod_use[grepl("HydRed", names(sw_input_prod_use))]
-			if (any(use_it)) {
-        temp <- with(i_sw_input_prod, c(Grass_HydRed_OnOff, Shrub_HydRed_OnOff,
-          Tree_HydRed_OnOff, Forb_HydRed_OnOff))[use_it]
-        temp1 <- !is.finite(temp)
-        if (any(temp1)) {
-          print(paste("ERROR: flag(s) for hydraulic redistribution",
-            paste(shQuote(names(use_it)[use_it][temp1]), collapse = "-"),
-            "contain(s) unsuitable values"))
-          tasks$create <- 0L
-        }
-				Rsoilwat31::swProd_HydrRedstro_use(swRunScenariosData[[1]])[use_it] <-
-				  as.logical(temp)
-			}
+      #albedo
+      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+        tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
+        fun = "swProd_Albedo")
+      swRunScenariosData[[1]] <- temp[["swIn"]]
+      tasks <- temp[["tasks"]]
+
+      #constant canopy height
+      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+        tag = "CanopyHeight_Constant", use = sw_input_prod_use, values = i_sw_input_prod,
+        fun = "swProd_CanopyHeight")
+      swRunScenariosData[[1]] <- temp[["swIn"]]
+      tasks <- temp[["tasks"]]
+
+      #flag for hydraulic redistribution
+      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+        tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
+        fun = "swProd_HydrRedstro_use")
+      swRunScenariosData[[1]] <- temp[["swIn"]]
+      tasks <- temp[["tasks"]]
+
       #flag for transpiration-critical SWP (MPa)
-      use_it <- grepl("SWPcrit_MPa", names(sw_input_prod_use))
-      if (any(use_it)) {
-        temp <- with(i_sw_input_prod, c(Grasses = Grass_SWPcrit_MPa,
-          Shrubs = Shrub_SWPcrit_MPa, Trees = Tree_SWPcrit_MPa,
-          Forbs = Forb_SWPcrit_MPa))[use_it]
-        temp1 <- !is.finite(temp)
-        if (any(temp1)) {
-          print(paste("ERROR: column(s) of critical SWP",
-            paste(shQuote(names(use_it)[use_it][temp1]),  collapse = "-"),
-            "contain(s) unsuitable values"))
-          tasks$create <- 0L
-        }
-        Rsoilwat31::swProd_CritSoilWaterPotential(swRunScenariosData[[1]])[use_it] <-
-          as.numeric(temp)
-      }
+      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+        tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
+        fun = "swProd_CritSoilWaterPotential")
+      swRunScenariosData[[1]] <- temp[["swIn"]]
+      tasks <- temp[["tasks"]]
 
       Rsoilwat31::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
         fg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
@@ -1535,7 +1501,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       (tasks$execute[sc] == -1L && any(tasks$aggregate == 1L)))) {
 
       load(f_sw_output[sc])	# load object: runDataSC
-      tasks$execute[sc] <- 2L
+      if (exists("runDataSC"))
+        tasks$execute[sc] <- 2L
     }
 
     if (tasks$execute[sc] == 1L) {
@@ -1605,11 +1572,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
         tasks$execute[sc] <- 0L
 			}
-		}
 
-		if (opt_out_run[["saveRsoilwatOutput"]])
-			save(runDataSC, file = f_sw_output[sc])
-
+    if (opt_out_run[["saveRsoilwatOutput"]])
+      save(runDataSC, file = f_sw_output[sc])
+    }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
       tasks$execute[sc] <- 2L
@@ -4663,7 +4629,7 @@ run_simulation_experiment <- function(sim_size, SWSF_prj_inputs, MoreArgs) {
   i_sites <- it_site(sim_size[["runIDs_todo"]], sim_size[["runsN_master"]])
 
   #ETA calculation
-  if (MoreArgs[["verbose"]]) {
+  if (MoreArgs[["opt_verbosity"]][["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1, " for ",
       sim_size[["runsN_todo"]], " out of ", sim_size[["runsN_job"]], " runs on ",
@@ -4690,8 +4656,8 @@ run_simulation_experiment <- function(sim_size, SWSF_prj_inputs, MoreArgs) {
 #      }
 
       Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath =
-        MoreArgs[["fnames_out"]][["fdbWeather"]]))
-      Rmpi::mpi.bcast.cmd(mpi_work(verbose = MoreArgs[["print.debug"]]))
+        MoreArgs[["fnames_in"]][["fdbWeather"]]))
+      Rmpi::mpi.bcast.cmd(mpi_work(verbose = MoreArgs[["opt_verbosity"]][["print.debug"]]))
 
       junk <- 0L
       closed_slaves <- 0L
@@ -4789,7 +4755,7 @@ tryCatch({
 
 #      export_objects_to_workers(MoreArgs, "cluster", opt_parallel[["cl"]])
       parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_setConnection(dbFilePath =
-        MoreArgs[["fnames_out"]][["fdbWeather"]]))
+        MoreArgs[["fnames_in"]][["fdbWeather"]]))
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SWSF_prj_inputs[["SWRunInformation"]], SWSF_prj_inputs[["sw_input_soillayers"]], ...) to the workers. clusterLapplyLB does
@@ -4823,7 +4789,8 @@ tryCatch({
     }
 
   } else { #call the simulations in serial
-    Rsoilwat31::dbW_setConnection(dbFilePath = MoreArgs[["fnames_out"]][["fdbWeather"]])
+
+    Rsoilwat31::dbW_setConnection(dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
 
     runs.completed <- lapply(sim_size[["runIDs_todo"]], function(i_sim) {
       i_site <- i_sites[i_sim]
@@ -4845,7 +4812,7 @@ tryCatch({
     Rsoilwat31::dbW_disconnectConnection()
   }
 
-  if (MoreArgs[["verbose"]])
+  if (MoreArgs[["opt_verbosity"]][["verbose"]])
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
       " runs"))

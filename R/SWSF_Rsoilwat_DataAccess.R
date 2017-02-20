@@ -338,3 +338,32 @@ sw_out_flags <- function() {
     sw_wetdays = "WETDAY",
     sw_logfile = "LOG")
 }
+
+
+set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun) {
+  use_it <- grepl(tag, names(use))
+  if (any(use_it & use)) {
+    temp <- unlist(values[use_it])
+    temp1 <- as.numeric(temp)
+    temp2 <- !is.finite(temp1)
+    if (any(temp2)) {
+      print(paste("ERROR: column(s) of", tag,
+        paste(shQuote(names(temp)[temp2]), "=", temp[temp2], collapse = " / "),
+        "contain(s) unsuitable values"))
+      tasks$create <- 0L
+
+    } else {
+      def <- utils::getFromNamespace(fun, "Rsoilwat31")(swIn)
+
+      itemp <- sapply(names(def), function(x) {
+        temp <- grep(substr(x, 1, 4), names(use)[use_it])
+        if (length(temp) == 1) temp else 0})
+      def[itemp > 0] <- temp1[itemp]
+
+      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "Rsoilwat31")(swIn, def)
+    }
+  }
+
+  list(swIn = swIn, tasks = tasks)
+}
+
