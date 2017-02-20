@@ -175,11 +175,7 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
       parallel::stopCluster(opt_parallel[["cl"]])
     }
 
-    opt_parallel[["workersN"]] <- 1
-    opt_parallel[["cl"]] <- NULL
-    unlink(opt_parallel[["lockfile"]], recursive = TRUE)
-    opt_parallel[["lockfile"]] <- NULL
-    opt_parallel[["has_parallel"]] <- FALSE
+    opt_parallel <- init_SWSF_cluster(opt_parallel)
 
     if (verbose)
       print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
@@ -189,15 +185,24 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
   opt_parallel
 }
 
+#' Initialize a parallel cluster
+#' @export
+init_SWSF_cluster <- function(opt_parallel) {
+  opt_parallel[["workersN"]] <- 1
+  opt_parallel[["cl"]] <- NULL
+  unlink(opt_parallel[["lockfile"]], recursive = TRUE)
+  opt_parallel[["lockfile"]] <- NULL
+  opt_parallel[["has_parallel"]] <- FALSE
+
+  opt_parallel
+}
+
 
 #' Set-up a parallel cluster to be used for a rSWSF simulation project
 #' @export
 setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
-  opt_parallel <- c(opt_parallel, list(workersN = 1, worker_tag = ".worker_id",
-    has_parallel = FALSE, cl = NULL, lockfile = NULL))
-
-  if (opt_parallel[["parallel_runs"]]) {
+  if (!opt_parallel[["has_parallel"]] && opt_parallel[["parallel_runs"]]) {
     if (verbose) {
       t1 <- Sys.time()
       print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))

@@ -58,7 +58,7 @@ actions <- list(
   concat_dbOut = TRUE,
   #   - Calculate 'ensembles' across climate scenarios and stores the results
   #     in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
-  ensemble = TRUE,
+  ensemble = FALSE,
   #   - Check completeness of output database
   check_dbOut = FALSE
 )
@@ -97,7 +97,7 @@ if (file.exists(fmeta)) {
   setup_rSWSF_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SWSF_project_description.R")
-  stop("Specify project description/metadata via file ", shQuote(basename(fmetar)))
+  warning("Specify project description/metadata via file ", shQuote(basename(fmetar)))
 
   # 1c) Load and prepare project description
   SWSF_prj_meta <- new.env(parent = baseenv())
@@ -116,6 +116,9 @@ if (file.exists(fmeta)) {
 #   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
 source(file.path(dir_prj, "SWSF_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
+
+#--- Set up infrastructure for parallel framework runs
+opt_parallel <- init_SWSF_cluster(opt_parallel)
 
 
 
