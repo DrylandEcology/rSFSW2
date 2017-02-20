@@ -572,7 +572,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_verbosity) {
 
-  if (opt_verbosity[[verbose]]) {
+  if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
   }
@@ -639,7 +639,7 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
       sql_cmds <- readLines(file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]))
       add_to_DBCurrent <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
 
-      if (opt_verbosity[[verbose]])
+      if (opt_verbosity[["verbose"]])
         print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
           "to output DB: started at ", tDB1))
 
@@ -803,7 +803,7 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
     if (do_DBCurrent) DBI::dbDisconnect(con2)
   }
 
-  if (opt_verbosity[[verbose]])
+  if (opt_verbosity[["verbose"]])
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 

@@ -314,7 +314,10 @@ simTiming_ForEachUsedTimeUnit <- function(st,
 
 #------auxiliary functions
 
-adjustLayersDepth <- function(layers_depth, d) round(layers_depth[seq_len(d)]) #The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
+adjustLayersDepth <- function(layers_depth, d) {
+  # The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
+  round(layers_depth[seq_len(d)])
+}
 getLayersWidth <- function(layers_depth) diff(c(0, layers_depth))
 setLayerSequence <- function(d) seq_len(d)
 

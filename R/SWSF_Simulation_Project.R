@@ -761,7 +761,8 @@ simulate_SOILWAT2_experiment <- function(actions, SWSF_prj_meta, SWSF_prj_inputs
 
   compile_overall_timer(SWSF_prj_meta[["fnames_out"]][["timerfile"]],
     SWSF_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
-    runs.completed, sim_scens[["N"]], 0, delta.overall, delta.outputDB, 0, 0)
+    runs.completed, SWSF_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
+    0, 0)
 
   SWSF_prj_meta
 }

@@ -113,7 +113,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     aggregate = rep(if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L,
       sim_scens[["N"]]))
 
-	#Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
+  #Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
   temp <- file.path(project_paths[["dir_out_sw"]], i_label)
   f_sw_input <- file.path(temp, "sw_input.RData")
   f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(sim_scens[["N"]]),
@@ -123,61 +123,67 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     dir.create2(temp, showWarnings = FALSE)
   }
 
-	#----Get preparations done
-	if (all(unlist(tasks) %in% c(-1L, 1L))) {
-		#------Learn about soil layer structure
-		#determine number of soil layers = d and soildepth
-		if(!any(create_treatments=="soilsin") & tasks$create == 1L) {
-			soildepth <- i_sw_input_soillayers$SoilDepth_cm
-			layers_depth <- stats::na.omit(as.numeric(i_sw_input_soillayers[2 + swsf_glovars[["slyrs_ids"]]]))
-			d <- which(soildepth == layers_depth)
-			if (length(d) == 0) {	#soildepth is one of the lower layer boundaries
-				d <- min(length(layers_depth), findInterval(soildepth, layers_depth)+1)	#soildepth is not one of the lower layer boundaries, the next deeper layer boundary is used
-			}
-		} else {# needs to be read from soilsin file
-			if(tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
-			layers_depth <- Rsoilwat31::swSoils_Layers(tr_soil[[i_sw_input_treatments$soilsin]])[, 1]
-			d <- length(layers_depth)
-			soildepth <- max(layers_depth)
-		}
+  #----Get preparations done
+  if (all(unlist(tasks) %in% c(-1L, 1L))) {
+    #------Learn about soil layer structure
+    #determine number of soil layers = d and soildepth
+    if (!any(create_treatments == "soilsin") && tasks$create == 1L) {
+      soildepth <- i_sw_input_soillayers$SoilDepth_cm
+      itemp <- 2L + swsf_glovars[["slyrs_ids"]]
+      layers_depth <- stats::na.omit(as.numeric(i_sw_input_soillayers[itemp]))
+      d <- which(soildepth == layers_depth)
+      if (length(d) == 0) {
+        # soildepth is one of the lower layer boundaries
+        # soildepth is not one of the lower layer boundaries, the next deeper layer
+        #   boundary is used
+        d <- min(length(layers_depth), findInterval(soildepth, layers_depth) + 1)
+      }
 
-		#functions to obtain soil layer structures
-		#layer sequence
-		ld <- setLayerSequence(d)
-		layers_depth <- adjustLayersDepth(layers_depth, d)
-		layers_width <- getLayersWidth(layers_depth)
+    } else {
+      # needs to be read from soilsin file
+      if (tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
+      layers_depth <- Rsoilwat31::swSoils_Layers(tr_soil[[i_sw_input_treatments$soilsin]])[, 1]
+      d <- length(layers_depth)
+      soildepth <- max(layers_depth)
+    }
 
-		#top and bottom layer aggregation
-		DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
-		topL <- setTopLayer(d, DeepestTopLayer)
-		bottomL <- setBottomLayer(d, DeepestTopLayer)
+    #functions to obtain soil layer structures
+    #layer sequence
+    ld <- setLayerSequence(d)
+    layers_depth <- adjustLayersDepth(layers_depth, d)
+    layers_width <- getLayersWidth(layers_depth)
+
+    #top and bottom layer aggregation
+    DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
+    topL <- setTopLayer(d, DeepestTopLayer)
+    bottomL <- setBottomLayer(d, DeepestTopLayer)
 
 
-		#------Learn about simulation time
-		isim_time <- sim_time
+    #------Learn about simulation time
+    isim_time <- sim_time
 
-		if (any(create_treatments == "YearStart") | any(create_treatments == "YearEnd")) {
-			#------time frame of simulation
-			if (any(create_treatments == "YearStart")) {
-				#year when SOILWAT2 starts the simulation
-				isim_time[["simstartyr"]] <- i_sw_input_treatments$YearStart
-				#first year that is used for output aggregation, e.g., simstartyr + 1
-				isim_time[["startyr"]] <- getStartYear(isim_time[["simstartyr"]], isim_time[["spinup_N"]])
-			}
-			if (any(create_treatments == "YearEnd")) {
-				#year when SOILWAT2 ends the simulation
-				isim_time[["endyr"]] <- i_sw_input_treatments$YearEnd
-			}
+    if (any(create_treatments == "YearStart") || any(create_treatments == "YearEnd")) {
+      #------time frame of simulation
+      if (any(create_treatments == "YearStart")) {
+        #year when SOILWAT2 starts the simulation
+        isim_time[["simstartyr"]] <- i_sw_input_treatments$YearStart
+        #first year that is used for output aggregation, e.g., simstartyr + 1
+        isim_time[["startyr"]] <- getStartYear(isim_time[["simstartyr"]], isim_time[["spinup_N"]])
+      }
+      if (any(create_treatments == "YearEnd")) {
+        #year when SOILWAT2 ends the simulation
+        isim_time[["endyr"]] <- i_sw_input_treatments$YearEnd
+      }
 
-			#------simulation timing needs to be adjusted
-			isim_time <- setup_simulation_time(isim_time, add_st2 = FALSE)
+      #------simulation timing needs to be adjusted
+      isim_time <- setup_simulation_time(isim_time, add_st2 = FALSE)
 
-			simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
-			  sim_tscales = c("daily", "monthly", "yearly"),
-			  latitude = i_SWRunInformation$Y_WGS84,
-			  account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
+      simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
+        sim_tscales = c("daily", "monthly", "yearly"),
+        latitude = i_SWRunInformation$Y_WGS84,
+        account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
 
-		} else {
+    } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
           isim_time[["sim_time2_North"]]
         } else {
@@ -528,6 +534,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #add soil information to soilsin
     if (opt_verbosity[["print.debug"]])
       print("Start of soilsin")
+
     # Use fixed column names
     soil_cols <- c("depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
                     "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
@@ -553,11 +560,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
-        # different soil layer structure in soilsin and datafile AND since variables are flagged in sw_input_soils_use => use only datafile values
-        d <- max(1, min(length(layers_depth.datafile),
-          findInterval(i_sw_input_soillayers["SoilDepth_cm"] - swsf_glovars[["toln"]],
-                        c(0, layers_depth.datafile)),
-          na.rm = TRUE), na.rm = TRUE)
+        # different soil layer structure in soilsin and datafile AND since variables are
+        # flagged in sw_input_soils_use => use only datafile values
+        d <- findInterval(i_sw_input_soillayers["SoilDepth_cm"] - swsf_glovars[["toln"]],
+          c(0, layers_depth.datafile))
+        d <- min(length(layers_depth.datafile), d, na.rm = TRUE)
+        d <- max(1, d, na.rm = TRUE)
         layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
         layers_width <- getLayersWidth(layers_depth)
         ld <- setLayerSequence(d)
@@ -1503,7 +1511,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (opt_verbosity[["print.debug"]])
       print(paste("Start of SOILWAT2 execution for P_id =", P_id, "scenario =", sc))
 
-    if (file.exists(f_sw_input) && ((tasks$execute[sc] == 1L && opt_behave[["resume"]]) ||
+    if (file.exists(f_sw_output[sc]) && ((tasks$execute[sc] == 1L && opt_behave[["resume"]]) ||
       (tasks$execute[sc] == -1L && any(tasks$aggregate == 1L)))) {
 
       load(f_sw_output[sc])	# load object: runDataSC
@@ -4798,9 +4806,9 @@ tryCatch({
 
     Rsoilwat31::dbW_setConnection(dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
 
-    runs.completed <- lapply(sim_size[["runIDs_todo"]], function(i_sim) {
+    runs.completed <- lapply(seq_along(sim_size[["runIDs_todo"]]), function(i_sim) {
       i_site <- i_sites[i_sim]
-      do_OneSite(i_sim = i_sim,
+      do_OneSite(i_sim = sim_size[["runIDs_todo"]][i_sim],
         i_SWRunInformation = SWSF_prj_inputs[["SWRunInformation"]][i_site, ],
         i_sw_input_soillayers = SWSF_prj_inputs[["sw_input_soillayers"]][i_site, ],
         i_sw_input_treatments = SWSF_prj_inputs[["sw_input_treatments"]][i_site, ],

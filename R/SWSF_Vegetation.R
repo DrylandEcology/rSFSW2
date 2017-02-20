@@ -470,8 +470,8 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
 
   biom_grasses <- temp$biom_C3 * fgrass_c3c4ann[1] + temp$biom_C4 * fgrass_c3c4ann[2] +
     temp$biom_annuals * fgrass_c3c4ann[3]
-  temp <- dimnames(biom_grasses)[[2]]
-  cn <- sapply(strsplit(temp, split = ".", fixed = TRUE), function(x) paste0(x[-1],
+  cn <- dimnames(biom_grasses)[[2]]
+  cn <- sapply(strsplit(cn, split = ".", fixed = TRUE), function(x) paste0(x[-1],
     collapse = "."))
   dimnames(biom_grasses)[[2]] <- cn
 

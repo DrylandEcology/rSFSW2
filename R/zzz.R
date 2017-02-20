@@ -27,7 +27,7 @@
   assign("windspeed_height_m", 2L, envir = swsf_glovars) # SOILWAT2 assumes 2 m height
 
   assign("tol", sqrt(.Machine$double.eps), envir = swsf_glovars)
-  assign("tol", sqrt(.Machine$double.neg.eps), envir = swsf_glovars)
+  assign("toln", sqrt(.Machine$double.neg.eps), envir = swsf_glovars)
 
   assign("st_mo", seq_len(12L), envir = swsf_glovars)
 
