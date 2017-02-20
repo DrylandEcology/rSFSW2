@@ -243,17 +243,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   sim_time[["index.usedy"]] <- discarddy + seq_len(sim_time[["no.usedy"]])
 
   if (add_st2) {
-    sim_time["sim_time2_North"] <- list(simTiming_ForEachUsedTimeUnit(sim_time,
+    sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
       sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS))
+      account_NorthSouth = adjust_NS)
 
     if (adjust_NS) {
-      sim_time["sim_time2_South"] <- list(simTiming_ForEachUsedTimeUnit(sim_time,
+      sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
         sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
-        account_NorthSouth = TRUE))
+        account_NorthSouth = TRUE)
 
     } else {
-      sim_time["sim_time2_South"] <- sim_time["sim_time2_North"]
+      sim_time[["sim_time2_South"]] <- sim_time[["sim_time2_North"]]
     }
   }
 
@@ -347,7 +347,9 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
 
 #' Calculate several climate variables from daily weather
 #' @export
-calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
+calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE,
+  simTime2 = NULL) {
+
   x <- Rsoilwat31::dbW_weatherData_to_dataframe(weatherList)
 
   # Trim to years
@@ -380,7 +382,8 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
     dailyTempMin = if (do.C4vars) x[, "Tmin_C"] else NA,
     dailyTempMean = if (do.C4vars) xl[["Tmean_C"]] else NA,
     dailyC4vars = if (do.C4vars) {
-        sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]], simTime2)
+        sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]],
+          simTime2)
       } else NA
   )
 }

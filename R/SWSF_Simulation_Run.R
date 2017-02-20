@@ -178,16 +178,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 			  account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
 
 		} else {
-			simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
-          isim_time["sim_time2_North"]
+      simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
+          isim_time[["sim_time2_North"]]
         } else {
-          isim_time["sim_time2_South"]
+          isim_time[["sim_time2_South"]]
         }
-		}
+    }
 
-		isim_time["sim_time2_North"] <- NULL
-		isim_time["sim_time2_South"] <- NULL
-	}
+    isim_time[["sim_time2_North"]] <- NULL
+    isim_time[["sim_time2_South"]] <- NULL
+  }
 
 
 
@@ -777,7 +777,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 					if (opt_verbosity[["print.debug"]]) print("Start of get SiteClimate")
 					do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || prj_todos[["aon"]]$dailyC4_TempVar
 					#redo SiteClimate_Ambient
-					SiteClimate_Ambient <- calc_SiteClimate(weatherList=i_sw_weatherList[[1]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
+          SiteClimate_Ambient <- calc_SiteClimate(weatherList = i_sw_weatherList[[1]],
+            year.start = min(isim_time$useyrs), year.end = max(isim_time$useyrs),
+            do.C4vars = do.C4vars, simTime2 = simTime2)
 				}
 			}
 			if (!opt_sim[["use_dbW_future"]]) {
@@ -881,8 +883,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 						SiteClimate_Scenario$dailyC4vars <- sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
 					}
 				}
+
 			} else {
-				SiteClimate_Scenario <- calc_SiteClimate(weatherList=i_sw_weatherList[[sc]], year.start=min(isim_time$useyrs), year.end=max(isim_time$useyrs), do.C4vars=do.C4vars, simTime2=simTime2)
+				SiteClimate_Scenario <- calc_SiteClimate(weatherList = i_sw_weatherList[[sc]],
+				  year.start = min(isim_time$useyrs), year.end = max(isim_time$useyrs),
+				  do.C4vars = do.C4vars, simTime2 = simTime2)
+
 				if(sc > 1){
 					ppt_sc <- (temp <- Rsoilwat31::swWeather_MonScalingParams(swRunScenariosData[[sc]]))[,1]
 					t_max <- temp[,2]
