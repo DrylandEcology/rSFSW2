@@ -50,8 +50,6 @@ num_cores <- 2
 parallel_backend <- "cluster" # "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
 parallel_runs <- !interactive()
 
-TOC_incorporated <- TRUE #TRUE if TOC_GperKG_L fields are in the soil input file. FALSE if not
-
 
 #------Computation time requests------#
 # These limits are only enforced if parallel_backend == "mpi"
