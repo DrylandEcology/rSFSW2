@@ -132,7 +132,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
   }
   on.exit({if (opt_verbosity[["verbose"]]) {
       print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker status:"))
       print(SWSF_prj_meta[["input_status"]])
     }}, add = TRUE)
 
@@ -145,6 +145,11 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
     SWSF_prj_inputs <- process_inputs(SWSF_prj_meta[["project_paths"]],
       SWSF_prj_meta[["fnames_in"]], use_preprocin = opt_behave[["use_preprocin"]],
       verbose = opt_verbosity[["verbose"]])
+
+    #--- Update output aggregation options
+    SWSF_prj_meta[["opt_agg"]] <- setup_aggregation_options(SWSF_prj_meta[["opt_agg"]],
+      GISSM_species_No = SWSF_prj_inputs[["GISSM_species_No"]],
+      GISSM_params = SWSF_prj_inputs[["GISSM_params"]])
 
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
       tracker = "load_inputs", prepared = TRUE,
@@ -231,12 +236,6 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
       any(SWSF_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Temperature") ||
       any(SWSF_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Precipitation") ||
       any(SWSF_prj_inputs[["create_treatments"]] == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
-
-
-    #--- Update output aggregation options
-    SWSF_prj_meta[["opt_agg"]] <- setup_aggregation_options(SWSF_prj_meta[["opt_agg"]],
-      GISSM_species_No = SWSF_prj_inputs[["GISSM_species_No"]],
-      GISSM_params = SWSF_prj_inputs[["GISSM_params"]])
 
     SWSF_prj_meta[["input_status"]] <- update_intracker(SWSF_prj_meta[["input_status"]],
       tracker = "prj_todos", prepared = TRUE)
@@ -497,7 +496,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
 
   on.exit({if (opt_verbosity[["verbose"]]) {
       print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with tracker status:"))
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker status:"))
       print(SWSF_prj_meta[["input_status"]])
     }}, add = TRUE)
 

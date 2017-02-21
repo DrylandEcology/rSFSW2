@@ -110,19 +110,29 @@ file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) 
   #	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
   #}
 }
-#made this function b/c dir.create wasn't always working correctly on JANUS for some reason... so if the simulations are being run on JANUS then it uses the system mkdir call to make the directories.
-dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777", times = 0) {
-  dir.create(path, showWarnings, recursive, mode)
-  if(times < 24)
-    if(!dir.exists(path)) {
-      print("trying to make directory again")
-      Recall(path, showWarnings, TRUE, mode, (times+1)) #recursively call the function b/c when run on JANUS with MPI it doesn't seem to make the directories everytime... quite aggravating.
-    }
-  #else if(recursive == TRUE) #this commented out part makes the directory via the system call mkdir
-  #	system(paste("mkdir -p", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
-  #else
-  #	system(paste("mkdir", path), ignore.stdout=TRUE, ignore.stderr=FALSE)
+# made this function b/c dir.create wasn't always working correctly on JANUS for some
+# reason...
+dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777") {
+  k <- 0
+  temp <- NULL
+
+  repeat {
+    temp <- dir.create(path, showWarnings, recursive, mode)
+
+    if (k > 24 || !dir.exists(path))
+      break
+
+    k <- k + 1
+
+    # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
+    # make the directories everytime... quite aggravating.
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": failed to create ",
+      shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
+  }
+
+  return(temp)
 }
+
 #copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
 dir.copy <- function(dir.from, dir.to, overwrite=FALSE){
   dir.create2(dir.to, recursive=TRUE)

@@ -60,7 +60,7 @@ actions <- list(
   #     in additional SQL-databases as specified by 'ensemble.families' and 'ensemble.levels'
   ensemble = FALSE,
   #   - Check completeness of output database
-  check_dbOut = FALSE
+  check_dbOut = TRUE
 )
 
 
@@ -97,7 +97,8 @@ if (file.exists(fmeta)) {
   setup_rSWSF_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SWSF_project_description.R")
-  warning("Specify project description/metadata via file ", shQuote(basename(fmetar)))
+  warning("Specify project description/metadata via file ", shQuote(basename(fmetar)),
+    immediate. = TRUE)
 
   # 1c) Load and prepare project description
   SWSF_prj_meta <- new.env(parent = baseenv())
