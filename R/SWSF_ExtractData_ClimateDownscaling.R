@@ -2303,7 +2303,11 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
 
   #put requests together
   locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
-  locations <- cbind( locations, sw_input_treatments[, c("wgen_dry_spell_changes","wgen_wet_spell_changes","wgen_prcp_cv_changes")])
+  if (any("wgen-package" %in% unlist(reqDownscalingsPerGCM))) {
+    locations <- cbind(locations, sw_input_treatments[, c("wgen_dry_spell_changes",
+      "wgen_wet_spell_changes", "wgen_prcp_cv_changes")])
+  }
+
   requestN <- length(reqGCMs) * nrow(locations)
   if (verbose)
     print(paste(shQuote(clim_source), "will run", requestN, "times"))

@@ -1341,8 +1341,8 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
     #write to the database
     RSQLite::dbBegin(con_dbOut)
     RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO simulation_years",
-      "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);",
-      bind.data = data.frame(unique_simulation_years)))
+      "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);"),
+      bind.data = data.frame(unique_simulation_years))
     RSQLite::dbCommit(con_dbOut)
 
   } else {#Treatment option for simulation Years is turned off. Get the default one from settings.

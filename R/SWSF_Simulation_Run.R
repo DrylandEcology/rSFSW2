@@ -1438,10 +1438,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 		sand <- stemp[,9]
 		clay <- stemp[,10]
 
-		#TODO: adjust this once TOC is incorporated into Rsoilwat
-		soil_TOC <- if (exists("i_sw_input_soils")) {
-		  as.numeric(i_sw_input_soils[, grep("TOC_GperKG_L", names(sw_input_soils_use))[ld]])
-		} else rep(NA, soilLayers_N)
+    #TODO: adjust this once TOC is incorporated into Rsoilwat
+    soil_TOC <- rep(NA, soilLayers_N)
+    if (exists("i_sw_input_soils") && exists("sw_input_soils_use")) {
+      temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
+      if (length(temp) > 0)
+        soil_TOC <- as.numeric(i_sw_input_soils[, temp[ld]])
+    }
 
 		#get soil aggregation layer for daily aggregations
 		if (opt_agg[["doy_slyrs"]][["do"]]) {
