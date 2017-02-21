@@ -1283,28 +1283,28 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			iuse_obs_hist_d = iuse_obs_hist_d, iuse_obs_hist_m = iuse_obs_hist_m,
 			iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
 	})
-	
-  #'  
-  #' Calculate Deltas, used for downscaling functionality	
-	
-	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {   
-	  
+
+  #'
+  #' Calculate Deltas, used for downscaling functionality
+
+	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
+
 	  # 1. Calculate mean monthly values in historic and future scenario values
 	  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-	  
+
 	  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 	  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)	  
-	  
+	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+
 	  # 2. Calculate deltas between observed historic and future mean scenario values
 	  #	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 	  #	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 	  delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 	  delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 	  ppt_fun <- rep("*", 12)
-	  
+
 	  # Deltas of monthly means
 	  delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
 	  delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
@@ -1316,11 +1316,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	    ppt_fun[temp_add] <- "+"
 	    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
 	  }
-	  delta_ts[, "PPT_cm"] <- delta_ppts	  
-	  
+	  delta_ts[, "PPT_cm"] <- delta_ppts
+
 	  list(delta_ts, ppt_fun)
 	  })
-	
+
 	#' Downscale with the 'direct approach'
 	#'
 	#' See 'direct' approach in Lenderink et al. (2007)
@@ -1352,18 +1352,18 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		# scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 		# scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 		# scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-		# 
+		#
 		# obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 		# obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 		# obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
-		# 
+		#
 		# # 2. Calculate deltas between observed historic and future mean scenario values
 		# 		#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 		# 		#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 		# delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 		# delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 		# ppt_fun <- rep("*", 12)
-		# 
+		#
 		# # Deltas of monthly means
 		# delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
 		# delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
@@ -1849,13 +1849,13 @@ if (exinfo$ExtractClimateChangeScenarios &&
                 dailyPPTceiling, monthly_extremes,
                 do_checks = TRUE, ...){
     if (!be.quiet) print(paste("downscale.wgen_package start(deltaFuture_yr =", deltaFuture_yr, "years", years, "DScur_startyear", DScur_startyear,"DScur_endyear", DScur_endyear, "DSfut_startyear", DSfut_startyear,
-                               "DSfut_endyear", DSfut_endyear, sep = " ")) 
+                               "DSfut_endyear", DSfut_endyear, sep = " "))
 
     require("zoo")
     require("weathergen")
     require("dplyr")
-    library("lubridate")    
-    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]     
+    library("lubridate")
+    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]
     # Time periods
     tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
                             scen.fut.monthly, years, DScur_startyear, DScur_endyear,
@@ -1866,11 +1866,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
       obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
     if (any(!tp$iuse_scen_fut_m))
       scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-    
+
     day_data <- dbW_weatherData_to_dataframe(obs.hist.daily)
 
     dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
-    
+
     day_data <- data.frame(WYEAR = wyear(dates),
                            MONTH = format(dates, "%m"),
                            DATE  = dates,
@@ -1879,90 +1879,90 @@ if (exinfo$ExtractClimateChangeScenarios &&
                            TMIN  = day_data[,'Tmin_C'],
                            TMAX  = day_data[,'Tmax_C'],
                            WIND  = NA)
-    
+
     # get water years, oct 1st to sep 30th... used if start_month should be 10
     #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m" ))==10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m" ))==9)),]
     start_month <- as.numeric(format(min(day_data$DATE), "%m" ))
-    
+
     climwyear <- group_by(day_data, WYEAR=wyear(DATE, start_month = start_month)) %>%
       summarise(N    = n(),
                 PRCP = sum(PRCP),
                 TMAX = mean(TMAX),
                 TMIN = mean(TMIN),
-                TEMP = mean(TEMP))                        
-    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)] 
-    
+                TEMP = mean(TEMP))
+    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)]
+
     wyear_list <- list(day_data$WYEAR)
     wyr_data <- data.frame(WYEAR =  complete_years,
-                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],  
-                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)], 
-                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)], 
-                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],  
-                           WIND  =  NA                                       
-    )				  
-    
+                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],
+                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)],
+                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)],
+                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],
+                           WIND  =  NA
+    )
+
     obs_dat <- list(day=day_data, wyr=wyr_data)
     zoo_day <- zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
                    order.by = obs_dat[['day']][['DATE']])
-    start_yr <- as.integer(format(dates[1],"%Y")) ## 
+    start_yr <- as.integer(format(dates[1],"%Y")) ##
     end_yr <- as.integer(format(max(dates),"%Y"))
-    
+
     dry_wet_threshold <- 0.3
     wet_extreme_threshold <- 0.8
     # read additional parameters, if provided
-    if (hasArg("add_params")) 
-    {  
+    if (hasArg("add_params"))
+    {
       additional <- list(...)
-      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes)) 
+      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes))
       {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
-      } else dry_spell_changes <- 1 # can be one value or a vector of 12   
-      
-      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes)) 
+      } else dry_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes))
       {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
-      } else wet_spell_changes <- 1 # can be one value or a vector of 12   
-      
-      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes)) 
+      } else wet_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes))
       {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
-      } else prcp_cv_changes <- 1 # can be one value or a vector of 12   
+      } else prcp_cv_changes <- 1 # can be one value or a vector of 12
     } else {
-      dry_spell_changes <- 1 
+      dry_spell_changes <- 1
       wet_spell_changes <- 1
-      prcp_cv_changes <- 1 
-    }   
-        
+      prcp_cv_changes <- 1
+    }
+
     changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)[[1]]
-    
+
     prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
-    
+
     temp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"]))
-    
+
     # set.seed(1) # for testing
     if (!be.quiet) print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
                                ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
                                "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
                                wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
-    
-    # consider setting more parameters 
-    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence				  
-    scen.fut.daily <- weathergen::wgen_daily(zoo_day, 
+
+    # consider setting more parameters
+    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
+    scen.fut.daily <- weathergen::wgen_daily(zoo_day,
                                              n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
                                              start_water_year = start_yr, #DScur_startyear,
                                              start_month = start_month,
-                                             dry_wet_threshold=dry_wet_threshold, 
+                                             dry_wet_threshold=dry_wet_threshold,
                                              wet_extreme_quantile_threshold=wet_extreme_threshold,
                                              include_leap_days = TRUE,
                                              dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
                                              prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
-                                             )   
+                                             )
 
     scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
                                  DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
                                  Tmax_C = scen.fut.daily$out$TMAX,
                                  Tmin_C = scen.fut.daily$out$TMIN,
-                                 PPT_cm = scen.fut.daily$out$PRCP)				  
+                                 PPT_cm = scen.fut.daily$out$PRCP)
 
     # year start back to 1/1, probably only needed when setting start_month != 1
-    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]				    
+    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
     scen.fut.daily <- dbW_dataframe_to_weatherData(scen.fut.daily, round=FALSE)
     scen.fut.daily
   })
@@ -2547,18 +2547,18 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
           dm_fun <- switch(dm, raw = downscale.raw, delta = downscale.delta,
             `hybrid-delta` = downscale.deltahybrid,
-            `hybrid-delta-3mod` = downscale.deltahybrid3mod, 
+            `hybrid-delta-3mod` = downscale.deltahybrid3mod,
             `wgen-package` = downscale.wgen_package, stop)
-          
+
           # a list of additional parameters for downscaling
           dm_add_params <- switch(dm, raw = NULL, delta = NULL,
                                   `hybrid-delta` = NULL,
-                                  `hybrid-delta-3mod` = NULL, 
+                                  `hybrid-delta-3mod` = NULL,
                                   `wgen-package` = list(wgen_dry_spell_changes = { if ("wgen_dry_spell_changes" %in% colnames(locations)) {locations[il,"wgen_dry_spell_changes"]} else {1}},
                                                         wgen_wet_spell_changes = { if ("wgen_wet_spell_changes" %in% colnames(locations)) {locations[il,"wgen_wet_spell_changes"]} else {1}},
-                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}), 
+                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}),
                                    stop)
-          
+
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
               obs.hist.daily = obs.hist.daily, obs.hist.monthly = obs.hist.monthly,
@@ -2890,9 +2890,12 @@ if (exinfo$ExtractClimateChangeScenarios &&
     stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)),
               any(grepl("historic", climDB_struct[["id_scen"]], ignore.case = TRUE)))
 
-		#put requests together
-		locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
-		locations <- cbind( locations, sw_input_treatments[, c("wgen_dry_spell_changes","wgen_wet_spell_changes","wgen_prcp_cv_changes")])
+    #put requests together
+    locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
+    if (any("wgen-package" %in% unlist(reqDownscalingsPerGCM))) {
+      locations <- cbind(locations, sw_input_treatments[, c("wgen_dry_spell_changes",
+        "wgen_wet_spell_changes", "wgen_prcp_cv_changes")])
+    }
 		requestN <- length(reqGCMs) * nrow(locations)
 		if (!be.quiet) print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
