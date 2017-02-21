@@ -33,7 +33,8 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     }
   }
 
-  dw_source <- SWRunInformation[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "dailyweather_source"]
+  temp_runIDs_sites <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]]
+  dw_source <- SWRunInformation[temp_runIDs_sites, "dailyweather_source"]
 
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
   Rsoilwat31::dbW_createDatabase(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]],
@@ -42,7 +43,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
             Longitude = SWRunInformation$X_WGS84,
             Label = SWRunInformation$WeatherFolder,
             stringsAsFactors = FALSE),
-    site_subset = SWSF_prj_meta[["sim_size"]][["runIDs_sites"]],
+    site_subset = temp_runIDs_sites,
     scenarios = data.frame(Scenario = SWSF_prj_meta[["sim_scens"]][["id"]]),
     compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
 
@@ -58,12 +59,12 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   if (length(ids_single) > 0) {
     if (any(dw_source == "Maurer2002_NorthAmerica"))
-      Maurer <- with(SWRunInformation[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][ids_single], ],
+      Maurer <- with(SWRunInformation[temp_runIDs_sites[ids_single], ],
         create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 
     for (i in seq_along(ids_single)) {
       i_idss <- ids_single[i]
-      i_site <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][i_idss]
+      i_site <- temp_runIDs_sites[i_idss]
 
       if (verbose && i %% 100 == 1)
         print(paste(Sys.time(), "storing weather data of site",
@@ -105,7 +106,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   # Extract weather data for all sites based on inclusion-invariant 'site_id'
   temp <- dw_source == "DayMet_NorthAmerica"
-  ids_DayMet_extraction <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][which(temp)] ## position in 'runIDs_sites'
+  ids_DayMet_extraction <- temp_runIDs_sites[which(temp)] ## position in 'runIDs_sites'
 
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
@@ -121,7 +122,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   }
 
   temp <- dw_source == "NRCan_10km_Canada"
-  ids_NRCan_extraction <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][which(temp)]
+  ids_NRCan_extraction <- temp_runIDs_sites[which(temp)]
 
   if (length(ids_NRCan_extraction) > 0) {
     ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
@@ -137,7 +138,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   }
 
   temp <- dw_source == "NCEPCFSR_Global"
-  ids_NCEPCFSR_extraction <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][which(temp)]
+  ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(temp)]
   if (length(ids_NCEPCFSR_extraction) > 0) {
 
     if (is.null(SWSF_prj_meta[["prepd_CFSR"]])) {
