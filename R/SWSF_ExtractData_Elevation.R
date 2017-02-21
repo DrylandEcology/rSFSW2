@@ -8,20 +8,20 @@ prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
   has_cns_field <- "Elevation_source" %in% colnames(SWRunInformation)
 
   if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_elevation_source <- SWRunInformation$Elevation_source[sim_size[["runIDs_sites"]]]
+    sites_elevation_source <- SWRunInformation[sim_size[["runIDs_sites"]], "Elevation_source"]
   } else if (how_determine_sources == "order" || !has_cns_field) {
   } else {
     message("Value of 'how_determine_sources'", how_determine_sources,
       " not implemented")
   }
 
-  dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]], ncol = 1 + length(elev_probs),
-    dimnames = list(NULL, c("ELEV_m", if (scorp == "cell")
-    paste0("ELEV_m_q", elev_probs))))
+  probs <- if (scorp == "cell") elev_probs else NULL
+
+  dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]], ncol = 1 + length(probs),
+    dimnames = list(NULL, c("ELEV_m", if (scorp == "cell") paste0("ELEV_m_q", probs))))
 
   list(source = sites_elevation_source, data = dtemp, idone = vector(),
-    probs = if (scorp == "cell") elev_probs else NULL,
-    input = SWRunInformation)
+    probs = probs, input = SWRunInformation)
 }
 
 

@@ -2196,7 +2196,7 @@ climscen_determine_sources <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inp
       "sites"))
 
   #write data to disk
-  SWSF_prj_inputs[["SWRunInformation"]][sim_size[["runIDs_sites"]], "GCM_sources"] <-
+  SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
     as.character(sites_GCM_source)
   utils::write.csv(SWSF_prj_inputs[["SWRunInformation"]],
     file = SWSF_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
@@ -2207,10 +2207,11 @@ climscen_determine_sources <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inp
 
 
 #access climate change data
-get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treatments, is_netCDF, is_NEX,
-  do_SWRun_sites, include_YN_climscen, climDB_meta, reqDownscalingsPerGCM, opt_DS, sim_time,
-  fdbWeather, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-  climate.ambient, project_paths, opt_parallel, verbose = FALSE, print.debug = FALSE) {
+get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treatments,
+  is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta, reqGCMs, reqRCPs,
+  reqRCPsPerGCM, reqDownscalingsPerGCM, opt_DS, sim_time, fdbWeather, dbW_iSiteTable,
+  dbW_iScenarioTable, dbW_compression_type, climate.ambient, project_paths, opt_parallel,
+  verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2284,11 +2285,16 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
     climDB_files <- NULL
   }
 
-  #Force dataset specific lower/uper case for GCMs and RCPs, i.e., use values from climbDB_struct and not reqGCMs and reqRCPs
-  reqGCMs <- as.character(climDB_struct[["id_gcm"]][match(tolower(reqGCMs), tolower(climDB_struct[["id_gcm"]]), nomatch = NA)])
-  reqRCPs <- as.character(climDB_struct[["id_scen"]][match(tolower(reqRCPs), tolower(climDB_struct[["id_scen"]]), nomatch = NA)])
-  reqRCPsPerGCM <- lapply(reqRCPsPerGCM, function(r)
-    as.character(climDB_struct[["id_scen"]][match(tolower(r), tolower(climDB_struct[["id_scen"]]), nomatch = NA)]))
+  # Force dataset specific lower/uper case for GCMs and RCPs, i.e., use values from
+  # 'climbDB_struct' and not reqGCMs and reqRCPs
+  temp <- match(tolower(reqGCMs), tolower(climDB_struct[["id_gcm"]]), nomatch = 0)
+  reqGCMs <- as.character(climDB_struct[["id_gcm"]][temp])
+  temp <- match(tolower(reqRCPs), tolower(climDB_struct[["id_scen"]]), nomatch = 0)
+  reqRCPs <- as.character(climDB_struct[["id_scen"]][temp])
+  reqRCPsPerGCM <- lapply(reqRCPsPerGCM, function(r) {
+      temp <- match(tolower(r), tolower(climDB_struct[["id_scen"]]), nomatch = 0)
+      as.character(climDB_struct[["id_scen"]][temp])
+    })
 
   #Tests that all requested conditions will be extracted
   stopifnot(length(reqGCMs) > 0, all(!is.na(reqGCMs)))
@@ -2478,7 +2484,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_
         SWSF_prj_inputs[["SWRunInformation"]], SWSF_prj_inputs[["sw_input_treatments"]],
         is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", ics),
         is_NEX = grepl("NEX", ics), do_SWRun_sites, include_YN_climscen,
-        climDB_meta = climDB_metas[[ics]], reqDownscalingsPerGCM,
+        climDB_meta = climDB_metas[[ics]], reqGCMs, reqRCPs, reqRCPsPerGCM, reqDownscalingsPerGCM,
         SWSF_prj_meta[["sim_scens"]][["opt_DS"]], SWSF_prj_meta[["sim_time"]],
         SWSF_prj_meta[["fnames_in"]][["fdbWeather"]], dbW_iSiteTable, dbW_iScenarioTable,
         dbW_compression_type, SWSF_prj_meta[["sim_scens"]][["ambient"]],
