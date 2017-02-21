@@ -11,7 +11,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(dir_data, site_ids,
 
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(dir_data, site_ids,
   coords_WGS84, start_year, end_year, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", dbW_digits)
+  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
 }
 \value{
 A list of class \linkS4class{swWeatherData} objects.

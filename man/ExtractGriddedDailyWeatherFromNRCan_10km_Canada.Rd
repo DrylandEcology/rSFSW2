@@ -6,7 +6,7 @@
 \usage{
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada(dir_data, site_ids,
   coords_WGS84, start_year, end_year, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", opt_parallel, dbW_digits)
+  dbW_compression_type = "gzip", opt_parallel, dbW_digits, verbose = FALSE)
 }
 \value{
 An invisible zero. A list of which each element represents one year of daily
