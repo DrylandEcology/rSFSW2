@@ -134,13 +134,13 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
-  on.exit({if (opt_verbosity[["verbose"]]) {
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker status:"))
-      print(SWSF_prj_meta[["input_status"]])
-    }}, add = TRUE)
 
+    on.exit({
+      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
+        "status:"))
+      print(SWSF_prj_meta[["input_status"]])}, add = TRUE)
+  }
 
   #------ PROJECT INPUTS
   #--- Import data
@@ -497,13 +497,14 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (opt_verbosity[["verbose"]]) {
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker status:"))
-      print(SWSF_prj_meta[["input_status"]])
-    }}, add = TRUE)
+    on.exit({
+        print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+          round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
+          "status:"))
+        print(SWSF_prj_meta[["input_status"]])
+      }, add = TRUE)
+  }
 
   if (all(stats::na.exclude(SWSF_prj_meta[["input_status"]][, "checked"]))) {
     # Return if all is checked (from a previous run)
@@ -629,11 +630,10 @@ simulate_SOILWAT2_experiment <- function(actions, SWSF_prj_meta, SWSF_prj_inputs
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1,
       " for project ", sQuote(basename(SWSF_prj_meta[["project_paths"]][["dir_prj"]]))))
-  }
 
-  on.exit({if (opt_verbosity[["verbose"]])
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
 
   #--------------------------------------------------------------------------------------#

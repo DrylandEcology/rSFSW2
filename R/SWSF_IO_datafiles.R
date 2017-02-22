@@ -161,12 +161,10 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose) {
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-    }}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
   dir.inmap <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)

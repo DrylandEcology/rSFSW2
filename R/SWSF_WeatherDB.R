@@ -8,27 +8,16 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
-
-
-  #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SWSF_cluster(opt_parallel,
-    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SWSF_cluster(opt_parallel, verbose), add = TRUE)
 
   dbW_digits <- SWSF_prj_meta[["opt_sim"]][["dbW_digits"]]
 
   if (file.exists(SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
-      if (verbose)
-        print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-          round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
       return(invisible(TRUE))
 
     } else {
@@ -50,8 +39,6 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     site_subset = temp_runIDs_sites,
     scenarios = data.frame(Scenario = SWSF_prj_meta[["sim_scens"]][["id"]]),
     compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
-
-  Time <- Sys.time()
 
   # Extract weather data and move to weather database based on inclusion-invariant 'site_id'
   # Extract weather data per site
@@ -111,8 +98,20 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   }
 
   # Extract weather data for all sites based on inclusion-invariant 'site_id'
-  temp <- dw_source == "DayMet_NorthAmerica"
-  ids_DayMet_extraction <- temp_runIDs_sites[which(temp)] ## position in 'runIDs_sites'
+  if (verbose)
+    print(paste(Sys.time(), "started with extracting gridded weather data to database"))
+
+  ids_DayMet_extraction <- temp_runIDs_sites[which(dw_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
+  ids_NRCan_extraction <- temp_runIDs_sites[which(dw_source == "NRCan_10km_Canada")]
+  ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(dw_source == "NCEPCFSR_Global")]
+
+  if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0) {
+    #--- Set up parallelization
+    opt_parallel <- setup_SWSF_cluster(opt_parallel,
+      dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+      verbose = opt_verbosity[["verbose"]])
+    on.exit(clean_SWSF_cluster(opt_parallel, opt_verbosity[["verbose"]]), add = TRUE)
+  }
 
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
@@ -128,9 +127,6 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       verbose = verbose)
   }
 
-  temp <- dw_source == "NRCan_10km_Canada"
-  ids_NRCan_extraction <- temp_runIDs_sites[which(temp)]
-
   if (length(ids_NRCan_extraction) > 0) {
     ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
       dir_data = SWSF_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
@@ -145,16 +141,12 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       verbose = verbose)
   }
 
-  temp <- dw_source == "NCEPCFSR_Global"
-  ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(temp)]
   if (length(ids_NCEPCFSR_extraction) > 0) {
-
     if (is.null(SWSF_prj_meta[["prepd_CFSR"]])) {
       SWSF_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
         dir_in = SWSF_prj_meta[["project_paths"]][["dir_in"]],
         dir.cfsr.data = SWSF_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
     }
-
     stopifnot(!inherits(SWSF_prj_meta[["prepd_CFSR"]], "try-error"))
 
     GriddedDailyWeatherFromNCEPCFSR_Global(
@@ -506,11 +498,10 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
   # Check if weather data was previously partially extracted
   wtemp_file <- file.path(dir_temp, "DayMet_weather_temp.rds")
@@ -584,11 +575,10 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
 
   NRC_years <- as.integer(list.dirs(path=dir_temp, recursive=FALSE, full.names=FALSE))
@@ -945,11 +935,10 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
   # do the extractions
   etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,

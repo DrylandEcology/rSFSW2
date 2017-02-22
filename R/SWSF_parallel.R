@@ -154,14 +154,19 @@ mpi_work <- function(verbose = FALSE) {
 #' @export
 clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
 
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
+
   if (opt_parallel[["has_parallel"]]) {
-    if (verbose) {
-      t1 <- Sys.time()
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-    }
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      #clean up mpi slaves
+      if (verbose)
+        print(paste("Cleaning up", opt_parallel[["workersN"]], "mpi workers."))
 
       #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
       # Rmpi::mpi.close.Rslaves(dellog = FALSE)
@@ -171,15 +176,15 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
 
     if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
       !is.null(opt_parallel[["cl"]])) {
-      #clean up parallel cluster
+
+      if (verbose)
+        print(paste("Cleaning up", opt_parallel[["workersN"]], "'parallel' cluster",
+          "workers."))
+
       parallel::stopCluster(opt_parallel[["cl"]])
     }
 
     opt_parallel <- init_SWSF_cluster(opt_parallel)
-
-    if (verbose)
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
   }
 
   opt_parallel

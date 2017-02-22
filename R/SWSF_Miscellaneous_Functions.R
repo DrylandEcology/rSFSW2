@@ -5,10 +5,9 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
   ow_prev <- options("warn", "error")
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": set options from ",
-      paste(shQuote(names(ow_prev)), "=", ow_prev, collapse = ", "), " to ",
-      "'warn' = ", debug.warn.level, " and 'error' to ", if (debug.dump.objects)
-      " dump objects to file" else "'traceback'", "."))
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": set options ",
+      "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level, " and 'error' to ",
+      if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
 
   #    - warn < 0: warnings are ignored
   #    - warn = 0: warnings are stored until the top–level function returns

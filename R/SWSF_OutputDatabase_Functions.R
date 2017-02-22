@@ -877,11 +877,10 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
   #--- SET UP PARALLELIZATION
   opt_parallel <- setup_SWSF_cluster(opt_parallel,
@@ -2207,11 +2206,10 @@ make_dbOutput <- function(SWSF_prj_meta, SWSF_prj_inputs, verbose = FALSE) {
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
 
-  on.exit({if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))}, add = TRUE)
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+  }
 
 
   if (SWSF_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
