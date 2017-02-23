@@ -4,7 +4,7 @@
 \alias{make_dbOutput}
 \title{Create dbOutput if requested and/or not already present}
 \usage{
-make_dbOutput(SWSF_prj_meta, SWSF_prj_inputs, verbose = FALSE)
+make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE)
 }
 \value{
 An integer value. The number of fields in the 'overall_aggregation' tables

@@ -4,7 +4,7 @@
 \alias{make_dbW}
 \title{Create and populate a 'rSOILWAT2' daily weather SQLite database}
 \usage{
-make_dbW(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks, opt_behave,
+make_dbW(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks, opt_behave,
   deleteTmpSQLFiles, verbose = FALSE)
 }
 \description{

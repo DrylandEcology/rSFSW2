@@ -4,8 +4,8 @@
 \alias{calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture}
 \title{Calculate potential bare soil evaporation coefficients per soil layer}
 \usage{
-calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(SWSF_prj_meta,
-  SWSF_prj_inputs, runIDs_adjust, resume = TRUE, verbose = FALSE)
+calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(SFSW2_prj_meta,
+  SFSW2_prj_inputs, runIDs_adjust, resume = TRUE, verbose = FALSE)
 }
 \description{
 Soil texture influence based on re-analysis of data from Wythers et al. 1999.

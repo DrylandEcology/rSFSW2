@@ -4,7 +4,7 @@
 \alias{get.SeveralOverallVariables}
 \title{Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)}
 \usage{
-get.SeveralOverallVariables(fdbSWSF, fdbSWSFens, climCat, responseName,
+get.SeveralOverallVariables(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
   MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL)
 }
 \description{

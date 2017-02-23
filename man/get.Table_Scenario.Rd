@@ -4,7 +4,7 @@
 \alias{get.Table_Scenario}
 \title{Get header and data for an entire table for one of the scenarios}
 \usage{
-get.Table_Scenario(fdbSWSF, responseName, MeanOrSD = "Mean",
+get.Table_Scenario(fdbrSFSW2, responseName, MeanOrSD = "Mean",
   scenario = "Current", whereClause = NULL, header = FALSE)
 }
 \description{

@@ -191,9 +191,9 @@ list.dbVariablesOfAllTables <- function(dbName) {
   sapply(tables, function(it) list.dbVariables(dbName, dbTable = it))
 }
 
-addHeaderToWhereClause <- function(whereClause, headers = NULL, fdbSWSF = NULL) {
-  if (is.null(headers) && file.exists(fdbSWSF)) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
+addHeaderToWhereClause <- function(whereClause, headers = NULL, fdbrSFSW2 = NULL) {
+  if (is.null(headers) && file.exists(fdbrSFSW2)) {
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
     headers <- DBI::dbListFields(con, name = "header")
     RSQLite::dbDisconnect(con)
   }
@@ -252,14 +252,14 @@ get_fieldnames <- function(responseName, fields.header, fields.iTable) {
 
 #' Get data of variables in the overall aggregation table for one of the scenarios
 #' @export
-get.SeveralOverallVariables_Scenario <- function(fdbSWSF, responseName, MeanOrSD = "Mean",
+get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
   scenario = "Current", whereClause = NULL) {
 
   dat <- NULL
   iColumns <- list()
 
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
     iTable <- DBI::dbListTables(con)
     iTable <- grep(paste0("Overall_", MeanOrSD), iTable, ignore.case = TRUE,
       fixed = FALSE, value = TRUE)
@@ -285,7 +285,7 @@ get.SeveralOverallVariables_Scenario <- function(fdbSWSF, responseName, MeanOrSD
           " INNER JOIN header ON ", iTable, ".P_id = header.P_id",
           " WHERE header.Scenario = ", shQuote(scenario),
           if (length(whereClause) > 0)
-            paste0(" AND ", addHeaderToWhereClause(whereClause, fdbSWSF = fdbSWSF)),
+            paste0(" AND ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2)),
           " ORDER BY header.P_id;")
 
         dat <- RSQLite::dbGetQuery(con, sql)
@@ -300,7 +300,7 @@ get.SeveralOverallVariables_Scenario <- function(fdbSWSF, responseName, MeanOrSD
 
 #' Get data of variables in the overall aggregation table for one of the ensembles
 #' @export
-get.SeveralOverallVariables_Ensemble <- function(fdbSWSF, fdbSWSFens, responseName,
+get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName,
   MeanOrSD = "Mean", fam, level, whereClause = NULL) {
 
   dat <- NULL
@@ -308,9 +308,9 @@ get.SeveralOverallVariables_Ensemble <- function(fdbSWSF, fdbSWSFens, responseNa
 
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite())
-    temp_fdbSWSFens <- grep("Overall", fdbSWSFens, ignore.case = TRUE, value = TRUE)
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbSWSFens), " AS X;"))
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbSWSF), " AS Y;"))
+    temp_fdbrSFSW2ens <- grep("Overall", fdbrSFSW2ens, ignore.case = TRUE, value = TRUE)
+    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
+    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
     temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
     iTable <- temp[grepl(fam, temp, ignore.case = TRUE) &
            grepl(paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), temp) &
@@ -336,7 +336,7 @@ get.SeveralOverallVariables_Ensemble <- function(fdbSWSF, fdbSWSFens, responseNa
           " FROM X.", iTable,
           " INNER JOIN Y.header ON X.", iTable, ".P_id = Y.header.P_id",
           if (length(whereClause) > 0)
-            paste0(" WHERE ", addHeaderToWhereClause(whereClause, fdbSWSF = fdbSWSF)),
+            paste0(" WHERE ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2)),
           " ORDER BY Y.header.P_id;")
 
         dat <- RSQLite::dbGetQuery(con, sql)
@@ -350,20 +350,20 @@ get.SeveralOverallVariables_Ensemble <- function(fdbSWSF, fdbSWSFens, responseNa
 
 #' Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
-get.SeveralOverallVariables <- function(fdbSWSF, fdbSWSFens, climCat, responseName,
+get.SeveralOverallVariables <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
   MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL) {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     dat <- if (climCat[i_climCat, 1] == "Current") {
           get.SeveralOverallVariables_Scenario(
-            fdbSWSF = fdbSWSF,
+            fdbrSFSW2 = fdbrSFSW2,
             responseName = responseName,
             MeanOrSD = MeanOrSD,
             scenario = climCat[i_climCat, 1],
             whereClause = whereClause)
         } else {
           get.SeveralOverallVariables_Ensemble(
-            fdbSWSF = fdbSWSF, fdbSWSFens = fdbSWSFens,
+            fdbrSFSW2 = fdbrSFSW2, fdbrSFSW2ens = fdbrSFSW2ens,
             responseName = responseName,
             MeanOrSD = MeanOrSD,
             fam = climCat[i_climCat, 1],
@@ -383,12 +383,12 @@ get.SeveralOverallVariables <- function(fdbSWSF, fdbSWSFens, climCat, responseNa
 
 #' Get header and data for an entire table for one of the scenarios
 #' @export
-get.Table_Scenario <- function(fdbSWSF, responseName, MeanOrSD = "Mean",
+get.Table_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
   scenario = "Current", whereClause = NULL, header = FALSE) {
 
   dat <- NULL
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
     temp1 <- DBI::dbListTables(con)
     temp2 <- grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp1,
       ignore.case = TRUE, fixed = FALSE)
@@ -417,16 +417,16 @@ get.Table_Scenario <- function(fdbSWSF, responseName, MeanOrSD = "Mean",
 
 #' Get header and data for an entire table for one of the ensembles
 #' @export
-get.Table_Ensemble <- function(fdbSWSF, fdbSWSFens, responseName, MeanOrSD = "Mean",
+get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD = "Mean",
   fam, level, whereClause = NULL, header = FALSE) {
 
   dat <- NULL
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite())
-    temp_fdbSWSFens <- fdbSWSFens[grepl(pattern = paste0("_", responseName),
-      x = fdbSWSFens, ignore.case = TRUE)]
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbSWSFens), " AS X;"))
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbSWSF), " AS Y;"))
+    temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
+      x = fdbrSFSW2ens, ignore.case = TRUE)]
+    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
+    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
     temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
     iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
     if (length(iTable) == 1) {
@@ -458,20 +458,20 @@ get.Table_Ensemble <- function(fdbSWSF, fdbSWSFens, responseName, MeanOrSD = "Me
 
 #' Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
-get.Table <- function(fdbSWSF, fdbSWSFens, climCat, responseName, MeanOrSD = "Mean",
+get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
   i_climCat = 1, whereClause = NULL, addPid = FALSE) {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     #print(paste(paste(responseName,collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid, sep = " "))
     if (climCat[i_climCat, 1] == "Current") {
       scenario<-climCat[i_climCat, 1]
-      con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbSWSF, flags = RSQLite::SQLITE_RO)
+      con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]
       if (length(iTable) == 1) {
         fields <- DBI::dbListFields(con, iTable)
         fields<-fields[-1]
         if (length(whereClause) > 0) {
-          sql <- paste0("SELECT ", if (addPid) paste("header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " AND ", addHeaderToWhereClause(whereClause, fdbSWSF = fdbSWSF), " ORDER BY header.P_id;")
+          sql <- paste0("SELECT ", if (addPid) paste("header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " AND ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY header.P_id;")
         } else {
           sql <- paste0("SELECT ", if (addPid) paste("header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " ORDER BY header.P_id;")
         }
@@ -483,17 +483,17 @@ get.Table <- function(fdbSWSF, fdbSWSFens, climCat, responseName, MeanOrSD = "Me
       fam <- climCat[i_climCat, 1]
       level <- climCat[i_climCat, 2]
       con <- RSQLite::dbConnect(RSQLite::SQLite())
-      temp_fdbSWSFens <- fdbSWSFens[grepl(pattern = paste0("_", responseName),
-        x = fdbSWSFens, ignore.case = TRUE)]
-      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbSWSFens), " AS X;"))
-      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbSWSF), " AS Y;"))
+      temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
+        x = fdbrSFSW2ens, ignore.case = TRUE)]
+      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
+      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
       temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
       iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
       if (length(iTable) == 1) {
         fields <- RSQLite::dbGetQuery(con, paste("PRAGMA X.table_info(",iTable,");",sep = ""))$name
         fields <- fields[-1]
         if (length(whereClause) > 0) {
-          sql <- paste0("SELECT ", if (addPid) paste("Y.header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ")," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id = Y.header.P_id WHERE ", addHeaderToWhereClause(whereClause, fdbSWSF = fdbSWSF), " ORDER BY Y.header.P_id;",sep = "")
+          sql <- paste0("SELECT ", if (addPid) paste("Y.header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ")," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id = Y.header.P_id WHERE ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY Y.header.P_id;",sep = "")
           dat <- RSQLite::dbGetQuery(con, sql)
         } else {
           sql <- paste0("SELECT ", if (addPid) paste("X.",iTable,".P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ")," FROM X.", iTable, " ORDER BY P_id;",sep = "")
@@ -555,7 +555,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
     tmp_data <- gsub("NULL", "NA", tmp_data)
     tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
 
-    res <- all.equal(as.numeric(id_data_DB), tmp_data, tolerance = 1e2 * swsf_glovars[["tol"]])
+    res <- all.equal(as.numeric(id_data_DB), tmp_data, tolerance = 1e2 * SFSW2_glovars[["tol"]])
     OK_agree <- isTRUE(res)
 
     if (!OK_agree)
@@ -569,24 +569,24 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 }
 
 
-move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
+move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_verbosity) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   #concatenate file keeps track of sql files inserted into data
   concatFile <- "sqlFilesInserted.txt"
 
   # Locate temporary SQL files
-  theFileList <- list.files(path = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], pattern = "SQL",
+  theFileList <- list.files(path = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], pattern = "SQL",
     full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
 
   # remove any already inserted files from list
   if (!opt_out_run[["deleteTmpSQLFiles"]] && opt_behave[["resume"]]) {
-    temp <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile)
+    temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile)
     completedFiles <- if (file.exists(temp)) {
         basename(readLines(temp))
       } else {
@@ -600,19 +600,19 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
 
   if (length(theFileList) > 0) {
     # Connect to the Database
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
     out_tables_aggr <- dbOutput_ListOutputTables(con)
 
-    do_DBCurrent <- SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
-      !SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]]
+    do_DBCurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
+      !SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]]
 
-    reset_DBCurrent <- do_DBCurrent && (SWSF_prj_meta[["prj_todos"]][["wipe_dbOut"]] ||
-      !file.exists(SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]]))
+    reset_DBCurrent <- do_DBCurrent && (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] ||
+      !file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
 
     if (reset_DBCurrent)
-      file.copy(from = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], to = SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]])
+      file.copy(from = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     if (do_DBCurrent)
-      con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]])
+      con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     if (reset_DBCurrent)
       DBI::dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
 
@@ -636,7 +636,7 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
         break
 
       # Read SQL statements from temporary file
-      sql_cmds <- readLines(file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]))
+      sql_cmds <- readLines(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]))
       add_to_DBCurrent <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
 
       if (opt_verbosity[["verbose"]])
@@ -781,16 +781,16 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
         OK_tempfile <- FALSE
         # Write failed lines to new file
         writeLines(sql_cmds[notOK_lines],
-          con = file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], sub(".", "_failed.", theFileList[j], fixed = TRUE)))
+          con = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], sub(".", "_failed.", theFileList[j], fixed = TRUE)))
       }
 
       # Clean up and report
       if (OK_tempfile || !is.null(notOK_lines)) {
-        cat(file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]),
-            file = file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile), append = TRUE, sep = "\n")
+        cat(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]),
+            file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile), append = TRUE, sep = "\n")
 
         if (opt_out_run[["deleteTmpSQLFiles"]])
-          try(file.remove(file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j])), silent = TRUE)
+          try(file.remove(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j])), silent = TRUE)
       }
 
       if (opt_verbosity[["print.debug"]]) {
@@ -804,7 +804,7 @@ move_temporary_to_outputDB <- function(SWSF_prj_meta, t_job_start, opt_parallel,
   }
 
   if (opt_verbosity[["verbose"]])
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   invisible(TRUE)
@@ -871,43 +871,43 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 
 #' Check whether dbOutput contains a complete set of output/simulation results
 #' @export
-check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
+check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave,
   opt_out_run, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SWSF_cluster(opt_parallel,
-    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  Tables <- dbOutput_ListOutputTables(dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+  Tables <- dbOutput_ListOutputTables(dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
   missing_Pids <- missing_Pids_current <- NULL
 
   update_workDB <- opt_behave[["check_updates_dbWork"]] ||
     opt_out_run[["deleteTmpSQLFiles"]]
-  do_DBcurrent <- SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
-    SWSF_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
+  do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
+    SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
   if (opt_parallel[["has_parallel"]]) {
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
       missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
-        dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+        dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
         missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
-          dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]])
+          dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
@@ -916,11 +916,11 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
     } else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
       missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
-        dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+        dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
         missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
-          fun = missing_Pids_outputDB, dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]])
+          fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
@@ -928,11 +928,11 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
     }
 
   } else {
-    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
     if (do_DBcurrent) {
       missing_Pids_current <- lapply(Tables, missing_Pids_outputDB,
-        dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]])
+        dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     }
   }
 
@@ -943,12 +943,12 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
   missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
-    ftemp <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out"]], "dbTables_Pids_missing.rds")
+    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTables_Pids_missing.rds")
     if (identical(missing_Pids, -1L)) {
-      print(paste("Output DB", shQuote(SWSF_prj_meta[["fnames_out"]][["dbOutput"]]), "is empty and not complete"))
+      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]), "is empty and not complete"))
 
     } else {
-      print(paste("Output DB", shQuote(SWSF_prj_meta[["fnames_out"]][["dbOutput"]]), "is missing n =",
+      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]), "is missing n =",
         length(missing_Pids), "records"))
 
      # Output missing Pids to rds file
@@ -959,26 +959,26 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
       if (update_workDB) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
 
-        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]],
+        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
           flags = RSQLite::SQLITE_RO)
         scN <- RSQLite::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
         RSQLite::dbDisconnect(con)
 
         missing_runIDs <- it_sim2(missing_Pids, scN)
-        temp <- dbWork_redo(SWSF_prj_meta[["project_paths"]][["dir_out"]], runIDs = missing_runIDs)
+        temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]], runIDs = missing_runIDs)
       }
     }
   }
 
   if (length(missing_Pids_current) > 0) {
-    ftemp <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out"]], "dbTablesCurrent_Pids_missing.rds")
+    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTablesCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
-      print(paste("Current output DB", shQuote(SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is empty",
+      print(paste("Current output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is empty",
         "and not complete"))
 
     } else {
-      print(paste("Current output DB", shQuote(SWSF_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is missing n =",
+      print(paste("Current output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is missing n =",
         length(missing_Pids_current), "records; P_id of these records are saved to file",
         shQuote(ftemp)))
      saveRDS(missing_Pids_current, file = ftemp)
@@ -991,21 +991,21 @@ check_outputDB_completeness <- function(SWSF_prj_meta, opt_parallel, opt_behave,
 }
 
 
-dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
+dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) {
 
   RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
     "weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL)"))
 
-  if (!(all(any((SWSF_prj_inputs[["SWRunInformation"]]$dailyweather_source[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]]] == "LookupWeatherFolder")),
-        any(SWSF_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")))) {
-    if (any(!is.na(SWSF_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
+  if (!(all(any((SFSW2_prj_inputs[["SWRunInformation"]]$dailyweather_source[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] == "LookupWeatherFolder")),
+        any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")))) {
+    if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
       RSQLite::dbBegin(con_dbOut)
       RSQLite::dbGetPreparedQuery(con_dbOut, "INSERT INTO weatherfolders VALUES(NULL, :folder)",
-        bind.data = data.frame(folder = unique(stats::na.exclude(SWSF_prj_inputs[["SWRunInformation"]]$WeatherFolder)), stringsAsFactors = FALSE))
+        bind.data = data.frame(folder = unique(stats::na.exclude(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder)), stringsAsFactors = FALSE))
       RSQLite::dbCommit(con_dbOut)
 
       # Slightly slower alternative to RSQLite::dbGetPreparedQuery()
-#				temp <- unique(stats::na.exclude(SWSF_prj_inputs[["SWRunInformation"]]$WeatherFolder))
+#				temp <- unique(stats::na.exclude(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
 #				RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
 #					value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
 
@@ -1016,11 +1016,11 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
 
   #############Site Table############################
-  # Note: invariant to 'include_YN', i.e., do not subset rows of 'SWSF_prj_inputs[["SWRunInformation"]]'
+  # Note: invariant to 'include_YN', i.e., do not subset rows of 'SFSW2_prj_inputs[["SWRunInformation"]]'
   index_sites <- sort(unique(c(sapply(required_colnames_SWRunInformation(),
-      function(x) which(x == colnames(SWSF_prj_inputs[["SWRunInformation"]]))),
-    SWSF_prj_meta[["opt_out_fix"]][["Index_RunInformation"]])))
-  sites_data <- data.frame(SWSF_prj_inputs[["SWRunInformation"]][, index_sites], row.names = NULL,
+      function(x) which(x == colnames(SFSW2_prj_inputs[["SWRunInformation"]]))),
+    SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]])))
+  sites_data <- data.frame(SFSW2_prj_inputs[["SWRunInformation"]][, index_sites], row.names = NULL,
     check.rows = FALSE, check.names = FALSE, stringsAsFactors = FALSE)
   # Get WeatherFolder_id from table weatherfolders
   sites_data$WeatherFolder <- getSiteIds(con_dbOut, sites_data$WeatherFolder)
@@ -1035,8 +1035,8 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   RSQLite::dbWriteTable(con_dbOut, "sites", append = TRUE,
     value = cbind(id = NA, sites_data), row.names = FALSE)
 
-  useExperimentals <- SWSF_prj_meta[["sim_size"]][["expN"]] > 0 && length(SWSF_prj_inputs[["create_experimentals"]]) > 0
-  useTreatments <- any(!(SWSF_prj_inputs[["create_treatments"]] %in% SWSF_prj_inputs[["create_experimentals"]]))
+  useExperimentals <- SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 && length(SFSW2_prj_inputs[["create_experimentals"]]) > 0
+  useTreatments <- any(!(SFSW2_prj_inputs[["create_treatments"]] %in% SFSW2_prj_inputs[["create_experimentals"]]))
 
   #############simulation_years table#########################
   RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
@@ -1054,7 +1054,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
     RSQLite::dbBegin(con_dbOut)
     RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO",
       "experimental_labels VALUES(NULL, :label);"),
-      bind.data = data.frame(label = SWSF_prj_inputs[["sw_input_experimentals"]][,1],
+      bind.data = data.frame(label = SFSW2_prj_inputs[["sw_input_experimentals"]][,1],
         stringsAsFactors = FALSE))
     RSQLite::dbCommit(con_dbOut)
   }
@@ -1063,20 +1063,20 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   # If LookupWeatherFolder is ON we need to make sure all of the weather folders are in
   # weatherfolders table
 #TODO: WeatherFolder update
-  if (any(SWSF_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
-    #which ones are not in SWSF_prj_inputs[["SWRunInformation"]]$WeatherFolder
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
+    #which ones are not in SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
 
     #make a combined list of experimentals and treatments LookupWeatherFolder List
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SWSF_prj_inputs[["sw_input_treatments_use"]][SWSF_prj_inputs[["sw_input_treatments_use"]]])=="LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]])=="LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
-        SWSF_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]]])
+        SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
-    if (any(SWSF_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
+    if (any(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
-        SWSF_prj_inputs[["sw_input_experimentals"]]$LookupWeatherFolder[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]]])
+        SFSW2_prj_inputs[["sw_input_experimentals"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
     #Remove NA because that defaults to sites default weatherFolder also make sure each folder is unique
     temp <- !is.na(treatments_lookupweatherfolders)
@@ -1113,28 +1113,28 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   # get unique rows from both treatments and experimentals
   if (useExperimentals) {#Only use experimentals if there is something in it
     #Are all the columns NA
-    temp <- is.na(SWSF_prj_inputs[["sw_input_experimentals"]][, SWSF_prj_inputs[["create_experimentals"]]])
+    temp <- is.na(SFSW2_prj_inputs[["sw_input_experimentals"]][, SFSW2_prj_inputs[["create_experimentals"]]])
     if (all(temp))
       stop("All Columns in experimentals table are NA")
     if (any(apply(temp, MARGIN = 2, function(x) all(x))))
       stop("One ore more columns in experimentals table are turned on with no values or only with NA.")
-    db_experimentals <- unique(SWSF_prj_inputs[["sw_input_experimentals"]][, SWSF_prj_inputs[["create_experimentals"]]])
+    db_experimentals <- unique(SFSW2_prj_inputs[["sw_input_experimentals"]][, SFSW2_prj_inputs[["create_experimentals"]]])
     #note experimentals should be unique if we have less rows then the original then lets throw an Error
-    stopifnot(nrow(db_experimentals) == nrow(SWSF_prj_inputs[["sw_input_experimentals"]]))
+    stopifnot(nrow(db_experimentals) == nrow(SFSW2_prj_inputs[["sw_input_experimentals"]]))
 
   } else {
-    #experimentals does not have any rows. Are any of the SWSF_prj_inputs[["create_experimentals"]] turned on
-    if (length(SWSF_prj_inputs[["create_experimentals"]]) > 0 && SWSF_prj_meta[["sim_size"]][["expN"]] == 0)
+    #experimentals does not have any rows. Are any of the SFSW2_prj_inputs[["create_experimentals"]] turned on
+    if (length(SFSW2_prj_inputs[["create_experimentals"]]) > 0 && SFSW2_prj_meta[["sim_size"]][["expN"]] == 0)
       stop("No rows in experimentals table but columns are turned on")
-    if (SWSF_prj_meta[["sim_size"]][["expN"]] > 0 && length(SWSF_prj_inputs[["create_experimentals"]]) == 0)
+    if (SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 && length(SFSW2_prj_inputs[["create_experimentals"]]) == 0)
       stop("Rows in experimentals are not being used.")
   }
 
   if (useTreatments) {
-    # Note: invariant to 'include_YN', i.e., do not subset 'SWSF_prj_inputs[["SWRunInformation"]]'
+    # Note: invariant to 'include_YN', i.e., do not subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
     # we only need the columns that are turned on and not in experimentals. Experimentals over write.
-    temp <- SWSF_prj_inputs[["create_treatments"]][!(SWSF_prj_inputs[["create_treatments"]] %in% SWSF_prj_inputs[["create_experimentals"]])]
-    temp_df <- SWSF_prj_inputs[["sw_input_treatments"]][, temp, drop = FALSE]
+    temp <- SFSW2_prj_inputs[["create_treatments"]][!(SFSW2_prj_inputs[["create_treatments"]] %in% SFSW2_prj_inputs[["create_experimentals"]])]
+    temp_df <- SFSW2_prj_inputs[["sw_input_treatments"]][, temp, drop = FALSE]
     db_treatments <- unique(temp_df)
     db_treatments_rows <- nrow(db_treatments)
     #this maps locations from reduced
@@ -1152,10 +1152,10 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   }
 
   #Replace the LookupWeatherFolder with the LookupWeatherFolder_id in either db_experimentals or db_treatments
-  if (any(SWSF_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
-    if (any(SWSF_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
+    if (any(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
       #rename the column
-      temp <- which(SWSF_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")
+      temp <- which(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")
       colnames(db_experimentals)[temp] <- "LookupWeatherFolder_id"
       #get the id numbers for those columns and replace text
       db_experimentals$LookupWeatherFolder_id <- sapply(db_experimentals$LookupWeatherFolder_id,
@@ -1177,9 +1177,9 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
     temp_numberRows <- if(useExperimentals) {
         nrow(db_experimentals) * db_treatments_rows
       } else nrow(db_treatments)
-    temp_numberColumns <- {if (useExperimentals) 3 else 2} + length(SWSF_prj_inputs[["create_treatments"]])
+    temp_numberColumns <- {if (useExperimentals) 3 else 2} + length(SFSW2_prj_inputs[["create_treatments"]])
     temp_columnNames <- c("id", if (useExperimentals) c("experimental_id"),
-      "simulation_years_id", SWSF_prj_inputs[["create_treatments"]])
+      "simulation_years_id", SFSW2_prj_inputs[["create_treatments"]])
     db_combined_exp_treatments <- data.frame(matrix(data = NA, nrow = temp_numberRows,
       ncol = temp_numberColumns, dimnames = list(NULL, temp_columnNames)),
       stringsAsFactors = FALSE)
@@ -1188,22 +1188,22 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
     db_combined_exp_treatments$id <- seq_len(nrow(db_combined_exp_treatments))
 
     #column types are listed in this data.frame along with what table it is from
-    db_treatments_column_types <- data.frame(column = SWSF_prj_inputs[["create_treatments"]],
-      type = character(length(SWSF_prj_inputs[["create_treatments"]])),
-      table = numeric(length(SWSF_prj_inputs[["create_treatments"]])), stringsAsFactors = FALSE)
+    db_treatments_column_types <- data.frame(column = SFSW2_prj_inputs[["create_treatments"]],
+      type = character(length(SFSW2_prj_inputs[["create_treatments"]])),
+      table = numeric(length(SFSW2_prj_inputs[["create_treatments"]])), stringsAsFactors = FALSE)
     #0 for teatments 1 for experimentals
-    temp <- db_treatments_column_types[, "column"] %in% SWSF_prj_inputs[["create_experimentals"]]
+    temp <- db_treatments_column_types[, "column"] %in% SFSW2_prj_inputs[["create_experimentals"]]
     db_treatments_column_types[temp, "table"] <- 1
 
     ######################
     #Get the column types from the proper tables
-    temp <- SWSF_prj_inputs[["create_treatments"]][!(SWSF_prj_inputs[["create_treatments"]] %in% SWSF_prj_inputs[["create_experimentals"]])]
+    temp <- SFSW2_prj_inputs[["create_treatments"]][!(SFSW2_prj_inputs[["create_treatments"]] %in% SFSW2_prj_inputs[["create_experimentals"]])]
     db_treatments_column_types[, "type"] <- sapply(db_treatments_column_types[, "column"],
       function(columnName) {
-        if (columnName %in% SWSF_prj_inputs[["create_experimentals"]]) {
-          RSQLite::dbDataType(con_dbOut, SWSF_prj_inputs[["sw_input_experimentals"]][, columnName])
+        if (columnName %in% SFSW2_prj_inputs[["create_experimentals"]]) {
+          RSQLite::dbDataType(con_dbOut, SFSW2_prj_inputs[["sw_input_experimentals"]][, columnName])
         } else if (columnName %in% temp) {
-          RSQLite::dbDataType(con_dbOut, SWSF_prj_inputs[["sw_input_treatments"]][, columnName])
+          RSQLite::dbDataType(con_dbOut, SFSW2_prj_inputs[["sw_input_treatments"]][, columnName])
         }
       })
 
@@ -1225,7 +1225,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
     #rename weather folder column name and create the fk
     fk_LookupWeatherFolder <- ""
-    if (any(SWSF_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
+    if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
       useTreatmentWeatherFolder <- TRUE
       temp <- which(db_treatments_column_types[, "column"] == "LookupWeatherFolder")
       db_treatments_column_types[temp, c("column", "type")] <- c("LookupWeatherFolder_id", "INTEGER")
@@ -1305,7 +1305,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
       db_combined_exp_treatments <- db_combined_exp_treatments[, !temp]
 
     } else {
-      simulation_years[, "simulationStartYear"] <- SWSF_prj_meta[["sim_time"]][["simstartyr"]]
+      simulation_years[, "simulationStartYear"] <- SFSW2_prj_meta[["sim_time"]][["simstartyr"]]
     }
     if (any(colnames(db_combined_exp_treatments) == "YearEnd")) {
       simulation_years[, "EndYear"] <- db_combined_exp_treatments[, "YearEnd"]
@@ -1313,10 +1313,10 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
       db_combined_exp_treatments <- db_combined_exp_treatments[, !temp]
 
     } else {
-      simulation_years[, "EndYear"] <- SWSF_prj_meta[["sim_time"]][["endyr"]]
+      simulation_years[, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
     }
     simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"],
-      SWSF_prj_meta[["sim_time"]][["spinup_N"]])
+      SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
     unique_simulation_years <- unique(simulation_years)
     #each row is unique so add id to db_combined
@@ -1346,8 +1346,8 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
   } else {#Treatment option for simulation Years is turned off. Get the default one from settings.
     db_combined_exp_treatments$simulation_years_id <- 1
-    temp <- data.frame(simulationStartYear = SWSF_prj_meta[["sim_time"]][["simstartyr"]],
-      StartYear = SWSF_prj_meta[["sim_time"]][["startyr"]], EndYear = SWSF_prj_meta[["sim_time"]][["endyr"]])
+    temp <- data.frame(simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]], EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
     RSQLite::dbBegin(con_dbOut)
     RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO simulation_years",
       "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);"),
@@ -1368,21 +1368,21 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   RSQLite::dbBegin(con_dbOut)
   RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO scenario_labels",
     "VALUES(NULL, :label);"),
-    bind.data = data.frame(label = SWSF_prj_meta[["sim_scens"]][["id"]], stringsAsFactors = FALSE))
+    bind.data = data.frame(label = SFSW2_prj_meta[["sim_scens"]][["id"]], stringsAsFactors = FALSE))
   RSQLite::dbCommit(con_dbOut)
   ##################################################
 
   #############run_labels table#########################
-  # Note: invariant to 'include_YN', i.e., do not subset 'SWSF_prj_inputs[["SWRunInformation"]]'
+  # Note: invariant to 'include_YN', i.e., do not subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
     "run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL);"))
   temp <- if (useExperimentals) {
-      temp1 <- formatC(SWSF_prj_inputs[["SWRunInformation"]][, "site_id"], width = SWSF_prj_meta[["sim_size"]][["digitsN_total"]],
+      temp1 <- formatC(SFSW2_prj_inputs[["SWRunInformation"]][, "site_id"], width = SFSW2_prj_meta[["sim_size"]][["digitsN_total"]],
         format = "d", flag = "0")
-      temp2 <- rep(SWSF_prj_inputs[["sw_input_experimentals"]][, "Label"], each = SWSF_prj_meta[["sim_size"]][["runsN_master"]])
-      paste(temp1, temp2, SWSF_prj_inputs[["SWRunInformation"]]$Label, sep = "_")
+      temp2 <- rep(SFSW2_prj_inputs[["sw_input_experimentals"]][, "Label"], each = SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+      paste(temp1, temp2, SFSW2_prj_inputs[["SWRunInformation"]]$Label, sep = "_")
     } else {
-      SWSF_prj_inputs[["SWRunInformation"]]$Label
+      SFSW2_prj_inputs[["SWRunInformation"]]$Label
     }
   rs <- DBI::dbSendStatement(con_dbOut, "INSERT INTO run_labels VALUES(NULL, :label)",
     params = list(label = temp))
@@ -1391,7 +1391,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
 
   #####################runs table###################
-  # Note: invariant to 'include_YN', i.e., do not subset 'SWSF_prj_inputs[["SWRunInformation"]]'
+  # Note: invariant to 'include_YN', i.e., do not subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE",
     "runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL,",
     "site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL,",
@@ -1400,28 +1400,28 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
     "FOREIGN KEY(treatment_id) REFERENCES treatments(id),",
     "FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));"))
 
-  db_runs <- data.frame(matrix(data = 0, nrow = SWSF_prj_meta[["sim_size"]][["runsN_Pid"]], ncol = 5,
+  db_runs <- data.frame(matrix(data = 0, nrow = SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]], ncol = 5,
     dimnames = list(NULL, c("P_id", "label_id", "site_id", "treatment_id",
     "scenario_id"))))
-  db_runs$P_id <- seq_len(SWSF_prj_meta[["sim_size"]][["runsN_Pid"]])
-  db_runs$label_id <- rep(seq_len(SWSF_prj_meta[["sim_size"]][["runsN_total"]]), each = SWSF_prj_meta[["sim_scens"]][["N"]])
-  db_runs$site_id <- rep(rep(SWSF_prj_inputs[["SWRunInformation"]]$site_id, times = max(SWSF_prj_meta[["sim_size"]][["expN"]], 1L)),
-    each = SWSF_prj_meta[["sim_scens"]][["N"]])
-  db_runs$scenario_id <- rep(seq_len(SWSF_prj_meta[["sim_scens"]][["N"]]), times = SWSF_prj_meta[["sim_size"]][["runsN_total"]])
+  db_runs$P_id <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
+  db_runs$label_id <- rep(seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_total"]]), each = SFSW2_prj_meta[["sim_scens"]][["N"]])
+  db_runs$site_id <- rep(rep(SFSW2_prj_inputs[["SWRunInformation"]]$site_id, times = max(SFSW2_prj_meta[["sim_size"]][["expN"]], 1L)),
+    each = SFSW2_prj_meta[["sim_scens"]][["N"]])
+  db_runs$scenario_id <- rep(seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]]), times = SFSW2_prj_meta[["sim_size"]][["runsN_total"]])
 
   temp <- if (useExperimentals) {
-      as.vector(matrix(data = exp_start_rows, nrow = SWSF_prj_meta[["sim_size"]][["runsN_master"]],
-        ncol = SWSF_prj_meta[["sim_size"]][["expN"]], byrow = TRUE))
+      as.vector(matrix(data = exp_start_rows, nrow = SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+        ncol = SFSW2_prj_meta[["sim_size"]][["expN"]], byrow = TRUE))
     } else NULL
 
   db_runs$treatment_id <- if (useTreatments) {
       if (useExperimentals) {
-        rep(temp + treatments_unique_map - 1, each = SWSF_prj_meta[["sim_scens"]][["N"]])
+        rep(temp + treatments_unique_map - 1, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
       } else {
-        rep(treatments_unique_map, each = SWSF_prj_meta[["sim_scens"]][["N"]])
+        rep(treatments_unique_map, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
       }
     } else {
-      if (useExperimentals) rep(temp, each = SWSF_prj_meta[["sim_scens"]][["N"]]) else 1
+      if (useExperimentals) rep(temp, each = SFSW2_prj_meta[["sim_scens"]][["N"]]) else 1
     }
 
   RSQLite::dbBegin(con_dbOut)
@@ -1432,8 +1432,8 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
   ##################################################
 
   ################CREATE VIEW########################
-  if (length(SWSF_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]) > 0) {
-    sites_columns <- colnames(SWSF_prj_inputs[["SWRunInformation"]])[SWSF_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
+  if (length(SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]) > 0) {
+    sites_columns <- colnames(SFSW2_prj_inputs[["SWRunInformation"]])[SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
 
     for (k_excl in c("label", "WeatherFolder", "Include_YN")) {
       icol <- grep(k_excl, sites_columns, ignore.case = TRUE)
@@ -1508,7 +1508,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 		}
 	#2.
 		if (aon$input_VegetationBiomassMonthly) {
-			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forb",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", swsf_glovars[["st_mo"]],"_gPERm2",sep=""))
+			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forb",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", SFSW2_glovars[["st_mo"]],"_gPERm2",sep=""))
 		}
 	#3.
 		if (aon$input_VegetationPeak) {
@@ -1540,18 +1540,18 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 				} else if (is.numeric(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
 					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["third_cm"]], "to", opt_agg[["doy_slyrs"]][["fourth_cm"]], "cm", sep=""))
 				}
-				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):swsf_glovars[["slyrs_maxN"]], sep=""))
+				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SFSW2_glovars[["slyrs_maxN"]], sep=""))
 			} else {
-				ltemp <- paste("L", formatC(swsf_glovars[["slyrs_ids"]], width=2, format="d", flag="0"), sep="")
+				ltemp <- paste("L", formatC(SFSW2_glovars[["slyrs_ids"]], width=2, format="d", flag="0"), sep="")
 			}
 
-			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree","Forb"), each=swsf_glovars[["slyrs_maxN"]]), ".TranspirationCoefficients.", rep(ltemp, times=4), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=4), "_fraction", sep="")))
+			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree","Forb"), each=SFSW2_glovars[["slyrs_maxN"]]), ".TranspirationCoefficients.", rep(ltemp, times=4), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=4), "_fraction", sep="")))
 
 		}
 
 	#6.
 		if (aon$input_ClimatePerturbations) {
-			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), swsf_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
+			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
 		}
 
 		##############################################################---Aggregation: Climate and weather---##############################################################
@@ -1617,7 +1617,7 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
 	#19
 		if (aon$dailyWeatherGeneratorCharacteristics) {
-			temp <- c(temp, paste(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each=12), ".m", swsf_glovars[["st_mo"]], rep(c("_days", "_days", "_C"), each=12), "_mean", sep=""))
+			temp <- c(temp, paste(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each=12), ".m", SFSW2_glovars[["st_mo"]], rep(c("_days", "_days", "_C"), each=12), "_mean", sep=""))
 		}
 
 	#20
@@ -1669,8 +1669,8 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
 	#27.2
 		if (aon$dailySoilWaterPulseVsStorage) {
-			temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", swsf_glovars[["slyrs_ids"]], "_days_mean"),
-							paste0("WaterExtractionSpell_AnnualSummedExtraction_L", swsf_glovars[["slyrs_ids"]], "_mm_mean"))
+			temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", SFSW2_glovars[["slyrs_ids"]], "_days_mean"),
+							paste0("WaterExtractionSpell_AnnualSummedExtraction_L", SFSW2_glovars[["slyrs_ids"]], "_mm_mean"))
 		}
 
 		##############################################################---Aggregation: Daily extreme values---##############################################################
@@ -1902,104 +1902,104 @@ dbOutput_create_Design <- function(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs) {
 
 	#44
 		if (aon$monthlyTemp) {
-			temp <- c(temp, paste("TempAir.m", swsf_glovars[["st_mo"]], "_C_mean", sep=""))
+			temp <- c(temp, paste("TempAir.m", SFSW2_glovars[["st_mo"]], "_C_mean", sep=""))
 		}
 
 	#45
 		if (aon$monthlyPPT) {
-			temp <- c(temp, paste("Precip.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("Precip.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#46
 		if (aon$monthlySnowpack) {
-			temp <- c(temp, paste("Snowpack.m", swsf_glovars[["st_mo"]], "_mmSWE_mean", sep=""))
+			temp <- c(temp, paste("Snowpack.m", SFSW2_glovars[["st_mo"]], "_mmSWE_mean", sep=""))
 		}
 
 	#47
 		if (aon$monthlySoilTemp) {
-			temp <- c(temp, paste("TempSoil.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_C_mean", sep=""))
+			temp <- c(temp, paste("TempSoil.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_C_mean", sep=""))
 		}
 
 	#48
 		if (aon$monthlyRunoff) {
-			temp <- c(temp, paste("Runoff.Total.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("Runoff.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#49
 		if (aon$monthlyHydraulicRedistribution) {
-			temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
+			temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
 		}
 
 	#50
 		if (aon$monthlyInfiltration) {
-			temp <- c(temp, paste("Infiltration.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("Infiltration.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#51
 		if (aon$monthlyDeepDrainage) {
-			temp <- c(temp, paste("DeepDrainage.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("DeepDrainage.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#52
 		if (aon$monthlySWPmatric) {
-			temp <- c(temp, paste("SWPmatric.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_MPa_FromVWCmean", sep=""))
+			temp <- c(temp, paste("SWPmatric.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_MPa_FromVWCmean", sep=""))
 		}
 
 	#53 a.)
 		if (aon$monthlyVWCbulk) {
-			temp <- c(temp, paste("VWCbulk.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
+			temp <- c(temp, paste("VWCbulk.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
 		}
 	#53 b.)
 		if (aon$monthlyVWCmatric) {
-			temp <- c(temp, paste("VWCmatric.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
+			temp <- c(temp, paste("VWCmatric.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
 		}
 
 	#54
 		if (aon$monthlySWCbulk) {
-			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
+			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
 		}
 
 	#55
 		if (aon$monthlySWAbulk) {
 			temp <- c(temp, paste0("SWAbulk_",
 								"SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
-								c(paste0("topLayers_m", swsf_glovars[["st_mo"]]), paste0("bottomLayers_m", swsf_glovars[["st_mo"]])),
+								c(paste0("topLayers_m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers_m", SFSW2_glovars[["st_mo"]])),
 								"_mm_mean"))
 		}
 
 	#56
 		if (aon$monthlyTranspiration) {
-			temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", swsf_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", swsf_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
+			temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
 		}
 
 	#57
 		if (aon$monthlySoilEvaporation) {
-			temp <- c(temp, paste("Evaporation.Soil.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("Evaporation.Soil.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#58
 		if (aon$monthlyAET) {
-			temp <- c(temp, paste("AET.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("AET.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#59
 		if (aon$monthlyPET) {
-			temp <- c(temp, paste("PET.m", swsf_glovars[["st_mo"]], "_mm_mean", sep=""))
+			temp <- c(temp, paste("PET.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
 		}
 
 	#59.2
 		if (aon$monthlyVPD) {
-			temp <- c(temp, paste0("VPD_m", swsf_glovars[["st_mo"]], "_kPa_mean"))
+			temp <- c(temp, paste0("VPD_m", SFSW2_glovars[["st_mo"]], "_kPa_mean"))
 		}
 
 	#60
 		if (aon$monthlyAETratios) {
-			temp <- c(temp, paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), swsf_glovars[["st_mo"]], "_fraction_mean", sep=""))
+			temp <- c(temp, paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), SFSW2_glovars[["st_mo"]], "_fraction_mean", sep=""))
 		}
 
 	#61
 		if (aon$monthlyPETratios) {
-			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), swsf_glovars[["st_mo"]], "_fraction_mean", sep=""))
+			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), SFSW2_glovars[["st_mo"]], "_fraction_mean", sep=""))
 		}
 
 		##############################################################---Aggregation: Potential regeneration---##############################################################
@@ -2201,28 +2201,28 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
 #' @return An integer value. The number of fields in the 'overall_aggregation' tables
 #'   minus 1 (i.e., 'P_id' is not counted here)
 #' @export
-make_dbOutput <- function(SWSF_prj_meta, SWSF_prj_inputs, verbose = FALSE) {
+make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
 
-  if (SWSF_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
-    file.exists(SWSF_prj_meta[["fnames_out"]][["dbOutput"]])) {
+  if (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
+    file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
 
-    unlink(SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+    unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
   }
 
   con_dbOut <- try(RSQLite::dbConnect(RSQLite::SQLite(),
-    dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]]))
+    dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
 
   if (inherits(con_dbOut, "try-error")) {
-    unlink(SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+    unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
     stop(paste("Creation of output database failed:", con_dbOut, collapse = ", "))
   }
 
@@ -2239,17 +2239,17 @@ make_dbOutput <- function(SWSF_prj_meta, SWSF_prj_inputs, verbose = FALSE) {
   }
 
   # Add design and output tables
-  dbOutput_create_Design(con_dbOut, SWSF_prj_meta, SWSF_prj_inputs)
+  dbOutput_create_Design(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs)
 
   res_oa <- dbOutput_create_OverallAggregationTable(con_dbOut,
-    aon = SWSF_prj_meta[["prj_todos"]][["aon"]], opt_agg = SWSF_prj_meta[["opt_agg"]])
+    aon = SFSW2_prj_meta[["prj_todos"]][["aon"]], opt_agg = SFSW2_prj_meta[["opt_agg"]])
   res_da <- dbOutput_create_DailyAggregationTable(con_dbOut,
-    req_aggs = SWSF_prj_meta[["prj_todos"]][["adaily"]])
+    req_aggs = SFSW2_prj_meta[["prj_todos"]][["adaily"]])
 
-  if (SWSF_prj_meta[["prj_todos"]][["do_ensembles"]]) {
+  if (SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]]) {
     dbOutput_create_EnsembleTables(con_dbOut,
-      dbOutput = SWSF_prj_meta[["fnames_out"]][["dbOutput"]],
-      prj_todos = SWSF_prj_meta[["prj_todos"]], sim_scens = SWSF_prj_meta[["sim_scens"]],
+      dbOutput = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+      prj_todos = SFSW2_prj_meta[["prj_todos"]], sim_scens = SFSW2_prj_meta[["sim_scens"]],
       meanString = res_oa[["meanString"]], sdString = res_oa[["sdString"]],
       dailySQL = res_da[["dailySQL"]], dailyLayersSQL = res_da[["dailyLayersSQL"]])
   }

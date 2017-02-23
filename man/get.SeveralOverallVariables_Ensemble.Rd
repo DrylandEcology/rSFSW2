@@ -4,7 +4,7 @@
 \alias{get.SeveralOverallVariables_Ensemble}
 \title{Get data of variables in the overall aggregation table for one of the ensembles}
 \usage{
-get.SeveralOverallVariables_Ensemble(fdbSWSF, fdbSWSFens, responseName,
+get.SeveralOverallVariables_Ensemble(fdbrSFSW2, fdbrSFSW2ens, responseName,
   MeanOrSD = "Mean", fam, level, whereClause = NULL)
 }
 \description{

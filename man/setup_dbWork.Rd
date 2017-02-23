@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWSF_dbWork.R
 \name{setup_dbWork}
 \alias{setup_dbWork}
-\title{Setup or connect to SQLite-database \code{dbWork} to manage runs fo a SWSF simulation
+\title{Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
  project}
 \usage{
 setup_dbWork(path, sim_size, include_YN, resume = FALSE)
@@ -17,6 +17,6 @@ A logical value indicating success/failure of setting up/connecting to
  \code{dbWork} and initializing with \code{runIDs}.
 }
 \description{
-Setup or connect to SQLite-database \code{dbWork} to manage runs fo a SWSF simulation
+Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
  project
 }

@@ -283,10 +283,10 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
   biom_annuals$Annual.Litter <- biom_annuals$Annual.Litter * Grass_BiomassScaler * biom_maxs["Annual.Litter"] / biom_maxs["Annual.Amount.Live"]
 
   #Guarantee that live fraction = ]0, 1]
-  biom_shrubs$Sh.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_shrubs$Sh.Perc.Live))
-  biom_C3$C3.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_C3$C3.Perc.Live))
-  biom_C4$C4.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_C4$C4.Perc.Live))
-  biom_annuals$Annual.Perc.Live <- pmin(1, pmax(swsf_glovars[["tol"]], biom_annuals$Annual.Perc.Live))
+  biom_shrubs$Sh.Perc.Live <- pmin(1, pmax(SFSW2_glovars[["tol"]], biom_shrubs$Sh.Perc.Live))
+  biom_C3$C3.Perc.Live <- pmin(1, pmax(SFSW2_glovars[["tol"]], biom_C3$C3.Perc.Live))
+  biom_C4$C4.Perc.Live <- pmin(1, pmax(SFSW2_glovars[["tol"]], biom_C4$C4.Perc.Live))
+  biom_annuals$Annual.Perc.Live <- pmin(1, pmax(SFSW2_glovars[["tol"]], biom_annuals$Annual.Perc.Live))
 
   #Calculate total biomass based on scaled live biomass amount
   biom_shrubs$Sh.Biomass <- biom_shrubs$Sh.Amount.Live / biom_shrubs$Sh.Perc.Live
@@ -350,7 +350,7 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
   #Default shrub biomass input is at MAP = 450 mm/yr, and default grass biomass input is at MAP = 340 mm/yr
   #Describe conditions for which the default vegetation biomass values are valid
   std.winter <- c(11:12, 1:2) #Assumes that the "growing season" (valid for growing_limit_C == 4) in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
-  std.growing <- swsf_glovars[["st_mo"]][-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
+  std.growing <- SFSW2_glovars[["st_mo"]][-std.winter] #Assumes that the "growing season" in 'tr_VegetationComposition' starts in March and ends after October, for all functional groups.
   #Default site for the grass description is SGS LTER
   StandardGrasses_MAP_mm <- 340
   StandardGrasses_VegComposition <- c(0.12, 0.22, 0.66) #Fraction of shrubs, C3, and C4

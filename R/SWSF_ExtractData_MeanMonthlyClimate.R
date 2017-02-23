@@ -27,15 +27,15 @@ update_meanmonthlyclimate_input <- function(MMC, use_site, sim_size, digits = 2,
   #add data to MMC[["input"]] and set the use flags
   icol <- grep("RH", names(MMC[["use"]]))
   MMC[["use"]][icol] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, SFSW2_glovars[["st_mo"]]] <-
     round(MMC[["data"]][use_site, "RH", ], digits)
   icol <- grep("SkyC", names(MMC[["use"]]))
   MMC[["use"]][icol] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, SFSW2_glovars[["st_mo"]]] <-
     round(MMC[["data"]][use_site, "cover", ], digits)
   icol <- grep("wind", names(MMC[["use"]]))
   MMC[["use"]][icol] <- TRUE
-  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, swsf_glovars[["st_mo"]]] <-
+  MMC[["input"]][sim_size[["runIDs_sites"]][use_site], icol][, SFSW2_glovars[["st_mo"]]] <-
     round(MMC[["data"]][use_site, "wind", ], digits)
 
   #write data to disk
@@ -55,7 +55,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -90,10 +90,10 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       wind = file.path(dir.ex.dat, "WindSpeed_mph"))
 
     files_shp <- list(
-      RH = paste0("RH23", formatC(swsf_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      cover = paste0("SUN52", formatC(swsf_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      # cover = paste0("SKYC50", formatC(swsf_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      wind = paste0("WND60B", formatC(swsf_glovars[["st_mo"]], width=2,format="d", flag="0")))
+      RH = paste0("RH23", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
+      cover = paste0("SUN52", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
+      # cover = paste0("SKYC50", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
+      wind = paste0("WND60B", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")))
 
     var_codes <- list(
       RH = c(10, 23, 31, 41, 51, 61, 71, 78, 90), #percent
@@ -169,7 +169,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       if (!is.null(args_chunk[["coords"]]))
         args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
 
-      MMC[["data"]][iextr, iv, m] <- do.call("extract_swsf", args = c(args_chunk,
+      MMC[["data"]][iextr, iv, m] <- do.call("extract_rSFSW2", args = c(args_chunk,
         x = list(dir_noaaca[[iv]]), file_shp = list(files_shp[[iv]][m]),
         fields = list("GRIDCODE"), code = list(var_codes[[iv]])))
 
@@ -212,7 +212,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
@@ -241,28 +241,28 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 #'  Computational and Information Systems Laboratory.
 #'  http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
 #' @export
-do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SWSF_prj_meta,
+do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_prj_meta,
   opt_parallel, opt_chunks, resume, verbose) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SWSF_cluster(opt_parallel,
-    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  if (is.null(SWSF_prj_meta[["prepd_CFSR"]])) {
-    SWSF_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
-      dir_in = SWSF_prj_meta[["project_paths"]][["dir_in"]],
-      dir.cfsr.data = SWSF_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+  if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
+    SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
+      dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
+      dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
   }
 
-  stopifnot(!inherits(SWSF_prj_meta[["prepd_CFSR"]], "try-error"))
+  stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCEPCFSR1"] <- FALSE
@@ -271,9 +271,9 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SWSF_prj
 
   if (resume) {
     todos <- todos & (
-      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "RH") |
-      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "SkyC") |
-      has_nodata(MMC[["input"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], ], "wind"))
+      has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "RH") |
+      has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "SkyC") |
+      has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "wind"))
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -284,15 +284,15 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SWSF_prj
         n_extract, "sites"))
 
     #locations of simulation runs
-    locations <- SWRunInformation[SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
+    locations <- SWRunInformation[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
     # do the extractions
     temp <- try(get_NCEPCFSR_data(dat_sites = locations, daily = FALSE, monthly = TRUE,
-      dbW_digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
-      yearLow = SWSF_prj_meta[["sim_time"]][["startyr"]],
-      yearHigh = SWSF_prj_meta[["sim_time"]][["endyr"]],
-      dir_ex_cfsr = SWSF_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
-      dir_temp = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]],
-      cfsr_so = SWSF_prj_meta[["prepd_CFSR"]]$cfsr_so,
+      dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+      yearLow = SFSW2_prj_meta[["sim_time"]][["startyr"]],
+      yearHigh = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+      dir_ex_cfsr = SFSW2_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
+      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      cfsr_so = SFSW2_prj_meta[["prepd_CFSR"]]$cfsr_so,
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel, rm_mc_files = TRUE, resume = resume))
 
@@ -320,13 +320,13 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SWSF_prj
         print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, SWSF_prj_meta[["sim_size"]],
-        digits = SWSF_prj_meta[["opt_sim"]][["dbW_digits"]], SWSF_prj_meta[["fnames_in"]])
+      update_meanmonthlyclimate_input(MMC, i_good, SFSW2_prj_meta[["sim_size"]],
+        digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]], SFSW2_prj_meta[["fnames_in"]])
     }
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
@@ -360,37 +360,37 @@ update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, sim_size, f
 
 #' Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
 #' @export
-ExtractData_MeanMonthlyClimate <- function(exinfo, SWSF_prj_meta, SWSF_prj_inputs,
+ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE) {
 
-  MMC <- prepare_ExtractData_MeanMonthlyClimate(SWSF_prj_inputs[["SWRunInformation"]],
-    sim_size = SWSF_prj_meta[["sim_size"]],
-    how_determine_sources = SWSF_prj_meta[["opt_input"]][["how_determine_sources"]],
-    sw_input_cloud_use = SWSF_prj_inputs[["sw_input_cloud_use"]],
-    sw_input_cloud = SWSF_prj_inputs[["sw_input_cloud"]])
+  MMC <- prepare_ExtractData_MeanMonthlyClimate(SFSW2_prj_inputs[["SWRunInformation"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]],
+    how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
+    sw_input_cloud_use = SFSW2_prj_inputs[["sw_input_cloud_use"]],
+    sw_input_cloud = SFSW2_prj_inputs[["sw_input_cloud"]])
 
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
     MMC <- do_ExtractSkyDataFromNOAAClimateAtlas_USA(MMC,
-      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
-      project_paths = SWSF_prj_meta[["project_paths"]],
-      fnames_in = SWSF_prj_meta[["fnames_in"]], opt_chunks, resume, verbose)
+      sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
+      fnames_in = SFSW2_prj_meta[["fnames_in"]], opt_chunks, resume, verbose)
   }
 
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
-    MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWSF_prj_inputs[["SWRunInformation"]],
-      SWSF_prj_meta, opt_parallel, opt_chunks, resume, verbose)
+    MMC <- do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
+      SFSW2_prj_meta, opt_parallel, opt_chunks, resume, verbose)
 
   }
 
-  temp <- update_MeanMonthlyClimate_sources(MMC, SWSF_prj_inputs[["SWRunInformation"]],
-    sim_size = SWSF_prj_meta[["sim_size"]], fnames_in = SWSF_prj_meta[["fnames_in"]])
+  temp <- update_MeanMonthlyClimate_sources(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
 
-  SWSF_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
-  SWSF_prj_inputs[["sw_input_cloud_use"]] <- MMC[["use"]]
-  SWSF_prj_inputs[["sw_input_cloud"]] <- MMC[["input"]]
+  SFSW2_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
+  SFSW2_prj_inputs[["sw_input_cloud_use"]] <- MMC[["use"]]
+  SFSW2_prj_inputs[["sw_input_cloud"]] <- MMC[["input"]]
 
 
-  SWSF_prj_inputs
+  SFSW2_prj_inputs
 }
 
 #----------------------------------------------------------------------------------------#

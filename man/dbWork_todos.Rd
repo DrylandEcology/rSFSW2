@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWSF_dbWork.R
 \name{dbWork_todos}
 \alias{dbWork_todos}
-\title{Extract identification numbers of runs of a SWSF simulation project which are
+\title{Extract identification numbers of runs of a rSFSW2 simulation project which are
  uncompleted and not \code{inwork}}
 \usage{
 dbWork_todos(path)
@@ -11,6 +11,6 @@ dbWork_todos(path)
 An integer vector of \code{runIDs}.
 }
 \description{
-Extract identification numbers of runs of a SWSF simulation project which are
+Extract identification numbers of runs of a rSFSW2 simulation project which are
  uncompleted and not \code{inwork}
 }

@@ -5,7 +5,7 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
   ow_prev <- options("warn", "error")
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": set options ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": set options ",
       "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level, " and 'error' to ",
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
 
@@ -132,7 +132,7 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 
     # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
     # make the directories everytime... quite aggravating.
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": failed to create ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to create ",
       shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
   }
 
@@ -313,7 +313,7 @@ simTiming_ForEachUsedTimeUnit <- function(st,
 
   if (any(sim_tscales == "monthly")) {
     res$yearno_ForEachUsedMonth <- res$yearno_ForEachUsedMonth_NSadj <- rep(seq_len(st$no.useyr), each = 12)
-    res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(swsf_glovars[["st_mo"]], times = st$no.useyr)
+    res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(SFSW2_glovars[["st_mo"]], times = st$no.useyr)
 
     if (latitude < 0 && account_NorthSouth) {
       res$month_ForEachUsedMonth_NSadj <- (res$month_ForEachUsedMonth + 5) %% 12 + 1
@@ -561,8 +561,8 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ_mean(which(abs(x - tmax) < swsf_glovars[["tol"]]), int = 365, na.rm = na.rm),
-    circ_mean(which(abs(x - tmin) < swsf_glovars[["tol"]]), int = 365, na.rm = na.rm))
+    circ_mean(which(abs(x - tmax) < SFSW2_glovars[["tol"]]), int = 365, na.rm = na.rm),
+    circ_mean(which(abs(x - tmin) < SFSW2_glovars[["tol"]]), int = 365, na.rm = na.rm))
 }
 
 
@@ -574,11 +574,11 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg){
   d <- length(layers_depth)
   vals <- list()
   #first layer
-  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
+  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
   vals[[1]] <- seq_len(DeepestFirstDailyAggLayer)
   #second layer
   if(!is.null(daily_lyr_agg[["second_cm"]])){
-    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
+    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
   } else {
     DeepestSecondDailyAggLayer <- d
   }
@@ -588,7 +588,7 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg){
   #third layer
   if(!is.null(daily_lyr_agg[["third_cm"]])){
     if(!is.na(daily_lyr_agg[["third_cm"]])){
-      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
+      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
     } else {
       DeepestThirdDailyAggLayer <- NULL
     }
@@ -601,7 +601,7 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg){
   #fourth layer
   if(!is.null(daily_lyr_agg[["fourth_cm"]])){
     if(!is.na(daily_lyr_agg[["fourth_cm"]])){
-      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + swsf_glovars[["tol"]], all.inside=TRUE)
+      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
     } else {
       DeepestFourthDailyAggLayer <- NULL
     }
@@ -1129,15 +1129,15 @@ init_intracker <- function() {
 }
 
 
-todo_intracker <- function(SWSF_prj_meta, tracker, status) {
-  x <- SWSF_prj_meta[["input_status"]][tracker, status]
+todo_intracker <- function(SFSW2_prj_meta, tracker, status) {
+  x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
   !is.na(x) && identical(x, FALSE)
 }
 
 
-isdone_intracker <- function(SWSF_prj_meta, tracker, status) {
-  x <- SWSF_prj_meta[["input_status"]][tracker, status]
+isdone_intracker <- function(SFSW2_prj_meta, tracker, status) {
+  x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
   !is.na(x) && identical(x, TRUE)
 }

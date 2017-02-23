@@ -1,5 +1,5 @@
-update_scenarios_with_ensembles <- function(SWSF_prj_meta) {
-  sim_scens <- SWSF_prj_meta[["sim_scens"]]
+update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
+  sim_scens <- SFSW2_prj_meta[["sim_scens"]]
 
   if (length(sim_scens[["ensemble.levels"]]) > 0)
     sim_scens[["ensemble.levels"]] <- sort(sim_scens[["ensemble.levels"]])
@@ -10,8 +10,8 @@ update_scenarios_with_ensembles <- function(SWSF_prj_meta) {
     all(is.numeric(sim_scens[["ensemble.levels"]]))
 
   if (sim_scens[["has_ensembles"]]) {
-    sim_scens[["ensemble.families"]] <- paste0(rownames(SWSF_prj_meta[["sim_time"]][["future_yrs"]]), ".",
-      rep(sim_scens[["ensemble.families"]], each = SWSF_prj_meta[["sim_time"]][["future_N"]]))	#add (multiple) future_yrs
+    sim_scens[["ensemble.families"]] <- paste0(rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]]), ".",
+      rep(sim_scens[["ensemble.families"]], each = SFSW2_prj_meta[["sim_time"]][["future_N"]]))	#add (multiple) future_yrs
     scenarios.ineach.ensemble <- sapply(sim_scens[["ensemble.families"]], function(x)
       grepl(x, sim_scens[["id"]], ignore.case = TRUE))
     temp <- apply(scenarios.ineach.ensemble, 2, any)
@@ -30,9 +30,9 @@ update_scenarios_with_ensembles <- function(SWSF_prj_meta) {
     }
   }
 
-  SWSF_prj_meta[["sim_scens"]] <- sim_scens
+  SFSW2_prj_meta[["sim_scens"]] <- sim_scens
 
-  SWSF_prj_meta
+  SFSW2_prj_meta
 }
 
 
@@ -206,11 +206,11 @@ update_scenarios_with_ensembles <- function(SWSF_prj_meta) {
 	}
 
 
-generate_ensembles <- function(SWSF_prj_meta, t_job_start, opt_parallel, opt_chunks,
+generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
   verbose = FALSE) {
 
   con <- DBI::dbConnect(RSQLite::SQLite(),
-    dbname = SWSF_prj_meta[["fnames_out"]][["dbOutput"]])
+    dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
   Tables <- dbOutput_ListOutputTables(con)
   Tables <- Tables[-grep(pattern="_sd", Tables, ignore.case = T)]
@@ -222,40 +222,40 @@ generate_ensembles <- function(SWSF_prj_meta, t_job_start, opt_parallel, opt_chu
 
       ensembles.completed <- Rmpi::mpi.applyLB(X = Tables,
         FUN = collect_EnsembleFromScenarios,
-        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
         opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
-        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
-        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
 
     } else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
       ensembles.completed <- parallel::clusterApplyLB(opt_parallel[["cl"]],
         x = Tables, fun = collect_EnsembleFromScenarios,
-        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
         opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
-        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
-        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
     }
 
   } else {
     ensembles.completed <- lapply(Tables, FUN = collect_EnsembleFromScenarios,
-        name.OutputDB = SWSF_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
         opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
-        dir_out = SWSF_prj_meta[["project_paths"]][["dir_out"]],
-        sim_scens = SWSF_prj_meta[["sim_scens"]],
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+        sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
   }
 
   ensembles.completed <- sum(unlist(ensembles.completed))
 
-  temp <- {if (SWSF_prj_meta[["sim_scens"]][["save.scenario.ranks"]]) 3 else 2} *
-    length(Tables) * length(SWSF_prj_meta[["sim_scens"]][["ensemble.families"]]) *
-    length(SWSF_prj_meta[["sim_scens"]][["ensemble.levels"]])
+  temp <- {if (SFSW2_prj_meta[["sim_scens"]][["save.scenario.ranks"]]) 3 else 2} *
+    length(Tables) * length(SFSW2_prj_meta[["sim_scens"]][["ensemble.families"]]) *
+    length(SFSW2_prj_meta[["sim_scens"]][["ensemble.levels"]])
 
   if (ensembles.completed != temp)
-    print(paste("SWSF calculates ensembles: something went wrong with ensemble output:",
+    print(paste("rSFSW2 calculates ensembles: something went wrong with ensemble output:",
       "ensembles.completed = ", ensembles.completed, " instead of ", temp, "."))
 
   ensembles.completed

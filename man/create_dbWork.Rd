@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWSF_dbWork.R
 \name{create_dbWork}
 \alias{create_dbWork}
-\title{Create a SQLite-database \code{dbWork} to manage runs fo a SWSF simulation project}
+\title{Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project}
 \usage{
 create_dbWork(dbWork, jobs)
 }
@@ -19,5 +19,5 @@ simulated or not. See \code{\link{indices}}.}
 Invisibly \code{TRUE}
 }
 \description{
-Create a SQLite-database \code{dbWork} to manage runs fo a SWSF simulation project
+Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project
 }

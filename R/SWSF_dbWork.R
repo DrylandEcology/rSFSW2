@@ -12,7 +12,7 @@ add_dbWork_index <- function(con) {
 
 
 
-#' Create a SQLite-database \code{dbWork} to manage runs fo a SWSF simulation project
+#' Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project
 #'
 #' @param dbWork A character string. Path to the folder where the database will be created.
 #' @param jobs An integer matrix. Each row corresponds to one call of the simulation
@@ -57,7 +57,7 @@ create_job_df <- function(sim_size, include_YN) {
 }
 
 
-#' Setup or connect to SQLite-database \code{dbWork} to manage runs fo a SWSF simulation
+#' Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
 #'  project
 #'
 #' @inheritParams create_dbWork
@@ -132,7 +132,7 @@ setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE) {
 }
 
 
-#' Extract identification numbers of runs of a SWSF simulation project which are
+#' Extract identification numbers of runs of a rSFSW2 simulation project which are
 #'  uncompleted and not \code{inwork}
 #'
 #' @inheritParams create_dbWork
@@ -150,7 +150,7 @@ dbWork_todos <- function(path) {
   as.integer(x[, 1])
 }
 
-#' Extract stored execution times of completed runs of a SWSF simulation project
+#' Extract stored execution times of completed runs of a rSFSW2 simulation project
 #'
 #' @inheritParams create_dbWork
 #' @return A numeric vector of execution time in seconds.
@@ -340,7 +340,7 @@ dbWork_check <- function(path, runIDs) {
 
 
 
-#' Update run information of a SWSF simulation project
+#' Update run information of a rSFSW2 simulation project
 #'
 #' @inheritParams create_dbWork
 #' @param runID An integer value. The identification number of the current run,

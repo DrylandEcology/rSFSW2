@@ -43,7 +43,7 @@
 "_PACKAGE"
 
 ##------ Package level variables
-swsf_glovars <- new.env()
+SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
 ## Package uses S3/S4 classes - they are defined in package:methods

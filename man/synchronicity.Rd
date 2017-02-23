@@ -35,28 +35,28 @@ lock_access(lock, verbose = FALSE)
 
 \item{id}{A R object. Identifier used to test unique write access in locking directory.}
 
-\item{lock}{An object of class \code{SWSF_lock}.}
+\item{lock}{An object of class \code{SFSW2_lock}.}
 
 \item{verbose}{A logical value. If \code{TRUE}, then each attempt at obtaining the lock
 is printed.}
 }
 \value{
-An object of class \code{SWSF_lock}.
+An object of class \code{SFSW2_lock}.
 
 A logical value. \code{TRUE} if lock file contains proper code of the lock.
 
 The return value of unlinking the directory associated with \code{lock}.
 
-The updated \code{lock} object of class \code{SWSF_lock}.
+The updated \code{lock} object of class \code{SFSW2_lock}.
 
-The updated \code{lock} object of class \code{SWSF_lock}.
+The updated \code{lock} object of class \code{SFSW2_lock}.
 
-The updated \code{lock} object of class \code{SWSF_lock}.
+The updated \code{lock} object of class \code{SFSW2_lock}.
 }
 \description{
 Synchronicity with backing store locks
 
-Create and initialize an object of class \code{SWSF_lock}
+Create and initialize an object of class \code{SFSW2_lock}
 
 Check content of a backing store lock
 

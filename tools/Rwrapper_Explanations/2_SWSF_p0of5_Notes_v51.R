@@ -18,13 +18,13 @@
 
 #------USER INPUT OPTIONS
 #Folder hierarchy
-#	SWSF consists of one main project folder (dir_prj)
+#	rSFSW2 consists of one main project folder (dir_prj)
 #	the main project folder contains three sub-folders
 #		- 'dir_in_sw': for the input data (with three sub-folders: SOILWAT2-run project, datafiles, and  treatments),
 #		- 'dir_out_sw': for the individual simulation SOILWAT2-runs (these can also be under a different parent directory defined by 'dir.runs', e.g., at a external hard disk with lots of space), and
 #		- 'dir_out': for the aggregated output files
 
-#SWSF abilities include four different 'actions'
+#rSFSW2 abilities include four different 'actions'
 #	= "sim_create": puts information and files together for each simulation SOILWAT2 run
 #	= "sim_execute": executes the SOILWAT2 simulations
 #	= "sim_aggregate": calculates aggregated response variables from the SOILWAT2 output
@@ -173,7 +173,7 @@
 #but WITHOUT ANY WARRANTY; without even the implied warranty of
 #MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-#------SOILWAT2 Simulation Framework, SWSF
+#------SOILWAT2 Simulation Framework, rSFSW2
 
 #------NOTES:
 #	- the code performs only rudimentary error checking and handling
@@ -315,7 +315,7 @@
 #		- more verbose during preparation stages of code
 #		- streamlined code for parallelization
 #		- added option in overall aggregations: 'dailyC4_TempVar' = c('mean July minimum temperature', 'mean length of annual freeze-free periods (days)', 'mean annual degree-days above 65F (day C)'
-#		- replaced simTime$mo == 1:12 with global variable swsf_glovars[["st_mo"]]: functions to extract external information don't need to import simTime any more
+#		- replaced simTime$mo == 1:12 with global variable SFSW2_glovars[["st_mo"]]: functions to extract external information don't need to import simTime any more
 #		- added function 'simTiming_ForEachUsedTimeUnit' to calculate necessary timing variables such as 'doy_ForEachUsedDay' without readin from SOILWAT2 files (which was quite costly) 
 #		- accounting for North/South hemispheres:
 #			- added global option flag 'adjust_NorthSouth': if TRUE then add a set of counting of the timing variables for sites with latitude < 0 (i.e., southern hemisphere), which have time shifted by 6 months (e.g., July becomes 1st month, etc.); i.e., introduced simTime2 as calculated by function 'simTiming_ForEachUsedTimeUnit'

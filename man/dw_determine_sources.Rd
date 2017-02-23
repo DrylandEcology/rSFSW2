@@ -4,7 +4,7 @@
 \alias{dw_determine_sources}
 \title{Determine sources of daily weather}
 \usage{
-dw_determine_sources(dw_source, exinfo, dw_avail_sources, SWSF_prj_inputs,
+dw_determine_sources(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
   SWRunInformation, sim_size, sim_time, fnames_in, project_paths,
   verbose = FALSE)
 }

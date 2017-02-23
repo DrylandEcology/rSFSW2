@@ -4,7 +4,7 @@
 \alias{ExtractData_MeanMonthlyClimate}
 \title{Extract mean monthly climate data: cloud cover, relative humidity, and wind speed}
 \usage{
-ExtractData_MeanMonthlyClimate(exinfo, SWSF_prj_meta, SWSF_prj_inputs,
+ExtractData_MeanMonthlyClimate(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE)
 }
 \description{

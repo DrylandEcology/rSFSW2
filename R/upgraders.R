@@ -19,7 +19,7 @@ upgrade_datafile <- function(file, new_name, insert_after_tag, inserted_colnames
   if (is.null(new_name))
     return(FALSE)
 
-  temp <- try(swsf_read_inputfile(file))
+  temp <- try(SFSW2_read_inputfile(file))
   if (inherits(temp, "try-error")) return(FALSE)
   data <- temp[["data"]]
   use <- temp[["use"]]

@@ -4,7 +4,7 @@
 \alias{calc_ExtendSoilDatafileToRequestedSoilLayers}
 \title{Add soil layers (by interpolation) if not already present}
 \usage{
-calc_ExtendSoilDatafileToRequestedSoilLayers(SWSF_prj_meta, SWSF_prj_inputs,
+calc_ExtendSoilDatafileToRequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
   runIDs_adjust, verbose = FALSE)
 }
 \description{

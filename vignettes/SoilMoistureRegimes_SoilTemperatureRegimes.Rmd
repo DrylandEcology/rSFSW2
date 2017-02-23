@@ -1,5 +1,5 @@
 ---
-title: "SWSF calculations of NCRS soil moisture regimes (SMR) and soil temperature regimes (STR)"
+title: "rSFSW2 calculations of NCRS soil moisture regimes (SMR) and soil temperature regimes (STR)"
 author: "Daniel R Schlaepfer"
 date: "`r Sys.Date()`"
 output:
@@ -19,7 +19,7 @@ vignette: >
 ---
 
 
-This vignette explains how SWSF has implemented the calculations of soil moisture regime (SMR) and soil temperature regime (STR) and compares the logic with the Java Newhall Simulation Model and with the Keys to Soil Taxonomy.
+This vignette explains how rSFSW2 has implemented the calculations of soil moisture regime (SMR) and soil temperature regime (STR) and compares the logic with the Java Newhall Simulation Model and with the Keys to Soil Taxonomy.
 
 ## Notes
 * Quoted text is directly from [SSS 2014](#SSS2014).  So direction of a logic may be opposite of a condition, which will be indicated by \! before the condition.
@@ -28,7 +28,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 ## Soil Moisture Regimes
 
 ### Undefined
-* SWSF
+* rSFSW2
     * not one of {[perudic](#perudic), [aridic](#aridic), [xeric](#xeric), [ustic](#ustic), [udic](#udic), [anhydrous](#anhydrous)}
 * [jNSM 2016](#jNSM2016) (line 3060)
     * not one of {[perudic](#perudic), [aridic](#aridic), [xeric](#xeric), [ustic](#ustic), [udic](#udic)}
@@ -36,7 +36,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 
 ### Perudic
 * Regime characteristic of areas where precipitation exceeds evapotranspiration every month
-* SWSF
+* rSFSW2
     * [COND0](#COND0)
 * [jNSM 2016](#jNSM2016) (lines 2977ff)
     * perudic: [[COND0](#COND0)] swt != 0
@@ -47,12 +47,12 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
     * The soil is almost always moist; soil tension is rarely > 100 kPa (about >1 bar)
     * Precipitation exceeds evapotranspiration by plants in every month.
 * Remarks
-    * Somewhat unclear if PET or AET should be compared with PPT. "evapotranspiration by plants" sounds like AET, but jNSM uses PET. SWSF follows jNSM and uses PET.
+    * Somewhat unclear if PET or AET should be compared with PPT. "evapotranspiration by plants" sounds like AET, but jNSM uses PET. rSFSW2 follows jNSM and uses PET.
 
 
 ### Udic
 * Regime characteristic of humid regions with seasonally well distributed precipitation
-* SWSF
+* rSFSW2
     * [COND3](#COND3) & {{\![COND4](#COND4) & [COND5](#COND5) & [COND6](#COND6)} | \!{\![COND4](#COND4) & [COND5](#COND5)}}
 * [jNSM 2016](#jNSM2016) (lines 3011ff)
     * not one of {[perudic](#perudic), [aridic](#aridic), [xeric](#xeric)}
@@ -80,12 +80,12 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
     * Soil is dry < 45 consecutive days in summer and early fall (except in very warm areas and locations where there is little difference between summer and winter soil temperatures).
 * Remarks
     * jNSM ignores [COND4](#COND4), [COND5](#COND5), and [COND6](#COND6)
-    * SWSF and jNSM ignore "except for short periods, a three- phase system, solid-liquid-gas, in part or all of the soil moisture control section when the soil temperature is above 5 C"
+    * rSFSW2 and jNSM ignore "except for short periods, a three- phase system, solid-liquid-gas, in part or all of the soil moisture control section when the soil temperature is above 5 C"
 
 
 ### Ustic
 * Regime characteristic of semiarid climates where moisture is limited but available for portions of the growing season
-* SWSF
+* rSFSW2
     * \!permafrost & \![COND3](#COND3) &
       ([([COND4](#COND4) | \![COND5](#COND5)) & ([COND7](#COND7) | [COND8](#COND8))] |
       [(\!([COND4](#COND4) | \![COND5](#COND5)) & \![COND1](#COND1) &
@@ -147,7 +147,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 
 ### Xeric
 * Regime characteristic of a Mediterranean-type climate with cool, moist winters and warm, dry summers
-* SWSF
+* rSFSW2
     * \![COND6](#COND6) & [COND9](#COND9) & \![COND4](#COND4) & [COND5](#COND5)
 * [jNSM 2016](#jNSM2016) (lines 3000ff)
     * not one of {[perudic](#perudic), [aridic](#aridic)}
@@ -168,7 +168,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 
 ### Aridic
 * Regime characteristic of arid and semiarid climates that are unsuitable for cultivation without irrigation
-* SWSF
+* rSFSW2
     * [COND1](#COND1) & [COND2](#COND2)
 * jNSM (lines 2988ff)
     * not [perudic](#perudic)
@@ -189,7 +189,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
 
 ### Anhydrous
 * Very cold and very dry soil conditions
-* SWSF
+* rSFSW2
     * [AnhCOND1](#AnhCOND1) & [AnhCOND2](#AnhCOND2) & [AnhCOND3](#AnhCOND3)
 * [jNSM 2016](#jNSM2016): not considered
 * Characteristics ([p. 18-19 in SSS 2014](#SSS2014))
@@ -212,7 +212,7 @@ This vignette explains how SWSF has implemented the calculations of soil moistur
           or
         * When temperature is < 0 C, soil is loose to just slightly hard (unless there is pedogenic cementation).
 * Remarks
-    * SWSF ignores "Includes no ice-impregnated permafrost" and "Has a rupture-resistance class of loose to slightly hard throughout when the soil temperature is 0 C or colder, except where a cemented pedogenic horizon occurs."
+    * rSFSW2 ignores "Includes no ice-impregnated permafrost" and "Has a rupture-resistance class of loose to slightly hard throughout when the soil temperature is 0 C or colder, except where a cemented pedogenic horizon occurs."
 
 
 
@@ -223,7 +223,7 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
 ### Permafrost
 * Permanently frozen layers
 * "Permafrost may be impregnated by ice or, in the case of insufficient interstitial water, may be dry." ([SSS 2014](#SSS2014))
-* SWSF
+* rSFSW2
     * [stCOND0](#stCOND0)
 * [jNSM 2016](#jNSM2016): not considered
 * Characteristics ([p. 28 in SSS 2014](#SSS2014))
@@ -235,7 +235,7 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
 ### Gelic
 * "Gelic materials are [mineral](#MSM) or [organic soil materials](#OSM) that show evidence of cryoturbation (frost churning) and/or ice segregation in the active layer (seasonal thaw layer) and/or the upper part of the permafrost" ([SSS 2014](#SSS2014))
 * "The gelic soil temperature regime has not been documented in soils of the continental U.S. but occurs in the soils of Alaska." ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     * [stCOND1](#stCOND1) | [stCOND0](#stCOND0)
 * [jNSM 2016](#jNSM2016): calls this regime "pergelic"
     + [[stCOND1](#stCOND1)] tma < 0
@@ -248,7 +248,7 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
 ### Cryic
 * Cryic soils are cold but have no permafrost and they are cold also during summer.
 * "Too cold for virtually all crops" ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     + \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & (\![[stCOND5](#stCOND5) &
       {\![O-horizon](#Ohorizon) & [stCOND8](#stCOND8)} |
       {[O-horizon](#Ohorizon) & [stCOND9](#stCOND9)}] |
@@ -277,13 +277,13 @@ We currently ignore the 'iso-' prefix, i.e., "the mean summer and mean winter so
     * "Soil is > 0 to < 8 C but has no permafrost and summer temperatures are also cold"
 * Remarks
     * [jNSM 2016](#jNSM2016) does not distinguish between [mineral](#MSM) and [organic material](#OSM). Thus, it ignores conditions [stCOND5](#stCOND5), [stCOND6](#stCOND6), [stCOND7](#stCOND7), and [stCOND9](#stCOND9). It assumes that soils are "not saturated with water during some part of the summer" ([\![stCOND5](#stCOND5)]) and have "no [O-horizon](#Ohorizon)", when testing for the [cryic](#Cryic) regime with [[stCOND8](#stCOND8)].
-    * SWSF ignores "[organic soils](#OSM)", but consideres the presence of [O-horizons](#Ohorizon).
+    * rSFSW2 ignores "[organic soils](#OSM)", but consideres the presence of [O-horizons](#Ohorizon).
 
 
 ### Frigid
 * "Too cold for all but cold weather crops, such as wheat, oats, or
 barley" ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     * \![stCOND0](#stCOND0) & \![stCOND1](#stCOND1) & [stCOND2](#stCOND2) & \![cryic](#cryic)
 * [jNSM 2016](#jNSM2016):
     + [[stCOND2](#stCOND2)] tma < 8 && [\![stCOND8](#stCOND8)] ((st - cs) >= 15) && [scaled [COND5](#COND5)?] (dif * fcd) > 5
@@ -297,7 +297,7 @@ barley" ([SSS 2015](#SSS2015))
 
 ### Mesic
 * "Suited to crops such as corn, wheat, and soybeans" ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     * \![stCOND2](#stCOND2) & [stCOND3](#stCOND3)
 * [jNSM 2016](#jNSM2016):
     + [\![stCOND2](#stCOND2)] tma >= 8 && [[stCOND3](#stCOND3)] tma < 15
@@ -309,7 +309,7 @@ barley" ([SSS 2015](#SSS2015))
 
 ### Thermic
 * "Suited to warm weather crops such as cotton" ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     * \![stCOND3](#stCOND3) & [stCOND4](#stCOND4)
 * [jNSM 2016](#jNSM2016):
     + [\![stCOND3](#stCOND3)] tma >= 15 && [[stCOND4](#stCOND4)] tma < 22
@@ -321,7 +321,7 @@ barley" ([SSS 2015](#SSS2015))
 
 ### Hyperthermic
 * "Suited to citrus and other freeze-intolerant crops" ([SSS 2015](#SSS2015))
-* SWSF
+* rSFSW2
     * \![stCOND4](#stCOND4)
 * [jNSM 2016](#jNSM2016):
     + [\![stCOND4](#stCOND4)] tma >= 22
@@ -440,7 +440,7 @@ Our interpretations from [SSS 2014](#SSS2014) -- language refers to layers, not 
     * dif
         * jNSM is using the old limit of 5 C instead of the new limit of 6 C
         * "in 1999 the Iso- definitions were refined from < 5 degrees C to < 6 degrees C" [slide 3 of ' jNSM_Background_Use_Tutorial.pptx']
-        * SWSF is using new limit of 6 C
+        * rSFSW2 is using new limit of 6 C
 
 
 #### jNSM inputs

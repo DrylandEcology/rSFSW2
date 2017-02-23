@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWSF_dbWork.R
 \name{dbWork_update_job}
 \alias{dbWork_update_job}
-\title{Update run information of a SWSF simulation project}
+\title{Update run information of a rSFSW2 simulation project}
 \usage{
 dbWork_update_job(path, runID, status = c("completed", "failed", "inwork"),
   time_s = "NULL", with_filelock = NULL, verbose = FALSE)
@@ -27,5 +27,5 @@ database access are printed}
 A logical value whether the status was successfully updated.
 }
 \description{
-Update run information of a SWSF simulation project
+Update run information of a rSFSW2 simulation project
 }

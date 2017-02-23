@@ -701,7 +701,7 @@ calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  temp_add <- obs.hist.mean_ppt < swsf_glovars[["tol"]] |
+  temp_add <- obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
     delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
     delta_ppts > opt_DS[["PPTratioCutoff"]]
 
@@ -761,7 +761,7 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
   # delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   # delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   # delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  # temp_add <- obs.hist.mean_ppt < swsf_glovars[["tol"]] |
+  # temp_add <- obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
   #             delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
   #             delta_ppts > opt_DS[["PPTratioCutoff"]]
   # if (any(temp_add)) {
@@ -826,7 +826,7 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - scen.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - scen.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / scen.hist.mean_ppt
-  temp_add <- scen.hist.mean_ppt < swsf_glovars[["tol"]] |
+  temp_add <- scen.hist.mean_ppt < SFSW2_glovars[["tol"]] |
               delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
               delta_ppts > opt_DS[["PPTratioCutoff"]]
 
@@ -992,12 +992,12 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL,
       # "same extrapolation as Boe et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
       qid <- switch(lin_extrapol, Boe = 0, Thermessl2012CC.QMv1b = 3)
       nq <- nrow(fobj[["par"]]$modq)
-      largex <- x > fobj[["par"]]$modq[nq, 1] + swsf_glovars[["tol"]]
+      largex <- x > fobj[["par"]]$modq[nq, 1] + SFSW2_glovars[["tol"]]
       if (any(largex)) {
         max.delta <- fobj[["par"]]$modq[nq - qid, 1] - fobj[["par"]]$fitq[nq - qid, 1]
         out[largex] <- x[largex] - max.delta
       }
-      smallx <- x < fobj[["par"]]$modq[1, 1] - swsf_glovars[["tol"]]
+      smallx <- x < fobj[["par"]]$modq[1, 1] - SFSW2_glovars[["tol"]]
       if (any(smallx)) {
         min.delta <- fobj[["par"]]$modq[1 + qid, 1] - fobj[["par"]]$fitq[1 + qid, 1]
         out[smallx] <- x[smallx] - min.delta
@@ -1066,8 +1066,8 @@ doQmapQUANT_drs <- function(x, fobj, type = NULL, montly_obs_base = NULL,
     out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = "Boe",
       monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
 
-    target_range <- c(-Inf, fobj[["par"]]$modq[1, 1] -  swsf_glovars[["tol"]],
-      max(fobj[["par"]]$modq[, 1]) + swsf_glovars[["tol"]], Inf) # -Inf, smallest observed value, largest observed value, Inf
+    target_range <- c(-Inf, fobj[["par"]]$modq[1, 1] -  SFSW2_glovars[["tol"]],
+      max(fobj[["par"]]$modq[, 1]) + SFSW2_glovars[["tol"]], Inf) # -Inf, smallest observed value, largest observed value, Inf
     out_of_range <- !(findInterval(x, target_range) == 2)
 
     if (any(out_of_range)) {
@@ -1326,10 +1326,10 @@ downscale.wgen_package <- function(
   changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
 
   # replace with tapply()?
-  prcp_mean_changes <- sapply(swsf_glovars[["st_mo"]], function(x)
+  prcp_mean_changes <- sapply(SFSW2_glovars[["st_mo"]], function(x)
     mean(changes[ changes[, "Month"] == x, "PPT_cm"]))
 
-  temp_mean_changes <- sapply(swsf_glovars[["st_mo"]], function(x)
+  temp_mean_changes <- sapply(SFSW2_glovars[["st_mo"]], function(x)
     mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"])) / 2
 
   # set.seed(1) # for testing
@@ -2163,28 +2163,28 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
 #'
 #' Allow for multiple data sources among sites but not multiple sources per site
 #' (for that you need a new row in the MasterInput spreadsheet)
-climscen_determine_sources <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs) {
+climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs) {
 
-  xy <- SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
+  xy <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
 
   update_SWRunInformation <- FALSE
 
-  sites_GCM_source <- if (SWSF_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
-      "GCM_sources" %in% colnames(SWSF_prj_inputs[["SWRunInformation"]])) {
-      sites_GCM_source <- SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
+  sites_GCM_source <- if (SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
+      "GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
+      sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
 
-    } else if (SWSF_prj_meta[["opt_input"]][["how_determine_sources"]] == "order" ||
-      !("GCM_sources" %in% colnames(SWSF_prj_inputs[["SWRunInformation"]]))) {
-      rep(NA, times = SWSF_prj_meta[["sim_size"]][["runsN_sites"]])
+    } else if (SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "order" ||
+      !("GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]]))) {
+      rep(NA, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
 
     } else {
       stop("'climscen_determine_sources': does not recognize source ",
-        shQuote(SWSF_prj_meta[["opt_input"]][["how_determine_sources"]]))
+        shQuote(SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]]))
     }
 
   # determine which data product to use for each site based on bounding boxes of datasets
-  i_use <- rep(FALSE, times = SWSF_prj_meta[["sim_size"]][["runsN_sites"]])
-  for (ds in SWSF_prj_meta[["sim_scens"]][["sources"]]) {
+  i_use <- rep(FALSE, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
+  for (ds in SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
     i_use <- in_box(xy, climDB_metas[[ds]][["bbox"]]$lon,
       climDB_metas[[ds]][["bbox"]]$lat, i_use)
 
@@ -2196,13 +2196,13 @@ climscen_determine_sources <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inp
       "sites"))
 
   #write data to disk
-  SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
+  SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
     as.character(sites_GCM_source)
-  utils::write.csv(SWSF_prj_inputs[["SWRunInformation"]],
-    file = SWSF_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
-  unlink(SWSF_prj_meta[["fnames_in"]][["fpreprocin"]])
+  utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
+    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+  unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-  SWSF_prj_inputs[["SWRunInformation"]]
+  SFSW2_prj_inputs[["SWRunInformation"]]
 }
 
 
@@ -2431,36 +2431,36 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
 
 #' Extract climate scenarios
 #' @export
-ExtractClimateChangeScenarios <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
+ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   #--- SET UP PARALLELIZATION
   # used in:
   #   - GriddedDailyWeatherFromNCEPCFSR_Global
-  opt_parallel <- setup_SWSF_cluster(opt_parallel,
-    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  rSOILWAT2::dbW_setConnection(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
+  rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
   dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
   dbW_compression_type <- rSOILWAT2::dbW_compression()
 
-  temp <- strsplit(SWSF_prj_meta[["sim_scens"]][["models"]], split = ".", fixed = TRUE)
+  temp <- strsplit(SFSW2_prj_meta[["sim_scens"]][["models"]], split = ".", fixed = TRUE)
   if (!all(lengths(temp) == 4L))
     stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
       "concatenated by '.'")
 
   climScen <- data.frame(matrix(unlist(temp), ncol = 4, byrow = TRUE),
     stringsAsFactors = FALSE)
-  climScen$imap_todbW <- match(SWSF_prj_meta[["sim_scens"]][["models"]],
+  climScen$imap_todbW <- match(SFSW2_prj_meta[["sim_scens"]][["models"]],
     table = dbW_iScenarioTable$Scenario, nomatch = 0)
   dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
   reqGCMs <- unique(climScen[, 4])
@@ -2470,89 +2470,89 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_
     unique(climScen[x == climScen[, 4], 1]))
 
   for (i in seq_along(reqGCMs)) {
-    dir.create2(file.path(SWSF_prj_meta[["project_paths"]][["dir_out_temp"]], reqGCMs[i]),
+    dir.create2(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], reqGCMs[i]),
       showWarnings = FALSE, recursive = TRUE)
   }
 
   # keep track of successful/unsuccessful climate scenarios
-  include_YN_climscen <- rep(0, SWSF_prj_meta[["sim_size"]][["runsN_master"]])
+  include_YN_climscen <- rep(0, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
 
   # loop through data sources
-  sites_GCM_source <- SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
+  sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
 
   for (ics in unique(sites_GCM_source)) {
-    do_SWRun_sites <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]][sites_GCM_source == ics]
+    do_SWRun_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][sites_GCM_source == ics]
 
     if (length(do_SWRun_sites) > 0)
       include_YN_climscen <- get_climatechange_data(ics,
-        SWSF_prj_inputs[["SWRunInformation"]], SWSF_prj_inputs[["sw_input_treatments"]],
+        SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_treatments"]],
         is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", ics),
         is_NEX = grepl("NEX", ics), do_SWRun_sites, include_YN_climscen,
         climDB_meta = climDB_metas[[ics]], reqGCMs, reqRCPs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-        SWSF_prj_meta[["sim_scens"]][["opt_DS"]], SWSF_prj_meta[["sim_time"]],
-        SWSF_prj_meta[["fnames_in"]][["fdbWeather"]], dbW_iSiteTable, dbW_iScenarioTable,
-        dbW_compression_type, SWSF_prj_meta[["sim_scens"]][["ambient"]],
-        SWSF_prj_meta[["project_paths"]], opt_parallel, verbose, print.debug)
+        SFSW2_prj_meta[["sim_scens"]][["opt_DS"]], SFSW2_prj_meta[["sim_time"]],
+        SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], dbW_iSiteTable, dbW_iScenarioTable,
+        dbW_compression_type, SFSW2_prj_meta[["sim_scens"]][["ambient"]],
+        SFSW2_prj_meta[["project_paths"]], opt_parallel, verbose, print.debug)
   }
 
-  SWSF_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
-  utils::write.csv(SWSF_prj_inputs[["SWRunInformation"]],
-    file = SWSF_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
-  unlink(SWSF_prj_meta[["fnames_in"]][["fpreprocin"]])
+  SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
+  utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
+    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+  unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
-  SWSF_prj_inputs[["SWRunInformation"]]
+  SFSW2_prj_inputs[["SWRunInformation"]]
 }
 
 #' Extract climate scenarios from downloaded ClimateWizard.org data
 #' @export
-ExtractClimateWizard <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
+ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
   verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  if (length(SWSF_prj_meta[["sim_scens"]][["models"]]) > 0) {
+  if (length(SFSW2_prj_meta[["sim_scens"]][["models"]]) > 0) {
 
-    if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SWSF_prj_meta[["sim_scens"]][["sources"]])) {
+    if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       #Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
       #accessed via climatewizard.org on July 10, 2012
-      dir.ex.dat <- file.path(SWSF_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_Global")
+      dir.ex.dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_Global")
     }
-    if (any("CMIP3_ClimateWizardEnsembles_USA" %in% SWSF_prj_meta[["sim_scens"]][["sources"]])) {
+    if (any("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       #Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
       #accessed via climatewizard.org
-      dir.ex.dat <- file.path(SWSF_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_USA")
+      dir.ex.dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_USA")
     }
 
     list.scenarios.external <- basename(list.dirs2(path = dir.ex.dat, full.names = FALSE,
       recursive = FALSE))
 
-    if (all(SWSF_prj_meta[["sim_scens"]][["models"]] %in% list.scenarios.external)) {
+    if (all(SFSW2_prj_meta[["sim_scens"]][["models"]] %in% list.scenarios.external)) {
       #locations of simulation runs
-      locations <- sp::SpatialPoints(coords = SWSF_prj_inputs[["SWRunInformation"]][, c("X_WGS84", "Y_WGS84")],
+      locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][, c("X_WGS84", "Y_WGS84")],
         proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
 
       # keep track of successful/unsuccessful climate scenarios
-      include_YN_climscen <- rep(FALSE, SWSF_prj_meta[["sim_size"]][["runsN_master"]])
+      include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
 
-      for (sc in seq_along(SWSF_prj_meta[["sim_scens"]][["models"]])) {
-        dir.ex.dat.sc <- file.path(dir.ex.dat, SWSF_prj_meta[["sim_scens"]][["models"]][sc])
+      for (sc in seq_along(SFSW2_prj_meta[["sim_scens"]][["models"]])) {
+        dir.ex.dat.sc <- file.path(dir.ex.dat, SFSW2_prj_meta[["sim_scens"]][["models"]][sc])
         temp <- basename(list.dirs2(path = dir.ex.dat.sc, full.names = FALSE,
           recursive = FALSE))
 
-        if ("CMIP3_ClimateWizardEnsembles_Global" %in% SWSF_prj_meta[["sim_scens"]][["sources"]]) {
+        if ("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
           dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, grep("Precipitation_Value", temp,
             value = TRUE))
           dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, grep("Tmean_Value", temp,
             value = TRUE))
         }
-        if ("CMIP3_ClimateWizardEnsembles_USA" %in% SWSF_prj_meta[["sim_scens"]][["sources"]]) {
+        if ("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
           dir.ex.dat.sc.ppt <- file.path(dir.ex.dat.sc, grep("Precipitation_Change", temp,
             value = TRUE))
           dir.ex.dat.sc.temp <- file.path(dir.ex.dat.sc, grep("Tmean_Change", temp,
@@ -2567,60 +2567,60 @@ ExtractClimateWizard <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
           locations.CoordG <- sp::spTransform(locations, CRS = raster::crs(g))	#transform graphics::points to grid-coords
           vals <- raster::extract(g, locations.CoordG)
         }
-        sc.temp <- sapply(swsf_glovars[["st_mo"]], function(m) {
+        sc.temp <- sapply(SFSW2_glovars[["st_mo"]], function(m) {
             temp <- grep(paste0("_", m, "_"), list.temp.asc, value = TRUE)
             get.month(path = dir.ex.dat.sc.temp, grid = temp, locations)
           })
-        sc.ppt <- sapply(swsf_glovars[["st_mo"]], function(m) {
+        sc.ppt <- sapply(SFSW2_glovars[["st_mo"]], function(m) {
             temp <- grep(paste0("_", m, "_"), list.ppt.asc, value = TRUE)
             get.month(path=dir.ex.dat.sc.ppt, grid = temp, locations)
           })
 
-        if ("CMIP3_ClimateWizardEnsembles_Global" %in% SWSF_prj_meta[["sim_scens"]][["sources"]]) {
+        if ("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
           #temp value in C
           #ppt value in mm
           #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTmm_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
-          SWSF_prj_inputs[["sw_input_climscen_values_use"]][itemp1] <- TRUE
-          SWSF_prj_inputs[["sw_input_climscen_values"]][, itemp1] <- sc.ppt
-          itemp2 <- paste0("TempC_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
-          SWSF_prj_inputs[["sw_input_climscen_values_use"]][itemp2] <- TRUE
-          SWSF_prj_inputs[["sw_input_climscen_values"]][, itemp2] <- sc.temp
+          itemp1 <- paste0("PPTmm_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
+          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp1] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][, itemp1] <- sc.ppt
+          itemp2 <- paste0("TempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
+          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp2] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][, itemp2] <- sc.temp
 
           include_YN_climscen <- include_YN_climscen &
-            stats::complete.cases(SWSF_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
         }
 
-        if ("CMIP3_ClimateWizardEnsembles_USA" %in% SWSF_prj_meta[["sim_scens"]][["sources"]]) {
+        if ("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
           sc.temp <- sc.temp * 5/9	#temp addand in C
           sc.ppt <- 1 + sc.ppt/100	#ppt change as factor
           #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTfactor_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
-          SWSF_prj_inputs[["sw_input_climscen_use"]][itemp1] <- TRUE
-          SWSF_prj_inputs[["sw_input_climscen"]][, itemp1] <- sc.ppt
-          itemp2 <- paste0("deltaTempC_m", swsf_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
-          SWSF_prj_inputs[["sw_input_climscen_use"]][itemp2] <- TRUE
-          SWSF_prj_inputs[["sw_input_climscen"]][, itemp2] <- sc.temp
+          itemp1 <- paste0("PPTfactor_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
+          SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp1] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen"]][, itemp1] <- sc.ppt
+          itemp2 <- paste0("deltaTempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width=2,format="d", flag="0"))
+          SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp2] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen"]][, itemp2] <- sc.temp
 
           include_YN_climscen <- include_YN_climscen &
-            stats::complete.cases(SWSF_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
         }
       }
 
 
       #write data to disk
-      utils::write.csv(reconstitute_inputfile(SWSF_prj_inputs[["sw_input_climscen_values_use"]], SWSF_prj_inputs[["sw_input_climscen_values"]]),
-        file = file.path(SWSF_prj_meta[["fnames_in"]][["fclimscen_values"]]), row.names = FALSE)
-      unlink(SWSF_prj_meta[["fnames_in"]][["fpreprocin"]])
+      utils::write.csv(reconstitute_inputfile(SFSW2_prj_inputs[["sw_input_climscen_values_use"]], SFSW2_prj_inputs[["sw_input_climscen_values"]]),
+        file = file.path(SFSW2_prj_meta[["fnames_in"]][["fclimscen_values"]]), row.names = FALSE)
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      utils::write.csv(reconstitute_inputfile(SWSF_prj_inputs[["sw_input_climscen_use"]], SWSF_prj_inputs[["sw_input_climscen"]]),
-        file = file.path(SWSF_prj_meta[["fnames_in"]][["fclimscen_delta"]]), row.names = FALSE)
-      unlink(SWSF_prj_meta[["fnames_in"]][["fpreprocin"]])
+      utils::write.csv(reconstitute_inputfile(SFSW2_prj_inputs[["sw_input_climscen_use"]], SFSW2_prj_inputs[["sw_input_climscen"]]),
+        file = file.path(SFSW2_prj_meta[["fnames_in"]][["fclimscen_delta"]]), row.names = FALSE)
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      include_YN_climscen <- as.numeric(include_YN_climscen >= length(SWSF_prj_meta[["sim_scens"]][["models"]]))
-      SWSF_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
-      utils::write.csv(SWSF_prj_inputs[["SWRunInformation"]], file = SWSF_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
-      unlink(SWSF_prj_meta[["fnames_in"]][["fpreprocin"]])
+      include_YN_climscen <- as.numeric(include_YN_climscen >= length(SFSW2_prj_meta[["sim_scens"]][["models"]]))
+      SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
+      utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]], file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
       no_ecw <- sum(include_YN_climscen == 0)
       if (no_ecw > 0)
@@ -2634,40 +2634,40 @@ ExtractClimateWizard <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
-  SWSF_prj_inputs
+  SFSW2_prj_inputs
 }
 
 #' Extracts climate change scenarios and downscales monthly to daily time series
 #' @export
-PrepareClimateScenarios <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_parallel,
+PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
   opt_verbosity) {
 
   climDB_metas <- climscen_metadata()
 
-  SWSF_prj_inputs[["SWRunInformation"]] <- climscen_determine_sources(climDB_metas,
-    SWSF_prj_meta, SWSF_prj_inputs)
+  SFSW2_prj_inputs[["SWRunInformation"]] <- climscen_determine_sources(climDB_metas,
+    SFSW2_prj_meta, SFSW2_prj_inputs)
 
-  which_NEX <- grepl("NEX", SWSF_prj_meta[["sim_scens"]][["sources"]])
+  which_NEX <- grepl("NEX", SFSW2_prj_meta[["sim_scens"]][["sources"]])
   which_netCDF <- grepl("(GDODCPUCLLNL)|(SageSeer)",
-    SWSF_prj_meta[["sim_scens"]][["sources"]])
+    SFSW2_prj_meta[["sim_scens"]][["sources"]])
   which_ClimateWizard <- grepl("ClimateWizardEnsembles",
-    SWSF_prj_meta[["sim_scens"]][["sources"]])
+    SFSW2_prj_meta[["sim_scens"]][["sources"]])
 
   if (any(which_NEX) || any(which_netCDF)) {
-    SWSF_prj_inputs[["SWRunInformation"]] <- ExtractClimateChangeScenarios(
-      climDB_metas, SWSF_prj_meta, SWSF_prj_inputs, opt_parallel,
+    SFSW2_prj_inputs[["SWRunInformation"]] <- ExtractClimateChangeScenarios(
+      climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
       verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
   }
 
   if (any(which_ClimateWizard)) {
-    SWSF_prj_inputs <- ExtractClimateWizard(climDB_metas, SWSF_prj_meta,
-      SWSF_prj_inputs, verbose = opt_verbosity[["verbose"]])
+    SFSW2_prj_inputs <- ExtractClimateWizard(climDB_metas, SFSW2_prj_meta,
+      SFSW2_prj_inputs, verbose = opt_verbosity[["verbose"]])
   }
 
-  SWSF_prj_inputs
+  SFSW2_prj_inputs
 }
 
 #------END CLIMATE CHANGE DATA------

@@ -2,16 +2,16 @@
 # rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 #
-# See demo/SWSF_project_code.R for details
+# See demo/SFSW2_project_code.R for details
 #----------------------------------------------------------------------------------------#
 
 
 ##############################################################################
 #----------------------- SETTINGS FOR A RUN OF A SIMULATION PROJECT ----------
 
-# NOTE: The values may be changed/adjusted from run to run a SWSF simulation project. The
-#  values of the description of a project (file demo/SWSF_project_description.R) cannot
-#  be changed once a SWSF simulation project is set up.
+# NOTE: The values may be changed/adjusted from run to run a rSFSW2 simulation project. The
+#  values of the description of a project (file demo/SFSW2_project_description.R) cannot
+#  be changed once a rSFSW2 simulation project is set up.
 
 
 

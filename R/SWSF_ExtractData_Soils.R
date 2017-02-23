@@ -17,10 +17,10 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size,
 
   lvars <- c("density", "sand", "clay", "rock", "carbon")
   nvars <- length(lvars)
-  coln <- c("i", "depth", paste0(rep(lvars, swsf_glovars[["slyrs_maxN"]]), "_L",
-    rep(swsf_glovars[["slyrs_ids"]], each = nvars)))
+  coln <- c("i", "depth", paste0(rep(lvars, SFSW2_glovars[["slyrs_maxN"]]), "_L",
+    rep(SFSW2_glovars[["slyrs_ids"]], each = nvars)))
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
-    ncol = 2 + nvars * swsf_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
+    ncol = 2 + nvars * SFSW2_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
   vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "GravelContent_L", "Sand_L",
     "Clay_L", "TOC_GperKG_L"),
     intern = c("depth", lvars))
@@ -90,7 +90,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -150,7 +150,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
         # bulk density of less than 0.3 g / cm3 should be treated as no soil
         raster::calc(g, fun = cond30, filename = ftemp)
       }
-    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
     MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]] <- temp / 100
 
     # Convert bulk density to matric density
@@ -169,17 +169,17 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
         raster::calc(raster::raster(file.path(dir.ex.conus, "rockdepm.tif")),
           fun = cond0, filename = ftemp)
       }
-    rockdep_cm <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    rockdep_cm <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
 
     # rock volume
     g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif")) #New with v31: rockvol -> gravel vol%
-    temp <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
     temp <- ifelse(is.finite(temp), temp, NA)
     # eq. 7 of Miller et al. 1998
     temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk=total soil
 
     # adjust soil depth by layers with 100% rock volume
-    solid_rock_nl <- apply(temp >= 1 - swsf_glovars[["toln"]], 1, sum, na.rm = TRUE)
+    solid_rock_nl <- apply(temp >= 1 - SFSW2_glovars[["toln"]], 1, sum, na.rm = TRUE)
     solid_rock_nl <- 1 + layer_N - solid_rock_nl
     solid_rock_cm <- ldepth_CONUS[solid_rock_nl]
     MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]] <- temp
@@ -196,7 +196,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
         raster::calc(raster::brick(file.path(dir.ex.conus, "sand.tif")), fun = cond0,
           filename = ftemp)
       }
-    sand <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    sand <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
 
     ftemp <- file.path(dir.ex.conus, "clay_cond0.tif")
     g <- if (file.exists(ftemp)) {
@@ -205,7 +205,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
         raster::calc(raster::brick(file.path(dir.ex.conus, "clay.tif")), fun = cond0,
           filename = ftemp)
       }
-    clay <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    clay <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
 
     ftemp <- file.path(dir.ex.conus, "silt_cond0.tif")
     g <- if (file.exists(ftemp)) {
@@ -214,7 +214,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
         raster::calc(raster::brick(file.path(dir.ex.conus, "silt.tif")), fun = cond0,
           filename = ftemp)
       }
-    silt <- do.call("extract_swsf", args = c(args_extract, x = list(g)))
+    silt <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
 
     #Normalize to 0-1
     total_matric <- sand + clay + silt # values between 0.99 and 1.01 (of the matric component)
@@ -243,7 +243,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
@@ -392,7 +392,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -545,7 +545,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
@@ -580,47 +580,47 @@ update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
 
 #' Extract soil characteristics
 #' @export
-ExtractData_Soils <- function(exinfo, SWSF_prj_meta, SWSF_prj_inputs, opt_parallel,
+ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
   resume, verbose = FALSE) {
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SWSF_cluster(opt_parallel,
-    dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  MMC <- prepare_ExtractData_Soils(SWSF_prj_inputs[["SWRunInformation"]],
-    sim_size = SWSF_prj_meta[["sim_size"]],
-    how_determine_sources = SWSF_prj_meta[["opt_input"]][["how_determine_sources"]],
-    sw_input_soillayers = SWSF_prj_inputs[["sw_input_soillayers"]],
-    sw_input_soils_use = SWSF_prj_inputs[["sw_input_soils_use"]],
-    sw_input_soils = SWSF_prj_inputs[["sw_input_soils"]])
+  MMC <- prepare_ExtractData_Soils(SFSW2_prj_inputs[["SWRunInformation"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]],
+    how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
+    sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
+    sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
+    sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]])
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
     MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC,
-      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
-      dir_ex_soil = SWSF_prj_meta[["project_paths"]][["dir_ex_soil"]],
-      fnames_in = SWSF_prj_meta[["fnames_in"]], resume, verbose)
+      sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
+      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
     MMC <- do_ExtractSoilDataFromISRICWISEv12_Global(MMC,
-      sim_size = SWSF_prj_meta[["sim_size"]], sim_space = SWSF_prj_meta[["sim_space"]],
-      dir_ex_soil = SWSF_prj_meta[["project_paths"]][["dir_ex_soil"]],
-      fnames_in = SWSF_prj_meta[["fnames_in"]], opt_parallel, resume, verbose)
+      sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
+      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      fnames_in = SFSW2_prj_meta[["fnames_in"]], opt_parallel, resume, verbose)
   }
 
-  temp <- update_soils_sources(MMC, SWSF_prj_inputs[["SWRunInformation"]],
-    sim_size = SWSF_prj_meta[["sim_size"]], fnames_in = SWSF_prj_meta[["fnames_in"]])
+  temp <- update_soils_sources(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
 
-  SWSF_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
-  SWSF_prj_inputs[["sw_input_soillayers"]] <- MMC[["input2"]]
-  SWSF_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
-  SWSF_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]
+  SFSW2_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
+  SFSW2_prj_inputs[["sw_input_soillayers"]] <- MMC[["input2"]]
+  SFSW2_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
+  SFSW2_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]
 
 
-  SWSF_prj_inputs
+  SFSW2_prj_inputs
 }
 
 

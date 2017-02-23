@@ -9,7 +9,7 @@
 #'        by a two-column matrix or data.frame, by \linkS4class{SpatialPoints},
 #'        or by a numeric vector of cell numbers.
 #'  \item If \code{type == "cell"}, then y represents cells locations, see
-#'        \code{\link{extract_swsf_cells_from_raster}}.
+#'        \code{\link{extract_SFSW2_cells_from_raster}}.
 #'  }
 #'
 #' @seealso \code{\link[raster]{extract}}
@@ -17,11 +17,11 @@
 #' @importClassesFrom raster Raster
 #' @importClassesFrom sp SpatialPolygons SpatialPoints
 #'
-#' @name extract_swsf
+#' @name extract_rSFSW2
 NULL
 
-setGeneric("extract_swsf", function(x, y, type, ...)
-  standardGeneric("extract_swsf"))
+setGeneric("extract_rSFSW2", function(x, y, type, ...)
+  standardGeneric("extract_rSFSW2"))
 
 
 
@@ -49,7 +49,7 @@ setGeneric("extract_swsf", function(x, y, type, ...)
 #' @return A matrix with rows corresponding to the !NA cells of \code{y} and columns to
 #'   layers of \code{x}.
 #' @export
-extract_swsf_cells_from_raster <- function(x, y, ...) {
+extract_SFSW2_cells_from_raster <- function(x, y, ...) {
   dots <- list(...)
 
   if (!("method" %in% names(dots)))
@@ -84,26 +84,26 @@ extract_swsf_cells_from_raster <- function(x, y, ...) {
 }
 
 
-extract_swsf_default <- function(x, y, type, ...) {
+extract_SFSW2_default <- function(x, y, type, ...) {
   if (identical(type, "point")) {
     raster::extract(x = x, y = y, ...)
   } else if (identical(type, "cell")) {
-    extract_swsf_cells_from_raster(x, y, ...)
+    extract_SFSW2_cells_from_raster(x, y, ...)
   } else {
     NULL
   }
 }
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "vector", type = "character"),
-  extract_swsf_default)
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+  extract_SFSW2_default)
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "matrix", type = "character"),
-  extract_swsf_default)
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+  extract_SFSW2_default)
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "data.frame", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
@@ -112,8 +112,8 @@ setMethod("extract_swsf",
       NULL
     }
   })
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
@@ -122,12 +122,12 @@ setMethod("extract_swsf",
       NULL
     }
   })
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "Raster", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
-      extract_swsf_cells_from_raster(x, y, ...)
+      extract_SFSW2_cells_from_raster(x, y, ...)
     } else {
       NULL
     }
@@ -152,7 +152,7 @@ setMethod("extract_swsf",
 #'  and available columns requested by \code{fields}. If \code{!is.null(code)},
 #'  then the encoded 'factor levels' are returned.
 #' @export
-extract_swsf_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
+extract_SFSW2_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
   val <- sp::over(x = y, y = x)
   if (!is.null(fields))
     val <- val[, colnames(val) %in% fields, drop = FALSE]
@@ -160,30 +160,30 @@ extract_swsf_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) 
   if (!is.null(code)) apply(val, 2, function(x) code[as.integer(x)]) else val
 }
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
-      extract_swsf_points_from_shp(x, y, ...)
+      extract_SFSW2_points_from_shp(x, y, ...)
     } else {
       NULL
     }
   })
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "character", y = "ANY", type = "character"),
   function(x, y, type, ...) {
     if (!requireNamespace("rgdal"))
-      stop("'extract_swsf' requires package 'rgdal' but it is not available")
+      stop("'extract_rSFSW2' requires package 'rgdal' but it is not available")
 
     dots <- list(...)
     if (!("file_shp" %in% names(dots)))
-      stop("'extract_swsf' requires argument 'file_shp' if 'x' is a character string")
+      stop("'extract_rSFSW2' requires argument 'file_shp' if 'x' is a character string")
 
     x <- rgdal::readOGR(dsn = x, layer = dots[["file_shp"]], verbose = FALSE)
-    extract_swsf(x = x, y = y, type = type, ...)
+    extract_rSFSW2(x = x, y = y, type = type, ...)
   })
 
 
@@ -221,7 +221,7 @@ setMethod("extract_swsf",
 #'  and available columns requested by \code{fields}. If \code{!is.null(code)}, then the
 #'  encoded 'factor levels' are returned.
 #' @export
-extract_swsf_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
+extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
 
   dots <- list(...)
   if (!("probs" %in% names(dots)))
@@ -264,39 +264,39 @@ res_to_polygons <- function(x, y, ...) {
 }
 
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "SpatialPolygons", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
-      extract_swsf_points_from_shp(x, y, ...)
+      extract_SFSW2_points_from_shp(x, y, ...)
     } else {
       NULL
     }
   })
 
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "vector", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       y <- res_to_polygons(x, y, ...)
 
-      extract_swsf_points_from_shp(x, y, ...)
+      extract_SFSW2_points_from_shp(x, y, ...)
     } else {
       NULL
     }
   })
 
-#' @rdname extract_swsf
-setMethod("extract_swsf",
+#' @rdname extract_rSFSW2
+setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "matrix", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "cell")) {
       y <- res_to_polygons(x, y, ...)
 
-      extract_swsf_points_from_shp(x, y, ...)
+      extract_SFSW2_points_from_shp(x, y, ...)
     } else {
       NULL
     }
@@ -752,14 +752,14 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 
 #' Set-up information for a spatially aware simulation project
 #' @export
-setup_spatial_simulation <- function(SWSF_prj_meta, SWSF_prj_inputs,
+setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   use_sim_spatial = FALSE) {
 
   sim_space <- list(scorp = NA, run_sites = NA, sim_raster = NA, crs_sites = NA,
     sim_res = NA, sim_crs = NA)
 
   #--- Make sure that flag 'scorp' has a valid option
-  sim_space[["scorp"]] <- match.arg(SWSF_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
+  sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
     if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
@@ -768,14 +768,14 @@ setup_spatial_simulation <- function(SWSF_prj_meta, SWSF_prj_inputs,
     }
 
     if (sim_space[["scorp"]] == "cell") {
-      if (file.exists(SWSF_prj_meta[["fnames_in"]][["fsimraster"]])) {
+      if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
-        sim_space[["sim_raster"]] <- raster::raster(SWSF_prj_meta[["fnames_in"]][["fsimraster"]])
-        sim_space[["sim_res"]] <- raster::res(SWSF_prj_meta[["in_space"]][["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(SWSF_prj_meta[["in_space"]][["sim_raster"]])
+        sim_space[["sim_raster"]] <- raster::raster(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
+        sim_space[["sim_res"]] <- raster::res(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
+        sim_space[["sim_crs"]] <- raster::crs(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
 
       } else {
-        sim_space[["sim_res"]] <- SWSF_prj_meta[["in_space"]][["sim_res"]]
+        sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]
       }
 
       # Make sure that sim_res is valid
@@ -784,8 +784,8 @@ setup_spatial_simulation <- function(SWSF_prj_meta, SWSF_prj_inputs,
     }
 
     #--- Make sure that sim_crs is valid
-    if (is.na(sim_space[["sim_crs"]]) && is.character(SWSF_prj_meta[["in_space"]][["sim_crs"]])) {
-      sim_space[["sim_crs"]] <- sp::CRS(SWSF_prj_meta[["in_space"]][["sim_crs"]])
+    if (is.na(sim_space[["sim_crs"]]) && is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])) {
+      sim_space[["sim_crs"]] <- sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
     }
     #   - package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
     temp <- rgdal::checkCRSArgs(as.character(sim_space[["sim_crs"]]))
@@ -795,7 +795,7 @@ setup_spatial_simulation <- function(SWSF_prj_meta, SWSF_prj_inputs,
     #--- SpatialPoints of simulation cell centers/sites in WGS84
     sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")  # epsg:4326 is sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
     sim_space[["run_sites"]] <- sp::SpatialPoints(coords =
-      SWSF_prj_inputs[["SWRunInformation"]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")],
+      SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")],
       proj4string = sim_space[["crs_sites"]])
 
     #--- Create raster from simulation cells if not existing (is this really needed?)
@@ -810,19 +810,19 @@ setup_spatial_simulation <- function(SWSF_prj_meta, SWSF_prj_inputs,
         sim_space[["sim_raster"]][cells] <- 1L
 
         raster::writeRaster(sim_space[["sim_raster"]],
-          file = SWSF_prj_meta[["fnames_in"]][["fsimraster"]])
+          file = SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
 
       } else {
-        print(paste0("SWSF's ", shQuote(match.call()[1]), ": failed to create ",
+        print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to create ",
           "'sim_raster' because 'run_sites' are not gridded even though the project ",
           "description 'sim_space[['scorp']]' declares that they represent cells."))
       }
     }
   }
 
-  SWSF_prj_meta[["sim_space"]] <- sim_space
+  SFSW2_prj_meta[["sim_space"]] <- sim_space
 
-  SWSF_prj_meta
+  SFSW2_prj_meta
 }
 
 

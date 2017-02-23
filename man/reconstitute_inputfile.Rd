@@ -2,23 +2,23 @@
 % Please edit documentation in R/SWSF_IO_datafiles.R
 \name{reconstitute_inputfile}
 \alias{reconstitute_inputfile}
-\title{Re-combine elements to create a 'SWSF-inputfile'}
+\title{Re-combine elements to create a 'rSFSW2-inputfile'}
 \usage{
 reconstitute_inputfile(sw_use, data)
 }
 \arguments{
 \item{sw_use}{A named logical vector. See element \code{use} described under the
-section \code{Value} of \code{\link{swsf_read_inputfile}}.}
+section \code{Value} of \code{\link{SFSW2_read_inputfile}}.}
 
 \item{data}{A named logical vector. See element \code{data} described under the
-section \code{Value} of \code{\link{swsf_read_inputfile}}.}
+section \code{Value} of \code{\link{SFSW2_read_inputfile}}.}
 }
 \value{
-A data frame (\code{\link[base]{data.frame}}) with proper 'SWSF-inputfile'
+A data frame (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile'
  format.
 }
 \description{
-Combines the output of \code{\link{swsf_read_inputfile}} to a data frame
-(\code{\link[base]{data.frame}}) with proper 'SWSF-inputfile' format. This can be
+Combines the output of \code{\link{SFSW2_read_inputfile}} to a data frame
+(\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile' format. This can be
  written back to disk.
 }

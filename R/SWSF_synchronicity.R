@@ -10,18 +10,18 @@
 #'  restricted to unix systems. Instead, I use here ideas based on functions
 #'  from \pkg{Rdsm} and Samuel.
 #'
-#' @param lock An object of class \code{SWSF_lock}.
+#' @param lock An object of class \code{SFSW2_lock}.
 #'
 #' @aliases lock unlock lock_init lock_attempt unlock_access lock_access
 #'  check_lock_content remove_lock
 #' @name synchronicity
 NULL
 
-#' Create and initialize an object of class \code{SWSF_lock}
+#' Create and initialize an object of class \code{SFSW2_lock}
 #'
 #' @param fname_lock A character string. Path to locking directory.
 #' @param id A R object. Identifier used to test unique write access in locking directory.
-#' @return An object of class \code{SWSF_lock}.
+#' @return An object of class \code{SFSW2_lock}.
 #' @rdname synchronicity
 #' @export
 lock_init <- function(fname_lock, id) {
@@ -32,7 +32,7 @@ lock_init <- function(fname_lock, id) {
     code = paste("access locked for", id),
     obtained = FALSE,
     confirmed_access = NA)
-  class(lock) <- "SWSF_lock"
+  class(lock) <- "SFSW2_lock"
   lock
 }
 
@@ -62,11 +62,11 @@ remove_lock <- function(lock) {
 
 #' Unlock a backing store lock
 #'
-#' @return The updated \code{lock} object of class \code{SWSF_lock}.
+#' @return The updated \code{lock} object of class \code{SFSW2_lock}.
 #' @rdname synchronicity
 #' @export
 unlock_access <- function(lock) {
-  if (inherits(lock, "SWSF_lock")) {
+  if (inherits(lock, "SFSW2_lock")) {
     lock$confirmed_access <- check_lock_content(lock)
     remove_lock(lock)
   }
@@ -77,7 +77,7 @@ unlock_access <- function(lock) {
 
 #' Attempt to obtain access of a backing store lock
 #'
-#' @return The updated \code{lock} object of class \code{SWSF_lock}.
+#' @return The updated \code{lock} object of class \code{SFSW2_lock}.
 #' @rdname synchronicity
 #' @export
 lock_attempt <- function(lock) {
@@ -98,11 +98,11 @@ lock_attempt <- function(lock) {
 #'
 #' @param verbose A logical value. If \code{TRUE}, then each attempt at obtaining the lock
 #'  is printed.
-#' @return The updated \code{lock} object of class \code{SWSF_lock}.
+#' @return The updated \code{lock} object of class \code{SFSW2_lock}.
 #' @rdname synchronicity
 #' @export
 lock_access <- function(lock, verbose = FALSE) {
-  if (inherits(lock, "SWSF_lock")) while (!lock$obtained) {
+  if (inherits(lock, "SFSW2_lock")) while (!lock$obtained) {
     if (verbose)
       print(paste(Sys.time(), "attempt to obtain lock for", shQuote(lock$locker_id)))
     lock <- lock_attempt(lock)

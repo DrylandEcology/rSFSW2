@@ -1,8 +1,8 @@
 path <- getwd()
 
-if (grepl("SoilWat_R_Wrapper", path) && requireNamespace("rhub")) {
+if (grepl("rSFSW2", path) && requireNamespace("rhub")) {
   temp <- strsplit(path, .Platform$file.sep, fixed = TRUE)[[1]]
-  i <- which(temp == "SoilWat_R_Wrapper")
+  i <- which(temp == "rSFSW2")
   path_rpackage <- paste(temp[seq_len(i)], collapse = .Platform$file.sep)
 
   setwd(path_rpackage)

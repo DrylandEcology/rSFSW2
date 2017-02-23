@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWSF_parallel.R
 \name{gather_objects_for_export}
 \alias{gather_objects_for_export}
-\title{Export R objects to MPI slaves or SNOW workers}
+\title{Export R objects to MPI slaves or socket workers}
 \usage{
 gather_objects_for_export(varlist, list_envs)
 }
@@ -12,5 +12,5 @@ gather_objects_for_export(varlist, list_envs)
 \item{list_envs}{A list of environments in which to search for the R objects}
 }
 \description{
-Export R objects to MPI slaves or SNOW workers
+Export R objects to MPI slaves or socket workers
 }

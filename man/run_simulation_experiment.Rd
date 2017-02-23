@@ -4,7 +4,7 @@
 \alias{run_simulation_experiment}
 \title{Run a rSFSW2 simulation experiment}
 \usage{
-run_simulation_experiment(sim_size, SWSF_prj_inputs, MoreArgs)
+run_simulation_experiment(sim_size, SFSW2_prj_inputs, MoreArgs)
 }
 \description{
 Run a rSFSW2 simulation experiment

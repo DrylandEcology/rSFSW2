@@ -4,7 +4,7 @@
 \alias{ExtractClimateChangeScenarios}
 \title{Extract climate scenarios}
 \usage{
-ExtractClimateChangeScenarios(climDB_metas, SWSF_prj_meta, SWSF_prj_inputs,
+ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, verbose = FALSE, print.debug = FALSE)
 }
 \description{

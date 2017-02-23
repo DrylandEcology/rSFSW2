@@ -1,6 +1,6 @@
 context("Pedotransfer functions: SWP <-> VWC")
 
-# How the functions are applied in SWSF
+# How the functions are applied in rSFSW2
 # section: aggregation
 #   - dailyRechargeExtremes
 #     - case 1: SWPtoVWC(-0.033, texture$sand.top, texture$clay.top)

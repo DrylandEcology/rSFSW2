@@ -4,7 +4,7 @@
 \alias{do_ExtractSkyDataFromNCEPCFSR_Global}
 \title{Extract gridded mean monthly data from NCEP/CFSR for sites globally}
 \usage{
-do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, SWSF_prj_meta,
+do_ExtractSkyDataFromNCEPCFSR_Global(MMC, SWRunInformation, SFSW2_prj_meta,
   opt_parallel, opt_chunks, resume, verbose)
 }
 \description{

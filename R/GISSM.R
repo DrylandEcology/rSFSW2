@@ -65,9 +65,9 @@ get_modifiedHardegree2006NLR <- function(RYdoy, Estimate_TimeToGerminate, TmeanJ
 
     temp.c.lim <- -(Tgerm - b) * (d^2 - 1) / d
     c <- if (c > 0) {
-      if (c > temp.c.lim) c else {temp.c.lim + swsf_glovars[["tol"]]}
+      if (c > temp.c.lim) c else {temp.c.lim + SFSW2_glovars[["tol"]]}
     } else if (c < 0) {
-      if (c < temp.c.lim) c else {temp.c.lim - swsf_glovars[["tol"]]}
+      if (c < temp.c.lim) c else {temp.c.lim - SFSW2_glovars[["tol"]]}
     }
 
     #NLR model (eq.5) in Hardegree SP (2006) Predicting Germination Response to Temperature. I. Cardinal-temperature Models and Subpopulation-specific Regression. Annals of Botany, 97, 1115-1125.
@@ -105,14 +105,14 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear,
   conditions <- Germination_DuringFavorableConditions[index.year]
 
   # determining time to germinate for every day
-  a <- max(swsf_glovars[["tol"]], param$Hardegree_a)
+  a <- max(SFSW2_glovars[["tol"]], param$Hardegree_a)
   b <- param$Hardegree_b
-  d <- max(swsf_glovars[["tol"]], if (param$Hardegree_d == 1) {
-                  if (stats::runif(1) > 0.5) {1 + swsf_glovars[["tol"]]} else {1 - swsf_glovars[["toln"]]}
+  d <- max(SFSW2_glovars[["tol"]], if (param$Hardegree_d == 1) {
+                  if (stats::runif(1) > 0.5) {1 + SFSW2_glovars[["tol"]]} else {1 - SFSW2_glovars[["toln"]]}
                 } else {
                   param$Hardegree_d
                 })
-  temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(stats::runif(1) - 0.5) * swsf_glovars[["tol"]]
+  temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(stats::runif(1) - 0.5) * SFSW2_glovars[["tol"]]
 
   TimeToGerminate.favorable <- unlist(lapply(which(conditions), get_modifiedHardegree2006NLR,
     Estimate_TimeToGerminate = 1, TmeanJan = TmeanJan, a = a, b = b, c = temp.c, d = d,

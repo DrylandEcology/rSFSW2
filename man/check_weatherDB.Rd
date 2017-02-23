@@ -9,7 +9,7 @@ check_weatherDB(dir_prj, fdbWeather, repeats = 2L,
   endyear = 2010)
 }
 \arguments{
-\item{dir_prj}{A character string. The directory path the SWSF simulation project.}
+\item{dir_prj}{A character string. The directory path the rSFSW2 simulation project.}
 
 \item{fdbWeather}{A character string. The file path of weather database.}
 

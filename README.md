@@ -1,11 +1,11 @@
-[![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/SoilWat_R_Wrapper.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/SoilWat_R_Wrapper)
-  [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/Burke-Lauenroth-Lab/SoilWat_R_Wrapper?branch=master&svg=true)](https://ci.appveyor.com/project/Burke-Lauenroth-Lab/SoilWat_R_Wrapper)
-  [![Coverage Status](https://img.shields.io/codecov/c/github/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/master.svg)](https://codecov.io/github/Burke-Lauenroth-Lab/SoilWat_R_Wrapper?branch=master)
+[![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
+  [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/Burke-Lauenroth-Lab/rSFSW2?branch=master&svg=true)](https://ci.appveyor.com/project/Burke-Lauenroth-Lab/rSFSW2)
+  [![Coverage Status](https://img.shields.io/codecov/c/github/Burke-Lauenroth-Lab/rSFSW2/master.svg)](https://codecov.io/github/Burke-Lauenroth-Lab/rSFSW2?branch=master)
 
 
 # rSFSW2: A R package to create soil water balance simulation experiment
 
-Start with the demos and information at ```package?rSWSF```
+Start with the demos and information at ```package?rSFSW2```
 
 Some recent references
 
@@ -17,7 +17,7 @@ Some recent references
 
 ## Note: repository renamed from SoilWat_R_Wrapper to rSFSW2 on Feb 23, 2017
 All existing information should [automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
-Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e., 
+Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e.,
 ```
 git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
 ```
@@ -27,8 +27,8 @@ git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
 # How to contribute
 You can contribute to this project in different ways:
 
-1. Reporting [issues](https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues)
-2. Contributing code and sending a [pull request](https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/pulls)
+1. Reporting [issues](https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues)
+2. Contributing code and sending a [pull request](https://github.com/Burke-Lauenroth-Lab/rSFSW2/pulls)
 
 # Code of conduct
 Please note that this project is released with a

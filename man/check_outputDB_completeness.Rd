@@ -4,7 +4,7 @@
 \alias{check_outputDB_completeness}
 \title{Check whether dbOutput contains a complete set of output/simulation results}
 \usage{
-check_outputDB_completeness(SWSF_prj_meta, opt_parallel, opt_behave,
+check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
   opt_out_run, verbose = FALSE)
 }
 \description{

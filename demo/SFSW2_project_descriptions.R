@@ -2,21 +2,21 @@
 # rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 #
-# See demo/SWSF_project_code.R for details
+# See demo/SFSW2_project_code.R for details
 #----------------------------------------------------------------------------------------#
 
 
 ##############################################################################
 #----------------------- DESCRIPTION OF SIMULATION PROJECT ---------------------
 
-# NOTE: The values cannot be changed once a SWSF simulation project is set up. The
-#  values of settings (file demo/SWSF_project_settings.R) may be changed from run to run.
+# NOTE: The values cannot be changed once a rSFSW2 simulation project is set up. The
+#  values of settings (file demo/SFSW2_project_settings.R) may be changed from run to run.
 
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
-    temp <- "SWSF_default_project" # "~/YOURPROJECT"
+    temp <- "SFSW2_default_project" # "~/YOURPROJECT"
 
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)

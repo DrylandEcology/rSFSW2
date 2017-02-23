@@ -2,9 +2,9 @@ context("dbWork: runIDs organization")
 # skip_on_cran()
 
 #--- Inputs
-#setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/SoilWat_R_Wrapper/tests/testthat")
+#setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/rSFSW2/tests/testthat")
 dbpath <- tempdir()
-flock <- tempfile(pattern = "swsflock", tmpdir = normalizePath(dbpath))
+flock <- tempfile(pattern = "rSFSW2lock", tmpdir = normalizePath(dbpath))
 runsN_master <- 25L
 include_YN <- rep(TRUE, runsN_master)
 include_YN[c(1, 10, 24:25)] <- FALSE

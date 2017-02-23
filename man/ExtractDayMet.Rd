@@ -34,5 +34,5 @@ Extract gridded daily weather from DayMet for North American sites
    North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD,
    YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD,
    E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
- \href{https://github.com/khufkens/daymetr}{DaymetR package}
+ \href{https://github.com/khufkens/daymetr}{daymetr package}
 }

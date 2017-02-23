@@ -1,4 +1,4 @@
-#' Export R objects to MPI slaves or SNOW workers
+#' Export R objects to MPI slaves or socket workers
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
@@ -52,7 +52,7 @@ export_objects_to_workers <- function(obj_env,
   done_N <- 0
 
   if (inherits(cl, "cluster") && identical(parallel_backend, "cluster")) {
-    # Remove suppressWarnings() when SWSF becomes a R package
+    # Remove suppressWarnings() when rSFSW2 becomes a R package
     temp <- suppressWarnings(try(parallel::clusterExport(cl, as.list(ls(obj_env)),
       envir = obj_env)))
 
@@ -152,13 +152,13 @@ mpi_work <- function(verbose = FALSE) {
 
 #' Clean the parallel cluster used for a rSFSW2 simulation project
 #' @export
-clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
+clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
@@ -184,7 +184,7 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
       parallel::stopCluster(opt_parallel[["cl"]])
     }
 
-    opt_parallel <- init_SWSF_cluster(opt_parallel)
+    opt_parallel <- init_SFSW2_cluster(opt_parallel)
   }
 
   opt_parallel
@@ -192,7 +192,7 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
 
 #' Initialize a parallel cluster
 #' @export
-init_SWSF_cluster <- function(opt_parallel) {
+init_SFSW2_cluster <- function(opt_parallel) {
   opt_parallel[["workersN"]] <- 1
   opt_parallel[["cl"]] <- NULL
   unlink(opt_parallel[["lockfile"]], recursive = TRUE)
@@ -200,7 +200,7 @@ init_SWSF_cluster <- function(opt_parallel) {
   opt_parallel[["has_parallel"]] <- FALSE
   # Worker tag: this needs to be an object with a name starting with a dot as in '.x'
   #  so that it does not get deleted by `rm(list = ls())`
-  opt_parallel[["worker_tag"]] <- ".idworker"
+  opt_parallel[["worker_tag"]] <- ".node_id"
 
   opt_parallel
 }
@@ -208,23 +208,23 @@ init_SWSF_cluster <- function(opt_parallel) {
 
 #' Set-up a parallel cluster to be used for a rSFSW2 simulation project
 #' @export
-setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
+setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
       opt_parallel[["workersN"]], " worker(s)")), add = TRUE)
   }
 
   if (is.null(opt_parallel[["has_parallel"]]) && is.null(opt_parallel[["workersN"]])) {
-    opt_parallel <- init_SWSF_cluster(opt_parallel)
+    opt_parallel <- init_SFSW2_cluster(opt_parallel)
   }
 
   if (!opt_parallel[["has_parallel"]] && opt_parallel[["parallel_runs"]]) {
 
-    opt_parallel[["lockfile"]] <- tempfile(pattern = "swsflock",
+    opt_parallel[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
       tmpdir = normalizePath(tempdir()))
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -253,7 +253,7 @@ setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         }
       }
 
-      reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)
+      reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
       if (verbose)

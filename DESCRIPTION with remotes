@@ -1,4 +1,4 @@
-Package: rSWSF
+Package: rSFSW2
 Title: SOILWAT2 Simulation Framework
 Version: 2.0.0-9010
 Date: 2017-02-22
@@ -31,7 +31,7 @@ Suggests:
     iotools (>= 0.1-12),
     Hmisc (>= 4.0-2),
     qmap (>= 1.0.4),
-    DaymetR (>= 1.0),
+    daymetr (>= 1.0),
     weathergen (>= 0.1.2),
       lubridate,
       zoo,
@@ -50,7 +50,7 @@ LazyData: true
 ByteCompile: true
 NeedsCompilation: yes
 License: GPL (>= 3) + file LICENSE
-URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
-BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
+URL: https://github.com/Burke-Lauenroth-Lab/rSFSW2
+BugReports: https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues
 RoxygenNote: 5.0.1.9000
 VignetteBuilder: knitr

@@ -4,8 +4,8 @@
 \alias{get.SeveralOverallVariables_Scenario}
 \title{Get data of variables in the overall aggregation table for one of the scenarios}
 \usage{
-get.SeveralOverallVariables_Scenario(fdbSWSF, responseName, MeanOrSD = "Mean",
-  scenario = "Current", whereClause = NULL)
+get.SeveralOverallVariables_Scenario(fdbrSFSW2, responseName,
+  MeanOrSD = "Mean", scenario = "Current", whereClause = NULL)
 }
 \description{
 Get data of variables in the overall aggregation table for one of the scenarios

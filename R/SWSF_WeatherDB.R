@@ -2,43 +2,43 @@
 
 #' Create and populate a 'rSOILWAT2' daily weather SQLite database
 #' @export
-make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
+make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   opt_behave, deleteTmpSQLFiles, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
 
-  dbW_digits <- SWSF_prj_meta[["opt_sim"]][["dbW_digits"]]
+  dbW_digits <- SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]]
 
-  if (file.exists(SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])) {
+  if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
       return(invisible(TRUE))
 
     } else {
       print("Removing old weather database")
-      unlink(SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
     }
   }
 
-  temp_runIDs_sites <- SWSF_prj_meta[["sim_size"]][["runIDs_sites"]]
+  temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
   dw_source <- SWRunInformation[temp_runIDs_sites, "dailyweather_source"]
 
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-  rSOILWAT2::dbW_createDatabase(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]],
+  rSOILWAT2::dbW_createDatabase(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
     site_data = data.frame(Site_id = SWRunInformation$site_id,
             Latitude = SWRunInformation$Y_WGS84,
             Longitude = SWRunInformation$X_WGS84,
             Label = SWRunInformation$WeatherFolder,
             stringsAsFactors = FALSE),
     site_subset = temp_runIDs_sites,
-    scenarios = data.frame(Scenario = SWSF_prj_meta[["sim_scens"]][["id"]]),
-    compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
+    scenarios = data.frame(Scenario = SFSW2_prj_meta[["sim_scens"]][["id"]]),
+    compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
 
   # Extract weather data and move to weather database based on inclusion-invariant 'site_id'
   # Extract weather data per site
@@ -64,17 +64,17 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
       if (dw_source[i_idss] == "LookupWeatherFolder") {
         weatherData <- ExtractLookupWeatherFolder(dir.weather =
-          file.path(SWSF_prj_meta[["project_paths"]][["dir_in_treat"]], "LookupWeatherFolder"),
+          file.path(SFSW2_prj_meta[["project_paths"]][["dir_in_treat"]], "LookupWeatherFolder"),
           weatherfoldername = SWRunInformation$WeatherFolder[i_site],
-          SWSF_prj_meta[["opt_sim"]][["dbW_digits"]])
+          SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
 
       } else if (dw_source[i_idss] == "Maurer2002_NorthAmerica") {
         weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-          dir_data = SWSF_prj_meta[["project_paths"]][["dir_maurer2002"]],
+          dir_data = SFSW2_prj_meta[["project_paths"]][["dir_maurer2002"]],
           cellname = Maurer[i],
-          startYear = SWSF_prj_meta[["sim_time"]][["simstartyr"]],
-          endYear = SWSF_prj_meta[["sim_time"]][["endyr"]],
-          SWSF_prj_meta[["opt_sim"]][["dbW_digits"]])
+          startYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+          endYear = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+          SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
 
       } else {
         stop(paste(dw_source[i_idss], "not implemented"))
@@ -85,7 +85,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
         years <- as.integer(names(weatherData))
         data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
-          type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
+          type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
         rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
           Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
           weather_blob = data_blob)
@@ -107,63 +107,63 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0) {
     #--- Set up parallelization
-    opt_parallel <- setup_SWSF_cluster(opt_parallel,
-      dir_out = SWSF_prj_meta[["project_paths"]][["dir_prj"]],
+    opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+      dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
       verbose = opt_verbosity[["verbose"]])
-    on.exit(clean_SWSF_cluster(opt_parallel, opt_verbosity[["verbose"]]), add = TRUE)
+    on.exit(clean_SFSW2_cluster(opt_parallel, opt_verbosity[["verbose"]]), add = TRUE)
   }
 
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-      dir_data = SWSF_prj_meta[["project_paths"]][["dir.ex.daymet"]],
+      dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.daymet"]],
       site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
       coords_WGS84 = SWRunInformation[ids_DayMet_extraction,
         c("X_WGS84", "Y_WGS84"), drop = FALSE],
-      start_year = SWSF_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SWSF_prj_meta[["sim_time"]][["endyr"]],
-      dir_temp = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
+      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
   }
 
   if (length(ids_NRCan_extraction) > 0) {
     ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
-      dir_data = SWSF_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
+      dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
       site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
       coords_WGS84 = SWRunInformation[ids_NRCan_extraction,
         c("X_WGS84", "Y_WGS84"), drop = FALSE],
-      start_year = SWSF_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SWSF_prj_meta[["sim_time"]][["endyr"]],
-      dir_temp = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      opt_parallel, SWSF_prj_meta[["opt_sim"]][["dbW_digits"]],
+      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+      opt_parallel, SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
   }
 
   if (length(ids_NCEPCFSR_extraction) > 0) {
-    if (is.null(SWSF_prj_meta[["prepd_CFSR"]])) {
-      SWSF_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
-        dir_in = SWSF_prj_meta[["project_paths"]][["dir_in"]],
-        dir.cfsr.data = SWSF_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+    if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
+      SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
+        dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
+        dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
     }
-    stopifnot(!inherits(SWSF_prj_meta[["prepd_CFSR"]], "try-error"))
+    stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
 
     GriddedDailyWeatherFromNCEPCFSR_Global(
       site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
       dat_sites = SWRunInformation[ids_NCEPCFSR_extraction,
         c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
-      tag_WeatherFolder = SWSF_prj_meta[["opt_sim"]][["tag_WeatherFolder"]],
-      start_year = SWSF_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SWSF_prj_meta[["sim_time"]][["endyr"]],
-      meta_cfsr = SWSF_prj_meta[["prepd_CFSR"]],
+      tag_WeatherFolder = SFSW2_prj_meta[["opt_sim"]][["tag_WeatherFolder"]],
+      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+      meta_cfsr = SFSW2_prj_meta[["prepd_CFSR"]],
       n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel,
       rm_temp = deleteTmpSQLFiles,
       resume = opt_behave[["resume"]],
-      dir_temp = SWSF_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SWSF_prj_meta[["opt_sim"]][["dbW_digits"]])
+      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
   }
 
   invisible(rSOILWAT2::dbW_disconnectConnection())
@@ -176,15 +176,15 @@ check_dbWeather_version <- function(fdbWeather) {
   v_dbW <- rSOILWAT2::dbW_version()
   rSOILWAT2::dbW_disconnectConnection()
 
-  success <- v_dbW >= swsf_glovars[["minVersion_dbWeather"]]
+  success <- v_dbW >= SFSW2_glovars[["minVersion_dbWeather"]]
 
   if (!success) {
     print(paste0("The version (", v_dbW, ") of the daily weather database is outdated; ",
-      "min. version required: ", swsf_glovars[["minVersion_dbWeather"]]))
+      "min. version required: ", SFSW2_glovars[["minVersion_dbWeather"]]))
     if (v_dbW >= "1")
       print(paste("Use function 'rSOILWAT2:::dbW_upgrade_v1to2' etc. to upgrade your",
         "version 1.y.z weather database to version >=",
-        swsf_glovars[["minVersion_dbWeather"]]))
+        SFSW2_glovars[["minVersion_dbWeather"]]))
   }
 
   success
@@ -411,9 +411,9 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   }
   if (get_from_ornl) {
     setwd(dir_data)
-    # DaymetR package: https://bitbucket.org/khufkens/daymetr
-    stopifnot(requireNamespace("DaymetR"))
-    dm_temp <- try(DaymetR::download.daymet(site = cellID, lat = Ydm_WGS84,
+    # daymetr package: https://bitbucket.org/khufkens/daymetr
+    stopifnot(requireNamespace("daymetr"))
+    dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,
       lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
   }
@@ -487,7 +487,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
 #'    North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD,
 #'    YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD,
 #'    E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
-#'  \href{https://github.com/khufkens/daymetr}{DaymetR package}
+#'  \href{https://github.com/khufkens/daymetr}{daymetr package}
 #'
 #' @name ExtractDayMet
 #' @export
@@ -497,9 +497,9 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
@@ -574,9 +574,9 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
@@ -739,7 +739,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     n_years <- length(years)
     n_climvars <- n_dailyvars <- 3
     do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
-    do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = swsf_glovars[["st_mo"]], years = years)
+    do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = SFSW2_glovars[["st_mo"]], years = years)
 
     dtemp <- getwd()
     setwd(dir_ex_cfsr)
@@ -880,16 +880,16 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
   # concatenating the monthlyClimate csv files
   if (monthly) {
     res_clim <- data.frame(matrix(NA, nrow = n_sites_all, ncol = 1 + n_climvars * 12))
-    colnames(res_clim) <- c("WeatherFolder", paste0("Cloud_m", swsf_glovars[["st_mo"]]), paste0("Wind_m", swsf_glovars[["st_mo"]]), paste0("RH_m", swsf_glovars[["st_mo"]]))
+    colnames(res_clim) <- c("WeatherFolder", paste0("Cloud_m", SFSW2_glovars[["st_mo"]]), paste0("Wind_m", SFSW2_glovars[["st_mo"]]), paste0("RH_m", SFSW2_glovars[["st_mo"]]))
     res_clim[, "WeatherFolder"] <- dat_sites[, "WeatherFolder"]
 
     for (i in seq_len(n_sites_all)) {
       ftemp <- file.path(dir_temp_sites[i], "mc.csv")
       if (file.exists(ftemp)) {
         table.mc <- utils::read.csv(file=ftemp, comment="", stringsAsFactors=FALSE)
-        res_clim[i, 1 + swsf_glovars[["st_mo"]]] <- table.mc[, "Cloud_Cover"]
-        res_clim[i, 1 + 12 + swsf_glovars[["st_mo"]]] <- table.mc[, "Surface_Wind"]
-        res_clim[i, 1 + 24 + swsf_glovars[["st_mo"]]] <- table.mc[, "Rel_Humidity"]
+        res_clim[i, 1 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Cloud_Cover"]
+        res_clim[i, 1 + 12 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Surface_Wind"]
+        res_clim[i, 1 + 24 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Rel_Humidity"]
 
         if (rm_mc_files == TRUE) unlink(ftemp)
       }
@@ -934,9 +934,9 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
@@ -1170,12 +1170,12 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
 #'
 #' Determine order of priorities (highest priority comes last): i.e., the last entry is
 #' the one that will be used
-dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SWSF_prj_inputs,
+dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
   SWRunInformation, sim_size, sim_time, fnames_in, project_paths, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   dw_names <- rep(NA, times = length(dw_source))
@@ -1186,13 +1186,13 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SWSF_prj_i
     Maurer2002_NorthAmerica = project_paths[["dir_maurer2002"]],
     LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"))
   MoreArgs <- list(LookupWeatherFolder = list(
-    create_treatments = SWSF_prj_inputs[["create_treatments"]],
+    create_treatments = SFSW2_prj_inputs[["create_treatments"]],
     runIDs_sites = sim_size[["runIDs_sites"]],
     ri_lwf = SWRunInformation[sim_size[["runIDs_sites"]], "WeatherFolder"],
-    it_use = SWSF_prj_inputs[["sw_input_treatments_use"]],
-    ie_use = SWSF_prj_inputs[["sw_input_experimentals_use"]],
-    it_lwf = SWSF_prj_inputs[["sw_input_treatments"]][sim_size[["runIDs_sites"]], "LookupWeatherFolder"],
-    ie_lwf = SWSF_prj_inputs[["sw_input_experimentals"]][, "LookupWeatherFolder"]))
+    it_use = SFSW2_prj_inputs[["sw_input_treatments_use"]],
+    ie_use = SFSW2_prj_inputs[["sw_input_experimentals_use"]],
+    it_lwf = SFSW2_prj_inputs[["sw_input_treatments"]][sim_size[["runIDs_sites"]], "LookupWeatherFolder"],
+    ie_lwf = SFSW2_prj_inputs[["sw_input_experimentals"]][, "LookupWeatherFolder"]))
   site_dat <- SWRunInformation[sim_size[["runIDs_sites"]], c("Label", "X_WGS84", "Y_WGS84")]
 
   for (k in seq_along(fun_dw_source)) {
@@ -1220,28 +1220,28 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SWSF_prj_i
   unlink(fnames_in[["fpreprocin"]])
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   SWRunInformation
 }
 
 
-set_paths_to_dailyweather_datasources <- function(SWSF_prj_meta) {
+set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
 
-  dir_dW <- SWSF_prj_meta[["project_paths"]][["dir_ex_weather"]]
+  dir_dW <- SFSW2_prj_meta[["project_paths"]][["dir_ex_weather"]]
 
-  SWSF_prj_meta[["project_paths"]][["dir_maurer2002"]] <- file.path(dir_dW,
+  SFSW2_prj_meta[["project_paths"]][["dir_maurer2002"]] <- file.path(dir_dW,
       "Maurer+_2002updated", "DAILY_FORCINGS")
 
-  SWSF_prj_meta[["project_paths"]][["dir_daymet"]] <- file.path(dir_dW,
+  SFSW2_prj_meta[["project_paths"]][["dir_daymet"]] <- file.path(dir_dW,
     "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
 
-  SWSF_prj_meta[["project_paths"]][["dir.ex.NRCan"]] <- file.path(dir_dW,
+  SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]] <- file.path(dir_dW,
     "NRCan_10km_Canada", "DAILY_GRIDS")
 
-  SWSF_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
+  SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
 
-  SWSF_prj_meta
+  SFSW2_prj_meta
 }

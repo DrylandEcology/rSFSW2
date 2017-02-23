@@ -23,7 +23,7 @@ required_colnames_SWRunInformation <- function()
 #'
 #' @return A data frame (\code{\link[base]{data.frame}}) containing a representation of
 #'  the data in the file.
-swsf_read_csv <- function(file, stringsAsFactors = FALSE,
+SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
   use_iotools = TRUE, ...) {
 
   dots <- list(...)
@@ -53,23 +53,23 @@ swsf_read_csv <- function(file, stringsAsFactors = FALSE,
   }
 
   if (dim(res)[2] < 2)
-    print(paste("'swsf_read_csv': found only two columns in", shQuote(dots[["file"]]),
+    print(paste("'SFSW2_read_csv': found only two columns in", shQuote(dots[["file"]]),
       " suggesting that it may be tab- instead of comma-separated."))
 
   res
 }
 
 
-#' Read the data from a 'SWSF-inputfile'
+#' Read the data from a 'rSFSW2-inputfile'
 #'
-#' 'SWSF-inputfiles' are comma-separated value files with \itemize{
+#' 'rSFSW2-inputfiles' are comma-separated value files with \itemize{
 #'  \item First row: field names of which the first one is 'Label'
 #'  \item Second row: flags indicating which column information is applied (1) or not (0);
 #'    the first entry is the character string 'UseInformationToCreateSoilWatRuns'.
 #'  \item Third - last row: values of the input file; first column: site labels.
 #' }
 #'
-#' @inheritParams swsf_read_csv
+#' @inheritParams SFSW2_read_csv
 #'
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}
@@ -80,12 +80,12 @@ swsf_read_csv <- function(file, stringsAsFactors = FALSE,
 #'    of the values in the \code{file} with column names from the first row of the
 #'    \code{file}.}
 #' }
-swsf_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
+SFSW2_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   ...) {
 
-  sw_use <- tryCatch(swsf_read_csv(file, nrows = header_rows, use_iotools = use_iotools),
+  sw_use <- tryCatch(SFSW2_read_csv(file, nrows = header_rows, use_iotools = use_iotools),
     error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
-  sw <- swsf_read_csv(file, skip = header_rows, use_iotools = use_iotools, ...)
+  sw <- SFSW2_read_csv(file, skip = header_rows, use_iotools = use_iotools, ...)
   names(sw) <- names(sw_use)
   sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
   sw_use[is.na(sw_use)] <- FALSE
@@ -94,18 +94,18 @@ swsf_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   list(use = sw_use, data = sw)
 }
 
-#' Re-combine elements to create a 'SWSF-inputfile'
+#' Re-combine elements to create a 'rSFSW2-inputfile'
 #'
-#' Combines the output of \code{\link{swsf_read_inputfile}} to a data frame
-#' (\code{\link[base]{data.frame}}) with proper 'SWSF-inputfile' format. This can be
+#' Combines the output of \code{\link{SFSW2_read_inputfile}} to a data frame
+#' (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile' format. This can be
 #'  written back to disk.
 #'
 #' @param sw_use A named logical vector. See element \code{use} described under the
-#'  section \code{Value} of \code{\link{swsf_read_inputfile}}.
+#'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #' @param data A named logical vector. See element \code{data} described under the
-#'  section \code{Value} of \code{\link{swsf_read_inputfile}}.
+#'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #'
-#' @return A data frame (\code{\link[base]{data.frame}}) with proper 'SWSF-inputfile'
+#' @return A data frame (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile'
 #'  format.
 reconstitute_inputfile <- function(sw_use, data) {
   temp <- as.data.frame(matrix(as.integer(sw_use), nrow = 1L))
@@ -132,7 +132,7 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       check <- TRUE
 
       if (verbose)
-        print(paste("Data sources available for all requested SWSF simulation runs"))
+        print(paste("Data sources available for all requested rSFSW2 simulation runs"))
 
     } else {
       include_YN_available <- rep(0L, dim(SWRunInformation)[1])
@@ -142,9 +142,9 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
       unlink(fnames_in[["fpreprocin"]])
 
-      stop("Data sources not available for every requested SWSF simulation run. ",
+      stop("Data sources not available for every requested rSFSW2 simulation run. ",
         "New column 'include_YN_available' with updated information stored to ",
-        "MasterInput file 'SWRunInformation' on disk. SWSF should be stopped so that you ",
+        "MasterInput file 'SWRunInformation' on disk. rSFSW2 should be stopped so that you ",
         "can bring 'include_YN' and 'include_YN_available' in agreement before running ",
         "the simulations.")
     }
@@ -155,48 +155,48 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
 }
 
 
-map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
+map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
   verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
   }
 
-  dir.inmap <- file.path(SWSF_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
+  dir.inmap <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)
 
   input_avail <- list(
     SWRunInformation = list(
-      cols = names(SWSF_prj_inputs[["SWRunInformation"]]),
-      use = rep(TRUE, ncol(SWSF_prj_inputs[["SWRunInformation"]]))),
+      cols = names(SFSW2_prj_inputs[["SWRunInformation"]]),
+      use = rep(TRUE, ncol(SFSW2_prj_inputs[["SWRunInformation"]]))),
     sw_input_soillayers = list(
-      cols = names(SWSF_prj_inputs[["sw_input_soillayers"]]),
-      use = rep(TRUE, ncol(SWSF_prj_inputs[["sw_input_soillayers"]]))),
+      cols = names(SFSW2_prj_inputs[["sw_input_soillayers"]]),
+      use = rep(TRUE, ncol(SFSW2_prj_inputs[["sw_input_soillayers"]]))),
     sw_input_cloud = list(
-      cols = names(SWSF_prj_inputs[["sw_input_cloud"]]),
-      use = SWSF_prj_inputs[["sw_input_cloud_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_cloud"]]),
+      use = SFSW2_prj_inputs[["sw_input_cloud_use"]]),
     sw_input_prod = list(
-      cols = names(SWSF_prj_inputs[["sw_input_prod"]]),
-      use = SWSF_prj_inputs[["sw_input_prod_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_prod"]]),
+      use = SFSW2_prj_inputs[["sw_input_prod_use"]]),
     sw_input_site = list(
-      cols = names(SWSF_prj_inputs[["sw_input_site"]]),
-      use = SWSF_prj_inputs[["sw_input_site_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_site"]]),
+      use = SFSW2_prj_inputs[["sw_input_site_use"]]),
     sw_input_soils = list(
-      cols = names(SWSF_prj_inputs[["sw_input_soils"]]),
-      use = SWSF_prj_inputs[["sw_input_soils_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_soils"]]),
+      use = SFSW2_prj_inputs[["sw_input_soils_use"]]),
     sw_input_weather = list(
-      cols = names(SWSF_prj_inputs[["sw_input_weather"]]),
-      use = SWSF_prj_inputs[["sw_input_weather_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_weather"]]),
+      use = SFSW2_prj_inputs[["sw_input_weather_use"]]),
     sw_input_climscen = list(
-      cols = names(SWSF_prj_inputs[["sw_input_climscen"]]),
-      use = SWSF_prj_inputs[["sw_input_climscen_use"]]),
+      cols = names(SFSW2_prj_inputs[["sw_input_climscen"]]),
+      use = SFSW2_prj_inputs[["sw_input_climscen_use"]]),
     sw_input_climscen_values = list(
-      cols = names(SWSF_prj_inputs[["sw_input_climscen_values"]]),
-      use = SWSF_prj_inputs[["sw_input_climscen_use"]])
+      cols = names(SFSW2_prj_inputs[["sw_input_climscen_values"]]),
+      use = SFSW2_prj_inputs[["sw_input_climscen_use"]])
   )
 
   for (iv in seq_along(map_vars)) {
@@ -208,7 +208,7 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
       dir.create(dir.inmapvar <- file.path(dir.inmap, map_vars[iv]), showWarnings = FALSE)
 
       for (it1 in seq_along(iv_locs)) for (it2 in seq_along(iv_locs[[it1]])) {
-        dat <- SWSF_prj_inputs[[names(iv_locs)[it1]]][SWSF_prj_meta[["sim_size"]][["runIDs_sites"]], iv_locs[[it1]][it2]]
+        dat <- SFSW2_prj_inputs[[names(iv_locs)[it1]]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], iv_locs[[it1]][it2]]
         dat <- try(as.numeric(dat), silent = TRUE) # e.g., sw_input_cloud[, "SnowD_Hemisphere"] contains only strings for which as.numeric() issues a warning
 
         # this code plots only numeric maps
@@ -216,31 +216,31 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
           names(dat) <- iv_locs[[it1]][it2]
 
           map_flag <- paste(names(iv_locs)[it1], iv_locs[[it1]][it2],
-            SWSF_prj_meta[["sim_space"]][["scorp"]], sep = "_")
+            SFSW2_prj_meta[["sim_space"]][["scorp"]], sep = "_")
 
           # Convert data to spatial object
-          if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "point") {
-            sp_dat <- as(SWSF_prj_meta[["sim_space"]][["run_sites"]], "SpatialPointsDataFrame")
+          if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "point") {
+            sp_dat <- as(SFSW2_prj_meta[["sim_space"]][["run_sites"]], "SpatialPointsDataFrame")
             temp <- as.data.frame(dat)
             colnames(temp) <-  iv_locs[[it1]][it2]
             slot(sp_dat, "data") <- temp
 
-            if (!raster::compareCRS(SWSF_prj_meta[["sim_space"]][["crs_sites"]], SWSF_prj_meta[["sim_space"]][["sim_crs"]])) {
-              sp_dat <- sp::spTransform(sp_dat, CRS = SWSF_prj_meta[["sim_space"]][["sim_crs"]])
+            if (!raster::compareCRS(SFSW2_prj_meta[["sim_space"]][["crs_sites"]], SFSW2_prj_meta[["sim_space"]][["sim_crs"]])) {
+              sp_dat <- sp::spTransform(sp_dat, CRS = SFSW2_prj_meta[["sim_space"]][["sim_crs"]])
             }
 
-          } else if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "cell") {
+          } else if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "cell") {
             # if failing, then need a more sophisticated assignment of values than
             # implemented below
-            stopifnot(raster::canProcessInMemory(SWSF_prj_meta[["sim_space"]][["sim_raster"]]))
+            stopifnot(raster::canProcessInMemory(SFSW2_prj_meta[["sim_space"]][["sim_raster"]]))
 
-            temp <- SWSF_prj_meta[["sim_space"]][["run_sites"]]
-            if (!raster::compareCRS(SWSF_prj_meta[["sim_space"]][["crs_sites"]], SWSF_prj_meta[["sim_space"]][["sim_crs"]])) {
-              temp <- sp::spTransform(temp, CRS = SWSF_prj_meta[["sim_space"]][["sim_crs"]])
+            temp <- SFSW2_prj_meta[["sim_space"]][["run_sites"]]
+            if (!raster::compareCRS(SFSW2_prj_meta[["sim_space"]][["crs_sites"]], SFSW2_prj_meta[["sim_space"]][["sim_crs"]])) {
+              temp <- sp::spTransform(temp, CRS = SFSW2_prj_meta[["sim_space"]][["sim_crs"]])
             }
 
             # init with NAs
-            sp_dat <- raster::init(SWSF_prj_meta[["sim_space"]][["sim_raster"]], fun = function(x) rep(NA, x))
+            sp_dat <- raster::init(SFSW2_prj_meta[["sim_space"]][["sim_raster"]], fun = function(x) rep(NA, x))
             sp_dat[raster::cellFromXY(sp_dat, sp::coordinates(temp))] <- dat
           }
 
@@ -258,7 +258,7 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
           cols <- rev(grDevices::terrain.colors(7))
           cols[1] <- "gray"
           cols <- grDevices::colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
-          if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "point") {
+          if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "point") {
             par1 <- graphics::par(mar = c(2.5, 2.5, 0.5, 8.5))
             cdat <- cut(dat, n_cols)
             p_size <- function(x) max(0.25, min(2, 100 / x))
@@ -274,7 +274,7 @@ map_input_variables <- function(map_vars, SWSF_prj_meta, SWSF_prj_inputs,
             graphics::text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
             graphics::par(par1)
 
-          } else if (SWSF_prj_meta[["sim_space"]][["scorp"]] == "cell") {
+          } else if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "cell") {
             raster::plot(sp_dat, col = cols, asp = 1)
           }
           graphics::mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"),
@@ -371,14 +371,14 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
   do_check_include <- FALSE
 
   if (!use_preprocin || !file.exists(fnames_in[["fpreprocin"]])) {
 
-    SWRunInformation <- tryCatch(swsf_read_csv(fnames_in[["fmaster"]]), error = print)
+    SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmaster"]]), error = print)
     stopifnot(sapply(required_colnames_SWRunInformation(),
         function(x) x %in% names(SWRunInformation)),		# required columns
       all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
@@ -388,10 +388,10 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     include_YN <- as.logical(SWRunInformation$Include_YN)
     nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
-    sw_input_soillayers <- tryCatch(swsf_read_csv(fnames_in[["fslayers"]],
+    sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["ftreatDesign"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["ftreatDesign"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_treatments_use <- temp[["use"]]
     sw_input_treatments <- temp[["data"]]
@@ -399,7 +399,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
     )
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fexpDesign"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fexpDesign"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_experimentals_use <- temp[["use"]]
     sw_input_experimentals <- temp[["data"]]
@@ -408,37 +408,37 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       !grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)	# no space-characters in weather-data names
     )
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fclimnorm"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimnorm"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_cloud_use <- temp[["use"]]
     sw_input_cloud <- temp[["data"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fvegetation"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fvegetation"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_prod <- temp[["data"]]
     sw_input_prod_use <- temp[["use"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fsite"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsite"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_site <- temp[["data"]]
     sw_input_site_use <- temp[["use"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fsoils"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fweathersetup"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_weather_use <- temp[["use"]]
     sw_input_weather <- temp[["data"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fclimscen_delta"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_delta"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_use <- temp[["use"]]
     sw_input_climscen <- temp[["data"]]
 
-    temp <- tryCatch(swsf_read_inputfile(fnames_in[["fclimscen_values"]],
+    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_values"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_values_use <- temp[["use"]]
     sw_input_climscen_values <- temp[["data"]]
@@ -476,17 +476,17 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
     if (any(create_treatments == "LookupClimatePPTScenarios"))
-      tr_input_climPPT <- swsf_read_csv(fnames_in[["LookupClimatePPTScenarios"]])
+      tr_input_climPPT <- SFSW2_read_csv(fnames_in[["LookupClimatePPTScenarios"]])
 
     if (any(create_treatments == "LookupClimateTempScenarios"))
-      tr_input_climTemp <- swsf_read_csv(fnames_in[["LookupClimateTempScenarios"]])
+      tr_input_climTemp <- SFSW2_read_csv(fnames_in[["LookupClimateTempScenarios"]])
 
     if (any(create_treatments == "LookupShiftedPPTScenarios"))
-      tr_input_shiftedPPT <- swsf_read_csv(fnames_in[["LookupShiftedPPTScenarios"]],
+      tr_input_shiftedPPT <- SFSW2_read_csv(fnames_in[["LookupShiftedPPTScenarios"]],
         row.names = 1)
 
     if (any(create_treatments == "LookupEvapCoeffFromTable"))
-      tr_input_EvapCoeff <- swsf_read_csv(fnames_in[["LookupEvapCoeffFromTable"]],
+      tr_input_EvapCoeff <- SFSW2_read_csv(fnames_in[["LookupEvapCoeffFromTable"]],
         row.names = 1)
 
     if (any(grepl("LookupTranspCoeffFromTable_", create_treatments),
@@ -571,12 +571,12 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
   inputs[["do_check_include"]] <- do_check_include
 
   if (!is.environment(inputs) || length(inputs) == 0) {
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": failed; 'SWSF_prj_inputs' is ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed; 'SFSW2_prj_inputs' is ",
       "empty or not of type 'environment'."))
   }
 
   if (verbose)
-    print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   inputs
