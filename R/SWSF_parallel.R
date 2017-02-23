@@ -178,7 +178,7 @@ clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
       !is.null(opt_parallel[["cl"]])) {
 
       if (verbose)
-        print(paste("Cleaning up", opt_parallel[["workersN"]], "'parallel' cluster",
+        print(paste("Cleaning up", opt_parallel[["workersN"]], "socket cluster",
           "workers."))
 
       parallel::stopCluster(opt_parallel[["cl"]])
@@ -198,6 +198,9 @@ init_SWSF_cluster <- function(opt_parallel) {
   unlink(opt_parallel[["lockfile"]], recursive = TRUE)
   opt_parallel[["lockfile"]] <- NULL
   opt_parallel[["has_parallel"]] <- FALSE
+  # Worker tag: this needs to be an object with a name starting with a dot as in '.x'
+  #  so that it does not get deleted by `rm(list = ls())`
+  opt_parallel[["worker_tag"]] <- ".idworker"
 
   opt_parallel
 }
@@ -206,17 +209,28 @@ init_SWSF_cluster <- function(opt_parallel) {
 #' Set-up a parallel cluster to be used for a rSWSF simulation project
 #' @export
 setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
+  if (verbose) {
+    t1 <- Sys.time()
+    print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
+
+    on.exit(print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
+      opt_parallel[["workersN"]], " worker(s)")), add = TRUE)
+  }
+
+  if (is.null(opt_parallel[["has_parallel"]]) && is.null(opt_parallel[["workersN"]])) {
+    opt_parallel <- init_SWSF_cluster(opt_parallel)
+  }
 
   if (!opt_parallel[["has_parallel"]] && opt_parallel[["parallel_runs"]]) {
-    if (verbose) {
-      t1 <- Sys.time()
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-    }
 
     opt_parallel[["lockfile"]] <- tempfile(pattern = "swsflock",
       tmpdir = normalizePath(tempdir()))
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      if (verbose)
+        print(paste("Setting up", opt_parallel[["num_cores"]], "mpi workers."))
+
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
         print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
           shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
@@ -242,19 +256,33 @@ setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       reg.finalizer(swsf_glovars, mpi_last, onexit = TRUE)
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+      if (verbose)
+        print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
 
+#      opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
+#        outfile = if (verbose) "" else file.path(dir_out, paste0(format(Sys.time(),
+#        "%Y%m%d-%H%M"), "_olog_cluster.txt")))
       opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-        outfile = if (verbose) "" else {
-        file.path(dir_out, paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))})
+        outfile = shQuote(file.path(dir_out, paste0(format(Sys.time(),
+        "%Y%m%d-%H%M"), "_olog_cluster.txt"))))
+print("here1")
 
-      # Worker ID: this needs to be a .x object that does not get deleted with rm(list = ls())
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
+      # pos = 1 assigns into globalenv() of the worker
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
-        function(x) assign(opt_parallel[["worker_tag"]], x, envir = globalenv()))
+        function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
       #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
+print("here2")
+
+      parallel::clusterEvalQ(opt_parallel[["cl"]], print(ls(all.names = TRUE)))
+print("here3a")
+
+      parallel::clusterEvalQ(opt_parallel[["cl"]], print(ls(pos = 1)))
+print("here3b")
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSWSF", quietly = TRUE))
+print("here4")
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -263,12 +291,7 @@ setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
       }
 
-    opt_parallel[["has_parallel"]] <- TRUE
-
-    if (verbose)
-      print(paste0("SWSF's ", shQuote(match.call()[1]), ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
-        opt_parallel[["workersN"]], " workers"))
+    opt_parallel[["has_parallel"]] <- opt_parallel[["workersN"]] > 1
   }
 
   opt_parallel
