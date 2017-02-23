@@ -2,10 +2,10 @@
 % Please edit documentation in R/SWSF_parallel.R
 \name{setup_SWSF_cluster}
 \alias{setup_SWSF_cluster}
-\title{Set-up a parallel cluster to be used for a rSWSF simulation project}
+\title{Set-up a parallel cluster to be used for a rSFSW2 simulation project}
 \usage{
 setup_SWSF_cluster(opt_parallel, dir_out, verbose = FALSE)
 }
 \description{
-Set-up a parallel cluster to be used for a rSWSF simulation project
+Set-up a parallel cluster to be used for a rSFSW2 simulation project
 }

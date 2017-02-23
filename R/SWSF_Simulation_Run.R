@@ -198,7 +198,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------CREATE RUNS
-  # Load previously created Rsoilwat run objets
+  # Load previously created rSOILWAT2 run objets
   if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
     (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
 
@@ -227,7 +227,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 		#------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
-      print("SW treatment is not used because library Rsoilwat only uses one version of SOILWAT2. Sorry")
+      print("SW treatment is not used because library rSOILWAT2 only uses one version of SOILWAT2. Sorry")
     if (any(create_treatments == "filesin"))
       rSOILWAT2::set_swFiles(swRunScenariosData[[1]]) <- tr_files[[i_sw_input_treatments$filesin]]
     if (any(create_treatments == "prodin"))
@@ -1438,7 +1438,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 		sand <- stemp[,9]
 		clay <- stemp[,10]
 
-    #TODO: adjust this once TOC is incorporated into Rsoilwat
+    #TODO: adjust this once TOC is incorporated into rSOILWAT2
     soil_TOC <- rep(NA, soilLayers_N)
     if (exists("i_sw_input_soils") && exists("sw_input_soils_use")) {
       temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
@@ -2653,7 +2653,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
               #Required soil layers
               soildat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm"), drop = FALSE]
-              #TODO: adjust this once TOC is incorporated into Rsoilwat
+              #TODO: adjust this once TOC is incorporated into rSOILWAT2
               soildat <- cbind(soildat, soil_TOC)
               #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
               imp_depth <- which(soildat[, "imperm"] >= opt_agg[["NRCS_SMTRs"]][["impermeability"]])

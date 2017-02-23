@@ -2,11 +2,11 @@
 % Please edit documentation in R/SWSF_Simulation_Project.R
 \name{populate_rSWSF_project_with_data}
 \alias{populate_rSWSF_project_with_data}
-\title{Populate rSWSF project with input data}
+\title{Populate rSFSW2 project with input data}
 \usage{
 populate_rSWSF_project_with_data(SWSF_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity)
 }
 \description{
-Populate rSWSF project with input data
+Populate rSFSW2 project with input data
 }

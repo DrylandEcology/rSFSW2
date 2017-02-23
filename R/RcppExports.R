@@ -30,7 +30,7 @@
 #'
 #' @export
 germination_wait_times <- function(time_to_germinate, duration_fave_cond) {
-    .Call('rSWSF_germination_wait_times', PACKAGE = 'rSFSW2', time_to_germinate, duration_fave_cond)
+    .Call('rSFSW2_germination_wait_times', PACKAGE = 'rSFSW2', time_to_germinate, duration_fave_cond)
 }
 
 #' Determine if all conditions across rooted soil layers are deadly
@@ -74,7 +74,7 @@ germination_wait_times <- function(time_to_germinate, duration_fave_cond) {
 #'
 #' @export
 get_KilledBySoilLayers <- function(relevantLayers, kill_conditions) {
-    .Call('rSWSF_get_KilledBySoilLayers', PACKAGE = 'rSFSW2', relevantLayers, kill_conditions)
+    .Call('rSFSW2_get_KilledBySoilLayers', PACKAGE = 'rSFSW2', relevantLayers, kill_conditions)
 }
 
 #' Determine seedling survival in the first season (ss1s)
@@ -100,6 +100,6 @@ get_KilledBySoilLayers <- function(relevantLayers, kill_conditions) {
 #'
 #' @export
 setFALSE_SeedlingSurvival_1stSeason <- function(ss1s, ry_year_day, ry_useyrs, y, doy) {
-    .Call('rSWSF_setFALSE_SeedlingSurvival_1stSeason', PACKAGE = 'rSFSW2', ss1s, ry_year_day, ry_useyrs, y, doy)
+    .Call('rSFSW2_setFALSE_SeedlingSurvival_1stSeason', PACKAGE = 'rSFSW2', ss1s, ry_year_day, ry_useyrs, y, doy)
 }
 

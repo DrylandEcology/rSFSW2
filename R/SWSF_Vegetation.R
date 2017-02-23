@@ -539,7 +539,7 @@ TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
 #' Replace selected biomass values of a \linkS4class{swProd}-object
 #'
 #' @param fg A character string. One of the functional groups represented by
-#'  \code{Rsoilwat}
+#'  \code{rSOILWAT2}
 #' @param use A logical vector.
 update_biomass <- function(fg = c("Grass", "Shrub", "Tree", "Forb"), use,
   prod_input, prod_default) {

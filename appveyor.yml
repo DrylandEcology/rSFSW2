@@ -10,8 +10,8 @@ init:
 
 install:
   - ps: Bootstrap
-  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/Rsoilwat.git /tmp/Rsoilwat
-  - Rscript -e {install.packages("/tmp/Rsoilwat", repos = NULL, type = "source")}
+  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
+  - Rscript -e {install.packages("/tmp/rSOILWAT2", repos = NULL, type = "source")}
 
 # Adapt as necessary starting from here
 environment:

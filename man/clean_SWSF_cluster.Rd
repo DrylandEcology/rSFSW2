@@ -2,10 +2,10 @@
 % Please edit documentation in R/SWSF_parallel.R
 \name{clean_SWSF_cluster}
 \alias{clean_SWSF_cluster}
-\title{Clean the parallel cluster used for a rSWSF simulation project}
+\title{Clean the parallel cluster used for a rSFSW2 simulation project}
 \usage{
 clean_SWSF_cluster(opt_parallel, verbose = FALSE)
 }
 \description{
-Clean the parallel cluster used for a rSWSF simulation project
+Clean the parallel cluster used for a rSFSW2 simulation project
 }

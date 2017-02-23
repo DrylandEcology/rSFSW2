@@ -27,7 +27,7 @@
 \alias{get_DeepDrain_dy}
 \alias{get_Runoff_mo}
 \alias{get_Runoff_yr}
-\title{Rsoilwat data access functions}
+\title{rSOILWAT2 data access functions}
 \usage{
 get_Response_aggL(response, tscale = c("dy", "dyAll", "mo", "moAll", "yr",
   "yrAll"), scaler = 10, FUN, weights = NULL, x, st, st2, topL, bottomL)
@@ -86,5 +86,5 @@ get_Runoff_yr(x, st)
 \item{st}{An object as returned from the function \code{setup_simulation_time}.}
 }
 \description{
-Rsoilwat data access functions
+rSOILWAT2 data access functions
 }

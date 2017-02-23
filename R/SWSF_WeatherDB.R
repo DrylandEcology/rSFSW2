@@ -418,7 +418,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
       quiet = TRUE), silent = TRUE)
   }
 
-  # Convert to Rsoilwat format
+  # Convert to rSOILWAT2 format
   if(!inherits(dm_temp, "try-error")){
     if(exists(cellID, envir=globalenv())){
       temp <- get(cellID, envir=globalenv())$data

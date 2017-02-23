@@ -40,7 +40,7 @@ project_paths <- list(
 
   # Path to where large outputs are saved to disk
   dir_big = dir_big <- dir_prj,
-  # Path to where Rsoilwat objects are saved to disk
+  # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
   # Path to outputs produced by rSFSW2

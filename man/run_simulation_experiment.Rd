@@ -2,10 +2,10 @@
 % Please edit documentation in R/SWSF_Simulation_Run.R
 \name{run_simulation_experiment}
 \alias{run_simulation_experiment}
-\title{Run a rSWSF simulation experiment}
+\title{Run a rSFSW2 simulation experiment}
 \usage{
 run_simulation_experiment(sim_size, SWSF_prj_inputs, MoreArgs)
 }
 \description{
-Run a rSWSF simulation experiment
+Run a rSFSW2 simulation experiment
 }

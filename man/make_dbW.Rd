@@ -2,11 +2,11 @@
 % Please edit documentation in R/SWSF_WeatherDB.R
 \name{make_dbW}
 \alias{make_dbW}
-\title{Create and populate a 'Rsoilwat31' daily weather SQLite database}
+\title{Create and populate a 'rSOILWAT2' daily weather SQLite database}
 \usage{
 make_dbW(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks, opt_behave,
   deleteTmpSQLFiles, verbose = FALSE)
 }
 \description{
-Create and populate a 'Rsoilwat31' daily weather SQLite database
+Create and populate a 'rSOILWAT2' daily weather SQLite database
 }

@@ -1,4 +1,4 @@
-#' Rsoilwat data access functions
+#' rSOILWAT2 data access functions
 #'
 #' @param x An object of class \code{\linkS4class{swOutput}}.
 #' @param st An object as returned from the function \code{setup_simulation_time}.
@@ -311,7 +311,7 @@ get_Runoff_yr <- function(x, st) {
        snowmelt = x[, 4])
 }
 
-# TODO: move to Rsoilwat
+# TODO: move to rSOILWAT2
 sw_out_flags <- function() {
   c(sw_aet = "AET",
     sw_deepdrain = "DEEPSWC",

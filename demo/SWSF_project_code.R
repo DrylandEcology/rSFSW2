@@ -5,8 +5,8 @@
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
-#    Copyright (C) 2017 by `r packageDescription("rSOILWAT2")[["Author"]]`
-#    Contact information `r packageDescription("rSOILWAT2")[["Maintainer"]]`
+#    Copyright (C) 2017 by `r packageDescription("rSFSW2")[["Author"]]`
+#    Contact information `r packageDescription("rSFSW2")[["Maintainer"]]`
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ actions <- list(
   # Simulation runs
   # "sim_create", "sim_execute", and "sim_aggregate" can be used individually if
   # "saveRsoilwatInput" and/or "saveRsoilwatOutput" are true
-  #   - Prepare/collect inputs for a Rsoilwat run (formerly, 'create')
+  #   - Prepare/collect inputs for a rSOILWAT2 run (formerly, 'create')
   sim_create = TRUE,
   #   - Execute SOILWAT2 simulations (formerly 'execute')
   sim_execute = TRUE,

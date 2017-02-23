@@ -2,17 +2,17 @@
 % Please edit documentation in R/SWSF_Simulation_Project.R
 \name{init_rSWSF_project}
 \alias{init_rSWSF_project}
-\title{Initialize a rSWSF project (setup description file)}
+\title{Initialize a rSFSW2 project (setup description file)}
 \usage{
 init_rSWSF_project(SWSF_prj_meta, fmeta, verbose = TRUE)
 }
 \arguments{
 \item{SWSF_prj_meta}{A list or environment as generated from a file comparable to
-\code{file.path(system.file("demo", package = "rSWSF"), "SWSF_project_descriptions.R")}}
+\code{file.path(system.file("demo", package = "rSFSW2"), "SWSF_project_descriptions.R")}}
 }
 \value{
 An updated version of \code{SWSF_prj_meta}
 }
 \description{
-Initialize a rSWSF project (setup description file)
+Initialize a rSFSW2 project (setup description file)
 }

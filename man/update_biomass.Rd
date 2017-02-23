@@ -9,7 +9,7 @@ update_biomass(fg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input,
 }
 \arguments{
 \item{fg}{A character string. One of the functional groups represented by
-\code{Rsoilwat}}
+\code{rSOILWAT2}}
 
 \item{use}{A logical vector.}
 }

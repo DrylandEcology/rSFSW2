@@ -75,7 +75,7 @@ opt_verbosity <- list(
 
 #------ Output options
 opt_out_run <- list(
-  # Write Rsoilwat input and output objects to disk for each SOILWAT2 simulation
+  # Write rSOILWAT2 input and output objects to disk for each SOILWAT2 simulation
   saveRsoilwatInput = FALSE,
   saveRsoilwatOutput = FALSE,
 
