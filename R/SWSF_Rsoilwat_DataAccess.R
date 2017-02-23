@@ -151,14 +151,14 @@ get_Temp_dy <- compiler::cmpfun(function(x, st) {
 #' @paramInherits swOutput_access
 #' @rdname swOutput_access
 get_VPD_mo <- compiler::cmpfun(function(sc, temp.mo, xin, st2) {
-  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
+  rH <- rSOILWAT2::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedMonth])
 
   list(mean = vpd(temp.mo$min, temp.mo$max, rH))
 })
 
 get_VPD_dy <- compiler::cmpfun(function(sc, temp.dy, xin, st2) {
-  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
+  rH <- rSOILWAT2::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
 
   list(mean = vpd(temp.dy$min, temp.dy$max, rH))

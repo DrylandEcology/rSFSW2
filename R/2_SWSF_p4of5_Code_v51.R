@@ -53,8 +53,8 @@ if (.Platform$OS.type == "windows") {
 	}
 }
 
-if (!require(Rsoilwat31, quietly = TRUE) || (require(Rsoilwat31, quietly = TRUE) &&
-  packageVersion("Rsoilwat31") < minVersionRsoilwat)) {
+if (!require(rSOILWAT2, quietly = TRUE) || (require(rSOILWAT2, quietly = TRUE) &&
+  packageVersion("rSOILWAT2") < minVersionRsoilwat)) {
 
   print("Going to try to install Rsoilwat library")
 
@@ -64,7 +64,7 @@ if (!require(Rsoilwat31, quietly = TRUE) || (require(Rsoilwat31, quietly = TRUE)
   tools::Rcmd(args = paste("INSTALL Rsoilwat"))
   setwd(temp)
 
-  stopifnot(require(Rsoilwat31) && packageVersion("Rsoilwat31") >= minVersionRsoilwat)
+  stopifnot(require(rSOILWAT2) && packageVersion("rSOILWAT2") >= minVersionRsoilwat)
 }
 
 if(!require(circular, quietly=TRUE)) {
@@ -803,7 +803,7 @@ if (getCurrentWeatherDataFromDatabase || getScenarioWeatherDataFromDatabase) {
 		print(paste0("The version (", v_dbW, ") of the daily weather database is outdated; ",
 		  "min. version required: ", minVersion_dbWeather))
 		if (v_dbW >= "1")
-		  print(paste("Use function 'Rsoilwat31:::dbW_upgrade_v1to2' etc. to upgrade your",
+		  print(paste("Use function 'rSOILWAT2:::dbW_upgrade_v1to2' etc. to upgrade your",
 		    "version 1.y.z weather database to version >=", minVersion_dbWeather))
 		stop("Outdated weather database")
 	}
@@ -2181,7 +2181,7 @@ do_OneSite <- function(i_sim, i_labels, i_SWRunInformation, i_sw_input_soillayer
           } else 1L
 
         i_sw_weatherList <- try(lapply(climate.conditions[temp], function(scen)
-          Rsoilwat31::dbW_getWeatherData(Label = weather_label_cur,
+          rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
             startYear = simstartyr, endYear = endyr, Scenario = scen)), silent = TRUE)
       }
     }
@@ -6070,7 +6070,7 @@ if(actionWithSoilWat && runsN_todo > 0){
 
 		#call the simulations depending on parallel backend
 		if (identical(parallel_backend, "mpi")) {
-			Rmpi::mpi.bcast.cmd(library(Rsoilwat31, quietly = TRUE))
+			Rmpi::mpi.bcast.cmd(library(rSOILWAT2, quietly = TRUE))
 			Rmpi::mpi.bcast.cmd(library(circular, quietly = TRUE))
 			Rmpi::mpi.bcast.cmd(library(SPEI, quietly = TRUE))
 			Rmpi::mpi.bcast.cmd(library(RSQLite, quietly = TRUE))
@@ -6089,7 +6089,7 @@ if(actionWithSoilWat && runsN_todo > 0){
       }
 
       Rmpi::mpi.bcast.cmd(source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
-      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
+      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 			Rmpi::mpi.bcast.cmd(mpi_work(verbose = print.debug))
 
 			junk <- 0L
@@ -6177,14 +6177,14 @@ tryCatch({
 })
 			}
 
-			Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+			Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
 			Rmpi::mpi.bcast.cmd(rm(list=ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
 			Rmpi::mpi.bcast.cmd(gc())
 			print(runs.completed)
 		}
 
 		if (identical(parallel_backend, "cluster")) {
-			parallel::clusterEvalQ(cl, library(Rsoilwat31, quietly = TRUE))
+			parallel::clusterEvalQ(cl, library(rSOILWAT2, quietly = TRUE))
 			parallel::clusterEvalQ(cl, library(circular, quietly = TRUE))
 			parallel::clusterEvalQ(cl, library(SPEI, quietly = TRUE))
 			parallel::clusterEvalQ(cl, library(RSQLite, quietly = TRUE))
@@ -6192,7 +6192,7 @@ tryCatch({
       export_objects_to_workers(obj2exp, "cluster", cl)
       parallel::clusterEvalQ(cl, source(file.path(dir.code, "R", "SWSF_cpp_functions.R")))
       parallel::clusterEvalQ(cl,
-        Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile))
+        rSOILWAT2::dbW_setConnection(dbFilePath = dbWeatherDataFile))
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SWRunInformation, sw_input_soillayers, ...) to the workers. clusterLapplyLB does
@@ -6221,14 +6221,14 @@ tryCatch({
 
       runs.completed <- sum(unlist(runs.completed))
 
-			parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+			parallel::clusterEvalQ(cl, rSOILWAT2::dbW_disconnectConnection())
 			parallel::clusterEvalQ(cl, rm(list = ls()))
 			parallel::clusterEvalQ(cl, gc())
 		}
 
 	} else { #call the simulations in serial
 		source(file.path(dir.code, "R", "SWSF_cpp_functions.R"))
-		Rsoilwat31::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+		rSOILWAT2::dbW_setConnection(dbFilePath = dbWeatherDataFile)
 
     runs.completed <- lapply(runIDs_todo, function(i_sim) {
       i_site <- it_site(i_sim, runsN_master)
@@ -6247,7 +6247,7 @@ tryCatch({
     })
     runs.completed <- sum(unlist(runs.completed))
 
-		Rsoilwat31::dbW_disconnectConnection()
+		rSOILWAT2::dbW_disconnectConnection()
 
 		#Best for debugging
 #		setwd(dir.prj)

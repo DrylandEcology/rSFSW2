@@ -7,10 +7,10 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
     dir.ex.maurer2002 = NULL, dir.ex.daymet = NULL, dir.ex.NRCan = NULL, prepd_CFSR = NULL,
     verbose = FALSE) {
 
-  stopifnot(requireNamespace("Rsoilwat31"))
+  stopifnot(requireNamespace("rSOILWAT2"))
 
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-  Rsoilwat31::dbW_createDatabase(dbFilePath = dbWeatherDataFile,
+  rSOILWAT2::dbW_createDatabase(dbFilePath = dbWeatherDataFile,
     site_data = data.frame(Site_id = SWRunInformation$site_id,
             Latitude = SWRunInformation$Y_WGS84,
             Longitude = SWRunInformation$X_WGS84,
@@ -61,9 +61,9 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
 
       if (!is.null(weatherData)) {
         years <- as.integer(names(weatherData))
-        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData,
+        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
           type = dbW_compression_type)
-        Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
+        rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
           Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
           weather_blob = data_blob)
 
@@ -127,7 +127,7 @@ make_dbW <- function(dbWeatherDataFile, runIDs_sites, SWRunInformation, simstart
       dbW_compression_type = dbW_compression_type)
   }
 
-  Rsoilwat31::dbW_disconnectConnection()
+  rSOILWAT2::dbW_disconnectConnection()
 }
 
 
@@ -225,7 +225,7 @@ create_filename_for_Maurer2002_NorthAmerica <- compiler::cmpfun(function(X_WGS84
 })
 
 
-#TODO replace with Rsoilwat31::getWeatherData_folders
+#TODO replace with rSOILWAT2::getWeatherData_folders
 ExtractLookupWeatherFolder <- compiler::cmpfun(function(dir.weather, weatherfoldername) {
   WeatherFolder <- file.path(dir.weather, weatherfoldername)
   weath <- list.files(WeatherFolder, pattern = "weath.")
@@ -416,8 +416,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- compiler::cmpfun(functi
 
       if (!inherits(weatherData, "try-error")) {
         # Store site weather data in weather database
-        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-        Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
+        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+        rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
           Scenario_id = 1,
           StartYear = start_year,
           EndYear = end_year,
@@ -520,8 +520,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- compiler::cmpfun(function(dir
     names(weatherData) <- as.character(NRC_target_years)
 
     # Store site weather data in weather database
-    data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-    Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+    data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+    rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
       Scenario_id = 1,
       StartYear = start_year,
       EndYear = end_year,
@@ -783,7 +783,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
 
   # move the weather data into the database
   for (i in seq_along(site_ids)) {
-    weatherData <- Rsoilwat31::getWeatherData_folders(
+    weatherData <- rSOILWAT2::getWeatherData_folders(
       LookupWeatherFolder = etemp$dir_temp_cfsr,
       weatherDirName = dat_sites[i, "WeatherFolder"],
       filebasename = "weath",
@@ -791,8 +791,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- compiler::cmpfun(function(site_ids, da
       endYear = end_year)
 
     # Store site weather data in weather database
-    data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-    Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+    data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+    rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
       Scenario_id = 1,
       StartYear = start_year,
       EndYear = end_year,

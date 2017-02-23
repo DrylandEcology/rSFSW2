@@ -1,5 +1,5 @@
 #---Settings
-library(Rsoilwat31)
+library(rSOILWAT2)
 library(parallel)
 library(compiler)
 
@@ -318,7 +318,7 @@ if (length(ids_todo) > 0) {
 
 	clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid", "summarize_weather", "dbWeatherDataFile", "dbW_iScenarioTable", "startyear", "endyear"))
 	temp <- clusterEvalQ(cl, {
-		require(Rsoilwat31)
+		require(rSOILWAT2)
 		dbW_setConnection(dbFilePath = dbWeatherDataFile, FALSE)
 	})
 	temp <- clusterEvalQ(cl, {
