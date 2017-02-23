@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
 
 #----------------------------------------------------------------------------------------#
-# rSWSF: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
-#    Copyright (C) 2017 by `r packageDescription("Rsoilwat31")[["Author"]]`
-#    Contact information `r packageDescription("Rsoilwat31")[["Maintainer"]]`
+#    Copyright (C) 2017 by `r packageDescription("rSOILWAT2")[["Author"]]`
+#    Contact information `r packageDescription("rSOILWAT2")[["Maintainer"]]`
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,15 +19,15 @@
 #    GNU General Public License for more details.
 
 #------ NOTES:
-#  - You get an overview by: `r package?rSWSF`
-#  - An index of functionality is displayed by: `r help(package = "rSWSF")`
+#  - You get an overview by: `r package?rSFSW2`
+#  - An index of functionality is displayed by: `r help(package = "rSFSW2")`
 #----------------------------------------------------------------------------------------#
 
 
 ##############################################################################
 t_job_start <- Sys.time()
 
-library("rSWSF")
+library("rSFSW2")
 
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(

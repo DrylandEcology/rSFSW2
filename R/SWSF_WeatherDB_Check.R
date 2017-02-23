@@ -57,22 +57,22 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
 
   #---Connect to weather database
-  Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+  rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   fsite <- file.path(file.path(dir_out, "Sites.cvs"))
   if (!file.exists(fsite)) {
-    dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
+    dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
     utils::write.csv(dbW_iSiteTable, file = fsite, row.names = FALSE)
   } else {
     dbW_iSiteTable <- utils::read.csv(fsite, header = TRUE)
   }
   fscen <- file.path(file.path(dir_out, "Scenarios.cvs"))
   if (!file.exists(fscen)) {
-    dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
+    dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
     utils::write.csv(dbW_iScenarioTable, file = fscen, row.names = FALSE)
   } else {
     dbW_iScenarioTable <- utils::read.csv(fscen, header = TRUE)
   }
-  Rsoilwat31::dbW_disconnectConnection()
+  rSOILWAT2::dbW_disconnectConnection()
 
 
 
@@ -285,17 +285,17 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
         iclimate["Site_id"], "/", scen))
 
     # Access data from database
-    wtemp <- try(Rsoilwat31::dbW_getWeatherData(Site_id = iclimate["Site_id"],
+    wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
             startYear = startyear, endYear = endyear,
             Scenario = scen),
           silent = TRUE)
 
     if (inherits(wtemp, "try-error")) {
       # Maybe the connection to the database failed? Re-set connection and attempt extraction once more
-      Rsoilwat31::dbW_disconnectConnection()
-      Rsoilwat31::dbW_setConnection(dbFilePath = db_name, FALSE)
+      rSOILWAT2::dbW_disconnectConnection()
+      rSOILWAT2::dbW_setConnection(dbFilePath = db_name, FALSE)
 
-      wtemp <- try(Rsoilwat31::dbW_getWeatherData(Site_id = iclimate["Site_id"],
+      wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
               startYear = startyear, endYear = endyear,
               Scenario = scen),
             silent = TRUE)
@@ -308,7 +308,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
     } else {
       iclimate["Status"] <- 1
-      wd <- Rsoilwat31::dbW_weatherData_to_dataframe(wtemp)
+      wd <- rSOILWAT2::dbW_weatherData_to_dataframe(wtemp)
 
       # Calculate climate variables (this is the slow part of the function)
       wy_ppt <- tapply(wd[, "PPT_cm"], wd[, "Year"], sum)
@@ -342,8 +342,8 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     parallel::clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid",
       "summarize_weather", "fdbWeather", "dbW_iScenarioTable", "startyear", "endyear"))
     temp <- parallel::clusterEvalQ(cl, {
-      require(Rsoilwat31)
-      Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+      require(rSOILWAT2)
+      rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
     })
     temp <- parallel::clusterEvalQ(cl, {
       outfile <- file.path(dir_temp, paste0(pattern_temp, "-", get(name_wid), ".csv"))
@@ -359,7 +359,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       scen = dbW_iScenarioTable[as.integer(climate[i, "Scenario_id"]), "Scenario"],
       startyear = startyear, endyear = endyear, db_name = fdbWeather))
 
-    temp <- parallel::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
+    temp <- parallel::clusterEvalQ(cl, rSOILWAT2::dbW_disconnectConnection())
   }
 
   #---Final save

@@ -3,7 +3,7 @@
   [![Coverage Status](https://img.shields.io/codecov/c/github/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/master.svg)](https://codecov.io/github/Burke-Lauenroth-Lab/SoilWat_R_Wrapper?branch=master)
 
 
-# rSWSF A R package to create soil water balance simulation experiment
+# rSFSW2: A R package to create soil water balance simulation experiment
 
 Start with the demos and information at ```package?rSWSF```
 
@@ -14,6 +14,14 @@ Some recent references
   disturbance. Ecosystems 17:590-605.
 * Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012. Ecohydrological niche of
   sagebrush ecosystems. Ecohydrology 5:453-466.
+
+## Note: repository renamed from SoilWat_R_Wrapper to rSFSW2 on Feb 23, 2017
+All existing information should [automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
+Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e., 
+```
+git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
+```
+
 
 
 # How to contribute

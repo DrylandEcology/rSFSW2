@@ -1,4 +1,4 @@
 library(testthat)
-library(Rsoilwat31)
+library(rSOILWAT2)
 
-test_check("rSWSF")
+test_check("rSFSW2")

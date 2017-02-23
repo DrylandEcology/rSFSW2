@@ -1,5 +1,5 @@
 
-#' Setup infrastructure (skeleton) for a new rSWSF simulation experiment
+#' Setup infrastructure (skeleton) for a new rSFSW2 simulation experiment
 #'
 #' @param dir_prj A character string. The path to the new simulation project. Folders are
 #'  recursively created if not already existing.
@@ -12,7 +12,7 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   if (verbose) {
     t1 <- Sys.time()
     print(paste0("SWSF's ", shQuote(match.call()[1]), ": started at ", t1))
-    print(paste("A new rSWSF project is prepared for:", sQuote(basename(dir_prj))))
+    print(paste("A new rSFSW2 project is prepared for:", sQuote(basename(dir_prj))))
   }
 
   dir_safe_create(dir_prj)
@@ -21,7 +21,7 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   #   data-raw/prepare_default_project_infrastructure.R
   if (exists("definf") && length(definf) == 0)
     stop("No default project infrastructure object located; the installation of the ",
-      "package 'rSWSF' may be faulty.")
+      "package 'rSFSW2' may be faulty.")
 
   fes <- NULL
 
@@ -49,15 +49,15 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   }
 
   if (verbose)
-    print(paste("The new rSWSF project was successfully prepared at:", sQuote(dir_prj)))
+    print(paste("The new rSFSW2 project was successfully prepared at:", sQuote(dir_prj)))
 
 
   # Copy demo scripts
-  temp <- system.file("demo", package = "rSWSF")
+  temp <- system.file("demo", package = "rSFSW2")
 
   ftemps <- list.files(temp, pattern = ".R", full.names = TRUE)
   if (length(ftemps) == 0)
-    stop("No folder 'demo' found in package; the installation of the package 'rSWSF' ",
+    stop("No folder 'demo' found in package; the installation of the package 'rSFSW2' ",
       "may be faulty.")
 
   for (f in ftemps)
@@ -71,10 +71,10 @@ setup_rSWSF_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 }
 
 
-#' Initialize a rSWSF project (setup description file)
+#' Initialize a rSFSW2 project (setup description file)
 #'
 #' @param SWSF_prj_meta A list or environment as generated from a file comparable to
-#'  \code{file.path(system.file("demo", package = "rSWSF"), "SWSF_project_descriptions.R")}
+#'  \code{file.path(system.file("demo", package = "rSFSW2"), "SWSF_project_descriptions.R")}
 #' @return An updated version of \code{SWSF_prj_meta}
 #'
 #' @export
@@ -126,7 +126,7 @@ init_rSWSF_project <- function(SWSF_prj_meta, fmeta, verbose = TRUE) {
 
 
 
-#' Populate rSWSF project with input data
+#' Populate rSFSW2 project with input data
 #' @export
 populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity) {
@@ -490,7 +490,7 @@ populate_rSWSF_project_with_data <- function(SWSF_prj_meta, opt_behave, opt_para
 
 
 
-#' Attempt to check input data of a rSWSF project for consistency
+#' Attempt to check input data of a rSFSW2 project for consistency
 #' @export
 check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_verbosity) {
 
@@ -620,7 +620,7 @@ check_rSWSF_project_input_data <- function(SWSF_prj_meta, SWSF_prj_inputs, opt_v
 
 
 
-#' Carry out a rSWSF simulation experiment
+#' Carry out a rSFSW2 simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(actions, SWSF_prj_meta, SWSF_prj_inputs,
   t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {

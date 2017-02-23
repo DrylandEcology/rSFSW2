@@ -45,7 +45,7 @@
   if (any(toset)) options(op_SWSF[toset])
 
   #--- Clean up C code
-  library.dynam.unload("rSWSF", libpath)
+  library.dynam.unload("rSFSW2", libpath)
 
   invisible()
 }

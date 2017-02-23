@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------------------------#
-# rSWSF: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 #
 # See demo/SWSF_project_code.R for details
@@ -43,9 +43,9 @@ project_paths <- list(
   # Path to where Rsoilwat objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
-  # Path to outputs produced by rSWSF
+  # Path to outputs produced by rSFSW2
   dir_out = dir_out <- file.path(dir_big, "4_Data_SWOutputAggregated"),
-  # Path to where rSWSF will store temporary files
+  # Path to where rSFSW2 will store temporary files
   dir_out_temp = file.path(dir_out, "temp"),
   # Path to various other output
   dir_out_expDesign = file.path(dir_out, "Experimentals_Input_Data"),
@@ -123,7 +123,7 @@ opt_input <- list(
   # Interpolate and add soil layers if not available if 'AddRequestedSoilLayers'
   requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150),
 
-  # Request data from datasets ('external' to a rSWSF-project)
+  # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,  # 1/8-degree resolution

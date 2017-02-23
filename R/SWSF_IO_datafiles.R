@@ -306,12 +306,12 @@ read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
       shQuote(swFiles_tag), " in folder ", shQuote(dir_in_sw))
 
   # 'swDataFromFiles' acts as the basis for all runs
-  swDataFromFiles <- Rsoilwat31::sw_inputDataFromFiles(dir = dir_in_sw,
+  swDataFromFiles <- rSOILWAT2::sw_inputDataFromFiles(dir = dir_in_sw,
     files.in = swFilesIn)
 
   # we don't need the example weather data; the code will get weather data separately
   if (length(swDataFromFiles@weatherHistory) > 0)
-    swDataFromFiles@weatherHistory <- list(Rsoilwat31::swClear(swDataFromFiles@weatherHistory[[1]]))
+    swDataFromFiles@weatherHistory <- list(rSOILWAT2::swClear(swDataFromFiles@weatherHistory[[1]]))
 
   swDataFromFiles
 }
@@ -360,7 +360,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
       full.names = TRUE)
 
     tr_list[basename(temp)] <- unlist(lapply(temp, function(x)
-      Rsoilwat31::swReadLines(Rsoilwat31::swClear(new(class)), x)))
+      rSOILWAT2::swReadLines(rSOILWAT2::swClear(new(class)), x)))
 
   }
   tr_list

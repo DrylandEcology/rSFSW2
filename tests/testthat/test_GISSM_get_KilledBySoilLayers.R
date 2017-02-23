@@ -15,7 +15,7 @@ cond4 <- cbind(matrix(TRUE, nrow = Nd, ncol = Nl3),
               matrix(TRUE, nrow = Nd, ncol = Nl3))
 
 
-# rSWSF version of function 'get_KilledBySoilLayers()' uses argument "PACKAGE = 'rSWSF'"
+# rSFSW2 version of function 'get_KilledBySoilLayers()' uses argument "PACKAGE = 'rSFSW2'"
 # in .Call; however, this is not available when run with R CMD check
 get_KilledBySoilLayers2 <- function(relevantLayers, kill_conditions) {
     .Call('rSWSF_get_KilledBySoilLayers', relevantLayers, kill_conditions)

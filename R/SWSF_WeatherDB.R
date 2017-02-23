@@ -1,6 +1,6 @@
 #------------------------DAILY WEATHER
 
-#' Create and populate a 'Rsoilwat31' daily weather SQLite database
+#' Create and populate a 'rSOILWAT2' daily weather SQLite database
 #' @export
 make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   opt_behave, deleteTmpSQLFiles, verbose = FALSE) {
@@ -30,7 +30,7 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   dw_source <- SWRunInformation[temp_runIDs_sites, "dailyweather_source"]
 
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-  Rsoilwat31::dbW_createDatabase(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]],
+  rSOILWAT2::dbW_createDatabase(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]],
     site_data = data.frame(Site_id = SWRunInformation$site_id,
             Latitude = SWRunInformation$Y_WGS84,
             Longitude = SWRunInformation$X_WGS84,
@@ -84,9 +84,9 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         !inherits(weatherData, "try-error")) {
 
         years <- as.integer(names(weatherData))
-        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData,
+        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
           type = SWSF_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
-        Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
+        rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
           Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
           weather_blob = data_blob)
 
@@ -166,15 +166,15 @@ make_dbW <- function(SWSF_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       SWSF_prj_meta[["opt_sim"]][["dbW_digits"]])
   }
 
-  invisible(Rsoilwat31::dbW_disconnectConnection())
+  invisible(rSOILWAT2::dbW_disconnectConnection())
 }
 
 
 #' Check that version of dbWeather suffices
 check_dbWeather_version <- function(fdbWeather) {
-  Rsoilwat31::dbW_setConnection(fdbWeather)
-  v_dbW <- Rsoilwat31::dbW_version()
-  Rsoilwat31::dbW_disconnectConnection()
+  rSOILWAT2::dbW_setConnection(fdbWeather)
+  v_dbW <- rSOILWAT2::dbW_version()
+  rSOILWAT2::dbW_disconnectConnection()
 
   success <- v_dbW >= swsf_glovars[["minVersion_dbWeather"]]
 
@@ -182,7 +182,7 @@ check_dbWeather_version <- function(fdbWeather) {
     print(paste0("The version (", v_dbW, ") of the daily weather database is outdated; ",
       "min. version required: ", swsf_glovars[["minVersion_dbWeather"]]))
     if (v_dbW >= "1")
-      print(paste("Use function 'Rsoilwat31:::dbW_upgrade_v1to2' etc. to upgrade your",
+      print(paste("Use function 'rSOILWAT2:::dbW_upgrade_v1to2' etc. to upgrade your",
         "version 1.y.z weather database to version >=",
         swsf_glovars[["minVersion_dbWeather"]]))
   }
@@ -257,7 +257,7 @@ gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
             year = as.integer(do_daily[id, "years"]),
             month = as.integer(do_daily[id, "months"]),
             type = as.integer(do_daily[id, "types"]),
-            PACKAGE = "rSWSF")
+            PACKAGE = "rSFSW2")
   1L
 }
 
@@ -267,7 +267,7 @@ writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
             siteNames = as.character(siteNames),
             siteDirs = as.character(siteDirsC),
             year = as.integer(year),
-            PACKAGE = "rSWSF")
+            PACKAGE = "rSFSW2")
   1L
 }
 
@@ -280,13 +280,13 @@ gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, y
             yearLow = as.integer(yearLow),
             yearHigh = as.integer(yearHigh),
             type = as.integer(type),
-            PACKAGE = "rSWSF")
+            PACKAGE = "rSFSW2")
   1L
 }
 
 writeMonthlyClimate <- function(id, siteDirsC) {
   dataWrite <- .C("writeMonthlyClimate2_R", siteDir = as.character(siteDirsC[id]),
-    PACKAGE = "rSWSF")
+    PACKAGE = "rSFSW2")
   1L
 }
 
@@ -295,7 +295,7 @@ create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
 }
 
 
-#TODO replace with Rsoilwat31::getWeatherData_folders
+#TODO replace with rSOILWAT2::getWeatherData_folders
 ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername, dbW_digits) {
 
   weatherData <- list()
@@ -527,8 +527,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
         !inherits(weatherData, "try-error")) {
 
         # Store site weather data in weather database
-        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-        Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
+        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+        rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids_todo[idm],
           Scenario_id = 1,
           StartYear = start_year,
           EndYear = end_year,
@@ -658,8 +658,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
       !inherits(weatherData, "try-error")) {
 
       # Store site weather data in weather database
-      data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-      Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
         Scenario_id = 1,
         StartYear = start_year,
         EndYear = end_year,
@@ -954,7 +954,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
 
   # move the weather data into the database
   for (i in seq_along(site_ids)) {
-    weatherData <- Rsoilwat31::getWeatherData_folders(
+    weatherData <- rSOILWAT2::getWeatherData_folders(
       LookupWeatherFolder = etemp$dir_temp_cfsr,
       weatherDirName = dat_sites[i, "WeatherFolder"],
       filebasename = tag_WeatherFolder,
@@ -965,8 +965,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
       !inherits(weatherData, "try-error")) {
 
       # Store site weather data in weather database
-      data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
-      Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
+      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids[i],
         Scenario_id = 1,
         StartYear = start_year,
         EndYear = end_year,

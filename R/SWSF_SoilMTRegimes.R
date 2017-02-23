@@ -13,7 +13,7 @@
 #' @references Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural
 #'  Resources Conservation Service, Washington, DC.
 #' @examples
-#'  vignette("SoilMoistureRegimes_SoilTemperatureRegimes", package = "rSWSF")
+#'  vignette("SoilMoistureRegimes_SoilTemperatureRegimes", package = "rSFSW2")
 #' @name STMR
 NULL
 

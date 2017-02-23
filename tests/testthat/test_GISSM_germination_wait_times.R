@@ -80,7 +80,7 @@ test_data <- list(
 )
 
 
-# rSWSF version of function 'germination_wait_times()' uses argument "PACKAGE = 'rSWSF'"
+# rSFSW2 version of function 'germination_wait_times()' uses argument "PACKAGE = 'rSFSW2'"
 # in .Call; however, this is not available when run with R CMD check
 germination_wait_times2 <- function(time_to_germinate, duration_fave_cond) {
     .Call('rSWSF_germination_wait_times', time_to_germinate, duration_fave_cond)

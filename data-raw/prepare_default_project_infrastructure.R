@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# default (input) infrastructure of a rSWSF simulation project
+# default (input) infrastructure of a rSFSW2 simulation project
 
 dir_definf <- file.path("data-raw", "1_Data_SWInput")
 

@@ -151,14 +151,14 @@ get_Temp_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_VPD_mo <- function(sc, temp.mo, xin, st2) {
-  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
+  rH <- rSOILWAT2::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedMonth])
 
   list(mean = vpd(temp.mo$min, temp.mo$max, rH))
 }
 
 get_VPD_dy <- function(sc, temp.dy, xin, st2) {
-  rH <- Rsoilwat31::swCloud_SkyCover(xin[[sc]])
+  rH <- rSOILWAT2::swCloud_SkyCover(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
 
   list(mean = vpd(temp.dy$min, temp.dy$max, rH))
@@ -353,14 +353,14 @@ set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun)
       tasks$create <- 0L
 
     } else {
-      def <- utils::getFromNamespace(fun, "Rsoilwat31")(swIn)
+      def <- utils::getFromNamespace(fun, "rSOILWAT2")(swIn)
 
       itemp <- sapply(names(def), function(x) {
         temp <- grep(substr(x, 1, 4), names(use)[use_it])
         if (length(temp) == 1) temp else 0})
       def[itemp > 0] <- temp1[itemp]
 
-      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "Rsoilwat31")(swIn, def)
+      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
     }
   }
 

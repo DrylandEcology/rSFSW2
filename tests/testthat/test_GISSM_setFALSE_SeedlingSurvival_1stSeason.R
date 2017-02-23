@@ -23,7 +23,7 @@ test_data <- list(
   ref = temp)
 )
 
-# rSWSF version of function 'setFALSE_SeedlingSurvival_1stSeason()' uses argument "PACKAGE = 'rSWSF'"
+# rSFSW2 version of function 'setFALSE_SeedlingSurvival_1stSeason()' uses argument "PACKAGE = 'rSFSW2'"
 # in .Call; however, this is not available when run with R CMD check
 setFALSE_SeedlingSurvival_1stSeason2 <- function(ss1s, ry_year_day, ry_useyrs, y, doy) {
     .Call('rSWSF_setFALSE_SeedlingSurvival_1stSeason', ss1s, ry_year_day, ry_useyrs, y, doy)

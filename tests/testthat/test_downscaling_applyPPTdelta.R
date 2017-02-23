@@ -15,7 +15,7 @@ iadd6 <- iadd
 
 # setwd("./tests/testthat")
 daily <- readRDS("dailySW.rds")
-monthly <- Rsoilwat31::dbW_weatherData_to_monthly(dailySW = daily)
+monthly <- rSOILWAT2::dbW_weatherData_to_monthly(dailySW = daily)
 data0 <- daily[[as.character(this_year)]]@data[, "PPT_cm"]
 
 ydelta0 <- c(1.221, 1.017, 0.844, 1.514, 1.283, 1.475, 0.788, 0.679, 1.093, 2.111, 1.765,

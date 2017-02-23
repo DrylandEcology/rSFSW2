@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------------------------#
-# rSWSF: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
 #        SIMULATIONS, AND AGGREGATING OUTPUTS
 #
 # See demo/SWSF_project_code.R for details

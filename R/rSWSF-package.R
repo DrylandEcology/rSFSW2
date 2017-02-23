@@ -1,4 +1,4 @@
-#' rSWSF: Framework for SOILWAT2 simulations: creating simulation runs, executing
+#' rSFSW2: Framework for SOILWAT2 simulations: creating simulation runs, executing
 #'  simulations, and aggregating outputs
 #'
 #' @references Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology
@@ -26,7 +26,7 @@
 #'
 #' @section LICENSE:
 #'    Copyright (C) \Sexpr{format(Sys.Date(), "\%Y")} by
-#'    \Sexpr{packageDescription("rSWSF")[["Maintainer"]]}
+#'    \Sexpr{packageDescription("rSFSW2")[["Maintainer"]]}
 #'
 #'    This program is free software: you can redistribute it and/or modify
 #'    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
 #'    GNU General Public License for more details.
 #'
 #' @docType package
-#' @name rSWSF
+#' @name rSFSW2
 "_PACKAGE"
 
 ##------ Package level variables
@@ -52,6 +52,6 @@ NULL
 
 
 ##------ Support Rcpp
-#' @useDynLib rSWSF
+#' @useDynLib rSFSW2
 #' @importFrom Rcpp sourceCpp evalCpp
 NULL

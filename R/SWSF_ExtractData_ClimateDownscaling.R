@@ -576,7 +576,7 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
     # Some years didn't have sufficient precipitation for the removal of the requested delta precipitation
     # Here, crude approach to remove this additional quantity by spreading it across all years
 
-    daily2 <- Rsoilwat31::dbW_weatherData_to_dataframe(sw_list)
+    daily2 <- rSOILWAT2::dbW_weatherData_to_dataframe(sw_list)
     totalPPT <- sum(daily2[, "PPT_cm"])
 
     if (totalPPT > abs(totalPPT_to_remove)) {
@@ -587,7 +587,7 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
       daily2[, "PPT_cm"] <- 0
     }
 
-    sw_list <- Rsoilwat31::dbW_dataframe_to_weatherData(daily2, years)
+    sw_list <- rSOILWAT2::dbW_dataframe_to_weatherData(daily2, years)
   }
     names(sw_list) <- years
 
@@ -1267,7 +1267,7 @@ downscale.wgen_package <- function(
   if (any(!tp$iuse_scen_fut_m))
     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
 
-  day_data <- Rsoilwat31::dbW_weatherData_to_dataframe(obs.hist.daily)
+  day_data <- rSOILWAT2::dbW_weatherData_to_dataframe(obs.hist.daily)
 
   dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
 
@@ -1360,7 +1360,7 @@ downscale.wgen_package <- function(
 
   # year start back to 1/1, probably only needed when setting start_month != 1
   # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
-  scen.fut.daily <- Rsoilwat31::dbW_dataframe_to_weatherData(scen.fut.daily, round = FALSE)
+  scen.fut.daily <- rSOILWAT2::dbW_dataframe_to_weatherData(scen.fut.daily, round = FALSE)
   scen.fut.daily
 }
 
@@ -1847,7 +1847,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
     print(paste0(i, "-th extraction: observed historic daily weather from weather DB: ",
           sim_time[["simstartyr"]], "-", sim_time[["endyr"]]))
 
-  obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id = site_id,
+  obs.hist.daily <- rSOILWAT2::dbW_getWeatherData(Site_id = site_id,
     startYear = sim_time[["simstartyr"]], endYear = sim_time[["endyr"]], Scenario = climate.ambient)
 
   if (obs.hist.daily[[1]]@year < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
@@ -1857,7 +1857,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   }
 
   sim_years <- as.integer(names(obs.hist.daily))
-  obs.hist.monthly <- Rsoilwat31::dbW_weatherData_to_monthly(dailySW = obs.hist.daily)
+  obs.hist.monthly <- rSOILWAT2::dbW_weatherData_to_monthly(dailySW = obs.hist.daily)
 
   if (print.debug) {
     obs.hist.monthly_mean <- stats::aggregate(obs.hist.monthly[, -(1:2)],
@@ -1960,7 +1960,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
           stop(scen.fut.daily)
 
         if (print.debug) {
-          temp <- Rsoilwat31::dbW_weatherData_to_monthly(scen.fut.daily)
+          temp <- rSOILWAT2::dbW_weatherData_to_monthly(scen.fut.daily)
           scen.fut.down_mean <- stats::aggregate(temp[, -(1:2)], list(temp[, "Month"]), mean)
 
           temp <- apply(scen.fut.down_mean[, -1] - obs.hist.monthly_mean[, -1], 2, mean)
@@ -1974,7 +1974,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
             paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
         }
 
-        data_blob <- Rsoilwat31::dbW_weatherData_to_blob(scen.fut.daily, compression_type)
+        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(scen.fut.daily, compression_type)
         years <- as.integer(names(scen.fut.daily))
 
         types[[length(types) + 1]] <- list(Site_id = site_id, Scenario_id = scenario_id,
@@ -2049,7 +2049,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
 
     # extract the GCM data depending on parallel backend
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
+      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2065,13 +2065,13 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
 
-      Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
       parallel::clusterEvalQ(opt_parallel[["cl"]],
-        Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather))
+        rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather))
 
       i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2087,7 +2087,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], Rsoilwat31::dbW_disconnectConnection())
+      parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_disconnectConnection())
       parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
       parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
 
@@ -2096,7 +2096,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
     }
 
   } else {
-    Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather)
+    rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
 
     i_Done <- lapply(is_ToDo, FUN = try.ScenarioWeather,
       clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2114,7 +2114,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       verbose = verbose, print.debug = print.debug)
     i_Done <- do.call(c, i_Done)
 
-    Rsoilwat31::dbW_disconnectConnection()
+    rSOILWAT2::dbW_disconnectConnection()
   }
 
 
@@ -2123,7 +2123,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
     print(paste("Started adding temporary files into database '", clim_source,
     "' at", Sys.time()))
 
-  Rsoilwat31::dbW_setConnection(dbFilePath = fdbWeather)
+  rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
   temp_files <- list.files(path = project_paths[["dir_out_temp"]], pattern = clim_source,
     recursive = TRUE, include.dirs = FALSE, no.. = TRUE)
   if (length(temp_files) > 0) {
@@ -2133,7 +2133,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
 
       for (j in seq_along(wdataOut)) {
         for (l in seq_along(wdataOut[[j]])) {
-          res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(
+          res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
                 Site_id =     wdataOut[[j]][[l]]$Site_id,
                 Scenario_id =  wdataOut[[j]][[l]]$Scenario_id,
                 StartYear =   wdataOut[[j]][[l]]$StartYear,
@@ -2153,7 +2153,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       if (!inherits(res, "try-error")) unlink(ftemp)
     }
   }
-  Rsoilwat31::dbW_disconnectConnection()
+  rSOILWAT2::dbW_disconnectConnection()
 
   sort(unlist(i_Done))
 }
@@ -2448,10 +2448,10 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SWSF_prj_meta, SWSF_prj_
   on.exit(clean_SWSF_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
 
-  Rsoilwat31::dbW_setConnection(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
-  dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
-  dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
-  dbW_compression_type <- Rsoilwat31::dbW_compression()
+  rSOILWAT2::dbW_setConnection(dbFilePath = SWSF_prj_meta[["fnames_in"]][["fdbWeather"]])
+  dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+  dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
+  dbW_compression_type <- rSOILWAT2::dbW_compression()
 
   temp <- strsplit(SWSF_prj_meta[["sim_scens"]][["models"]], split = ".", fixed = TRUE)
   if (!all(lengths(temp) == 4L))

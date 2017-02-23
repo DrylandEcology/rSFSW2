@@ -150,7 +150,7 @@ mpi_work <- function(verbose = FALSE) {
   Rmpi::mpi.send.Robj(junk, 0, 3)
 }
 
-#' Clean the parallel cluster used for a rSWSF simulation project
+#' Clean the parallel cluster used for a rSFSW2 simulation project
 #' @export
 clean_SWSF_cluster <- function(opt_parallel, verbose = FALSE) {
 
@@ -206,7 +206,7 @@ init_SWSF_cluster <- function(opt_parallel) {
 }
 
 
-#' Set-up a parallel cluster to be used for a rSWSF simulation project
+#' Set-up a parallel cluster to be used for a rSFSW2 simulation project
 #' @export
 setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
   if (verbose) {
@@ -241,7 +241,7 @@ setup_SWSF_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
 
-      Rmpi::mpi.bcast.cmd(require("rSWSF", quietly = TRUE))
+      Rmpi::mpi.bcast.cmd(require("rSFSW2", quietly = TRUE))
 
       mpi_last <- function(x) { #Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
@@ -281,7 +281,7 @@ print("here3a")
       parallel::clusterEvalQ(opt_parallel[["cl"]], print(ls(pos = 1)))
 print("here3b")
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSWSF", quietly = TRUE))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSFSW2", quietly = TRUE))
 print("here4")
     }
 
