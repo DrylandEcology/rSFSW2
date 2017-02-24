@@ -162,8 +162,8 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   dir.inmap <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")

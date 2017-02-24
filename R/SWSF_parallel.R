@@ -158,8 +158,8 @@ clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   if (opt_parallel[["has_parallel"]]) {
@@ -213,9 +213,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
-      opt_parallel[["workersN"]], " worker(s)")), add = TRUE)
+      opt_parallel[["workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
   }
 
   if (is.null(opt_parallel[["has_parallel"]]) && is.null(opt_parallel[["workersN"]])) {
@@ -241,10 +241,13 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
 
+      Rmpi::mpi.bcast.cmd(require("rSOILWAT2", quietly = TRUE))
       Rmpi::mpi.bcast.cmd(require("rSFSW2", quietly = TRUE))
 
-      mpi_last <- function(x) { #Properly end mpi slaves before quitting R (e.g., at a crash)
+      mpi_last <- function(x) {
+        # Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+
         if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
           if (Rmpi::mpi.comm.size(1) > 0)
             Rmpi::mpi.close.Rslaves()
@@ -259,30 +262,21 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       if (verbose)
         print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
 
-#      opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-#        outfile = if (verbose) "" else file.path(dir_out, paste0(format(Sys.time(),
-#        "%Y%m%d-%H%M"), "_olog_cluster.txt")))
       opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-        outfile = shQuote(file.path(dir_out, paste0(format(Sys.time(),
-        "%Y%m%d-%H%M"), "_olog_cluster.txt"))))
-print("here1")
+        outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
+        "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
       # pos = 1 assigns into globalenv() of the worker
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
         function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
+
+#TODO (drs): properly set up random numbers
       #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
-print("here2")
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], print(ls(all.names = TRUE)))
-print("here3a")
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], print(ls(pos = 1)))
-print("here3b")
-
+      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSOILWAT2", quietly = TRUE))
       parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSFSW2", quietly = TRUE))
-print("here4")
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {

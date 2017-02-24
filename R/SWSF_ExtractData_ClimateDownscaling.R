@@ -2049,7 +2049,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
 
     # extract the GCM data depending on parallel backend
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather))
+      Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
 
       i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2070,8 +2070,8 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       Rmpi::mpi.bcast.cmd(gc())
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-      parallel::clusterEvalQ(opt_parallel[["cl"]],
-        rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather))
+      parallel::clusterCall(opt_parallel[["cl"]],
+        fun = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
 
       i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,

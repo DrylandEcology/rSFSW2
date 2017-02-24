@@ -9,8 +9,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
 
@@ -499,8 +499,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   # Check if weather data was previously partially extracted
@@ -576,8 +576,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
 
@@ -749,19 +749,15 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 
     # set up parallel
     if (opt_parallel[["has_parallel"]]) {
-      obj2exp <- gather_objects_for_export(
-        varlist = c("load_NCEPCFSR_shlib", "cfsr_so", "dir_ex_cfsr"),
-        list_envs = list(local = environment(), parent = parent.frame(), global = globalenv()))
 
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-        export_objects_to_workers(obj2exp, "mpi")
-        Rmpi::mpi.bcast.cmd(load_NCEPCFSR_shlib(cfsr_so))
-        Rmpi::mpi.bcast.cmd(setwd(dir_ex_cfsr))
+        Rmpi::mpi.bcast.cmd(cmd = load_NCEPCFSR_shlib, cfsr_so = cfsr_so)
+        Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
 
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        export_objects_to_workers(obj2exp, "cluster", opt_parallel[["cl"]])
-        parallel::clusterEvalQ(opt_parallel[["cl"]], load_NCEPCFSR_shlib(cfsr_so))
-        parallel::clusterEvalQ(opt_parallel[["cl"]], setwd(dir_ex_cfsr))
+        parallel::clusterCall(opt_parallel[["cl"]], fun = load_NCEPCFSR_shlib,
+          cfsr_so = cfsr_so)
+        parallel::clusterCall(opt_parallel[["cl"]], fun = setwd, dir = dir_ex_cfsr)
       }
     }
 
@@ -936,8 +932,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
 
-    on.exit(print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")), add = TRUE)
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   # do the extractions

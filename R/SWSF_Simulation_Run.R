@@ -35,28 +35,36 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   i_sw_input_soils, i_sw_input_weather, i_sw_input_climscen, i_sw_input_climscen_values,
   SimParams) {
 
-#i_sim: a value of runIDs_total, i.e., index for each simulation run
-#i_xxx = the i_site-row of xxx for the i-th simulation run; if expN > 0 then these will eventually be repeated, and below replaced with experimental values
-#i_exp = the row of sw_input_experimentals for the i_sim-th simulation run
-#P_id is a unique id number for each scenario in each run
+  # i_sim =   a value of runIDs_total, i.e., index for each simulation run
+  # i_xxx =   the i_site-row of xxx for the i-th simulation run; if expN > 0 then these
+  #           will eventually be repeated, and below replaced with experimental values
+  # i_exp =   the row of sw_input_experimentals for the i_sim-th simulation run
+  # P_id  =   is a unique id number for each scenario in each run
 
   t.do_OneSite <- Sys.time()
-  list2env(as.list(SimParams), envir = environment())
 
-  if (opt_verbosity[["verbose"]])
-    print(paste0(i_sim, ": started at ", t.do_OneSite))
+  if (SimParams[["opt_verbosity"]][["verbose"]]) {
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t.do_OneSite,
+      " for runID = ", i_sim))
 
-  has_time_to_simulate <- (difftime(t.do_OneSite, t_job_start, units = "secs") +
-    opt_parallel[["opt_job_time"]][["one_sim_s"]]) < opt_parallel[["opt_job_time"]][["wall_time_s"]]
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended prematurely ",
+      "for simulation = ", i_sim)); cat("\n")}, add = TRUE)
+  }
+
+  temp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
+  temp <- temp + SimParams[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]
+  has_time_to_simulate <- temp < SimParams[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
   if (!has_time_to_simulate)
     stop("Not enough time to simulate ", i_sim)
 
+  list2env(as.list(SimParams), envir = environment())
+
   dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
     with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
-	flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
-	  flag = "0")
+  flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
+    flag = "0")
 
   if (opt_verbosity[["debug.dump.objects"]]) {
     print(paste0("'last.dump.do_OneSite_", i_sim, ".RData' will be produced if ",
@@ -73,7 +81,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         file = file.path(project_paths[["dir_prj"]], paste0("last.dump.do_OneSite_",
         i_sim, ".RData")))
       options(op_prev)
-    })
+    }, add = TRUE)
   }
 
 #-----------------------Check for experimentals
@@ -1476,13 +1484,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 		#prepare SQL result container
 		SQL <- SQLcurrent <- character(0)
+
     fid <- if (opt_parallel[["has_parallel"]]) {
         if (opt_parallel[["parallel_backend"]] == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (opt_parallel[["parallel_backend"]] == "cluster") {
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
-          get(opt_parallel[["worker_tag"]])
+          get(opt_parallel[["worker_tag"]], envir = globalenv())
         }
       } else {
         0L
@@ -4607,8 +4616,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (opt_verbosity[["verbose"]]) {
       n <- length(times) - 1
-      temp <- paste0(i_sim, ": ", i_label, " done in ", delta.do_OneSite, " ", units(delta.do_OneSite), ": ",
-                    round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
+      temp <- paste0("rSFSW2's ", shQuote(match.call()[1]), ": runID = ", i_sim, " / ",
+        i_label, " completed in ", delta.do_OneSite, " ", units(delta.do_OneSite), ". ",
+        "Simulation project is ", round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
 
       if (opt_verbosity[["print.eta"]]) {
         deta <- round(ceiling((sim_size[["runsN_job"]] - n) / opt_parallel[["workersN"]]) *
@@ -4621,7 +4631,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else {
             paste(round(pi95), "s")
           }
-        temp <- paste0(temp, ", ETA (mean plus/minus 95%-PI) = ",
+        temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
                       Sys.time() + deta[1], " +/- ", pi95)
       }
 
@@ -4629,7 +4639,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
   } else {
-    print(paste0(i_sim, ": ", i_label, " unsuccessful:"))
+    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": runID = ", i_sim, " / ",
+      i_label, " unsuccessful after ", delta.do_OneSite, " ", units(delta.do_OneSite),
+      " with status of tasks = "))
     print(unlist(sapply(tasks, table)))
   }
 
@@ -4643,23 +4655,31 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #' @export
 run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
-  i_sites <- it_site(sim_size[["runIDs_todo"]], sim_size[["runsN_master"]])
+  runs.completed <- 0
 
-  #ETA calculation
   if (MoreArgs[["opt_verbosity"]][["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1, " for ",
-      sim_size[["runsN_todo"]], " out of ", sim_size[["runsN_job"]], " runs on ",
-      opt_parallel[["workersN"]], " cores"))
+      MoreArgs[["sim_size"]][["runsN_todo"]], " out of ",
+      MoreArgs[["sim_size"]][["runsN_job"]], " runs on ",
+      MoreArgs[["opt_parallel"]][["workersN"]], " cores"))
+
+    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
+      " runs")); cat("\n")}, add = TRUE)
   }
 
-  if (opt_parallel[["has_parallel"]]) {
-    unlink(opt_parallel[["lockfile"]], recursive = TRUE)
+  i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],
+    MoreArgs[["sim_size"]][["runsN_master"]])
 
-    #--- call the simulations depending on parallel backend
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+  #--- call the simulations depending on parallel backend
+  if (MoreArgs[["opt_parallel"]][["has_parallel"]]) {
+    unlink(MoreArgs[["opt_parallel"]][["lockfile"]], recursive = TRUE)
 
-#      temp <- export_objects_to_workers(MoreArgs, "mpi")
+
+    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "mpi")) {
+
+#      temp <- export_objects_to_workers(obj2exp, "mpi")
 #      if (temp) { # Check success of export to MPI workers
 #        if (MoreArgs[["print.debug"]]) {
 #          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
@@ -4672,24 +4692,30 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 #        stop("Rmpi workers have insufficient data to execute jobs")
 #      }
 
-      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_setConnection(dbFilePath =
-        MoreArgs[["fnames_in"]][["fdbWeather"]]))
-      Rmpi::mpi.bcast.cmd(mpi_work(verbose = MoreArgs[["opt_verbosity"]][["print.debug"]]))
+      Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection,
+        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+      Rmpi::mpi.bcast.cmd(cmd = mpi_work,
+        verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
 
       junk <- 0L
       closed_slaves <- 0L
       runs.completed <- 1L
       #sTag <- c("Ready for task", "Done with Task", "Exiting")
-      while (closed_slaves < opt_parallel[["workersN"]]) {
-tryCatch({
-        if (MoreArgs[["print.debug"]]) {
+
+      while (closed_slaves < MoreArgs[["opt_parallel"]][["workersN"]]) {
+
+      tryCatch({
+
+        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
           print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
         }
+
         complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
         complete_info <- Rmpi::mpi.get.sourcetag()
         slave_id <- complete_info[1]
         tag <- complete_info[2]
-        if (MoreArgs[["print.debug"]]) {
+
+        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
           print(paste(Sys.time(),
                       ": master has received communication from slave", slave_id,
                       "with tag", tag,
@@ -4698,16 +4724,17 @@ tryCatch({
 
         if (tag == 1L) {
           has_time_to_simulate <- (difftime(Sys.time(), MoreArgs[["t_job_start"]], units = "secs") +
-            MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) < MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
+            MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) <
+            MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
           # slave is ready for a task. Give it the next task, or tell it tasks
           # are done if there are none.
-          if ((runs.completed <= sim_size[["runsN_todo"]]) && has_time_to_simulate) {
+          if ((runs.completed <= MoreArgs[["sim_size"]][["runsN_todo"]]) && has_time_to_simulate) {
             # Send a task, and then remove it from the task list
             i_site <- i_sites[runs.completed]
 
             dataForRun <- list(do_OneSite = TRUE,
-              i_sim = sim_size[["runIDs_todo"]][runs.completed],
+              i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
               i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
               i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
               i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],
@@ -4720,9 +4747,9 @@ tryCatch({
               i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
               SimParams = MoreArgs)
 
-            if (MoreArgs[["print.debug"]]) {
+            if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
               print(paste("Slave:", slave_id,
-                          "Run:", sim_size[["runIDs_todo"]][runs.completed],
+                          "Run:", MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
                           "started at", Sys.time()))
             }
             Rmpi::mpi.send.Robj(dataForRun, slave_id, 1)
@@ -4735,55 +4762,56 @@ tryCatch({
         } else if (tag == 2L) {
           # TODO: The message contains results: store result in a data structure
           temp <- complete$r
-          if (MoreArgs[["print.debug"]]) {
+          if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
             print(paste("Run:", complete, "at", Sys.time()))
           }
 
         } else if (tag == 3L) {
           # A slave has closed down.
           closed_slaves <- closed_slaves + 1L
-          if (MoreArgs[["print.debug"]]) {
+          if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
             print(paste("Slave:", slave_id, "closed at", Sys.time()))
           }
 
         } else if (tag == 4L) {
           #The slave had a problem with Soilwat record Slave number and the Run number.
           print("Problem with run:", complete, "on slave:", slave_id, "at", Sys.time())
-          ftemp <- file.path(project_paths[["dir_out"]], "ProblemRuns.csv")
+          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]], "ProblemRuns.csv")
           if (!file.exists(ftemp))
             cat("Slave,Run", file = ftemp, sep = "\n")
           cat(paste(slave_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
         }
 
-}, interrupt=function(interrupt) {
-  print("Ctrl-C caught bringing work to an end.")
-  print(interrupt)
-})
+      }, interrupt = function(interrupt) {
+        print("Ctrl-C caught bringing work to an end.")
+        print(interrupt)
+      })
       }
 
       Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
       Rmpi::mpi.bcast.cmd(rm(list = ls())) #do not remove 'ls(all=TRUE)' because there are important .XXX objects that are important for proper slave functioning!
       Rmpi::mpi.bcast.cmd(gc())
-      print(runs.completed)
     }
 
 
-    if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "cluster")) {
 
-#      export_objects_to_workers(MoreArgs, "cluster", opt_parallel[["cl"]])
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_setConnection(dbFilePath =
-        MoreArgs[["fnames_in"]][["fdbWeather"]]))
+      parallel::clusterCall(MoreArgs[["opt_parallel"]][["cl"]],
+        fun = rSOILWAT2::dbW_setConnection,
+        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
-# (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]], ...) to the workers. clusterLapplyLB does
-# not work because do_OneSite has two indices (i.e., i_sim and i_site). clusterMap
-# operates on elements (i.e., columns of data.frames); hence, I use split() to convert
-# the data.frames to lists where the elements correspond to the rows.
+# (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]],
+# ...) to the workers. clusterLapplyLB does not work because do_OneSite has two indices
+# (i.e., i_sim and i_site). clusterMap operates on elements (i.e., columns of data.frames);
+# hence, I use split() to convert the data.frames to lists where the elements correspond
+# to the rows.
 
-      temp_ids <- cbind(i_sim = sim_size[["runIDs_todo"]], i_site = i_sites)
-      temp_seqs <- seq_along(sim_size[["runIDs_todo"]])
+      temp_ids <- cbind(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]], i_site = i_sites)
+      temp_seqs <- seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]])
 
-      runs.completed <- parallel::clusterMap(opt_parallel[["cl"]], fun = do_OneSite,
+      runs.completed <- parallel::clusterMap(MoreArgs[["opt_parallel"]][["cl"]],
+        fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
         i_SWRunInformation = split(SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ], temp_seqs),
         i_sw_input_soillayers = split(SFSW2_prj_inputs[["sw_input_soillayers"]][temp_ids[, "i_site"], ], temp_seqs),
@@ -4800,39 +4828,37 @@ tryCatch({
 
       runs.completed <- sum(unlist(runs.completed))
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_disconnectConnection())
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
+      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]],
+        rSOILWAT2::dbW_disconnectConnection())
+      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], rm(list = ls()))
+      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], gc())
     }
 
   } else { #call the simulations in serial
 
     rSOILWAT2::dbW_setConnection(dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
 
-    runs.completed <- lapply(seq_along(sim_size[["runIDs_todo"]]), function(i_sim) {
-      i_site <- i_sites[i_sim]
-      do_OneSite(i_sim = sim_size[["runIDs_todo"]][i_sim],
-        i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
-        i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
-        i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],
-        i_sw_input_cloud = SFSW2_prj_inputs[["sw_input_cloud"]][i_site, ],
-        i_sw_input_prod = SFSW2_prj_inputs[["sw_input_prod"]][i_site, ],
-        i_sw_input_site = SFSW2_prj_inputs[["sw_input_site"]][i_site, ],
-        i_sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]][i_site, ],
-        i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
-        i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
-        i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
-        SimParams = MoreArgs)
-    })
+    runs.completed <- lapply(seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
+      function(i_sim) {
+        i_site <- i_sites[i_sim]
+        do_OneSite(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][i_sim],
+          i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
+          i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
+          i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],
+          i_sw_input_cloud = SFSW2_prj_inputs[["sw_input_cloud"]][i_site, ],
+          i_sw_input_prod = SFSW2_prj_inputs[["sw_input_prod"]][i_site, ],
+          i_sw_input_site = SFSW2_prj_inputs[["sw_input_site"]][i_site, ],
+          i_sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]][i_site, ],
+          i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
+          i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
+          i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
+          SimParams = MoreArgs)
+      }
+    )
     runs.completed <- sum(unlist(runs.completed))
 
     rSOILWAT2::dbW_disconnectConnection()
   }
-
-  if (MoreArgs[["opt_verbosity"]][["verbose"]])
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
-      " runs"))
 
   runs.completed
 }
