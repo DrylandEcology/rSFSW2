@@ -35,6 +35,6 @@ for(i in 1:length(years)) {
 	ydata <- read.csv(textConnection(data[i]),header=FALSE,sep=",",stringsAsFactors=FALSE)
 	ydata <- as.matrix(cbind(seq(from=1,to=dim(ydata)[1]),ydata))
 	colnames(ydata) <- c("DOY","Tmax_C","Tmin_C","PPT_cm")
-	weatherData[[i]] <- new("swWeatherData",year=years[i],data=ydata)
+	weatherData[[i]] <- methods::new("swWeatherData",year=years[i],data=ydata)
 }
 names(weatherData) <- years

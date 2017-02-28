@@ -672,10 +672,10 @@ if (exinfo$ExtractClimateChangeScenarios &&
     (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 	stopifnot(getCurrentWeatherDataFromDatabase, getScenarioWeatherDataFromDatabase)
 
-	Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-	dbW_iSiteTable <- Rsoilwat31::dbW_getSiteTable()
-	dbW_iScenarioTable <- Rsoilwat31::dbW_getScenariosTable()
-	dbW_compression_type <- Rsoilwat31:::dbW_compression()
+	rSOILWAT2::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+	dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+	dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
+	dbW_compression_type <- rSOILWAT2:::dbW_compression()
 
 	sctemp <- climate.conditions[!grepl(climate.ambient, climate.conditions)]
 	temp <- strsplit(sctemp, split = ".", fixed = TRUE)
@@ -1284,6 +1284,43 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
 	})
 
+  #'
+  #' Calculate Deltas, used for downscaling functionality
+
+	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
+
+	  # 1. Calculate mean monthly values in historic and future scenario values
+	  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+	  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+	  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
+
+	  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+	  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+
+	  # 2. Calculate deltas between observed historic and future mean scenario values
+	  #	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+	  #	- Multiplicative approach (Wang et al. 2014): PPT otherwise
+	  delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+	  delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
+	  ppt_fun <- rep("*", 12)
+
+	  # Deltas of monthly means
+	  delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
+	  delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
+	  delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
+	  temp_add <- obs.hist.mean_ppt < tol |
+	    delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
+	    delta_ppts > opt_DS[["PPTratioCutoff"]]
+	  if (any(temp_add)) {
+	    ppt_fun[temp_add] <- "+"
+	    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
+	  }
+	  delta_ts[, "PPT_cm"] <- delta_ppts
+
+	  list(delta_ts, ppt_fun)
+	  })
+
 	#' Downscale with the 'direct approach'
 	#'
 	#' See 'direct' approach in Lenderink et al. (2007)
@@ -1310,37 +1347,38 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		  obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
 		if (any(!tp$iuse_scen_fut_m))
 		  scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-
-		# 1. Calculate mean monthly values in historic and future scenario values
-		scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-		scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-		scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-
-		obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-		obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
-		obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
-
-		# 2. Calculate deltas between observed historic and future mean scenario values
-				#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
-				#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
-		delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
-		delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
-		ppt_fun <- rep("*", 12)
-
-		# Deltas of monthly means
-		delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
-		delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
-		delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-		temp_add <- obs.hist.mean_ppt < tol |
-		            delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
-		            delta_ppts > opt_DS[["PPTratioCutoff"]]
-		if (any(temp_add)) {
-			ppt_fun[temp_add] <- "+"
-			delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
-		}
-		delta_ts[, "PPT_cm"] <- delta_ppts
-
-
+    # moved to calcDeltas
+		# # 1. Calculate mean monthly values in historic and future scenario values
+		# scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+		# scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
+		# scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
+		#
+		# obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+		# obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
+		# obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
+		#
+		# # 2. Calculate deltas between observed historic and future mean scenario values
+		# 		#	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+		# 		#	- Multiplicative approach (Wang et al. 2014): PPT otherwise
+		# delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+		# delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
+		# ppt_fun <- rep("*", 12)
+		#
+		# # Deltas of monthly means
+		# delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
+		# delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
+		# delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
+		# temp_add <- obs.hist.mean_ppt < tol |
+		#             delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
+		#             delta_ppts > opt_DS[["PPTratioCutoff"]]
+		# if (any(temp_add)) {
+		# 	ppt_fun[temp_add] <- "+"
+		# 	delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
+		# }
+		# delta_ts[, "PPT_cm"] <- delta_ppts
+    delta_ts <- calcDeltas(obs.hist.monthly, scen.fut.monthly)
+    ppt_fun <- delta_ts[[2]]
+    delta_ts <- delta_ts[[1]]
 		# 3. Apply deltas to historic daily weather
 		applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
 				years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
@@ -1797,7 +1835,137 @@ if (exinfo$ExtractClimateChangeScenarios &&
   })
 
 
+  downscale.wgen_package <- compiler::cmpfun(function(
+                obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+                deltaFuture_yr, years = NULL,
+                DScur_startyear = NULL, DScur_endyear = NULL,
+                DSfut_startyear = NULL, DSfut_endyear = NULL,
+                opt_DS = list(
+                  extrapol_type = "linear_Thermessl2012CC.QMv1b",
+                  ppt_type = "detailed",
+                  sigmaN = 6,
+                  PPTratioCutoff = 10,
+                  fix_spline = "attempt"),
+                dailyPPTceiling, monthly_extremes,
+                do_checks = TRUE, ...){
+    if (!be.quiet) print(paste("downscale.wgen_package start(deltaFuture_yr =", deltaFuture_yr, "years", years, "DScur_startyear", DScur_startyear,"DScur_endyear", DScur_endyear, "DSfut_startyear", DSfut_startyear,
+                               "DSfut_endyear", DSfut_endyear, sep = " "))
 
+    require("zoo")
+    require("weathergen")
+    require("dplyr")
+    library("lubridate")
+    #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep=".")), "id"]
+    # Time periods
+    tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
+                            scen.fut.monthly, years, DScur_startyear, DScur_endyear,
+                            DSfut_startyear, DSfut_endyear)
+    if (any(!tp$iuse_obs_hist_d))
+      obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
+    if (any(!tp$iuse_obs_hist_m))
+      obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
+    if (any(!tp$iuse_scen_fut_m))
+      scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+
+    day_data <- dbW_weatherData_to_dataframe(obs.hist.daily)
+
+    dates <- as.Date(day_data[,'DOY'] -1 , origin = paste(day_data[,'Year'], "01","01", sep = "-"))
+
+    day_data <- data.frame(WYEAR = wyear(dates),
+                           MONTH = format(dates, "%m"),
+                           DATE  = dates,
+                           PRCP  = day_data[,'PPT_cm'],
+                           TEMP  = (day_data[,'Tmin_C'] + day_data[,'Tmax_C']) / 2,
+                           TMIN  = day_data[,'Tmin_C'],
+                           TMAX  = day_data[,'Tmax_C'],
+                           WIND  = NA)
+
+    # get water years, oct 1st to sep 30th... used if start_month should be 10
+    #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m" ))==10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m" ))==9)),]
+    start_month <- as.numeric(format(min(day_data$DATE), "%m" ))
+
+    climwyear <- group_by(day_data, WYEAR=wyear(DATE, start_month = start_month)) %>%
+      summarise(N    = n(),
+                PRCP = sum(PRCP),
+                TMAX = mean(TMAX),
+                TMIN = mean(TMIN),
+                TEMP = mean(TEMP))
+    complete_years <- climwyear$WYEAR[which(climwyear$N>=365)]
+
+    wyear_list <- list(day_data$WYEAR)
+    wyr_data <- data.frame(WYEAR =  complete_years,
+                           PRCP  =  climwyear$PRCP[which(climwyear$N>=365)],
+                           TEMP  =  climwyear$TEMP[which(climwyear$N>=365)],
+                           TMIN  =  climwyear$TMIN[which(climwyear$N>=365)],
+                           TMAX  =  climwyear$TMAX[which(climwyear$N>=365)],
+                           WIND  =  NA
+    )
+
+    obs_dat <- list(day=day_data, wyr=wyr_data)
+    zoo_day <- zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
+                   order.by = obs_dat[['day']][['DATE']])
+    start_yr <- as.integer(format(dates[1],"%Y")) ##
+    end_yr <- as.integer(format(max(dates),"%Y"))
+
+    dry_wet_threshold <- 0.3
+    wet_extreme_threshold <- 0.8
+    # read additional parameters, if provided
+    if (hasArg("add_params"))
+    {
+      additional <- list(...)
+      if (!is.null(additional[["add_params"]]$wgen_dry_spell_changes))
+      {  dry_spell_changes <- additional[["add_params"]]$wgen_dry_spell_changes
+      } else dry_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_wet_spell_changes))
+      {  wet_spell_changes <- additional[["add_params"]]$wgen_wet_spell_changes
+      } else wet_spell_changes <- 1 # can be one value or a vector of 12
+
+      if (!is.null(additional[["add_params"]]$wgen_prcp_cv_changes))
+      {  prcp_cv_changes <- additional[["add_params"]]$wgen_prcp_cv_changes
+      } else prcp_cv_changes <- 1 # can be one value or a vector of 12
+    } else {
+      dry_spell_changes <- 1
+      wet_spell_changes <- 1
+      prcp_cv_changes <- 1
+    }
+
+    changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly)[[1]]
+
+    prcp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"PPT_cm"]) )
+
+    temp_mean_changes <- sapply(seq(12), FUN = function(x)  mean(changes[ changes[,"Month"]==x,"Tmax_C"] + changes[ changes[,"Month"]==x,"Tmin_C"]))
+
+    # set.seed(1) # for testing
+    if (!be.quiet) print(paste("calling wgen_daily(zoo_day, n_year=",end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
+                               ",start_water_year=",start_yr,",start_month =",start_month,"dry_wet_threshold = ", dry_wet_threshold,
+                               "wet_extreme_threshold = ",wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes,"wet_spell_changes = ",
+                               wet_spell_changes,"prcp_mean_changes = ",prcp_mean_changes,"prcp_cv_changes = ",prcp_cv_changes, "temp_mean_changes = ",temp_mean_changes, ")"))
+
+    # consider setting more parameters
+    # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
+    scen.fut.daily <- weathergen::wgen_daily(zoo_day,
+                                             n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
+                                             start_water_year = start_yr, #DScur_startyear,
+                                             start_month = start_month,
+                                             dry_wet_threshold=dry_wet_threshold,
+                                             wet_extreme_quantile_threshold=wet_extreme_threshold,
+                                             include_leap_days = TRUE,
+                                             dry_spell_changes=dry_spell_changes, wet_spell_changes=wet_spell_changes,
+                                             prcp_mean_changes=prcp_mean_changes, prcp_cv_changes=1, temp_mean_changes=temp_mean_changes
+                                             )
+
+    scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE,"%Y"),
+                                 DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format="%Y-%m-%d")$yday+1,
+                                 Tmax_C = scen.fut.daily$out$TMAX,
+                                 Tmin_C = scen.fut.daily$out$TMIN,
+                                 PPT_cm = scen.fut.daily$out$PRCP)
+
+    # year start back to 1/1, probably only needed when setting start_month != 1
+    # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
+    scen.fut.daily <- dbW_dataframe_to_weatherData(scen.fut.daily, round=FALSE)
+    scen.fut.daily
+  })
 	#-------DB access functions
 
   #' Converts precipitation data to values in cm / month
@@ -2298,7 +2466,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
       print(paste0(i, "-th extraction: observed historic daily weather from weather DB: ",
             simstartyr, "-", endyr))
 
-    obs.hist.daily <- Rsoilwat31::dbW_getWeatherData(Site_id = site_id,
+    obs.hist.daily <- rSOILWAT2::dbW_getWeatherData(Site_id = site_id,
       startYear = simstartyr, endYear = endyr, Scenario = climate.ambient)
 
     if (obs.hist.daily[[1]]@year < 1950) { #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't make sense to me
@@ -2379,7 +2547,17 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
           dm_fun <- switch(dm, raw = downscale.raw, delta = downscale.delta,
             `hybrid-delta` = downscale.deltahybrid,
-            `hybrid-delta-3mod` = downscale.deltahybrid3mod, stop)
+            `hybrid-delta-3mod` = downscale.deltahybrid3mod,
+            `wgen-package` = downscale.wgen_package, stop)
+
+          # a list of additional parameters for downscaling
+          dm_add_params <- switch(dm, raw = NULL, delta = NULL,
+                                  `hybrid-delta` = NULL,
+                                  `hybrid-delta-3mod` = NULL,
+                                  `wgen-package` = list(wgen_dry_spell_changes = { if ("wgen_dry_spell_changes" %in% colnames(locations)) {locations[il,"wgen_dry_spell_changes"]} else {1}},
+                                                        wgen_wet_spell_changes = { if ("wgen_wet_spell_changes" %in% colnames(locations)) {locations[il,"wgen_wet_spell_changes"]} else {1}},
+                                                        wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}),
+                                   stop)
 
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
@@ -2391,7 +2569,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
               DSfut_endyear = future_yrs[it, "DSfut_endyr"],
               opt_DS = opt_DS,
               dailyPPTceiling = dailyPPTceiling, monthly_extremes = monthly_extremes,
-              do_checks = do_checks))
+              do_checks = do_checks, add_params = dm_add_params))
 
             if (!inherits(scen.fut.daily, "try-error")) {
               if (!do_checks)
@@ -2478,7 +2656,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	#' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
 	#'
 	#' This function assumes that a whole bunch of global variables exist and contain appropriate values.
-	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears, assocYears) {
+	tryToGet_ClimDB <- compiler::cmpfun(function(is_ToDo, list.export, clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears, assocYears, cl = NULL) {
 		#requests is_ToDo: fastest if nc file is
 		#	- DONE: permutated to (lat, lon, time) instead (time, lat, lon)
 		#	- TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
@@ -2487,15 +2665,16 @@ if (exinfo$ExtractClimateChangeScenarios &&
 		if (parallel_runs && parallel_init) {
 			is_ToDo <- sample(x=is_ToDo, size=length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
+      obj2exp <- gather_objects_for_export(varlist = list.export,
+        list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+
 			# extract the GCM data depending on parallel backend
 			if (identical(parallel_backend, "mpi")) {
-        export_objects_to_workers(list.export,
-          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-          "mpi")
-				Rmpi::mpi.bcast.cmd(library("Rsoilwat31", quietly=TRUE))
-				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+        export_objects_to_workers(obj2exp, "mpi")
+				Rmpi::mpi.bcast.cmd(library("rSOILWAT2", quietly=TRUE))
+				Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2510,19 +2689,17 @@ if (exinfo$ExtractClimateChangeScenarios &&
 						dir.out.temp = dir.out.temp,
 						be.quiet = be.quiet, print.debug = print.debug)
 
-				Rmpi::mpi.bcast.cmd(Rsoilwat31::dbW_disconnectConnection())
+				Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
 				Rmpi::mpi.bcast.cmd(rm(list=ls()))
 				Rmpi::mpi.bcast.cmd(gc())
 
-			} else if (identical(parallel_backend, "snow")) {
-        export_objects_to_workers(list.export,
-          list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-          "snow", cl)
+			} else if (identical(parallel_backend, "cluster")) {
+        export_objects_to_workers(obj2exp, "cluster", cl)
 
-				snow::clusterEvalQ(cl, library("Rsoilwat31", quietly=TRUE))
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile))
+				parallel::clusterEvalQ(cl, library("rSOILWAT2", quietly=TRUE))
+				parallel::clusterEvalQ(cl, rSOILWAT2::dbW_setConnection(dbFilePath=dbWeatherDataFile))
 
-				i_Done <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
+				i_Done <- parallel::clusterApplyLB(cl, x = is_ToDo, fun = try.ScenarioWeather,
 						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
 						climDB_meta = climDB_meta, climDB_files = climDB_files,
 						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
@@ -2537,58 +2714,44 @@ if (exinfo$ExtractClimateChangeScenarios &&
 						dir.out.temp = dir.out.temp,
 						be.quiet = be.quiet, print.debug = print.debug)
 
-				snow::clusterEvalQ(cl, Rsoilwat31::dbW_disconnectConnection())
-				snow::clusterEvalQ(cl, rm(list=ls()))
-				snow::clusterEvalQ(cl, gc())
+				parallel::clusterEvalQ(cl, rSOILWAT2::dbW_disconnectConnection())
+				parallel::clusterEvalQ(cl, rm(list=ls()))
+				parallel::clusterEvalQ(cl, gc())
 
-			} else if (identical(parallel_backend, "multicore")) {
-				packages.export <- "Rsoilwat31"
-				i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar% {
-					Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-					temp <- try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-					Rsoilwat31::dbW_disconnectConnection()
-					return(temp)
-				}
 			} else {
 				i_Done <- NULL
 			}
 
-		} else {
-			Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
-			i_Done <- foreach(i=is_ToDo, .combine="c", .errorhandling="remove", .inorder=FALSE) %do% try.ScenarioWeather(i,
-						clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
-						climDB_meta = climDB_meta, climDB_files = climDB_files,
-						reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-						climate.ambient = climate.ambient,
-						locations = locations,
-						dbW_iSiteTable = dbW_iSiteTable,
-						compression_type = dbW_compression_type,
-						getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
-						simstartyr = simstartyr, endyr = endyr,
-						DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
-						opt_DS = opt_DS,
-						dir.out.temp = dir.out.temp,
-						be.quiet = be.quiet, print.debug = print.debug)
-			Rsoilwat31::dbW_disconnectConnection()
-		}
+    } else {
+      rSOILWAT2::dbW_setConnection(dbFilePath = dbWeatherDataFile)
+
+      i_Done <- lapply(is_ToDo, FUN = try.ScenarioWeather,
+        clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
+        climDB_meta = climDB_meta, climDB_files = climDB_files,
+        reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+        reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        climate.ambient = climate.ambient,
+        locations = locations,
+        dbW_iSiteTable = dbW_iSiteTable,
+        compression_type = dbW_compression_type,
+        getYears = getYears, assocYears = assocYears, future_yrs = future_yrs,
+        simstartyr = simstartyr, endyr = endyr,
+        DScur_startyr = DScur_startyr, DScur_endyr = DScur_endyr,
+        opt_DS = opt_DS,
+        dir.out.temp = dir.out.temp,
+        be.quiet = be.quiet, print.debug = print.debug)
+      i_Done <- do.call(c, i_Done)
+
+      rSOILWAT2::dbW_disconnectConnection()
+    }
 
 
 
-		if (!be.quiet) print(paste("Started adding temporary files into database '", clim_source, "' at", Sys.time()))
-		Rsoilwat31::dbW_setConnection(dbFilePath=dbWeatherDataFile)
+		if (!be.quiet)
+		  print(paste("Started adding temporary files into database '", clim_source,
+		  "' at", Sys.time()))
+
+		rSOILWAT2::dbW_setConnection(dbFilePath=dbWeatherDataFile)
 		temp.files <- list.files(path=dir.out.temp, pattern=clim_source, recursive=TRUE, include.dirs=FALSE, no..=TRUE)
 		if (length(temp.files) > 0) {
 			for (k in seq_along(temp.files)) {
@@ -2597,7 +2760,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 				for (j in seq_along(wdataOut)) {
 					for (l in seq_along(wdataOut[[j]])) {
-						res <- try(Rsoilwat31:::dbW_addWeatherDataNoCheck(
+						res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
 									Site_id = 		wdataOut[[j]][[l]]$Site_id,
 									Scenario_id =	wdataOut[[j]][[l]]$Scenario_id,
 									StartYear = 	wdataOut[[j]][[l]]$StartYear,
@@ -2616,7 +2779,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 				if (!inherits(res, "try-error")) unlink(ftemp)
 			}
 		}
-		Rsoilwat31::dbW_disconnectConnection()
+		rSOILWAT2::dbW_disconnectConnection()
 
 		sort(unlist(i_Done))
 	})
@@ -2632,8 +2795,11 @@ if (exinfo$ExtractClimateChangeScenarios &&
     (any(exinfo$which_NEX) || any(exinfo$which_netCDF))) {
 
 	#access climate change data
-	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta) {
-		if (!be.quiet) print(paste0("Started", shQuote(clim_source), "at ", Sys.time()))
+	get_climatechange_data <- compiler::cmpfun(function(clim_source, is_netCDF, is_NEX,
+	  do_SWRun_sites, include_YN_climscen, climDB_meta, cl = NULL) {
+
+		if (!be.quiet)
+		  print(paste("Started", shQuote(clim_source), "at", Sys.time()))
 
 		#Global flags
 		repeatExtractionLoops_maxN <- 3
@@ -2724,8 +2890,12 @@ if (exinfo$ExtractClimateChangeScenarios &&
     stopifnot(length(reqRCPs) > 0, all(!is.na(reqRCPs)),
               any(grepl("historic", climDB_struct[["id_scen"]], ignore.case = TRUE)))
 
-		#put requests together
-		locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
+    #put requests together
+    locations <- SWRunInformation[do_SWRun_sites, c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")]	#locations of simulation runs
+    if (any("wgen-package" %in% unlist(reqDownscalingsPerGCM))) {
+      locations <- cbind(locations, sw_input_treatments[, c("wgen_dry_spell_changes",
+        "wgen_wet_spell_changes", "wgen_prcp_cv_changes")])
+    }
 		requestN <- length(reqGCMs) * nrow(locations)
 		if (!be.quiet) print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
@@ -2830,7 +3000,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 
 			out <- tryToGet_ClimDB(is_ToDo = i_ToDo, list.export = list.export,
 				clim_source, is_netCDF, is_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
-				reqDownscalingsPerGCM, locations, getYears, assocYears)
+				reqDownscalingsPerGCM, locations, getYears, assocYears, cl)
 
 			i_Done <- sort(unique(c(i_Done, out)))
 			saveRDS(i_Done, file = logFile)
@@ -2882,7 +3052,8 @@ if (exinfo$ExtractClimateChangeScenarios &&
                   is_NEX = grepl("NEX", clim_source),
                   do_SWRun_sites = do_SWRun_sites,
                   include_YN_climscen = include_YN_climscen,
-                  climDB_meta = climDB_metas[[clim_source]])
+                  climDB_meta = climDB_metas[[clim_source]],
+                  cl = cl)
   }
 
 	SWRunInformation$Include_YN_ClimateScenarioSources <- include_YN_climscen
@@ -3212,7 +3383,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 								has_nodata(sw_input_soils[runIDs_sites, ], "Matricd_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "GravelContent_L") |
 								has_nodata(sw_input_soils[runIDs_sites, ], "Sand_L") |
-								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L"))
+								has_nodata(sw_input_soils[runIDs_sites, ], "Clay_L") |
+                has_nodata(sw_input_soils[runIDs_sites, ], "TOC_GperKG_L"))
 		}
 
 		if (any(do_extract[[2]])) {
@@ -3280,47 +3452,45 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				if (parallel_runs && parallel_init) {
 					#objects that need exporting to slaves
-					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise", "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
+					list.export <- c("grid_wise", "run_sites_wise", "cell_res_wise",
+					  "reaggregate_raster", "extract_blocks", "add_weights", "print.debug")
+          obj2exp <- gather_objects_for_export(varlist = list.export,
+            list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
+
 
 					#call the simulations depending on parallel backend
 					if (identical(parallel_backend, "mpi")) {
-            export_objects_to_workers(list.export,
-              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-              "mpi")
+            export_objects_to_workers(obj2exp, "mpi")
 						Rmpi::mpi.bcast.cmd(library(raster, quietly=TRUE))
 
-						sim_cells_SUIDs <- Rmpi::mpi.applyLB(x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+						sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = extract_SUIDs,
+						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 
 						Rmpi::mpi.bcast.cmd(rm(list=ls()))
 						Rmpi::mpi.bcast.cmd(gc())
 
-					} else if (identical(parallel_backend, "snow")) {
-            export_objects_to_workers(list.export,
-              list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-              "snow", cl)
-						snow::clusterEvalQ(cl, library(raster, quietly = TRUE))
+					} else if (identical(parallel_backend, "cluster")) {
+            export_objects_to_workers(obj2exp, "cluster", cl)
+						parallel::clusterEvalQ(cl, library(raster, quietly = TRUE))
 
-						sim_cells_SUIDs <- snow::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-						sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+						sim_cells_SUIDs <- parallel::clusterApplyLB(cl, x=is_ToDo, fun=extract_SUIDs,
+						  res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 
-						snow::clusterEvalQ(cl, rm(list=ls()))
-						snow::clusterEvalQ(cl, gc())
+						parallel::clusterEvalQ(cl, rm(list=ls()))
+						parallel::clusterEvalQ(cl, gc())
 
-					} else if (identical(parallel_backend, "multicore")) {
-						packages.export <- "raster"
-						sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE, .export=list.export, .packages=packages.export) %dopar%
-							extract_SUIDs(i, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
 					} else {
 						sim_cells_SUIDs <- NULL
 					}
-				} else {
-					sim_cells_SUIDs <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-						extract_SUIDs(i, res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
-				}
+
+        } else {
+          sim_cells_SUIDs <- lapply(is_ToDo, FUN = extract_SUIDs, res = cell_res_wise,
+            grid = grid_wise, sp_sites = run_sites_wise)
+        }
 			}
 			rm(grid_wise)
 
+      sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
 			sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[,"i"])),]
 
 			#- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
@@ -3343,12 +3513,15 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 			})
 
-			template_simulationSoils <- rep(NA, times = 2 + 4 * layer_Nsim)
-			names(template_simulationSoils) <- c("i", "soildepth", paste0(rep(c("bulk", "sand", "clay", "cfrag"), times=layer_Nsim), "_L", rep(1:layer_Nsim, each=4)))
+      nextract <- 5L
+      template_simulationSoils <- rep(NA, times = 2 + nextract * layer_Nsim)
+      names(template_simulationSoils) <- c("i", "soildepth",
+        paste0(rep(c("bulk", "sand", "clay", "cfrag", "TOC"), times = layer_Nsim),
+        "_L", rep(seq_len(layer_Nsim), each = nextract)))
 			template_simulationSoils["soildepth"] <- 0
 
 			#cells with no soil values have SUID=c(0=Water, 6997=Water, 6694=Rock, or 6998=Glacier)
-			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise) {
+			calc_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise, nextract) {
 				#Init
 				simulationSoils["i"] <- i
 				simulation_frac <- 0	#fraction of how much this simulation cell is covered with suids and prids that have a soildepth > 0 cm
@@ -3358,7 +3531,8 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 
 				#Do calculations if any soils in this simulation cell
 				if (i_sim_cells_SUIDs$SUIDs_N > 0) {
-					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID, FUN = get_prids, dat_wise = dat_wise))))
+					this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
+						FUN = get_prids, dat_wise = dat_wise))))
 
 					for (is in seq_len(this_simCell$SUIDs_N)) {	#loop through the suids within this simulation cell; each suid may be composed of several prids
 						prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]	#vector of the fractions of each prid in relation to the simulation cell
@@ -3390,81 +3564,85 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 									dat = simulationSoils[paste0("cfrag_L", ils)],
 									soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
 									frac = pfracl)	# coarse fragments (vol % > 2 mm)
+                simulationSoils[paste0("TOC_L", ils)] <- get_SoilDatValuesForLayer(
+                  dat = simulationSoils[paste0("TOC_L", ils)],
+                  soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
+                  frac = pfracl)	# total organic carbon content (g C / kg)
 							}
 						}
 					}
 
 					#Adjust values for area present
-					simulationSoils <- simulationSoils / c(1, simulation_frac, rep(simulation_layer_frac, each = 4))
+					simulationSoils <- simulationSoils /
+					  c(1, simulation_frac, rep(simulation_layer_frac, each = nextract))
 				}
 
 				simulationSoils
 			})
 
 
-			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise) {
+			try_weightedMeanForSimulationCell <- compiler::cmpfun(function(i, sim_cells_SUIDs, template_simulationSoils, layer_N, layer_Nsim, layer_TopDep, dat_wise = dat_wise, nextract) {
 				if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
 				temp <- try(calc_weightedMeanForSimulationCell(i,
 							i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
 							simulationSoils = template_simulationSoils,
 							layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-							dat_wise = dat_wise))
+							dat_wise = dat_wise,
+							nextract = nextract))
 				if (inherits(temp, "try-error")) template_simulationSoils else temp
 			})
 
 			if (parallel_runs && parallel_init) {
 				#objects that need exporting to slaves
-				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N", "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell", "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
+				list.export <- c("get_prids", "dat_wise", "layer_TopDep", "layer_N",
+				  "get_SoilDatValuesForLayer", "layer_Nsim", "calc_weightedMeanForSimulationCell",
+				  "try_weightedMeanForSimulationCell", "template_simulationSoils", "sim_cells_SUIDs")
+        obj2exp <- gather_objects_for_export(varlist = list.export,
+          list_envs = list(local = environment(), parent = parent.frame(), global = .GlobalEnv))
 
 				#call the simulations depending on parallel backend
 				if (identical(parallel_backend, "mpi")) {
-          export_objects_to_workers(list.export,
-            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-            "mpi")
+          export_objects_to_workers(obj2exp, "mpi")
 
-					sim_cells_soils <- Rmpi::mpi.applyLB(x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- Rmpi::mpi.applyLB(X = is_ToDo,
+					  FUN = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
+						dat_wise = dat_wise,
+						nextract = nextract)
 
 					Rmpi::mpi.bcast.cmd(rm(list=ls()))
 					Rmpi::mpi.bcast.cmd(gc())
 
-				} else if (identical(parallel_backend, "snow")) {
-          export_objects_to_workers(list.export,
-            list(local = environment(), parent = parent.frame(), global = .GlobalEnv),
-            "snow", cl)
+				} else if (identical(parallel_backend, "cluster")) {
+          export_objects_to_workers(obj2exp, "cluster", cl)
 
-					sim_cells_soils <- snow::clusterApplyLB(cl, x = is_ToDo, fun = try_weightedMeanForSimulationCell,
+					sim_cells_soils <- parallel::clusterApplyLB(cl, x = is_ToDo,
+					  fun = try_weightedMeanForSimulationCell,
 						sim_cells_SUIDs = sim_cells_SUIDs,
 						template_simulationSoils = template_simulationSoils,
 						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
-					sim_cells_soils <- do.call(rbind, sim_cells_soils)
+						dat_wise = dat_wise,
+						nextract = nextract)
 
-					snow::clusterEvalQ(cl, rm(list=ls()))
-					snow::clusterEvalQ(cl, gc())
+					parallel::clusterEvalQ(cl, rm(list=ls()))
+					parallel::clusterEvalQ(cl, gc())
 
-				} else if (identical(parallel_backend, "multicore")) {
-					sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE, .export=list.export) %dopar%
-						try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
 				}
 
 			} else {
-				sim_cells_soils <- foreach(i=is_ToDo, .combine="rbind", .inorder=FALSE) %do%
-					try_weightedMeanForSimulationCell(i, sim_cells_SUIDs = sim_cells_SUIDs,
-						template_simulationSoils = template_simulationSoils,
-						layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
-						dat_wise = dat_wise)
+        sim_cells_soils <- lapply(is_ToDo, FUN = try_weightedMeanForSimulationCell,
+          sim_cells_SUIDs = sim_cells_SUIDs,
+          template_simulationSoils = template_simulationSoils,
+          layer_N = layer_N, layer_Nsim = layer_Nsim, layer_TopDep = layer_TopDep,
+          dat_wise = dat_wise,
+          nextract = nextract)
 			}
 			rm(dat_wise)
 
+      sim_cells_soils <- do.call(rbind, sim_cells_soils)
 			sim_cells_soils <- sim_cells_soils[order(sim_cells_soils[, "i"]), ]
 
 			if (FALSE) {#visualize in interactive sessions
@@ -3491,7 +3669,6 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				i_Done[which(do_extract[[2]])[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
 				sites_externalsoils_source[i_Done] <- "ISRICWISEv12_Global"
-
 				#set and save soil layer structure
 				lys <- seq_len(layer_Nsim)
 				sw_input_soillayers[runIDs_sites[i_Done], "SoilDepth_cm"] <- round(sim_cells_soils[i_good, "soildepth"])
@@ -3519,6 +3696,10 @@ if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA || exinfo$ExtractSoilData
 				sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("clay_L", lys)]) / 100
 				sw_input_soils_use[i.temp[lys]] <- TRUE
 				sw_input_soils_use[i.temp[-lys]] <- FALSE
+        i.temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
+        sw_input_soils[runIDs_sites[i_Done], i.temp[lys]] <- round(sim_cells_soils[i_good, paste0("TOC_L", lys)], 2)
+        sw_input_soils_use[i.temp[lys]] <- TRUE
+        sw_input_soils_use[i.temp[-lys]] <- FALSE
 
 				#write data to datafile.soils
 				write.csv(reconstitute_inputfile(sw_input_soils_use, sw_input_soils),
@@ -3973,8 +4154,7 @@ if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA || exinfo$ExtractSkyDataFromNC
 							cfsr_so = prepd_CFSR$cfsr_so,
 							n_site_per_core = chunk_size.options[["ExtractSkyDataFromNCEPCFSR_Global"]],
               do_parallel = parallel_runs && parallel_init,
-							parallel_backend = parallel_backend,
-							cl = if (identical(parallel_backend, "snow")) cl else NULL,
+							parallel_backend = parallel_backend, cl = cl,
 							rm_mc_files = TRUE,
               continueAfterAbort = continueAfterAbort))
 			if (inherits(temp, "try-error")) stop(temp)

@@ -1,7 +1,10 @@
 # History files
 .Rhistory
+R/*.RData
+R/*.rda
 # Mac OS X crap
 .DS_Store
 
 # Example code in package build process
 *-Ex.R
+inst/doc
