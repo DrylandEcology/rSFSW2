@@ -1,15 +1,15 @@
-Package: rSWSF
+Package: rSFSW2
 Title: SOILWAT Simulation Framework
-Version: 1.12.0
-Date: 2017-01-23
+Version: 1.12.1
+Date: 2017-02-23
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
-Description: An R wrapper for simulation experiments with SOILWAT
+Description: An R wrapper for simulation experiments with SOILWAT2
 Depends:
     R (>= 3.3.0)
 Imports:
-    Rsoilwat31 (>= 1.2.2),
+    rSOILWAT2 (>= 1.2.5),
     RSQLite (>= 1.0.0),
     DBI (>= 0.5),
     circular (>= 0.4.7),
@@ -37,7 +37,7 @@ LinkingTo: Rcpp
 LazyData: true
 ByteCompile: true
 License: GPL (>= 3)
-URL: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper
-BugReports: https://github.com/Burke-Lauenroth-Lab/SoilWat_R_Wrapper/issues
+URL: https://github.com/Burke-Lauenroth-Lab/rSFSW2
+BugReports: https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues
 RoxygenNote: 5.0.1
 VignetteBuilder: knitr

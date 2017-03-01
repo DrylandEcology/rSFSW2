@@ -346,7 +346,7 @@ sw_dailyC4_TempVar <- compiler::cmpfun(function(dailyTempMin, dailyTempMean, sim
 })
 
 sw_SiteClimate_Ambient <- compiler::cmpfun(function(weatherList, year.start, year.end, do.C4vars = FALSE, simTime2 = NULL) {
-  x <- Rsoilwat31::dbW_weatherData_to_dataframe(weatherList)
+  x <- rSOILWAT2::dbW_weatherData_to_dataframe(weatherList)
 
   # Trim to years
   years <- as.numeric(unlist(lapply(weatherList, function(x) x@year)))

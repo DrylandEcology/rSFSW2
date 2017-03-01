@@ -1301,9 +1301,9 @@ check_outputDB_completeness <- function(name.OutputDB, name.OutputDBCurrent = NU
 			}
 			#write to the database
 			RSQLite::dbBegin(con_dbOut)
-			RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO simulation_years",
-			  "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);",
-			  bind.data = data.frame(unique_simulation_years)))
+      RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO simulation_years",
+                                                "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear);"),
+                               bind.data = data.frame(unique_simulation_years))
 			RSQLite::dbCommit(con_dbOut)
 
 		} else {#Treatment option for simulation Years is turned off. Get the default one from settings.

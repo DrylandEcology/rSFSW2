@@ -50,6 +50,7 @@ num_cores <- 2
 parallel_backend <- "cluster" # "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
 parallel_runs <- !interactive()
 
+
 #------Computation time requests------#
 # These limits are only enforced if parallel_backend == "mpi"
 opt_comp_time <- list(
