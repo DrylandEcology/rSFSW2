@@ -2102,7 +2102,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 							}
 
 						} else {
-						  print(paste0("runID = ", i_sim, "(", i_label, "): package 'SPEI' missing"
+						  print(paste0("runID = ", i_sim, "(", i_label, "): package 'SPEI' missing",
 						    "or simulation period shorter than ", binSPEI_m[iscale], " months. ",
 						    "'monthlySPEIEvents' are not calculated."))
 						}

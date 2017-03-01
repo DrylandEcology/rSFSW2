@@ -302,65 +302,78 @@ ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
   sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 }
 
-ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i,
-  i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
+ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
+  sim_soils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
 
   #Init
-  simulationSoils["i"] <- i
-  simulation_frac <- 0  #fraction of how much this simulation cell is covered with suids and prids that have a depth > 0 cm
-  simulation_layer_frac <- rep(0, times = layer_Nsim) #fraction of each soil layer covering this simulation cell
+  sim_soils["i"] <- i
+  sim_frac <- 0  #fraction of how much this simulation cell is covered with suids and prids that have a depth > 0 cm
+  simlyr_frac <- rep(0, times = layer_Nsim) #fraction of each soil layer covering this simulation cell
   PRIDs_N <- 0
   PRIDs <- PRIDs_frac <- NULL
 
   #Do calculations if any soils in this simulation cell
-  if (i_sim_cells_SUIDs$SUIDs_N > 0) {
-    this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
-      FUN = ISRICWISE12_get_prids, dat_wise = dat_wise, layer_N = layer_N))))
+  if (i_sim_cells_SUIDs["SUIDs_N"] > 0) {
+    this_simCell <- c(as.list(i_sim_cells_SUIDs),
+      soils = list(t(sapply(i_sim_cells_SUIDs["SUID"], FUN = ISRICWISE12_get_prids,
+      dat_wise = dat_wise, layer_N = layer_N))))
 
-    for (is in seq_len(this_simCell$SUIDs_N)) {  #loop through the suids within this simulation cell; each suid may be composed of several prids
-      prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]  #vector of the fractions of each prid in relation to the simulation cell
+    # loop through the suids within this simulation cell; each suid may be composed of
+    # several prids
+    for (k in seq_len(this_simCell$SUIDs_N)) {
+
+      this_soil <- this_simCell$soils[k,]
+      # Vector of the fractions of each prid in relation to the simulation cell
+      prids_frac <- this_soil$fraction * this_simCell$fraction[k]
       PRIDs_frac <- c(PRIDs_frac, prids_frac)
-      simulation_frac <- simulation_frac + sum(ifelse(!is.na(this_simCell$soils[is,]$depth), prids_frac, 0))
-      simulationSoils["depth"] <- simulationSoils["depth"] + sum(this_simCell$soils[is,]$depth * prids_frac, na.rm = TRUE)
+      temp <- sum(if (!is.na(this_soil$depth)) prids_frac else 0)
+      sim_frac <- sim_frac + temp
+      temp <- sum(this_soil$depth * prids_frac, na.rm = TRUE)
+      sim_soils["depth"] <- sim_soils["depth"] + temp
 
-      if (!all(is.na(this_simCell$soils[is,]$depth))) for (ils in seq_len(layer_Nsim)) {
-        lwise <- if (ils == 1) 1 else {ils - 1}  # I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
-        layer.there <- this_simCell$soils[is,]$depth > ldepth[ils]  #checks if for each prid, there soils are deeper than this layer. It also accounts that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as water and glaciers. Lithosols (Ix) have depth of 10 cm.
+      if (!all(is.na(this_soil$depth))) for (ils in seq_len(layer_Nsim)) {
+        # Split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account
+        # for lithosols
+        lwise <- if (ils == 1) 1 else {ils - 1}
+        # Checks if for each prid, the soils are deeper than this layer. It also accounts
+        # that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as
+        # water and glaciers. Lithosols (Ix) have depth of 10 cm.
+        layer.there <- this_soil$depth > ldepth[ils]
         pfracl <- prids_frac[layer.there]
-        simulation_layer_frac[ils] <- simulation_layer_frac[ils] + sum(pfracl, na.rm=TRUE)
+        simlyr_frac[ils] <- simlyr_frac[ils] + sum(pfracl, na.rm = TRUE)
 
         if (sum(layer.there, na.rm = TRUE) > 0) {
-          irow <- lwise + ((0:(this_simCell$soils[is,]$PRIDs_N - 1)) * layer_N)[layer.there]
-          simulationSoils[paste0("density_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("density_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "BULK"],
-            frac = pfracl)  # bulk density (kg/dm3)
-          simulationSoils[paste0("sand_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("sand_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "SDTO"],
-            frac = pfracl)  # Sand mass (%)
-          simulationSoils[paste0("clay_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("clay_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "CLPC"],
-            frac = pfracl)   # clay mass (%)
-          simulationSoils[paste0("rock_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("rock_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
-            frac = pfracl)  # coarse fragments (vol % > 2 mm)
-          simulationSoils[paste0("carbon_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("carbon_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
-            frac = pfracl)  # total organic carbon content (g C / kg)
+          irow <- lwise + ((0:(this_soil$PRIDs_N - 1)) * layer_N)[layer.there]
+
+          # bulk density (kg/dm3)
+          ids <- paste0("density_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "BULK"], frac = pfracl)
+          # Sand mass (%)
+          ids <- paste0("sand_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "SDTO"], frac = pfracl)
+          # clay mass (%)
+          ids <- paste0("clay_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "CLPC"], frac = pfracl)
+          # coarse fragments (vol % > 2 mm)
+          ids <- paste0("rock_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "CFRAG"], frac = pfracl)
+          # total organic carbon content (g C / kg)
+          ids <- paste0("carbon_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "TOTC"], frac = pfracl)
         }
       }
     }
 
     #Adjust values for area present
-    simulationSoils <- simulationSoils /
-      c(1, simulation_frac, rep(simulation_layer_frac, each = nvars))
+    sim_soils <- sim_soils / c(1, sim_frac, rep(simlyr_frac, each = nvars))
   }
 
-  simulationSoils
+  sim_soils
 }
 
 
@@ -372,7 +385,7 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 
   temp <- try(ISRICWISE12_calc_weightedMeanForSimulationCell(i,
         i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
-        simulationSoils = template_simulationSoils,
+        sim_soils = template_simulationSoils,
         layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth, dat_wise = dat_wise,
         nvars = nvars))
 
