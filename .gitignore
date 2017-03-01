@@ -1,4 +1,5 @@
 # History files
+.Rapp.history
 .Rhistory
 # Mac OS X crap
 .DS_Store
