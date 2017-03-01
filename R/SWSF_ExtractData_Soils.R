@@ -467,7 +467,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       }
     }
 
-    sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+    sim_cells_SUIDs <- t(do.call(rbind, sim_cells_SUIDs))
     sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[, "i"])), ]
 
     #- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
