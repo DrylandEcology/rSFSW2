@@ -148,7 +148,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
 					SQL <- paste("SELECT MAX(P_id) FROM '",EnsembleFamilyLevelTables[i],"';",sep="")
 					LastPid[i] <- as.integer(DBI::dbGetQuery(conEnsembleDB,SQL))+(sim_scens[["N"]]-1)#Need to add all the scenarios because last P_id will always be Current
 				}
-				if(any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
+				if (anyNA(LastPid)) { #If any of the tables are empty we need to start at the beginning
 					minRun_id <- 1
 				} else {
 					minRun_id <- (min(LastPid)/sim_scens[["N"]])+1 #This is already done so we add one
