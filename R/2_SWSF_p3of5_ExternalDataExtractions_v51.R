@@ -1283,28 +1283,28 @@ if (exinfo$ExtractClimateChangeScenarios &&
 			iuse_obs_hist_d = iuse_obs_hist_d, iuse_obs_hist_m = iuse_obs_hist_m,
 			iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
 	})
-
+	
   #'
   #' Calculate Deltas, used for downscaling functionality
-
+	
 	calcDeltas <- compiler::cmpfun(function(obs.hist.monthly, scen.fut.monthly) {
-
+	  
 	  # 1. Calculate mean monthly values in historic and future scenario values
 	  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
 	  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
-
+	  
 	  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 	  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], INDEX = obs.hist.monthly[, "Month"], mean, na.rm = TRUE)
 	  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
-
+	  
 	  # 2. Calculate deltas between observed historic and future mean scenario values
 	  #	- Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
 	  #	- Multiplicative approach (Wang et al. 2014): PPT otherwise
 	  delta_ts <- matrix(NA, ncol=5, nrow=nrow(obs.hist.monthly), dimnames=list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
 	  delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
 	  ppt_fun <- rep("*", 12)
-
+	  
 	  # Deltas of monthly means
 	  delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
 	  delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
@@ -1317,7 +1317,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
 	    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
 	  }
 	  delta_ts[, "PPT_cm"] <- delta_ppts
-
+	  
 	  list(delta_ts, ppt_fun)
 	  })
 
@@ -2558,7 +2558,7 @@ if (exinfo$ExtractClimateChangeScenarios &&
                                                         wgen_wet_spell_changes = { if ("wgen_wet_spell_changes" %in% colnames(locations)) {locations[il,"wgen_wet_spell_changes"]} else {1}},
                                                         wgen_prcp_cv_changes   = { if ("wgen_prcp_cv_changes"   %in% colnames(locations)) {locations[il,"wgen_prcp_cv_changes"  ]} else {1}}),
                                    stop)
-
+          
           for (do_checks in c(TRUE, FALSE)) {
             scen.fut.daily <- try(dm_fun(
               obs.hist.daily = obs.hist.daily, obs.hist.monthly = obs.hist.monthly,

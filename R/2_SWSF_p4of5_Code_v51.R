@@ -581,6 +581,11 @@ if(exinfo$GriddedDailyWeatherFromNRCan_10km_Canada && createAndPopulateWeatherDa
 	stopifnot(file.exists(dir.ex.NRCan), require(raster), require(sp), require(rgdal))
 }
 
+if(exinfo$GriddedDailyWeatherFromLivneh2013_NorthAmerica && createAndPopulateWeatherDatabase){
+  dir.ex.Livneh <- file.path(dir.ex.weather, "Livneh_NA_2013", "MONTHLY_GRIDS")
+  stopifnot(file.exists(dir.ex.Livneh), require(raster), require(sp), require(rgdal),
+            require(ncdf4), require(RSQLite))
+}
 
 
 if (do_weather_source) {
@@ -708,6 +713,22 @@ if (do_weather_source) {
 		sites_dailyweather_source
 	}
 
+  dw_Livneh_NorthAmerica <- function(sites_dailyweather_source) {
+  years <- simstartyr >= 1915 && endyr <= 2011
+  if (any(years)) {
+    livneh_test <- raster::raster(file.path(dir.ex.Livneh, "Meteorology_Livneh_CONUSExt_v.1.2_2013.191501.nc"), varname="Prec")
+    sp_locs <- sp::SpatialPoints(coords = SWRunInformation[runIDs_sites, c("X_WGS84", "Y_WGS84")],
+                                 proj4string = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+    valid <- !is.na(raster::extract(livneh_test, y = sp_locs))
+    if (any(valid)) {
+      sites_dailyweather_source[valid] <<- "Livneh_NorthAmerica"
+      sites_dailyweather_names[valid] <<- with(SWRunInformation[runIDs_sites[valid], ], paste0(Label, "Livneh", formatC(X_WGS84, digits=5, format="f"), "_", formatC(Y_WGS84, digits=5, format="f")))
+    }
+  }
+  if(!be.quiet) print(paste("Data for", sum(valid), "sites will come from 'Livneh_NorthAmerica'"))
+  sites_dailyweather_source
+}
+
 	#Determine order of priorities (highest priority comes last)
 	sites_dailyweather_names <- rep(NA, times = length(sites_dailyweather_source))
 	dailyweather_priorities <- rev(paste("dw", dailyweather_options, sep = "_"))
@@ -790,7 +811,7 @@ if (createAndPopulateWeatherDatabase) {
     chunk_size.options, continueAfterAbort, deleteTmpSQLFiles, dbW_compression_type,
     parallel_init, parallel_runs, parallel_backend, num_cores, cl,
     dir.ex.maurer2002 = dir.ex.maurer2002, dir.ex.daymet = dir.ex.daymet,
-    dir.ex.NRCan = dir.ex.NRCan, prepd_CFSR = prepd_CFSR,
+    dir.ex.NRCan = dir.ex.NRCan, dir.ex.Livneh = dir.ex.Livneh, prepd_CFSR = prepd_CFSR,
     verbose = !be.quiet)
 }
 
