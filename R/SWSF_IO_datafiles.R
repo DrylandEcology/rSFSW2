@@ -366,6 +366,46 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
   tr_list
 }
 
+fix_rowlabels <- function(x, master) {
+
+  ml <- as.character(master[, "Label"])
+
+  if ("Label" %in% names(x)) {
+    xl <- as.character(x[, "Label"])
+
+  } else {
+    x <- data.frame(Label = rep(NA, length(ml)), x, stringsAsFactors = FALSE)
+    xl <- NULL
+  }
+
+  if (!identical(xl, ml)) {
+    argnames <- as.character(match.call()[2:3])
+
+    if (dim(x)[1] == 0L) {
+      print(paste("Datafile", shQuote(argnames[1]), "contains zero rows. 'Label's of the",
+        "master input file", shQuote(argnames[2]), "are used to populate rows and",
+        "'Label's of the datafile."))
+
+      x[seq_along(ml), "Label"] <- ml
+
+    } else if (dim(master)[1] == dim(x)[1]) {
+      print(paste("Datafile", shQuote(argnames[1]), "and master input file",
+        shQuote(argnames[2]), "contain the same number of rows and yet they disagree",
+        "in the simulation 'Label's. Master 'Label's replace those from the datafile."))
+
+      x[, "Label"] <- ml
+
+    } else {
+      stop(paste("Datafile", shQuote(argnames[1]), "and the master input file",
+        shQuote(argnames[2]), "disagree in the number of rows",
+        paste0("(n[datafile] = ", dim(x)[1], " vs. n[master] = ", dim(master)[1], ")"),
+        "and they disagree in the simulation 'Label's. 'rSFSW2' cannot continue."))
+    }
+  }
+
+  x
+}
+
 
 process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE) {
 
@@ -381,6 +421,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmaster"]]), error = print)
     stopifnot(sapply(required_colnames_SWRunInformation(),
         function(x) x %in% names(SWRunInformation)),		# required columns
+      nrow(SWRunInformation) > 0,
       all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
       !grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
       !grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
@@ -390,11 +431,13 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
     sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
+    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["ftreatDesign"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_treatments_use <- temp[["use"]]
     sw_input_treatments <- temp[["data"]]
+    sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation)
     stopifnot(
       !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
     )
@@ -412,36 +455,43 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       nrowsClasses = nrowsClasses), error = print)
     sw_input_cloud_use <- temp[["use"]]
     sw_input_cloud <- temp[["data"]]
+    sw_input_cloud <- fix_rowlabels(sw_input_cloud, SWRunInformation)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fvegetation"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_prod <- temp[["data"]]
+    sw_input_prod <- fix_rowlabels(sw_input_prod, SWRunInformation)
     sw_input_prod_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsite"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_site <- temp[["data"]]
+    sw_input_site <- fix_rowlabels(sw_input_site, SWRunInformation)
     sw_input_site_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
+    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_weather_use <- temp[["use"]]
     sw_input_weather <- temp[["data"]]
+    sw_input_weather <- fix_rowlabels(sw_input_weather, SWRunInformation)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_delta"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_use <- temp[["use"]]
     sw_input_climscen <- temp[["data"]]
+    sw_input_climscen <- fix_rowlabels(sw_input_climscen, SWRunInformation)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_values"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_values_use <- temp[["use"]]
     sw_input_climscen_values <- temp[["data"]]
+    sw_input_climscen_values <- fix_rowlabels(sw_input_climscen_values, SWRunInformation)
 
     # update treatment specifications based on experimental design
     create_treatments <- union(names(sw_input_treatments_use)[sw_input_treatments_use],
