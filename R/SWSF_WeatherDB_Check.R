@@ -342,7 +342,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     parallel::clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid",
       "summarize_weather", "fdbWeather", "dbW_iScenarioTable", "startyear", "endyear"))
     temp <- parallel::clusterEvalQ(cl, {
-      require(rSOILWAT2)
+      require("rSOILWAT2")
       rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
     })
     temp <- parallel::clusterEvalQ(cl, {

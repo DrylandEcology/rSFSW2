@@ -53,7 +53,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NEDUSA1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -153,7 +153,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["HWSD1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |

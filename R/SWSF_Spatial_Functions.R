@@ -762,7 +762,7 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
-    if (any(!requireNamespace("rgdal"), !requireNamespace("sp"), !requireNamespace("raster"))) {
+    if (!requireNamespace("rgdal")) {
       stop("The packages 'rgdal', 'sp', and 'raster' are required for spatial simulations, ",
         "but one or multiple of them are not installed.")
     }

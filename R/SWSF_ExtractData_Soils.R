@@ -93,7 +93,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <- is.na(MMC[["source"]]) |  MMC[["source"]] == "CONUSSOILFromSTATSGO_USA"
@@ -395,7 +395,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
     print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["ISRICWISEv12"] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRICWISEv12_Global"

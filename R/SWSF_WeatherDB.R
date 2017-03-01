@@ -1098,8 +1098,7 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
     stop("'dw_NRCan_10km_Canada': ", path, " does not exist.")
 
   there <- 0
-  if (exinfo$GriddedDailyWeatherFromNRCan_10km_Canada &&
-    requireNamespace("raster") && requireNamespace("sp")) {
+  if (exinfo$GriddedDailyWeatherFromNRCan_10km_Canada) {
     # Check which of the NRCan weather data are available
     #	- Temperature: Celsius degrees
     #	- Precipitation: mm

@@ -2100,6 +2100,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 								rvec[iresp==3] <- stats::quantile(runs$lengths[!runs$values], probs=probs, type=7) #duration of negative spells
 								rvec[iresp==4] <- stats::quantile(spei_m[spei_m < 0], probs=probs, type=7) #intensity of positive spells
 							}
+
+						} else {
+						  print(paste0("runID = ", i_sim, "(", i_label, "): package 'SPEI' missing"
+						    "or simulation period shorter than ", binSPEI_m[iscale], " months. ",
+						    "'monthlySPEIEvents' are not calculated."))
 						}
 
 						resMeans[nv:(nv+length(rvec)-1)] <- rvec
