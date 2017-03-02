@@ -160,9 +160,10 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
@@ -409,9 +410,13 @@ fix_rowlabels <- function(x, master) {
 
 process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE) {
 
+  temp_call <- shQuote(match.call()[1])
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   do_check_include <- FALSE
@@ -621,13 +626,9 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
   inputs[["do_check_include"]] <- do_check_include
 
   if (!is.environment(inputs) || length(inputs) == 0) {
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed; 'SFSW2_prj_inputs' is ",
+    print(paste0("rSFSW2's ", temp_call, ": failed; 'SFSW2_prj_inputs' is ",
       "empty or not of type 'environment'."))
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   inputs
 }

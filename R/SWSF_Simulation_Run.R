@@ -44,10 +44,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   t.do_OneSite <- Sys.time()
 
   if (SimParams[["opt_verbosity"]][["verbose"]]) {
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t.do_OneSite,
+    temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t.do_OneSite,
       " for runID = ", i_sim))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended prematurely ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended prematurely ",
       "for simulation = ", i_sim)); cat("\n")}, add = TRUE)
   }
 
@@ -4621,7 +4622,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (opt_verbosity[["verbose"]]) {
       n <- length(times) - 1
-      temp <- paste0("rSFSW2's ", shQuote(match.call()[1]), ": runID = ", i_sim, " / ",
+      temp <- paste0("rSFSW2's ", temp_call, ": runID = ", i_sim, " / ",
         i_label, " completed in ", delta.do_OneSite, " ", units(delta.do_OneSite), ". ",
         "Simulation project is ", round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
 
@@ -4644,7 +4645,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
   } else {
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": runID = ", i_sim, " / ",
+    print(paste0("rSFSW2's ", temp_call, ": runID = ", i_sim, " / ",
       i_label, " unsuccessful after ", delta.do_OneSite, " ", units(delta.do_OneSite),
       " with status of tasks = "))
     print(unlist(sapply(tasks, table)))
@@ -4664,12 +4665,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   if (MoreArgs[["opt_verbosity"]][["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1, " for ",
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " for ",
       MoreArgs[["sim_size"]][["runsN_todo"]], " out of ",
       MoreArgs[["sim_size"]][["runsN_job"]], " runs on ",
       MoreArgs[["opt_parallel"]][["workersN"]], " cores"))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
       " runs")); cat("\n")}, add = TRUE)
   }

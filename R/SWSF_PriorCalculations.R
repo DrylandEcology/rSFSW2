@@ -8,8 +8,11 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1, " for ",
-      "soil layers at depths of ", paste0(requested_soil_layers, collapse = ", "), " cm"))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   # How to add different soil variables
@@ -105,10 +108,6 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
    SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]] <- requested_soil_layers
   }
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
@@ -131,7 +130,11 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(SFSW2_p
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   icol_bsE <- grep("EvapCoeff", names(SFSW2_prj_inputs[["sw_input_soils_use"]]))
@@ -218,10 +221,6 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(SFSW2_p
     unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
   }
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   SFSW2_prj_inputs
 }
 
@@ -233,9 +232,12 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs, resume = TRU
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
   do_prior_lookup <- list(
     LookupEvapCoeffFromTable = list(),
     LookupTranspRegionsFromTable = list(),
@@ -349,10 +351,6 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs, resume = TRU
   }
 
   SFSW2_prj_inputs[["done_prior"]] <- done_prior
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   SFSW2_prj_inputs
 }

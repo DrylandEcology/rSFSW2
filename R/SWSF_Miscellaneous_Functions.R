@@ -4,10 +4,12 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 
   ow_prev <- options("warn", "error")
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": set options ",
+  if (verbose) {
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": set options ",
       "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level, " and 'error' to ",
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
+  }
 
   #    - warn < 0: warnings are ignored
   #    - warn = 0: warnings are stored until the top–level function returns
@@ -121,6 +123,7 @@ file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) 
 dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777") {
   k <- 0
   temp <- NULL
+  temp_call <- shQuote(match.call()[1])
 
   repeat {
     temp <- dir.create(path, showWarnings, recursive, mode)
@@ -132,7 +135,7 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 
     # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
     # make the directories everytime... quite aggravating.
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to create ",
+    print(paste0("rSFSW2's ", temp_call, ": failed to create ",
       shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
   }
 

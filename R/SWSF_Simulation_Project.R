@@ -11,8 +11,12 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
     print(paste("A new rSFSW2 project is prepared for:", sQuote(basename(dir_prj))))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   dir_safe_create(dir_prj)
@@ -63,10 +67,6 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   for (f in ftemps)
     file.copy(from = f, to = file.path(dir_prj, basename(f)), overwrite = FALSE)
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   invisible(dir_prj)
 }
 
@@ -81,7 +81,11 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   #--- Delete objects from 'SFSW2_prj_meta' which were used to create initial input
@@ -117,10 +121,6 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
   #--- Matrix to track progress with input preparations
   SFSW2_prj_meta[["input_status"]] <- init_intracker()
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   SFSW2_prj_meta
 }
 
@@ -133,10 +133,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({
-      print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
         round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
         "status:"))
       print(SFSW2_prj_meta[["input_status"]])}, add = TRUE)
@@ -496,10 +497,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({
-        print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+        print(paste0("rSFSW2's ", temp_call, ": ended after ",
           round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
           "status:"))
         print(SFSW2_prj_meta[["input_status"]])
@@ -628,10 +630,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1,
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
       " for project ", sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
