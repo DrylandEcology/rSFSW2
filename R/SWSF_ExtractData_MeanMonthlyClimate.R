@@ -207,7 +207,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
         print(paste("Data from 'NCDC2005_USA' was extracted for n =", sum(i_good),
           "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
+      MMC <- update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
     }
   }
 
@@ -320,7 +320,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
         print(paste("Data from 'NCEPCFSR_Global' was extracted for n =", sum(i_good),
           "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, SFSW2_prj_meta[["sim_size"]],
+      MMC <- update_meanmonthlyclimate_input(MMC, i_good, SFSW2_prj_meta[["sim_size"]],
         digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]], SFSW2_prj_meta[["fnames_in"]])
     }
   }

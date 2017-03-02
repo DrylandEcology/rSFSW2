@@ -224,7 +224,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
       MMC[["source"]][i_Done] <- "CONUSSOILFromSTATSGO_USA"
-      update_soils_input(MMC, sim_size, digits = 2, i_Done,
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
         ldepths_cm = ldepth_CONUS[-1], lys, fnames_in)
     }
 
@@ -562,7 +562,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       MMC[["data"]][todos, seq_len(dim(ws)[2])] <- ws
 
       MMC[["source"]][i_Done] <- "ISRICWISEv12_Global"
-      update_soils_input(MMC, sim_size, digits = 2, i_Done,
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
         ldepths_cm = ldepth_WISEv12[-1], lys = seq_len(layer_Nsim), fnames_in)
     }
 

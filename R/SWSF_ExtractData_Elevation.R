@@ -124,7 +124,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
         print(paste("'ExtractElevation_NED_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
+      MMC <- update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
     }
   }
 
@@ -221,7 +221,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
         print(paste("'ExtractElevation_HWSD_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
+      MMC <- update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
     }
   }
 
