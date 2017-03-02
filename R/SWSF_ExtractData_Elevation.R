@@ -1,19 +1,11 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT ELEVATION------
 
-prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
+prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size, field_sources,
   how_determine_sources, scorp, elev_probs = c(0.025, 0.5, 0.975)) {
 
-  sites_elevation_source <- rep(NA, times = sim_size[["runsN_sites"]])
-  has_cns_field <- "Elevation_source" %in% colnames(SWRunInformation)
-
-  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_elevation_source <- SWRunInformation[sim_size[["runIDs_sites"]], "Elevation_source"]
-  } else if (how_determine_sources == "order" || !has_cns_field) {
-  } else {
-    message("Value of 'how_determine_sources'", how_determine_sources,
-      " not implemented")
-  }
+  sites_elevation_source <- get_datasource_masterfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
 
   probs <- if (scorp == "cell") elev_probs else NULL
 
@@ -240,38 +232,17 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
   MMC
 }
 
-update_Elevation_sources <- function(MMC, sim_size, fnames_in) {
-  notDone <- NULL
-
-  if (any(MMC[["idone"]])) {
-    #write data to disk
-    MMC[["input"]]$Elevation_source[sim_size[["runIDs_sites"]]] <- as.character(MMC[["source"]])
-
-    notDone <- is.na(MMC[["source"]])
-    include_YN_elev <- rep(0, sim_size[["runsN_master"]])
-    include_YN_elev[sim_size[["runIDs_sites"]][!notDone]] <- 1
-    MMC[["input"]]$Include_YN_ElevationSources <- include_YN_elev
-
-    utils::write.csv(MMC[["input"]], file = fnames_in[["fmaster"]], row.names = FALSE)
-    unlink(fnames_in[["fpreprocin"]])
-
-    if (any(notDone))
-      print(paste("Elevation data weren't found for", sum(notDone), "sites"))
-
-  } else {
-      print("'ExtractElevation': no data extracted because already available")
-  }
-
-  MMC[["input"]]
-}
 
 #' Extract elevation data
 #' @export
 ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, resume = FALSE,
   verbose = FALSE) {
 
+  field_sources <- "Elevation_source"
+  field_include <- "Include_YN_ElevationSources"
+
   MMC <- prepare_ExtractData_Elevation(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     SFSW2_prj_meta[["sim_space"]][["scorp"]])
 
@@ -290,8 +261,9 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, resu
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_Elevation_sources(MMC,
-    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+    sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs[["SWRunInformation"]],
+    SFSW2_prj_meta[["fnames_in"]], field_sources, field_include)
 
   SFSW2_prj_inputs
 }

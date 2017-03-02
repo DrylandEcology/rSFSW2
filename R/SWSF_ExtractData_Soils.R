@@ -1,20 +1,11 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
 
-prepare_ExtractData_Soils <- function(SWRunInformation, sim_size,
+prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
   how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
 
-  sites_soils_source <- rep(NA, times = sim_size[["runsN_sites"]])
-  i_cns_field <- which("SoilTexture_source" == colnames(SWRunInformation))
-  has_cns_field <- length(i_cns_field) > 0
-
-  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_soils_source <- SWRunInformation[sim_size[["runIDs_sites"]], i_cns_field]
-  } else if (how_determine_sources == "order" || !has_cns_field) {
-  } else {
-    message("Value of 'how_determine_sources'", how_determine_sources,
-      " not implemented")
-  }
+  sites_soils_source <- get_datasource_masterfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
 
   lvars <- c("density", "sand", "clay", "rock", "carbon")
   nvars <- length(lvars)
@@ -587,37 +578,14 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
   MMC
 }
 
-update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
-
-  notDone <- NULL
-
-  if (any(MMC[["idone"]])) {
-    #write data to disk
-    SWRunInformation[sim_size[["runIDs_sites"]], "SoilTexture_source"] <- as.character(MMC[["source"]])
-
-    notDone <- is.na(MMC[["source"]])
-    include_YN_soils <- rep(0, sim_size[["runsN_master"]])
-    include_YN_soils[sim_size[["runIDs_sites"]][!notDone]] <- 1
-    SWRunInformation[, "Include_YN_SoilSources"] <- include_YN_soils
-
-    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
-    unlink(fnames_in[["fpreprocin"]])
-
-    if (any(notDone))
-      print(paste("'ExtractSoilData': no soil information for n =", sum(notDone),
-        "sites (e.g., sand or clay is 0): this will likely lead to crashes of SOILWAT2"))
-
-  } else {
-      print("'ExtractSoilData': no data extracted because already available")
-  }
-
-  SWRunInformation
-}
 
 #' Extract soil characteristics
 #' @export
 ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
   resume, verbose = FALSE) {
+
+  field_sources <- "SoilTexture_source"
+  field_include <- "Include_YN_SoilSources"
 
   #--- SET UP PARALLELIZATION
   opt_parallel <- setup_SFSW2_cluster(opt_parallel,
@@ -627,7 +595,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
     add = TRUE)
 
   MMC <- prepare_ExtractData_Soils(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
     sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
@@ -647,10 +615,10 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       fnames_in = SFSW2_prj_meta[["fnames_in"]], opt_parallel, resume, verbose)
   }
 
-  temp <- update_soils_sources(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+    sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs[["SWRunInformation"]],
+    SFSW2_prj_meta[["fnames_in"]], field_sources, field_include)
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
   SFSW2_prj_inputs[["sw_input_soillayers"]] <- MMC[["input2"]]
   SFSW2_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
   SFSW2_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]

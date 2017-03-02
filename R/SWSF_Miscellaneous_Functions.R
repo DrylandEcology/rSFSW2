@@ -1179,3 +1179,51 @@ update_intracker <- function(ist, tracker, prepared = NULL, checked = NULL,
 
   ist
 }
+
+get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
+  how_determine_sources) {
+
+  sites_source <- rep(NA, times = sim_size[["runsN_sites"]])
+  i_cns_field <- which(field_sources == colnames(SWRunInformation))
+  has_cns_field <- length(i_cns_field) > 0
+
+  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
+    sites_source <- SWRunInformation[sim_size[["runIDs_sites"]], i_cns_field]
+  } else if (how_determine_sources == "order" || !has_cns_field) {
+  } else {
+    message("Value of 'how_determine_sources'", how_determine_sources,
+      " not implemented")
+  }
+
+  sites_source
+}
+
+update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fnames_in,
+  field_sources, field_include) {
+
+  notDone <- NULL
+
+  if (any(MMC[["idone"]])) {
+    SWRunInformation[sim_size[["runIDs_sites"]], field_sources] <- as.character(MMC[["source"]])
+
+    notDone <- is.na(MMC[["source"]])
+    include_YN_data <- rep(0, sim_size[["runsN_master"]])
+    include_YN_data[sim_size[["runIDs_sites"]][!notDone]] <- 1
+    SWRunInformation[, field_include] <- include_YN_data
+
+    #write data to disk
+    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+    unlink(fnames_in[["fpreprocin"]])
+
+    if (any(notDone))
+      print(paste0(shQuote(field_sources), ": no data available for n = ", sum(notDone),
+        "sites."))
+
+  } else {
+      print(paste0(shQuote(field_sources), ": no data extracted because already available"))
+  }
+
+  SWRunInformation
+}
+
+
