@@ -113,13 +113,14 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     }
 
     if (sim_space[["scorp"]] == "point") {
-      args_extract <- list(y = sites_noaaca)
+      args_extract <- list(y = sites_noaaca, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_noaaca <- align_with_target_res(res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]], sp = sites_noaaca,
         crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)
+      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca,
+        crs_data = crs_data, type = sim_space[["scorp"]])
     }
 
     # determine NOAA CA extractions to do
