@@ -872,7 +872,8 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
     n <- length(x)
     q <- (1:n - 0.4) / (n + 0.2) #Cunnane (1978)
     f <- stats::splinefun(x = q, y = x, method = "monoH.FC", ties = mean) #'hyman' produces too extreme large values
-    return(list(x = x, q = q, fun = f))
+
+    list(x = x, q = q, fun = f)
   }
 
   # Time periods

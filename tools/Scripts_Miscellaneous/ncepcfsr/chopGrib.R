@@ -31,7 +31,7 @@ chopGribFile <- function(file.in, file.out, file.temp, file.temp2, theType) {
 
   chop <- .C("chopGribFile_R", file.in = as.character(f.in), file.out = as.character(f.out), file.temp = as.character(f.temp), file.temp2 = as.character(f.temp2), type = as.integer(theType))
 
-  return (1)
+  1
 }
 
 n_months <- 12

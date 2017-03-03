@@ -4653,7 +4653,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   on.exit()
 
-  return(1)
+  1L
 } #end do_OneSite()
 
 

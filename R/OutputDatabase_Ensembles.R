@@ -39,7 +39,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
   calc.ensembles <- function(dat, elevels) { #dat must be three-dimensional object with dims = (runs, outputs, scenarios); runs and/or scenarios can be 1 or larger
     doRanks <- function(x) {
       temp <- sort.int(x, na.last = NA, index.return = TRUE)
-      return(c(temp$x[elevels], temp$ix[elevels]))
+
+      c(temp$x[elevels], temp$ix[elevels])
     }
 
     res <- NULL
@@ -58,7 +59,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     }
     #returned object: array with 3 dims: 1. dim = 1:length(elevels) are the ensembles at the ensemble.levels; the second set of rows are the ranked GCMs; 2. dim = runs/sites; 3. dim = aggregated variables
     dimnames(res) <- list(NULL, NULL, col.names)
-    return(res)
+
+    res
   }
 
   collect_EnsembleFromScenarios <- function(Table, name.OutputDB, t.overall, opt_job_time,
@@ -202,7 +204,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     temp2 <- as.double(temp2)
     print(paste0("Table: ", Table, " ended at ", Sys.time(), ", after ", round(temp2), " s."))
 
-    return(nfiles)
+    nfiles
   }
 
 

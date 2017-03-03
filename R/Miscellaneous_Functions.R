@@ -92,7 +92,7 @@ list.dirs2 <- function(path, full.names = TRUE, recursive = TRUE) {
     if (length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
       dir.list <- dir.list[-i]
 
-  return (dir.list)
+  dir.list
 }
 #custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
 file.copy2 <- function(from = "", to = "", overwrite = TRUE, copy.mode = TRUE, times = 0) {
@@ -615,7 +615,7 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg) {
     vals[[4]] <- ((DeepestThirdDailyAggLayer+1):DeepestFourthDailyAggLayer)
   }
 
-  return(vals)
+  vals
 }
 
 
