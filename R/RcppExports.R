@@ -5,7 +5,7 @@
 #'   and time required to germinate
 #'
 #' @section Note: The Rcpp version of the function is about 270x faster for vectors of
-#'  length 365 and 12, 000x faster for vectors of length 11, 000 than the R version.
+#'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
 #'
 #' @references Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling
@@ -80,7 +80,7 @@ get_KilledBySoilLayers <- function(relevantLayers, kill_conditions) {
 #' Determine seedling survival in the first season (ss1s)
 #'
 #' @section Note: The Rcpp version of the function is about 270x faster for vectors of
-#'  length 365 and 12, 000x faster for vectors of length 11, 000 than the R version.
+#'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
 #'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
 #'
 #' @section C code: ss1s is a pointer to the data and the original vector will get
