@@ -360,7 +360,7 @@ set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun)
         if (length(temp) == 1) temp else 0})
       def[itemp > 0] <- temp1[itemp]
 
-      swIn <- utils::getFromNamespace(paste0(fun, " <- "), "rSOILWAT2")(swIn, def)
+      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
     }
   }
 

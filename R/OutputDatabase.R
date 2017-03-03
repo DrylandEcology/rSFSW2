@@ -18,7 +18,7 @@ missing_Pids_outputDB <- function(Table, dbname) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
-      sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id = ",
+      sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
         Table, ".P_id) WHERE header.Include_YN = 1 AND ", Table, ".P_id is NULL ",
         "ORDER BY header.P_id")
       mP_ids <- RSQLite::dbGetQuery(con, sql)[, 1]
@@ -136,7 +136,7 @@ getSiteIds <- function(con, folderNames) {
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id = ",
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
     it_Pid(i_sim, runN, 1, scN)))[1, 1]
   DBI::dbDisconnect(con)
   temp
@@ -585,8 +585,9 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
   concatFile <- "sqlFilesInserted.txt"
 
   # Locate temporary SQL files
-  theFileList <- list.files(path = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], pattern = "SQL",
-    full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+  theFileList <- list.files(path = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    pattern = "SQL", full.names = FALSE, recursive = TRUE, include.dirs = FALSE,
+    ignore.case = FALSE)
 
   # remove any already inserted files from list
   if (!opt_out_run[["deleteTmpSQLFiles"]] && opt_behave[["resume"]]) {
@@ -613,12 +614,17 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
     reset_DBCurrent <- do_DBCurrent && (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] ||
       !file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
 
-    if (reset_DBCurrent)
-      file.copy(from = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
-    if (do_DBCurrent)
+    if (reset_DBCurrent) {
+      file.copy(from = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+      to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+    }
+    if (do_DBCurrent) {
       con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
-    if (reset_DBCurrent)
-      DBI::dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;") # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+      if (reset_DBCurrent) {
+        # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+        DBI::dbGetQuery(con2, "DELETE FROM runs WHERE scenario_id != 1;")
+      }
+    }
 
     # Prepare output databases
     set_PRAGMAs(con, PRAGMA_settings1())
@@ -634,8 +640,9 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
     # Add data to SQL databases
     for (j in seq_along(theFileList)) {
       tDB1 <- Sys.time()
-      has_time_to_concat <- (difftime(tDB1, t_job_start, units = "secs") +
-        opt_parallel[["opt_job_time"]][["one_concat_s"]]) < opt_parallel[["opt_job_time"]][["wall_time_s"]]
+      temp <- difftime(tDB1, t_job_start, units = "secs") +
+        opt_parallel[["opt_job_time"]][["one_concat_s"]]
+      has_time_to_concat <- temp < opt_parallel[["opt_job_time"]][["wall_time_s"]]
       if (!has_time_to_concat)
         break
 
@@ -668,7 +675,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
         # Determine P_id
         id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-        id_end <- as.integer(regexpr(", ", sql_cmds[k], fixed = TRUE))
+        id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
         if (id_end < 0)
           id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
 
@@ -691,7 +698,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
         # and, if so, whether soil layer is in DB
         if ((OK_check1 || OK_check2) && tables_w_soillayers[table_name]) {
           # Determine soil layer
-          id_sl <- as.integer(gregexpr(", ", sql_cmds[k], fixed = TRUE)[[1]])
+          id_sl <- as.integer(gregexpr(",", sql_cmds[k], fixed = TRUE)[[1]])
           if (any(id_sl[1] < 1, id_sl[2] <= id_sl[1])) {
             print(paste0("ID of soil layer not located in file ", shQuote(theFileList[j]),
               " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
@@ -818,7 +825,7 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
     print(paste("Database is copied and subset to ambient condition: start at ",
       Sys.time()))
   #Get sql for tables and index
-  resSQL <- DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type = 'table' ORDER BY name;")
+  resSQL <- DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
   sqlTables <- DBI::fetch(resSQL, n = -1)
   sqlTables <- unlist(sqlTables)
   sqlTables <- sqlTables[-grep(pattern = "sqlite_sequence", sqlTables)]
@@ -1469,16 +1476,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (useExperimentals)
       "experimental_labels, ",
     "treatments, scenario_labels, simulation_years, weatherfolders",
-    " WHERE runs.label_id = run_labels.id AND runs.site_id = sites.id AND",
-    " runs.treatment_id = treatments.id AND runs.scenario_id = scenario_labels.id AND ",
+    " WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND",
+    " runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
     if (useTreatmentWeatherFolder) {
-      "treatments.LookupWeatherFolder_id = weatherfolders.id AND "
+      "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
     } else {
-      "sites.WeatherFolder_id = weatherfolders.id AND "
+      "sites.WeatherFolder_id=weatherfolders.id AND "
     },
     if (useExperimentals)
-      "treatments.experimental_id = experimental_labels.id AND ",
-    "treatments.simulation_years_id = simulation_years.id;"
+      "treatments.experimental_id=experimental_labels.id AND ",
+    "treatments.simulation_years_id=simulation_years.id;"
   ))
   ##################################################
 
