@@ -78,7 +78,7 @@ get_Response_aggL <- function(response,
       temp1[index.usetimestep, index.col + topL]
     }
   res[["bottom"]] <- if (length(bottomL) > 1) {
-      if(is.null(weights)){
+      if (is.null(weights)) {
         apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN)
       } else {
         apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN, weights[bottomL])
@@ -360,7 +360,7 @@ set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun)
         if (length(temp) == 1) temp else 0})
       def[itemp > 0] <- temp1[itemp]
 
-      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
+      swIn <- utils::getFromNamespace(paste0(fun, " <- "), "rSOILWAT2")(swIn, def)
     }
   }
 

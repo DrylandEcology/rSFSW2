@@ -18,7 +18,7 @@ missing_Pids_outputDB <- function(Table, dbname) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
-      sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
+      sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id = ",
         Table, ".P_id) WHERE header.Include_YN = 1 AND ", Table, ".P_id is NULL ",
         "ORDER BY header.P_id")
       mP_ids <- RSQLite::dbGetQuery(con, sql)[, 1]
@@ -37,7 +37,7 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
 
     if (DBI::dbExistsTable(con, "runs")) {
-      sql <- paste("SELECT site_id, treatment_id FROM runs WHERE P_id IN (?) ORDER BY site_id")
+      sql <- "SELECT site_id, treatment_id FROM runs WHERE P_id IN (?) ORDER BY site_id"
       rs <- RSQLite::dbSendQuery(con, sql)
       RSQLite::dbBind(rs, list(Pids))
       res <- RSQLite::dbFetch(rs)
@@ -118,8 +118,8 @@ PRAGMA_settings1 <- function() c("PRAGMA cache_size = 400000;",
             "PRAGMA temp_store = MEMORY;",
             "PRAGMA auto_vacuum = NONE;")
 PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
-            "PRAGMA page_size=65536;", # no return value
-            "PRAGMA max_page_count=2147483646;", # returns the maximum page count
+            "PRAGMA page_size = 65536;", # no return value
+            "PRAGMA max_page_count = 2147483646;", # returns the maximum page count
             "PRAGMA foreign_keys = ON;") #no return value
 
 set_PRAGMAs <- function(con, settings) {
@@ -136,7 +136,7 @@ getSiteIds <- function(con, folderNames) {
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
+  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id = ",
     it_Pid(i_sim, runN, 1, scN)))[1, 1]
   DBI::dbDisconnect(con)
   temp
@@ -198,7 +198,7 @@ addHeaderToWhereClause <- function(whereClause, headers = NULL, fdbrSFSW2 = NULL
     RSQLite::dbDisconnect(con)
   }
 
-  temp1 <- res <- strsplit(whereClause, split = " ", fixed = TRUE)[[1]]	#Locate all "Label = 'x'"
+  temp1 <- res <- strsplit(whereClause, split = " ", fixed = TRUE)[[1]]  #Locate all "Label = 'x'"
   temp1F <- strsplit(temp1, split = "=", fixed = TRUE)
   ielem <- grepl("=", temp1) &
        !grepl("header.", temp1, fixed = TRUE) &
@@ -309,8 +309,8 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite())
     temp_fdbrSFSW2ens <- grep("Overall", fdbrSFSW2ens, ignore.case = TRUE, value = TRUE)
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
+    RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+    RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
     temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
     iTable <- temp[grepl(fam, temp, ignore.case = TRUE) &
            grepl(paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), temp) &
@@ -318,7 +318,7 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
 
     if (length(iTable) == 1) {
       iColumns <- get_fieldnames(responseName,
-        fields.header = RSQLite::dbGetQuery(con, paste0("PRAGMA Y.table_info(header);"))$name,
+        fields.header = RSQLite::dbGetQuery(con, "PRAGMA Y.table_info(header);")$name,
         fields.iTable = RSQLite::dbGetQuery(con, paste0("PRAGMA X.table_info(", iTable, ");"))$name)
 
       if (iColumns[["has_columns"]] || iColumns[["addPid"]]) {
@@ -425,28 +425,28 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
     con <- RSQLite::dbConnect(RSQLite::SQLite())
     temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
       x = fdbrSFSW2ens, ignore.case = TRUE)]
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
-    RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
+    RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+    RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
     temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
     iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
     if (length(iTable) == 1) {
-      column_names_iTable<-RSQLite::dbGetQuery(con, paste("PRAGMA X.table_info(",iTable,");",sep = ""))$name
-      column_names_iTable<-column_names_iTable[-1]#Remove P_id
-      column_names_header<-RSQLite::dbGetQuery(con, "PRAGMA Y.table_info(header);")$name
-      column_names_header<-column_names_header[-1]#Remove P_id
-      column_names_header<-column_names_header[-length(column_names_header)]#Remove Scenario
+      column_names_iTable <- RSQLite::dbGetQuery(con, paste("PRAGMA X.table_info(", iTable, ");"))$name
+      column_names_iTable <- column_names_iTable[-1]#Remove P_id
+      column_names_header <- RSQLite::dbGetQuery(con, "PRAGMA Y.table_info(header);")$name
+      column_names_header <- column_names_header[-1]#Remove P_id
+      column_names_header <- column_names_header[-length(column_names_header)]#Remove Scenario
       if ("Soil_Layer" %in% column_names_iTable) {
-        column_names_iTable<-column_names_iTable[-1] #Remove Soil_Layer
-        temp<-paste0(paste0("\"", column_names_header, "\"",sep = ""), collapse = ", ")
-        sql<-paste("SELECT ", if (header) "Y.header.P_id AS P_id, ", "Soil_Layer, ", if (header) temp,", ",paste0(paste0("\"", column_names_iTable, "\"",sep = ""), collapse = ", "),sep = "")
+        column_names_iTable <- column_names_iTable[-1] #Remove Soil_Layer
+        temp <- paste0(paste0("\"", column_names_header, "\""), collapse = ", ")
+        sql <- paste0("SELECT ", if (header) "Y.header.P_id AS P_id, ", "Soil_Layer, ", if (header) temp, ", ", paste0(paste0("\"", column_names_iTable, "\""), collapse = ", "))
       } else {
-        sql<-paste("SELECT ", if (header) "Y.header. * , ",paste0(paste0("\"", column_names_iTable, "\"",sep = ""), collapse = ", "),sep = "")
+        sql <- paste0("SELECT ", if (header) "Y.header. * , ", paste0(paste0("\"", column_names_iTable, "\""), collapse = ", "))
       }
       if (length(whereClause) > 0) {
-        sql <- paste0(sql," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id = Y.header.P_id WHERE ", whereClause, " ORDER BY Y.header.P_id;",sep = "")
+        sql <- paste0(sql, " FROM X.", iTable, " INNER JOIN Y.header ON X.", iTable, ".P_id = Y.header.P_id WHERE ", whereClause, " ORDER BY Y.header.P_id;")
         dat <- RSQLite::dbGetQuery(con, sql)
       } else {
-        sql <- paste0(sql," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id = Y.header.P_id ORDER BY Y.header.P_id;",sep = "")
+        sql <- paste0(sql, " FROM X.", iTable, " INNER JOIN Y.header ON X.", iTable, ".P_id = Y.header.P_id ORDER BY Y.header.P_id;")
         dat <- RSQLite::dbGetQuery(con, sql)
       }
     }
@@ -462,18 +462,18 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD =
   i_climCat = 1, whereClause = NULL, addPid = FALSE) {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
-    #print(paste(paste(responseName,collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid, sep = " "))
+    #print(paste(paste(responseName, collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid))
     if (climCat[i_climCat, 1] == "Current") {
-      scenario<-climCat[i_climCat, 1]
+      scenario <- climCat[i_climCat, 1]
       con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]
       if (length(iTable) == 1) {
         fields <- DBI::dbListFields(con, iTable)
-        fields<-fields[-1]
+        fields <- fields[-1]
         if (length(whereClause) > 0) {
-          sql <- paste0("SELECT ", if (addPid) paste("header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " AND ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY header.P_id;")
+          sql <- paste0("SELECT ", if (addPid) "header.P_id AS P_id, ", paste0(paste0("\"", fields, "\""), collapse = ", "), " FROM ", iTable, " INNER JOIN header ON ", iTable, ".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " AND ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY header.P_id;")
         } else {
-          sql <- paste0("SELECT ", if (addPid) paste("header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ") ," FROM ", iTable, " INNER JOIN header ON ",iTable,".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " ORDER BY header.P_id;")
+          sql <- paste0("SELECT ", if (addPid) "header.P_id AS P_id, ", paste0(paste0("\"", fields, "\""), collapse = ", "), " FROM ", iTable, " INNER JOIN header ON ", iTable, ".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario), " ORDER BY header.P_id;")
         }
         dat <- RSQLite::dbGetQuery(con, sql)
       }
@@ -485,18 +485,18 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD =
       con <- RSQLite::dbConnect(RSQLite::SQLite())
       temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
         x = fdbrSFSW2ens, ignore.case = TRUE)]
-      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(temp_fdbrSFSW2ens), " AS X;"))
-      RSQLite::dbGetQuery(con, paste0("ATTACH ", shQuote(fdbrSFSW2), " AS Y;"))
+      RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+      RSQLite::dbGetQuery(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
       temp <- unlist(RSQLite::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
       iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
       if (length(iTable) == 1) {
-        fields <- RSQLite::dbGetQuery(con, paste("PRAGMA X.table_info(",iTable,");",sep = ""))$name
+        fields <- RSQLite::dbGetQuery(con, paste0("PRAGMA X.table_info(", iTable, ");"))$name
         fields <- fields[-1]
         if (length(whereClause) > 0) {
-          sql <- paste0("SELECT ", if (addPid) paste("Y.header.P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ")," FROM X.", iTable, " INNER JOIN Y.header ON X.",iTable,".P_id = Y.header.P_id WHERE ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY Y.header.P_id;",sep = "")
+          sql <- paste0("SELECT ", if (addPid) "Y.header.P_id AS P_id, ", paste0(paste0("\"", fields, "\""), collapse = ", "), " FROM X.", iTable, " INNER JOIN Y.header ON X.", iTable, ".P_id = Y.header.P_id WHERE ", addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2), " ORDER BY Y.header.P_id;")
           dat <- RSQLite::dbGetQuery(con, sql)
         } else {
-          sql <- paste0("SELECT ", if (addPid) paste("X.",iTable,".P_id AS P_id, ",sep = ""), paste0(paste0("\"", fields, "\"",sep = ""), collapse = ", ")," FROM X.", iTable, " ORDER BY P_id;",sep = "")
+          sql <- paste0("SELECT ", if (addPid) paste0("X.", iTable, ".P_id AS P_id, "), paste0(paste0("\"", fields, "\""), collapse = ", "), " FROM X.", iTable, " ORDER BY P_id;")
           dat <- RSQLite::dbGetQuery(con, sql)
         }
       }
@@ -550,7 +550,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
     if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
     tmp_data <- substr(tmp_data, 1, nt - 1)
   }
-  if (nt > 1 ) {
+  if (nt > 1) {
     tmp_data <- paste0("c(", tmp_data)
     tmp_data <- gsub("NULL", "NA", tmp_data)
     tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
@@ -668,7 +668,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
         # Determine P_id
         id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-        id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
+        id_end <- as.integer(regexpr(", ", sql_cmds[k], fixed = TRUE))
         if (id_end < 0)
           id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
 
@@ -691,7 +691,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
         # and, if so, whether soil layer is in DB
         if ((OK_check1 || OK_check2) && tables_w_soillayers[table_name]) {
           # Determine soil layer
-          id_sl <- as.integer(gregexpr(",", sql_cmds[k], fixed = TRUE)[[1]])
+          id_sl <- as.integer(gregexpr(", ", sql_cmds[k], fixed = TRUE)[[1]])
           if (any(id_sl[1] < 1, id_sl[2] <= id_sl[1])) {
             print(paste0("ID of soil layer not located in file ", shQuote(theFileList[j]),
               " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
@@ -818,22 +818,22 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
     print(paste("Database is copied and subset to ambient condition: start at ",
       Sys.time()))
   #Get sql for tables and index
-  resSQL <- DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-  sqlTables <- DBI::fetch(resSQL,n=-1)
+  resSQL <- DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type = 'table' ORDER BY name;")
+  sqlTables <- DBI::fetch(resSQL, n = -1)
   sqlTables <- unlist(sqlTables)
-  sqlTables <- sqlTables[-grep(pattern="sqlite_sequence",sqlTables)]
+  sqlTables <- sqlTables[-grep(pattern = "sqlite_sequence", sqlTables)]
   DBI::dbClearResult(resSQL)
-  resIndex<-DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type='view' ORDER BY name;")
-  sqlView <- DBI::fetch(resIndex,n=-1)
+  resIndex <- DBI::dbSendQuery(con, "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name;")
+  sqlView <- DBI::fetch(resIndex, n = -1)
   DBI::dbClearResult(resIndex)
-  sqlView<-unlist(sqlView)
+  sqlView <- unlist(sqlView)
   sqlView <- sqlView[!is.na(sqlView)]
   Tables <- DBI::dbListTables(con)
-  Tables <- Tables[-grep(pattern="sqlite_sequence",Tables)]
+  Tables <- Tables[-grep(pattern = "sqlite_sequence", Tables)]
 
   con <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
-  for(i in 1:length(sqlTables)) {#Create the tables
-    res<-DBI::dbSendQuery(con, sqlTables[i])
+  for (i in 1:length(sqlTables)) {#Create the tables
+    res <- DBI::dbSendQuery(con, sqlTables[i])
     DBI::dbClearResult(res)
   }
   DBI::dbGetQuery(con, sqlView)
@@ -842,26 +842,26 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   #Get Tables minus ones we do not want
   Tables <- dbOutput_ListOutputTables(con)
 
-  writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables," WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);",sep=""),con="dump.txt")
-  lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-  writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
+  writeLines(text = paste0(".mode insert ", Tables, "\n.out ", Tables, ".sql\nSELECT * FROM ", Tables, " WHERE P_id IN (SELECT P_id FROM runs WHERE scenario_id = 1 ORDER BY P_id);"), con = "dump.txt")
+  lines <- c("PRAGMA cache_size = 400000;", "PRAGMA synchronous = 1;", "PRAGMA locking_mode = EXCLUSIVE;", "PRAGMA temp_store = MEMORY;", "PRAGMA auto_vacuum = NONE;")
+  writeLines(text = c(lines, paste0(".read ", Tables, ".sql")), con = "insert.txt")
 
-  system(paste("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
-  system(paste("cat insert.txt | sqlite3 ", shQuote(dbOutput_current)))
+  system(paste0("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
+  system(paste0("cat insert.txt | sqlite3 ", shQuote(dbOutput_current)))
 
-  unlink(paste(Tables,".sql",sep=""))
+  unlink(paste0(Tables, ".sql"))
 
   Tables <- dbOutput_ListOutputTables(con)
 
-  writeLines(text=paste(".mode insert ", Tables, "\n.out ", Tables,".sql\nSELECT * FROM ",Tables,";",sep=""),con="dump.txt")
-  lines <- c("PRAGMA cache_size = 400000;","PRAGMA synchronous = 1;","PRAGMA locking_mode = EXCLUSIVE;","PRAGMA temp_store = MEMORY;","PRAGMA auto_vacuum = NONE;")
-  writeLines(text=c(lines,paste(".read ",Tables,".sql",sep="")),con="insert.txt")
+  writeLines(text = paste0(".mode insert ", Tables, "\n.out ", Tables, ".sql\nSELECT * FROM ", Tables, ";"), con = "dump.txt")
+  lines <- c("PRAGMA cache_size = 400000;", "PRAGMA synchronous = 1;", "PRAGMA locking_mode = EXCLUSIVE;", "PRAGMA temp_store = MEMORY;", "PRAGMA auto_vacuum = NONE;")
+  writeLines(text = c(lines, paste0(".read ", Tables, ".sql")), con = "insert.txt")
 
-  system(paste("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
-  system(paste("cat insert.txt | sqlite3 ", shQuote(dbOutput_current)))
+  system(paste0("cat dump.txt | sqlite3 ", shQuote(dbOutput)))
+  system(paste0("cat insert.txt | sqlite3 ", shQuote(dbOutput_current)))
 
-  unlink(paste(Tables,".sql",sep=""))
-  unlink(c("dump.txt","insert.txt"))
+  unlink(paste0(Tables, ".sql"))
+  unlink(c("dump.txt", "insert.txt"))
 
   DBI::dbDisconnect(con)
 
@@ -914,7 +914,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
       Rmpi::mpi.bcast.cmd(rm(list = ls()))
       Rmpi::mpi.bcast.cmd(gc())
 
-    } else if(identical(opt_parallel[["parallel_backend"]], "cluster")) {
+    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
       missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -1006,9 +1006,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       RSQLite::dbCommit(con_dbOut)
 
       # Slightly slower alternative to RSQLite::dbGetPreparedQuery()
-#				temp <- unique(stats::na.exclude(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
-#				RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
-#					value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
+#        temp <- unique(stats::na.exclude(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
+#        RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
+#          value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
 
     } else {
       stop("All WeatherFolder names in master input file are NAs.")
@@ -1055,7 +1055,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     RSQLite::dbBegin(con_dbOut)
     RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO",
       "experimental_labels VALUES(NULL, :label);"),
-      bind.data = data.frame(label = SFSW2_prj_inputs[["sw_input_experimentals"]][,1],
+      bind.data = data.frame(label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1],
         stringsAsFactors = FALSE))
     RSQLite::dbCommit(con_dbOut)
   }
@@ -1071,7 +1071,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]])=="LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
         SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
@@ -1104,7 +1104,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         #Write those in
         RSQLite::dbBegin(con_dbOut)
         RSQLite::dbGetPreparedQuery(con_dbOut,
-          "INSERT INTO weatherfolders VALUES(:id,:folder)",
+          "INSERT INTO weatherfolders VALUES(:id, :folder)",
           bind.data = LWF_index[temp, ])
         RSQLite::dbCommit(con_dbOut)
       }
@@ -1142,8 +1142,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     temp <- duplicated(temp_df)
     treatments_unique_map <- rep(NA, nrow(temp_df))
     temp2 <- data.frame(t(temp_df))
-    treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp,])), temp2)
-    treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp,])), temp2)
+    treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp, ])), temp2)
+    treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp, ])), temp2)
     db_treatments_map <- unique(treatments_unique_map)
     treatments_unique_map <- sapply(treatments_unique_map, function(x)
       which(db_treatments_map == x))
@@ -1175,7 +1175,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   useTreatmentWeatherFolder <- FALSE
   if (useExperimentals | useTreatments) {
     #Create a table to hold the values going into the database
-    temp_numberRows <- if(useExperimentals) {
+    temp_numberRows <- if (useExperimentals) {
         nrow(db_experimentals) * db_treatments_rows
       } else nrow(db_treatments)
     temp_numberColumns <- {if (useExperimentals) 3 else 2} + length(SFSW2_prj_inputs[["create_treatments"]])
@@ -1234,10 +1234,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
     }
     #Create the table
-    RSQLite::dbGetQuery(con_dbOut,
-      paste("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-      if (useExperimentals) "experimental_id INTEGER,",
-      "simulation_years_id INTEGER,",
+    RSQLite::dbGetQuery(con_dbOut, paste0("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",
+      if (useExperimentals) "experimental_id INTEGER, ",
+      "simulation_years_id INTEGER, ",
       paste(db_treatments_column_types[, "column"],
         db_treatments_column_types[, "type"], collapse = ", "),
       if (useExperimentals || fk_LookupWeatherFolder != "") ", ",
@@ -1470,16 +1469,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (useExperimentals)
       "experimental_labels, ",
     "treatments, scenario_labels, simulation_years, weatherfolders",
-    " WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND",
-    " runs.treatment_id=treatments.id AND runs.scenario_id=scenario_labels.id AND ",
+    " WHERE runs.label_id = run_labels.id AND runs.site_id = sites.id AND",
+    " runs.treatment_id = treatments.id AND runs.scenario_id = scenario_labels.id AND ",
     if (useTreatmentWeatherFolder) {
-      "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
+      "treatments.LookupWeatherFolder_id = weatherfolders.id AND "
     } else {
-      "sites.WeatherFolder_id=weatherfolders.id AND "
+      "sites.WeatherFolder_id = weatherfolders.id AND "
     },
     if (useExperimentals)
-      "treatments.experimental_id=experimental_labels.id AND ",
-    "treatments.simulation_years_id=simulation_years.id;"
+      "treatments.experimental_id = experimental_labels.id AND ",
+    "treatments.simulation_years_id = simulation_years.id;"
   ))
   ##################################################
 
@@ -1487,232 +1486,232 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 }
 
   dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
-		## Note: All '.' will be translated to "_" because of sqlite field name constraints
-		temp <- character(0)
+    ## Note: All '.' will be translated to "_" because of sqlite field name constraints
+    temp <- character(0)
 
-		fieldtag_SWPcrit_MPa <- paste0(abs(round(-1000 * opt_agg[["SWPcrit_MPa"]], 0)), "kPa")
-		fieldtag_Tmin_crit_C <- paste0(ifelse(opt_agg[["Tmin_crit_C"]] < 0, "Neg",
-		  ifelse(opt_agg[["Tmin_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmin_crit_C"]]), "C")
-		fieldtag_Tmax_crit_C <- paste0(ifelse(opt_agg[["Tmax_crit_C"]] < 0, "Neg",
-		  ifelse(opt_agg[["Tmax_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmax_crit_C"]]), "C")
-		fieldtag_Tmean_crit_C <- paste0(ifelse(opt_agg[["Tmean_crit_C"]] < 0, "Neg",
-		  ifelse(opt_agg[["Tmean_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmean_crit_C"]]), "C")
+    fieldtag_SWPcrit_MPa <- paste0(abs(round(-1000 * opt_agg[["SWPcrit_MPa"]], 0)), "kPa")
+    fieldtag_Tmin_crit_C <- paste0(ifelse(opt_agg[["Tmin_crit_C"]] < 0, "Neg",
+      ifelse(opt_agg[["Tmin_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmin_crit_C"]]), "C")
+    fieldtag_Tmax_crit_C <- paste0(ifelse(opt_agg[["Tmax_crit_C"]] < 0, "Neg",
+      ifelse(opt_agg[["Tmax_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmax_crit_C"]]), "C")
+    fieldtag_Tmean_crit_C <- paste0(ifelse(opt_agg[["Tmean_crit_C"]] < 0, "Neg",
+      ifelse(opt_agg[["Tmean_crit_C"]] > 0, "Pos", "")), abs(opt_agg[["Tmean_crit_C"]]), "C")
 
-	#0.
-		if (aon$input_SoilProfile) {
-			temp <- paste("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction", "topLayers.Gravel_fraction", "bottomLayers.Gravel_fraction","deltaX"), sep="")
-		}
+  #0.
+    if (aon$input_SoilProfile) {
+      temp <- paste0("SWinput.Soil.", c("maxDepth_cm", "soilLayers_N", "topLayers.Sand_fraction", "bottomLayers.Sand_fraction", "topLayers.Clay_fraction", "bottomLayers.Clay_fraction", "topLayers.Gravel_fraction", "bottomLayers.Gravel_fraction", "deltaX"))
+    }
 
-	#1.
-		if (aon$input_FractionVegetationComposition) {
-			temp <- c(temp, paste("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const", sep=""))
-		}
-	#2.
-		if (aon$input_VegetationBiomassMonthly) {
-			temp <- c(temp, paste(c(rep("Grass",36),rep("Shrub",36),rep("Tree",36),rep("Forb",36)),"_",c(rep("Litter",12),rep("TotalBiomass",12),rep("LiveBiomass",12)),"_m", SFSW2_glovars[["st_mo"]],"_gPERm2",sep=""))
-		}
-	#3.
-		if (aon$input_VegetationPeak) {
-			temp <- c(temp, paste("SWinput.PeakLiveBiomass_", c("month_mean","months_duration"), sep=""))
-		}
+  #1.
+    if (aon$input_FractionVegetationComposition) {
+      temp <- c(temp, paste0("SWinput.Composition.", c("Grasses", "Shrubs", "Trees", "Forbs", "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const"))
+    }
+  #2.
+    if (aon$input_VegetationBiomassMonthly) {
+      temp <- c(temp, paste0(c(rep("Grass", 36), rep("Shrub", 36), rep("Tree", 36), rep("Forb", 36)), "_", c(rep("Litter", 12), rep("TotalBiomass", 12), rep("LiveBiomass", 12)), "_m", SFSW2_glovars[["st_mo"]], "_gPERm2"))
+    }
+  #3.
+    if (aon$input_VegetationPeak) {
+      temp <- c(temp, paste0("SWinput.PeakLiveBiomass_", c("month_mean", "months_duration")))
+    }
 
-	#4.
-		if (aon$input_Phenology) {
-			temp <- c(temp, paste("SWinput.GrowingSeason.", c("Start", "End"), "_month_const", sep=""))
-		}
-	#5.
-		if (aon$input_TranspirationCoeff) {
-			if (opt_agg[["doy_slyrs"]][["do"]]) {
-				ltemp <- paste("L0to", opt_agg[["doy_slyrs"]][["first_cm"]], "cm", sep="")
-				if (is.null(opt_agg[["doy_slyrs"]][["second_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["first_cm"]], "toSoilDepth", sep=""))
-				} else if (is.numeric(opt_agg[["doy_slyrs"]][["second_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["first_cm"]], "to", opt_agg[["doy_slyrs"]][["second_cm"]], "cm", sep=""))
-				}
-				if (is.null(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["second_cm"]], "toSoilDepth", sep=""))
-				} else if (is.na(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-				} else if (is.numeric(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["second_cm"]], "to", opt_agg[["doy_slyrs"]][["third_cm"]], "cm", sep=""))
-				}
-				if (is.null(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["third_cm"]], "toSoilDepth", sep=""))
-				} else if (is.na(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-				} else if (is.numeric(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-					ltemp <- c(ltemp, paste("L", opt_agg[["doy_slyrs"]][["third_cm"]], "to", opt_agg[["doy_slyrs"]][["fourth_cm"]], "cm", sep=""))
-				}
-				ltemp <- c(ltemp, paste("NA", (length(ltemp)+1):SFSW2_glovars[["slyrs_maxN"]], sep=""))
-			} else {
-				ltemp <- paste("L", formatC(SFSW2_glovars[["slyrs_ids"]], width=2, format="d", flag="0"), sep="")
-			}
+  #4.
+    if (aon$input_Phenology) {
+      temp <- c(temp, paste0("SWinput.GrowingSeason.", c("Start", "End"), "_month_const"))
+    }
+  #5.
+    if (aon$input_TranspirationCoeff) {
+      if (opt_agg[["doy_slyrs"]][["do"]]) {
+        ltemp <- paste0("L0to", opt_agg[["doy_slyrs"]][["first_cm"]], "cm")
+        if (is.null(opt_agg[["doy_slyrs"]][["second_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["first_cm"]], "toSoilDepth"))
+        } else if (is.numeric(opt_agg[["doy_slyrs"]][["second_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["first_cm"]], "to", opt_agg[["doy_slyrs"]][["second_cm"]], "cm"))
+        }
+        if (is.null(opt_agg[["doy_slyrs"]][["third_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["second_cm"]], "toSoilDepth"))
+        } else if (is.na(opt_agg[["doy_slyrs"]][["third_cm"]])) {
+        } else if (is.numeric(opt_agg[["doy_slyrs"]][["third_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["second_cm"]], "to", opt_agg[["doy_slyrs"]][["third_cm"]], "cm"))
+        }
+        if (is.null(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["third_cm"]], "toSoilDepth"))
+        } else if (is.na(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
+        } else if (is.numeric(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
+          ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["third_cm"]], "to", opt_agg[["doy_slyrs"]][["fourth_cm"]], "cm"))
+        }
+        ltemp <- c(ltemp, paste0("NA", (length(ltemp)+1):SFSW2_glovars[["slyrs_maxN"]]))
+      } else {
+        ltemp <- paste0("L", formatC(SFSW2_glovars[["slyrs_ids"]], width = 2, format = "d", flag = "0"))
+      }
 
-			temp <- c(temp, c(paste("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree","Forb"), each=SFSW2_glovars[["slyrs_maxN"]]), ".TranspirationCoefficients.", rep(ltemp, times=4), "_fraction", sep=""), paste("SWinput.", rep(vtemp, each=2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times=4), "_fraction", sep="")))
+      temp <- c(temp, c(paste0("SWinput.", rep(vtemp <- c("Grass", "Shrub", "Tree", "Forb"), each = SFSW2_glovars[["slyrs_maxN"]]), ".TranspirationCoefficients.", rep(ltemp, times = 4), "_fraction"), paste0("SWinput.", rep(vtemp, each = 2), ".TranspirationCoefficients.", rep(c("topLayer", "bottomLayer"), times = 4), "_fraction")))
 
-		}
+    }
 
-	#6.
-		if (aon$input_ClimatePerturbations) {
-			temp <- c(temp, paste(rep(paste("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m"), sep=""), each=12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each=12), "_const", sep=""))
-		}
+  #6.
+    if (aon$input_ClimatePerturbations) {
+      temp <- c(temp, paste0(rep(paste0("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
+    }
 
-		##############################################################---Aggregation: Climate and weather---##############################################################
+    ##############################################################---Aggregation: Climate and weather---##############################################################
 
-	#7.
-		if (aon$yearlyTemp) {
-			temp <- c(temp, "MAT_C_mean")
-		}
+  #7.
+    if (aon$yearlyTemp) {
+      temp <- c(temp, "MAT_C_mean")
+    }
 
-	#8.
-		if (aon$yearlyPPT) {
-			temp <- c(temp, c("MAP_mm_mean", "SnowOfPPT_fraction_mean"))
-		}
+  #8.
+    if (aon$yearlyPPT) {
+      temp <- c(temp, c("MAP_mm_mean", "SnowOfPPT_fraction_mean"))
+    }
 
-	#9.
-		if (aon$dailySnowpack) {
-			temp <- c(temp, "RainOnSnowOfMAP_fraction_mean")
-		}
+  #9.
+    if (aon$dailySnowpack) {
+      temp <- c(temp, "RainOnSnowOfMAP_fraction_mean")
+    }
 
-	#10.
-		if (aon$dailySnowpack) {
-			temp <- c(temp, paste("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean", sep=""))
-		}
-	#11
-		if (aon$dailyFrostInSnowfreePeriod) {
-			temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnowpack_days_mean"))
-		}
-	#12
-		if (aon$dailyHotDays) {
-			temp <- c(temp, paste0("TmaxAbove", fieldtag_Tmax_crit_C, "_days_mean"))
-		}
-	#12b
-		if (aon$dailyWarmDays) {
-		  temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days_mean"))
-		}
-	#13
-		if (aon$dailyPrecipitationEventSizeDistribution) {
-			bins.summary <- (0:6) * opt_agg[["bin_prcp_mm"]]
-			temp <- c(temp, paste("PrcpEvents.Annual", c("_count", paste(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction", sep="")), "_mean", sep=""))
-		}
+  #10.
+    if (aon$dailySnowpack) {
+      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean"))
+    }
+  #11
+    if (aon$dailyFrostInSnowfreePeriod) {
+      temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnowpack_days_mean"))
+    }
+  #12
+    if (aon$dailyHotDays) {
+      temp <- c(temp, paste0("TmaxAbove", fieldtag_Tmax_crit_C, "_days_mean"))
+    }
+  #12b
+    if (aon$dailyWarmDays) {
+      temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days_mean"))
+    }
+  #13
+    if (aon$dailyPrecipitationEventSizeDistribution) {
+      bins.summary <- (0:6) * opt_agg[["bin_prcp_mm"]]
+      temp <- c(temp, paste0("PrcpEvents.Annual", c("_count", paste0(".SizeClass", bins.summary, "to", c(bins.summary[-1], "Inf"), "mm_fraction")), "_mean", sep = ""))
+    }
 
-	#15
-		if (aon$yearlyPET) {
-			temp <- c(temp, "PET_mm_mean")
-		}
+  #15
+    if (aon$yearlyPET) {
+      temp <- c(temp, "PET_mm_mean")
+    }
 
-	#16
-		if (aon$monthlySeasonalityIndices) {
-			temp <- c(temp, paste("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean", sep=""))
-		}
-
-
-				#---Aggregation: Climatic dryness
-	#17
-		if (aon$yearlymonthlyTemperateDrylandIndices) {
-			temp <- c(temp, paste(c(paste(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".Normals", sep=""), paste(temp, ".Annual", sep="")), rep(c("_none", "_TF", "_TF"), times=2), "_mean", sep=""))
-		}
-
-	#18
-		if (aon$yearlyDryWetPeriods) {
-			temp <- c(temp, paste(c("Dry", "Wet"), "SpellDuration.90PercentEvents.ShorterThan_years_quantile0.9", sep=""))
-		}
-
-	#19
-		if (aon$dailyWeatherGeneratorCharacteristics) {
-			temp <- c(temp, paste(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each=12), ".m", SFSW2_glovars[["st_mo"]], rep(c("_days", "_days", "_C"), each=12), "_mean", sep=""))
-		}
-
-	#20
-		if (aon$dailyPrecipitationFreeEventDistribution) {
-			bins.summary <- (0:3) * opt_agg[["bin_prcpfree_days"]]
-			temp <- c(temp, paste("DrySpells.Annual", c("_count", paste(".SizeClass", bins.summary+1, "to", c(bins.summary[-1], "365"), "days_fraction", sep="")), "_mean", sep=""))
-		}
-
-	#21
-		if (aon$monthlySPEIEvents) {
-			binSPEI_m <- c(1, 12, 24, 48) #months
-			probs <- c(0.025, 0.5, 0.975)
-			for (iscale in seq_along(binSPEI_m)) {
-				rvec <- rep(NA, times=4 * length(probs))
-				temp <- c(temp, paste(rep(paste("SPEI.", binSPEI_m[iscale], "monthsScale.", sep=""), length(rvec)), "Spell", rep(c("Pos.", "Neg."), each=2*length(probs)), rep(rep(c("Duration_months", "Value_none"), each=length(probs)), times=2), "_quantile", rep(probs, times=4), sep=""))
-
-			}
-		}
-
-	#---Aggregation: Climatic control
-	#22
-		if (aon$monthlyPlantGrowthControls) {
-			temp <- c(temp, paste("NemaniEtAl2003.NPPControl.", c("Temperature", "Water", "Radiation"), "_none_mean", sep=""))
-		}
-
-	#23
-		if (aon$dailyC4_TempVar) {
-			temp <- c(temp, paste("TeeriEtAl1976.NSadj.", c("TempAirMin.7thMonth_C", "FreezeFreeGrowingPeriod_days", "AccumDegreeDaysAbove65F_daysC"), "_mean", sep=""))
-		}
-
-	#24
-		if (aon$dailyDegreeDays) {
-			temp <- c(temp, paste0("DegreeDays.Base", opt_agg[["Tbase_DD_C"]], "C.dailyTmean_Cdays_mean"))
-		}
-
-		##############################################################---Aggregation: Yearly water balance---##############################################################
-
-	#27.0
-		if (aon$yearlyAET) {
-			temp <- c(temp, "AET_mm_mean")
-		}
-
-	#27
-		if (aon$yearlyWaterBalanceFluxes) {
-			temp <- c(temp, paste(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
-									"Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean", sep=""))
-		}
+  #16
+    if (aon$monthlySeasonalityIndices) {
+      temp <- c(temp, paste0("Seasonality.monthly", c("PETandSWPtopLayers", "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean"))
+    }
 
 
-	#27.2
-		if (aon$dailySoilWaterPulseVsStorage) {
-			temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", SFSW2_glovars[["slyrs_ids"]], "_days_mean"),
-							paste0("WaterExtractionSpell_AnnualSummedExtraction_L", SFSW2_glovars[["slyrs_ids"]], "_mm_mean"))
-		}
+        #---Aggregation: Climatic dryness
+  #17
+    if (aon$yearlymonthlyTemperateDrylandIndices) {
+      temp <- c(temp, paste0(c(paste0(temp <- c("UNAridityIndex", "TrewarthaD", "TemperateDryland12"), ".Normals"), paste0(temp, ".Annual")), rep(c("_none", "_TF", "_TF"), times = 2), "_mean"))
+    }
 
-		##############################################################---Aggregation: Daily extreme values---##############################################################
-	#28
-		if (aon$dailyTranspirationExtremes) {
-			temp <- c(temp, paste("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
-		}
+  #18
+    if (aon$yearlyDryWetPeriods) {
+      temp <- c(temp, paste0(c("Dry", "Wet"), "SpellDuration.90PercentEvents.ShorterThan_years_quantile0.9"))
+    }
 
-	#29
-		if (aon$dailyTotalEvaporationExtremes) {
-			temp <- c(temp, paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
-		}
+  #19
+    if (aon$dailyWeatherGeneratorCharacteristics) {
+      temp <- c(temp, paste0(rep(c("WetSpellDuration", "DrySpellDuration", "TempAir.StDevOfDailyValues"), each = 12), ".m", SFSW2_glovars[["st_mo"]], rep(c("_days", "_days", "_C"), each = 12), "_mean"))
+    }
 
-	#30
-		if (aon$dailyDrainageExtremes) {
-			temp <- c(temp, paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
-		}
+  #20
+    if (aon$dailyPrecipitationFreeEventDistribution) {
+      bins.summary <- (0:3) * opt_agg[["bin_prcpfree_days"]]
+      temp <- c(temp, paste0("DrySpells.Annual", c("_count", paste0(".SizeClass", bins.summary+1, "to", c(bins.summary[-1], "365"), "days_fraction")), "_mean"))
+    }
 
-	#31
-		if (aon$dailyInfiltrationExtremes) {
-			temp <- c(temp, paste("Infiltration.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("Infiltration.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
-		}
+  #21
+    if (aon$monthlySPEIEvents) {
+      binSPEI_m <- c(1, 12, 24, 48) #months
+      probs <- c(0.025, 0.5, 0.975)
+      for (iscale in seq_along(binSPEI_m)) {
+        rvec <- rep(NA, times = 4 * length(probs))
+        temp <- c(temp, paste0(rep(paste0("SPEI.", binSPEI_m[iscale], "monthsScale."), length(rvec)), "Spell", rep(c("Pos.", "Neg."), each = 2*length(probs)), rep(rep(c("Duration_months", "Value_none"), each = length(probs)), times = 2), "_quantile", rep(probs, times = 4)))
 
-	#32
-		if (aon$dailyAETExtremes) {
-			temp <- c(temp, paste("AET.", c("DailyMax", "DailyMin"), "_mm_mean", sep=""), paste("AET.", c("DailyMax", "DailyMin"), "_doy_mean", sep=""))
-		}
+      }
+    }
 
-	#33
-		if (aon$dailySWPextremes) {
-			temp <- c(temp, paste(paste("SWP.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_MPa_mean", "_doy_mean"), each=4), sep=""))
-		}
-	#34
-		if (aon$dailyRechargeExtremes) {
-			temp <- c(temp, paste(paste("RelRecharge.", rep(c("topLayers.", "bottomLayers."), each=2), rep(c("DailyMax", "DailyMin"), times=2), sep=""), rep(c("_Fraction_mean", "_doy_mean"), each=4), sep=""))
-		}
+  #---Aggregation: Climatic control
+  #22
+    if (aon$monthlyPlantGrowthControls) {
+      temp <- c(temp, paste0("NemaniEtAl2003.NPPControl.", c("Temperature", "Water", "Radiation"), "_none_mean"))
+    }
+
+  #23
+    if (aon$dailyC4_TempVar) {
+      temp <- c(temp, paste0("TeeriEtAl1976.NSadj.", c("TempAirMin.7thMonth_C", "FreezeFreeGrowingPeriod_days", "AccumDegreeDaysAbove65F_daysC"), "_mean"))
+    }
+
+  #24
+    if (aon$dailyDegreeDays) {
+      temp <- c(temp, paste0("DegreeDays.Base", opt_agg[["Tbase_DD_C"]], "C.dailyTmean_Cdays_mean"))
+    }
+
+    ##############################################################---Aggregation: Yearly water balance---##############################################################
+
+  #27.0
+    if (aon$yearlyAET) {
+      temp <- c(temp, "AET_mm_mean")
+    }
+
+  #27
+    if (aon$yearlyWaterBalanceFluxes) {
+      temp <- c(temp, paste0(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
+                  "Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean"))
+    }
 
 
-		##############################################################---Aggregation: Ecological dryness---##############################################################
+  #27.2
+    if (aon$dailySoilWaterPulseVsStorage) {
+      temp <- c(temp, paste0("WaterExtractionSpell_MeanContinuousDuration_L", SFSW2_glovars[["slyrs_ids"]], "_days_mean"),
+              paste0("WaterExtractionSpell_AnnualSummedExtraction_L", SFSW2_glovars[["slyrs_ids"]], "_mm_mean"))
+    }
 
-	#35a
+    ##############################################################---Aggregation: Daily extreme values---##############################################################
+  #28
+    if (aon$dailyTranspirationExtremes) {
+      temp <- c(temp, paste0("Transpiration.", c("DailyMax", "DailyMin"), "_mm_mean"), paste0("Transpiration.", c("DailyMax", "DailyMin"), "_doy_mean"))
+    }
+
+  #29
+    if (aon$dailyTotalEvaporationExtremes) {
+      temp <- c(temp, paste0("Evaporation.Total.", c("DailyMax", "DailyMin"), "_mm_mean"), paste0("Evaporation.Total.", c("DailyMax", "DailyMin"), "_doy_mean"))
+    }
+
+  #30
+    if (aon$dailyDrainageExtremes) {
+      temp <- c(temp, paste0("DeepDrainage.", c("DailyMax", "DailyMin"), "_mm_mean"), paste0("DeepDrainage.", c("DailyMax", "DailyMin"), "_doy_mean"))
+    }
+
+  #31
+    if (aon$dailyInfiltrationExtremes) {
+      temp <- c(temp, paste0("Infiltration.", c("DailyMax", "DailyMin"), "_mm_mean"), paste0("Infiltration.", c("DailyMax", "DailyMin"), "_doy_mean"))
+    }
+
+  #32
+    if (aon$dailyAETExtremes) {
+      temp <- c(temp, paste0("AET.", c("DailyMax", "DailyMin"), "_mm_mean"), paste0("AET.", c("DailyMax", "DailyMin"), "_doy_mean"))
+    }
+
+  #33
+    if (aon$dailySWPextremes) {
+      temp <- c(temp, paste0(paste0("SWP.", rep(c("topLayers.", "bottomLayers."), each = 2), rep(c("DailyMax", "DailyMin"), times = 2)), rep(c("_MPa_mean", "_doy_mean"), each = 4)))
+    }
+  #34
+    if (aon$dailyRechargeExtremes) {
+      temp <- c(temp, paste0(paste0("RelRecharge.", rep(c("topLayers.", "bottomLayers."), each = 2), rep(c("DailyMax", "DailyMin"), times = 2)), rep(c("_Fraction_mean", "_doy_mean"), each = 4)))
+    }
+
+
+    ##############################################################---Aggregation: Ecological dryness---##############################################################
+
+  #35a
   if (aon$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
       # abbreviations:
       #     - GT = greater than; LT = less than; EQ = equal
@@ -1781,7 +1780,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
                   paste0("SoilMoistureRegime_", SMR_names()),
                   paste0("SoilMoistureRegimeQualifier_", SMRq_names()))))
     }
-	#35b
+  #35b
     if (aon$dailyNRCS_Chambers2014_ResilienceResistance) {
       cats <- c("Low", "ModeratelyLow", "Moderate", "ModeratelyHigh", "High")
       temp <- c(temp, paste0("NRCS_Chambers2014_Sagebrush",
@@ -1794,263 +1793,263 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       temp <- c(temp, paste0("NRCS_Maestas2016_SagebrushRR_", c("Low", "Moderate", "High")))
     }
 
-	#35.2
-		if (aon$dailyWetDegreeDays) {
-			temp <- c(temp, paste("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times=opt_agg[["SWPcrit_N"]]), "_Cdays_mean", sep=""))
-		}
+  #35.2
+    if (aon$dailyWetDegreeDays) {
+      temp <- c(temp, paste0("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 3), rep(c(".topLayers", ".bottomLayers", ".anyLayer"), times = opt_agg[["SWPcrit_N"]]), "_Cdays_mean"))
+    }
 
-	#35.3
-		if (aon$dailyThermalDrynessStartEnd) {
-		  temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
-							rep(fieldtag_SWPcrit_MPa, each = 4),
-							"_NSadj_",
-							rep(c("topLayers", "bottomLayers"), each = 2), "_",
-							rep(c("Start", "End"), times = 2),
-							"_LongestContinuous_days_mean"))
-		}
+  #35.3
+    if (aon$dailyThermalDrynessStartEnd) {
+      temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
+              rep(fieldtag_SWPcrit_MPa, each = 4),
+              "_NSadj_",
+              rep(c("topLayers", "bottomLayers"), each = 2), "_",
+              rep(c("Start", "End"), times = 2),
+              "_LongestContinuous_days_mean"))
+    }
 
-	#35.4
-		if (aon$dailyThermalSWPConditionCount) {
-		  temp <- c(temp, paste0("SoilPeriods_Warm",
-							rep(paste0(rep(c("Dry", "Wet"), times = 3), "_",
-								rep(c("allLayers", "topLayer", "bottomLayer"), each = 2)),
-								each = length(opt_agg[["Tmean_crit_C"]]) * opt_agg[["SWPcrit_N"]]),
-							"_Tcrit", rep(fieldtag_Tmean_crit_C, times = opt_agg[["SWPcrit_N"]]),
-							"_SWPcrit", rep(fieldtag_SWPcrit_MPa, each = length(opt_agg[["Tmean_crit_C"]])),
-							"_Count_days_mean"))
-		}
+  #35.4
+    if (aon$dailyThermalSWPConditionCount) {
+      temp <- c(temp, paste0("SoilPeriods_Warm",
+              rep(paste0(rep(c("Dry", "Wet"), times = 3), "_",
+                rep(c("allLayers", "topLayer", "bottomLayer"), each = 2)),
+                each = length(opt_agg[["Tmean_crit_C"]]) * opt_agg[["SWPcrit_N"]]),
+              "_Tcrit", rep(fieldtag_Tmean_crit_C, times = opt_agg[["SWPcrit_N"]]),
+              "_SWPcrit", rep(fieldtag_SWPcrit_MPa, each = length(opt_agg[["Tmean_crit_C"]])),
+              "_Count_days_mean"))
+    }
 
-	#36
-		if (aon$monthlySWPdryness) {
-			temp <- c(temp, paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=opt_agg[["SWPcrit_N"]]), ".Duration.Total_months_mean", sep=""),
-					paste("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times=2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each=opt_agg[["SWPcrit_N"]]), ".Start_month_mean", sep=""))
-		}
+  #36
+    if (aon$monthlySWPdryness) {
+      temp <- c(temp, paste0("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each = opt_agg[["SWPcrit_N"]]), ".Duration.Total_months_mean"),
+          paste0("DrySoilPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 2), ".NSadj.", rep(c("topLayers", "bottomLayers"), each = opt_agg[["SWPcrit_N"]]), ".Start_month_mean"))
+    }
 
-	#37
-		if (aon$dailySWPdrynessANDwetness) {
-			temp <- c(temp, paste(rep(c("WetSoilPeriods", "DrySoilPeriods"), each=8), ".SWPcrit", rep(fieldtag_SWPcrit_MPa, each=16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times=4), rep(rep(c("topLayers", "bottomLayers"), each=2), times=2)),
-							rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each=4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each=2), times=2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times=2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times=2)), "_mean", sep=""))
-		}
+  #37
+    if (aon$dailySWPdrynessANDwetness) {
+      temp <- c(temp, paste0(rep(c("WetSoilPeriods", "DrySoilPeriods"), each = 8), ".SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 16), ".NSadj.", c(rep(c("topLayers", "bottomLayers"), times = 4), rep(rep(c("topLayers", "bottomLayers"), each = 2), times = 2)),
+              rep(c(".AnyLayerWet.", ".AllLayersWet.", ".AllLayersDry.", ""), each = 4), c(rep(rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), each = 2), times = 2), rep(c("Duration.Total_days", "Duration.LongestContinuous_days"), times = 2), rep(c(".PeriodsForAtLeast10Days.Start_doy", ".PeriodsForAtLeast10Days.End_doy"), times = 2)), "_mean"))
+    }
 
-	#38
-		if (aon$dailySuitablePeriodsDuration) {
-			quantiles <- c(0.05, 0.5, 0.95)
-			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste(rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=opt_agg[["SWPcrit_N"]]), sep=""), each=length(quantiles)), "_Duration_days_quantile", rep(quantiles, times=2), sep=""))
-		}
-	#39
-		if (aon$dailySuitablePeriodsAvailableWater) {
-			temp <- c(temp, paste("ThermalSnowfreeWetPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=opt_agg[["SWPcrit_N"]]), "_AvailableWater_mm_mean", sep=""))
-		}
-	#40
-		if (aon$dailySuitablePeriodsDrySpells) {
-			temp <- c(temp, paste("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste(rep(fieldtag_SWPcrit_MPa, each=2), rep(c(".topLayers", ".bottomLayers"), times=opt_agg[["SWPcrit_N"]]), sep=""), each=4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean"), sep=""))
-		}
-	#41
-		if (aon$dailySWPdrynessDurationDistribution) {
-			deciles <- (0:10)*10/100
-			quantiles <- (0:4)/4
-			mo_seasons <- matrix(data=c(12,1:11), ncol=3, nrow=4, byrow=TRUE)
-			season.flag <- c("DJF", "MAM", "JJA", "SON")
+  #38
+    if (aon$dailySuitablePeriodsDuration) {
+      quantiles <- c(0.05, 0.5, 0.95)
+      temp <- c(temp, paste0("ThermalSnowfreeWetPeriods.SWPcrit", rep(paste0(rep(fieldtag_SWPcrit_MPa, each = 2), rep(c(".topLayers", ".bottomLayers"), times = opt_agg[["SWPcrit_N"]])), each = length(quantiles)), "_Duration_days_quantile", rep(quantiles, times = 2)))
+    }
+  #39
+    if (aon$dailySuitablePeriodsAvailableWater) {
+      temp <- c(temp, paste0("ThermalSnowfreeWetPeriods.SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 2), rep(c(".topLayers", ".bottomLayers"), times = opt_agg[["SWPcrit_N"]]), "_AvailableWater_mm_mean"))
+    }
+  #40
+    if (aon$dailySuitablePeriodsDrySpells) {
+      temp <- c(temp, paste0("ThermalSnowfreeDryPeriods.SWPcrit", rep(paste0(rep(fieldtag_SWPcrit_MPa, each = 2), rep(c(".topLayers", ".bottomLayers"), times = opt_agg[["SWPcrit_N"]])), each = 4), c("_DrySpellsAllLayers_meanDuration_days_mean", "_DrySpellsAllLayers_maxDuration_days_mean", "_DrySpellsAllLayers_Total_days_mean", "_DrySpellsAtLeast10DaysAllLayers_Start_doy_mean")))
+    }
+  #41
+    if (aon$dailySWPdrynessDurationDistribution) {
+      deciles <- (0:10)*10/100
+      quantiles <- (0:4)/4
+      mo_seasons <- matrix(data = c(12, 1:11), ncol = 3, nrow = 4, byrow = TRUE)
+      season.flag <- c("DJF", "MAM", "JJA", "SON")
 
-			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
-								rep(rep(fieldtag_SWPcrit_MPa, each = 2 * length(quantiles)), times = length(season.flag)),
-								".Month",
-								rep(season.flag, each = 2 * length(quantiles) * opt_agg[["SWPcrit_N"]]), ".",
-								rep(rep(paste0(rep(c("topLayers", "bottomLayers"), each = length(quantiles)),
-									".Duration_days_quantile",
-									rep(quantiles, times = 2)), times = opt_agg[["SWPcrit_N"]]),
-								times = length(season.flag))))
-		}
+      temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+                rep(rep(fieldtag_SWPcrit_MPa, each = 2 * length(quantiles)), times = length(season.flag)),
+                ".Month",
+                rep(season.flag, each = 2 * length(quantiles) * opt_agg[["SWPcrit_N"]]), ".",
+                rep(rep(paste0(rep(c("topLayers", "bottomLayers"), each = length(quantiles)),
+                  ".Duration_days_quantile",
+                  rep(quantiles, times = 2)), times = opt_agg[["SWPcrit_N"]]),
+                times = length(season.flag))))
+    }
 
-	#42
-		if (aon$dailySWPdrynessEventSizeDistribution) {
-			binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
-			binsN <- length(binSize) - 1
-			binTitle <- paste("SizeClass", paste(binSize[-length(binSize)], binSize[-1]-1, sep="to") ,"days", sep="")
+  #42
+    if (aon$dailySWPdrynessEventSizeDistribution) {
+      binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 4
+      binsN <- length(binSize) - 1
+      binTitle <- paste0("SizeClass", paste(binSize[-length(binSize)], binSize[-1]-1, sep = "to"), "days")
 
-			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
-								rep(fieldtag_SWPcrit_MPa, each = 2 * (binsN + 1)),
-								".Annual.",
-								rep(c("topLayers", "bottomLayers"), each = binsN + 1),
-								rep(c("_count", paste0(".", binTitle, "_fraction")), times = 2),
-								"_mean"))
-		}
+      temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+                rep(fieldtag_SWPcrit_MPa, each = 2 * (binsN + 1)),
+                ".Annual.",
+                rep(c("topLayers", "bottomLayers"), each = binsN + 1),
+                rep(c("_count", paste0(".", binTitle, "_fraction")), times = 2),
+                "_mean"))
+    }
 
-	#43
-		if (aon$dailySWPdrynessIntensity) {
-			temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
-								rep(fieldtag_SWPcrit_MPa, each = 4 * 2),
-								".MissingWater.",
-								rep(c("topLayers", "bottomLayers"), each = 4), ".",
-								rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times = 2),
-								"_mean"))
-		}
+  #43
+    if (aon$dailySWPdrynessIntensity) {
+      temp <- c(temp, paste0("DrySoilPeriods.SWPcrit",
+                rep(fieldtag_SWPcrit_MPa, each = 4 * 2),
+                ".MissingWater.",
+                rep(c("topLayers", "bottomLayers"), each = 4), ".",
+                rep(c("AnnualSum_mmH2O", "PerEventPerDay_mmH2O", "Duration.Event_days", "Events_count"), times = 2),
+                "_mean"))
+    }
 
-	#43.2
-		if (aon$dailyThermalDrynessStress) {
-			temp <- c(temp,
-						paste0("Mean10HottestDays_VPD_kPa",
-							c("_mean", "_max",
-							paste0(paste0("_MoistureStress_",
-									"SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
-									rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]]), each = 2)
-								),
-								rep(c("_mean", "_max"), each = opt_agg[["SWPcrit_N"]])))))
+  #43.2
+    if (aon$dailyThermalDrynessStress) {
+      temp <- c(temp,
+            paste0("Mean10HottestDays_VPD_kPa",
+              c("_mean", "_max",
+              paste0(paste0("_MoistureStress_",
+                  "SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
+                  rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]]), each = 2)
+                ),
+                rep(c("_mean", "_max"), each = opt_agg[["SWPcrit_N"]])))))
 
-		}
+    }
 
-		##############################################################---Aggregation: Mean monthly values---##############################################################
+    ##############################################################---Aggregation: Mean monthly values---##############################################################
 
-	#44
-		if (aon$monthlyTemp) {
-			temp <- c(temp, paste("TempAir.m", SFSW2_glovars[["st_mo"]], "_C_mean", sep=""))
-		}
+  #44
+    if (aon$monthlyTemp) {
+      temp <- c(temp, paste0("TempAir.m", SFSW2_glovars[["st_mo"]], "_C_mean"))
+    }
 
-	#45
-		if (aon$monthlyPPT) {
-			temp <- c(temp, paste("Precip.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #45
+    if (aon$monthlyPPT) {
+      temp <- c(temp, paste0("Precip.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#46
-		if (aon$monthlySnowpack) {
-			temp <- c(temp, paste("Snowpack.m", SFSW2_glovars[["st_mo"]], "_mmSWE_mean", sep=""))
-		}
+  #46
+    if (aon$monthlySnowpack) {
+      temp <- c(temp, paste0("Snowpack.m", SFSW2_glovars[["st_mo"]], "_mmSWE_mean"))
+    }
 
-	#47
-		if (aon$monthlySoilTemp) {
-			temp <- c(temp, paste("TempSoil.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_C_mean", sep=""))
-		}
+  #47
+    if (aon$monthlySoilTemp) {
+      temp <- c(temp, paste0("TempSoil.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_C_mean"))
+    }
 
-	#48
-		if (aon$monthlyRunoff) {
-			temp <- c(temp, paste("Runoff.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #48
+    if (aon$monthlyRunoff) {
+      temp <- c(temp, paste0("Runoff.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#49
-		if (aon$monthlyHydraulicRedistribution) {
-			temp <- c(temp, paste("HydraulicRedistribution.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
-		}
+  #49
+    if (aon$monthlyHydraulicRedistribution) {
+      temp <- c(temp, paste0("HydraulicRedistribution.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_mm_mean"))
+    }
 
-	#50
-		if (aon$monthlyInfiltration) {
-			temp <- c(temp, paste("Infiltration.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #50
+    if (aon$monthlyInfiltration) {
+      temp <- c(temp, paste0("Infiltration.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#51
-		if (aon$monthlyDeepDrainage) {
-			temp <- c(temp, paste("DeepDrainage.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #51
+    if (aon$monthlyDeepDrainage) {
+      temp <- c(temp, paste0("DeepDrainage.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#52
-		if (aon$monthlySWPmatric) {
-			temp <- c(temp, paste("SWPmatric.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_MPa_FromVWCmean", sep=""))
-		}
+  #52
+    if (aon$monthlySWPmatric) {
+      temp <- c(temp, paste0("SWPmatric.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_MPa_FromVWCmean"))
+    }
 
-	#53 a.)
-		if (aon$monthlyVWCbulk) {
-			temp <- c(temp, paste("VWCbulk.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
-		}
-	#53 b.)
-		if (aon$monthlyVWCmatric) {
-			temp <- c(temp, paste("VWCmatric.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mPERm_mean", sep=""))
-		}
+  #53 a.)
+    if (aon$monthlyVWCbulk) {
+      temp <- c(temp, paste0("VWCbulk.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_mPERm_mean"))
+    }
+  #53 b.)
+    if (aon$monthlyVWCmatric) {
+      temp <- c(temp, paste0("VWCmatric.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_mPERm_mean"))
+    }
 
-	#54
-		if (aon$monthlySWCbulk) {
-			temp <- c(temp, paste("SWCbulk.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
-		}
+  #54
+    if (aon$monthlySWCbulk) {
+      temp <- c(temp, paste0("SWCbulk.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_mm_mean"))
+    }
 
-	#55
-		if (aon$monthlySWAbulk) {
-			temp <- c(temp, paste0("SWAbulk_",
-								"SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
-								c(paste0("topLayers_m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers_m", SFSW2_glovars[["st_mo"]])),
-								"_mm_mean"))
-		}
+  #55
+    if (aon$monthlySWAbulk) {
+      temp <- c(temp, paste0("SWAbulk_",
+                "SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 24), "_",
+                c(paste0("topLayers_m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers_m", SFSW2_glovars[["st_mo"]])),
+                "_mm_mean"))
+    }
 
-	#56
-		if (aon$monthlyTranspiration) {
-			temp <- c(temp, paste("Transpiration.", c(paste("topLayers.m", SFSW2_glovars[["st_mo"]], sep=""), paste("bottomLayers.m", SFSW2_glovars[["st_mo"]], sep="")), "_mm_mean", sep=""))
-		}
+  #56
+    if (aon$monthlyTranspiration) {
+      temp <- c(temp, paste0("Transpiration.", c(paste0("topLayers.m", SFSW2_glovars[["st_mo"]]), paste0("bottomLayers.m", SFSW2_glovars[["st_mo"]])), "_mm_mean"))
+    }
 
-	#57
-		if (aon$monthlySoilEvaporation) {
-			temp <- c(temp, paste("Evaporation.Soil.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #57
+    if (aon$monthlySoilEvaporation) {
+      temp <- c(temp, paste0("Evaporation.Soil.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#58
-		if (aon$monthlyAET) {
-			temp <- c(temp, paste("AET.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #58
+    if (aon$monthlyAET) {
+      temp <- c(temp, paste0("AET.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#59
-		if (aon$monthlyPET) {
-			temp <- c(temp, paste("PET.m", SFSW2_glovars[["st_mo"]], "_mm_mean", sep=""))
-		}
+  #59
+    if (aon$monthlyPET) {
+      temp <- c(temp, paste0("PET.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
 
-	#59.2
-		if (aon$monthlyVPD) {
-			temp <- c(temp, paste0("VPD_m", SFSW2_glovars[["st_mo"]], "_kPa_mean"))
-		}
+  #59.2
+    if (aon$monthlyVPD) {
+      temp <- c(temp, paste0("VPD_m", SFSW2_glovars[["st_mo"]], "_kPa_mean"))
+    }
 
-	#60
-		if (aon$monthlyAETratios) {
-			temp <- c(temp, paste(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each=12), SFSW2_glovars[["st_mo"]], "_fraction_mean", sep=""))
-		}
+  #60
+    if (aon$monthlyAETratios) {
+      temp <- c(temp, paste0(rep(c("TranspToAET.m", "EvapSoilToAET.m"), each = 12), SFSW2_glovars[["st_mo"]], "_fraction_mean"))
+    }
 
-	#61
-		if (aon$monthlyPETratios) {
-			temp <- c(temp, paste(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each=12), SFSW2_glovars[["st_mo"]], "_fraction_mean", sep=""))
-		}
+  #61
+    if (aon$monthlyPETratios) {
+      temp <- c(temp, paste0(rep(c("TranspToPET.m", "EvapSoilToPET.m"), each = 12), SFSW2_glovars[["st_mo"]], "_fraction_mean"))
+    }
 
-		##############################################################---Aggregation: Potential regeneration---##############################################################
+    ##############################################################---Aggregation: Potential regeneration---##############################################################
 
-	#62
-		if (aon$dailyRegeneration_bySWPSnow) {
-			temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction_mean")
-		}
+  #62
+    if (aon$dailyRegeneration_bySWPSnow) {
+      temp <- c(temp, "Regeneration.Potential.SuitableYears.NSadj_fraction_mean")
+    }
 
-	#63
-		if (aon$dailyRegeneration_GISSM && opt_agg[["GISSM_species_No"]] > 0) {
-			for (sp in seq_len(opt_agg[["GISSM_species_No"]])) {
-				SeedlingMortality_CausesByYear_colnames <- paste("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
-						"DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"), sep="")
+  #63
+    if (aon$dailyRegeneration_GISSM && opt_agg[["GISSM_species_No"]] > 0) {
+      for (sp in seq_len(opt_agg[["GISSM_species_No"]])) {
+        SeedlingMortality_CausesByYear_colnames <- paste0("Seedlings1stSeason.Mortality.", c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax", "ByChronicSWPMin", "ByAcuteSWPMin",
+            "DuringStoppedGrowth.DueSnowCover", "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"))
 
-				temp.header1 <- c(paste(temp1 <- c("Germination", "Seedlings1stSeason"), ".SuitableYears_fraction_mean", sep=""),
-						paste(rep(temp1, each=3), ".UnsuitableYears.Successive_years_quantile", rep(c(0.05, 0.5, 0.95), times=2), sep=""),
-						paste(temp1, ".SuitableDaysPerYear_days_mean", sep=""),
-						paste(paste(rep(temp1, each=3), ".", c("Start", "Middle", "End"), sep=""), "_doy_quantile", rep(c(0.9, 0.5, 0.9), times=2), sep=""),
-						paste("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"), "_days_mean", sep=""),
-						"Germination.TimeToGerminate_days_mean",
-						paste(SeedlingMortality_CausesByYear_colnames, "_days_mean", sep=""))
+        temp.header1 <- c(paste0(temp1 <- c("Germination", "Seedlings1stSeason"), ".SuitableYears_fraction_mean"),
+            paste0(rep(temp1, each = 3), ".UnsuitableYears.Successive_years_quantile", rep(c(0.05, 0.5, 0.95), times = 2)),
+            paste0(temp1, ".SuitableDaysPerYear_days_mean"),
+            paste0(paste0(rep(temp1, each = 3), ".", c("Start", "Middle", "End")), "_doy_quantile", rep(c(0.9, 0.5, 0.9), times = 2)),
+            paste0("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"), "_days_mean"),
+            "Germination.TimeToGerminate_days_mean",
+            paste0(SeedlingMortality_CausesByYear_colnames, "_days_mean"))
 
-				temp <- c(temp, paste(colnames(opt_agg[["GISSM_params"]])[sp], temp.header1, sep="."))
+        temp <- c(temp, paste(colnames(opt_agg[["GISSM_params"]])[sp], temp.header1, sep = "."))
 
-				#Output for time series: not yet implemented for db
-			}
-		}
+        #Output for time series: not yet implemented for db
+      }
+    }
 
-		#---Aggregation: done with options
+    #---Aggregation: done with options
 
-		#Convert '.' to "_"
-		temp <- gsub(".", "_", temp, fixed = TRUE)
+    #Convert '.' to "_"
+    temp <- gsub(".", "_", temp, fixed = TRUE)
 
-		ncol_dbOut_overall <- length(temp)
+    ncol_dbOut_overall <- length(temp)
 
-		if (ncol_dbOut_overall > 0)
-			temp <- paste(paste0("\"", temp, "\""), " REAL", collapse = ", ")
+    if (ncol_dbOut_overall > 0)
+      temp <- paste0(paste0("\"", temp, "\""), " REAL", collapse = ", ")
 
-		meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", temp), collapse = ", ")
-		sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", gsub("_mean", "_sd", temp)),
-		  collapse = ", ")
+    meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", temp), collapse = ", ")
+    sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", gsub("_mean", "_sd", temp)),
+      collapse = ", ")
 
-		SQL_Table_Definitions1 <- paste0("CREATE TABLE \"aggregation_overall_mean\" (",
-		  meanString, ");")
-		SQL_Table_Definitions2 <- paste0("CREATE TABLE \"aggregation_overall_sd\" (",
-		  sdString, ");")
+    SQL_Table_Definitions1 <- paste0("CREATE TABLE \"aggregation_overall_mean\" (",
+      meanString, ");")
+    SQL_Table_Definitions2 <- paste0("CREATE TABLE \"aggregation_overall_sd\" (",
+      sdString, ");")
 
-		rs <- RSQLite::dbGetQuery(con_dbOut, paste(SQL_Table_Definitions1, collapse = "\n"))
-		rs <- RSQLite::dbGetQuery(con_dbOut, paste(SQL_Table_Definitions2, collapse = "\n"))
+    rs <- RSQLite::dbGetQuery(con_dbOut, paste0(SQL_Table_Definitions1, collapse = "\n"))
+    rs <- RSQLite::dbGetQuery(con_dbOut, paste0(SQL_Table_Definitions2, collapse = "\n"))
 
     list(ncol_dbOut_overall = ncol_dbOut_overall, meanString = meanString,
       sdString = sdString)
@@ -2062,11 +2061,11 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
   if (req_aggs[["N"]] > 0) {
     doy_colnames <- paste0("doy", formatC(seq_len(366), width = 3, format = "d",
       flag = "0"))
-    doy_colnames <- paste(paste0("\"", doy_colnames, "\""), " REAL", collapse = ", ")
+    doy_colnames <- paste0(paste0("\"", doy_colnames, "\""), " REAL", collapse = ", ")
 
     dailySQL <- paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames), collapse = ", ")
     dailyLayersSQL <- paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER",
-      doy_colnames, "PRIMARY KEY (\"P_id\",\"Soil_Layer\")"), collapse = ", ")
+      doy_colnames, "PRIMARY KEY (\"P_id\", \"Soil_Layer\")"), collapse = ", ")
 
     for (doi in seq_len(req_aggs[["N"]])) {
       if (regexpr("SWAbulk", req_aggs[["tag"]][doi]) > 0) {
@@ -2075,7 +2074,7 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
       } else {
         agg.resp <- req_aggs[["tag"]][doi]
       }
-      #"VWCbulk","VWCmatric", "SWCbulk", "SWPmatric","SWAbulk"
+      #"VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "SWAbulk"
       agg.analysis <- switch(EXPR = agg.resp,
         AET = 1, Transpiration = 2, EvaporationSoil = 1, EvaporationSurface = 1,
         EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,

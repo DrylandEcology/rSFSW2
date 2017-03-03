@@ -76,7 +76,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     sites_ned <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
@@ -91,7 +91,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     }
 
     #extract data for locations
-    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))  # elevation in m a.s.l.
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp
 
@@ -176,7 +176,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     sites_hwsd <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
@@ -191,7 +191,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     }
 
     #extract data for locations
-    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))  # elevation in m a.s.l.
 
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp

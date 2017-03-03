@@ -112,9 +112,9 @@ export_objects_to_workers <- function(obj_env,
 #' @export
 mpi_work <- function(verbose = FALSE) {
   # Note the use of the tag for sent messages:
-  #     1=ready_for_task, 2=done_task, 3=exiting
+  #     1 = ready_for_task, 2 = done_task, 3 = exiting
   # Note the use of the tag for received messages:
-  #     1=task, 2=done_tasks
+  #     1 = task, 2 = done_tasks
 
   junk <- 0L
   done <- 0L

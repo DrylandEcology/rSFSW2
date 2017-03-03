@@ -42,7 +42,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'    \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
 #'      represented by a two-column matrix of xy coordinates. If not provided, then
 #'      extracted from \code{y}.
-#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0,1]} at
+#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
 #' @seealso \code{\link[raster]{extract}}
@@ -211,7 +211,7 @@ setMethod("extract_rSFSW2",
 #'    \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
 #'      system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from
 #'      \linkS4class{SpatialPolygons}.
-#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0,1]} at
+#'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
 #'
@@ -490,7 +490,7 @@ reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
 #'
 #' @param reagg A list. The output object of a call to \code{reaggregate_raster} or to
 #'  \code{reaggregate_shapefile}.
-#' @param probs A numeric vector of probabilities with values in \code{[0,1]} at which
+#' @param probs A numeric vector of probabilities with values in \code{[0, 1]} at which
 #'  sample quantiles are returned or \code{NA}.
 #'
 #' @return An array. The first dimension corresponds to each rectangle, i.e., a row of
@@ -613,7 +613,7 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
           if (!(length(IDs) == 2))
             stop("IDs contain spaces: this breaks identification after gIntersection()")
 
-          c(  area = slot(p, name = "area"),
+          c(area = slot(p, name = "area"),
             ID_data = which(row.names(x) == IDs[1]),
             ID_rect = which(row.names(by) == IDs[2]))
         }))
@@ -793,7 +793,7 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
 
     #--- SpatialPoints of simulation cell centers/sites in WGS84
-    sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")  # epsg:4326 is sp::CRS("+proj=longlat +datum=WGS84 +no_defs")
+    sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")  # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")
     sim_space[["run_sites"]] <- sp::SpatialPoints(coords =
       SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")],
       proj4string = sim_space[["crs_sites"]])

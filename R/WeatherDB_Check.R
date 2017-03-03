@@ -23,18 +23,18 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   dir.create(dir_temp <- file.path(dir_out, "temp"), recursive = TRUE,
     showWarnings = FALSE)
 
-  pattern_temp <- "Summary_climate_dbWeatherData_temp_worker"	# Basename of temporary files, one for each worker, for storing extracted results
+  pattern_temp <- "Summary_climate_dbWeatherData_temp_worker"  # Basename of temporary files, one for each worker, for storing extracted results
   ftemp <- file.path(dir_out, "Summary_climate_dbWeatherData_temp.csv") # Temporary file, aggregated from worker output temp files
-  fdups <- file.path(dir_out, "Summary_climate_dbWeatherData_duplicated.csv")	# Duplicated extractions with non-identical output
-  fout <- file.path(dir_out, "Summary_climate_dbWeatherData.csv")	# Successful extractions
+  fdups <- file.path(dir_out, "Summary_climate_dbWeatherData_duplicated.csv")  # Duplicated extractions with non-identical output
+  fout <- file.path(dir_out, "Summary_climate_dbWeatherData.csv")  # Successful extractions
   fclimate <- file.path(dir_out, paste0("Summary_climate_dbWeatherData_",
-    format(Sys.Date(), "%Y%m%d"), ".rds"))	# 'climate'
+    format(Sys.Date(), "%Y%m%d"), ".rds"))  # 'climate'
 
 
   #---Calculate in parallel
   cl <- parallel::makeCluster(n_cores, type = "PSOCK", outfile = "workers_log.txt")
   temp <- parallel::clusterExport(cl, c("name_wid"))
-  #temp <- parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-'))
+  #temp <- parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep = '-'))
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
   temp <- parallel::clusterApply(cl, seq_len(n_cores), function(x)
@@ -77,7 +77,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
 
   #---Define output
-  #	Non-empty rows in 'climate' will be extracted
+  #  Non-empty rows in 'climate' will be extracted
   used_sites <- dbW_iSiteTable$Latitude > -90 & dbW_iSiteTable$Latitude > -180
   sitesN <- sum(used_sites)
 
@@ -153,10 +153,10 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   check_entry <- compiler::cmpfun(function(i, idss, data, vars, repeats) {
     # 3 types of entries in 'data'
-    #	- # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
-    #	- # of duplicates >= repeats and
-    #		- identical output ==> (1) good extraction: copy to 'fout' and 'climate'; remove lines from 'ftemp'
-    #		- varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
+    #  - # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
+    #  - # of duplicates >= repeats and
+    #    - identical output ==> (1) good extraction: copy to 'fout' and 'climate'; remove lines from 'ftemp'
+    #    - varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
 
     if (i %% 1000 == 1) print(paste0(Sys.time(), ": checking ", i, "-th entry"))
 
@@ -218,10 +218,10 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
         }
 
         print(paste0(Sys.time(), ": 'process_tempfiles' process successful database extractions"))
-        #	- # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
+        #  - # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
         ids_keep <- rep(TRUE, nrow(climate_progress))
-        #	- # of duplicates >= repeats and
-        #		- identical output ==> (1) good extraction: write one copy to 'fout' and add to 'climate'; remove all lines from 'ftemp'
+        #  - # of duplicates >= repeats and
+        #    - identical output ==> (1) good extraction: write one copy to 'fout' and add to 'climate'; remove all lines from 'ftemp'
         igood <- status[, "Status"] == 1L
         ids_good <- ids_progress %in% ids_unique[status[igood, "seq_id"]]
         climate_good <- unique(climate_progress[ids_good, ])
@@ -241,7 +241,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
         ids_keep <- ids_keep & !ids_good
 
         print(paste0(Sys.time(), ": 'process_tempfiles' process database extractions with variation among repeats"))
-        #		- varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
+        #    - varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
         ids_vdups <- ids_unique[status[status[, "Status"] == 0L, "seq_id"]]
         idups <- ids_progress %in% ids_vdups
 

@@ -38,7 +38,7 @@ calc.loess_coeff <- function(N, span) {
     nf <- floor(lcoef$span * N) - 1 #see R/trunk/src/library/stats/src/loessf.f:ehg136()
     if (nf > 2) {
       lcoef$degree <- 2
-    } else if(nf > 1){
+    } else if (nf > 1) {
       lcoef$degree <- 1
     } else {
       lcoef <- Recall(N, lcoef$span + 0.1)
@@ -56,14 +56,14 @@ calc_starts <- function(x) {
 
 
 
-#Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
+#Circular functions: int = number of units in circle, e.g., for days: int = 365; for months: int = 12
 circ_mean <- function(x, int, na.rm = FALSE) {
   if (!all(is.na(x))) {
     circ <- 2 * pi / int
     x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
     x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
 
-    round(as.numeric(x_int) - 1, 13) %% int + 1  # map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+    round(as.numeric(x_int) - 1, 13) %% int + 1  # map 0 -> int; rounding to 13 digits: 13 was empirically derived for int = {12, 365} and x = c((-1):2, seq(x-5, x+5, by = 1), seq(2*x-5, 2*x+5, by = 1)) assuming that this function will never need to calculate for x > t*int with t>2
   } else {
     NA
   }
@@ -81,7 +81,7 @@ circ_range <- function(x, int, na.rm = FALSE) {
   }
 }
 
-circ_sd <- function(x, int, na.rm=FALSE){
+circ_sd <- function(x, int, na.rm = FALSE) {
   if (length(x) - sum(is.na(x)) > 1) {
     if (stats::sd(x, na.rm = TRUE) > 0) {
       circ <- 2 * pi / int

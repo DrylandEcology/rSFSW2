@@ -192,7 +192,7 @@ check_dbWeather_version <- function(fdbWeather) {
 
 #TODO(drs): make this R package compatible
 load_NCEPCFSR_shlib <- function(cfsr_so) {
-  if(!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
+  if (!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
   invisible()
 }
 
@@ -208,37 +208,37 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
     "  3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'. ",
     "     Info about the gribfiles is in 'cfsr_convert.c'"))
 
-  dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings=FALSE)
+  dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings = FALSE)
   fname_cfsr <- file.path(dir_ex_cfsr, "cfsr_convert.so")
 
   #Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
-  if(!file.exists(fname_cfsr)){ # compile
+  if (!file.exists(fname_cfsr)) { # compile
     dtemp <- getwd()
     setwd(dir.cfsr.code)
     stopifnot(file.exists("cfsr_convert.c", "generic2.c", "generic2.h", "filefuncs2.c", "filefuncs2.h", "mymemory2.c", "mymemory2.h"))
     unlink(c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o"))
-    stopifnot(system2(command=file.path(Sys.getenv()[["R_HOME"]], "R"), args=paste("CMD SHLIB -o", fname_cfsr, "cfsr_convert.c generic2.c filefuncs2.c mymemory2.c"), wait=TRUE) == 0)
+    stopifnot(system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = paste("CMD SHLIB -o", fname_cfsr, "cfsr_convert.c generic2.c filefuncs2.c mymemory2.c"), wait = TRUE) == 0)
     setwd(dtemp)
   }
   load_NCEPCFSR_shlib(fname_cfsr)
 
   #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
-  if(!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))){
-    temp2 <- if(nchar(temp <- Sys.which("wgrib2")) > 0) temp else if(file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
+  if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
+    temp2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) temp else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
     stopifnot(nchar(temp2) > 0)
-    file.copy(from=temp2, to=wgrib2)
+    file.copy(from = temp2, to = wgrib2)
   }
 
   #Soft link to gribbed data
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
-  if(!file.exists(dir.grib)){ # value of gribDir defined in cfsr_convert.c
-    stopifnot(system2(command="ln", args=paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
+  if (!file.exists(dir.grib)) { # value of gribDir defined in cfsr_convert.c
+    stopifnot(system2(command = "ln", args = paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
   }
 
   #Set up temporary directory for C code to store objects
-  if(file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) unlink(ftemp, recursive=TRUE)
-  temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN=function(x) file.path(ftemp, x)), FUN=function(x) dir.create(x, recursive=TRUE, showWarnings=FALSE))
+  if (file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) unlink(ftemp, recursive = TRUE)
+  temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN = function(x) file.path(ftemp, x)), FUN = function(x) dir.create(x, recursive = TRUE, showWarnings = FALSE))
 
 
   list(dir_ex_cfsr = dir_ex_cfsr, cfsr_so = fname_cfsr)
@@ -248,7 +248,7 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 # Wrapper functions for C code to access NCEP/CFSR data and write out to temporary files
 gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
   if (id %% 36 == 1)
-    print(paste(Sys.time(), ": NCEP/CFSR extraction: year=", do_daily[id, "years"]))
+    print(paste(Sys.time(), ": NCEP/CFSR extraction: year =", do_daily[id, "years"]))
 
   gribData <- .C("dailyWeather2_R",
             nSites = as.integer(nSites),
@@ -290,8 +290,8 @@ writeMonthlyClimate <- function(id, siteDirsC) {
   1L
 }
 
-create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84){
-  gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125,0)*0.125, digits=4, format="f"), sep="_"))
+create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84) {
+  gsub("[[:space:]]", "", paste("data", formatC(28.8125+round((Y_WGS84-28.8125)/0.125, 0)*0.125, digits = 4, format = "f"), formatC(28.8125+round((X_WGS84-28.8125)/0.125, 0)*0.125, digits = 4, format = "f"), sep = "_"))
 }
 
 
@@ -358,9 +358,9 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cell
 
     years <- startYear:endYear
     n_years <- length(years)
-    if(!all(years %in% unique(weath.data$year)))
+    if (!all(years %in% unique(weath.data$year)))
       stop("simstartyr or endyr out of weather data range")
-    for(y in seq_along(years)) {
+    for (y in seq_along(years)) {
       data_sw <- data_all[weath.data$year == years[y], ]
       data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
       weathDataList[[y]] <- methods::new("swWeatherData",
@@ -388,8 +388,8 @@ get_DayMet_cellID <- function(coords_WGS84) {
     ## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
 
   cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
-                        if(chr[1] < 0) "-" else "+", formatC(abs(chr[1]), width=6, flag="0", format="d"), "_",
-                        if(chr[2] < 0) "-" else "+", formatC(abs(chr[2]), width=6, flag="0", format="d")))
+                        if (chr[1] < 0) "-" else "+", formatC(abs(chr[1]), width = 6, flag = "0", format = "d"), "_",
+                        if (chr[2] < 0) "-" else "+", formatC(abs(chr[2]), width = 6, flag = "0", format = "d")))
 
   dm_LCC <- res_DayMet * dm_LCC + 500 # center of 1-km cells to avoid projection errors at cell margins
   dm_WGS84 <- sp::coordinates(sp::spTransform(sp::SpatialPoints(coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
@@ -406,8 +406,8 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   pwd <- getwd()
   get_from_ornl <- TRUE
   if (file.exists(ftemp)) {
-    dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent=TRUE)
-    if(!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
+    dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent = TRUE)
+    if (!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
   }
   if (get_from_ornl) {
     setwd(dir_data)
@@ -419,30 +419,30 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   }
 
   # Convert to rSOILWAT2 format
-  if(!inherits(dm_temp, "try-error")){
-    if(exists(cellID, envir=globalenv())){
-      temp <- get(cellID, envir=globalenv())$data
-    } else if(!get_from_ornl && inherits(dm_temp, "data.frame")){
+  if (!inherits(dm_temp, "try-error")) {
+    if (exists(cellID, envir = globalenv())) {
+      temp <- get(cellID, envir = globalenv())$data
+    } else if (!get_from_ornl && inherits(dm_temp, "data.frame")) {
       temp <- dm_temp
     } else stop(paste("Daymet data not successful", cellID))
 
     data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
     stopifnot(!anyNA(data_all), sum(data_all == -9999L) == 0)
-    template_sw <- data.frame(matrix(NA, nrow=366, ncol=4, dimnames=list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
+    template_sw <- data.frame(matrix(NA, nrow = 366, ncol = 4, dimnames = list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
 
     years <- start_year:end_year
     weathDataList <- list()
-    for(y in seq_along(years)){
+    for (y in seq_along(years)) {
       data_sw <- template_sw
       # All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
       data_sw[1:365, ] <- data_all[data_all$year == years[y], -1]
-      if(isLeapYear(years[y])){
+      if (isLeapYear(years[y])) {
         data_sw[366, ] <- c(366, data_sw[365, -1])
       }
       data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
       weathDataList[[y]] <- methods::new("swWeatherData",
-                                year=years[y],
-                                data = data.matrix(data_sw[if(isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force=FALSE)) #strip row.names, otherwise they consume about 60% of file size
+                                year = years[y],
+                                data = data.matrix(data_sw[if (isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
     }
     names(weathDataList) <- as.character(years)
   } else {
@@ -485,8 +485,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
 #'  dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S.
 #'    Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for
 #'    North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD,
-#'    YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N=DD.DD, S=DD.DD,
-#'    E=DDD.DD, W=DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
+#'    YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N = DD.DD, S = DD.DD,
+#'    E = DDD.DD, W = DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
 #'  \href{https://github.com/khufkens/daymetr}{daymetr package}
 #'
 #' @name ExtractDayMet
@@ -511,7 +511,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 
   if (sum(iuse) > 0) {
     site_ids_todo <- site_ids[iuse]
-    xy_WGS84 <- coords_WGS84[iuse, , drop=FALSE]
+    xy_WGS84 <- coords_WGS84[iuse, , drop = FALSE]
     dm <- get_DayMet_cellID(xy_WGS84)
 
     #TODO: re-write for parallel processing (does it make sense to download in parallel?)
@@ -583,7 +583,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   }
 
 
-  NRC_years <- as.integer(list.dirs(path=dir_temp, recursive=FALSE, full.names=FALSE))
+  NRC_years <- as.integer(list.dirs(path = dir_temp, recursive = FALSE, full.names = FALSE))
   NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
   stopifnot(start_year:end_year %in% NRC_target_years)
 
@@ -591,8 +591,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   prj_geographicWGS84 <- sp::CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
   prj_geographicNAD83 <- sp::CRS("+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0")
 
-  sp_locs <- sp::SpatialPoints(coords=coords_WGS84, proj4string=prj_geographicWGS84)
-  sp_locs <- sp::spTransform(sp_locs, CRSobj=prj_geographicNAD83)
+  sp_locs <- sp::SpatialPoints(coords = coords_WGS84, proj4string = prj_geographicWGS84)
+  sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
 
   if (opt_parallel[["has_parallel"]])
     raster::beginCluster(n = opt_parallel[["ncores"]], type = "SOCK")
@@ -601,37 +601,37 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 
   # Check if weather data was partially extracted already
   wtemp_file <- file.path(dir_temp, "NRCan_weather_temp.RData")
-  if(file.exists(wtemp_file)){
+  if (file.exists(wtemp_file)) {
     load(wtemp_file) # NRC_weather, iy
     yr_offset <- iy
     NRC_use_years <- NRC_target_years[-(1:iy)]
   } else {
-    NRC_weather <- array(NA, dim=c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames=list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(mm)")))
+    NRC_weather <- array(NA, dim = c(length(sp_locs), 366, length(NRC_target_years), 3), dimnames = list(NULL, NULL, NRC_target_years, c("Tmax(C)", "Tmin(C)", "PPT(mm)")))
     NRC_use_years <- NRC_target_years
     yr_offset <- 0
   }
 
   # Extract weather data for all locations together for each day of each year
   pwd <- getwd()
-  for(iy in seq_along(NRC_use_years)){ # Loop through years
+  for (iy in seq_along(NRC_use_years)) { # Loop through years
     print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
     setwd(file.path(dir_temp, NRC_use_years[iy]))
     NRC_days <- list.files() #find all days for this year
     ndays <- length(NRC_days) / length(vars)
-    stopifnot(ndays == if(isLeapYear(NRC_use_years[iy])) 366 else 365)
+    stopifnot(ndays == if (isLeapYear(NRC_use_years[iy])) 366 else 365)
 
     # Stack rasters for each day and extract data
-    NRC_stack <- raster::stack(NRC_days, RAT=FALSE, quick=TRUE)
+    NRC_stack <- raster::stack(NRC_days, RAT = FALSE, quick = TRUE)
     raster::projection(NRC_stack) <- prj_geographicNAD83
     temp <- round(raster::extract(NRC_stack, sp_locs), dbW_digits) # [sp_locs, NRC_days x vars]
 
     # Convert extraction information to array
     ivars <- substr(NRC_days, 1, 3) # sapply(vars, nchar) == 3
-    for(iv in seq_along(vars)){
-      idays <- as.integer(sapply(strsplit(NRC_days[vars[iv] == ivars], split="[_.]"), FUN=function(x) x[2]))
+    for (iv in seq_along(vars)) {
+      idays <- as.integer(sapply(strsplit(NRC_days[vars[iv] == ivars], split = "[_.]"), FUN = function(x) x[2]))
       NRC_weather[, 1:ndays, yr_offset + iy, iv] <- temp[, which(vars[iv] == ivars)[order(idays)][1:ndays]]
     }
-    save(NRC_weather, iy, file=wtemp_file)
+    save(NRC_weather, iy, file = wtemp_file)
   }
   setwd(pwd)
   if (opt_parallel[["has_parallel"]])
@@ -639,7 +639,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 
 
   # Convert weather array to SOILWAT2 weather objects for each sites
-  NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10	# convert from mm/day to cm/day
+  NRC_weather[, , , "PPT(mm)"] <- NRC_weather[, , , "PPT(mm)"] / 10  # convert from mm/day to cm/day
 
   for (i in seq_along(site_ids)) {
     if (i %% 100 == 1)
@@ -672,7 +672,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
         site_ids[i], weatherData))
     }
   }
-  #unlink(file=wtemp_file)
+  #unlink(file = wtemp_file)
   gc()
 
   invisible(0)
@@ -685,7 +685,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
                 opt_parallel,
                 rm_mc_files = FALSE, resume = FALSE) {
 
-#str(dat_sites): 'data.frame':	n_sites obs. of  3 variables:
+#str(dat_sites): 'data.frame':  n_sites obs. of  3 variables:
 # $ WeatherFolder: chr  ...
 # $ X_WGS84      : num  -117 -117 -117 -117 -120 ...
 # $ Y_WGS84      : num  32.8 32.8 32.8 32.8 38.9 ...
@@ -765,9 +765,9 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 
     for (k in seq_along(do_sites)) {
       print(paste(Sys.time(), ": NCEP/CFSR extraction of",
-        if(daily) "daily",
-        if(daily && monthly) "and",
-        if(monthly) "monthly",
+        if (daily) "daily",
+        if (daily && monthly) "and",
+        if (monthly) "monthly",
         "data: chunk", k, "of", length(do_sites)))
 
       nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
@@ -778,7 +778,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
       dtemp <- dir_temp.sitesC[irows]
 
 #      if (opt_verbosity[["print.debug"]])
-#        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command="lsof", args="-c R | wc -l", stdout=TRUE)))
+#        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
 
       if (opt_parallel[["has_parallel"]]) {
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -884,7 +884,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     for (i in seq_len(n_sites_all)) {
       ftemp <- file.path(dir_temp_sites[i], "mc.csv")
       if (file.exists(ftemp)) {
-        table.mc <- utils::read.csv(file=ftemp, comment="", stringsAsFactors=FALSE)
+        table.mc <- utils::read.csv(file = ftemp, comment = "", stringsAsFactors = FALSE)
         res_clim[i, 1 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Cloud_Cover"]
         res_clim[i, 1 + 12 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Surface_Wind"]
         res_clim[i, 1 + 24 + SFSW2_glovars[["st_mo"]]] <- table.mc[, "Rel_Humidity"]
@@ -1033,7 +1033,7 @@ dw_Maurer2002_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, si
 
   there <- 0
 
-  if(exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica){
+  if (exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) {
     # Check which requested Maurer weather data are available
     there <- sim_time[["simstartyr"]] >= 1949 && sim_time[["endyr"]] <= 2010
 
@@ -1063,15 +1063,15 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
   there <- 0
   if (exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica) {
     # Check which of the DayMet weather data are available
-    #	- Temperature: 2-meter air temperature in Celsius degrees
-    #	- Precipitation: mm/day; Daily total precipitation in millimeters per day, sum of
+    #  - Temperature: 2-meter air temperature in Celsius degrees
+    #  - Precipitation: mm/day; Daily total precipitation in millimeters per day, sum of
     #   all forms converted to water-equivalent. Precipitation occurrence on any given day
     #   may be ascertained.
-    #	- Grids domain v2: -131.104 -52.95  52.00 14.53
-    #	- Grids domain v3: -179     -52     83    14
-    #	- Grids: Geographic Coordinate Reference: WGS_1984; Projection: Lambert Conformal Conic
-    #	- Cells size: 1000 x 1000 m
-    #	- All Daymet years, including leap years, have 1 - 365 days. For leap years, the
+    #  - Grids domain v2: -131.104 -52.95  52.00 14.53
+    #  - Grids domain v3: -179     -52     83    14
+    #  - Grids: Geographic Coordinate Reference: WGS_1984; Projection: Lambert Conformal Conic
+    #  - Cells size: 1000 x 1000 m
+    #  - All Daymet years, including leap years, have 1 - 365 days. For leap years, the
     #   Daymet database includes leap day. Values for December 31 are discarded from leap
     #   years to maintain a 365-day year.
     there <- sim_time[["simstartyr"]] >= 1980 &&
@@ -1103,11 +1103,11 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
   there <- 0
   if (exinfo$GriddedDailyWeatherFromNRCan_10km_Canada) {
     # Check which of the NRCan weather data are available
-    #	- Temperature: Celsius degrees
-    #	- Precipitation: mm
-    #	- Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
-    #	- Grids datum: geographic NAD83
-    #	- Columns: 1068, Rows: 510, Cells size: 0.083333333
+    #  - Temperature: Celsius degrees
+    #  - Precipitation: mm
+    #  - Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
+    #  - Grids datum: geographic NAD83
+    #  - Columns: 1068, Rows: 510, Cells size: 0.083333333
     there <- sim_time[["simstartyr"]] >= 1950 && sim_time[["endyr"]] <= 2013
 
     if (any(there)) {
@@ -1116,7 +1116,7 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
       raster::crs(nrc_test) <- raster::crs(paste("+init=epsg:4269 +proj=longlat",
         "+ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
       sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = raster::crs(paste("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84",
+        proj4string=raster::crs(paste("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84",
         "+no_defs +towgs84=0,0,0")))
       temp <- sp::spTransform(sp_locs, CRSobj = raster::crs(nrc_test))
       temp <- raster::extract(nrc_test, y = temp)
@@ -1144,7 +1144,7 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   there <- 0
   if (exinfo$GriddedDailyWeatherFromNCEPCFSR_Global) {
     # Check which of the NCEPCFSR_Global weather data are available
-    #	- Grids domain: 0E to 359.688E and 89.761N to 89.761S
+    #  - Grids domain: 0E to 359.688E and 89.761N to 89.761S
     there <- sim_time[["simstartyr"]] >= 1979 && sim_time[["endyr"]] <= 2010
 
     if (any(there)) {

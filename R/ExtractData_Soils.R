@@ -171,7 +171,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
     temp <- ifelse(is.finite(temp), temp, NA)
     # eq. 7 of Miller et al. 1998
-    temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk=total soil
+    temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk = total soil
 
     # adjust soil depth by layers with 100% rock volume
     solid_rock_nl <- apply(temp >= 1 - SFSW2_glovars[["toln"]], 1, sum, na.rm = TRUE)
@@ -333,7 +333,7 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
     # several prids
     for (k in seq_len(this_simCell$SUIDs_N)) {
 
-      this_soil <- this_simCell$soils[k,]
+      this_soil <- this_simCell$soils[k, ]
       # Vector of the fractions of each prid in relation to the simulation cell
       prids_frac <- this_soil$fraction * this_simCell$fraction[k]
       PRIDs_frac <- c(PRIDs_frac, prids_frac)

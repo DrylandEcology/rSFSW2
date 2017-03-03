@@ -425,11 +425,11 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
     SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmaster"]]), error = print)
     stopifnot(sapply(required_colnames_SWRunInformation(),
-        function(x) x %in% names(SWRunInformation)),		# required columns
+        function(x) x %in% names(SWRunInformation)),    # required columns
       nrow(SWRunInformation) > 0,
-      all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),	# consecutive site_id
-      !grepl("[[:space:]]", SWRunInformation$Label),	# no space-characters in label
-      !grepl("[[:space:]]", SWRunInformation$WeatherFolder)	# no space-characters in weather-data names
+      all(SWRunInformation$site_id == seq_len(nrow(SWRunInformation))),  # consecutive site_id
+      !grepl("[[:space:]]", SWRunInformation$Label),  # no space-characters in label
+      !grepl("[[:space:]]", SWRunInformation$WeatherFolder)  # no space-characters in weather-data names
     )
     include_YN <- as.logical(SWRunInformation$Include_YN)
     nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
@@ -444,7 +444,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     sw_input_treatments <- temp[["data"]]
     sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation)
     stopifnot(
-      !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)	# no space-characters in weather-data names
+      !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)  # no space-characters in weather-data names
     )
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fexpDesign"]],
@@ -453,7 +453,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     sw_input_experimentals <- temp[["data"]]
     create_experimentals <- names(sw_input_experimentals_use[sw_input_experimentals_use])
     stopifnot(
-      !grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)	# no space-characters in weather-data names
+      !grepl("[[:space:]]", sw_input_experimentals$LookupWeatherFolder)  # no space-characters in weather-data names
     )
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimnorm"]],
@@ -548,7 +548,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
         create_treatments == "AdjRootProfile")) {
       tr_input_TranspCoeff_Code <- tryCatch(utils::read.csv(fnames_in[["LookupTranspCoeffFromTable"]],
         nrows = 2, stringsAsFactors = FALSE), error = print)
-      tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2,]
+      tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2, ]
       tr_input_TranspCoeff <- utils::read.csv(fnames_in[["LookupTranspCoeffFromTable"]],
         skip = 2, stringsAsFactors = FALSE)
       colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)

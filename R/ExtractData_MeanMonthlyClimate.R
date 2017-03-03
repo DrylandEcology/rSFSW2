@@ -98,9 +98,9 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 
     var_codes <- list(
       RH = c(10, 23, 31, 41, 51, 61, 71, 78, 90), #percent
-      cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),	#percent
-      # cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),	#percent
-      wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))	#m/s; the last category is
+      cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),  #percent
+      # cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),  #percent
+      wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))  #m/s; the last category is
       # actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
 
     stopifnot(colnames(MMC[["data"]]) == names(dir_noaaca),
@@ -113,7 +113,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
     crs_data <- raster::crs(noaaca)
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {

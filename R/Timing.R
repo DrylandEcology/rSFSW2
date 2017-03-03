@@ -1,7 +1,7 @@
 #' Initialize a timing file for a simulation job
 #' @export
 init_timer <- function(timerfile2) {
-  cat(",Time_s,Number", file = timerfile2, sep = "\n")
+  cat(", Time_s, Number", file = timerfile2, sep = "\n")
 }
 
 write_timer <- function(timerfile2, label, time_sec = "", number = "") {
