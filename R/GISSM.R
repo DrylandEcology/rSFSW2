@@ -96,9 +96,15 @@ get_modifiedHardegree2006NLR <- function(RYdoy, Estimate_TimeToGerminate, TmeanJ
 }
 
 #' Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear,
   Germination_DuringFavorableConditions, LengthDays_FavorableConditions,
-  RYyear_ForEachUsedDay, soilTmeanSnow, swp.TopMean, TmeanJan, param) {
+  RYyear_ForEachUsedDay, soilTmeanSnow, swp.TopMean, TmeanJan, param, seed = NA) {
+
+  if (!is.na(seed)) set.seed(seed)
+  runifs <- runif(2)
 
   #values for current year
   index.year <- RYyear_ForEachUsedDay == RYyear
@@ -107,12 +113,17 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear,
   # determining time to germinate for every day
   a <- max(SFSW2_glovars[["tol"]], param$Hardegree_a)
   b <- param$Hardegree_b
-  d <- max(SFSW2_glovars[["tol"]], if (param$Hardegree_d == 1) {
-                  if (stats::runif(1) > 0.5) {1 + SFSW2_glovars[["tol"]]} else {1 - SFSW2_glovars[["toln"]]}
-                } else {
-                  param$Hardegree_d
-                })
-  temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(stats::runif(1) - 0.5) * SFSW2_glovars[["tol"]]
+  temp <- if (param$Hardegree_d == 1) {
+      if (runifs[1] > 0.5) {
+        1 + SFSW2_glovars[["tol"]]
+      } else {
+        1 - SFSW2_glovars[["toln"]]
+      }
+    } else {
+      param$Hardegree_d
+    }
+  d <- max(SFSW2_glovars[["tol"]], temp)
+  temp.c <- if (param$Hardegree_c != 0) param$Hardegree_c else sign(runifs[2] - 0.5) * SFSW2_glovars[["tol"]]
 
   TimeToGerminate.favorable <- unlist(lapply(which(conditions), get_modifiedHardegree2006NLR,
     Estimate_TimeToGerminate = 1, TmeanJan = TmeanJan, a = a, b = b, c = temp.c, d = d,

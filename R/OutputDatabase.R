@@ -896,6 +896,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
+
 
   Tables <- dbOutput_ListOutputTables(dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 

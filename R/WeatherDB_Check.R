@@ -6,12 +6,17 @@
 #   (repeats > 1 enable comparison of the duplicates).
 #' @param do_preprocess_tempfiles A logial value. Set to TRUE, for instance, if a
 #'   previous run was prematurely aborted.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 #'
 #' @export
 check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
-  do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979, endyear = 2010) {
+  do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979, endyear = 2010,
+  seed = NA) {
 
   #---Settings
+  if (!is.na(seed)) set.seed(seed)
   name_wid <- ".wid"
 
   vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")

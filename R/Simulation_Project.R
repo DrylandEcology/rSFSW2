@@ -248,6 +248,23 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   }
 
 
+  #--- Setup random number generator streams for each runsN_master
+  # Note: runsN_master: each site = row of master and not for runsN_total because
+  #   same site but under different experimental treatments should have same random numbers
+
+  if (todo_intracker(SFSW2_prj_meta, "rng_setup", "prepared")) {
+
+    SFSW2_prj_meta[["rng_specs"]] <- setup_RNG(
+      streams_N = SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+      global_seed = SFSW2_prj_meta[["opt_sim"]][["global_seed"]],
+      reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]])
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "rng_setup", prepared = TRUE)
+  }
+
+
+
   #--- Setup/connect to dbWork
   if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
     temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
@@ -651,6 +668,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
+
 
 #  # Assigning objects from 'SFSW2_prj_meta' to function environment for the time being;
 #  # a hack for convience

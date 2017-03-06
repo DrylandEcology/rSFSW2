@@ -274,9 +274,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
         function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
 
-#TODO (drs): properly set up random numbers
-      #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
-
       parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSOILWAT2", quietly = TRUE))
       parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSFSW2", quietly = TRUE))
     }

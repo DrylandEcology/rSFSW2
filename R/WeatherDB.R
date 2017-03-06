@@ -108,10 +108,14 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0) {
     #--- Set up parallelization
     opt_parallel <- setup_SFSW2_cluster(opt_parallel,
-      dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
-      verbose = opt_verbosity[["verbose"]])
-    on.exit(clean_SFSW2_cluster(opt_parallel, opt_verbosity[["verbose"]]), add = TRUE)
-  }
+      dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
+    on.exit(clean_SFSW2_cluster(opt_parallel, verbose), add = TRUE)
+
+    on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+      kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+      normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+      add = TRUE)
+   }
 
   if (length(ids_DayMet_extraction) > 0) {
     ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
