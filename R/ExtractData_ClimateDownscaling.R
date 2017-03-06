@@ -187,14 +187,19 @@ add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerE
 #'
 #' @param data A numeric vector. Daily values of precipitation.
 #' @param targetLength An integer value.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 #'
 #' @return A copy of \code{data} with adjusted length.
-fix_PPTdata_length <- function(data, targetLength) {
+fix_PPTdata_length <- function(data, targetLength, seed = NA) {
   targetLength <- as.integer(targetLength)
   stopifnot(targetLength >= 0)
 
   Ndiff <- length(data) - targetLength
   absNdiff <- abs(Ndiff)
+
+  if (!is.na(seed)) set.seed(seed)
 
   if (absNdiff > 0) {
     if (Ndiff > 0) {
@@ -217,13 +222,24 @@ fix_PPTdata_length <- function(data, targetLength) {
 
 #' Distribute precipitation among days without too extreme values
 #'
-#' @param data_N An integer value. The number of days of the precipitation record to consider.
-#' @param this_newPPTevent_N An integer value. The number of days which will received 'spill-over' precipitation.
-#' @param sigmaN An integer value. The multiplicator of \code{this_newPPTevent_N} to determine the range of days to consider.
-#' @param this_i_extreme. An integer value. The index indicating for which day in the precipitation record, precipitation is removed and redistributed.
-#' @param this_pptToDistribute. An integer value. The amount of precipitation that was removed from day \code{this_i_extreme} and is now redistributed to other days.
-calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme, this_pptToDistribute) {
+#' @param data_N An integer value. The number of days of the precipitation record to
+#'  consider.
+#' @param this_newPPTevent_N An integer value. The number of days which will received
+#'  'spill-over' precipitation.
+#' @param sigmaN An integer value. The multiplicator of \code{this_newPPTevent_N} to
+#'  determine the range of days to consider.
+#' @param this_i_extreme. An integer value. The index indicating for which day in the
+#'  precipitation record, precipitation is removed and redistributed.
+#' @param this_pptToDistribute. An integer value. The amount of precipitation that was
+#'  removed from day \code{this_i_extreme} and is now redistributed to other days.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
+calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme,
+  this_pptToDistribute, seed = NA) {
+
   this_newPPTevent_N <- max(0L, as.integer(this_newPPTevent_N))
+  if (!is.na(seed)) set.seed(seed)
 
   #Randomly select days within plus/minus sigmaN days from a normal distribution
   temp <- (-sigmaN * this_newPPTevent_N):(sigmaN * this_newPPTevent_N)
@@ -253,10 +269,14 @@ calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_
 #' @param do_checks A logical value. See details.
 #' @param sigmaN An integer value. A multiplicator of \code{stats::sd} for data checks.
 #' @param mfact A numeric value. See details.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 #'
 #' @details If \code{do_check == TRUE} and any daily precipitation is equal or larger than
 #'  \code{mfact * dailyPPTceiling}, then the code will error out.
-controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = FALSE, mfact = 10) {
+controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = FALSE,
+  mfact = 10, seed = NA) {
 
   if (do_checks)
     stopifnot(data < mfact * dailyPPTceiling) #something went wrong, e.g., GCM data is off; (10 / 1.5 * dailyPPTceiling) -> dailyPPTtoExtremeToBeReal  #if more than 1000% of observed value then assume that something went wrong and error out
@@ -264,6 +284,8 @@ controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = F
   data_N <- length(data)
   i_extreme <- which(data > dailyPPTceiling)
   irep <- 0
+
+  if (!is.na(seed)) set.seed(seed)
 
   while (length(i_extreme) > 0 && irep < 30) {
     # limit calls: if too many wet days, then not possible to distribute all the water!
@@ -318,7 +340,8 @@ applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sig
                             res <- add_delta_to_PPT(data = m_data, ind_events = i_rainyDays, addDelta = m_ydelta)$data
                           } else { #there are no rainy days in the historic record
                             if (m_ydelta > 0) { #we need rainy days in the historic record to add precipitation
-                              if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) { #sample from the same historic month in an other with rainy days instead
+                              if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) {
+                                # sample from the same historic month in an other with rainy days instead
                                 #Locate data of same month in other year
                                 i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
                                 newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
@@ -1742,8 +1765,14 @@ get_GCMdata_netCDF <- function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, 
 calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
   climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
-  getYears, assocYears, sim_time, opt_DS, project_paths,
+  getYears, assocYears, sim_time, task_seed, opt_DS, project_paths,
   verbose, print.debug) {
+
+  # Set RNG seed for random number use by functions
+  #   - fix_PPTdata_length
+  #   - calc_Days_withLoweredPPT
+  #   - controlExtremePPTevents
+  set_RNG_stream(task_seed)
 
   on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
     paste0("ClimScen_failed_", i, "_l2.RData")))})
@@ -2002,18 +2031,20 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
   climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
-  getYears, assocYears, sim_time, opt_DS, project_paths, verbose, print.debug) {
+  getYears, assocYears, sim_time, rng_specs, opt_DS, project_paths, verbose, print.debug) {
 
   temp <- try(calc.ScenarioWeather(i = i,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+          reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
           dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
+          task_seed = rng_specs[["seeds_runN"]][[i]],
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug))
@@ -2033,19 +2064,28 @@ try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   res
 }
 
-#' Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources
+#' Organizes the calls (in parallel) which obtain specified scenario weather for the
+#'  weather database from one of the available GCM sources
 #'
-#' This function assumes that a whole bunch of global variables exist and contain appropriate values.
+#' This function assumes that a whole bunch of global variables exist and contain
+#'  appropriate values.
+#'
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
   assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, sim_time, opt_DS,  verbose, print.debug) {
+  dbW_iScenarioTable, dbW_compression_type, sim_time, rng_specs, opt_DS, verbose,
+  print.debug, seed = NA) {
+
   #requests is_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #TODO: create chunks for is_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 
   if (opt_parallel[["has_parallel"]]) {
+    if (!is.na(seed)) set.seed(seed)
     is_ToDo <- sample(x = is_ToDo, size = length(is_ToDo)) #attempt to prevent reading from same .nc at the same time
 
     # extract the GCM data depending on parallel backend
@@ -2055,13 +2095,15 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       i_Done <- Rmpi::mpi.applyLB(X = is_ToDo, FUN = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+          reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
           dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
+          rng_specs = rng_specs,
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
@@ -2077,13 +2119,15 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       i_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+          reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
           dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
+          rng_specs = rng_specs,
           opt_DS = opt_DS,
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
@@ -2110,6 +2154,7 @@ tryToGet_ClimDB <- function(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta
       compression_type = dbW_compression_type,
       getYears = getYears, assocYears = assocYears,
       sim_time = sim_time,
+      rng_specs = rng_specs,
       opt_DS = opt_DS,
       project_paths = project_paths,
       verbose = verbose, print.debug = print.debug)
@@ -2210,9 +2255,9 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 #access climate change data
 get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treatments,
   is_netCDF, is_NEX, do_SWRun_sites, include_YN_climscen, climDB_meta, reqGCMs, reqRCPs,
-  reqRCPsPerGCM, reqDownscalingsPerGCM, opt_DS, sim_time, fdbWeather, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, climate.ambient, project_paths, opt_parallel,
-  verbose = FALSE, print.debug = FALSE) {
+  reqRCPsPerGCM, reqDownscalingsPerGCM, rng_specs, opt_DS, sim_time, fdbWeather,
+  dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type, climate.ambient,
+  project_paths, opt_parallel, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2394,7 +2439,7 @@ get_climatechange_data <- function(clim_source, SWRunInformation, sw_input_treat
     out <- tryToGet_ClimDB(is_ToDo = i_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
       climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
       assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient,
-      dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type, sim_time, opt_DS,
+      dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type, sim_time, rng_specs, opt_DS,
       verbose, print.debug)
 
     i_Done <- sort(unique(c(i_Done, out)))
@@ -2452,6 +2497,10 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
 
   rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
@@ -2489,15 +2538,25 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     do_SWRun_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][sites_GCM_source == ics]
 
     if (length(do_SWRun_sites) > 0)
-      include_YN_climscen <- get_climatechange_data(ics,
-        SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_treatments"]],
+
+      include_YN_climscen <- get_climatechange_data(clim_source = ics,
+        SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+        sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]],
         is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", ics),
-        is_NEX = grepl("NEX", ics), do_SWRun_sites, include_YN_climscen,
-        climDB_meta = climDB_metas[[ics]], reqGCMs, reqRCPs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-        SFSW2_prj_meta[["sim_scens"]][["opt_DS"]], SFSW2_prj_meta[["sim_time"]],
-        SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], dbW_iSiteTable, dbW_iScenarioTable,
-        dbW_compression_type, SFSW2_prj_meta[["sim_scens"]][["ambient"]],
-        SFSW2_prj_meta[["project_paths"]], opt_parallel, verbose, print.debug)
+        is_NEX = grepl("NEX", ics),
+        do_SWRun_sites = do_SWRun_sites, include_YN_climscen = include_YN_climscen,
+        climDB_meta = climDB_metas[[ics]],
+        reqGCMs = reqGCMs, reqRCPs = reqRCPs,
+        reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        rng_specs = SFSW2_prj_meta[["rng_specs"]],
+        opt_DS = SFSW2_prj_meta[["sim_scens"]][["opt_DS"]],
+        sim_time = SFSW2_prj_meta[["sim_time"]],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
+        dbW_compression_type = dbW_compression_type,
+        climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
+        project_paths = SFSW2_prj_meta[["project_paths"]],
+        opt_parallel = opt_parallel, verbose = verbose, print.debug = print.debug)
   }
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
