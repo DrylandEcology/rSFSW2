@@ -1768,14 +1768,14 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   getYears, assocYears, sim_time, task_seed, opt_DS, project_paths,
   verbose, print.debug) {
 
+  on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
+    paste0("ClimScen_failed_", i, "_l2.RData")))})
+
   # Set RNG seed for random number use by functions
   #   - fix_PPTdata_length
   #   - calc_Days_withLoweredPPT
   #   - controlExtremePPTevents
   set_RNG_stream(task_seed)
-
-  on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
-    paste0("ClimScen_failed_", i, "_l2.RData")))})
 
   #Identify index for site and scenario
   ig <- (i - 1) %% length(reqGCMs) + 1

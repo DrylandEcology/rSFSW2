@@ -85,6 +85,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }, add = TRUE)
   }
 
+  # Set RNG seed for random number use by functions
+  #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
+  set_RNG_stream(task_seed =  = rng_specs[["seeds_runN"]][[i]])
+
+
 #-----------------------Check for experimentals
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
     i_exp <- it_exp(i_sim, sim_size[["runsN_master"]])

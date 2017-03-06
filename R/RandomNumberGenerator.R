@@ -1,15 +1,3 @@
-#parallel-called functions:
-#  try.ScenarioWeather
-#  ISRICWISE12_extract_SUIDs
-#  ISRICWISE12_try_weightedMeanForSimulationCell
-#  collect_EnsembleFromScenarios
-#  missing_Pids_outputDB
-#  do_OneSite
-#  gribDailyWeatherData
-#  writeDailyWeatherData
-#  gribMonthlyClimate
-#  writeMonthlyClimate
-
 
 #' Implementation of Pierre L'Ecuyer's RngStreams for N tasks
 #'
@@ -62,7 +50,7 @@ prepare_RNG_streams <- function(N, iseed = NULL) {
 }
 
 
-#' Specify all aspects of the random number generator
+#' Specify all aspects of the R random number generator
 #'
 #' @inheritParams base::Random
 #'
@@ -102,7 +90,43 @@ set_RNG_stream <- function(seed) {
   invisible(NULL)
 }
 
-
+#' Organizing previous state and streams of random number generator
+#'
+#' @section Usage: RNG - parallelized function calls by \code{rSFSW2}
+#'  \itemize{
+#'    \item \code{try.ScenarioWeather} wraps \code{calc.ScenarioWeather} which calls
+#'          \code{set_RNG_stream} to prepare RNG for functions \itemize{
+#'          \item \code{fix_PPTdata_length}
+#'          \item \code{calc_Days_withLoweredPPT}
+#'          \item \code{controlExtremePPTevents}
+#'          }
+#'    \item \code{do_OneSite} calls \code{set_RNG_stream} to prepare RNG for functions
+#'          \itemize{
+#'          \item \code{calculate_TimeToGerminate_modifiedHardegree2006NLR}
+#'          }
+#'    }
+#'
+#' @section Note: Parallelized function calls without using RNG
+#'  \itemize{
+#'    \item \code{ISRICWISE12_extract_SUIDs}
+#'    \item \code{ISRICWISE12_try_weightedMeanForSimulationCell}
+#'    \item \code{collect_EnsembleFromScenarios}
+#'    \item \code{missing_Pids_outputDB}
+#'    \item \code{gribDailyWeatherData}
+#'    \item \code{writeDailyWeatherData}
+#'    \item \code{gribMonthlyClimate}
+#'    \item \code{writeMonthlyClimate}
+#'    }
+#'
+#' @param streams_N An integer value representing the number of tasks for which Pierre
+#'  L'Ecuyer's RngStreams should be generated.
+#' @param global_seed A vector appropriate for \code{\link{.Random.seed}} of the current
+#'  RNG; a single integer or NULL that will be passed to set.seed().
+#' @param reproducible A logical value. If \code{TRUE}, then \code{streams_N} are
+#'  prepared.
+#'
+#' @seealso \code{\link{set.seed}}
+#' @export
 setup_RNG <- function(streams_N, global_seed = NULL, reproducible = TRUE) {
   rng <- list()
 

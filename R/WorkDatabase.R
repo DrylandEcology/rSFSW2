@@ -376,7 +376,7 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
     if (verbose)
       print(paste0("'dbWork_update_job': (", runID, "-", status, ") attempt to update"))
 
-    lock <- lock_access(lock, verbose)
+    lock <- lock_access(lock, verbose, seed = NA)
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
       flags = RSQLite::SQLITE_RW), silent = TRUE)
 
