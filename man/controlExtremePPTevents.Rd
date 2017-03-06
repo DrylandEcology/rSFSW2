@@ -5,7 +5,7 @@
 \title{Check for and handle days with too extreme precipitation values}
 \usage{
 controlExtremePPTevents(data, dailyPPTceiling, sigmaN, do_checks = FALSE,
-  mfact = 10)
+  mfact = 10, seed = NA)
 }
 \arguments{
 \item{data}{A numeric vector. Daily values of precipitation.}
@@ -18,6 +18,10 @@ Values above this limit will be removed and redistributed to other days.}
 \item{do_checks}{A logical value. See details.}
 
 \item{mfact}{A numeric value. See details.}
+
+\item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+are passed to \code{\link{set.seed}}.}
 }
 \description{
 Check for and handle days with too extreme precipitation values

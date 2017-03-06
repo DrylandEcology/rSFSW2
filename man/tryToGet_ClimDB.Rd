@@ -2,14 +2,21 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{tryToGet_ClimDB}
 \alias{tryToGet_ClimDB}
-\title{Organizes the calls (in parallel) which obtain specified scenario weather for the weather database from one of the available GCM sources}
+\title{Organizes the calls (in parallel) which obtain specified scenario weather for the
+ weather database from one of the available GCM sources}
 \usage{
 tryToGet_ClimDB(is_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
   getYears, assocYears, project_paths, fdbWeather, opt_parallel,
   climate.ambient, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-  sim_time, opt_DS, verbose, print.debug)
+  sim_time, rng_specs, opt_DS, verbose, print.debug, seed = NA)
+}
+\arguments{
+\item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+are passed to \code{\link{set.seed}}.}
 }
 \description{
-This function assumes that a whole bunch of global variables exist and contain appropriate values.
+This function assumes that a whole bunch of global variables exist and contain
+ appropriate values.
 }

@@ -28,7 +28,7 @@ unlock_access(lock)
 
 lock_attempt(lock)
 
-lock_access(lock, verbose = FALSE)
+lock_access(lock, verbose = FALSE, seed = NA)
 }
 \arguments{
 \item{fname_lock}{A character string. Path to locking directory.}
@@ -39,6 +39,10 @@ lock_access(lock, verbose = FALSE)
 
 \item{verbose}{A logical value. If \code{TRUE}, then each attempt at obtaining the lock
 is printed.}
+
+\item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+are passed to \code{\link{set.seed}}.}
 }
 \value{
 An object of class \code{SFSW2_lock}.

@@ -4,12 +4,16 @@
 \alias{fix_PPTdata_length}
 \title{Adds/removes elements of data}
 \usage{
-fix_PPTdata_length(data, targetLength)
+fix_PPTdata_length(data, targetLength, seed = NA)
 }
 \arguments{
 \item{data}{A numeric vector. Daily values of precipitation.}
 
 \item{targetLength}{An integer value.}
+
+\item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+are passed to \code{\link{set.seed}}.}
 }
 \value{
 A copy of \code{data} with adjusted length.
