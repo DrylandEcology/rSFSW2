@@ -415,8 +415,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
 
-      SFSW2_prj_inputs <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
+      temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, opt_verbosity)
+
+      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]] # update: random streams for downscaling
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_scenarios", prepared = TRUE)

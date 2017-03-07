@@ -4,7 +4,7 @@
 \alias{set_RNG_stream}
 \title{Set the seed of a random number generator (stream)}
 \usage{
-set_RNG_stream(seed)
+set_RNG_stream(seed = NA)
 }
 \arguments{
 \item{seed}{A vector appropriate for \code{\link{.Random.seed}} of the current RNG; a
@@ -13,7 +13,7 @@ affect the random number generator.}
 }
 \description{
 This function is to be called by a (parallel) worker using as argument a pre-prepared
- seed from the function \code{\link{prepare_RNG_streams}}. Note: it will also set
+ seed from the function \code{\link{generate_RNG_streams}}. Note: it will also set
  RNGkind accordingly to the first element of seed.
 }
 \seealso{

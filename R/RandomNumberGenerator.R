@@ -16,37 +16,44 @@
 #' @param iseed An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
 #'  set the (global/master) random generator, i.e., before generating the seeds of the
 #'  streams.
-#' @return A list of length N containing the seed for each stream.
+#' @param reproducible A logical value. If \code{TRUE}, then \code{N} are
+#'  prepared. If \code{FALSE}, then instead \code{NA}s are returned.
+#' @return A list of length \code{N} containing the seed for each stream.
 #'
 #' @seealso \code{\link{parallel::clusterSetRNGStream}}
 #'
 #' @examples
 #' RNGkind_prev <- RNGkind()
-#' seeds <- prepare_RNG_streams(10, iseed = 123)
+#' seeds <- generate_RNG_streams(10, seed = 123)
 #' # do work with random numbers
 #' RNGkind(kind = RNGkind_prev[1], normal.kind = RNGkind_prev[2])
 #'
 #' @export
-prepare_RNG_streams <- function(N, iseed = NULL) {
+generate_RNG_streams <- function(N, seed = NULL, reproducible = TRUE) {
 
-  oldseed <- get0(".Random.seed", envir = as.environment(1L), inherits = FALSE)
+  if (reproducible) {
+    oldseed <- get0(".Random.seed", envir = as.environment(1L), inherits = FALSE)
 
-  RNGkind("L'Ecuyer-CMRG")
+    RNGkind("L'Ecuyer-CMRG")
 
-  if (!is.null(iseed)) set.seed(iseed)
+    if (!is.null(seed)) set.seed(seed)
 
-  seeds <- vector("list", N)
-  seeds[[1L]] <- .Random.seed
+    seeds <- vector("list", N)
+    seeds[[1L]] <- .Random.seed
 
-  for (i in seq_len(N - 1L)) seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
+    for (i in seq_len(N - 1L)) seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
 
-  if (!is.null(oldseed)) {
-      assign(".Random.seed", oldseed, pos = 1L)
+    if (!is.null(oldseed)) {
+        assign(".Random.seed", oldseed, pos = 1L)
+    } else {
+      rm(.Random.seed, pos = 1L)
+    }
+
+    seeds
+
   } else {
-    rm(.Random.seed, pos = 1L)
+    as.list(rep(NA, N))
   }
-
-  seeds
 }
 
 
@@ -65,7 +72,7 @@ set_full_RNG <- function(seed = NULL, kind = "default", normal.kind = "default")
 #' Set the seed of a random number generator (stream)
 #'
 #' This function is to be called by a (parallel) worker using as argument a pre-prepared
-#'  seed from the function \code{\link{prepare_RNG_streams}}. Note: it will also set
+#'  seed from the function \code{\link{generate_RNG_streams}}. Note: it will also set
 #'  RNGkind accordingly to the first element of seed.
 #'
 #' @param seed A vector appropriate for \code{\link{.Random.seed}} of the current RNG; a
@@ -74,7 +81,7 @@ set_full_RNG <- function(seed = NULL, kind = "default", normal.kind = "default")
 #'
 #' @seealso \code{\link{set.seed}}, \code{\link{RNGkind}}
 #' @export
-set_RNG_stream <- function(seed) {
+set_RNG_stream <- function(seed = NA) {
   if (!anyNA(seed)) {
     if (length(seed) > 1) {
       assign(".Random.seed", seed, pos = 1L)
@@ -123,7 +130,16 @@ set_RNG_stream <- function(seed) {
 #' @param global_seed A vector appropriate for \code{\link{.Random.seed}} of the current
 #'  RNG; a single integer or NULL that will be passed to set.seed().
 #' @param reproducible A logical value. If \code{TRUE}, then \code{streams_N} are
-#'  prepared.
+#'  prepared. If \code{FALSE}, then instead \code{NA}s are returned.
+#'
+#' @param A list with four elements: \itemize{
+#'    \item \code{seed_prev} captures the previous state of the RNG seed.
+#'    \item \code{RNGkind_prev} captures the previous kind of the RNG.
+#'    \item \code{global_seed} is the seed used to set the RNG for stream generation.
+#'    \item \code{seeds_runN} is a list with a stream of \code{streams_N} seeds.
+#'    \item \code{seeds_DS} is an empty list -- a placeholder for a list with a stream
+#'          of seeds for climate scenario downscaling.
+#'    }
 #'
 #' @seealso \code{\link{set.seed}}
 #' @export
@@ -134,15 +150,14 @@ setup_RNG <- function(streams_N, global_seed = NULL, reproducible = TRUE) {
 
   set_full_RNG(global_seed)
   rng[["RNGkind_prev"]] <- RNGkind()
+  rng[["global_seed"]] <- global_seed
 
-  if (reproducible) {
-    rng[["seeds_runN"]] <- prepare_RNG_streams(N = streams_N, iseed = global_seed)
-    rng[["global_seed"]] <- global_seed
+  # Seeds for climate change downscaling: only generate if required
+  rng[["seeds_DS"]] <- list()
 
-  } else {
-    rng[["seeds_runN"]] <- as.list(rep(global_seed, streams_N))
-    rng[["global_seed"]] <- global_seed
-  }
+  # Seeds for simulation runs 'do_OneSite'
+  rng[["seeds_runN"]] <- generate_RNG_streams(N = streams_N, seed = global_seed,
+    reproducible = reproducible)
 
   rng
 }

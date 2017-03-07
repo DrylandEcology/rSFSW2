@@ -27,9 +27,10 @@
 #'    - column 'site_id' == consecutive identification numbers of all rows in the master
 #'      file; this is treated as a unique (and stable) identifier of a site
 #'    - runsN_master == number of rows in the master file
-#'    - runsN_sites == number of rows in the master file that are included
-#'      (runsN_sites <= max(site_id))
-#'    - runIDs_sites == identification of rows in the master file that are included
+#'    - runIDs_master == consecutive identification numbers along runsN_master
+#'    - runsN_sites == number of rows in the master file that are included;
+#'      runsN_sites <= max(site_id) and runsN_sites == length(runIDs_sites)
+#'    - runIDs_sites == values of runIDs_master which are included
 #'
 #'  * Experimental input file: each row defines a condition which is applied to every
 #'    runIDs_sites
@@ -37,8 +38,10 @@
 #'
 #'  * The function 'do_OneSite' will be called n-times with n = runsN_call
 #'    - runsN_job == (number of included sites) x (number of experimental treatments)
+#'      == runsN_sites x expN
 #'    - runIDs_job == consecutive identification numbers along runsN_job
 #'    - runsN_total == (number of sites) x (number of experimental treatments)
+#'      == runsN_master x expN
 #'    - runIDs_total == consecutive identification numbers along runsN_total
 #'    - runIDs_done == values of runIDs_total that have already been processed by
 #'      'do_OneSite'
@@ -55,9 +58,9 @@
 #'
 #'  * A grand total of n = runsN_Pid SOILWAT2 runs could be carried out (n == number of
 #'    rows in the output database)
-#'    - runsN_Pid == max(P_id) == runsN_total x scN
-#'    - P_id == a consecutive identification number for each possible SOILWAT2 simulation;
-#'      used as the ID for the output database
+#'    - runsN_Pid == max(P_id) == runsN_total x scN == runsN_master x expN x scN
+#'    - P_id == a unique consecutive identification number for each possible SOILWAT2
+#'      simulation; used as the ID for the output database
 #'
 #' @aliases it_exp it_site it_Pid
 #' @name indices

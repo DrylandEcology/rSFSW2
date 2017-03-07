@@ -7,8 +7,8 @@
 global_args_do_OneSite <- function() {
   c("create_experimentals", "create_treatments", "done_prior", "fnames_in", "fnames_out",
     "opt_agg", "opt_behave", "opt_out_fix", "opt_out_run", "opt_parallel",
-    "opt_sim", "opt_verbosity", "prj_todos", "project_paths", "sim_scens", "sim_size",
-    "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
+    "opt_sim", "opt_verbosity", "prj_todos", "project_paths", "rng_specs", "sim_scens",
+    "sim_size", "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
     "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
@@ -87,7 +87,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   # Set RNG seed for random number use by functions
   #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
-  set_RNG_stream(task_seed = rng_specs[["seeds_runN"]][[i]])
+  set_RNG_stream(seed = rng_specs[["seeds_runN"]][[i_sim]])
 
 
 #-----------------------Check for experimentals
