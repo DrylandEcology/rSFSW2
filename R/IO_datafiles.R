@@ -167,6 +167,8 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+
   dir.inmap <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)
 
@@ -516,7 +518,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
     # Create a list of possible treatment files with data
     if (any(create_treatments == "sw"))
-      print(paste("SW treatment is not used because library rSOILWAT2 only uses one",
+      print(paste("SW treatment is not used because 'rSOILWAT2' package only uses one",
         "version of SOILWAT2. Sorry"))
 
     tr_files <- load_Rsw_treatment_templates(project_paths, create_treatments, "filesin", "swFiles")

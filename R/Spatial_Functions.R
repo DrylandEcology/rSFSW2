@@ -17,6 +17,7 @@
 #' @importClassesFrom raster Raster
 #' @importClassesFrom sp SpatialPolygons SpatialPoints
 #'
+#' @export
 #' @name extract_rSFSW2
 NULL
 
@@ -50,6 +51,8 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'   layers of \code{x}.
 #' @export
 extract_SFSW2_cells_from_raster <- function(x, y, ...) {
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+
   dots <- list(...)
 
   if (!("method" %in% names(dots)))
@@ -86,6 +89,7 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
 extract_SFSW2_default <- function(x, y, type, ...) {
   if (identical(type, "point")) {
+    stopifnot(requireNamespace("raster"))
     raster::extract(x = x, y = y, ...)
   } else if (identical(type, "cell")) {
     extract_SFSW2_cells_from_raster(x, y, ...)
@@ -107,6 +111,7 @@ setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "data.frame", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
+      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -117,6 +122,7 @@ setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
+      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -153,6 +159,8 @@ setMethod("extract_rSFSW2",
 #'  then the encoded 'factor levels' are returned.
 #' @export
 extract_SFSW2_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
+  stopifnot(requireNamespace("sp"))
+
   val <- sp::over(x = y, y = x)
   if (!is.null(fields))
     val <- val[, colnames(val) %in% fields, drop = FALSE]
@@ -222,6 +230,7 @@ setMethod("extract_rSFSW2",
 #'  encoded 'factor levels' are returned.
 #' @export
 extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   dots <- list(...)
   if (!("probs" %in% names(dots)))
@@ -238,6 +247,8 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) 
 
 #' Convert resolution/rectangles into SpatialPolygons
 res_to_polygons <- function(x, y, ...) {
+  stopifnot(requireNamespace("sp"))
+
   dots <- list(...)
 
   if (!all(c("coords", "crs_data") %in% names(dots)))
@@ -308,6 +319,8 @@ setMethod("extract_rSFSW2",
 
 add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
   if (length(cell_blocks[[i]]) > 0) {
+    stopifnot(requireNamespace("raster"))
+
     xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
     xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
           xy[, 2] - halfres[2], xy[, 2] + halfres[2])
@@ -339,6 +352,8 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
 #    contains the weights of the rows.
 #' @export
 extract_blocks <- function(x, y, weights = FALSE) {
+  stopifnot(requireNamespace("raster"))
+
   fun_match <- if (requireNamespace("fastmatch")) fastmatch::fmatch else match
   stopifnot(ncol(y) == 4L)
 
@@ -412,6 +427,8 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 #' @export
 reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 1e-2) {
+
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   if (is.null(dim(coords)) && length(coords) == 2L) {
     coords <- matrix(coords, ncol = 2)
@@ -560,6 +577,8 @@ weighted.agg <- function(reagg, probs = NA) {
 #'  and columns to layers of \code{data}.
 #' @export
 extract_from_external_raster_old <- function(x, data, ...) {
+  stopifnot(requireNamespace("raster"))
+
   dots <- list(...)  # coords, method
   if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
   if ("crit_v_exclude" %in% names(dots)) {
@@ -647,6 +666,8 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 #' @return A character string or \code{NA}.
 #' @export
 crs_units <- function(CRS) {
+  stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
+
   args_crs <- raster::crs(CRS, asText = TRUE)
   stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
 
@@ -676,6 +697,8 @@ crs_units <- function(CRS) {
 #' }
 #' @export
 align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
+  stopifnot(requireNamespace("raster"))
+
   if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
 
   # Align with data crs
@@ -715,6 +738,8 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #'  matrix with two columns for the x- and y-resolutions per row for each point.
 #' @export
 align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+
   if (identical(crs_units(crs_from), crs_units(crs_to))) {
     res_from
   } else {
@@ -762,10 +787,7 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
-    if (!requireNamespace("rgdal")) {
-      stop("The packages 'rgdal', 'sp', and 'raster' are required for spatial simulations, ",
-        "but one or multiple of them are not installed.")
-    }
+    stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
     if (sim_space[["scorp"]] == "cell") {
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {

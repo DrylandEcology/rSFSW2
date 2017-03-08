@@ -2639,6 +2639,8 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+
   if (length(SFSW2_prj_meta[["sim_scens"]][["models"]]) > 0) {
 
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {

@@ -380,6 +380,8 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cell
 
 
 get_DayMet_cellID <- function(coords_WGS84) {
+  stopifnot(requireNamespace("sp"))
+
   # Determine 1-km cell that contains requested location
   res_DayMet <- 1000L
 
@@ -586,6 +588,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   NRC_years <- as.integer(list.dirs(path = dir_temp, recursive = FALSE, full.names = FALSE))
   NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
@@ -1100,6 +1103,8 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 
 dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
+
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   if (!dir.exists(path))
     stop("'dw_NRCan_10km_Canada': ", path, " does not exist.")

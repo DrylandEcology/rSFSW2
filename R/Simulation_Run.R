@@ -241,7 +241,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
-      print("SW treatment is not used because library rSOILWAT2 only uses one version of SOILWAT2. Sorry")
+      print("SW treatment is not used because 'rSOILWAT2' package only uses one version of SOILWAT2. Sorry")
     if (any(create_treatments == "filesin"))
       rSOILWAT2::set_swFiles(swRunScenariosData[[1]]) <- tr_files[[i_sw_input_treatments$filesin]]
     if (any(create_treatments == "prodin"))

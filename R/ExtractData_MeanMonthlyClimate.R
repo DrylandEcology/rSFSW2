@@ -54,7 +54,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("rgdal"))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCDC1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |

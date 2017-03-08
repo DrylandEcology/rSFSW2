@@ -715,7 +715,10 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   #------------------------RUN RSOILWAT
 
   # print system information
-  print(temp <- utils::sessionInfo())
+  temp <- utils::sessionInfo()
+  if (opt_verbosity[["verbose"]])
+    print(temp)
+
   if (opt_behave[["check_blas"]])
     benchmark_BLAS(temp$platform)
 
@@ -796,6 +799,12 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     SFSW2_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
     runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
     0, 0)
+
+
+  #---------------------------------------------------------------------------------------#
+  if (opt_verbosity[["verbose"]])
+    print(utils::sessionInfo())
+
 
   SFSW2_prj_meta
 }

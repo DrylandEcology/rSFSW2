@@ -49,7 +49,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("rgdal"))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["NEDUSA1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -149,7 +149,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("rgdal"))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["HWSD1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |

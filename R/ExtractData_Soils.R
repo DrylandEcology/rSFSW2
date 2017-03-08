@@ -88,7 +88,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("rgdal"))
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <- is.na(MMC[["source"]]) |  MMC[["source"]] == "CONUSSOILFromSTATSGO_USA"
@@ -258,7 +258,8 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'    \item{fraction}{A numeric vector. The relative areas covered by \code{values}.}
 #'  }
 ISRICWISE12_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
-  # raster::nlayers(grid_wise) == 1
+  stopifnot(requireNamespace("sp"))
+
   out <- try(reaggregate_raster(x = grid,
         coords = sp::coordinates(sp_sites[i, ]),
         to_res = if (is.null(dim(res))) res else res[i, ],
@@ -424,7 +425,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-  stopifnot(requireNamespace("rgdal"))
+  stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["ISRICWISEv12"] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRICWISEv12_Global"

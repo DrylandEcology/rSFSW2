@@ -243,9 +243,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
 
-      Rmpi::mpi.bcast.cmd(require("rSOILWAT2", quietly = TRUE))
-      Rmpi::mpi.bcast.cmd(require("rSFSW2", quietly = TRUE))
-
       mpi_last <- function(x) {
         # Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
@@ -273,9 +270,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       # pos = 1 assigns into globalenv() of the worker
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
         function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSOILWAT2", quietly = TRUE))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSFSW2", quietly = TRUE))
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
