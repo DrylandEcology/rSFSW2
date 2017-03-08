@@ -218,12 +218,19 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 
   #Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
   if (!file.exists(fname_cfsr)) { # compile
-    dtemp <- getwd()
-    setwd(dir.cfsr.code)
-    stopifnot(file.exists("cfsr_convert.c", "generic2.c", "generic2.h", "filefuncs2.c", "filefuncs2.h", "mymemory2.c", "mymemory2.h"))
-    unlink(c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o"))
-    stopifnot(system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = paste("CMD SHLIB -o", fname_cfsr, "cfsr_convert.c generic2.c filefuncs2.c mymemory2.c"), wait = TRUE) == 0)
-    setwd(dtemp)
+    ctemp <- c("cfsr_convert.c", "generic2.c", "filefuncs2.c", "mymemory2.c")
+    ctemp <- file.path(dir.cfsr.code, ctemp)
+    htemp <- c("generic2.h", "filefuncs2.h", "mymemory2.h")
+    htemp <- file.path(dir.cfsr.code, htemp)
+    otemp <- c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o")
+    otemp <- file.path(dir.cfsr.code, otemp)
+
+    stopifnot(file.exists(ctemp), file.exists(htemp))
+    unlink(otemp)
+
+    stopifnot(system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args =
+      paste("CMD SHLIB -o", shQuote(fname_cfsr), paste(shQuote(ctemp), collapse = " ")),
+      wait = TRUE) == 0)
   }
   load_NCEPCFSR_shlib(fname_cfsr)
 
@@ -404,25 +411,32 @@ get_DayMet_cellID <- function(coords_WGS84) {
   list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84)
 }
 
-get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year, end_year, dbW_digits) {
+get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, start_year,
+  end_year, dbW_digits) {
 
   # Filename for data of this 1-km cell
   ftemp <- file.path(dir_data, paste0(cellID, "_", start_year, "_", end_year, ".csv"))
 
   # Get data
-  pwd <- getwd()
   get_from_ornl <- TRUE
   if (file.exists(ftemp)) {
     dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent = TRUE)
     if (!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
   }
+
   if (get_from_ornl) {
-    setwd(dir_data)
     # daymetr package: https://bitbucket.org/khufkens/daymetr
     stopifnot(requireNamespace("daymetr"))
+    flocal <- file.path(getwd(), basename(ftemp))
     dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,
       lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
+
+    if (file.exists(flocal) && !identical(flocal, ftemp)) {
+      # Move file, which was downloaded to current directory by 'daymetr::download.daymet',
+      # to data folder
+      file.rename(from = flocal, to = ftemp)
+    }
   }
 
   # Convert to rSOILWAT2 format
@@ -459,7 +473,6 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   # Clean up
   if (exists(cellID, envir = globalenv()))
     rm(list = cellID, envir = globalenv())
-  setwd(pwd)
 
   weathDataList
 }
@@ -619,12 +632,14 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     yr_offset <- 0
   }
 
-  # Extract weather data for all locations together for each day of each year
-  pwd <- getwd()
-  for (iy in seq_along(NRC_use_years)) { # Loop through years
+  #--- Extract weather data for all locations together for each day of each year
+  # Loop through years
+  for (iy in seq_along(NRC_use_years)) {
     print(paste(Sys.time(), "NRC data extraction of year", NRC_use_years[iy]))
-    setwd(file.path(dir_temp, NRC_use_years[iy]))
-    NRC_days <- list.files() #find all days for this year
+
+    # Locate files containing data for each day of this year
+    NRC_days <- list.files(path = file.path(dir_temp, NRC_use_years[iy]),
+      full.names = TRUE)
     ndays <- length(NRC_days) / length(vars)
     stopifnot(ndays == if (isLeapYear(NRC_use_years[iy])) 366 else 365)
 
@@ -641,7 +656,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     }
     save(NRC_weather, iy, file = wtemp_file)
   }
-  setwd(pwd)
+
   if (opt_parallel[["has_parallel"]])
     raster::endCluster()
 
@@ -686,6 +701,9 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   invisible(0)
 }
 
+
+#TODO(drs): incorporate C code into r package
+#TODO(drs): get rid of setwd()
 get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_digits = 2,
                 cfsr_so,
                 yearLow, yearHigh, dir_ex_cfsr, dir_temp,
@@ -1014,18 +1032,15 @@ dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 
   if (any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)) {
     # Check which requested lookup weather folders are available
-    pwd <- getwd()
-    setwd(path)
     if (lwf_cond1)
       there <- there | sapply(MoreArgs[["it_lwf"]], function(ix)
-        if (is.na(ix)) FALSE else file.exists(ix))
+        if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))
     if (lwf_cond2)
       there <- there | sapply(MoreArgs[["ri_lwf"]], function(ix)
-        if (is.na(ix)) FALSE else file.exists(ix))
+        if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))
     if (lwf_cond3)
       there <- there | rep(any(sapply(MoreArgs[["ie_lwf"]], function(ix)
-        if (is.na(ix)) FALSE else file.exists(ix))), times = n)
-    setwd(pwd)
+        if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))), times = n)
 
     if (any(there))
       dw_source[there] <- "LookupWeatherFolder"
