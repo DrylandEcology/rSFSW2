@@ -45,9 +45,6 @@ i.e., \eqn{runN == runsN_master}.}
 i.e., \eqn{scN == sim_scens[["N"]]}.}
 
 \item{sc}{An integer value. The index along \code{scN}.}
-
-\item{runIDs}{An integer vector. The identification IDs of rows in the master file that
-are included, i.e., \eqn{runIDs == runIDs_sites}.}
 }
 \value{
 An integer value of the index in loop 1 based on the position

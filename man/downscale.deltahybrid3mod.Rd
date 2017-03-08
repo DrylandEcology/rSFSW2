@@ -11,17 +11,22 @@ downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
   dailyPPTceiling, monthly_extremes, do_checks = TRUE, ...)
 }
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.}
+\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
+is an object of class \linkS4class{swWeatherData}.}
 
-\item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+\item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
+calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
 
-\item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather during the historic time period DScur_startyr:DScur_endyr}
+\item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather
+during the historic time period DScur_startyr:DScur_endyr}
 
-\item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather during the projected time period DSfut_startyr:DSfut_endyr}
+\item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
+during the projected time period DSfut_startyr:DSfut_endyr}
 
 \item{opt_DS}{A named list.}
 
-\item{do_checks}{A logical value. If \code{TRUE} perform several sanity checks on the data.}
+\item{do_checks}{A logical value. If \code{TRUE} perform several sanity checks on the
+data.}
 }
 \description{
 Hybrid-delta downscaling developed by Hamlet et al. 2010 and Tohver et al. 2014.
@@ -29,15 +34,30 @@ Applied, e.g., by Dickerson-Lange et al. 2014.
 Quantile mapping performed by functions modified from Gudmundsson et al. 2012.
 }
 \references{
-Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical
+ downscaling techniques for global climate model simulations of temperature and
+ precipitation with application to water resources planning studies. Chapter 4. Final
+ Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group,
+ Center for Science in the Earth System, Joint Institute for the Study of the
+ Atmosphere and Ocean, University of Washington, Seattle, WA.
 
-Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association, 50, 1461-1476.
+Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century
+ Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North
+ America. Journal of the American Water Resources Association, 50, 1461-1476.
 
-Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
+Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
+ Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for
+ climate change impact assessment. Water Resources Research 47:W03501.
 
-Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
+ climate change projections on streamflow in the Nooksack River basin, Northwest
+ Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
 
-Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
+Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
+ matching as an improvement to the equidistant approach in bias correction of
+ precipitation. Atmospheric Science Letters 15:1-6.
 
-Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012). Technical Note: Downscaling RCM precipitation to the station scale using statistical transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012).
+ Technical Note: Downscaling RCM precipitation to the station scale using statistical
+ transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
 }

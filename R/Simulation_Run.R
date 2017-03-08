@@ -1495,8 +1495,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (opt_parallel[["parallel_backend"]] == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (opt_parallel[["parallel_backend"]] == "cluster") {
-#TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
-#  -> R CMD CHECK reports this nevertheless as issue
           get(opt_parallel[["worker_tag"]], envir = globalenv())
         }
       } else {

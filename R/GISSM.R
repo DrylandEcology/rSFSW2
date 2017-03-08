@@ -104,7 +104,7 @@ calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear,
   RYyear_ForEachUsedDay, soilTmeanSnow, swp.TopMean, TmeanJan, param, seed = NA) {
 
   if (!is.na(seed)) set.seed(seed)
-  runifs <- runif(2)
+  runifs <- stats::runif(2)
 
   #values for current year
   index.year <- RYyear_ForEachUsedDay == RYyear

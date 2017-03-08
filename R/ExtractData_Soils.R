@@ -1,6 +1,7 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
 
+#' Preparations for the extraction of external soil datasets
 prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
   how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
 
@@ -314,6 +315,7 @@ ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
 #' @param dat_wise A data.frame representing the disk file \code{WISEsummaryFile.csv}.
 #' @param nvars An integer value. The number of soil variables extracted from ISRIC-WISE
 #'    v1.2 (currently, 5; see \code{\link{prepare_ExtractData_Soils}}).
+#'
 ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
   sim_soils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
 
@@ -407,7 +409,8 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 }
 
 
-
+#' Extract soil data from ISRIC-WISE v1.2
+#'
 #' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
 #'  arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
 #'  www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.

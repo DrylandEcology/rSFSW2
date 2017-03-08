@@ -22,9 +22,11 @@ applied additively.}
 \item{mult_days}{A logical vector. \code{TRUE} for each day for which \code{ydelta} is
 applied multiplicatively.}
 
-\item{daily}{A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.}
+\item{daily}{A list. Each element corresponds to one year of simstartyr:endyr is an
+object of class \linkS4class{swWeatherData}.}
 
-\item{monthly}{A numeric matrix. Monthly time-series of observed weather calculated from \code{daily} for the years simstartyr:endyr.}
+\item{monthly}{A numeric matrix. Monthly time-series of observed weather calculated
+from \code{daily} for the years simstartyr:endyr.}
 }
 \value{
 A list with two elements

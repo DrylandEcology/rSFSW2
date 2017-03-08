@@ -7,8 +7,6 @@
 #'  i.e., \eqn{scN == sim_scens[["N"]]}.
 #' @param runN An integer value. The number of runs/sites set up in the master input file,
 #'  i.e., \eqn{runN == runsN_master}.
-#' @param runIDs An integer vector. The identification IDs of rows in the master file that
-#'  are included, i.e., \eqn{runIDs == runIDs_sites}.
 #'
 #' @section NOTE:
 #'  Do not change the indices without adjusting the design of the output databases!

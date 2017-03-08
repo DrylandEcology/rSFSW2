@@ -201,18 +201,19 @@ setMethod("extract_rSFSW2",
 #'  extracted.
 #' @param y Either an object inheriting from \linkS4class{SpatialPolygons} OR
 #'  resolution(s) of rectangles as a numeric vector of length two or a matrix with two
-#'  columns.
-#'    If \linkS4class{SpatialPolygons}, then values of \code{data} are extracted per
-#'      polygon and weighted by area.
-#'    If the latter, then \code{coords} must be provided. \code{y} is the vector or matrix
-#'      representing the rectangle extents in x- and y-coordinates.
-#'    If a matrix, then rows must match \code{coords}.
+#'  columns. \itemize{
+#'    \item If \linkS4class{SpatialPolygons}, then values of \code{data} are extracted per
+#'          polygon and weighted by area.
+#'    \item If the latter, then \code{coords} must be provided. \code{y} is the vector or
+#'          matrix representing the rectangle extents in x- and y-coordinates.
+#'    \item If a matrix, then rows must match \code{coords}.
+#'  }
 #' @param file_shp A character string. The filename of the shapefile.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as
 #'  integer codes of a factor whose levels are encoded by \code{code}.
-#' @param \dots \itemize{
+#' @param ... \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
 #'      that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
 #'      is inheriting from \linkS4class{SpatialPolygons}.
@@ -404,10 +405,10 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 #'  stats::weighted.mean(values, w = weights)
 #'
 #' @param x A raster* object from which data are extracted.
-#' @param coord A numeric vector of length two or a matrix with two columns. The x and
+#' @param coords A numeric vector of length two or a matrix with two columns. The x and
 #'   y coordinates of the center(s) of the rectangle(s).
 #' @param to_res A numeric vector of length two. The x- and y-extent of the rectangle(s).
-#' @param with_weigths A logical value or \code{NULL}. If \code{NULL}, then code attempts
+#' @param with_weights A logical value or \code{NULL}. If \code{NULL}, then code attempts
 #'  to determine whether weights are required for the call to
 #'  \code{\link[raster]{extract}}.
 #' @param method A character string. Selects the extraction method, see details.

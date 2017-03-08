@@ -9,18 +9,18 @@ generate_RNG_streams(N, seed = NULL, reproducible = TRUE)
 \arguments{
 \item{N}{An integer. The number of streams to generate.}
 
-\item{reproducible}{A logical value. If \code{TRUE}, then \code{N} are
-prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
-
-\item{iseed}{An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
+\item{seed}{An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
 set the (global/master) random generator, i.e., before generating the seeds of the
 streams.}
+
+\item{reproducible}{A logical value. If \code{TRUE}, then \code{N} are
+prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
 }
 \value{
 A list of length \code{N} containing the seed for each stream.
 }
 \description{
-The function \code{\link{parallel::clusterSetRNGStream}} creates a stream for each
+The function \code{\link[parallel]{clusterSetRNGStream}} creates a stream for each
  worker/slave, and thus replicability can only be realized if each task is assigned to
  the same worker on repeated runs. This is usually not guaranteed with
  load-balancing parallel computations or when a long computation is being re-started
@@ -40,5 +40,5 @@ RNGkind(kind = RNGkind_prev[1], normal.kind = RNGkind_prev[2])
 
 }
 \seealso{
-\code{\link{parallel::clusterSetRNGStream}}
+\code{\link[parallel]{clusterSetRNGStream}}
 }

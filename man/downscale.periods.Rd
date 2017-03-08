@@ -9,13 +9,17 @@ downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
   DScur_endyear = NULL, DSfut_startyear = NULL, DSfut_endyear = NULL)
 }
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.}
+\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
+is an object of class \linkS4class{swWeatherData}.}
 
-\item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+\item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
+calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
 
-\item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather during the historic time period DScur_startyr:DScur_endyr}
+\item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather
+during the historic time period DScur_startyr:DScur_endyr}
 
-\item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather during the projected time period DSfut_startyr:DSfut_endyr}
+\item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
+during the projected time period DSfut_startyr:DSfut_endyr}
 }
 \description{
 Time periods for downscaling functions

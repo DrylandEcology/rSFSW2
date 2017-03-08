@@ -625,8 +625,9 @@ setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg) {
 #' Based on eqn. 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
 #'  other than clipped grass, the user should apply the full logarithmic equation B.14".
 #'
-#' @param uz Numeric. Windspeed [m/s] at \code{height}.
-#' @param height. Height above ground at which \code{uz} windspeed was measaured.
+#' @param uz A numeric vector. Windspeed [m/s] at \code{height}.
+#' @param height A numeric value. Height above ground at which \code{uz} windspeed was
+#'  measured.
 #'
 #' @return Windspeed [m/s] at a height of 2 m above ground.
 #'

@@ -167,7 +167,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       resume = opt_behave[["resume"]],
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
+      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+      verbose = verbose)
   }
 
   invisible(rSOILWAT2::dbW_disconnectConnection())
@@ -559,12 +560,12 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 #'
 #' @references Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson,
 #'  P. Papadopol, and L. A. Vincent. 2011. Impact of Aligning Climatological Day on
-#'  Gridding Daily Maximum–Minimum Temperature and Precipitation over Canada. Journal of
+#'  Gridding Daily Maximum-Minimum Temperature and Precipitation over Canada. Journal of
 #'  Applied Meteorology and Climatology 50:1654-1665.
 #' @references Hutchinson, M. F., D. W. McKenney, K. Lawrence, J. H. Pedlar,
 #'  R. F. Hopkinson, E. Milewska, and P. Papadopol. 2009. Development and Testing of
-#'  Canada-Wide Interpolated Spatial Models of Daily Minimum–Maximum Temperature and
-#'  Precipitation for 1961–2003. Journal of Applied Meteorology and Climatology 48:725-741.
+#'  Canada-Wide Interpolated Spatial Models of Daily Minimum-Maximum Temperature and
+#'  Precipitation for 1961-2003. Journal of Applied Meteorology and Climatology 48:725-741.
 #' @references McKenney, D. W., M. F. Hutchinson, P. Papadopol, K. Lawrence, J. Pedlar,
 #'  K. Campbell, E. Milewska, R. F. Hopkinson, D. Price, and T. Owen. 2011. Customized
 #'  Spatial Climate Models for North America. Bulletin of the American Meteorological
@@ -935,7 +936,8 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #' @export
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_WeatherFolder,
   start_year, end_year, meta_cfsr, n_site_per_core = 100, opt_parallel, rm_temp = TRUE,
-  resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits) {
+  resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits,
+  verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()

@@ -15,15 +15,16 @@ RNG; a single integer or NULL that will be passed to set.seed().}
 
 \item{reproducible}{A logical value. If \code{TRUE}, then \code{streams_N} are
 prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
-
-\item{A}{list with four elements: \itemize{
-\item \code{seed_prev} captures the previous state of the RNG seed.
-\item \code{RNGkind_prev} captures the previous kind of the RNG.
-\item \code{global_seed} is the seed used to set the RNG for stream generation.
-\item \code{seeds_runN} is a list with a stream of \code{streams_N} seeds.
-\item \code{seeds_DS} is an empty list -- a placeholder for a list with a stream
-      of seeds for climate scenario downscaling.
-}}
+}
+\value{
+A list with four elements: \itemize{
+   \item \code{seed_prev} captures the previous state of the RNG seed.
+   \item \code{RNGkind_prev} captures the previous kind of the RNG.
+   \item \code{global_seed} is the seed used to set the RNG for stream generation.
+   \item \code{seeds_runN} is a list with a stream of \code{streams_N} seeds.
+   \item \code{seeds_DS} is an empty list -- a placeholder for a list with a stream
+         of seeds for climate scenario downscaling.
+   }
 }
 \description{
 Organizing previous state and streams of random number generator

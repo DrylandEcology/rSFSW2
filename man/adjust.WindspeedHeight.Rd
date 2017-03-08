@@ -8,9 +8,10 @@
 adjust.WindspeedHeight(uz, height)
 }
 \arguments{
-\item{uz}{Numeric. Windspeed [m/s] at \code{height}.}
+\item{uz}{A numeric vector. Windspeed [m/s] at \code{height}.}
 
-\item{height.}{Height above ground at which \code{uz} windspeed was measaured.}
+\item{height}{A numeric value. Height above ground at which \code{uz} windspeed was
+measured.}
 }
 \value{
 Windspeed [m/s] at a height of 2 m above ground.

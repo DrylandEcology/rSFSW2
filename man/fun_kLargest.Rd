@@ -15,7 +15,8 @@ the k-largest values of \code{x}.}
 \item{k}{An integer value. The k-largest value(s) of \code{x} will be used. The largest
 value will be used if 0 or negative.}
 
-\item{na.rm}{A logical value}
+\item{na.rm}{A logical value indicating whether \code{NA} values should be stripped
+before the computation proceeds.}
 
 \item{\dots}{Optional arguments to be passed to \code{fun}}
 }

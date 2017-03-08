@@ -1,7 +1,7 @@
 
 #' Implementation of Pierre L'Ecuyer's RngStreams for N tasks
 #'
-#' The function \code{\link{parallel::clusterSetRNGStream}} creates a stream for each
+#' The function \code{\link[parallel]{clusterSetRNGStream}} creates a stream for each
 #'  worker/slave, and thus replicability can only be realized if each task is assigned to
 #'  the same worker on repeated runs. This is usually not guaranteed with
 #'  load-balancing parallel computations or when a long computation is being re-started
@@ -13,14 +13,14 @@
 #'  because the function sets the kind to "L'Ecuyer-CMRG" (see examples).
 #'
 #' @param N An integer. The number of streams to generate.
-#' @param iseed An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
+#' @param seed An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
 #'  set the (global/master) random generator, i.e., before generating the seeds of the
 #'  streams.
 #' @param reproducible A logical value. If \code{TRUE}, then \code{N} are
 #'  prepared. If \code{FALSE}, then instead \code{NA}s are returned.
 #' @return A list of length \code{N} containing the seed for each stream.
 #'
-#' @seealso \code{\link{parallel::clusterSetRNGStream}}
+#' @seealso \code{\link[parallel]{clusterSetRNGStream}}
 #'
 #' @examples
 #' RNGkind_prev <- RNGkind()
@@ -34,6 +34,14 @@ generate_RNG_streams <- function(N, seed = NULL, reproducible = TRUE) {
   if (reproducible) {
     oldseed <- get0(".Random.seed", envir = as.environment(1L), inherits = FALSE)
 
+    on.exit({
+      if (!is.null(oldseed)) {
+          assign(".Random.seed", oldseed, pos = 1L)
+      } else {
+        rm(.Random.seed, pos = 1L)
+      }
+    }, add = TRUE)
+
     RNGkind("L'Ecuyer-CMRG")
 
     if (!is.null(seed)) set.seed(seed)
@@ -41,12 +49,8 @@ generate_RNG_streams <- function(N, seed = NULL, reproducible = TRUE) {
     seeds <- vector("list", N)
     seeds[[1L]] <- .Random.seed
 
-    for (i in seq_len(N - 1L)) seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
-
-    if (!is.null(oldseed)) {
-        assign(".Random.seed", oldseed, pos = 1L)
-    } else {
-      rm(.Random.seed, pos = 1L)
+    for (i in seq_len(N - 1L)) {
+      seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])
     }
 
     seeds
@@ -88,7 +92,7 @@ set_RNG_stream <- function(seed = NA) {
 
     } else {
       print(paste("'seed' was not appropriate to init '.Random.seed':",
-        paste(head(seed, n = 3), collapse = "/"), "/...; instead the function 'set.seed'",
+        paste(seed[seq_len(3)], collapse = "/"), "/...; instead the function 'set.seed'",
         "will be used"))
       set_full_RNG(seed, kind = NULL, normal.kind = NULL)
     }
@@ -132,7 +136,7 @@ set_RNG_stream <- function(seed = NA) {
 #' @param reproducible A logical value. If \code{TRUE}, then \code{streams_N} are
 #'  prepared. If \code{FALSE}, then instead \code{NA}s are returned.
 #'
-#' @param A list with four elements: \itemize{
+#' @return A list with four elements: \itemize{
 #'    \item \code{seed_prev} captures the previous state of the RNG seed.
 #'    \item \code{RNGkind_prev} captures the previous kind of the RNG.
 #'    \item \code{global_seed} is the seed used to set the RNG for stream generation.

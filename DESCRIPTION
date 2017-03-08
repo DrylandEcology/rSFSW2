@@ -39,6 +39,9 @@ Suggests:
     rmarkdown,
     testthat,
     covr
+Remotes:
+    github::khufkens/daymetr,
+    github::dschlaep/weathergen
 LinkingTo:
     Rcpp
 LazyData: true

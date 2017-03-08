@@ -269,7 +269,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 #  -> R CMD CHECK reports this nevertheless as issue
       # pos = 1 assigns into globalenv() of the worker
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
-        function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
+        function(x, id) assign(id, x, pos = 1L), id = opt_parallel[["worker_tag"]])
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {

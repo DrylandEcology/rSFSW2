@@ -228,9 +228,9 @@ fix_PPTdata_length <- function(data, targetLength, seed = NA) {
 #'  'spill-over' precipitation.
 #' @param sigmaN An integer value. The multiplicator of \code{this_newPPTevent_N} to
 #'  determine the range of days to consider.
-#' @param this_i_extreme. An integer value. The index indicating for which day in the
+#' @param this_i_extreme An integer value. The index indicating for which day in the
 #'  precipitation record, precipitation is removed and redistributed.
-#' @param this_pptToDistribute. An integer value. The amount of precipitation that was
+#' @param this_pptToDistribute An integer value. The amount of precipitation that was
 #'  removed from day \code{this_i_extreme} and is now redistributed to other days.
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
 #'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
@@ -621,19 +621,27 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
 
 #' Downscale and temporal disaggregation
 #'
-#' @details Units are [degree Celsius] for temperature and [cm / day] or [cm / month], respectively, for precipitation
+#' @section Details: Units are [degree Celsius] for temperature and [cm / day] or
+#'  [cm / month], respectively, for precipitation
 #'
-#' @param obs.hist.daily A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.
-#' @param daily A list. Each element corresponds to one year of simstartyr:endyr is an object of class \linkS4class{swWeatherData}.
-#' @param obs.hist.monthly A numeric matrix. Monthly time-series of observed weather calculated from \code{obs.hist.daily} for the years simstartyr:endyr.
-#' @param monthly A numeric matrix. Monthly time-series of observed weather calculated from \code{daily} for the years simstartyr:endyr.
-#' @param scen.hist.monthly A numeric matrix. Monthly time-series of scenario weather during the historic time period DScur_startyr:DScur_endyr
-#' @param scen.fut.monthly A numeric matrix. Monthly time-series of scenario weather during the projected time period DSfut_startyr:DSfut_endyr
+#' @param obs.hist.daily A list. Each element corresponds to one year of simstartyr:endyr
+#'  is an object of class \linkS4class{swWeatherData}.
+#' @param daily A list. Each element corresponds to one year of simstartyr:endyr is an
+#'  object of class \linkS4class{swWeatherData}.
+#' @param obs.hist.monthly A numeric matrix. Monthly time-series of observed weather
+#'  calculated from \code{obs.hist.daily} for the years simstartyr:endyr.
+#' @param monthly A numeric matrix. Monthly time-series of observed weather calculated
+#'  from \code{daily} for the years simstartyr:endyr.
+#' @param scen.hist.monthly A numeric matrix. Monthly time-series of scenario weather
+#'  during the historic time period DScur_startyr:DScur_endyr
+#' @param scen.fut.monthly A numeric matrix. Monthly time-series of scenario weather
+#'  during the projected time period DSfut_startyr:DSfut_endyr
 #' @param opt_DS A named list.
-#' @param do_checks A logical value. If \code{TRUE} perform several sanity checks on the data.
-downscale <- function(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, itime, years,
-  sim_time, opt_DS, do_checks = TRUE, ...) {}
-
+#' @param do_checks A logical value. If \code{TRUE} perform several sanity checks on the
+#'  data.
+#'
+#' @name downscale
+NULL
 
 
 #' Time periods for downscaling functions
@@ -691,9 +699,9 @@ downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
     iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
 }
 
-#'
-#' Calculate Deltas, used for downscaling functionality
 
+#' Calculate Deltas, used for downscaling functionality
+#' @inheritParams downscale
 calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
 
   # 1. Calculate mean monthly values in historic and future scenario values
@@ -744,7 +752,9 @@ calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
 #'
 #' @inheritParams downscale
 #'
-#' @references Lenderink, G., A. Buishand, and W. van Deursen. 2007. Estimates of future discharges of the river Rhine using two scenario methodologies: direct versus delta approach. Hydrology and Earth System Sciences 11:1145-1159.
+#' @references Lenderink, G., A. Buishand, and W. van Deursen. 2007. Estimates of future
+#'  discharges of the river Rhine using two scenario methodologies: direct versus delta
+#'  approach. Hydrology and Earth System Sciences 11:1145-1159.
 #' @export
 downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
                   scen.fut.monthly, itime, years = NULL, sim_time = NULL,
@@ -806,8 +816,15 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
 #'
 #' @inheritParams downscale
 #'
-#' @references Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta change and downscaled gcm scenarios for three mountainous basins in the United States. Journal of the American Water Resources Association 36:387-397.
-#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta
+#'  change and downscaled gcm scenarios for three mountainous basins in the United States.
+#'  Journal of the American Water Resources Association 36:387-397.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical
+#'  downscaling techniques for global climate model simulations of temperature and
+#'  precipitation with application to water resources planning studies. Chapter 4. Final
+#'  Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group,
+#'  Center for Science in the Earth System, Joint Institute for the Study of the
+#'  Atmosphere and Ocean, University of Washington, Seattle, WA.
 #' @export
 downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
                     scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
@@ -874,11 +891,25 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
 #'
 #' @inheritParams downscale
 #'
-#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
-#' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association, 50, 1461-1476.
-#' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
-#' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
-#' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical
+#'  downscaling techniques for global climate model simulations of temperature and
+#'  precipitation with application to water resources planning studies. Chapter 4. Final
+#'  Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group,
+#'  Center for Science in the Earth System, Joint Institute for the Study of the
+#'  Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century
+#'  Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North
+#'  America. Journal of the American Water Resources Association, 50, 1461-1476.
+#' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
+#'  Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for
+#'  climate change impact assessment. Water Resources Research 47:W03501.
+#' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
+#'  climate change projections on streamflow in the Nooksack River basin, Northwest
+#'  Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+#' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
+#'  matching as an improvement to the equidistant approach in bias correction of
+#'  precipitation. Atmospheric Science Letters 15:1-6.
+#'
 #' @export
 downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
                           scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
@@ -1117,12 +1148,28 @@ doQmapQUANT_drs <- function(x, fobj, type = NULL, montly_obs_base = NULL,
 #'
 #' @inheritParams downscale
 #'
-#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical downscaling techniques for global climate model simulations of temperature and precipitation with application to water resources planning studies. Chapter 4. Final Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group, Center for Science in the Earth System, Joint Institute for the Study of the Atmosphere and Ocean, University of Washington, Seattle, WA.
-#' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association, 50, 1461-1476.
-#' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D. Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for climate change impact assessment. Water Resources Research 47:W03501.
-#' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of climate change projections on streamflow in the Nooksack River basin, Northwest Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
-#' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function matching as an improvement to the equidistant approach in bias correction of precipitation. Atmospheric Science Letters 15:1-6.
-#' @references Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012). Technical Note: Downscaling RCM precipitation to the station scale using statistical transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+#' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical
+#'  downscaling techniques for global climate model simulations of temperature and
+#'  precipitation with application to water resources planning studies. Chapter 4. Final
+#'  Report for the Columbia Basin Climate Change Scenarios Project. Climate Impacts Group,
+#'  Center for Science in the Earth System, Joint Institute for the Study of the
+#'  Atmosphere and Ocean, University of Washington, Seattle, WA.
+#' @references Tohver, I.M., Hamlet, A.F. & Lee, S.-Y. (2014) Impacts of 21st-Century
+#'  Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North
+#'  America. Journal of the American Water Resources Association, 50, 1461-1476.
+#' @references Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
+#'  Lounsbury, and A. H. Matonse. 2011. Examination of change factor methodologies for
+#'  climate change impact assessment. Water Resources Research 47:W03501.
+#' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
+#'  climate change projections on streamflow in the Nooksack River basin, Northwest
+#'  Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+#' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
+#'  matching as an improvement to the equidistant approach in bias correction of
+#'  precipitation. Atmospheric Science Letters 15:1-6.
+#' @references Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012).
+#'  Technical Note: Downscaling RCM precipitation to the station scale using statistical
+#'  transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+#'
 #' @export
 downscale.deltahybrid3mod <- function(
               obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,

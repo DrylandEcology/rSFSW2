@@ -6,6 +6,15 @@
 \usage{
 calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)
 }
+\arguments{
+\item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
+calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+
+\item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
+during the projected time period DSfut_startyr:DSfut_endyr}
+
+\item{opt_DS}{A named list.}
+}
 \description{
 Calculate Deltas, used for downscaling functionality
 }

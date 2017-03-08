@@ -10,19 +10,19 @@ reaggregate_raster(x, coords, to_res = c(0, 0), with_weights = NULL,
 \arguments{
 \item{x}{A raster* object from which data are extracted.}
 
+\item{coords}{A numeric vector of length two or a matrix with two columns. The x and
+y coordinates of the center(s) of the rectangle(s).}
+
 \item{to_res}{A numeric vector of length two. The x- and y-extent of the rectangle(s).}
+
+\item{with_weights}{A logical value or \code{NULL}. If \code{NULL}, then code attempts
+to determine whether weights are required for the call to
+\code{\link[raster]{extract}}.}
 
 \item{method}{A character string. Selects the extraction method, see details.}
 
 \item{tol}{A numeric value. The absolute tolerance for deviation used if
 \code{is.null(with_weights)}.}
-
-\item{coord}{A numeric vector of length two or a matrix with two columns. The x and
-y coordinates of the center(s) of the rectangle(s).}
-
-\item{with_weigths}{A logical value or \code{NULL}. If \code{NULL}, then code attempts
-to determine whether weights are required for the call to
-\code{\link[raster]{extract}}.}
 }
 \value{
 A list of length corresponding to the number of rectangles. Each element is a
