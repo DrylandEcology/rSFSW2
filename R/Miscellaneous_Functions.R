@@ -4,10 +4,12 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 
   ow_prev <- options("warn", "error")
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": set options ",
+  if (verbose) {
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": set options ",
       "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level, " and 'error' to ",
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
+  }
 
   #    - warn < 0: warnings are ignored
   #    - warn = 0: warnings are stored until the top–level function returns
@@ -71,49 +73,49 @@ has_incompletedata <- function(data, tag = NULL, MARGIN = 1) {
 
 #custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
 #note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
-list.dirs2 <- function(path, full.names=TRUE, recursive=TRUE) {
+list.dirs2 <- function(path, full.names = TRUE, recursive = TRUE) {
   dir.list <- list.dirs(path, full.names)
 
-  if(is.null(dir.list))
+  if (is.null(dir.list))
     return (dir.list)
-  if(length(dir.list) == 0)
+  if (length(dir.list) == 0)
     return (dir.list)
-  if(recursive == TRUE)
+  if (recursive == TRUE)
     return (dir.list)
 
   nSlash = length(strsplit(dir.list[1], .Platform$file.sep)[[1]]) + 1
-  if(nSlash == 1)
+  if (nSlash == 1)
     return(dir.list[-1])
 
   n = length(dir.list)
-  for(i in n:1)
-    if(length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
+  for (i in n:1)
+    if (length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
       dir.list <- dir.list[-i]
 
-  return (dir.list)
+  dir.list
 }
 #custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
-file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) {
+file.copy2 <- function(from = "", to = "", overwrite = TRUE, copy.mode = TRUE, times = 0) {
   file.copy(from, to, overwrite, FALSE, copy.mode)
-  if(times < 24)
-    if(file.exists(from))
-      if(!file.exists(to)) {
+  if (times < 24)
+    if (file.exists(from))
+      if (!file.exists(to)) {
         print("trying to copy the file again")
-        Recall(from, to, overwrite, copy.mode, (times+1))	#recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
+        Recall(from, to, overwrite, copy.mode, (times+1))  #recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
       }
   #else { #this commented out part copies the file via the system command cp
-  #	if(any(grepl("/", to, fixed=TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
-  #		y <- to
-  #		while(substr(y, nchar(y), nchar(y)) != '/')
-  #			y <- substr(y, 1, nchar(y)-1)
-  #		y <- substr(y, 1, nchar(y)-1)
-  #		if(y != "")
-  #			system(paste("mkdir -p", y), ignore.stdout=FALSE, ignore.stderr=FALSE)
-  #	}
-  #	command <- "cp" #this just calls the system command cp...
-  #	if(overwrite == TRUE) command <- paste(command, "-f")
-  #	if(copy.mode == TRUE) command <- paste(command, "-p")
-  #	system(paste(command, from, to), ignore.stdout=FALSE, ignore.stderr=FALSE)
+  #  if (any(grepl("/", to, fixed = TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
+  #    y <- to
+  #    while (substr(y, nchar(y), nchar(y)) != '/')
+  #      y <- substr(y, 1, nchar(y)-1)
+  #    y <- substr(y, 1, nchar(y)-1)
+  #    if (y != "")
+  #      system(paste("mkdir -p", y), ignore.stdout = FALSE, ignore.stderr = FALSE)
+  #  }
+  #  command <- "cp" #this just calls the system command cp...
+  #  if (overwrite == TRUE) command <- paste(command, "-f")
+  #  if (copy.mode == TRUE) command <- paste(command, "-p")
+  #  system(paste(command, from, to), ignore.stdout = FALSE, ignore.stderr = FALSE)
   #}
 }
 # made this function b/c dir.create wasn't always working correctly on JANUS for some
@@ -121,6 +123,7 @@ file.copy2 <- function(from="", to="", overwrite=TRUE, copy.mode=TRUE, times=0) 
 dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777") {
   k <- 0
   temp <- NULL
+  temp_call <- shQuote(match.call()[1])
 
   repeat {
     temp <- dir.create(path, showWarnings, recursive, mode)
@@ -132,7 +135,7 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 
     # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
     # make the directories everytime... quite aggravating.
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to create ",
+    print(paste0("rSFSW2's ", temp_call, ": failed to create ",
       shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
   }
 
@@ -140,30 +143,30 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
 }
 
 #copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
-dir.copy <- function(dir.from, dir.to, overwrite=FALSE){
-  dir.create2(dir.to, recursive=TRUE)
-  dir.list <- basename(list.dirs2(dir.from, full.names=FALSE, recursive=FALSE))
+dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
+  dir.create2(dir.to, recursive = TRUE)
+  dir.list <- basename(list.dirs2(dir.from, full.names = FALSE, recursive = FALSE))
   file.list <- list.files(dir.from)
-  if(length(dir.list) > 0) {
-    sapply(dir.list, function(x) {Recall(dir.from=file.path(dir.from, x), dir.to=file.path(dir.to, x), overwrite=overwrite)})
-    #file.list <- file.list[-match(dir.list, table=file.list)] #this line gives an error when run in R v. 2.13
+  if (length(dir.list) > 0) {
+    sapply(dir.list, function(x) {Recall(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x), overwrite = overwrite)})
+    #file.list <- file.list[-match(dir.list, table = file.list)] #this line gives an error when run in R v. 2.13
     file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
   }
-  if(length(file.list) > 0) {
-    sapply(file.list, function(x) {file.copy2(from=file.path(dir.from, x), to=file.path(dir.to, x), overwrite=overwrite, copy.mode=TRUE)})
+  if (length(file.list) > 0) {
+    sapply(file.list, function(x) {file.copy2(from = file.path(dir.from, x), to = file.path(dir.to, x), overwrite = overwrite, copy.mode = TRUE)})
   }
   invisible(1)
 }
 #remove directory and content
-dir.remove <- function(dir){
-  file.list <- try(list.files(dir, all.files=TRUE))
+dir.remove <- function(dir) {
+  file.list <- try(list.files(dir, all.files = TRUE))
   file.list <- file.list[-which(file.list %in% c(".", ".."))]
-  dir.list <- basename(list.dirs2(dir, full.names=FALSE, recursive=FALSE))
-  if(length(dir.list) > 0) {
-    sapply(dir.list, function(x) Recall(dir=file.path(dir, x)))
-    file.list <- file.list[-match(dir.list, table=file.list)]
+  dir.list <- basename(list.dirs2(dir, full.names = FALSE, recursive = FALSE))
+  if (length(dir.list) > 0) {
+    sapply(dir.list, function(x) Recall(dir = file.path(dir, x)))
+    file.list <- file.list[-match(dir.list, table = file.list)]
   }
-  if(length(file.list) > 0) {
+  if (length(file.list) > 0) {
     sapply(file.list, function(x) {file.remove(file.path(dir, x))})
   }
   file.remove(dir)
@@ -304,14 +307,14 @@ simTiming_ForEachUsedTimeUnit <- function(st,
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
 
     if (latitude < 0 && account_NorthSouth) {
-      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1	#new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy=366, there are two with doy=182
+      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  #new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two with doy = 182
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
         temp <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
         c(temp[-(1:dshift[x])], temp[1:dshift[x]])
       }))
-      res$month_ForEachUsedDay_NSadj <- strptime(paste(res$year_ForEachUsedDay, res$doy_ForEachUsedDay_NSadj, sep="-"), format="%Y-%j")$mon + 1
+      res$month_ForEachUsedDay_NSadj <- strptime(paste(res$year_ForEachUsedDay, res$doy_ForEachUsedDay_NSadj, sep = "-"), format = "%Y-%j")$mon + 1
       temp <- length(res$year_ForEachUsedDay)
-      delta <- if(dshift[1] == 182) 2 else 3
+      delta <- if (dshift[1] == 182) 2 else 3
       res$year_ForEachUsedDay_NSadj <- c(
         rep(st$useyrs[1] - 1, times = dshift[1] + delta),
         res$year_ForEachUsedDay[-((temp - dshift[1] - delta):temp)]
@@ -495,7 +498,7 @@ check_soil_data <- function(data) {
 #'    temperature T
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
 vp0 <- function(T) {
-  0.6108 * exp(17.27 * T / (T + 273.3))	# eq. 5 of Yoder et al. 2005
+  0.6108 * exp(17.27 * T / (T + 273.3))  # eq. 5 of Yoder et al. 2005
 }
 
 
@@ -508,9 +511,9 @@ vp0 <- function(T) {
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
 vpd <- function(Tmin, Tmax, RHmean = NULL) {
   if (is.null(RHmean)) {
-    (vp0(Tmax) - vp0(Tmin)) / 2	# eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
+    (vp0(Tmax) - vp0(Tmin)) / 2  # eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
   } else {
-    (vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)	# eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
+    (vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)  # eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
   }
 }
 
@@ -548,20 +551,20 @@ max_duration <- function(x, target_val = 1L, return_doys = FALSE) {
   len
 }
 
-startDoyOfDuration <- function(x, duration=10) {
+startDoyOfDuration <- function(x, duration = 10) {
   r <- rle(x)
-  if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
-    return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=10)==0, NA, 1)[1])
+  if (length(r$lengths) == 1 | sum(r$values == 1 & r$lengths >= duration) == 0) {
+    return (ifelse((length(r$lengths) == 1 & (r$values == 0 | r$lengths<duration)) | sum(r$values == 1 & r$lengths >= 10) == 0, NA, 1)[1])
   } else {
-    first10dry <- r$lengths[which(r$values==1 & r$lengths>=duration)][1] #pick first period
-    if( !is.na(first10dry) ){
-      ind <- which(r$lengths==first10dry & r$values==1)[1] #always pick start of first suitable period
+    first10dry <- r$lengths[which(r$values == 1 & r$lengths >= duration)][1] #pick first period
+    if (!is.na(first10dry)) {
+      ind <- which(r$lengths == first10dry & r$values == 1)[1] #always pick start of first suitable period
     } else {
       ind <- -1
     }
-    if(ind==1) {#start of period at beginning of year
+    if (ind == 1) {#start of period at beginning of year
       return(1)
-    } else if(ind==-1) {#no period this year
+    } else if (ind == -1) {#no period this year
       return(NA)
     } else {
       return(cumsum(r$lengths)[ind-1]+1)
@@ -569,18 +572,18 @@ startDoyOfDuration <- function(x, duration=10) {
   }
 }
 
-endDoyAfterDuration <- function(x, duration=10) {
+endDoyAfterDuration <- function(x, duration = 10) {
   r <- rle(x)
-  if(length(r$lengths)==1 | sum(r$values==1 & r$lengths>=duration)==0 ){
-    return (ifelse((length(r$lengths)==1 & (r$values==0 | r$lengths<duration)) | sum(r$values==1 & r$lengths>=duration)==0, 365, NA)[1])
+  if (length(r$lengths) == 1 | sum(r$values == 1 & r$lengths >= duration) == 0) {
+    return (ifelse((length(r$lengths) == 1 & (r$values == 0 | r$lengths<duration)) | sum(r$values == 1 & r$lengths >= duration) == 0, 365, NA)[1])
   } else {
-    last10dry <- (rl <- r$lengths[which(r$values==1 & r$lengths>=duration)])[length(rl)] #pick last period
-    if( length(last10dry) > 0 ){
-      ind <- (temp <- which(r$lengths==last10dry & r$values==1))[length(temp)]	#always pick end of last suitable period
+    last10dry <- (rl <- r$lengths[which(r$values == 1 & r$lengths >= duration)])[length(rl)] #pick last period
+    if (length(last10dry) > 0) {
+      ind <- (temp <- which(r$lengths == last10dry & r$values == 1))[length(temp)]  #always pick end of last suitable period
     } else {
       ind <- -1
     }
-    if(ind==-1) {#no period this year
+    if (ind == -1) {#no period this year
       return(NA)
     } else {
       return(cumsum(r$lengths)[ind])
@@ -665,7 +668,7 @@ dailyRegeneration_bySWPSnow_ThisYear_YN <- function(x, opts) {
 #'  A list with three items: UN-aridity index (numeric value), temperateness (logical value),
 #'  and temperate drylands (logical value).
 calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
-  ai <- annualPPT / annualPET	#Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+  ai <- annualPPT / annualPET  #Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
   temp <- matrix(monthlyTemp >= 10, nrow = 12)
   temp <- .colSums(temp, nrow(temp), ncol(temp))
   TD <- temp >= 4 & temp < 8 #Trewartha & Horn 1980, page 284: temperate areas
@@ -689,60 +692,71 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
 
 
 #two, three, or four layer aggregation for average daily aggregation output
-setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg){
+setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg) {
   d <- length(layers_depth)
   vals <- list()
   #first layer
-  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
+  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
   vals[[1]] <- seq_len(DeepestFirstDailyAggLayer)
   #second layer
-  if(!is.null(daily_lyr_agg[["second_cm"]])){
-    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
+  if (!is.null(daily_lyr_agg[["second_cm"]])) {
+    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
   } else {
     DeepestSecondDailyAggLayer <- d
   }
-  if(is.numeric(DeepestSecondDailyAggLayer) && is.numeric(DeepestFirstDailyAggLayer) && d > DeepestFirstDailyAggLayer){
+  if (is.numeric(DeepestSecondDailyAggLayer) && is.numeric(DeepestFirstDailyAggLayer) && d > DeepestFirstDailyAggLayer) {
     vals[[2]] <- (DeepestFirstDailyAggLayer+1):DeepestSecondDailyAggLayer
   }
   #third layer
-  if(!is.null(daily_lyr_agg[["third_cm"]])){
-    if(!is.na(daily_lyr_agg[["third_cm"]])){
-      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
+  if (!is.null(daily_lyr_agg[["third_cm"]])) {
+    if (!is.na(daily_lyr_agg[["third_cm"]])) {
+      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
     } else {
       DeepestThirdDailyAggLayer <- NULL
     }
   } else {
     DeepestThirdDailyAggLayer <- d
   }
-  if(is.numeric(DeepestThirdDailyAggLayer) && is.numeric(DeepestSecondDailyAggLayer) && d > DeepestSecondDailyAggLayer){
+  if (is.numeric(DeepestThirdDailyAggLayer) && is.numeric(DeepestSecondDailyAggLayer) && d > DeepestSecondDailyAggLayer) {
     vals[[3]] <- (DeepestSecondDailyAggLayer+1):DeepestThirdDailyAggLayer
   }
   #fourth layer
-  if(!is.null(daily_lyr_agg[["fourth_cm"]])){
-    if(!is.na(daily_lyr_agg[["fourth_cm"]])){
-      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside=TRUE)
+  if (!is.null(daily_lyr_agg[["fourth_cm"]])) {
+    if (!is.na(daily_lyr_agg[["fourth_cm"]])) {
+      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
     } else {
       DeepestFourthDailyAggLayer <- NULL
     }
   } else {
     DeepestFourthDailyAggLayer <- d
   }
-  if(is.numeric(DeepestFourthDailyAggLayer) && is.numeric(DeepestThirdDailyAggLayer) && d > DeepestThirdDailyAggLayer){
+  if (is.numeric(DeepestFourthDailyAggLayer) && is.numeric(DeepestThirdDailyAggLayer) && d > DeepestThirdDailyAggLayer) {
     vals[[4]] <- ((DeepestThirdDailyAggLayer+1):DeepestFourthDailyAggLayer)
   }
 
-  return(vals)
+  vals
 }
 
 
-#function to extrapolate windspeeds measured at heights different than SOILWAT2 required 2-m above ground
-adjust.WindspeedHeight <- function(uz, height){
-  # Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005) In The ASCE standardized reference evapotranspiration equation, pp. 59. ASCE-EWRI Task Committee Report.
-  # input: windspeed [m/s] at height x
-  # output: windspeed [m/s] at height 2 m
+#' Function to extrapolate windspeeds measured at a height different from the SOILWAT2
+#'  required 2-m above ground
+#'
+#' Based on eqn. 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
+#'  other than clipped grass, the user should apply the full logarithmic equation B.14".
+#'
+#' @param uz A numeric vector. Windspeed [m/s] at \code{height}.
+#' @param height A numeric value. Height above ground at which \code{uz} windspeed was
+#'  measured.
+#'
+#' @return Windspeed [m/s] at a height of 2 m above ground.
+#'
+#' @references Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005)
+#'  The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
+#'  Committee Report.
+adjust.WindspeedHeight <- function(uz, height) {
 
-  stopifnot(all(uz >= 0) && height >= 2 )
-  return( uz * 4.87 / log(67.8 * height - 5.42) )	# eqn. 33 in Allen et al. (2005)
+  stopifnot(all(uz >= 0) && height >= 2)
+  uz * 4.87 / log(67.8 * height - 5.42)
 }
 
 
@@ -868,14 +882,14 @@ adjustLayer_byImp <- function(depths, imp_depth, sdepths) {
         depths <- c(imp_depth, sdepths[temp + 1])
       }
     }
-  } else if(any(imp_depth < depths[2])){
+  } else if (any(imp_depth < depths[2])) {
     depths <- c(depths[1], imp_depth)
   }
 
   depths
 }
 
-EstimateInitialSoilTemperatureForEachSoilLayer <- function(layers_depth, lower.Tdepth, soilTupper, soilTlower){
+EstimateInitialSoilTemperatureForEachSoilLayer <- function(layers_depth, lower.Tdepth, soilTupper, soilTlower) {
   sl <- c(0, lower.Tdepth)
   st <- c(soilTupper, soilTlower)
 
@@ -898,7 +912,7 @@ setDeepestTopLayer <- function(layers_depth, Depth_TopLayers_cm) {
 }
 
 setTopLayer <- function(d, DeepestTopLayer) {
-  seq_len(if(d < DeepestTopLayer) d else DeepestTopLayer)
+  seq_len(if (d < DeepestTopLayer) d else DeepestTopLayer)
 }
 
 setBottomLayer <- function(d, DeepestTopLayer) {
@@ -910,7 +924,7 @@ setBottomLayer <- function(d, DeepestTopLayer) {
 }
 
 
-#data is the values for one year adj for SWPcrit_MPa; TRUE==dry
+#data is the values for one year adj for SWPcrit_MPa; TRUE == dry
 EventDistribution <- function(data, N, size) {
   bins <- rep(0, times = N)
   temp <- rle(data)
@@ -981,17 +995,22 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
 
 
 
-benchmark_BLAS <- function(platform) {
+benchmark_BLAS <- function(platform, seed = NA) {
   if (grepl("darwin", platform)) { # apparently this works only on Mac OS X
     blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
-    blas <- sub("-L/", "/", (strsplit(blas, split=" ")[[1]][1]))
+    blas <- sub("-L/", "/", strsplit(blas, split = " ")[[1]][1])
     lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
-    lapack <- sub("-L/", "/", (strsplit(lapack, split=" ")[[1]][1]))
-    get_ls <- if(identical(blas, lapack)) list(blas) else list(blas, lapack)
+    lapack <- sub("-L/", "/", strsplit(lapack, split = " ")[[1]][1])
+    get_ls <- if (identical(blas, lapack)) list(blas) else list(blas, lapack)
     temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
     print("Check linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
-    print(system.time({ x <- replicate(5e3, stats::rnorm(5e3)); tcrossprod(x) }))
+    if (!is.na(seed)) set.seed(seed)
+    temp <- system.time({
+      x <- replicate(5e3, stats::rnorm(5e3))
+      tcrossprod(x)
+    })
+    print(temp)
 
     # Example values:
     # Apple's Accelerate framework:
@@ -1231,72 +1250,53 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
 
 
-init_intracker <- function() {
-  temp <- c("load_inputs", "calc_size", "spatial_setup", "prj_todos", "dbWork",
-    "dbW_paths", "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",
-    "climnorm_data", "req_soillayers", "calc_bsevap", "table_lookup")
+get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
+  how_determine_sources) {
 
-#  temp <- c("sim_years", "coef_evap", "coef_transp",
-#    "reg_transp", "veg_composition", "veg_biomass",
-#    "soil_temperature")
+  sites_source <- rep(NA, times = sim_size[["runsN_sites"]])
+  i_cns_field <- which(field_sources == colnames(SWRunInformation))
+  has_cns_field <- length(i_cns_field) > 0
 
-  # NA, don't prepare/check
-  # TRUE, has been prepared/checked successfully
-  # FALSE, needs yet to be prepared/checked
-  as.data.frame(matrix(FALSE, nrow = length(temp), ncol = 4, dimnames = list(temp,
-    c("prepared", "prep_time", "checked", "check_time"))))
-}
-
-
-todo_intracker <- function(SFSW2_prj_meta, tracker, status) {
-  x <- SFSW2_prj_meta[["input_status"]][tracker, status]
-
-  !is.na(x) && identical(x, FALSE)
-}
-
-
-isdone_intracker <- function(SFSW2_prj_meta, tracker, status) {
-  x <- SFSW2_prj_meta[["input_status"]][tracker, status]
-
-  !is.na(x) && identical(x, TRUE)
-}
-
-#' Update input tracker status
-#'
-#' @param ist A data.frame representing an input tracker as generated by function
-#'  \code{init_intracker}.
-#' @param tracker A character string. One of the rownames of \code{ist}.
-#' @param prepared A logical value or \code{NULL}. If not \code{NULL}, then the requested
-#'  tracker will be updated with this value and its time stamp set.
-#' @param checked A logical value or \code{NULL}. If not \code{NULL}, then the requested
-#'  tracker will be updated with this value and its time stamp set.
-#' @param clean_subsequent A logical value. If \code{TRUE} then trackers in rows greater
-#'  than \code{tracker} will be reset to \code{FALSE}.
-#'
-#' @return The updated data.frame \code{ist}.
-#' @export
-update_intracker <- function(ist, tracker, prepared = NULL, checked = NULL,
-  clean_subsequent = FALSE) {
-
-  irow <- which(tracker == dimnames(ist)[[1]])
-  if (length(irow) != 1)
-    stop("'update_intracker': 'tracker' does not exist (uniquely).")
-
-  # Upate status of requested tracker
-  if (!is.null(prepared)) {
-    ist[irow, "prepared"] <- prepared
-    ist[irow, "prep_time"] <- Sys.time()
-  }
-  if (!is.null(checked)) {
-    ist[irow, "checked"] <- checked
-    ist[irow, "check_time"] <- Sys.time()
+  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
+    sites_source <- SWRunInformation[sim_size[["runIDs_sites"]], i_cns_field]
+  } else if (how_determine_sources == "order" || !has_cns_field) {
+  } else {
+    message("Value of 'how_determine_sources'", how_determine_sources,
+      " not implemented")
   }
 
-  # Set subsequent trackers to FALSE
-  if (clean_subsequent && irow < dim(ist)[1])
-    ist[(irow + 1):dim(ist)[1], ] <- FALSE
+  sites_source
+}
 
-  ist
+update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fnames_in,
+  field_sources, field_include) {
+
+  notDone <- NULL
+
+  if (any(MMC[["idone"]])) {
+    SWRunInformation[sim_size[["runIDs_sites"]], field_sources] <- as.character(MMC[["source"]])
+
+    notDone <- is.na(MMC[["source"]])
+    include_YN_data <- rep(0, sim_size[["runsN_master"]])
+    include_YN_data[sim_size[["runIDs_sites"]][!notDone]] <- 1
+    SWRunInformation[, field_include] <- include_YN_data
+
+    #write data to disk
+    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+    unlink(fnames_in[["fpreprocin"]])
+
+    if (any(notDone))
+      print(paste0(shQuote(field_sources), ": no data available for n = ", sum(notDone),
+        "sites."))
+
+  } else {
+      print(paste0(shQuote(field_sources), ": no data extracted because already available"))
+  }
+
+  SWRunInformation
+}
+
+
 }
 
 

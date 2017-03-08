@@ -78,49 +78,49 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
   forb.fraction <- 0
   bareGround.fraction <- 0
   AnnC4C3ShrubForbBareGroundFraction <- rep(NA, 6)
-  if(fix_annuals){
+  if (fix_annuals) {
     AnnC4C3ShrubForbBareGroundFraction[1] <- finite01(Annuals_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[1] <- 0 #Annuals can not be NA
   }
-  if(fix_C4grasses)
+  if (fix_C4grasses)
     AnnC4C3ShrubForbBareGroundFraction[2] <- C4_Fraction
-  if(fix_C3grasses)
+  if (fix_C3grasses)
     AnnC4C3ShrubForbBareGroundFraction[3] <- C3_Fraction
-  if(fix_shrubs)
+  if (fix_shrubs)
     AnnC4C3ShrubForbBareGroundFraction[4] <- Shrubs_Fraction
 
-  if(fix_forbs) {
+  if (fix_forbs) {
     AnnC4C3ShrubForbBareGroundFraction[5] <- finite01(Forbs_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[5] <- forb.fraction
   }
-  if(fix_BareGround) {
+  if (fix_BareGround) {
     AnnC4C3ShrubForbBareGroundFraction[6] <- finite01(BareGround_Fraction)
   } else {
     AnnC4C3ShrubForbBareGroundFraction[6] <- bareGround.fraction
   }
   AnnC4C3ShrubForbBareGroundFraction <- cut0Inf(AnnC4C3ShrubForbBareGroundFraction) #treat negatives as if NA
-  TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm=TRUE)
+  TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm = TRUE)
 
   #Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
-  if(!isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
-    stop(print(paste(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1", sep=""))) #throw an error
+  if (!isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
+    stop(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1") #throw an error
   }
 
-  if(isTRUE(all.equal(TotalFraction, 1, tolerance=tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1){
+  if (isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) {
 
-    if(sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1){ #if only one is NA, then this can be calculated
+    if (sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) { #if only one is NA, then this can be calculated
       AnnC4C3ShrubForbBareGroundFraction[which(is.na(AnnC4C3ShrubForbBareGroundFraction))] <- cut0Inf(1 - TotalFraction)
     } else {
       AnnC4C3ShrubForbBareGroundFraction <- finite01(AnnC4C3ShrubForbBareGroundFraction) #the composition is >= 1, so set eventually remaining NA to 0
     }
 
-    TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm=TRUE)
+    TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm = TRUE)
     AnnC4C3ShrubForbBareGroundFraction <- AnnC4C3ShrubForbBareGroundFraction / TotalFraction #Rescale, in case it is needed
 
   } else { #i.e., (TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) > 1) is TRUE; thus, calculate some fractions based on climate variables
-    if(isNorth){ #Northern hemisphere
+    if (isNorth) { #Northern hemisphere
       Months_WinterTF <- c(12, 1:2)
       Months_SummerTF <- c(6:8)
     } else {
@@ -132,20 +132,20 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
 
     #---Potential natural vegetation
     #1. step: Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional types in grasslands and shrublands of North America. Ecological Applications, 6, 1212-1224.
-    if(MAP_mm < 1){
+    if (MAP_mm < 1) {
       shrubs.fractionNA <- NA
     } else {
-      shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP) 								#if NA, then not enough winter precipitation above a given MAP
+      shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) + 1.5451 * ppt.WinterToMAP)                 #if NA, then not enough winter precipitation above a given MAP
     }
-    if(MAT_C <= 0){
+    if (MAT_C <= 0) {
       grass.c4.fractionNA <- 0
     } else {
-      grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))			#if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
+      grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm + 1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))      #if NA, then either MAT < 0 or not enough summer precipitation or too cold below a given MAP
     }
-    if(ppt.WinterToMAP <= 0){
+    if (ppt.WinterToMAP <= 0) {
       grass.c3ingrasslands.fractionNA <- grass.c3inshrublands.fractionNA <- NA
     } else {
-      grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)		#if NA, then not enough winter precipitation or too warm below a given MAP
+      grass.c3ingrasslands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)    #if NA, then not enough winter precipitation or too warm below a given MAP
       grass.c3inshrublands.fractionNA <- cut0Inf(1.1905 - 0.02909 * MAT_C + 0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
     }
     grass.c3.fractionNA <- ifelse(shrubs.fractionNA >= shrub_limit && !is.na(shrubs.fractionNA), grass.c3inshrublands.fractionNA, grass.c3ingrasslands.fractionNA)
@@ -154,7 +154,7 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
 
     #2. step: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
     #This equations give percent species/vegetation -> use to limit Paruelo's C4 equation, i.e., where no C4 species => there are no C4 abundance > 0
-    if(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"] <= 0){
+    if (dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"] <= 0) {
       grass.c4.species <- 0
     } else {
       x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9/5 + 32
@@ -164,11 +164,11 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
     }
     grass.c4.fractionNA <- ifelse(grass.c4.species >= 0, grass.c4.fractionNA, NA)
 
-    #3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm	[these rules are made up arbitrarily by drs, Nov 2012]
-    if(sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1){
-      if(MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
-      if(MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
-      if(MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
+    #3. step: Replacing missing values: If no or only one successful equation, then add 100% C3 if MAT < 10 C, 100% shrubs if MAP < 600 mm, and 100% C4 if MAT >= 10C & MAP >= 600 mm  [these rules are made up arbitrarily by drs, Nov 2012]
+    if (sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA), !is.na(grass.c3.fractionNA)) <= 1) {
+      if (MAP_mm < 600) shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0, shrubs.fractionNA)
+      if (MAT_C < 10)  grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0, grass.c3.fractionNA)
+      if (MAT_C >= 10  & MAP_mm >= 600)  grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0, grass.c4.fractionNA)
     }
 
     #4. step: Scale fractions to 0-1 with a sum of 1 including grass.Annual.fraction, but don't scale grass.Annual.fraction
@@ -185,7 +185,7 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
     calcAnnC4C3ShrubForbBareGroundFraction <- c(grass.Annual.fraction, grass.c4.fraction, grass.c3.fraction, shrubs.fraction)
     naIndex <- which(is.na(AnnC4C3ShrubForbBareGroundFraction))
     #replace missing values
-    if(isTRUE(all.equal(sum(calcAnnC4C3ShrubForbBareGroundFraction[naIndex]), 0)) && isTRUE(all.equal(temp <- sum(AnnC4C3ShrubForbBareGroundFraction[!naIndex]), 0))){ #there would be no vegetation, so force vegetation > 0
+    if (isTRUE(all.equal(sum(calcAnnC4C3ShrubForbBareGroundFraction[naIndex]), 0)) && isTRUE(all.equal(temp <- sum(AnnC4C3ShrubForbBareGroundFraction[!naIndex]), 0))) { #there would be no vegetation, so force vegetation > 0
       AnnC4C3ShrubForbBareGroundFraction[naIndex] <- (1 - temp) / length(naIndex)
     } else {
       AnnC4C3ShrubForbBareGroundFraction[naIndex] <- calcAnnC4C3ShrubForbBareGroundFraction[naIndex]
@@ -195,7 +195,7 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
   }
 
   #Scale Grass components to one (or set to 0)
-  if(!isTRUE(all.equal(sum(AnnC4C3ShrubForbBareGroundFraction[4:6]), 1))){
+  if (!isTRUE(all.equal(sum(AnnC4C3ShrubForbBareGroundFraction[4:6]), 1))) {
     grass.c4.fractionG <- AnnC4C3ShrubForbBareGroundFraction[2] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
     grass.c3.fractionG <- AnnC4C3ShrubForbBareGroundFraction[3] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
     grass.Annual.fractionG <- AnnC4C3ShrubForbBareGroundFraction[1] / (1-sum(AnnC4C3ShrubForbBareGroundFraction[4:6]))
@@ -366,9 +366,9 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
 
   #Scale monthly values of litter and live biomass amount by column-max; total biomass will be back calculated from 'live biomass amount' / 'percent live'
   itemp <- grepl("Litter", names(tr_VegBiom)) | grepl("Amount.Live", names(tr_VegBiom))
-  colmax <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=max)
-  #  colmin <- apply(tr_VegBiom[, itemp], MARGIN=2, FUN=min)
-  tr_VegBiom[, itemp] <- sweep(tr_VegBiom[, itemp], MARGIN=2, STATS=colmax, FUN="/")
+  colmax <- apply(tr_VegBiom[, itemp], MARGIN = 2, FUN = max)
+  #  colmin <- apply(tr_VegBiom[, itemp], MARGIN = 2, FUN = min)
+  tr_VegBiom[, itemp] <- sweep(tr_VegBiom[, itemp], MARGIN = 2, STATS = colmax, FUN = "/")
 
   #Pull different vegetation types
   biom_shrubs <- biom_std_shrubs <- tr_VegBiom[, grepl("Sh", names(tr_VegBiom))]
@@ -397,24 +397,24 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
         site.winter.start <- starts[length(starts)] #Calculate first month of winter == last start of non-growing season
         site.winter.months <- (site.winter.start + seq_len(n_nonseason) - 2) %% 12 + 1
 
-        biom_shrubs[site.winter.months,] <- predict_season(biom_std_shrubs,
+        biom_shrubs[site.winter.months, ] <- predict_season(biom_std_shrubs,
           std.winter.padded, std.winter.seq, site.winter.seq)
-        biom_C3[site.winter.months,] <- predict_season(biom_std_C3, std.winter.padded,
+        biom_C3[site.winter.months, ] <- predict_season(biom_std_C3, std.winter.padded,
           std.winter.seq, site.winter.seq)
-        biom_C4[site.winter.months,] <- predict_season(biom_std_C4, std.winter.padded,
+        biom_C4[site.winter.months, ] <- predict_season(biom_std_C4, std.winter.padded,
           std.winter.seq, site.winter.seq)
-        biom_annuals[site.winter.months,] <- predict_season(biom_std_annuals,
+        biom_annuals[site.winter.months, ] <- predict_season(biom_std_annuals,
           std.winter.padded, std.winter.seq, site.winter.seq)
 
       } else { #if winter lasts 12 months
         #Take the mean of the winter months
-        temp <- apply(biom_std_shrubs[std.winter,], 2, mean)
+        temp <- apply(biom_std_shrubs[std.winter, ], 2, mean)
         biom_shrubs[] <- matrix(temp, nrow = 12, ncol = ncol(biom_shrubs), byrow = TRUE)
-        temp <- apply(biom_std_C3[std.winter,], 2, mean)
+        temp <- apply(biom_std_C3[std.winter, ], 2, mean)
         biom_C3[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C3), byrow = TRUE)
-        temp <- apply(biom_std_C4[std.winter,], 2, mean)
+        temp <- apply(biom_std_C4[std.winter, ], 2, mean)
         biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
-        temp <- apply(biom_std_annuals[std.winter,], 2, mean)
+        temp <- apply(biom_std_annuals[std.winter, ], 2, mean)
         biom_annuals[] <- matrix(, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
@@ -430,32 +430,32 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
         site.growing.start <- starts[1] #Calculate first month of growing season == first start of growing season
         site.growing.months <- (site.growing.start + seq_len(n_season) - 2) %% 12 + 1
 
-        biom_shrubs[site.growing.months,] <- predict_season(biom_std_shrubs,
+        biom_shrubs[site.growing.months, ] <- predict_season(biom_std_shrubs,
           std.growing.padded, std.growing.seq, site.growing.seq)
-        biom_C3[site.growing.months,] <- predict_season(biom_std_C3, std.growing.padded,
+        biom_C3[site.growing.months, ] <- predict_season(biom_std_C3, std.growing.padded,
           std.growing.seq, site.growing.seq)
-        biom_C4[site.growing.months,] <- predict_season(biom_std_C4, std.growing.padded,
+        biom_C4[site.growing.months, ] <- predict_season(biom_std_C4, std.growing.padded,
           std.growing.seq, site.growing.seq)
-        biom_annuals[site.growing.months,] <- predict_season(biom_std_annuals,
+        biom_annuals[site.growing.months, ] <- predict_season(biom_std_annuals,
           std.growing.padded, std.growing.seq, site.growing.seq)
 
       } else { #if growing season lasts 12 months
-        temp <- apply(biom_std_shrubs[std.growing,], 2, max)
+        temp <- apply(biom_std_shrubs[std.growing, ], 2, max)
         biom_shrubs[] <- matrix(temp, nrow = 12, ncol = ncol(biom_shrubs), byrow = TRUE)
-        temp <- apply(biom_std_C3[std.growing,], 2, max)
+        temp <- apply(biom_std_C3[std.growing, ], 2, max)
         biom_C3[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C3), byrow = TRUE)
-        temp <- apply(biom_std_C4[std.growing,], 2, max)
+        temp <- apply(biom_std_C4[std.growing, ], 2, max)
         biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
-        temp <- apply(biom_std_annuals[std.growing,], 2, max)
+        temp <- apply(biom_std_annuals[std.growing, ], 2, max)
         biom_annuals[] <- matrix(temp, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 
     if (!isNorth) { #Adjustements were done as if on northern hemisphere
-      biom_shrubs <- rbind(biom_shrubs[7:12,], biom_shrubs[1:6,])
-      biom_C3 <- rbind(biom_C3[7:12,], biom_C3[1:6,])
-      biom_C4 <- rbind(biom_C4[7:12,], biom_C4[1:6,])
-      biom_annuals <- rbind(biom_annuals[7:12,], biom_annuals[1:6,])
+      biom_shrubs <- rbind(biom_shrubs[7:12, ], biom_shrubs[1:6, ])
+      biom_C3 <- rbind(biom_C3[7:12, ], biom_C3[1:6, ])
+      biom_C4 <- rbind(biom_C4[7:12, ], biom_C4[1:6, ])
+      biom_annuals <- rbind(biom_annuals[7:12, ], biom_annuals[1:6, ])
     }
   }
 
@@ -503,31 +503,31 @@ TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
     temp <- sum(trco.raw, na.rm = TRUE)
     trco_sum <- if (temp == 0 || is.na(temp)) 1L else temp
     lup <- 1
-    for(l in 1:soillayer_no){
+    for (l in 1:soillayer_no) {
       llow <- as.numeric(layers_depth[l])
-      if(is.na(llow) | lup > length(trco.raw))
+      if (is.na(llow) | lup > length(trco.raw))
       {
         l <- l - 1
         break
       }
-      trco[l] <- sum(trco.raw[lup:llow], na.rm=TRUE) / trco_sum
+      trco[l] <- sum(trco.raw[lup:llow], na.rm = TRUE) / trco_sum
       lup <- llow + 1
     }
     usel <- l
-  } else if(trco.code == "Layer"){
+  } else if (trco.code == "Layer") {
     usel <- ifelse(length(trco.raw) < soillayer_no, length(trco.raw), soillayer_no)
-    trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm=TRUE)) == 0 & is.na(temp), 1, temp)
+    trco[1:usel] <- trco.raw[1:usel] / ifelse((temp <- sum(trco.raw[1:usel], na.rm = TRUE)) == 0 & is.na(temp), 1, temp)
   }
 
-  if(identical(adjustType, "positive")){
-    trco <- trco / sum(trco)	#equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
-  } else if(identical(adjustType, "inverse")){
+  if (identical(adjustType, "positive")) {
+    trco <- trco / sum(trco)  #equivalent to: trco + (1 - sum(trco)) * trco / sum(trco)
+  } else if (identical(adjustType, "inverse")) {
     irows <- 1:max(which(trco > 0))
-    trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)	#equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
-  } else if(identical(adjustType, "allToLast")){
+    trco[irows] <- trco[irows] + rev(trco[irows]) * (1 / sum(trco[irows]) - 1)  #equivalent to: trco + (1 - sum(trco)) * rev(trco) / sum(trco)
+  } else if (identical(adjustType, "allToLast")) {
     irow <- max(which(trco > 0))
-    if(irow > 1){
-      trco[irow] <- 1 - sum(trco[1:(irow - 1)]) 	#adding all the missing roots because soil is too shallow to the deepest available layer
+    if (irow > 1) {
+      trco[irow] <- 1 - sum(trco[1:(irow - 1)])   #adding all the missing roots because soil is too shallow to the deepest available layer
     } else {
       trco[1] <- 1
     }

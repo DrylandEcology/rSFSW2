@@ -6,12 +6,17 @@
 #   (repeats > 1 enable comparison of the duplicates).
 #' @param do_preprocess_tempfiles A logial value. Set to TRUE, for instance, if a
 #'   previous run was prematurely aborted.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
 #'
 #' @export
 check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
-  do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979, endyear = 2010) {
+  do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979, endyear = 2010,
+  seed = NA) {
 
   #---Settings
+  if (!is.na(seed)) set.seed(seed)
   name_wid <- ".wid"
 
   vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
@@ -23,22 +28,22 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   dir.create(dir_temp <- file.path(dir_out, "temp"), recursive = TRUE,
     showWarnings = FALSE)
 
-  pattern_temp <- "Summary_climate_dbWeatherData_temp_worker"	# Basename of temporary files, one for each worker, for storing extracted results
+  pattern_temp <- "Summary_climate_dbWeatherData_temp_worker"  # Basename of temporary files, one for each worker, for storing extracted results
   ftemp <- file.path(dir_out, "Summary_climate_dbWeatherData_temp.csv") # Temporary file, aggregated from worker output temp files
-  fdups <- file.path(dir_out, "Summary_climate_dbWeatherData_duplicated.csv")	# Duplicated extractions with non-identical output
-  fout <- file.path(dir_out, "Summary_climate_dbWeatherData.csv")	# Successful extractions
+  fdups <- file.path(dir_out, "Summary_climate_dbWeatherData_duplicated.csv")  # Duplicated extractions with non-identical output
+  fout <- file.path(dir_out, "Summary_climate_dbWeatherData.csv")  # Successful extractions
   fclimate <- file.path(dir_out, paste0("Summary_climate_dbWeatherData_",
-    format(Sys.Date(), "%Y%m%d"), ".rds"))	# 'climate'
+    format(Sys.Date(), "%Y%m%d"), ".rds"))  # 'climate'
 
 
   #---Calculate in parallel
   cl <- parallel::makeCluster(n_cores, type = "PSOCK", outfile = "workers_log.txt")
   temp <- parallel::clusterExport(cl, c("name_wid"))
-  #temp <- parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-'))
+  #temp <- parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep = '-'))
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
   temp <- parallel::clusterApply(cl, seq_len(n_cores), function(x)
-    assign(name_wid, x, envir = globalenv())) # worker identification number
+    assign(name_wid, x, pos = 1L)) # worker identification number
 
 
   merge_workers_tempfiles <- function(dir_temp, pattern, file) {
@@ -77,7 +82,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
 
   #---Define output
-  #	Non-empty rows in 'climate' will be extracted
+  #  Non-empty rows in 'climate' will be extracted
   used_sites <- dbW_iSiteTable$Latitude > -90 & dbW_iSiteTable$Latitude > -180
   sitesN <- sum(used_sites)
 
@@ -153,10 +158,10 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   check_entry <- compiler::cmpfun(function(i, idss, data, vars, repeats) {
     # 3 types of entries in 'data'
-    #	- # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
-    #	- # of duplicates >= repeats and
-    #		- identical output ==> (1) good extraction: copy to 'fout' and 'climate'; remove lines from 'ftemp'
-    #		- varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
+    #  - # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
+    #  - # of duplicates >= repeats and
+    #    - identical output ==> (1) good extraction: copy to 'fout' and 'climate'; remove lines from 'ftemp'
+    #    - varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
 
     if (i %% 1000 == 1) print(paste0(Sys.time(), ": checking ", i, "-th entry"))
 
@@ -218,10 +223,10 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
         }
 
         print(paste0(Sys.time(), ": 'process_tempfiles' process successful database extractions"))
-        #	- # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
+        #  - # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate'; leave lines in 'ftemp'
         ids_keep <- rep(TRUE, nrow(climate_progress))
-        #	- # of duplicates >= repeats and
-        #		- identical output ==> (1) good extraction: write one copy to 'fout' and add to 'climate'; remove all lines from 'ftemp'
+        #  - # of duplicates >= repeats and
+        #    - identical output ==> (1) good extraction: write one copy to 'fout' and add to 'climate'; remove all lines from 'ftemp'
         igood <- status[, "Status"] == 1L
         ids_good <- ids_progress %in% ids_unique[status[igood, "seq_id"]]
         climate_good <- unique(climate_progress[ids_good, ])
@@ -241,7 +246,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
         ids_keep <- ids_keep & !ids_good
 
         print(paste0(Sys.time(), ": 'process_tempfiles' process database extractions with variation among repeats"))
-        #		- varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
+        #    - varied output ==> (0) repeat: do not copy to 'climate'; move duplicated entries to 'fdups'
         ids_vdups <- ids_unique[status[status[, "Status"] == 0L, "seq_id"]]
         idups <- ids_progress %in% ids_vdups
 
@@ -342,7 +347,6 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     parallel::clusterExport(cl, c("climate", "dir_temp", "pattern_temp", "name_wid",
       "summarize_weather", "fdbWeather", "dbW_iScenarioTable", "startyear", "endyear"))
     temp <- parallel::clusterEvalQ(cl, {
-      require(rSOILWAT2)
       rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
     })
     temp <- parallel::clusterEvalQ(cl, {

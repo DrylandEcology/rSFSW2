@@ -98,10 +98,16 @@ lock_attempt <- function(lock) {
 #'
 #' @param verbose A logical value. If \code{TRUE}, then each attempt at obtaining the lock
 #'  is printed.
+#' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
+#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
+#'  are passed to \code{\link{set.seed}}.
+#'
 #' @return The updated \code{lock} object of class \code{SFSW2_lock}.
 #' @rdname synchronicity
 #' @export
-lock_access <- function(lock, verbose = FALSE) {
+lock_access <- function(lock, verbose = FALSE, seed = NA) {
+  if (!is.na(seed)) set.seed(seed)
+
   if (inherits(lock, "SFSW2_lock")) while (!lock$obtained) {
     if (verbose)
       print(paste(Sys.time(), "attempt to obtain lock for", shQuote(lock$locker_id)))

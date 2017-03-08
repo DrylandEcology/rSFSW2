@@ -182,6 +182,12 @@ opt_input <- list(
 
 #------ Options for simulation and meta-information of input data
 opt_sim <- list(
+  # Set the random number generator for each task so that repeating runs with the same
+  # inputs results in the same outputs even under load-balanced parallel computations and
+  # under re-starts of partially finished runs
+  reproducible = TRUE,
+  global_seed = 1235L,
+
   # Daily weather either from database 'dbWeather' or specified via 'WeatherFolder' in
   #   MasterInput.csv, treatmentDesign.csv, or experimentalDesign.csv
   # Use daily weather from dbWeather for current condition

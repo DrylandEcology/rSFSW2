@@ -1,17 +1,9 @@
 
 prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
-  how_determine_sources, sw_input_cloud_use, sw_input_cloud) {
+  field_sources, how_determine_sources, sw_input_cloud_use, sw_input_cloud) {
 
-  sites_monthlyclim_source <- rep(NA, times = sim_size[["runsN_sites"]])
-  has_cns_field <- "ClimateNormals_source" %in% colnames(SWRunInformation)
-
-  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_monthlyclim_source <- SWRunInformation$ClimateNormals_source[sim_size[["runIDs_sites"]]]
-  } else if (how_determine_sources == "order" || !has_cns_field) {
-  } else {
-    message("Value of 'how_determine_sources'", how_determine_sources,
-      " not implemented")
-  }
+  sites_monthlyclim_source <- get_datasource_masterfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
 
   dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12), dimnames = list(NULL,
       c("RH", "cover", "wind"), NULL))
@@ -55,7 +47,11 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -76,10 +72,11 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 
   if (n_extract > 0) {
     if (verbose)
-      print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' will be extracted for n =",
-        n_extract, "sites"))
+      print(paste("Data from 'NCDC2005_USA' will be extracted for n =", n_extract,
+        "sites"))
 
-    #NOAA Climate Atlas: provides no information on height above ground: assuming 2-m which is what is required by SOILWAT2
+    # NOAA Climate Atlas: provides no information on height above ground: assuming 2-m
+    # which is what is required by SOILWAT2
     dir.ex.dat <- file.path(project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
     stopifnot(file.exists(dir.ex.dat))
 
@@ -90,16 +87,22 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       wind = file.path(dir.ex.dat, "WindSpeed_mph"))
 
     files_shp <- list(
-      RH = paste0("RH23", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      cover = paste0("SUN52", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      # cover = paste0("SKYC50", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")),
-      wind = paste0("WND60B", formatC(SFSW2_glovars[["st_mo"]], width=2,format="d", flag="0")))
+      RH = paste0("RH23", formatC(SFSW2_glovars[["st_mo"]], width = 2, format = "d",
+        flag = "0")),
+      cover = paste0("SUN52", formatC(SFSW2_glovars[["st_mo"]], width = 2, format = "d",
+        flag = "0")),
+      # cover = paste0("SKYC50", formatC(SFSW2_glovars[["st_mo"]], width = 2,
+      #  format = "d", flag = "0")),
+      wind = paste0("WND60B", formatC(SFSW2_glovars[["st_mo"]], width = 2, format = "d",
+        flag = "0")))
 
     var_codes <- list(
       RH = c(10, 23, 31, 41, 51, 61, 71, 78, 90), #percent
-      cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),	#percent
-      # cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),	#percent
-      wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))	#m/s; the last category is actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+      cover = c(11, 26, 36, 46, 56, 66, 76, 86, 96),  #percent
+      # cover = c(11, 23, 31, 41, 51, 61, 71, 81, 93),  #percent
+      wind = c(1.3, 2.9, 3.3, 3.8, 4.2, 4.7, 5.1, 5.6, 9.6))  #m/s; the last category is
+      # actually open '> 12.9 mph': I closed it arbitrarily with 30 mph
+
     stopifnot(colnames(MMC[["data"]]) == names(dir_noaaca),
       colnames(MMC[["data"]]) == names(files_shp),
       colnames(MMC[["data"]]) == names(var_codes))
@@ -110,17 +113,18 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
     crs_data <- raster::crs(noaaca)
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
-      args_extract <- list(y = sites_noaaca)
+      args_extract <- list(y = sites_noaaca, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_noaaca <- align_with_target_res(res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]], sp = sites_noaaca,
         crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca, crs_data = crs_data)
+      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca,
+        crs_data = crs_data, type = sim_space[["scorp"]])
     }
 
     # determine NOAA CA extractions to do
@@ -159,7 +163,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       (iv == n_vars && m == n_months && ic < n_chunks)) repeat {
 
       if (verbose)
-        print(paste0(Sys.time(), ": 'ExtractSkyDataFromNOAAClimateAtlas_USA' extracting for: ",
+        print(paste0(Sys.time(), ": data from 'NCDC2005_USA' extracting for: ",
           paste(names(dir_noaaca)[iv], month.name[m], paste("chunk", ic, "of",
           n_chunks), sep = ", ")))
 
@@ -204,16 +208,12 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       MMC[["idone"]]["NCDC1"] <- TRUE
       MMC[["source"]][i_good] <- "ClimateNormals_NCDC2005_USA"
       if (verbose)
-        print(paste("'ExtractSkyDataFromNOAAClimateAtlas_USA' was extracted for n =",
-          sum(i_good), "out of", n_extract, "sites"))
+        print(paste("Data from 'NCDC2005_USA' was extracted for n =", sum(i_good),
+          "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
+      MMC <- update_meanmonthlyclimate_input(MMC, i_good, sim_size, digits = 2, fnames_in)
     }
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -246,7 +246,11 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   #--- SET UP PARALLELIZATION
@@ -255,6 +259,11 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
+
 
   if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
     SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
@@ -263,7 +272,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
   }
 
   stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCEPCFSR1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -280,8 +289,8 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
 
   if (n_extract > 0) {
     if (verbose)
-      print(paste("'ExtractSkyDataFromNCEPCFSR_Global' will be extracted for n =",
-        n_extract, "sites"))
+      print(paste("Data from 'NCEPCFSR_Global' will be extracted for n =", n_extract,
+        "sites"))
 
     #locations of simulation runs
     locations <- SWRunInformation[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
@@ -317,54 +326,28 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
       MMC[["idone"]]["NCEPCFSR1"] <- TRUE
       MMC[["source"]][i_good] <- "ClimateNormals_NCEPCFSR_Global"
       if (verbose)
-        print(paste("'ExtractSkyDataFromNCEPCFSR_Global' was extracted for n =",
-          sum(i_good), "out of", n_extract, "sites"))
+        print(paste("Data from 'NCEPCFSR_Global' was extracted for n =", sum(i_good),
+          "out of", n_extract, "sites"))
 
-      update_meanmonthlyclimate_input(MMC, i_good, SFSW2_prj_meta[["sim_size"]],
+      MMC <- update_meanmonthlyclimate_input(MMC, i_good, SFSW2_prj_meta[["sim_size"]],
         digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]], SFSW2_prj_meta[["fnames_in"]])
     }
   }
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   MMC
 }
 
-update_MeanMonthlyClimate_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
-
-  notDone <- NULL
-
-  if (any(MMC[["idone"]])) {
-    #write data to disk
-    SWRunInformation$ClimateNormals_source[sim_size[["runIDs_sites"]]] <- as.character(MMC[["source"]])
-
-    notDone <- is.na(MMC[["source"]])
-    include_YN_climnorm <- rep(0, sim_size[["runsN_master"]])
-    include_YN_climnorm[sim_size[["runIDs_sites"]][!notDone]] <- 1
-    SWRunInformation$Include_YN_ClimateNormalSources <- include_YN_climnorm
-
-    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
-    unlink(fnames_in[["fpreprocin"]])
-
-    if (any(notDone))
-      print(paste("Climate normals weren't found for", sum(notDone), "sites"))
-
-  } else {
-      print("'ExtractClimateNormals': no data extracted because already available")
-  }
-
-  SWRunInformation
-}
 
 #' Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
 #' @export
 ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE) {
 
+  field_sources <- "ClimateNormals_source"
+  field_include <- "Include_YN_ClimateNormalSources"
+
   MMC <- prepare_ExtractData_MeanMonthlyClimate(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_cloud_use = SFSW2_prj_inputs[["sw_input_cloud_use"]],
     sw_input_cloud = SFSW2_prj_inputs[["sw_input_cloud"]])
@@ -382,10 +365,10 @@ ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inp
 
   }
 
-  temp <- update_MeanMonthlyClimate_sources(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+    sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs[["SWRunInformation"]],
+    SFSW2_prj_meta[["fnames_in"]], field_sources, field_include)
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
   SFSW2_prj_inputs[["sw_input_cloud_use"]] <- MMC[["use"]]
   SFSW2_prj_inputs[["sw_input_cloud"]] <- MMC[["input"]]
 

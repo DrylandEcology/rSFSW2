@@ -74,21 +74,21 @@ test_that("To SWP", {
       swp_vals[, ifix, itext])
 
   # 4. VWC in fraction [vector of length l] + sand and clay in fraction [vectors of length d]
-  #    --> SWP in MPa [matrix with nrow=l and ncol=d, VWC vector repeated for each column]: probably not used
+  #    --> SWP in MPa [matrix with nrow = l and ncol = d, VWC vector repeated for each column]: probably not used
   for (ifix in names(swp_fix))
     expect_equivalent(
       VWCtoSWP(vwc_fix[, ifix], texture[, "sand"], texture[, "clay"]),
       swp_vals[, ifix, ])
 
-  # 5. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values]
-  #    --> SWP in MPa [matrix with nrow=l and ncol=d]
+  # 5. VWC in fraction [matrix with nrow = l and ncol = d] + sand and clay in fraction [single values]
+  #    --> SWP in MPa [matrix with nrow = l and ncol = d]
   for (itext in row.names(texture))
     expect_equivalent(
       VWCtoSWP(vwc_fix, texture[itext, "sand"], texture[itext, "clay"]),
       swp_vals[, , itext])
 
-  # 6. VWC in fraction [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d]
-  #    --> SWP in MPa [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
+  # 6. VWC in fraction [matrix with nrow = l and ncol = d] + sand and clay in fraction [vectors of length d]
+  #    --> SWP in MPa [matrix with nrow = l and ncol = d, sand/clay vector repeated for each row]
   for (ifix in names(swp_fix)) {
     xin <- matrix(vwc_fix[, ifix], nrow = nrow(vwc_fix), ncol = nrow(texture), byrow = TRUE)
     xout <- matrix(swp_fix[ifix], nrow = nrow(vwc_fix), ncol = nrow(texture))
@@ -122,13 +122,13 @@ test_that("To VWC", {
       rep(vwc_fix[itext, ifix], nrow(texture)))
 
   # 4. SWP in MPa [vector of length l] + sand and clay in fraction [vectors of length d]
-  #    --> VWC in fraction [matrix with nrow=l and ncol=d, SWP vector repeated for each column]: probably not used
+  #    --> VWC in fraction [matrix with nrow = l and ncol = d, SWP vector repeated for each column]: probably not used
 
-  # 5. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [single values]
-  #    --> VWC in fraction [matrix with nrow=l and ncol=d]
+  # 5. SWP in MPa [matrix with nrow = l and ncol = d] + sand and clay in fraction [single values]
+  #    --> VWC in fraction [matrix with nrow = l and ncol = d]
 
-  # 6. SWP in MPa [matrix with nrow=l and ncol=d] + sand and clay in fraction [vectors of length d]
-  #    --> VWC in fraction [matrix with nrow=l and ncol=d, sand/clay vector repeated for each row]
+  # 6. SWP in MPa [matrix with nrow = l and ncol = d] + sand and clay in fraction [vectors of length d]
+  #    --> VWC in fraction [matrix with nrow = l and ncol = d, sand/clay vector repeated for each row]
 
 })
 

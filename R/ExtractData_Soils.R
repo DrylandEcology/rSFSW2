@@ -1,19 +1,12 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
 
-prepare_ExtractData_Soils <- function(SWRunInformation, sim_size,
+#' Preparations for the extraction of external soil datasets
+prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
   how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
 
-  sites_soils_source <- rep(NA, times = sim_size[["runsN_sites"]])
-  has_cns_field <- "SoilTexture_source" %in% colnames(SWRunInformation)
-
-  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_soils_source <- SWRunInformation$ClimateNormals_source[sim_size[["runIDs_sites"]]]
-  } else if (how_determine_sources == "order" || !has_cns_field) {
-  } else {
-    message("Value of 'how_determine_sources'", how_determine_sources,
-      " not implemented")
-  }
+  sites_soils_source <- get_datasource_masterfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
 
   lvars <- c("density", "sand", "clay", "rock", "carbon")
   nvars <- length(lvars)
@@ -22,8 +15,7 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size,
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
     ncol = 2 + nvars * SFSW2_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
   vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "GravelContent_L", "Sand_L",
-    "Clay_L", "TOC_GperKG_L"),
-    intern = c("depth", lvars))
+    "Clay_L", "TOC_GperKG_L"), intern = c("depth", lvars), stringsAsFactors = FALSE)
 
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
@@ -42,15 +34,15 @@ update_soils_input <- function(MMC, sim_size, digits = 2, i_Done, ldepths_cm,
   icol <- grep("depth_L", colnames(MMC[["input2"]]))
   temp <- rep(ldepths_cm[lys], sum(i_Done))
   MMC[["input2"]][sim_size[["runIDs_sites"]][i_Done], icol[lys]] <- matrix(temp,
-    nrow = length(temp), ncol = length(lys), byrow = TRUE)
+    nrow = sum(i_Done), ncol = length(lys), byrow = TRUE)
   MMC[["input2"]][sim_size[["runIDs_sites"]][i_Done], icol[-lys]] <- NA
   utils::write.csv(MMC[["input2"]], file = fnames_in[["fslayers"]], row.names = FALSE)
   unlink(fnames_in[["fpreprocin"]])
 
   #set and save soil texture
   for (k in 1 + seq_len(MMC[["nvars"]])) {
-    icol <- grep(MMC[["vars"]][1, "input"], names(MMC[["use"]]))
-    temp <- MMC[["data"]][i_Done, paste0(MMC[["vars"]][1, "intern"], "_L", lys)]
+    icol <- grep(MMC[["vars"]][k, "input"], names(MMC[["use"]]))
+    temp <- MMC[["data"]][i_Done, paste0(MMC[["vars"]][k, "intern"], "_L", lys)]
     if (!all(is.na(temp))) {
       MMC[["input"]][sim_size[["runIDs_sites"]][i_Done], icol[lys]] <- round(temp, digits)
       MMC[["use"]][icol[lys]] <- TRUE
@@ -90,7 +82,11 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -106,8 +102,8 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
   if (n_extract > 0) {
     if (verbose)
-      print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' will be extracted for",
-        "n =", n_extract, "sites"))
+      print(paste("Soil data from 'CONUSSOILFromSTATSGO_USA' will be extracted for n =",
+        n_extract, "sites"))
 
     dir.ex.conus <- file.path(dir_ex_soil, "CONUSSoil", "output", "albers")
     stopifnot(file.exists(dir.ex.conus))
@@ -176,7 +172,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
     temp <- ifelse(is.finite(temp), temp, NA)
     # eq. 7 of Miller et al. 1998
-    temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk=total soil
+    temp <- pmax(pmin(temp / 100, 1), 0) # volume fraction of bulk = total soil
 
     # adjust soil depth by layers with 100% rock volume
     solid_rock_nl <- apply(temp >= 1 - SFSW2_glovars[["toln"]], 1, sum, na.rm = TRUE)
@@ -233,18 +229,14 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
       MMC[["source"]][i_Done] <- "CONUSSOILFromSTATSGO_USA"
-      update_soils_input(MMC, sim_size, digits = 2, i_Done,
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
         ldepths_cm = ldepth_CONUS[-1], lys, fnames_in)
     }
 
     if (verbose)
-      print(paste("'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' was extracted for n =",
+      print(paste("Soil data from 'CONUSSOILFromSTATSGO_USA' was extracted for n =",
         sum(i_good), "out of", n_extract, "sites"))
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -267,7 +259,8 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'    \item{fraction}{A numeric vector. The relative areas covered by \code{values}.}
 #'  }
 ISRICWISE12_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
-  # raster::nlayers(grid_wise) == 1
+  stopifnot(requireNamespace("sp"))
+
   out <- try(reaggregate_raster(x = grid,
         coords = sp::coordinates(sp_sites[i, ]),
         to_res = if (is.null(dim(res))) res else res[i, ],
@@ -302,65 +295,101 @@ ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
   sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 }
 
-ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i,
-  i_sim_cells_SUIDs, simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
+#' Calculate the weighted mean soil variables from ISRIC-WISE v1.2 for one simulation cell
+#'
+#' @param i An integer value. The cell number.
+#' @param i_sim_cells_SUIDs A named numeric vector. A row of of the data.frame returned
+#'    by \code{\link{ISRICWISE12_extract_SUIDs}}.
+#' @param sim_soils A named numeric vector. First element is 'i' and second is 'depth'.
+#'    The following elements represent the soil variables (currently, "density", "sand",
+#'    "clay", "rock", "carbon"; see \code{\link{prepare_ExtractData_Soils}}) for each of
+#'    the maximally possible soil layers (see \code{SFSW2_glovars[["slyrs_maxN"]]}).
+#'    Input is an empty template.
+#' @param layer_N An integer value. The number of soil layers in the ISRIC-WISE v1.2
+#'    dataset (i.e., 5, see \code{\link{do_ExtractSoilDataFromISRICWISEv12_Global}}).
+#' @param layer_Nsim An integer value. The number of soil layers of a \code{rSFSW2} project
+#'    representing the ISRIC-WISE v1.2 dataset (i.e., 6, see
+#'    \code{\link{do_ExtractSoilDataFromISRICWISEv12_Global}}).
+#' @param ldepth An integer vector. The depth limits of the extracted \code{rSFSW2}
+#'    project soil layers including zero where \code{layer_Nsim + 1 == length(ldepth)}.
+#' @param dat_wise A data.frame representing the disk file \code{WISEsummaryFile.csv}.
+#' @param nvars An integer value. The number of soil variables extracted from ISRIC-WISE
+#'    v1.2 (currently, 5; see \code{\link{prepare_ExtractData_Soils}}).
+#'
+ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
+  sim_soils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
 
   #Init
-  simulationSoils["i"] <- i
-  simulation_frac <- 0  #fraction of how much this simulation cell is covered with suids and prids that have a depth > 0 cm
-  simulation_layer_frac <- rep(0, times = layer_Nsim) #fraction of each soil layer covering this simulation cell
+  sim_soils["i"] <- i
+  sim_frac <- 0  #fraction of how much this simulation cell is covered with suids and prids that have a depth > 0 cm
+  simlyr_frac <- rep(0, times = layer_Nsim) #fraction of each soil layer covering this simulation cell
   PRIDs_N <- 0
   PRIDs <- PRIDs_frac <- NULL
 
   #Do calculations if any soils in this simulation cell
-  if (i_sim_cells_SUIDs$SUIDs_N > 0) {
-    this_simCell <- c(i_sim_cells_SUIDs, soils = list(t(sapply(i_sim_cells_SUIDs$SUID,
-      FUN = ISRICWISE12_get_prids, dat_wise = dat_wise, layer_N = layer_N))))
+  if (i_sim_cells_SUIDs["SUIDs_N"] > 0) {
+    this_simCell <- c(as.list(i_sim_cells_SUIDs),
+      soils = list(t(sapply(i_sim_cells_SUIDs["SUID"], FUN = ISRICWISE12_get_prids,
+      dat_wise = dat_wise, layer_N = layer_N))))
 
-    for (is in seq_len(this_simCell$SUIDs_N)) {  #loop through the suids within this simulation cell; each suid may be composed of several prids
-      prids_frac <- this_simCell$soils[is,]$fraction * this_simCell$fraction[is]  #vector of the fractions of each prid in relation to the simulation cell
+    # loop through the suids within this simulation cell; each suid may be composed of
+    # several prids
+    for (k in seq_len(this_simCell$SUIDs_N)) {
+
+      this_soil <- this_simCell$soils[k, ]
+      # Vector of the fractions of each prid in relation to the simulation cell
+      prids_frac <- this_soil$fraction * this_simCell$fraction[k]
       PRIDs_frac <- c(PRIDs_frac, prids_frac)
-      simulation_frac <- simulation_frac + sum(ifelse(!is.na(this_simCell$soils[is,]$depth), prids_frac, 0))
-      simulationSoils["depth"] <- simulationSoils["depth"] + sum(this_simCell$soils[is,]$depth * prids_frac, na.rm = TRUE)
+      temp <- sum(ifelse(is.na(this_soil$depth), 0, prids_frac))
+      sim_frac <- sim_frac + temp
+      temp <- sum(this_soil$depth * prids_frac, na.rm = TRUE)
+      sim_soils["depth"] <- sim_soils["depth"] + temp
 
-      if (!all(is.na(this_simCell$soils[is,]$depth))) for (ils in seq_len(layer_Nsim)) {
-        lwise <- if (ils == 1) 1 else {ils - 1}  # I split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account for lithosols
-        layer.there <- this_simCell$soils[is,]$depth > ldepth[ils]  #checks if for each prid, there soils are deeper than this layer. It also accounts that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as water and glaciers. Lithosols (Ix) have depth of 10 cm.
+      if (!all(is.na(this_soil$depth))) for (ils in seq_len(layer_Nsim)) {
+        # Split wise soil layer 0-20 cm into two layers, 0-10 and 10-20 cm, to account
+        # for lithosols
+        lwise <- if (ils == 1) 1 else {ils - 1}
+        # Checks if for each prid, the soils are deeper than this layer. It also accounts
+        # that soil depth for Rock outcrops (RK) is set to 0 instead of < 0 for such as
+        # water and glaciers. Lithosols (Ix) have depth of 10 cm.
+        layer.there <- this_soil$depth > ldepth[ils]
         pfracl <- prids_frac[layer.there]
-        simulation_layer_frac[ils] <- simulation_layer_frac[ils] + sum(pfracl, na.rm=TRUE)
+        simlyr_frac[ils] <- simlyr_frac[ils] + sum(pfracl, na.rm = TRUE)
 
         if (sum(layer.there, na.rm = TRUE) > 0) {
-          irow <- lwise + ((0:(this_simCell$soils[is,]$PRIDs_N - 1)) * layer_N)[layer.there]
-          simulationSoils[paste0("density_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("density_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "BULK"],
-            frac = pfracl)  # bulk density (kg/dm3)
-          simulationSoils[paste0("sand_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("sand_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "SDTO"],
-            frac = pfracl)  # Sand mass (%)
-          simulationSoils[paste0("clay_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("clay_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "CLPC"],
-            frac = pfracl)   # clay mass (%)
-          simulationSoils[paste0("rock_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("rock_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "CFRAG"],
-            frac = pfracl)  # coarse fragments (vol % > 2 mm)
-          simulationSoils[paste0("carbon_L", ils)] <- ISRICWISE12_get_SoilDatValuesForLayer(
-            dat = simulationSoils[paste0("carbon_L", ils)],
-            soildat_rows = this_simCell$soils[is,]$soildat[irow, "TOTC"],
-            frac = pfracl)  # total organic carbon content (g C / kg)
+          irow <- lwise + ((0:(this_soil$PRIDs_N - 1)) * layer_N)[layer.there]
+
+          # bulk density (kg/dm3)
+          ids <- paste0("density_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "BULK"], frac = pfracl)
+          # Sand mass (%)
+          ids <- paste0("sand_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "SDTO"], frac = pfracl)
+          # clay mass (%)
+          ids <- paste0("clay_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "CLPC"], frac = pfracl)
+          # coarse fragments (vol % > 2 mm)
+          ids <- paste0("rock_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "CFRAG"], frac = pfracl)
+          # total organic carbon content (g C / kg)
+          ids <- paste0("carbon_L", ils)
+          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+            soildat_rows = this_soil$soildat[irow, "TOTC"], frac = pfracl)
         }
       }
     }
 
     #Adjust values for area present
-    simulationSoils <- simulationSoils /
-      c(1, simulation_frac, rep(simulation_layer_frac, each = nvars))
+    fracs <- c(1, sim_frac, rep(simlyr_frac, each = nvars))
+    ids <- seq_along(fracs)
+    sim_soils[ids] <- sim_soils[ids] / fracs
   }
 
-  simulationSoils
+  sim_soils
 }
 
 
@@ -372,7 +401,7 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 
   temp <- try(ISRICWISE12_calc_weightedMeanForSimulationCell(i,
         i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
-        simulationSoils = template_simulationSoils,
+        sim_soils = template_simulationSoils,
         layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth, dat_wise = dat_wise,
         nvars = nvars))
 
@@ -380,7 +409,8 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 }
 
 
-
+#' Extract soil data from ISRIC-WISE v1.2
+#'
 #' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
 #'  arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
 #'  www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
@@ -392,10 +422,13 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
-  }
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+  stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
 
   MMC[["idone"]]["ISRICWISEv12"] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRICWISEv12_Global"
@@ -408,7 +441,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 
   if (n_extract > 0) {
     if (verbose)
-      print(paste("'ExtractSoilDataFromISRICWISEv12_Global' will be extracted for n =",
+      print(paste("Soil data from 'ISRICWISEv12_Global' will be extracted for n =",
         n_extract, "sites"))
 
     ldepth_WISEv12 <- c(0, 10, 20, 40, 60, 80, 100)  #in cm
@@ -467,7 +500,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       }
     }
 
-    sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
+    sim_cells_SUIDs <- t(do.call(rbind, sim_cells_SUIDs))
     sim_cells_SUIDs <- sim_cells_SUIDs[order(unlist(sim_cells_SUIDs[, "i"])), ]
 
     #- Calculate simulation cell wide weighted values based on each PRID weighted by SUID.fraction x PRIP.PROP
@@ -525,7 +558,8 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
     #matricd <- (ws[, grep("bulk", colnames(ws))] - 2.65 * ws[, grep("rock", colnames(ws))]) / (1 - ws[, grep("rock", colnames(ws))])
 
     i_good <- rep(FALSE, n_extract)
-    i_good[ws[stats::complete.cases(ws), "i"]] <- TRUE # i is index for todos
+    ids <- seq_len(2 + layer_Nsim * MMC[["nvars"]])
+    i_good[ws[stats::complete.cases(ws[, ids]), "i"]] <- TRUE # i is index for todos
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (any(i_good)) {
@@ -535,53 +569,26 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       MMC[["data"]][todos, seq_len(dim(ws)[2])] <- ws
 
       MMC[["source"]][i_Done] <- "ISRICWISEv12_Global"
-      update_soils_input(MMC, sim_size, digits = 2, i_Done,
-        ldepths_cm = ldepth_WISEv12[-1], lys = layer_Nsim, fnames_in)
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
+        ldepths_cm = ldepth_WISEv12[-1], lys = seq_len(layer_Nsim), fnames_in)
     }
 
     if (verbose)
-      print(paste("'ExtractSoilDataFromISRICWISEv12_Global' was extracted for n =",
+      print(paste("Soil data from 'ISRICWISEv12_Global' was extracted for n =",
         sum(i_good), "out of", n_extract, "sites"))
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
 
-update_soils_sources <- function(MMC, SWRunInformation, sim_size, fnames_in) {
-
-  notDone <- NULL
-
-  if (any(MMC[["idone"]])) {
-    #write data to disk
-    SWRunInformation$SoilTexture_source[sim_size[["runIDs_sites"]]] <- as.character(MMC[["source"]])
-
-    notDone <- is.na(MMC[["source"]])
-    include_YN_soils <- rep(0, sim_size[["runsN_master"]])
-    include_YN_soils[sim_size[["runIDs_sites"]][!notDone]] <- 1
-    SWRunInformation$Include_YN_SoilSources <- include_YN_soils
-
-    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
-    unlink(fnames_in[["fpreprocin"]])
-
-    if (any(notDone))
-      print(paste("'ExtractSoilData': no soil information for n =", sum(notDone),
-        "sites (e.g., sand or clay is 0): this will likely lead to crashes of SOILWAT2"))
-
-  } else {
-      print("'ExtractSoilData': no data extracted because already available")
-  }
-
-  SWRunInformation
-}
 
 #' Extract soil characteristics
 #' @export
 ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
   resume, verbose = FALSE) {
+
+  field_sources <- "SoilTexture_source"
+  field_include <- "Include_YN_SoilSources"
 
   #--- SET UP PARALLELIZATION
   opt_parallel <- setup_SFSW2_cluster(opt_parallel,
@@ -589,9 +596,14 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
+
 
   MMC <- prepare_ExtractData_Soils(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
     sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
@@ -611,10 +623,10 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       fnames_in = SFSW2_prj_meta[["fnames_in"]], opt_parallel, resume, verbose)
   }
 
-  temp <- update_soils_sources(MMC, SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+    sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs[["SWRunInformation"]],
+    SFSW2_prj_meta[["fnames_in"]], field_sources, field_include)
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- temp[["SWRunInformation"]]
   SFSW2_prj_inputs[["sw_input_soillayers"]] <- MMC[["input2"]]
   SFSW2_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
   SFSW2_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]

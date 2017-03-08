@@ -112,9 +112,9 @@ export_objects_to_workers <- function(obj_env,
 #' @export
 mpi_work <- function(verbose = FALSE) {
   # Note the use of the tag for sent messages:
-  #     1=ready_for_task, 2=done_task, 3=exiting
+  #     1 = ready_for_task, 2 = done_task, 3 = exiting
   # Note the use of the tag for received messages:
-  #     1=task, 2=done_tasks
+  #     1 = task, 2 = done_tasks
 
   junk <- 0L
   done <- 0L
@@ -156,9 +156,10 @@ clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
@@ -211,9 +212,10 @@ init_SFSW2_cluster <- function(opt_parallel) {
 setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
       opt_parallel[["workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
   }
@@ -241,9 +243,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
 
-      Rmpi::mpi.bcast.cmd(require("rSOILWAT2", quietly = TRUE))
-      Rmpi::mpi.bcast.cmd(require("rSFSW2", quietly = TRUE))
-
       mpi_last <- function(x) {
         # Properly end mpi slaves before quitting R (e.g., at a crash)
         # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
@@ -270,13 +269,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 #  -> R CMD CHECK reports this nevertheless as issue
       # pos = 1 assigns into globalenv() of the worker
       parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
-        function(x, id) assign(id, x, pos = 1), id = opt_parallel[["worker_tag"]])
-
-#TODO (drs): properly set up random numbers
-      #parallel::clusterSetRNGStream(opt_parallel[["cl"]], seed) #random numbers setup
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSOILWAT2", quietly = TRUE))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], require("rSFSW2", quietly = TRUE))
+        function(x, id) assign(id, x, pos = 1L), id = opt_parallel[["worker_tag"]])
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {

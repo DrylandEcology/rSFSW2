@@ -1,19 +1,11 @@
 #---------------------------------------------------------------------------------------#
 #------EXTRACT ELEVATION------
 
-prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
+prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size, field_sources,
   how_determine_sources, scorp, elev_probs = c(0.025, 0.5, 0.975)) {
 
-  sites_elevation_source <- rep(NA, times = sim_size[["runsN_sites"]])
-  has_cns_field <- "Elevation_source" %in% colnames(SWRunInformation)
-
-  if (how_determine_sources == "SWRunInformation" && has_cns_field) {
-    sites_elevation_source <- SWRunInformation[sim_size[["runIDs_sites"]], "Elevation_source"]
-  } else if (how_determine_sources == "order" || !has_cns_field) {
-  } else {
-    message("Value of 'how_determine_sources'", how_determine_sources,
-      " not implemented")
-  }
+  sites_elevation_source <- get_datasource_masterfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
 
   probs <- if (scorp == "cell") elev_probs else NULL
 
@@ -50,7 +42,11 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -80,7 +76,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     sites_ned <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
@@ -95,7 +91,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     }
 
     #extract data for locations
-    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))  # elevation in m a.s.l.
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp
 
@@ -132,13 +128,9 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
         print(paste("'ExtractElevation_NED_USA' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
+      MMC <- update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
     }
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
@@ -150,7 +142,11 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
@@ -180,7 +176,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     sites_hwsd <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
-      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)	#transform graphics::points to grid-coords
+      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)  #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
@@ -195,7 +191,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     }
 
     #extract data for locations
-    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))	# elevation in m a.s.l.
+    temp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g.elev)))  # elevation in m a.s.l.
 
     if (is.vector(temp)) {
       MMC[["data"]][todos, "ELEV_m"] <- temp
@@ -229,49 +225,24 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
         print(paste("'ExtractElevation_HWSD_Global' was extracted for n =",
           sum(i_good), "out of", n_extract, "sites"))
 
-      update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
+      MMC <- update_elevation_input(MMC, sim_size, digits = 0, fnames_in)
     }
   }
-
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
 
   MMC
 }
 
-update_Elevation_sources <- function(MMC, sim_size, fnames_in) {
-  notDone <- NULL
-
-  if (any(MMC[["idone"]])) {
-    #write data to disk
-    MMC[["input"]]$Elevation_source[sim_size[["runIDs_sites"]]] <- as.character(MMC[["source"]])
-
-    notDone <- is.na(MMC[["source"]])
-    include_YN_elev <- rep(0, sim_size[["runsN_master"]])
-    include_YN_elev[sim_size[["runIDs_sites"]][!notDone]] <- 1
-    MMC[["input"]]$Include_YN_ElevationSources <- include_YN_elev
-
-    utils::write.csv(MMC[["input"]], file = fnames_in[["fmaster"]], row.names = FALSE)
-    unlink(fnames_in[["fpreprocin"]])
-
-    if (any(notDone))
-      print(paste("Elevation data weren't found for", sum(notDone), "sites"))
-
-  } else {
-      print("'ExtractElevation': no data extracted because already available")
-  }
-
-  MMC[["input"]]
-}
 
 #' Extract elevation data
 #' @export
 ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, resume = FALSE,
   verbose = FALSE) {
 
+  field_sources <- "Elevation_source"
+  field_include <- "Include_YN_ElevationSources"
+
   MMC <- prepare_ExtractData_Elevation(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     SFSW2_prj_meta[["sim_space"]][["scorp"]])
 
@@ -290,8 +261,9 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, resu
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_Elevation_sources(MMC,
-    sim_size = SFSW2_prj_meta[["sim_size"]], fnames_in = SFSW2_prj_meta[["fnames_in"]])
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+    sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs[["SWRunInformation"]],
+    SFSW2_prj_meta[["fnames_in"]], field_sources, field_include)
 
   SFSW2_prj_inputs
 }

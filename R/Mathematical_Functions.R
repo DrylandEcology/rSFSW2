@@ -38,7 +38,7 @@ calc.loess_coeff <- function(N, span) {
     nf <- floor(lcoef$span * N) - 1 #see R/trunk/src/library/stats/src/loessf.f:ehg136()
     if (nf > 2) {
       lcoef$degree <- 2
-    } else if(nf > 1){
+    } else if (nf > 1) {
       lcoef$degree <- 1
     } else {
       lcoef <- Recall(N, lcoef$span + 0.1)
@@ -56,23 +56,47 @@ calc_starts <- function(x) {
 
 
 
-#Circular functions: int=number of units in circle, e.g., for days: int=365; for months: int=12
+#' Functions for circular descriptive statistics
+#'
+#' @param x A numeric vector or a matrix. If a data.frame is supplied, then \code{x} is
+#'  coerced to a matrix.
+#' @param int A numeric value. The number of units of \code{x} in a full circle, e.g.,
+#'  for unit days: \code{int = 365}; for unit months: \code{int = 12}.
+#' @param na.rm A logical value indicating whether \code{NA} values should be stripped
+#'    before the computation proceeds.
+#'
+#' @return A numeric value or \code{NA}.
+#'
+#' @seealso \code{\link[circular]{mean.circular}}, \code{\link[circular]{range.circular}},
+#'    \code{\link[circular]{sd.circular}}
+#'
+#' @aliases circ_mean circ_range circ_sd
+#' @name circular
+NULL
+
+#' @rdname circular
 circ_mean <- function(x, int, na.rm = FALSE) {
-  if (!all(is.na(x))) {
+  if (!all(is.na(x)) && requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
+      rotation = "clock", modulo = "2pi")
     x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
 
-    round(as.numeric(x_int) - 1, 13) %% int + 1  # map 0 -> int; rounding to 13 digits: 13 was empirically derived for int={12, 365} and x=c((-1):2, seq(x-5, x+5, by=1), seq(2*x-5, 2*x+5, by=1)) assuming that this function will never need to calculate for x > t*int with t>2
+    # map 0 -> int; rounding to 13 digits: 13 was empirically derived for int = {12, 365}
+    # and x = c((-1):2, seq(x-5, x+5, by = 1), seq(2*x-5, 2*x+5, by = 1)) assuming that
+    # this function will never need to calculate for x > t*int with t>2
+    round(as.numeric(x_int) - 1, 13) %% int + 1
   } else {
     NA
   }
 }
 
+#' @rdname circular
 circ_range <- function(x, int, na.rm = FALSE) {
-  if (!all(is.na(x))) {
+  if (!all(is.na(x)) && requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+    x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
+      rotation = "clock", modulo = "2pi")
     x_int <- range(x_circ, na.rm = na.rm) / circ
     as.numeric(x_int)
 
@@ -81,11 +105,13 @@ circ_range <- function(x, int, na.rm = FALSE) {
   }
 }
 
-circ_sd <- function(x, int, na.rm=FALSE){
-  if (length(x) - sum(is.na(x)) > 1) {
+#' @rdname circular
+circ_sd <- function(x, int, na.rm = FALSE) {
+  if (length(x) - sum(is.na(x)) > 1 && requireNamespace("circular", quietly = TRUE)) {
     if (stats::sd(x, na.rm = TRUE) > 0) {
       circ <- 2 * pi / int
-      x_circ <- circular::circular(x * circ, type = "angles", units = "radians", rotation = "clock", modulo = "2pi")
+      x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
+        rotation = "clock", modulo = "2pi")
       x_int <- circular::sd.circular(x_circ, na.rm = na.rm) / circ
       as.numeric(x_int)
     } else {
@@ -103,7 +129,8 @@ circ_sd <- function(x, int, na.rm=FALSE){
 #'    the k-largest values of \code{x}.
 #' @param k An integer value. The k-largest value(s) of \code{x} will be used. The largest
 #'    value will be used if 0 or negative.
-#' @param na.rm A logical value
+#' @param na.rm A logical value indicating whether \code{NA} values should be stripped
+#'    before the computation proceeds.
 #' @param \dots Optional arguments to be passed to \code{fun}
 #'
 #' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},

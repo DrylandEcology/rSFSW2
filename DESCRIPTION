@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.0.0-9013-generalized_agg_funs
-Date: 2017-02-27
+Version: 2.0.0-9020-generalized_agg_funs
+Date: 2017-03-08
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
@@ -13,9 +13,7 @@ Imports:
     rSOILWAT2 (>= 1.2.5),
     RSQLite (>= 1.1),
     DBI (>= 0.5),
-    circular (>= 0.4.7),
     Rcpp (>= 0.12.7),
-    SPEI (>= 1.6),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
     methods
@@ -25,11 +23,12 @@ Suggests:
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
     ncdf4 (>= 1.15),
-    maps (>= 3.1.0),
     RCurl (>= 1.95.4.8),
     fastmatch (>= 1.0.4),
     iotools (>= 0.1-12),
+    circular (>= 0.4.7),
     Hmisc (>= 4.0-2),
+    SPEI (>= 1.6),
     qmap (>= 1.0.4),
     daymetr (>= 1.0),
     weathergen (>= 0.1.2),
@@ -40,6 +39,9 @@ Suggests:
     rmarkdown,
     testthat,
     covr
+Remotes:
+    github::khufkens/daymetr,
+    github::dschlaep/weathergen
 LinkingTo:
     Rcpp
 LazyData: true

@@ -11,8 +11,12 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
     print(paste("A new rSFSW2 project is prepared for:", sQuote(basename(dir_prj))))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   dir_safe_create(dir_prj)
@@ -63,10 +67,6 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   for (f in ftemps)
     file.copy(from = f, to = file.path(dir_prj, basename(f)), overwrite = FALSE)
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   invisible(dir_prj)
 }
 
@@ -81,7 +81,11 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
   if (verbose) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
   #--- Delete objects from 'SFSW2_prj_meta' which were used to create initial input
@@ -120,10 +124,6 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
   #--- Functionality to aggregate simulation output
   SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
 
-  if (verbose)
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-
   SFSW2_prj_meta
 }
 
@@ -136,10 +136,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({
-      print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
         round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
         "status:"))
       print(SFSW2_prj_meta[["input_status"]])}, add = TRUE)
@@ -248,6 +249,23 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "prj_todos", prepared = TRUE)
   }
+
+
+  #--- Setup random number generator streams for each runsN_master
+  # Note: runsN_master: each site = row of master and not for runsN_total because
+  #   same site but under different experimental treatments should have same random numbers
+
+  if (todo_intracker(SFSW2_prj_meta, "rng_setup", "prepared")) {
+
+    SFSW2_prj_meta[["rng_specs"]] <- setup_RNG(
+      streams_N = SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+      global_seed = SFSW2_prj_meta[["opt_sim"]][["global_seed"]],
+      reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]])
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "rng_setup", prepared = TRUE)
+  }
+
 
 
   #--- Setup/connect to dbWork
@@ -400,8 +418,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
 
-      SFSW2_prj_inputs <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
+      temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, opt_verbosity)
+
+      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]] # update: random streams for downscaling
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_scenarios", prepared = TRUE)
@@ -499,10 +520,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1))
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({
-        print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+        print(paste0("rSFSW2's ", temp_call, ": ended after ",
           round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
           "status:"))
         print(SFSW2_prj_meta[["input_status"]])
@@ -631,10 +653,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": started at ", t1,
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
       " for project ", sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
 
-    on.exit({print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
@@ -651,6 +674,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     verbose = opt_verbosity[["verbose"]])
   on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
+  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+    add = TRUE)
+
 
 #  # Assigning objects from 'SFSW2_prj_meta' to function environment for the time being;
 #  # a hack for convience
@@ -690,7 +718,10 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   #------------------------RUN RSOILWAT
 
   # print system information
-  print(temp <- utils::sessionInfo())
+  temp <- utils::sessionInfo()
+  if (opt_verbosity[["verbose"]])
+    print(temp)
+
   if (opt_behave[["check_blas"]])
     benchmark_BLAS(temp$platform)
 
@@ -771,6 +802,12 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     SFSW2_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
     runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
     0, 0)
+
+
+  #---------------------------------------------------------------------------------------#
+  if (opt_verbosity[["verbose"]])
+    print(utils::sessionInfo())
+
 
   SFSW2_prj_meta
 }

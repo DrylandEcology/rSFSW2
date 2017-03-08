@@ -78,7 +78,7 @@ get_Response_aggL <- function(response,
       temp1[index.usetimestep, index.col + topL]
     }
   res[["bottom"]] <- if (length(bottomL) > 1) {
-      if(is.null(weights)){
+      if (is.null(weights)) {
         apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN)
       } else {
         apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN, weights[bottomL])
