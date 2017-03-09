@@ -104,6 +104,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   ids_DayMet_extraction <- temp_runIDs_sites[which(dw_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
   ids_NRCan_extraction <- temp_runIDs_sites[which(dw_source == "NRCan_10km_Canada")]
   ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(dw_source == "NCEPCFSR_Global")]
+  ids_Livneh_extraction <- temp_runIDs_sites[which(dw_source == "Livneh2013_NorthAmerica")]
 
   if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0) {
     #--- Set up parallelization
@@ -143,6 +144,22 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
       opt_parallel, SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
+  }
+
+  if (length(ids_Livneh_extraction) > 0) {
+    extract_daily_weather_from_livneh(
+      dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]],
+      dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      site_ids     = SWRunInformation$site_id[ids_Livneh_extraction],
+      coords       = SWRunInformation[ids_Livneh_extraction,
+                     c("X_WGS84", "Y_WGS84"), drop = FALSE],
+      start_year   = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      end_year     = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+      f_check      = TRUE,
+      backup       = TRUE,
+      comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+      opt_parallel = opt_parallel,
+      be_quiet     = !verbose)
   }
 
   if (length(ids_NCEPCFSR_extraction) > 0) {
@@ -1013,6 +1030,289 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
   invisible(0)
 }
 
+########################################################
+# Livneh Gridded, Daily Weather Data Extraction
+#
+# Author - Charles Duso
+# Date   - December 5th, 2016
+########################################################
+
+#' @title Extract Gridded Weather Data from a Livneh Database
+#'
+#' @description Extracts daily gridded weather data, including precipitation,
+#'              maximum temperature and minimum temperature from the Livneh
+#'              database: a 1/16 degree gridded weather database that contains
+#'              data for the years 1915 - 2011.
+#' @references  \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
+#'
+#' @param    dir_data        directory containing Livneh data
+#' @param    dir_temp          the database directory
+#' @param    site_ids        the sites to gather weather data for
+#' @param    coords          the coordinates for each site in WGS84 format
+#' @param    start_year      the start year in the sequence of data to gather
+#' @param    end_year        the end year in the sequence of data to gather
+#' @param    f_check         flag to check for errors in file structure - TRUE
+#'                            for check else no integrity check
+#' @param    backup          flag to create a backup of the weather data prior
+#'                            to insertion in the database
+#'                            (can create large files) - TRUE for backup
+#'                            else no backup
+#' @param    comp_type       the compression type of the data to
+#'                            be inserted into the database
+#' @param    run_parallel    whether the extraction should be ran in parallel
+#' @param    num_cores       the num of cores to use if parallel
+#'
+#' @author   Charles Duso    <cd622@@nau.edu>
+#' @export
+extract_daily_weather_from_livneh <- compiler::cmpfun(function(dir_data,
+                                              dir_temp, site_ids,
+                                              coords, start_year, end_year,
+                                              f_check = TRUE, backup = TRUE,
+                                              comp_type = "gzip",
+                                              run_parallel = FALSE,
+                                              num_cores = 0,
+                                              be_quiet  = TRUE) {
+
+    ########################################
+    # Ensure necessary libraries are loaded
+    ########################################
+    require(ncdf4)      # For extracting netcdf data
+    require(raster)     # For stacking netcdf data as raster objects
+    require(Rsoilwat31) # For formatting the weather data
+    require(RSQLite)    # For inserting data into the database
+    require(sp)         # For the raster package
+
+    ########################################################
+    # Helper function to determine if a year is a leap year
+    ########################################################
+    is_leapyear <- function(year){
+      return(((year %% 4 == 0) & (year %% 100 != 0)) | (year %% 400 == 0))
+    }
+
+    ###################################################
+    # Helper function to convert ncdf files to rasters
+    ###################################################
+    convert_to_brick <- function(fileName, type) {
+      r <- raster::brick(fileName, varname=type)
+    }
+
+    ###################################################################
+    # Helper function to convert coordinates to the correct resolution
+    ###################################################################
+    conv_res <- function(x) {
+      round((28.15625+round((x-28.15625)/0.0625,0)*0.0625), digits=5)
+    }
+
+    #########################
+    # Configuration settings
+    #########################
+
+    # Start timer for timing the extraction process
+    t_elapsed        <- proc.time()
+    if (!be_quiet) {
+      print("Preparing to extract weather data from Livneh database.")
+    }
+
+    # Go to the directory for the weather database for extraction
+    setwd(dir_data)
+    db_files         <- sort(list.files(dir_data))
+
+    # Verify the data's integrity before executing
+    if (f_check) {
+      if (!be_quiet) {
+        print("Verifying data integrity.")
+      }
+      db_months        <- unique(substr(db_files, 44, 45))
+      db_years         <- unique(substr(db_files, 40, 43))
+      f_count         <- 1
+      for (i in 1:length(db_years)) {
+        for (j in 1:length(db_months)) {
+          fName      <- paste(db_years[i], db_months[j], sep="")
+          if (!grepl(pattern = fName, db_files[f_count])) {
+            if (!be_quiet) {
+              print(paste("ERROR: Monthly data file is missing for year-month: ",
+                          db_years[i], "-", db_months[j], sep=""))
+            }
+            stop()
+
+          }
+          f_count = f_count + 1
+        }
+      }
+      if (!be_quiet) {
+        print("Data integrity has been verified; no errors have been detected.")
+      }
+    }
+
+    # Refine coordinates to resolution suitable for Livneh
+    if (!be_quiet) {
+      print("Refining coordinates to match database resolution.")
+    }
+    colnames(coords)      <- NULL
+    coords                <- na.omit(coords)
+    xy_wgs84              <- matrix(unlist(coords), ncol = 2)
+    xy_wgs84              <- matrix(apply(xy_wgs84, 2, conv_res), ncol = 2)
+
+    # Create coordinates as spatial points for extraction with raster layers
+    prj_geographicWGS84   <- sp::CRS("+proj=longlat +ellps=WGS84
+                                      +datum=WGS84 +no_defs +towgs84=0,0,0")
+    sp_locs               <- sp::SpatialPoints(coords = xy_wgs84,
+                                               proj4string = prj_geographicWGS84)
+
+    # Create necessary variables and containers for extraction
+    seq_years             <-  seq(start_year, end_year)
+    len_years             <-  length(seq_years)
+    site_length           <-  length(site_ids)
+    data_sw               <-  array(dim = c(site_length, 366, 3, len_years))
+    files                 <-  vector("character", 12)
+
+    if (!be_quiet) {
+      print("Extracting data for supplied sequence of years.")
+    }
+
+    # Prepare parallel extraction if set to TRUE
+    if (run_parallel) {
+      raster::beginCluster(n = num_cores, type = "SOCK")
+    }
+
+    #######################
+    # Extract weather data
+    #######################
+
+    # Extract the data for each site for each year for each month
+    j <- start_year
+    for (i in 1:len_years) {
+
+      # Get data files for respective year
+      for (l in 1:12) {
+        if (l < 10) {
+          files[l] = paste("Meteorology_Livneh_CONUSExt_v.1.2_2013.", seq_years[i], "0", l, ".nc", sep="")
+        } else {
+          files[l] = paste("Meteorology_Livneh_CONUSExt_v.1.2_2013.", seq_years[i], l, ".nc", sep="")
+        }
+      }
+
+      if (!be_quiet) {
+        print(paste("Extracting data for year ", seq_years[i], sep=""))
+        print("Files: ")
+        print(files)
+        print("================================")
+      }
+
+      # Extract Weather Data as Raster Stacks
+      l_brick    <- lapply(files, convert_to_brick, type="Prec")
+      l_stack    <- raster::stack(l_brick, bands = NULL, varname=type,
+                                  layers = NULL, quick = TRUE)
+      prec       <- round(raster::extract(x = l_stack, y = sp_locs,
+                                          method = "simple", fun = NULL), 2)
+
+      l_brick    <- lapply(files, convert_to_brick, type="Tmax")
+      l_stack    <- raster::stack(l_brick, bands = NULL, varname=type,
+                                  layers = NULL, quick = TRUE)
+      tmax       <- round(raster::extract(x = l_stack, y = sp_locs,
+                                          method = "simple", fun = NULL), 2)
+
+      l_brick    <- lapply(files, convert_to_brick, type="Tmin")
+      l_stack    <- raster::stack(l_brick, bands = NULL, varname=type,
+                                  layers = NULL, quick = TRUE)
+      tmin       <- round(raster::extract(x = l_stack, y = sp_locs,
+                                          method = "simple", fun = NULL), 2)
+
+      # Add data to global data array
+      for (k in 1:site_length) {
+        if (is_leapyear(seq_years[i])) {
+          data_sw[k, , 1, i] <- tmax[k, ]
+          data_sw[k, , 2, i] <- tmin[k, ]
+          data_sw[k, , 3, i] <- (prec[k, ] / 10)
+        } else {
+          data_sw[k, , 1, i] <- c(tmax[k, ], 1)
+          data_sw[k, , 2, i] <- c(tmin[k, ], 1)
+          data_sw[k, , 3, i] <- c((prec[k, ] / 10), 1)
+        }
+      }
+
+
+      # Increment j to the next year
+      j = j + 1
+    }
+
+    # Stop parallel execution
+    if (run_parallel) {
+      raster::endCluster()
+    }
+
+    # Connect to the weather database
+    setwd(dir_temp)
+
+    # Backup RData in the event of an error with insertion
+    if (backup) {
+      if (!be_quiet) {
+        print("Backing up data object.")
+      }
+      save(data_sw, file="weathData.RData")
+      if (!be_quiet) {
+        print("Data object has been backed-up.")
+      }
+    }
+
+    # Format data and add it to the weather database
+    if (!be_quiet) {
+      print("Inserting data into weather database.")
+    }
+
+    for (i in 1:site_length) {
+      weather_data <- list()
+      for (k in 1:len_years) {
+        doys <- if (is_leapyear(seq_years[k]))  1:366 else 1:365
+        out  <- cbind(doys, data_sw[i, doys, , k])
+        colnames(out) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+        weather_data[[k]] <-
+                    new("swWeatherData",
+                         year = seq_years[k],
+                         data = data.matrix(out, rownames.force = FALSE))
+      }
+      names(weather_data) <- as.character(seq_years)
+
+      # Write out to data blob so that data is appropriate for database
+      data_blob <- Rsoilwat31::dbW_weatherData_to_blob(weather_data,
+                                                       type = comp_type)
+      # Store site weather data in weather database
+      Rsoilwat31:::dbW_addWeatherDataNoCheck(Site_id      = site_ids[i],
+                                             Scenario_id  = 1,
+                                             StartYear    = start_year,
+                                             EndYear      = end_year,
+                                             weather_blob = data_blob)
+    }
+
+
+    #######################
+    # Clean-up environment
+    #######################
+
+    if (!be_quiet) {
+      print("Weather data has been successfully inserted.")
+    }
+
+    # Remove files & clean garbage to free-up RAM for executions that
+    # don't just involve database creation
+    if (!be_quiet) {
+      print("Cleaning up garbage.")
+    }
+    gc()
+    rm(weather_data, out, data_sw, data_blob, l_stack, l_brick, tmax, tmin,
+       prec)
+
+    # End timer and notify user that extraction has finished
+    if (!be_quiet) {
+      print("Data has been inserted.")
+      print(proc.time() - t_elapsed)
+    }
+    invisible(0)
+})
+
+# End of Livneh extraction code
+########################################################
+
 
 #---Functions to determine sources of daily weather
 dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
@@ -1135,9 +1435,10 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
     #  - Grids datum: geographic NAD83
     #  - Columns: 1068, Rows: 510, Cells size: 0.083333333
     there <- sim_time[["simstartyr"]] >= 1950 && sim_time[["endyr"]] <= 2013
+    ftemp <- file.path(path, "1950", "max1950_1.asc")
 
-    if (any(there)) {
-      nrc_test <- raster::raster(file.path(path, "1950", "max1950_1.asc"))
+    if (any(there) && file.exists(ftemp)) {
+      nrc_test <- raster::raster(ftemp)
       # see http://spatialreference.org/ref/epsg/4269/
       raster::crs(nrc_test) <- raster::crs(paste("+init=epsg:4269 +proj=longlat",
         "+ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
@@ -1153,6 +1454,39 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
         dw_names[there] <- with(site_dat[there, ], paste0(Label, "_NRCan",
           formatC(X_WGS84, digits = 4, format = "f"), "_",
           formatC(Y_WGS84, digits = 4, format = "f")))
+      }
+    }
+  }
+
+  list(source = dw_source, name = dw_names, n = sum(there))
+}
+
+dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
+  path = NULL, MoreArgs = NULL) {
+
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+
+  if (!dir.exists(path))
+    stop("'dw_Livneh2013_NorthAmerica': ", path, " does not exist.")
+
+  there <- 0
+
+  if (exinfo$GriddedDailyWeatherFromLivneh2013_NorthAmerica) {
+    # Check which requested Livneh2013 weather data are available
+    there <- sim_time[["simstartyr"]] >= 1915 && sim_time[["endyr"]] <= 2011
+    ftemp <- file.path(path, "Meteorology_Livneh_CONUSExt_v.1.2_2013.191501.nc")
+
+    if (any(there) && file.exists(ftemp)) {
+      livneh_test <- raster::raster(ftemp, varname = "Prec")
+      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+      there <- !is.na(raster::extract(livneh_test, y = sp_locs))
+
+      if (any(there)) {
+        dw_source[there] <- "Livneh2013_NorthAmerica"
+        dw_names[there] <- with(site_dat[there, ], paste0(Label, "_Livneh2013_",
+          formatC(X_WGS84, digits = 5, format = "f"), "_", formatC(Y_WGS84, digits = 5,
+          format = "f")))
       }
     }
   }
@@ -1209,10 +1543,15 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_
   dw_names <- rep(NA, times = length(dw_source))
   dw_avail_sources2 <- rev(dw_avail_sources)
   fun_dw_source <- paste("dw", dw_avail_sources2, sep = "_")
+
   path_dw_source <- list(
     NRCan_10km_Canada = project_paths[["dir.ex.NRCan"]],
     Maurer2002_NorthAmerica = project_paths[["dir_maurer2002"]],
-    LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"))
+    LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
+    NCEPCFSR_Global = project_paths[["dir.ex.NCEPCFSR"]],
+    Livneh2013_NorthAmerica = project_paths[["dir.ex.Livneh2013"]],
+    DayMet_NorthAmerica = project_paths[["dir_daymet"]])
+
   MoreArgs <- list(LookupWeatherFolder = list(
     create_treatments = SFSW2_prj_inputs[["create_treatments"]],
     runIDs_sites = sim_size[["runIDs_sites"]],
@@ -1221,6 +1560,7 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_
     ie_use = SFSW2_prj_inputs[["sw_input_experimentals_use"]],
     it_lwf = SFSW2_prj_inputs[["sw_input_treatments"]][sim_size[["runIDs_sites"]], "LookupWeatherFolder"],
     ie_lwf = SFSW2_prj_inputs[["sw_input_experimentals"]][, "LookupWeatherFolder"]))
+
   site_dat <- SWRunInformation[sim_size[["runIDs_sites"]], c("Label", "X_WGS84", "Y_WGS84")]
 
   for (k in seq_along(fun_dw_source)) {
@@ -1263,6 +1603,9 @@ set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]] <- file.path(dir_dW,
     "NRCan_10km_Canada", "DAILY_GRIDS")
+
+  SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]] <- file.path(dir_dW,
+    "Livneh_NA_2013", "MONTHLY_GRIDS")
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
