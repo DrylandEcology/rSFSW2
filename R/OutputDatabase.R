@@ -1338,14 +1338,15 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
     unique_simulation_years <- unique(simulation_years)
-    #each row is unique so add id to db_combined
     if (nrow(unique_simulation_years) == nrow(simulation_years)) {
+      # each row is unique so add id to db_combined
       id <- seq_len(nrow(unique_simulation_years))
       unique_simulation_years <- cbind(id,
         unique_simulation_years[, c("simulationStartYear", "StartYear", "EndYear")])
       db_combined_exp_treatments[, "simulation_years_id"] <- unique_simulation_years[, "id"]
 
-    } else {#treatment table has a map to reduced rows in simulation_years
+    } else {
+      #treatment table has a map to reduced rows in simulation_years
       temp <- duplicated(simulation_years)
       sim_years_unique_map <- rep(NA, nrow(simulation_years))
       temp2 <- data.frame(t(simulation_years))
@@ -1356,23 +1357,25 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         which(treatments_toYears_map == x))
       db_combined_exp_treatments[, "simulation_years_id"] <- sim_years_unique_map
     }
-    #write to the database
-    sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
-    rs <- DBI::dbSendStatement(con_dbOut, sql)
-    DBI::dbBind(rs, param = as.list(unique_simulation_years))
-    res <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
 
-  } else {#Treatment option for simulation Years is turned off. Get the default one from settings.
+    dtemp <- unique_simulation_years[, c("simulationStartYear", "StartYear", "EndYear")]
+
+  } else {
+    #Treatment option for simulation Years is turned off. Get the default one from settings.
     db_combined_exp_treatments$simulation_years_id <- 1
-    temp <- data.frame(simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-      StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]], EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
-    sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
-    rs <- DBI::dbSendStatement(con_dbOut, sql)
-    DBI::dbBind(rs, param = as.list(temp))
-    res <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
+
+    dtemp <- data.frame(
+      simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+      StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]],
+      EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
   }
+
+  # write to the database
+  sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
+  rs <- DBI::dbSendStatement(con_dbOut, sql)
+  DBI::dbBind(rs, param = as.list(dtemp))
+  res <- DBI::dbFetch(rs)
+  DBI::dbClearResult(rs)
 
   #Insert the data into the treatments table
   sql <- paste0("INSERT INTO treatments VALUES(", paste0(":",
@@ -1404,6 +1407,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         format = "d", flag = "0")
       temp2 <- rep(SFSW2_prj_inputs[["sw_input_experimentals"]][, "Label"], each = SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
       paste(temp1, temp2, SFSW2_prj_inputs[["SWRunInformation"]]$Label, sep = "_")
+
     } else {
       SFSW2_prj_inputs[["SWRunInformation"]]$Label
     }
@@ -1427,8 +1431,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     "FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));"))
 
   db_runs <- data.frame(matrix(data = 0, nrow = SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]], ncol = 5,
-    dimnames = list(NULL, c("P_id", "label_id", "site_id", "treatment_id",
-    "scenario_id"))))
+    dimnames = list(NULL, c("P_id", "label_id", "site_id", "treatment_id", "scenario_id"))))
   db_runs$P_id <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
   db_runs$label_id <- rep(seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_total"]]), each = SFSW2_prj_meta[["sim_scens"]][["N"]])
   db_runs$site_id <- rep(rep(SFSW2_prj_inputs[["SWRunInformation"]]$site_id, times = max(SFSW2_prj_meta[["sim_size"]][["expN"]], 1L)),
