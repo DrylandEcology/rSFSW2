@@ -38,7 +38,7 @@ exp_pids <- list(test0 = rep(list(integer(0)), scenario_No),
 
 
 #--- Unit tests
-test_that("SWSF indices", {
+test_that("rSFSW2 indices", {
   for (k in seq_along(runIDs_todo)) {
 
     if (is.natural(runIDs_todo[[k]])) {

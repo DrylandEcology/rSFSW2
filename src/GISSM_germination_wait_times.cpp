@@ -1,6 +1,34 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+//' Determine wait times until germination based on information on favorable conditions
+//'   and time required to germinate
+//'
+//' @section Note: The Rcpp version of the function is about 270x faster for vectors of
+//'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
+//'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
+//'
+//' @references Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling
+//'  regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions.
+//'  Ecol Model, 286, 66-77.
+//'
+//' @examples
+//'  # The Rcpp function is equivalent to the following R version
+//'    germination_wait_times_R <- function(time_to_germinate, duration_fave_cond) {
+//'      N <- length(time_to_germinate)
+//'      stats::na.exclude(unlist(lapply(seq_len(N), function(t) {
+//'        if (is.finite(time_to_germinate[t])) {
+//'          t1 <- duration_fave_cond[t:N]
+//'          t2 <- stats::na.exclude(t1)
+//'          t3 <- which(t2[time_to_germinate[t]] == t1)[1]
+//'          sum(is.na(t1[1:t3]))
+//'        } else {
+//'          NA
+//'        }
+//'      })))
+//'    }
+//'
+//' @export
 // [[Rcpp::export]]
 IntegerVector germination_wait_times(const IntegerVector& time_to_germinate,
     const IntegerVector& duration_fave_cond) {

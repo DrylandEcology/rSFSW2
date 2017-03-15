@@ -1,8 +1,28 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// Note: ss1s is a pointer to the data and the original vector will get altered; one would need for a deep copy: LogicalVector out = clone(ss1s)
-
+//' Determine seedling survival in the first season (ss1s)
+//'
+//' @section Note: The Rcpp version of the function is about 270x faster for vectors of
+//'  length 365 and 12,000x faster for vectors of length 11,000 than the R version.
+//'  The Rcpp version also reduced the memory footprint by a factor of >> 3080.
+//'
+//' @section C code: ss1s is a pointer to the data and the original vector will get
+//'  altered;one would need for a deep copy: LogicalVector out = clone(ss1s)
+//'
+//' @references Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling
+//'  regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions.
+//'  Ecol Model, 286, 66-77.
+//'
+//' @examples
+//'  # The Rcpp function is equivalent to the following R version
+//'    setFALSE_SeedlingSurvival_1stSeason_R <- function(ss1s, ry_year_day, ry_useyrs, y,
+//'      doy) {
+//'      ss1s[ry_year_day == ry_useyrs[y]][doy] <- FALSE
+//'      ss1s
+//'    }
+//'
+//' @export
 // [[Rcpp::export]]
 LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s,
     const IntegerVector& ry_year_day, const IntegerVector& ry_useyrs, int y, int doy) {
