@@ -7,7 +7,7 @@ odata <- dbW_getWeatherData(Site_id = 1, Scenario = "Current")
 
 # Create the new database and create the table
 con <- dbConnect(drv, "/media/Storage/work/dbWeatherData_GTD_NEWTEST.sqlite3")
-dbGetQuery(con, "CREATE TABLE \"WeatherData\" (\"Site_id\" INT NOT NULL, \"Scenario\" INT NOT NULL, \"StartYear\" INT NOT NULL, \"EndYear\" INT NOT NULL, \"data\" BLOB, PRIMARY KEY (\"Site_id\", \"Scenario\"));")
+DBI::dbExecute(con, "CREATE TABLE \"WeatherData\" (\"Site_id\" INT NOT NULL, \"Scenario\" INT NOT NULL, \"StartYear\" INT NOT NULL, \"EndYear\" INT NOT NULL, \"data\" BLOB, PRIMARY KEY (\"Site_id\", \"Scenario\"));")
 
 # Format and compress the data write to database
 string <- character(length = length(odata))
@@ -23,7 +23,7 @@ Site_id <- 1
 scenarioID <- 1
 StartYear <- 1979
 EndYear <- 2010
-dbGetQuery(con, paste0("INSERT INTO WeatherData (Site_id, Scenario, StartYear, EndYear, data) VALUES (", Site_id, ", ", scenarioID, ", ", StartYear, ", ", EndYear, ", ", data_blob, ");"))
+DBI::dbExecute(con, paste0("INSERT INTO WeatherData (Site_id, Scenario, StartYear, EndYear, data) VALUES (", Site_id, ", ", scenarioID, ", ", StartYear, ", ", EndYear, ", ", data_blob, ");"))
 
 # Example of New way to read the data
 result <- dbGetQuery(con, "SELECT StartYear, EndYear, data FROM weatherdata WHERE Site_id = 1 AND Scenario = 1;")

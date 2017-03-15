@@ -2,7 +2,6 @@ context("dbWork: runIDs organization")
 # skip_on_cran()
 
 #--- Inputs
-#setwd("~/Dropbox (Personal)/Work_Stuff/2_Research/Software/GitHub_Projects/rSFSW2/tests/testthat")
 dbpath <- tempdir()
 flock <- tempfile(pattern = "rSFSW2lock", tmpdir = normalizePath(dbpath))
 runsN_master <- 25L

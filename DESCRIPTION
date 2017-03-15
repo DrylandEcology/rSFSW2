@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.0.0-9020-generalized_agg_funs
-Date: 2017-03-08
+Version: 2.0.0-9024-generalized_agg_funs
+Date: 2017-03-15
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
@@ -10,7 +10,7 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
 Depends:
     R (>= 3.3.0)
 Imports:
-    rSOILWAT2 (>= 1.2.5),
+    rSOILWAT2 (>= 1.2.6),
     RSQLite (>= 1.1),
     DBI (>= 0.5),
     Rcpp (>= 0.12.7),
@@ -50,5 +50,5 @@ NeedsCompilation: yes
 License: GPL-3 + file LICENSE
 URL: https://github.com/Burke-Lauenroth-Lab/rSFSW2
 BugReports: https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues
-RoxygenNote: 5.0.1.9000
+RoxygenNote: 6.0.1
 VignetteBuilder: knitr

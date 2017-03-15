@@ -130,6 +130,7 @@ opt_input <- list(
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,  # 1-km resolution
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,  # must be used with dbW
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0, # must be used with dbW
+      "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0, # 1/16 degree resolution
 
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
       #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being
@@ -171,7 +172,8 @@ opt_input <- list(
   #   position of 'dw_source_priority' if available, if not then second etc.
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-    "Maurer2002_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global"),
+    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
+    "NCEPCFSR_Global"),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])

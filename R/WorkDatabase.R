@@ -5,7 +5,7 @@ add_dbWork_index <- function(con) {
   prev_indices <- DBI::dbGetQuery(con, "SELECT * FROM sqlite_master WHERE type = 'index'")
 
   if (NROW(prev_indices) == 0L || !("i_runIDs" %in% prev_indices[, "name"])) {
-    DBI::dbGetQuery(con, paste("CREATE INDEX i_runIDs ON work (runID_total, runID_sites,",
+    DBI::dbExecute(con, paste("CREATE INDEX i_runIDs ON work (runID_total, runID_sites,",
       "include_YN)"))
   }
 }
@@ -81,7 +81,7 @@ setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE) {
         stop("'setup_dbWork': dbWork is misspecified or outdated; you may fix ",
           "this by first calling the function 'recreate_dbWork'")
       }
-      prev_work <- RSQLite::dbGetQuery(con, paste("SELECT runID_total, runID_sites,",
+      prev_work <- DBI::dbGetQuery(con, paste("SELECT runID_total, runID_sites,",
         "include_YN FROM work ORDER BY runID_total"))
 
       # check whether same design
@@ -143,7 +143,7 @@ dbWork_todos <- function(path) {
   stopifnot(file.exists(dbWork))
 
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-  x <- RSQLite::dbGetQuery(con, paste("SELECT runID_total FROM work ",
+  x <- DBI::dbGetQuery(con, paste("SELECT runID_total FROM work ",
     "WHERE include_YN = 1 AND completed = 0 AND inwork = 0 ORDER BY runID_total"))
   RSQLite::dbDisconnect(con)
 
@@ -160,7 +160,7 @@ dbWork_timing <- function(path) {
   stopifnot(file.exists(dbWork))
 
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-  times <- RSQLite::dbGetQuery(con, paste("SELECT time_s FROM work WHERE include_YN = 1",
+  times <- DBI::dbGetQuery(con, paste("SELECT time_s FROM work WHERE include_YN = 1",
     "AND completed > 0"))
   RSQLite::dbDisconnect(con)
 
@@ -203,8 +203,8 @@ dbWork_check <- function(path, runIDs) {
     stopifnot(file.exists(dbWork))
 
     con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-    rs <- DBI::dbSendStatement(con, paste("SELECT completed, failed, inwork FROM work",
-      "WHERE runID = :x"))
+    sql <- "SELECT completed, failed, inwork FROM work WHERE runID = :x"
+    rs <- DBI::dbSendStatement(con, sql)
     DBI::dbBind(rs, param = list(x = runIDs))
     res <- DBI::dbFetch(rs)
     DBI::dbClearResult(rs)
@@ -291,7 +291,7 @@ recreate_dbWork <- function(path, dbOutput) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
     tables <- dbOutput_ListOutputTables(con)
     # get Pids for which simulation output is in the outputDB
-    has_pids <- lapply(tables, function(x) RSQLite::dbGetQuery(con,
+    has_pids <- lapply(tables, function(x) DBI::dbGetQuery(con,
       paste0("SELECT P_id FROM \"", x, "\""))[, 1])
     RSQLite::dbDisconnect(con)
     has_complete_pids <- intersect2(has_pids)
@@ -324,8 +324,8 @@ dbWork_check <- function(path, runIDs) {
     stopifnot(file.exists(dbWork))
 
     con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-    rs <- DBI::dbSendStatement(con, paste("SELECT completed, failed, inwork FROM work",
-      "WHERE runID_total = :x"))
+    sql <- "SELECT completed, failed, inwork FROM work WHERE runID = :x"
+    rs <- DBI::dbSendStatement(con, sql)
     DBI::dbBind(rs, param = list(x = runIDs))
     res <- DBI::dbFetch(rs)
     DBI::dbClearResult(rs)
@@ -396,7 +396,7 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
               "inwork = 0, time_s =", time_s, "WHERE runID_total =", runID))
 
           } else if (status == "inwork") {
-            prev_status <- RSQLite::dbGetQuery(con,
+            prev_status <- DBI::dbGetQuery(con,
               paste("SELECT inwork FROM work WHERE runID_total =", runID))$inwork
             if (prev_status == 0) {
               DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
