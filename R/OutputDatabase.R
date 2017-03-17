@@ -1437,25 +1437,35 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   ##############agg_fun table###############
   stopifnot(c("agg_fun", "type") %in% names(SFSW2_prj_meta[["aggs"]][["agg_fun_defs"]]))
 
-  RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE aggregating_functions(id INTEGER",
-    "PRIMARY KEY AUTOINCREMENT, agg_fun TEXT UNIQUE NOT NULL, type TEXT)"))
-  RSQLite::dbBegin(con_dbOut)
-  RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO aggregating_functions",
-    "VALUES(NULL, :agg_fun, :type)", bind.data = SFSW2_prj_meta[["aggs"]][["agg_fun_defs"]][, -1])
-  RSQLite::dbCommit(con_dbOut)
+  sql <- paste("CREATE TABLE aggregating_functions(id INTEGER PRIMARY KEY AUTOINCREMENT,",
+    "agg_fun TEXT UNIQUE NOT NULL, type TEXT)")
+  RSQLite::dbExecute(con_dbOut, sql)
+
+  sql <- "INSERT INTO aggregating_functions VALUES(NULL, :agg_fun, :type)"
+  rs <- DBI::dbSendStatement(con_dbOut, sql)
+  DBI::dbBind(rs, param = list(
+    agg_fun = SFSW2_prj_meta[["aggs"]][["agg_fun_defs"]][, "agg_fun"],
+    type = SFSW2_prj_meta[["aggs"]][["agg_fun_defs"]][, "type"]))
+  res <- DBI::dbFetch(rs)
+  DBI::dbClearResult(rs)
   ##################################################
 
   ##############aggregating time windows table###############
   stopifnot(c("label", "agg_start", "agg_end") %in% names(SFSW2_prj_meta[["aggs"]][["agg_windows"]]))
 
-  RSQLite::dbGetQuery(con_dbOut, paste("CREATE TABLE aggregating_timewindows(id INTEGER",
+  sql <- paste("CREATE TABLE aggregating_timewindows(id INTEGER",
     "PRIMARY KEY AUTOINCREMENT, label TEXT UNIQUE NOT NULL, agg_start INTEGER,",
-    "agg_end INTEGER)"))
-  RSQLite::dbBegin(con_dbOut)
-  RSQLite::dbGetPreparedQuery(con_dbOut, paste("INSERT INTO aggregating_timewindows",
-    "VALUES(NULL, :label, :agg_start, :agg_end)",
-    bind.data = SFSW2_prj_meta[["aggs"]][["agg_windows"]][, -1])
-  RSQLite::dbCommit(con_dbOut)
+    "agg_end INTEGER)")
+  RSQLite::dbExecute(con_dbOut, sql)
+
+  sql <- "INSERT INTO aggregating_timewindows VALUES(NULL, :label, :agg_start, :agg_end)"
+  rs <- DBI::dbSendStatement(con_dbOut, sql)
+  DBI::dbBind(rs, param = list(
+    label = SFSW2_prj_meta[["aggs"]][["agg_windows"]][, "label"],
+    agg_start = SFSW2_prj_meta[["aggs"]][["agg_windows"]][, "agg_start"],
+    agg_end = SFSW2_prj_meta[["aggs"]][["agg_windows"]][, "agg_end"]))
+  res <- DBI::dbFetch(rs)
+  DBI::dbClearResult(rs)
   ##################################################
 
 

@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.0.0-9025
-Date: 2017-03-16
+Version: 2.0.0-9024-generalized_agg_funs
+Date: 2017-03-15
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
@@ -39,6 +39,9 @@ Suggests:
     rmarkdown,
     testthat,
     covr
+Remotes:
+    github::khufkens/daymetr,
+    github::dschlaep/weathergen
 LinkingTo:
     Rcpp
 LazyData: true

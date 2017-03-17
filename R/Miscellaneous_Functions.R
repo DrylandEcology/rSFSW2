@@ -368,12 +368,14 @@ soil_status <- function(..., swp_crit, time_N, is_dry = TRUE) {
   mat_crits <- list()
   ncols <- vapply(swp, function(x) dim(x)[2], FUN.VALUE = NA_real_)
 
-  for (k in seq_along(swp)) {
-    if (k > 1 &&
-    mat_crit <- array(swp_crit, dim = c(length(swp_crit), time_N))
-
-
-  mat_crit1 <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
+print("'soil_status' needs fixing")
+#TODO(drs)
+#  for (k in seq_along(swp)) {
+#    if (k > 1 &&
+#    mat_crit <- array(swp_crit, dim = c(length(swp_crit), time_N))
+#
+#
+#  mat_crit1 <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
 
   if (is_dry) {
     lapply(swp, function(x) x < mat_crit)
@@ -1296,8 +1298,6 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
   SWRunInformation
 }
 
-
-}
 
 
 season_diff_NS <- function(simTime2, t_unit = "day") {

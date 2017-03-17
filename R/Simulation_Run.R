@@ -1969,7 +1969,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             simTime = isim_time, simTime2 = simTime2)
 
           resAgg[nv, ] <- agg_fun(ppt_sizes$eventsPerYear)
-          resAgg[(nv+1):(nv+7), ] <- t(apply(ppt_sizes$freq.summary, 1, agg_fun)
+          resAgg[(nv+1):(nv+7), ] <- t(apply(ppt_sizes$freq.summary, 1, agg_fun))
           nv <- nv+8
 
           rm(ppt_sizes)
