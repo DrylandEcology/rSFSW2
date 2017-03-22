@@ -8,3 +8,6 @@ before_install:
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - cd /tmp/rSOILWAT2
   - ./tools/TarAndInstall_31n.sh
+
+after_success:
+  - Rscript -e 'covr::codecov()'
