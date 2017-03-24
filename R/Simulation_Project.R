@@ -243,6 +243,16 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       any(SFSW2_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Precipitation") ||
       any(SFSW2_prj_inputs[["create_treatments"]] == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
 
+    # Check that all 'prj_todos' are TRUE or FALSE except exceptions 'adaily' and 'otrace'
+    itemp <- names(SFSW2_prj_meta[["prj_todos"]])
+    itemp <- itemp[!(itemp %in% c("adaily", "otrace"))]
+    temp <- unlist(SFSW2_prj_meta[["prj_todos"]][itemp])
+    ibad <- sapply(temp, function(x) !identical(x, TRUE) && !identical(x, FALSE))
+    if (any(ibad)) {
+      stop("elements of 'prj_todos' should not be 'NULL': ",
+      paste(shQuote(names(temp)[ibad]), collapse = ", "))
+    }
+
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "prj_todos", prepared = TRUE)
   }
