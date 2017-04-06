@@ -1490,7 +1490,8 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
 #' Determine sources of daily weather
 #'
 #' Determine order of priorities (highest priority comes last): i.e., the last entry is
-#' the one that will be used
+#' the one that will be used.
+#'
 dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
   SWRunInformation, sim_size, sim_time, fnames_in, project_paths, verbose = FALSE) {
 
@@ -1528,15 +1529,22 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_
 
   for (k in seq_along(fun_dw_source)) {
     ftemp <- get(fun_dw_source[k])
-    temp <- ftemp(dw_source, dw_names, exinfo, site_dat, sim_time,
+    temp <- try(ftemp(dw_source, dw_names, exinfo, site_dat, sim_time,
       path = path_dw_source[[dw_avail_sources2[k]]],
-      MoreArgs = MoreArgs[[dw_avail_sources2[k]]])
-    dw_source <- temp[["source"]]
-    dw_names <- temp[["name"]]
+      MoreArgs = MoreArgs[[dw_avail_sources2[k]]]), silent = TRUE)
 
-    if (verbose)
-      print(paste("Data for", temp[["n"]], "sites will come from",
-        shQuote(dw_avail_sources2[k])))
+    if (!inherits(temp, "try-error")) {
+      dw_source <- temp[["source"]]
+      dw_names <- temp[["name"]]
+
+      if (verbose)
+        print(paste("Data for", temp[["n"]], "sites will come from",
+          shQuote(dw_avail_sources2[k])))
+
+    } else {
+      if (verbose)
+        print(paste("Data source", shQuote(dw_avail_sources2[k]), "is not available."))
+    }
   }
 
   # Save information on weather source to disk file

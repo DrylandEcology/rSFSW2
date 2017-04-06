@@ -10,5 +10,5 @@ dw_determine_sources(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
 }
 \description{
 Determine order of priorities (highest priority comes last): i.e., the last entry is
-the one that will be used
+the one that will be used.
 }
