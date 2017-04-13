@@ -66,3 +66,4 @@ TIMESTEP dy yr
       DEEPSWC     SUM       MO       1     end      deep_drain      /* deep drainage into lowest layer (cm) */
      SOILTEMP     AVG       MO       1     end       temp_soil      /* soil temperature from each soil layer (in celsius) */
        ESTABL     OFF       YR       1     end          estabs      /* yearly establishment results */
+BIOMASS 		sum 		MO 		1 		end 		biomass 		/* yearly biomass - TODO */

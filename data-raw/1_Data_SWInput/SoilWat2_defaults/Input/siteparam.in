@@ -62,6 +62,13 @@
 990.		# max depth for the soil_temperature function equation, default is 180.  this number should be evenly divisible by deltaX
 1			# flag, 1 to calculate soil_temperature, 0 to not calculate soil_temperature
 
+# ---- CO2 Settings ----
+# Retro scenarios (<= 2010): biomass stomatal
+1 1
+# Future scenarios (> 2010): biomass stomatal
+1 1
+# RCP
+85
 
 # ---- Transpiration regions ----
 # ndx  : 1=shallow, 2=medium, 3=deep, 4=very deep
