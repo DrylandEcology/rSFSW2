@@ -1550,16 +1550,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       delta <- str_match(model_name, "d[0-9]+yrs")
       delta <- str_match(delta, "[0-9]+")
       rSOILWAT2::swCarbon_Delta(swRunScenariosData[[sc]]) <- as.integer(delta[1])
-      print(delta)
       
       # Extract the RCP
       # "hybrid-delta-3mod.d40yrs.RCP85.CESM1-CAM5" --> 85
-      rcp <- str_match(model_name, "RCP[0-9]+")
-      rcp <- str_match(rcp, "[0-9]+")
-      rSOILWAT2::swCarbon_RCP(swRunScenariosData[[sc]]) <- as.integer(rcp[1])
-      print(rcp)
+      RCP <- str_match(model_name, "RCP[0-9]+")
+      RCP <- str_match(RCP, "[0-9]+")
+      rSOILWAT2::swCarbon_RCP(swRunScenariosData[[sc]]) <- as.integer(RCP[1])
       
-      if (is.na(delta[1]) || is.na(rcp[1])) stop(paste("The delta year or RCP could not be found for model", model_name))
+      if (is.na(delta[1]) || is.na(RCP[1])) stop(paste("The delta year or RCP could not be found for model", model_name))
     }
     
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
