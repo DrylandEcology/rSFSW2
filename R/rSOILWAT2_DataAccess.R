@@ -343,7 +343,7 @@ sw_out_flags <- function() {
 set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun) {
   use_it <- grepl(tag, names(use))
   if (any(use_it & use)) {
-    temp <- unlist(values[use_it])
+    temp <- unlist(values[which(use_it & use)])
     temp1 <- as.numeric(temp)
     temp2 <- !is.finite(temp1)
     if (any(temp2)) {
@@ -356,9 +356,11 @@ set_requested_RsoilwatInputFlags <- function(tasks, swIn, tag, use, values, fun)
       def <- utils::getFromNamespace(fun, "rSOILWAT2")(swIn)
 
       itemp <- sapply(names(def), function(x) {
-        temp <- grep(substr(x, 1, 4), names(use)[use_it])
+        temp <- grep(substr(x, 1, 4), names(use)[which(use_it & use)])
         if (length(temp) == 1) temp else 0})
       def[itemp > 0] <- temp1[itemp]
+
+      if(tag %in% c('HydRed')) def <- as.logical(def)
 
       swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
     }
