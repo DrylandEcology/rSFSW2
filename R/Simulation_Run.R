@@ -448,37 +448,37 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (any(sw_input_prod_use)) {
       #composition
-      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Composition")
+        fun = "swProd_Composition", reset = TRUE, default = 0)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
       #albedo
-      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Albedo")
+        fun = "swProd_Albedo", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
       #constant canopy height
-      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "CanopyHeight_Constant", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CanopyHeight")
+        fun = "swProd_CanopyHeight", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
       #flag for hydraulic redistribution
-      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_HydrRedstro_use")
+        fun = "swProd_HydrRedstro_use", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
       #flag for transpiration-critical SWP (MPa)
-      temp <- set_requested_RsoilwatInputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CritSoilWaterPotential")
+        fun = "swProd_CritSoilWaterPotential", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
