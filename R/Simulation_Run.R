@@ -264,15 +264,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     # CO2 is currently ALWAYS ON, and if disabled the multipliers are 1
     # VALUES MUST BE OF TYPE INTEGER, NOT NUMERIC
-    rSOILWAT2::swCarbon_Future_Bio(swRunScenariosData[[1]]) <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Future_Sto(swRunScenariosData[[1]]) <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Retro_Bio(swRunScenariosData[[1]])  <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Retro, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Retro_Sto(swRunScenariosData[[1]])  <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Retro, ignore.case = TRUE))
-    if (!is.na(i_sw_input_treatments$CO2_RCP)) {
-      print(paste("The RCP for all scenarios was overwitten with:", i_sw_input_treatments$CO2_RCP))
+    rSOILWAT2::swCarbon_Future_Bio(swRunScenariosData[[1]])      <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
+    rSOILWAT2::swCarbon_Future_Sto(swRunScenariosData[[1]])      <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
+    rSOILWAT2::swCarbon_Historical_Bio(swRunScenariosData[[1]])  <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Historical, ignore.case = TRUE))
+    rSOILWAT2::swCarbon_Historical_Sto(swRunScenariosData[[1]])  <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Historical, ignore.case = TRUE))
+    if (!is.na(i_sw_input_treatments$CO2_RCP))
       rSOILWAT2::swCarbon_RCP(swRunScenariosData[[1]]) <- as.integer(i_sw_input_treatments$CO2_RCP)
-    }
-    
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -1548,6 +1545,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       delta <- str_match(model_name, "d[0-9]+yrs")
       delta <- str_match(delta, "[0-9]+")
       rSOILWAT2::swCarbon_Delta(swRunScenariosData[[sc]]) <- as.integer(delta[1])
+      if (is.na(delta[1])) stop(paste("The delta year could not be found for model", model_name))
       
       # Extract the RCP if the user did not override
       # "hybrid-delta-3mod.d40yrs.RCP85.CESM1-CAM5" --> 85
@@ -1555,10 +1553,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         RCP <- str_match(model_name, "RCP[0-9]+")
         RCP <- str_match(RCP, "[0-9]+")
         rSOILWAT2::swCarbon_RCP(swRunScenariosData[[sc]]) <- as.integer(RCP[1])
-        print(paste("This scenario's RCP is:", RCP))
+        if(is.na(RCP[1])) stop(paste("The RCP could not be found for model", model_name))
       }
-      
-      if (is.na(delta[1]) || is.na(RCP[1])) stop(paste("The delta year or RCP could not be found for model", model_name))
     }
     
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
