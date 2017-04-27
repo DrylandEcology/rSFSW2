@@ -696,23 +696,22 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       # Update
       update_input_data(extracted_soil_data, label, keys)
       # If any site completes an extraction, set idone to true
-      MMC[["idone"]]["SSURGO"] <- TRUE
+      MMC[["idone"]]["SSURGO"] <<- TRUE
       # Set this site's source to SSURGO
-      MMC[["source"]][i]       <- "SSURGO"
+      MMC[["source"]][i]       <<- "SSURGO"
+
+      cat("\n    > Done!\n\n")
     }
-    ########################################################################
-    # Reset variables for next site
-    ########################################################################
-    DATA <<- NULL
-    cat("\n    > Done!\n\n")
     
     ########################################################################
     # Extract STATSGO based on described cases
     ########################################################################
+    #print(MMC)
     if (do_STATSGO)
-      MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC = MMC, sim_size = sim_size, sim_space = sim_space,
+      MMC <<- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC = MMC, sim_size = sim_size, sim_space = sim_space,
                                                             dir_ex_soil = dir_ex_soil,
                                                             fnames_in = fnames_in, resume = resume, verbose = verbose)
+
     ########################################################################
     # Write to the CSVs
     ########################################################################
@@ -723,7 +722,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     # Exit
     ########################################################################
     setwd(old_wd)
-    MMC
   }
   # End main function
   
@@ -753,16 +751,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     cat(paste("\n             > STATSGO data will be extracted for this site once the other sites are finished.\n\n"))
     flag_statsgo(label)
     NULL
-  }
-  
-  #' @title Fill the next row with NA
-  #' @description The next row in both the soil layers and soil texture will have a label inserted and
-  #' the data filled with NA, so that other external extractions will be able to insert data there.
-  #' @param label The matching label for this site in Input Master
-  fill_row_with_NA <- function(label) {
-    # Add labels
-    update_soil_texture(nrow(MMC[["input"]]) + 1, "Label", label)
-    update_soil_layer(nrow(MMC[["input2"]]) + 1, "Label", label)
   }
   
   #' @title Convert coordinates to a bounding box
@@ -970,16 +958,16 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     # Initialize
     ############################################################################
     # Insert site names
-    x <- nrow(MMC[["input"]])
-    y <- nrow(MMC[["input2"]])
-    MMC[["input"]][x, "Label"]  <<- label
-    MMC[["input2"]][y, "Label"] <<- label
+    x <- as.integer(rownames(MMC[["input"]][label, ]))
+    x2 <- as.integer(rownames(MMC[["input2"]][label, ]))
+    MMC[["input"]][x, "Label"]   <<- label
+    MMC[["input2"]][x2, "Label"] <<- label
     # Insert the max soil depth
     MMC[["input2"]][x, "SoilDepth_cm"] <<- hzdepb[length(hzdepb)]
     # Insert key info
-    MMC[["input2"]][y, "Mukey"]    <<- keys[1]
-    MMC[["input2"]][y, "Cokey"]    <<- keys[2]
-    MMC[["input2"]][y, "Comppct"]  <<- comppct
+    MMC[["input2"]][x2, "Mukey"]   <<- keys[1]
+    MMC[["input2"]][x2, "Cokey"]   <<- keys[2]
+    MMC[["input2"]][x2, "Comppct"] <<- comppct
 
     ############################################################################
     # Create a dummy layer if needed
@@ -1005,7 +993,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       update_soil_texture(x, paste(column_names$clay, 1, sep=""), clay[1])
       update_soil_texture(x, paste(column_names$matrix, 1, sep=""), dbthirdbar[1])  
       update_soil_texture(x, paste(column_names$gravel, 1, sep=""), gravel[1])  
-      update_soil_layer(y, paste(column_names$depth, 1, sep=""), 15)  # Set the depth for this layer
+      update_soil_layer(x2, paste(column_names$depth, 1, sep=""), 15)  # Set the depth for this layer
     }
     
     ############################################################################
@@ -1020,7 +1008,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       if (is.na(sand[j]) && is.na(clay[j]) && is.na(silt[j]) && is.na(dbthirdbar[j]) && is.na(gravel[j])) {
         # Discard the last layer and update the max soil depth
         cat("\n        > Soil texture data incomplete; a layer has been discarded")
-        update_soil_layer(y, "SoilDepth_cm", hzdepb[j - 1])
+        update_soil_layer(x2, "SoilDepth_cm", hzdepb[j - 1])
         # Increase the number of failed layers
         failures <- failures + 1
         next
@@ -1039,7 +1027,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       update_soil_texture(x, paste(column_names$clay, k, sep=""), clay[j])
       update_soil_texture(x, paste(column_names$matrix, k, sep=""), dbthirdbar[j])  
       update_soil_texture(x, paste(column_names$gravel, k, sep=""), gravel[j])  
-      update_soil_layer(y, paste(column_names$depth, k, sep=""), hzdepb[j])  # Set the depth for this layer
+      update_soil_layer(x2, paste(column_names$depth, k, sep=""), hzdepb[j])  # Set the depth for this layer
     }
     
     ############################################################################
@@ -1116,7 +1104,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
   if (n_extract > 0) {
     if (verbose)
       print(paste("Soil data from 'SSURGO' will be extracted for n =", n_extract, "sites"))
-    MMC <- main()
+    main()
   }
   MMC
 }
