@@ -62,6 +62,10 @@ project_paths <- list(
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
   dir_ex_dem = file.path(dir_ex, "Topography")
+  
+  # Path to where external data are extracted
+  dir_to = dir_to <- file.path("C:/GIT/My_Data")
+  dir_to_SSURGO = file.path(dir_to, "SSURGO")
 )
 
 
@@ -172,7 +176,11 @@ opt_input <- list(
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
       #   - ISRIC-WISE v1.2: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
-      "ExtractSoilDataFromISRICWISEv12_Global", 0
+      "ExtractSoilDataFromISRICWISEv12_Global", 0,
+      #   - Contains information about soil as collected by the National Cooperative Soil Survey.
+      #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
+      #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
+      "ExtractSoilDataFromSSURGO", 0
   ),
 
   # Approach to determine prioprities of external data source extractions
@@ -196,7 +204,7 @@ opt_input <- list(
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
     "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
-    "NCEPCFSR_Global"),
+    "SSURGO", "NCEPCFSR_Global"),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
