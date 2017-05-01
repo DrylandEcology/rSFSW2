@@ -377,8 +377,7 @@ set_requested_rSOILWAT2_InputFlags <- function(tasks, swIn, tag, use, values, fu
       def[itemp > 0] <- vals[itemp]
 
       if (reset) {
-        i_reset <- i_flags & !use
-        def[i_reset] <- default
+        def[itemp == 0] <- default
       }
 
       swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
