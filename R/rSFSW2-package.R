@@ -38,6 +38,7 @@
 #'    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #'    GNU General Public License for more details.
 #'
+#' @useDynLib rSFSW2, .registration = TRUE, .fixes = "C_"
 #' @docType package
 #' @name rSFSW2
 "_PACKAGE"
@@ -52,6 +53,5 @@ NULL
 
 
 ##------ Support Rcpp
-#' @useDynLib rSFSW2
 #' @importFrom Rcpp sourceCpp evalCpp
 NULL
