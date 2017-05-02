@@ -301,7 +301,6 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
       yearHigh = SFSW2_prj_meta[["sim_time"]][["endyr"]],
       dir_ex_cfsr = SFSW2_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      cfsr_so = SFSW2_prj_meta[["prepd_CFSR"]]$cfsr_so,
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
       opt_parallel = opt_parallel, rm_mc_files = TRUE, resume = resume))
 

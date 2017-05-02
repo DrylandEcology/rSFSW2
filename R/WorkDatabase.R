@@ -172,6 +172,7 @@ dbWork_timing <- function(path) {
 #' Set runs information that need to be redone / simulated (again)
 #'
 #' @inheritParams create_dbWork
+#' @inheritParams dbWork_update_job
 #' @return A logical vector indicating success.
 #' @export
 dbWork_redo <- function(path, runIDs) {
@@ -195,6 +196,7 @@ dbWork_redo <- function(path, runIDs) {
 #' Check run status
 #'
 #' @inheritParams create_dbWork
+#' @inheritParams dbWork_update_job
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
 #' @export
 dbWork_check <- function(path, runIDs) {
@@ -316,6 +318,7 @@ recreate_dbWork <- function(path, dbOutput) {
 #' Check run status
 #'
 #' @inheritParams create_dbWork
+#' @inheritParams dbWork_update_job
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
 #' @export
 dbWork_check <- function(path, runIDs) {
