@@ -18,12 +18,11 @@ cond4 <- cbind(matrix(TRUE, nrow = Nd, ncol = Nl3),
 # rSFSW2 version of function 'get_KilledBySoilLayers()' uses argument "PACKAGE = 'rSFSW2'"
 # in .Call; however, this is not available when run with R CMD check
 get_KilledBySoilLayers2 <- function(relevantLayers, kill_conditions) {
-    .Call('rSFSW2_get_KilledBySoilLayers', relevantLayers, kill_conditions)
+    .Call(C_rSFSW2_get_KilledBySoilLayers, relevantLayers, kill_conditions)
 }
 
 
 test_that("get_KilledBySoilLayers", {
-  skip_if_not(is.loaded("rSFSW2_get_KilledBySoilLayers"))
 
   expect_equal(get_KilledBySoilLayers2(NA, cond1), NA)
   expect_equal(get_KilledBySoilLayers2(Nl, cond1), FALSE)
