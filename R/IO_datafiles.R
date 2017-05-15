@@ -258,12 +258,14 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
           # panel a: map
           n_cols <- 255
+          # To have unique breaks, they should be a sequence from the lowest value to the highest value
+          breaks <- seq(floor(min(na.exclude(dat))), ceiling(max(na.exclude(dat))) + 1)  # Add 1 in case the data only holds a value of 0
           cols <- rev(grDevices::terrain.colors(7))
           cols[1] <- "gray"
           cols <- grDevices::colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
           if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "point") {
             par1 <- graphics::par(mar = c(2.5, 2.5, 0.5, 8.5))
-            cdat <- cut(dat, n_cols)
+            cdat <- cut(dat, breaks)
             p_size <- function(x) max(0.25, min(2, 100 / x))
             sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
               cex = p_size(length(dat)), axes = TRUE, asp = 1)
