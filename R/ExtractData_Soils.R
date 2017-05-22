@@ -14,8 +14,10 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
     rep(SFSW2_glovars[["slyrs_ids"]], each = nvars)))
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
     ncol = 2 + nvars * SFSW2_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
-  vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "GravelContent_L", "Sand_L",
-    "Clay_L", "TOC_GperKG_L"), intern = c("depth", lvars), stringsAsFactors = FALSE)
+  vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "Sand_L",
+                               "Clay_L", "GravelContent_L", "TOC_GperKG_L"),
+                     intern = c("depth", lvars),
+                     stringsAsFactors = FALSE)
 
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
