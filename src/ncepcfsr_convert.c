@@ -400,35 +400,45 @@ double getWindSpeed(double u, double v) {
 // forks the process and then runs wgrib2 & waits until it finishes... this will only work correctly on a UNIX based computer.  Replace all the forking and use spawnv on a windows based computer.
 void wgrib2(char *argv[]) {
 
-	printFlush(); // empty the io buffers before forking...
-	int mypid = fork();
+  printFlush(); // empty the io buffers before forking...
 
-    if( mypid < 0) {
-    	error(1, "ERROR: process failed to fork and run wgrib2\n");
+  #if defined(_WIN32) || defined(_WIN64)
+    fprintf(stderr, "ERROR: multi-threading for function wgrib2 is not supported on Windows");
+    exit(1);
+  #else
+    int mypid = fork();
+    if(mypid < 0) {
+      error(1, "ERROR: process failed to fork and run wgrib2\n");
     } else if(0 == mypid) { // child process
-    	if(suppresswGrib2 == 1) {
-    		freopen("/dev/null", "w", stdout); //redirects stdout to "/dev/null".  /dev/null is a special file that discards all data written to it.  It's like a black hole.  This doesn't affect the output of the main program, since this is only done in the child process.  (which is terminated after the execv call)
-    		// fclose(stdout); // closes stdout... this doesn't actually work to suppress wgrib2, b/c if you close the stdout, then wgrib2 simply outputs the messages it would in the terminal in the csv files it outputs, thereby making it not work... really freaking aggravating.
+        if(suppresswGrib2 == 1) {
+          freopen("/dev/null", "w", stdout); //redirects stdout to "/dev/null".  /dev/null is a special file that discards all data written to it.  It's like a black hole.  This doesn't affect the output of the main program, since this is only done in the child process.  (which is terminated after the execv call)
+          // fclose(stdout); // closes stdout... this doesn't actually work to suppress wgrib2, b/c if you close the stdout, then wgrib2 simply outputs the messages it would in the terminal in the csv files it outputs, thereby making it not work... really freaking aggravating.
         }
         execv("wgrib2", argv);
-		//program should never reach this line unless there is an error calling execv
-		fprintf(stderr, "ERROR: running wgrib2 failed\n");
+        //program should never reach this line unless there is an error calling execv
+        fprintf(stderr, "ERROR: running wgrib2 failed\n");
         exit(1);
     } else {  // parent process
         waitpid (0, NULL, 0); // waitpid() waits for the child process to finish...
     }
+  #endif
 }
 
 
 // calls the system... will supress the output of the call if suppresswGrib2 is 1...
 void callSystem(char* call) {
-	int pid = fork();
-	if(pid == 0) { //child
-		if(suppresswGrib2 == 1) freopen("/dev/null", "w", stdout);
-		system(call);
-		exit(0);
-	} else //parent
-		waitpid(0, NULL, 0);
+  #if defined(_WIN32) || defined(_WIN64)
+    fprintf(stderr, "ERROR: multi-threading for function callSystem is not supported on Windows");
+    exit(1);
+  #else
+    int pid = fork();
+    if(pid == 0) { //child
+      if(suppresswGrib2 == 1) freopen("/dev/null", "w", stdout);
+      system(call);
+      exit(0);
+    } else //parent
+        waitpid(0, NULL, 0);
+  #endif
 }
 
 // calls wgrib2 to chop a daily grib file... changes the packing of the output grib file to complex3 also
