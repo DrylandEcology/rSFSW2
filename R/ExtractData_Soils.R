@@ -665,7 +665,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       # Check if any key was extracted
       if (keys[1] == 0) {
         flag_statsgo(label)
-        break  # No keys exist, so move on to the next site
+        next  # No keys exist, so move on to the next site
       }
       
       ######################################################################
@@ -696,13 +696,13 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       ######################################################################
       cat("\n    > Writing to MMC variable...")
       # Update
-      update_input_data(extracted_soil_data, label, keys)
-      # If any site completes an extraction, set idone to true
-      MMC[["idone"]]["SSURGO"] <<- TRUE
-      # Set this site's source to SSURGO
-      MMC[["source"]][i]       <<- "SSURGO"
-
-      cat("\n    > Done!\n\n")
+      if (update_input_data(extracted_soil_data, label, keys, i)) {
+        # If any site completes an extraction, set idone to true
+        MMC[["idone"]]["SSURGO"] <<- TRUE
+        # Set this site's source to SSURGO
+        MMC[["source"]][i]       <<- "SSURGO"
+        cat("\n    > Done!\n\n")
+      }
     }
     
     ########################################################################
@@ -866,7 +866,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     DATA <- grab_data(soil_data)
     if (length(DATA$mukey) == 0) {
       cat("\n        > Error")
-      cat(paste("\n             > No mukey\n"))
+      cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
       return(c(0))
     }
     # Grab the mukey and cokey
@@ -940,7 +940,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
   
   #' @title Update the soil layers and soil texture inputs
   #' @param formatted_data - see return value of extract_and_format_soil_data
-  update_input_data <- function(formatted_data, label, keys) {
+  update_input_data <- function(formatted_data, label, keys, row_num) {
     
     ############################################################################
     # Extract data
@@ -960,8 +960,8 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     # Initialize
     ############################################################################
     # Insert site names
-    x <- as.integer(rownames(MMC[["input"]][label, ]))
-    x2 <- as.integer(rownames(MMC[["input2"]][label, ]))
+    x <- as.integer(rownames(MMC[["input"]][row_num, ]))
+    x2 <- as.integer(rownames(MMC[["input2"]][row_num, ]))
     MMC[["input"]][x, "Label"]   <<- label
     MMC[["input2"]][x2, "Label"] <<- label
     # Insert the max soil depth
@@ -976,16 +976,21 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     ############################################################################
     dummy <- 0
     if (hzdepb[1] > 15) {
-      # TODO: Check first layer for incomplete data (currently the incremented section does this, but the dummy layer needs it too)
+      if (is.na(sand[1]) || is.na(clay[1]) || is.na(silt[1]) || is.na(dbthirdbar[1])) {
+        cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+        flag_statsgo(label)
+        return(0)
+      }
       # We will duplicate the first layer's data into soil texture, set the first layer depth to 15, THEN insert this site
       cat("\n        > First layer exceeds 15cm; creating a dummy layer")
       dummy <- 1
       # Check for incomplete data in the first layer
       # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-      if (is.na(gravel[1])) {
+      if (is.na(gravel[1]) || gravel == 0) {
         cat("\n        > Gravel content is missing in the dummy layer; filling it with 0.01 (this also fills the first 'real' layer)")
         gravel[1] <- 0.01
       }
+
       # Sand, clay, matrix, and gravel data
       update_input_use(paste(column_names$sand, 1, sep = ""), sand[1])
       update_input_use(paste(column_names$clay, 1, sep = ""), clay[1])
@@ -1004,19 +1009,15 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     for (j in 1:length(hzdepb)) {
       # If a dummy layer was created, we want use the CURRENT layer's data but insert it into the NEXT layer
       k <- j + dummy
-      # Skip this layer if it lacks sand, clay, silt, matric, and gravel data
+      # Skip this site if it lacks sand, clay, silt, matric, or gravel data
       #   > This usually occurs when there is a depth recorded, but no texture data
-      #   > Currently this assumes that the LAST layer was the culprit (which could cause issues)
-      if (is.na(sand[j]) && is.na(clay[j]) && is.na(silt[j]) && is.na(dbthirdbar[j]) && is.na(gravel[j])) {
-        # Discard the last layer and update the max soil depth
-        cat("\n        > Soil texture data incomplete; a layer has been discarded")
-        update_soil_layer(x2, "SoilDepth_cm", hzdepb[j - 1])
-        # Increase the number of failed layers
-        failures <- failures + 1
-        next
+      if (is.na(sand[j]) || is.na(clay[j]) || is.na(silt[j]) || is.na(dbthirdbar[j])) {
+        cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+        flag_statsgo(label)
+        return(0)
       }
       # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-      if (is.na(gravel[j])) {
+      if (is.na(gravel[j]) || gravel == 0 || is.null(gravel)) {
         cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
         gravel[j] <- 0.01
       }
@@ -1032,15 +1033,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       update_soil_layer(x2, paste(column_names$depth, k, sep=""), hzdepb[j])  # Set the depth for this layer
     }
     
-    ############################################################################
-    # Check if site failed
-    ############################################################################
-    if(failures == length(hzdepb)) {
-      # All layers failed
-      # This is a rare case, but is possible in areas where SSURGO is published but knowingly incomplete
-      cat("\n        > All layers failed; will fill with STATSGO")
-      flag_statsgo(label)
-    }
+    return(1)
   }
   
   #' @title Convert SSURGO units to our units
@@ -1080,7 +1073,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
   #'       but fill_row_with_NA is called within this function to reduce unneeded function calls.
   flag_statsgo <- function(label) {
     do_STATSGO <<- TRUE
-    #fill_row_with_NA(label)
   }
   
   ##############################################################################
