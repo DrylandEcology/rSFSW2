@@ -590,8 +590,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 #   1) SSURGO failed to download/extract with the FedData library
 #   2) Keys were not chosen because the data was incomplete
 #   3) No horizons exist
-#   4) All of the horizons lacked data
-#   5) The soil texture was completely NA for all layers of a site
+#   4) The soil texture lacked data for any given layer of a site
 #
 # Read the multi-line comments in main() for a summary of how this
 # function works
@@ -602,14 +601,9 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 #' @author Zachary Kramer, \email{kramer.zachary.nau@gmail.com}
 #' @title Download and extract SSURGO data
 #' @description Download the respective SSURGO area for each site, extract
-#' the data into both spatial and tabular files, iterate through all of the keys, 
+#' the data into both spatial and tabular files, choose the most prominent keys, 
 #' extract the respective data within the keys, and populate the soil layers and soil texture
 #' slots in the MMC variable with that data.
-#' @details \preformatted{1) Pre-steps (libraries, settings, directory)
-#' 2) Download a site and extract it into spatial and tabular data
-#' 3) Choose a cokey, mukey, and the respective chkeys
-#' 4) Extract the necessary data fields from the tabular data
-#' 5) Populate CSVs and global variables}
 #' @export
 do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, SWRunInformation, print.debug, sim_size, sim_space, dir_ex_soil, resume) {
   
@@ -652,7 +646,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       if (is.null(downloaded_soil_data)) next
 
       ########################################################################
-      # Go through all mukeys, then grab all related cokeys and chkeys
+      # Find the most prominent mukey, cokey, and the corresponding chkeys
       ########################################################################
       if (print.debug) cat("\n    > Choosing keys...")
       
@@ -735,7 +729,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   update_soil_layer   <- function(row, column, value) if (is.not.na(value)) MMC[["input2"]][row, column] <<- value
   
   #' @title Error/Warning Message
-  #' @description Prints out a relevant message whenever some aspect of this function fails
+  #' @description Prints out why a function call failed
   #' It will also enable the extraction of STATSGO once all sites are finished
   error_warning_msg <- function(label, lat, lon, msg) {
     # Print the raw error
@@ -783,12 +777,12 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       s           <- 0
       for (i in 1:nrow(DATA)) {
         if (DATA$mukey[i] != mukey || i == nrow(DATA)) {  # Change of mukey or end of the last mukey
-          if (s > largest_sum) {                              # This mukey has a larger total component percent
-            largest_sum   <- s                                # Update the largest sum
-            largest_mukey <- mukey                            # Update the largest mukey
+          if (s > largest_sum) {                          # This mukey has a larger total component percent
+            largest_sum   <- s                            # Update the largest sum
+            largest_mukey <- mukey                        # Update the largest mukey
           }
-          mukey <- DATA$mukey[i]                            # Next mukey
-          s     <- 0                                          # Reset sum
+          mukey <- DATA$mukey[i]                          # Next mukey
+          s     <- 0                                      # Reset sum
         }
         s <- s + DATA$comppct.r[i]  
       }
@@ -809,19 +803,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
             cokey       <- DATA$cokey[i]          # Save cokey
           }
       cokey
-    }
-
-    select_all_keys <- function(DATA) {
-      # Assumes that mukeys are in order
-      col_names <- c("mukey", "cokey", "comppct", "chkey") 
-      keys      <- data.frame(data.frame(matrix(ncol = length(col_names)*0, nrow = nrow(DATA))))
-      for (i in 1:nrow(DATA)) {
-        keys$mukey[i]   <- DATA$mukey[i]
-        keys$cokey[i]   <- DATA$cokey[i]
-        keys$comppct[i] <- DATA$comppct.r[i]
-        keys$chkey[i]   <- DATA$chkey[i]
-      }
-      keys
     }
     
     #' @title Extract needed fields
@@ -877,7 +858,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
         chkeys <- c(chkeys, DATA$chkey[i])
     c(mukey, cokey, chkeys)
   }
-  
   
   #' @title Extract and format soil data
   #' @description Extract the needed data fields from the input, but only if the data fields match the chosen keys.
@@ -970,7 +950,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     MMC[["input2"]][x2, "Comppct"] <<- comppct
 
     ############################################################################
-    # Create a dummy layer if needed
+    # Create a dummy layer if the first layer is deeper than 15cm
     ############################################################################
     dummy <- 0
     if (hzdepb[1] > 15) {
@@ -1081,11 +1061,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   stopifnot(requireNamespace("FedData"))
   
   # Initialize settings
-  # -------------------
-  # Reset per site
-  DATA                     <- NULL   # Holds extracted data
-  choosing_keys            <- TRUE   # When FALSE, indicates that all keys have been iterated through
-  # Not reset per site
   do_STATSGO               <- FALSE  # Indicates that STATSGO should be extracted to fill in missing data
   MMC[["idone"]]["SSURGO"] <- FALSE  # Meaning before the run, SSURGO has not finished
   # Determine which sites to extract for
@@ -1093,7 +1068,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   names(todos) <- NULL
   # Determine the number of sites to extract for
   n_extract <- sum(todos)
-  # Call to main
+  # Call main
   if (n_extract > 0) {
     if (verbose)
       print(paste("Soil data from 'SSURGO' will be extracted for n =", n_extract, "sites"))
