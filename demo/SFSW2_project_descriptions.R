@@ -61,11 +61,12 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography")
+  dir_ex_dem = file.path(dir_ex, "Topography"),
   
-  # Path to where external data are extracted
-  dir_to = dir_to <- file.path("C:/GIT/My_Data")
-  dir_to_SSURGO = file.path(dir_to, "SSURGO")
+  # Path to where extracted and downloaded data are held
+  dir_data = dir_data <- file.path("C:/GIT/My_Data"),
+  # SSURGO data is not held on a per-site basis, and instead accumlates with each run
+  dir_data_SSURGO = file.path(dir_data, "SSURGO")
 )
 
 
@@ -203,8 +204,8 @@ opt_input <- list(
   #   position of 'dw_source_priority' if available, if not then second etc.
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
-    "SSURGO", "NCEPCFSR_Global"),
+                         "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
+                         "NCEPCFSR_Global"),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
@@ -504,7 +505,7 @@ req_out <- list(
     "dailyDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
-    "yearlyWaterBalanceFluxes", 1,
+    "yearlyWaterBalanceFluxes", 0,
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
@@ -517,8 +518,8 @@ req_out <- list(
   #---Aggregation: Ecological dryness
     # Note: 'dailyNRCS_SoilMoistureTemperatureRegimes*' require at least soil layers at
     #   10, 20, 30, 50, 60, 90 cm
-    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 1,
-    "dailyNRCS_SoilMoistureTemperatureRegimes", 1,
+    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 0,
+    "dailyNRCS_SoilMoistureTemperatureRegimes", 0,
     "dailyNRCS_Chambers2014_ResilienceResistance", 1,
     "dailyNRCS_Maestas2016_ResilienceResistance", 1,
     "dailyWetDegreeDays", 1,

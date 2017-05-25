@@ -611,7 +611,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 #' 4) Extract the necessary data fields from the tabular data
 #' 5) Populate CSVs and global variables}
 #' @export
-do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose, SWRunInformation, print.debug, sim_size, sim_space, dir_ex_soil, resume) {
+do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, SWRunInformation, print.debug, sim_size, sim_space, dir_ex_soil, resume) {
   
   # Begin main function (called at end)
   main <- function() {
@@ -624,9 +624,9 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     # Set directory
     old_wd <- getwd()
     # Create new directory if it doesn't exist
-    dir.create(dir_to_SSURGO, showWarnings = F, recursive = T)  
+    dir.create(dir_data_SSURGO, showWarnings = F, recursive = T)  
     # Set working directory
-    setwd(dir_to_SSURGO)
+    setwd(dir_data_SSURGO)
     # Iterate through each site
     for (i in which(todos)) {
       # Extract settings
@@ -642,11 +642,10 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       #########################################################################
       # Download this site and extract it into spatial and tabular data
       #########################################################################
-      cat(paste("Site", i))  # Example: Site 1, Site 4, Site 5
-      cat("\n    > Downloading SSURGO data...")
-      
+      if (print.debug) cat(paste("Site", i))
+      if (print.debug) cat("\n    > Downloading SSURGO data...")
       # Get the NRCS SSURGO data (USA ONLY)
-      downloaded_soil_data <- tryCatch({ get_ssurgo(template = site, label = paste("SSURGO-", lat, "-", lon, sep=""))},  # Download to a folder: "SSURGO-[LAT]-[LON]"
+      downloaded_soil_data <- tryCatch({ suppressMessages(get_ssurgo(template = site, label = paste("SSURGO-", lat, "-", lon, sep="")))},  # Download to a folder: "SSURGO-[LAT]-[LON]"
                             error   = function(e) { error_warning_msg(label, lat, lon, e) },
                             warning = function(w) { error_warning_msg(label, lat, lon, w) })
       # Check if FedData was able to download and extract the files
@@ -655,7 +654,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       ########################################################################
       # Go through all mukeys, then grab all related cokeys and chkeys
       ########################################################################
-      cat("\n    > Choosing keys...")
+      if (print.debug) cat("\n    > Choosing keys...")
       
       # Go through each cokey for each mukey
       keys <- tryCatch({ choose_keys(downloaded_soil_data)},
@@ -663,25 +662,25 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
                        warning = function(w) { error_warning_msg(label, lat, lon, w) })
       # Check if any key was extracted
       if (keys[1] == 0) {
-        flag_statsgo(label)
+        do_STATSGO <<- TRUE
         next  # No keys exist, so move on to the next site
       }
       
       ######################################################################
       # For simplicity, extract only the fields that we will be working with
       ######################################################################
-      cat("\n    > Extracting needed data from SSURGO CSVs...")
+      if (print.debug) cat("\n    > Extracting needed data from SSURGO CSVs...")
       
       # Extract data
       extracted_soil_data <- extract_and_format_soil_data(downloaded_soil_data, keys, label)
       # Do any horizons exist?
       if (length(extracted_soil_data$hzdepb.r) == 0) {
-        cat("\n        > No horizons exist for this site; will fill with STATSGO\n\n")
+        if (print.debug) cat("\n        > No horizons exist for this site; will fill with STATSGO\n\n")
         next  # This key lacked too much data, move on to the next
       }
       # Are the horizons filled with NA?
       if (is.na(extracted_soil_data$sandtotal.r) && is.na(extracted_soil_data$claytotal.r) && is.na(extracted_soil_data$silttotal.r) && is.na(extracted_soil_data$dbthirdbar)) {
-        cat("\n        > All of the horizons lacked data; will fill with STATSGO\n\n")
+        if (print.debug) cat("\n        > All of the horizons lacked data; will fill with STATSGO\n\n")
         next
       }
       
@@ -693,21 +692,20 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       ######################################################################
       # Update input file values (soil layers, soil texture, input master)
       ######################################################################
-      cat("\n    > Writing to MMC variable...")
+      if (print.debug) cat("\n    > Writing to MMC variable...")
       # Update
       if (update_input_data(extracted_soil_data, label, keys, i)) {
         # If any site completes an extraction, set idone to true
         MMC[["idone"]]["SSURGO"] <<- TRUE
         # Set this site's source to SSURGO
         MMC[["source"]][i]       <<- "SSURGO"
-        cat("\n    > Done!\n\n")
+        if (print.debug) cat("\n    > Done!\n\n")
       }
     }
     
     ########################################################################
     # Extract STATSGO based on described cases
     ########################################################################
-    #print(MMC)
     if (do_STATSGO)
       MMC <<- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC = MMC, sim_size = sim_size, sim_space = sim_space,
                                                             dir_ex_soil = dir_ex_soil,
@@ -740,17 +738,19 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
   #' @description Prints out a relevant message whenever some aspect of this function fails
   #' It will also enable the extraction of STATSGO once all sites are finished
   error_warning_msg <- function(label, lat, lon, msg) {
-    # Print the raw error, if requested
-    if (print.debug) {
-      cat("\n        > Raw errors are enabled by print.debug:")
+    # Print the raw error
+    if (FALSE) {
+      cat("\n        > Raw errors were manually enabled:")
       cat(paste("\n          ", msg))
     }
-    # Always print the summarized error
-    cat("\n        > Summarized error:")
-    cat(paste("\n             > Coordinates (", lat, ", ", lon, ") failed.", sep=""))
-    cat(paste("\n             > Please check whether or not SSURGO supports the coordinates."))
-    cat(paste("\n             > STATSGO data will be extracted for this site once the other sites are finished.\n\n"))
-    flag_statsgo(label)
+    # Print the summarized error
+    if (print.debug) {
+      cat("\n        > Summarized error:")
+      cat(paste("\n             > Coordinates (", lat, ", ", lon, ") failed.", sep=""))
+      cat(paste("\n             > Please check whether or not SSURGO supports the coordinates."))
+      cat(paste("\n             > STATSGO data will be extracted for this site once the other sites are finished.\n\n"))
+    }
+    do_STATSGO <<- TRUE
     NULL
   }
   
@@ -808,7 +808,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
             largest_pct <- DATA$comppct.r[i]
             cokey       <- DATA$cokey[i]          # Save cokey
           }
-      cat(paste("Found cokey with", largest_pct, "component percent"))
       cokey
     }
 
@@ -864,8 +863,8 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     # Create data frame with needed data
     DATA <- grab_data(soil_data)
     if (length(DATA$mukey) == 0) {
-      cat("\n        > Error")
-      cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
+      if (print.debug) cat("\n        > Error")
+      if (print.debug) cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
       return(c(0))
     }
     # Grab the mukey and cokey
@@ -976,17 +975,17 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     dummy <- 0
     if (hzdepb[1] > 15) {
       if (is.na(sand[1]) || is.na(clay[1]) || is.na(silt[1]) || is.na(dbthirdbar[1])) {
-        cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
-        flag_statsgo(label)
+        if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+        do_STATSGO <<- TRUE
         return(0)
       }
       # We will duplicate the first layer's data into soil texture, set the first layer depth to 15, THEN insert this site
-      cat("\n        > First layer exceeds 15cm; creating a dummy layer")
+      if (print.debug) cat("\n        > First layer exceeds 15cm; creating a dummy layer")
       dummy <- 1
       # Check for incomplete data in the first layer
       # If gravel content is missing, add a value of .01 so SOILWAT will not fail
       if (is.na(gravel[1]) || gravel == 0) {
-        cat("\n        > Gravel content is missing in the dummy layer; filling it with 0.01 (this also fills the first 'real' layer)")
+        if (print.debug) cat("\n        > Gravel content is missing in the dummy layer; filling it with 0.01 (this also fills the first 'real' layer)")
         gravel[1] <- 0.01
       }
 
@@ -1011,13 +1010,13 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
       # Skip this site if it lacks sand, clay, silt, matric, or gravel data
       #   > This usually occurs when there is a depth recorded, but no texture data
       if (is.na(sand[j]) || is.na(clay[j]) || is.na(silt[j]) || is.na(dbthirdbar[j])) {
-        cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
-        flag_statsgo(label)
+        if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+        do_STATSGO <<- TRUE
         return(0)
       }
       # If gravel content is missing, add a value of .01 so SOILWAT will not fail
       if (is.na(gravel[j]) || gravel == 0 || is.null(gravel)) {
-        cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
+        if (print.debug) cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
         gravel[j] <- 0.01
       }
       # Sand, clay, matrix, and gravel data
@@ -1065,18 +1064,19 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_to_SSURGO, fnames_in, verbose,
     formatted_data
   }
   
-  #' @title Extract STATSGO data once SSURGO finishes
-  #' @description Flag a function-level variable that will allow STATSGO data to be extracted afterwards
-  #' @param label The matching label for this site in Input Master
-  #' @note flag_statsgo and fill_row_with_NA are written as separate functions for lower coupling, 
-  #'       but fill_row_with_NA is called within this function to reduce unneeded function calls.
-  flag_statsgo <- function(label) {
-    do_STATSGO <<- TRUE
-  }
   
   ##############################################################################
   # Call main function
   ##############################################################################
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                          round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+  
   # Require FedData library
   stopifnot(requireNamespace("FedData"))
   
@@ -1136,7 +1136,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   if (exinfo$ExtractSoilDataFromSSURGO) {
     MMC <- do_ExtractSoilDataFromSSURGO(
       MMC              = MMC,
-      dir_to_SSURGO    = SFSW2_prj_meta[["project_paths"]][["dir_to_SSURGO"]],
+      dir_data_SSURGO  = SFSW2_prj_meta[["project_paths"]][["dir_data_SSURGO"]],
       fnames_in        = SFSW2_prj_meta[["fnames_in"]],
       verbose          = verbose,
       print.debug      = opt_verbosity[["print.debug"]],
