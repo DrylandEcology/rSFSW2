@@ -216,10 +216,9 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
     #Normalize to 0-1
     total_matric <- sand + clay + silt # values between 0.99 and 1.01 (of the matric component)
-    sand <- ifelse(is.finite(sand), sand, NA) / total_matric / 100 # mass fraction of matric component
-    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand
-    clay <- ifelse(is.finite(clay), clay, NA) / total_matric / 100 # mass fraction of matric component
-    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay
+    total_matric[!is.finite(total_matric)] <- NA
+    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand / total_matric
+    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay / total_matric
 
     # Determine successful extractions
     i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
