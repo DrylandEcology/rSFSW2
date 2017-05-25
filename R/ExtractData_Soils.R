@@ -14,8 +14,10 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
     rep(SFSW2_glovars[["slyrs_ids"]], each = nvars)))
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
     ncol = 2 + nvars * SFSW2_glovars[["slyrs_maxN"]], dimnames = list(NULL, coln))
-  vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "GravelContent_L", "Sand_L",
-    "Clay_L", "TOC_GperKG_L"), intern = c("depth", lvars), stringsAsFactors = FALSE)
+  vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "Sand_L",
+                               "Clay_L", "GravelContent_L", "TOC_GperKG_L"),
+                     intern = c("depth", lvars),
+                     stringsAsFactors = FALSE)
 
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
@@ -214,10 +216,9 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
     #Normalize to 0-1
     total_matric <- sand + clay + silt # values between 0.99 and 1.01 (of the matric component)
-    sand <- ifelse(is.finite(sand), sand, NA) / total_matric / 100 # mass fraction of matric component
-    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand
-    clay <- ifelse(is.finite(clay), clay, NA) / total_matric / 100 # mass fraction of matric component
-    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay
+    total_matric[!is.finite(total_matric)] <- NA
+    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand / total_matric
+    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay / total_matric
 
     # Determine successful extractions
     i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
