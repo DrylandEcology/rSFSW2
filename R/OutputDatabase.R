@@ -955,7 +955,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   missing_Pids <- as.integer(sort(missing_Pids))
   missing_runIDs <- NULL
   missing_Pids_current <- unique(unlist(missing_Pids_current))
-  missing_Pids_current <- as.integer(sort(missing_Pids_current))
+  if (!is.null(missing_Pids_current)) missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTables_Pids_missing.rds")
