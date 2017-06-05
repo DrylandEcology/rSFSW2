@@ -410,7 +410,6 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   }
 
   if (get_from_ornl) {
-    # daymetr package: https://bitbucket.org/khufkens/daymetr
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
     dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,

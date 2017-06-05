@@ -714,6 +714,8 @@ add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
     x <- as.matrix(x)
   ncols <- dim(x)[2]
 
+  stopifnot(length(w) == 2L, ncols > 0, is.finite(il), il >= 0, il <= ncols)
+
   if (ncols > il) {
     x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
 
@@ -740,8 +742,6 @@ add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
       x[, il] <- x[, il] * w[1] / sum(w)
     }
 
-  } else {
-    stop("Object x has ", ncols, " columns; thus, a new ", il, "-th column cannot be created")
   }
 
   x
