@@ -2538,6 +2538,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           stopifnot(any(opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == c("data", "conditions", "regime")))
 
           #Result containers
+          has_simulated_SoilTemp <- has_realistic_SoilTemp <- NA
           SMTR <- list()
           temp <- STR_names()
           SMTR[["STR"]] <- matrix(0, nrow = 1, ncol = length(temp), dimnames = list(NULL, temp))
@@ -2552,10 +2553,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "meanTair_Tsoil50_offset_C", paste0("V", 7:45))))
 
           if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
+            has_simulated_SoilTemp <- 1
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
             if (!anyNA(soiltemp.dy.all$val) && all(soiltemp.dy.all$val[, -(1:2)] < 100)) {
               # 100 C as upper realistic limit from Garratt, J.R. (1992). Extreme maximum land surface temperatures. Journal of Applied Meteorology, 31, 1096-1105.
+              has_realistic_SoilTemp <- 1
               if (!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "yrAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("soiltemp.mo.all")) soiltemp.mo.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "moAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3070,18 +3073,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             } else {
               if (opt_verbosity[["verbose"]])
                 print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
-                SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              has_realistic_SoilTemp <- 0
             }
 
           } else {
             if (opt_verbosity[["verbose"]])
               print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            has_simulated_SoilTemp <- 0
           }
 
           if (prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-            nv_new <- nv + 8
-            resMeans[nv:(nv_new - 1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
+            nv_new <- nv + 10
+            resMeans[nv:(nv_new - 1)] <- c(has_simulated_SoilTemp, has_realistic_SoilTemp,
+              Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
               permafrost_yrs, SMR_normalyears_N, as.integer(has_Ohorizon))
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
