@@ -202,6 +202,10 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
       use = SFSW2_prj_inputs[["sw_input_climscen_use"]])
   )
 
+  if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "point") {
+    p_size <- function(x) max(0.25, min(2, 100 / x))
+  }
+
   for (iv in seq_along(map_vars)) {
     iv_locs <- lapply(input_avail, function(ina)
       grep(map_vars[iv], ina$cols[ina$use], ignore.case = TRUE, value = TRUE))
@@ -257,29 +261,51 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
             mgp = c(1.25, 0.25, 0), tcl = 0.5, cex = 1)
 
           # panel a: map
-          n_cols <- 255
-          cols <- rev(grDevices::terrain.colors(7))
-          cols[1] <- "gray"
-          cols <- grDevices::colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
+          dx <- diff(range(dat, na.rm = TRUE))
+
+          if (abs(dx) < SFSW2_glovars[["tol"]] || !is.finite(dx)) {
+            n_cols <- 1L
+            cols <- "dodgerblue3"
+            n_legend <- 1L
+
+          } else {
+            n_cols <- 255L
+            cols <- rev(grDevices::terrain.colors(7))
+            cols[1] <- "gray"
+            cols <- grDevices::colorRampPalette(c(cols, "dodgerblue3"))(n_cols)
+            n_legend <- 12L
+          }
+
           if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "point") {
             par1 <- graphics::par(mar = c(2.5, 2.5, 0.5, 8.5))
-            cdat <- cut(dat, n_cols)
-            p_size <- function(x) max(0.25, min(2, 100 / x))
-            sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
-              cex = p_size(length(dat)), axes = TRUE, asp = 1)
-            # legend
-            ids <- round(seq(1, n_cols, length.out = 12))
+
+            if (n_cols == 1L) {
+              legend_labs <- as.character(dat[1])
+              sp::plot(sp_dat, col = cols, pch = 15, cex = 1, axes = TRUE, asp = 1)
+
+            } else {
+              cdat <- cut(dat, n_cols)
+              legend_labs <- levels(cdat)
+              sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
+                cex = p_size(length(dat)), axes = TRUE, asp = 1)
+            }
+
             lusr <- graphics::par("usr")
-            lxy <- cbind(rep(lusr[2] + (lusr[2] - lusr[1]) / 15, 12),
-              lusr[3] + (lusr[4] - lusr[3]) / 4 + seq(0, 1, length.out = 12) *
-              (lusr[4] - lusr[3]) / 2)
+            lx <- lusr[2] + (lusr[2] - lusr[1]) / 15
+            lys <- c(lusr[3] + (lusr[4] - lusr[3]) / 4, (lusr[4] - lusr[3]) / 2)
+            ids <- round(seq(1, n_cols, length.out = n_legend))
+            lxy <- cbind(rep(lx, n_legend),
+              lys[1] + seq(0, 1, length.out = n_legend) * lys[2])
+
+            # legend
             graphics::points(lxy, col = cols[ids], pch = 15, cex = 2, xpd = NA)
-            graphics::text(lxy, pos = 4, labels = levels(cdat)[ids], xpd = NA)
+            graphics::text(lxy, pos = 4, labels = legend_labs[ids], xpd = NA)
             graphics::par(par1)
 
           } else if (SFSW2_prj_meta[["sim_space"]][["scorp"]] == "cell") {
             raster::plot(sp_dat, col = cols, asp = 1)
           }
+
           graphics::mtext(side = 3, line = -1, adj = 0.03, text = paste0("(", letters[1], ")"),
             font = 2)
 

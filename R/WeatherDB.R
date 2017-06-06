@@ -211,44 +211,18 @@ check_dbWeather_version <- function(fdbWeather) {
   success
 }
 
-#TODO(drs): make this R package compatible
-load_NCEPCFSR_shlib <- function(cfsr_so) {
-  if (!is.loaded("writeMonthlyClimate_R")) dyn.load(cfsr_so) # load because .so is available
-  invisible()
-}
 
 prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = dir.cfsr.data) {
 
   writeLines(c("'NCEPCFSR' extractions: make sure the following conditions are met:",
-    "  1) C code for 'cfsr_convert' is located in directory 'dir.cfsr.code'",
-    "  2) Compiled 'wgrib2' executable is located in directory 'dir.cfsr.code' or ",
-    "     '/opt/local/bin/' & have it located in the same directory as cfsr_convert.",
-    "     Instructions for how to compile 'wgrib2' can be found in the 'cfsr_convert.c'.",
+    "  1) Compiled 'wgrib2' executable is located in '/opt/local/bin/' or in 'dir_in/ncepcfsr/'",
+    "     Instructions for how to compile 'wgrib2' can be found in the 'ncepcfsr_convert.c'.",
     "     The code of wgrib2 is available from ",
     "         http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
     "  3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'. ",
-    "     Info about the gribfiles is in 'cfsr_convert.c'"))
+    "     Info about the gribfiles is in 'ncepcfsr_convert.c'"))
 
   dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings = FALSE)
-  fname_cfsr <- file.path(dir_ex_cfsr, "cfsr_convert.so")
-
-  #Check for the shared object 'cfsr_convert.so' that contains the C functions accessible to R
-  if (!file.exists(fname_cfsr)) { # compile
-    ctemp <- c("cfsr_convert.c", "generic2.c", "filefuncs2.c", "mymemory2.c")
-    ctemp <- file.path(dir.cfsr.code, ctemp)
-    htemp <- c("generic2.h", "filefuncs2.h", "mymemory2.h")
-    htemp <- file.path(dir.cfsr.code, htemp)
-    otemp <- c("cfsr_convert.o", "generic2.o", "filefuncs2.o", "mymemory2.o")
-    otemp <- file.path(dir.cfsr.code, otemp)
-
-    stopifnot(file.exists(ctemp), file.exists(htemp))
-    unlink(otemp)
-
-    stopifnot(system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args =
-      paste("CMD SHLIB -o", shQuote(fname_cfsr), paste(shQuote(ctemp), collapse = " ")),
-      wait = TRUE) == 0)
-  }
-  load_NCEPCFSR_shlib(fname_cfsr)
 
   #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
   if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
@@ -268,8 +242,7 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
   if (file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) unlink(ftemp, recursive = TRUE)
   temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN = function(x) file.path(ftemp, x)), FUN = function(x) dir.create(x, recursive = TRUE, showWarnings = FALSE))
 
-
-  list(dir_ex_cfsr = dir_ex_cfsr, cfsr_so = fname_cfsr)
+  list(dir_ex_cfsr = dir_ex_cfsr)
 }
 
 
@@ -278,43 +251,39 @@ gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
   if (id %% 36 == 1)
     print(paste(Sys.time(), ": NCEP/CFSR extraction: year =", do_daily[id, "years"]))
 
-  gribData <- .C("dailyWeather2_R",
+  gribData <- .C(C_dailyWeather2_R,
             nSites = as.integer(nSites),
             latitudes = as.double(latitudes),
             longitudes = as.double(longitudes),
             year = as.integer(do_daily[id, "years"]),
             month = as.integer(do_daily[id, "months"]),
-            type = as.integer(do_daily[id, "types"]),
-            PACKAGE = "rSFSW2")
+            type = as.integer(do_daily[id, "types"]))
   1L
 }
 
 writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
-  dataWrite <- .C("dailyWeather2Write_R",
+  dataWrite <- .C(C_dailyWeather2Write_R,
             nSites = as.integer(nSites),
             siteNames = as.character(siteNames),
             siteDirs = as.character(siteDirsC),
-            year = as.integer(year),
-            PACKAGE = "rSFSW2")
+            year = as.integer(year))
   1L
 }
 
 gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, yearLow, yearHigh) {
-  gribData <- .C("monthlyClimate2_R",
+  gribData <- .C(C_monthlyClimate2_R,
             nSites = as.integer(nSites),
             latitudes = as.double(latitudes),
             longitudes = as.double(longitudes),
             siteDirs = as.character(siteDirsC),
             yearLow = as.integer(yearLow),
             yearHigh = as.integer(yearHigh),
-            type = as.integer(type),
-            PACKAGE = "rSFSW2")
+            type = as.integer(type))
   1L
 }
 
 writeMonthlyClimate <- function(id, siteDirsC) {
-  dataWrite <- .C("writeMonthlyClimate2_R", siteDir = as.character(siteDirsC[id]),
-    PACKAGE = "rSFSW2")
+  dataWrite <- .C(C_writeMonthlyClimate2_R, siteDir = as.character(siteDirsC[id]))
   1L
 }
 
@@ -441,7 +410,6 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   }
 
   if (get_from_ornl) {
-    # daymetr package: https://bitbucket.org/khufkens/daymetr
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
     dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,
@@ -718,10 +686,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 }
 
 
-#TODO(drs): incorporate C code into r package
 #TODO(drs): get rid of setwd()
 get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_digits = 2,
-                cfsr_so,
                 yearLow, yearHigh, dir_ex_cfsr, dir_temp,
                 n_site_per_core = 100,
                 opt_parallel,
@@ -788,19 +754,13 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     dtemp <- getwd()
     setwd(dir_ex_cfsr)
 
-    stopifnot(daily, is.loaded("dailyWeather2_R"), is.loaded("dailyWeather2Write_R"))
-    stopifnot(monthly, is.loaded("monthlyClimate2_R"), is.loaded("writeMonthlyClimate2_R"))
-
     # set up parallel
     if (opt_parallel[["has_parallel"]]) {
 
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-        Rmpi::mpi.bcast.cmd(cmd = load_NCEPCFSR_shlib, cfsr_so = cfsr_so)
         Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
 
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        parallel::clusterCall(opt_parallel[["cl"]], fun = load_NCEPCFSR_shlib,
-          cfsr_so = cfsr_so)
         parallel::clusterCall(opt_parallel[["cl"]], fun = setwd, dir = dir_ex_cfsr)
       }
     }
@@ -985,7 +945,6 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
   # do the extractions
   etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
     daily = TRUE, monthly =  FALSE, dbW_digits,
-    cfsr_so = meta_cfsr$cfsr_so,
     yearLow = start_year, yearHigh = end_year,
     dir_ex_cfsr = meta_cfsr$dir_ex_cfsr,
     dir_temp = dir_temp,
@@ -1490,7 +1449,8 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
 #' Determine sources of daily weather
 #'
 #' Determine order of priorities (highest priority comes last): i.e., the last entry is
-#' the one that will be used
+#' the one that will be used.
+#'
 dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
   SWRunInformation, sim_size, sim_time, fnames_in, project_paths, verbose = FALSE) {
 
@@ -1528,15 +1488,22 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_
 
   for (k in seq_along(fun_dw_source)) {
     ftemp <- get(fun_dw_source[k])
-    temp <- ftemp(dw_source, dw_names, exinfo, site_dat, sim_time,
+    temp <- try(ftemp(dw_source, dw_names, exinfo, site_dat, sim_time,
       path = path_dw_source[[dw_avail_sources2[k]]],
-      MoreArgs = MoreArgs[[dw_avail_sources2[k]]])
-    dw_source <- temp[["source"]]
-    dw_names <- temp[["name"]]
+      MoreArgs = MoreArgs[[dw_avail_sources2[k]]]), silent = TRUE)
 
-    if (verbose)
-      print(paste("Data for", temp[["n"]], "sites will come from",
-        shQuote(dw_avail_sources2[k])))
+    if (!inherits(temp, "try-error")) {
+      dw_source <- temp[["source"]]
+      dw_names <- temp[["name"]]
+
+      if (verbose)
+        print(paste("Data for", temp[["n"]], "sites will come from",
+          shQuote(dw_avail_sources2[k])))
+
+    } else {
+      if (verbose)
+        print(paste("Data source", shQuote(dw_avail_sources2[k]), "is not available."))
+    }
   }
 
   # Save information on weather source to disk file

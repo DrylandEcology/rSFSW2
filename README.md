@@ -1,6 +1,6 @@
 [![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
-  [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/Burke-Lauenroth-Lab/rSFSW2?branch=master&svg=true)](https://ci.appveyor.com/project/Burke-Lauenroth-Lab/rSFSW2)
-  [![Coverage Status](https://img.shields.io/codecov/c/github/Burke-Lauenroth-Lab/rSFSW2/master.svg)](https://codecov.io/github/Burke-Lauenroth-Lab/rSFSW2?branch=master)
+  [![Build status](https://ci.appveyor.com/api/projects/status/kpbf892lmb77x69i?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
+  [![Coverage Status](https://coveralls.io/repos/github/Burke-Lauenroth-Lab/rSFSW2/badge.svg?branch=master)](https://coveralls.io/github/Burke-Lauenroth-Lab/rSFSW2?branch=master)
 
 
 # rSFSW2: A R package to create soil water balance simulation experiment
@@ -22,6 +22,16 @@ Contributors are encouraged, however, to update local clones to [point to the ne
 git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
 ```
 
+# __Setup a new simulation project__:
+1) Install and attach 'rSFSW2' if not already done so (Note: required version of
+   rSOILWAT2 must already be present)
+2) Create a skeleton project `setup_rSFSW2_project_infrastructure(dir_prj =
+   "path/to/project_folder")
+    - This function will copy a default version of '1_Data_SWInput' and the three demo R
+    files to your directory
+3) Work your way through 'SFSW2_project_code.R', i.e., define paths and actions, and
+   provide simulation project description in 'SFSW2_project_descriptions.R' and run
+   settings in 'SFSW2_project_settings.R'
 
 
 # How to contribute

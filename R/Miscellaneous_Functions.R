@@ -28,9 +28,15 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
       for (p in sys.parents()) {
         if (inherits(try(sys.frame(p), silent = TRUE), "try-error"))
           next
+
         items <- setdiff(ls(name = sys.frame(p)), ls(name = dump_objs))
-        for (it in items)
-          assign(it, get(it, pos = sys.frame(p)), envir = dump_objs)
+        p_pos <- pos.to.env(sys.frame(p))
+
+        for (it in items) {
+          x <- get0(it, envir = p_pos)
+          if (!is.null(x))
+            assign(it, x, envir = dump_objs)
+        }
       }
 
       save(list = ls(name = dump_objs), envir = dump_objs,
@@ -829,6 +835,8 @@ add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
     x <- as.matrix(x)
   ncols <- dim(x)[2]
 
+  stopifnot(length(w) == 2L, ncols > 0, is.finite(il), il >= 0, il <= ncols)
+
   if (ncols > il) {
     x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
 
@@ -855,8 +863,6 @@ add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
       x[, il] <- x[, il] * w[1] / sum(w)
     }
 
-  } else {
-    stop("Object x has ", ncols, " columns; thus, a new ", il, "-th column cannot be created")
   }
 
   x

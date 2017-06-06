@@ -172,6 +172,7 @@ dbWork_timing <- function(path) {
 #' Set runs information that need to be redone / simulated (again)
 #'
 #' @inheritParams create_dbWork
+#' @inheritParams dbWork_update_job
 #' @return A logical vector indicating success.
 #' @export
 dbWork_redo <- function(path, runIDs) {
@@ -195,6 +196,7 @@ dbWork_redo <- function(path, runIDs) {
 #' Check run status
 #'
 #' @inheritParams create_dbWork
+#' @inheritParams dbWork_update_job
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
 #' @export
 dbWork_check <- function(path, runIDs) {
@@ -203,7 +205,7 @@ dbWork_check <- function(path, runIDs) {
     stopifnot(file.exists(dbWork))
 
     con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-    sql <- "SELECT completed, failed, inwork FROM work WHERE runID = :x"
+    sql <- "SELECT completed, failed, inwork FROM work WHERE runID_total = :x"
     rs <- DBI::dbSendStatement(con, sql)
     DBI::dbBind(rs, param = list(x = runIDs))
     res <- DBI::dbFetch(rs)
@@ -216,7 +218,6 @@ dbWork_check <- function(path, runIDs) {
 
   res
 }
-
 
 
 
@@ -309,33 +310,6 @@ recreate_dbWork <- function(path, dbOutput) {
   } else {
     stop("OutputDB ", shQuote(dbOutput), " not found on disk.")
   }
-}
-
-
-
-#' Check run status
-#'
-#' @inheritParams create_dbWork
-#' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
-#' @export
-dbWork_check <- function(path, runIDs) {
-  if (length(runIDs) > 0) {
-    dbWork <- file.path(path, "dbWork.sqlite3")
-    stopifnot(file.exists(dbWork))
-
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
-    sql <- "SELECT completed, failed, inwork FROM work WHERE runID = :x"
-    rs <- DBI::dbSendStatement(con, sql)
-    DBI::dbBind(rs, param = list(x = runIDs))
-    res <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
-    RSQLite::dbDisconnect(con)
-
-  } else {
-    res <- data.frame(completed = numeric(0), failed = numeric(0), inwork = numeric(0))
-  }
-
-  res
 }
 
 

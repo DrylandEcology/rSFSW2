@@ -955,7 +955,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   missing_Pids <- as.integer(sort(missing_Pids))
   missing_runIDs <- NULL
   missing_Pids_current <- unique(unlist(missing_Pids_current))
-  missing_Pids_current <- as.integer(sort(missing_Pids_current))
+  if (!is.null(missing_Pids_current)) missing_Pids_current <- as.integer(sort(missing_Pids_current))
 
   if (length(missing_Pids) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTables_Pids_missing.rds")
@@ -1153,8 +1153,17 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (any(apply(temp, MARGIN = 2, function(x) all(x))))
       stop("One ore more columns in experimentals table are turned on with no values or only with NA.")
     db_experimentals <- unique(SFSW2_prj_inputs[["sw_input_experimentals"]][, SFSW2_prj_inputs[["create_experimentals"]]])
-    #note experimentals should be unique if we have less rows then the original then lets throw an Error
-    stopifnot(nrow(db_experimentals) == nrow(SFSW2_prj_inputs[["sw_input_experimentals"]]))
+
+    #note experimentals should be unique; if we have less rows then the original then lets throw an Error
+    ttemp <- nrow(db_experimentals) == nrow(SFSW2_prj_inputs[["sw_input_experimentals"]])
+    if (!ttemp) {
+      print(SFSW2_prj_inputs[["create_experimentals"]])
+      print("'db_experimentals':")
+      str(db_experimentals)
+      print("'SFSW2_prj_inputs[[\"sw_input_experimentals\"]]':")
+      str(SFSW2_prj_inputs[["sw_input_experimentals"]])
+      stop("Each row of 'experimental-design' must be unique.")
+    }
 
   } else {
     #experimentals does not have any rows. Are any of the SFSW2_prj_inputs[["create_experimentals"]] turned on
