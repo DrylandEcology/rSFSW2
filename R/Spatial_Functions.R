@@ -794,8 +794,10 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
-        sim_space[["sim_res"]] <- raster::res(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
+        stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
+
+        sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]
