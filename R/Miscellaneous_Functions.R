@@ -884,9 +884,10 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
 
 benchmark_BLAS <- function(platform, seed = NA) {
   if (grepl("darwin", platform)) { # apparently this works only on Mac OS X
-    blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
+    dir_r <- file.path(Sys.getenv()[["R_HOME"]], "R")
+    blas <- system2(command = dir_r, args = "CMD config BLAS_LIBS", stdout = TRUE)
     blas <- sub("-L/", "/", strsplit(blas, split = " ")[[1]][1])
-    lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
+    lapack <- system2(command = dir_r, args = "CMD config LAPACK_LIBS", stdout = TRUE)
     lapack <- sub("-L/", "/", strsplit(lapack, split = " ")[[1]][1])
     get_ls <- if (identical(blas, lapack)) list(blas) else list(blas, lapack)
     temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
