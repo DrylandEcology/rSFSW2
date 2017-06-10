@@ -4,7 +4,7 @@
 \alias{PrepareClimateScenarios}
 \title{Extracts climate change scenarios and downscales monthly to daily time series}
 \usage{
-PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
+PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel, resume,
   opt_verbosity)
 }
 \description{

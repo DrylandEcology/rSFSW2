@@ -2584,7 +2584,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
 #' Extract climate scenarios
 #' @export
 ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_parallel, verbose = FALSE, print.debug = FALSE) {
+  todos, opt_parallel, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -2612,6 +2612,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
   dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
   dbW_compression_type <- rSOILWAT2::dbW_compression()
+  rSOILWAT2::dbW_disconnectConnection()
 
   temp <- strsplit(SFSW2_prj_meta[["sim_scens"]][["models"]], split = ".", fixed = TRUE)
   if (!all(lengths(temp) == 4L))
@@ -2642,12 +2643,13 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 
   # keep track of successful/unsuccessful climate scenarios
   include_YN_climscen <- rep(0, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+  todos_siteIDs <- which(todos)
 
   # loop through data sources
-  sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
+  sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
 
   for (ics in unique(sites_GCM_source)) {
-    iDS_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][sites_GCM_source == ics]
+    iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == ics]
 
     if (length(iDS_runIDs_sites) > 0) {
       include_YN_climscen <- get_climatechange_data(clim_source = ics,
@@ -2674,7 +2676,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 
 #' Extract climate scenarios from downloaded ClimateWizard.org data
 #' @export
-ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
+ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs, todos,
   verbose = FALSE) {
 
   if (verbose) {
@@ -2706,7 +2708,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 
     if (all(SFSW2_prj_meta[["sim_scens"]][["models"]] %in% list.scenarios.external)) {
       #locations of simulation runs
-      locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][, c("X_WGS84", "Y_WGS84")],
+      locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
         proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
 
       # keep track of successful/unsuccessful climate scenarios
@@ -2753,13 +2755,13 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
           #add data to sw_input_climscen and set the use flags
           itemp1 <- paste0("PPTmm_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
           SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp1] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen_values"]][, itemp1] <- sc.ppt
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itemp1] <- sc.ppt
           itemp2 <- paste0("TempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
           SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp2] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen_values"]][, itemp2] <- sc.temp
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itemp2] <- sc.temp
 
-          include_YN_climscen <- include_YN_climscen &
-            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
+          include_YN_climscen[todos] <- include_YN_climscen[todos] &
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itemp1, itemp2)])
         }
 
         if ("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
@@ -2768,13 +2770,13 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
           #add data to sw_input_climscen and set the use flags
           itemp1 <- paste0("PPTfactor_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
           SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp1] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen"]][, itemp1] <- sc.ppt
+          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itemp1] <- sc.ppt
           itemp2 <- paste0("deltaTempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
           SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp2] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen"]][, itemp2] <- sc.temp
+          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itemp2] <- sc.temp
 
-          include_YN_climscen <- include_YN_climscen &
-            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][, c(itemp1, itemp2)])
+          include_YN_climscen[todos] <- include_YN_climscen[todos] &
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itemp1, itemp2)])
         }
       }
 
@@ -2807,10 +2809,11 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
   SFSW2_prj_inputs
 }
 
+
 #' Extracts climate change scenarios and downscales monthly to daily time series
 #' @export
 PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
-  opt_verbosity) {
+  resume, opt_verbosity) {
 
   climDB_metas <- climscen_metadata()
 
@@ -2823,18 +2826,31 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   which_ClimateWizard <- grepl("ClimateWizardEnsembles",
     SFSW2_prj_meta[["sim_scens"]][["sources"]])
 
-  if (any(which_NEX) || any(which_netCDF)) {
-    temp <- ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-      opt_parallel, verbose = opt_verbosity[["verbose"]],
-      print.debug = opt_verbosity[["print.debug"]])
+  if (resume) {
+    todos <- dbW_has_missingClimScens(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      SFSW2_prj_inputs, req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity)
 
-      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
-      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+  } else {
+    todos <- SFSW2_prj_inputs[["include_YN"]] &
+      (SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
+      SFSW2_prj_meta[["sim_scens"]][["sources"]])
   }
+  names(todos) <- NULL
 
-  if (any(which_ClimateWizard)) {
-    SFSW2_prj_inputs <- ExtractClimateWizard(climDB_metas, SFSW2_prj_meta,
-      SFSW2_prj_inputs, verbose = opt_verbosity[["verbose"]])
+  if (any(todos)) {
+    if (any(which_NEX) || any(which_netCDF)) {
+      temp <- ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
+        todos, opt_parallel, verbose = opt_verbosity[["verbose"]],
+        print.debug = opt_verbosity[["print.debug"]])
+
+        SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+        SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+    }
+
+    if (any(which_ClimateWizard)) {
+      SFSW2_prj_inputs <- ExtractClimateWizard(climDB_metas, SFSW2_prj_meta,
+        SFSW2_prj_inputs, todos, verbose = opt_verbosity[["verbose"]])
+    }
   }
 
   list(SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta)
