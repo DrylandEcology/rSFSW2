@@ -5,7 +5,7 @@
 \title{Extract climate scenarios}
 \usage{
 ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_parallel, verbose = FALSE, print.debug = FALSE)
+  todos, opt_parallel, verbose = FALSE, print.debug = FALSE)
 }
 \description{
 Extract climate scenarios
