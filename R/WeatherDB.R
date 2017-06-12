@@ -226,16 +226,18 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 
   #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
   if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
-    temp2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) temp else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
-    stopifnot(nchar(temp2) > 0)
-    file.copy(from = temp2, to = wgrib2)
+    path_wgrib2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) temp else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
+    stopifnot(nchar(path_wgrib2) > 0)
+    file.copy(from = path_wgrib2, to = wgrib2)
   }
 
   #Soft link to gribbed data
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
   if (!file.exists(dir.grib)) { # value of gribDir defined in cfsr_convert.c
-    stopifnot(system2(command = "ln", args = paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
+    stopifnot(system2(command = "ln", args = paste("-s",
+      shQuote(file.path(dir.cfsr.data, fname_gribDir)),
+      shQuote(dir.grib))) == 0)
   }
 
   #Set up temporary directory for C code to store objects

@@ -29,7 +29,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #' Extract the weighted mean (and sample quantiles) for raster cells or rectangles.
 #'
 #' @param x A raster* object from which data are extracted
-#' @param y Either A RasterLayer OR raster resolution (of rectangles) as a numeric vector
+#' @param y Either A \code{RasterLayer} OR raster resolution (of rectangles) as a numeric vector
 #'    of length two or a matrix with two columns.
 #'    If a RasterLayer, then values of \code{data} are resampled and extracted for !NA
 #'    cells.
@@ -42,7 +42,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'      \code{reaggregate_raster}. Default is 'block' which is the fastest.
 #'    \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
 #'      represented by a two-column matrix of xy coordinates. If not provided, then
-#'      extracted from \code{y}.
+#'      \code{y} must be a \code{RasterLayer} and cell centers are extracted from \code{y}.
 #'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
@@ -51,7 +51,9 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'   layers of \code{x}.
 #' @export
 extract_SFSW2_cells_from_raster <- function(x, y, ...) {
+
   stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+  stopifnot(inherits(x, "Raster"))
 
   dots <- list(...)
 
@@ -59,7 +61,12 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
     dots[["method"]] <- "block"
 
   if (!("coords" %in% names(dots))) {
+    if (!inherits(y, "Raster")) {
+      stop("'extract_SFSW2_cells_from_raster': 'y' must be a 'RasterLayer' if there is ",
+        "no argument 'coords'.")
+    }
     dots[["coords"]] <- raster::xyFromCell(y, cell = seq_len(raster::ncell(y)))
+
   } else {
     dots[["coords"]] <- sp::coordinates(dots[["coords"]])
   }
@@ -69,10 +76,10 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
-  if (inherits(x, "Raster")) {
+  if (inherits(y, "Raster")) {
     to_res <- raster::res(y)
   } else {
-    if (all(is.vector(y), length(x) == 2L, y > 0) ||  # y is x- and y-resolution
+    if (all(is.vector(y), length(y) == 2L, y > 0) ||  # y is x- and y-resolution
       all(is.matrix(y), ncol(y) == 2L, nrow(y) == nrow(dots[["coords"]]), y > 0)) {  # y are x- and y-resolution for each coord
       to_res <- y
     } else {
@@ -430,6 +437,7 @@ reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 1e-2) {
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+  stopifnot(inherits(x, "Raster"))
 
   if (is.null(dim(coords)) && length(coords) == 2L) {
     coords <- matrix(coords, ncol = 2)
@@ -794,8 +802,10 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
-        sim_space[["sim_res"]] <- raster::res(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
+        stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
+
+        sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]

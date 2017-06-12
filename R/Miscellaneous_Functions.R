@@ -695,15 +695,41 @@ fill_empty <- function(data, pattern, fill) {
   data
 }
 
+
+calc_weights_from_depths <- function(il_new, target_cm, depths_cm) {
+  if (il_new == 0) {
+    c(target_cm, depths_cm[1] - target_cm)
+
+  } else if (il_new >= length(depths_cm)) {
+    c(0, target_cm)
+
+  } else {
+    abs(target_cm - depths_cm[il_new + c(1, 0)])
+
+  }
+}
+
+
+
 #' Split soil layer in two layers
 #'
 #' @param x A numeric data.frame or matrix. Columns are soil layers.
 #' @param il An integer value. The column/soil layer number after which a new layer is added.
-#' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
+#' @param w A numeric vector of length one or two. The weights used to calculate the
+#'  values of the new layer.
 #' @param method A character string. See \code{Details}.
 #'
+#' @section Details: If the weight vector is of length one and \code{x} contains a row
+#'  with name 'depth_cm', then it is assumed that the value of \code{w} corresponds to the
+#'  weight of the first layer and the weight of the second layer is calculated
+#'  as \code{(depth of first layer of x) - (first value of w)}. If this is case and if
+#'  the added layer is either more shallow or deeper than any input layers, then the depth
+#'  of the added layer is calculated proportionally if \code{sum(w) <= 1} otherwise
+#'  additively.
 #' @section Details: The method \code{interpolate} calculates the weighted mean of the
-#'  columns/layers \code{il} and \code{il + 1}.
+#'  columns/layers \code{il} and \code{il + 1}. If \code{il == 0}, i.e., add layer at a
+#'  more shallow depth than any existing layer, then values from the previously first
+#'  layer are copied to the newly created layer.
 #'  The method \code{exhaust} distributes the value of \code{il + 1} according to the
 #'  weights.
 #'
@@ -713,35 +739,53 @@ add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
   if (!is.matrix(x))
     x <- as.matrix(x)
   ncols <- dim(x)[2]
+  if (length(w) == 1L && "depth_cm" %in% dimnames(x)[[1]] && x["depth_cm", 1] >= w)
+    w <- c(w, x["depth_cm", 1] - w)
 
   stopifnot(length(w) == 2L, ncols > 0, is.finite(il), il >= 0, il <= ncols)
+  w_sum <- sum(w)
 
   if (ncols > il) {
+    # Add layer at an intermediate depth of existing layers
     x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
 
     if (method == "interpolate") {
-      x[, il + 1] <- if (il > 0) {
-        (x[, il] * w[1] + x[, il + 2] * w[2]) / sum(w)
+      if (il > 0) {
+        x[, il + 1] <- (x[, il] * w[1] + x[, il + 2] * w[2]) / w_sum
+
       } else {
-        x[, il + 2]
+        # Add layer at a more shallow depth than any existing layer
+        x[, 1] <- x[, 2]
+        if ("depth_cm" %in% dimnames(x)[[1]])
+          x["depth_cm", 1] <- if (w_sum <= 1 || w[1] > x["depth_cm", 2]) {
+              x["depth_cm", 2] * w[1] / w_sum
+            } else {
+              w[1]
+            }
       }
 
     } else if (method == "exhaust") {
-      x[, il + 1] <- x[, il + 2] * w[1] / sum(w)
-      x[, il + 2] <- x[, il + 2] * w[2] / sum(w)
+      x[, il + 1] <- x[, il + 2] * w[1] / w_sum
+      x[, il + 2] <- x[, il + 2] * w[2] / w_sum
     }
 
   } else if (ncols == il) {
+    # Add a deeper layer than any existing layer
     x <- x[, c(seq_len(ncols), NA)]
 
     if (method == "interpolate") {
       x[, il + 1] <- x[, il]
+      if ("depth_cm" %in% dimnames(x)[[1]])
+        x["depth_cm", il + 1] <- if (w_sum <= 1) {
+            x["depth_cm", il] * (1 + w[2] / w_sum)
+          } else {
+            x["depth_cm", il] + w[2]
+          }
 
     } else if (method == "exhaust") {
-      x[, il + 1] <- x[, il] * w[2] / sum(w)
-      x[, il] <- x[, il] * w[1] / sum(w)
+      x[, il + 1] <- x[, il] * w[2] / w_sum
+      x[, il] <- x[, il] * w[1] / w_sum
     }
-
   }
 
   x
@@ -884,9 +928,10 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
 
 benchmark_BLAS <- function(platform, seed = NA) {
   if (grepl("darwin", platform)) { # apparently this works only on Mac OS X
-    blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
+    dir_r <- file.path(Sys.getenv()[["R_HOME"]], "R")
+    blas <- system2(command = dir_r, args = "CMD config BLAS_LIBS", stdout = TRUE)
     blas <- sub("-L/", "/", strsplit(blas, split = " ")[[1]][1])
-    lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
+    lapack <- system2(command = dir_r, args = "CMD config LAPACK_LIBS", stdout = TRUE)
     lapack <- sub("-L/", "/", strsplit(lapack, split = " ")[[1]][1])
     get_ls <- if (identical(blas, lapack)) list(blas) else list(blas, lapack)
     temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
