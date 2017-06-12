@@ -57,6 +57,18 @@ test_that("add_layer_to_soil", {
     method = "interpolate"))
   expect_error(add_layer_to_soil(x = test_data[[1]], il = 1, w = c(1),
     method = "interpolate"))
+  # but doesn't fail if a row is named 'depth_cm'
+  # Add a deeper layer
+  x <- test_data[[1]]
+  dimnames(x)[[1]][1] <- "depth_cm"
+  res <- add_layer_to_soil(x = x, il = 1, w = c(5), method = "interpolate")
+  expect_equal(res[-1, 1], res[-1, 2])
+  expect_equal(res[1, 2], 2 * res[1, 1] - 5)
+  # Add a more shallow layer
+  res <- add_layer_to_soil(x = x, il = 0, w = c(5), method = "interpolate")
+  expect_equal(res[-1, 1], res[-1, 2])
+  expect_equal(res[1, 1], 5)
+
 
   # data matrix has no columns
   expect_error(add_layer_to_soil(x = matrix(NA, nrow = nrows, ncol = 0), il = 1,

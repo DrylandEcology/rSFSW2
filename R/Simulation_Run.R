@@ -2716,7 +2716,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
               calc50 <- !(Fifty_depth == soildat[i_depth50, "depth_cm"])
               if (calc50) {
-                weights50 <- abs(Fifty_depth - soildat[i_depth50 + c(1, 0), "depth_cm"])
+                weights50 <- calc_weights_from_depths(i_depth50, Fifty_depth, soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_depth50, weights50))
                 i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
 
@@ -2730,7 +2730,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
               calcMCS <- !(MCS_depth == soildat[i_MCS, "depth_cm"])
               if (any(calcMCS)) for (k in which(calcMCS)) {
-                weightsMCS <- abs(MCS_depth[k] - soildat[i_MCS[k] + c(1, 0), "depth_cm"])
+                weightsMCS <- calc_weights_from_depths(i_MCS[k], MCS_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_MCS[k], weightsMCS))
                 i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
 
@@ -2744,7 +2744,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
               calcLanh <- !(Lanh_depth == soildat[i_Lanh, "depth_cm"])
               if (any(calcLanh)) for (k in which(calcLanh)) {
-                weightsLanh <- abs(Lanh_depth[k] - soildat[i_Lanh[k] + c(1, 0), "depth_cm"])
+                weightsLanh <- calc_weights_from_depths(i_Lanh[k], Lanh_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_Lanh[k], weightsLanh))
                 i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
 

@@ -9,7 +9,7 @@ extract_SFSW2_cells_from_raster(x, y, ...)
 \arguments{
 \item{x}{A raster* object from which data are extracted}
 
-\item{y}{Either A RasterLayer OR raster resolution (of rectangles) as a numeric vector
+\item{y}{Either A \code{RasterLayer} OR raster resolution (of rectangles) as a numeric vector
 of length two or a matrix with two columns.
 If a RasterLayer, then values of \code{data} are resampled and extracted for !NA
 cells.
@@ -22,7 +22,7 @@ If a matrix, then rows must match \code{coords}.}
     \code{reaggregate_raster}. Default is 'block' which is the fastest.
   \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
     represented by a two-column matrix of xy coordinates. If not provided, then
-    extracted from \code{y}.
+    \code{y} must be a \code{RasterLayer} and cell centers are extracted from \code{y}.
   \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
     which sample quantiles are returned.
 }}
