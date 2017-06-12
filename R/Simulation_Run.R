@@ -2212,33 +2212,40 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_percolation"]), "Year")
-          if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
-            drain.topTobottom <- temp1[isim_time$index.useyr, 1+DeepestTopLayer]
-          } else {
-            drain.topTobottom <- NA
-          }
+          drain.topTobottom <- if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
+              temp1[isim_time$index.useyr, 1+DeepestTopLayer]
+            } else NA
+
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_hd"]), "Year")
-          if (length(topL) > 1) {
-            hydred.topTobottom <- apply(temp1[isim_time$index.useyr, 1+topL, drop = FALSE], 1, sum)
-          } else {
-            hydred.topTobottom <- temp1[isim_time$index.useyr, 1+topL]
-          }
+          hydred.topTobottom <- if (length(topL) > 1) {
+              apply(temp1[isim_time$index.useyr, 1+topL], 1, sum)
+            } else {
+              temp1[isim_time$index.useyr, 1+topL]
+            }
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_swcbulk"]), "Day")
-          if (isim_time$index.usedy[1] == 1) { #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
-            index.usedyPlusOne <- isim_time$index.usedy[-length(isim_time$index.usedy)]+1
-          } else {
-            index.usedyPlusOne <- isim_time$index.usedy
-          }
-          if (length(topL) > 1) {
-            swcdyflux <- apply(temp1[index.usedyPlusOne, 2+ld], 1, sum) - apply(temp1[index.usedyPlusOne-1, 2+ld], 1, sum)
-          } else {
-            swcdyflux <- temp1[index.usedyPlusOne, 2+ld] - temp1[index.usedyPlusOne-1, 2+ld]
-          }
+          index.usedyPlusOne <- if (isim_time$index.usedy[1] == 1) { #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
+              isim_time$index.usedy[-length(isim_time$index.usedy)]+1
+            } else {
+              isim_time$index.usedy
+            }
+          swcdyflux <- if (length(ld) > 1) {
+              apply(temp1[index.usedyPlusOne, 2+ld], 1, sum) -
+                apply(temp1[index.usedyPlusOne-1, 2+ld], 1, sum)
+            } else {
+              temp1[index.usedyPlusOne, 2+ld] - temp1[index.usedyPlusOne-1, 2+ld]
+            }
           swc.flux <- tapply(swcdyflux, temp1[index.usedyPlusOne, 1], sum)
 
+          fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt,
+            prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter,
+            Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot,
+            evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top,
+            transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val,
+            swc.flux)
+
           #mean fluxes
-          resMeans[nv:(nv+22)] <- apply(fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux), 2, mean)
+          resMeans[nv:(nv+22)] <- apply(fluxtemp, 2, mean)
           resMeans[nv+23] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
           resMeans[nv+24] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
           resMeans[nv+25] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
