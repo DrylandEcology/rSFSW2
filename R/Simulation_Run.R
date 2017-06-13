@@ -1544,6 +1544,7 @@ tasks$aggregate[] <- 1
 
     if (tasks$execute[sc] == 1L) {
       runDataSC <- NULL
+      is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
       scw <- if (opt_sim[["use_dbW_future"]]) sc else 1L
       mDepth <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
@@ -1551,59 +1552,57 @@ tasks$aggregate[] <- 1
       if (DeltaX[2] > 0) {
         if (opt_verbosity[["print.debug"]])
           print(paste("Using pre-determined DeltaX =", DeltaX[1]))
+
         if (DeltaX[2] == 2L)
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
+      }
 
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-      } else {
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      # Testing for error in soil temperature module
+      is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
 
-        ## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-        is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
+      if (is_SOILTEMP_INSTABLE[sc]) {
+        ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
+        i_soil_rep <- 0
+        DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
 
-        if (is_SOILTEMP_INSTABLE) {
-          ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
-          i_soil_rep <- 0
-          DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
+        while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE[sc] &&
+          DeltaX[1] <= mDepth && i_soil_rep < 10) {
 
-          while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE && DeltaX[1] <= mDepth && i_soil_rep < 10) {
-            ## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
-            repeat {
-              DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
-              if (mDepth %% DeltaX[1] == 0) break
-            }
-
-            ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-            rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
-            if (opt_verbosity[["print.debug"]]) print(paste("Site", i_sim, i_label, "SOILWAT2 called again with deltaX = ", rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met."))
-
-            runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
-
-            ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-            is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
-            i_soil_rep <- i_soil_rep + 1
+          ## Make sure that the increment for the soil layers is a multiple of the MaxDepth,
+          #   modulus of 0 means no remainder and thus a multiple of the MaxDepth
+          repeat {
+            DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
+            if (mDepth %% DeltaX[1] == 0) break
           }
 
-          DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
+          ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
+          if (opt_verbosity[["print.debug"]]) print(paste("Site", i_sim, i_label, "SOILWAT2 called again with deltaX = ", rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met."))
 
-          #TODO: change deltaX_Param for all [> sc] as well
-          if (opt_out_run[["saveRsoilwatInput"]])
-            save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-              ClimatePerturbationsVals, file = f_sw_input)
+          runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-        } else {
-          DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
+          ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
+          is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
+          i_soil_rep <- i_soil_rep + 1
         }
+
+        DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE[sc]) 2L else -1L
+
+        #TODO: change deltaX_Param for all [> sc] as well
+        if (opt_out_run[["saveRsoilwatInput"]])
+          save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
+            ClimatePerturbationsVals, file = f_sw_input)
+
+      } else {
+        DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
       }
 
       if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
@@ -1611,7 +1610,7 @@ tasks$aggregate[] <- 1
       }
 
     if (opt_out_run[["saveRsoilwatOutput"]])
-      save(runDataSC, file = f_sw_output[sc])
+      save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
     }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
@@ -1621,8 +1620,7 @@ tasks$aggregate[] <- 1
 #------------------------AGGREGATE SOILWAT2 OUTPUT
     if (tasks$execute[sc] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
-      !inherits(runDataSC, "swOutput")) {
-      tasks$aggregate[sc] <- -1L
+      !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
       tasks$aggregate[sc] <- -1L
     }
@@ -2567,7 +2565,9 @@ tasks$aggregate[] <- 1
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
             "meanTair_Tsoil50_offset_C", paste0("V", 7:45))))
 
-          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
+          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) &&
+            isTRUE(!is_SOILTEMP_INSTABLE[sc])) { #we need soil temperature
+
             has_simulated_SoilTemp <- 1
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
