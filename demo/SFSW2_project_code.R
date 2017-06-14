@@ -91,6 +91,9 @@ if (file.exists(fmeta)) {
   # Load pre-prepared project description if it was setup previously
   SFSW2_prj_meta <- readRDS(fmeta)
 
+  # Ensure that all necessary paths do exists
+  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
+
 } else {
 
   # 1a) Setup default project infrastructure
