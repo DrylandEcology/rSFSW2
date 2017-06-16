@@ -7,7 +7,8 @@
 #'  all data are in the weather database, then \code{FALSE}.
 #'
 #' @export
-dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN, opt_verbosity) {
+dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
+  opt_verbosity, opt_chunks) {
   # Init: set every included site as having missing climate scenario data. If a site_id
   #   is found to have all climate scenario data, then set its todo element to FALSE
   todos <- SFSW2_prj_inputs[["include_YN"]]

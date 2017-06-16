@@ -48,5 +48,8 @@ void R_init_rSFSW2(DllInfo *dll)
 /* Cannot enforce native symbol use because of how Rcpp::compileAttributes() creates
   'R/RcppExports.R' as of Rcpp v0.12.10
     R_forceSymbols(dll, TRUE);
+
+  ALSO: manually ajust file 'R/RcppExports.R' before compiling so that .Call(...)
+    use prefix 'C_' and include argument PACKAGE = "rSFSW2"
 */
 }

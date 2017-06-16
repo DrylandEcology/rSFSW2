@@ -1145,9 +1145,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (!ttemp) {
       print(SFSW2_prj_inputs[["create_experimentals"]])
       print("'db_experimentals':")
-      str(db_experimentals)
+      print(db_experimentals)
       print("'SFSW2_prj_inputs[[\"sw_input_experimentals\"]]':")
-      str(SFSW2_prj_inputs[["sw_input_experimentals"]])
+      print(SFSW2_prj_inputs[["sw_input_experimentals"]])
       stop("Each row of 'experimental-design' must be unique.")
     }
 

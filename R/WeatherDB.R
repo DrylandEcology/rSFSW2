@@ -424,12 +424,12 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   if (get_from_ornl) {
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
-    dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,
+    dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
       lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
 
     if (file.exists(flocal) && !identical(flocal, ftemp)) {
-      # Move file, which was downloaded to current directory by 'daymetr::download.daymet',
+      # Move file, which was downloaded to current directory by 'daymetr::download_daymet',
       # to data folder
       file.rename(from = flocal, to = ftemp)
     }

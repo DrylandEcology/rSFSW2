@@ -2813,7 +2813,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 #' Extracts climate change scenarios and downscales monthly to daily time series
 #' @export
 PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
-  resume, opt_verbosity) {
+  resume, opt_verbosity, opt_chunks) {
 
   climDB_metas <- climscen_metadata()
 
@@ -2828,7 +2828,8 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
 
   if (resume) {
     todos <- dbW_has_missingClimScens(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      SFSW2_prj_inputs, req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity)
+      SFSW2_prj_inputs, req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity,
+      opt_chunks)
 
   } else {
     todos <- SFSW2_prj_inputs[["include_YN"]] &
