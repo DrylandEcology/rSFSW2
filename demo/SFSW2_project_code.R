@@ -76,12 +76,18 @@ if (FALSE) {
   #   * if !interactive: current working directory must be folder of test projects,
   #       * e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations
   if (interactive()) {
-    dir_prj <- normalizePath(file.path(".", "Test_projects", "Test4_AllOverallAggregations_snow"))
+    dir_prj <- normalizePath(file.path(".", "Test_projects", "SFSW2_default_project"))
     setwd(dir_prj)
   }
 
   dir_prj <- getwd()
 }
+
+writeLines(c("", "",
+  "##############################################################################",
+  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run started at",
+    t_job_start),
+  "##############################################################################", ""))
 
 fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
 fmetar <- file.path(dir_prj, "SFSW2_project_descriptions.R")
@@ -90,6 +96,9 @@ if (file.exists(fmeta)) {
 
   # Load pre-prepared project description if it was setup previously
   SFSW2_prj_meta <- readRDS(fmeta)
+
+  # Ensure that all necessary paths do exists
+  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
 
 } else {
 
@@ -166,7 +175,7 @@ if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_d
 
 if (actions[["ensemble"]]) {
 
-  generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
+  rSFSW2:::generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
     verbose = opt_verbosity[["verbose"]])
 }
 
@@ -184,3 +193,9 @@ if (actions[["check_dbOut"]]) {
 
 
 ##############################################################################
+
+writeLines(c("",
+  "##############################################################################",
+  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run ended at",
+    Sys.time()),
+  "##############################################################################", ""))

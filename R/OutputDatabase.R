@@ -1757,7 +1757,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       #     - consec = consecutive
       temp <- c(temp,
         paste0("NRCS_",
-          c(c("Depth50cmOrImpermeable_cm",
+          c(c("SoilTemp_simulated_TF", "SoilTemp_realistic_TF", "Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
               "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),

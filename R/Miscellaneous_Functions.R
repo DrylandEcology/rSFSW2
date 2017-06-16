@@ -179,6 +179,22 @@ dir.remove <- function(dir) {
 }
 
 
+#' Create the elements of paths
+#'
+#' This is a wrapper for the function \code{\link{dir.create}} using different default
+#' settings and allowing multiple path names as input. The function checks if the
+#' provided paths may be valid names and catches any other errors with \code{try}.
+#'
+#' @param paths A list or vector of strings. Path names to be created.
+#' @inheritParams base::dir.create
+#'
+#' @return An invisible list of length equal to the length of \code{paths}. The elements
+#'   are \code{NULL} for invalid elements of \code{paths}, a logical value for the
+#'   elements of \code{paths} with a successful calls to \code{\link{dir.create}}, or
+#'   an object of class \code{try-error} for a failed call to \code{\link{dir.create}}.
+#'
+#' @seealso \code{\link{dir.create}}
+#' @export
 dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
   temp <- lapply(paths, function(path) {
       if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0)
