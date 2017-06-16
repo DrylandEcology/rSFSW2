@@ -1,5 +1,3 @@
-###mat50 indicates debugging code for the NCRS regime problems Apr 21, 2017
-
 #---------------------------------------------------------------------------------------#
 #------------------------FUNCTIONS FOR SOILWAT2 SIMULATIONS
 
@@ -1523,11 +1521,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #  #'    1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
   DeltaX <- c(NA, 0L)
 
-###mat50
-tasks$execute[] <- 1
-tasks$aggregate[] <- 1
-###mat50
-
   for (sc in sc1:sim_scens[["N"]]) {
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
 
@@ -1622,7 +1615,6 @@ tasks$aggregate[] <- 1
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
       !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
-      tasks$aggregate[sc] <- -1L
     }
 
 
@@ -3109,21 +3101,6 @@ tasks$aggregate[] <- 1
             resMeans[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, mean, na.rm = TRUE))
             resSDs[nv:(nv_new - 1)] <- t(apply(temp_annual, 2, stats::sd, na.rm = TRUE))
             nv <- nv_new
-
-###mat50
-temp_mat50 <- mean(temp_annual[, 2], na.rm = TRUE)
-print(paste0(i_label, " / i_sim: ", i_sim, " / P_id: ", P_id, " / scenario: ", sc,
-  "; MAT = ", round(mean(temp.yr$mean), 2),
-  "; MAP = ", round(mean(prcp.yr$ppt), 2),
-  "; mat50 = ", round(temp_mat50, 2),
-  "; has_ST = ", has_simulated_SoilTemp,
-  "; ST_good = ", has_realistic_SoilTemp,
-  "; annual mat50: ", paste(round(temp_annual[, 2], 2), collapse = ", ")
-))
-if (is.na(temp_mat50) || abs(temp_mat50) < sqrt(.Machine$double.eps))
-  stop("Run2_Soils_SiteSpecific_NRCS2plus_NAs0s: ", i_sim, P_id, sc)
-###mat50
-
           }
 
           Tregime <- colMeans(SMTR[["STR"]])
@@ -4650,10 +4627,6 @@ if (is.na(temp_mat50) || abs(temp_mat50) < sqrt(.Machine$double.eps))
 
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
-
-###mat50
-stop("Run2_Soils_SiteSpecific_NRCS2plus_NAs0s: ", i_sim)
-###mat50
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim,
     status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
