@@ -9,6 +9,9 @@
 #' @export
 setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 
+  masterinput_pattern <- "_InputMaster_"
+  masterinput_pattern_demo <- "_InputMaster_YOURPROJECT_"
+
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -41,6 +44,26 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
       fes <- c(fes, ftemp)
 
     } else {
+      if (grepl(masterinput_pattern, di[["fname"]])) {
+        # Simulation projects usually rename the input master file: check if present and
+        #   if any contain sufficient content
+        fim <- list.files(dtemp, pattern = masterinput_pattern)
+        fim <- grep(masterinput_pattern_demo, fim, value = TRUE, invert = TRUE)
+        fim_ok <- FALSE
+        for (kfim in fim) {
+          fim_fields <- utils::read.csv(file.path(dtemp, kfim), nrows = 1)
+          fim_ok <- fim_ok || all(sapply(required_colnames_SWRunInformation(),
+            function(x) x %in% names(fim_fields)))
+        }
+
+        if (fim_ok) {
+          print(paste("'setup_rSFSW2_project_infrastructure' does not replace the",
+            "existing input master file", paste(shQuote(fim), collapse = "/"),
+            "with default version of file."))
+          next
+        }
+      }
+
       writeLines(memDecompress(di[["data"]], type = "gzip", asChar = TRUE),
         con = file.path(dtemp, di[["fname"]]))
     }
@@ -426,7 +449,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
 
       temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
-        opt_parallel, opt_verbosity)
+        opt_parallel, resume = opt_behave[["resume"]], opt_verbosity)
 
       SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
       SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]] # update: random streams for downscaling

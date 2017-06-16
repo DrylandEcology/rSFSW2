@@ -19,7 +19,7 @@ opt_behave <- list(
   # Resumes/continues with unfinished part of simulation after abort if TRUE, i.e.,
   #  - It doesn't delete an existing weather database, if a new one is requested
   #  - It doesn't re-extract external information (soils, elevation, climate normals,
-  #     NCEPCFSR) if already extracted
+  #     climate scenarios) if already extracted
   #  - It doesn't lookup values from tables if already available in input datafiles, i.e.,
   #     'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and
   #     'LookupSnowDensityFromTable'
