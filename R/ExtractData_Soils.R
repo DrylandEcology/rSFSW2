@@ -655,7 +655,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
                        error   = function(e) { error_warning_msg(label, lat, lon, e) },
                        warning = function(w) { error_warning_msg(label, lat, lon, w) })
       # Check if any key was extracted
-      if (keys[1] == 0) {
+      if (is.null(keys) || length(keys) < 3) {
         do_STATSGO <<- TRUE
         next  # No keys exist, so move on to the next site
       }
@@ -846,7 +846,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     if (length(DATA$mukey) == 0) {
       if (print.debug) cat("\n        > Error")
       if (print.debug) cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
-      return(c(0))
+      return(NULL)
     }
     # Grab the mukey and cokey
     mukey <- get_mukey(DATA)
