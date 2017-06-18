@@ -40,6 +40,9 @@ You can contribute to this project in different ways:
 1. Reporting [issues](https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues)
 2. Contributing code and sending a [pull request](https://github.com/Burke-Lauenroth-Lab/rSFSW2/pulls)
 
+Please write an issue before creating a new branch and eventually sending a pull request
+both of which reference the issue ['issue #[issue number]'](https://help.github.com/articles/autolinked-references-and-urls/#issues-and-pull-requests).
+
 # Code of conduct
 Please note that this project is released with a
 [Contributor Code of Conduct](CONDUCT.md). By participating in this project you agree

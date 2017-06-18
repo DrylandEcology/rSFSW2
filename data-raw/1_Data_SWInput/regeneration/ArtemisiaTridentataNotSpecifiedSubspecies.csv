@@ -23,7 +23,7 @@
 "Seedling_SoilDepth.K",1765," #mm, maximum rooting depth"
 "Seedling_SoilDepth.r",0.189413231," #rate of root growth"
 "Hardegree_a",0.649614337," #1/day > 0"
-"Hardegree_b",13.7107755,"#Celcius, optimal temperature"
+"Hardegree_b",13.7107755,"#Celsius, optimal temperature"
 "Hardegree_c",-116.2694843,"#1/Kelvin, abs=kurtosis, sign=skewness; if c>0 then c > -(T-b)(d^2-1)/d else if c<0 then c < -(T-b)(d^2-1)/d"
 "Hardegree_d",0.365901519,"#unit-less > 0 & != 1, 'angle of peak'"
 "TimeToGerminate_k1_meanJanTemp",-0.395946153," #[day/C]"

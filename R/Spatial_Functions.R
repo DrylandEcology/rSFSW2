@@ -222,7 +222,7 @@ setMethod("extract_rSFSW2",
 #'  integer codes of a factor whose levels are encoded by \code{code}.
 #' @param ... \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
-#'      that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
+#'      that are represented by a two-column matrix of xy coordinates. Ignored if \code{y}
 #'      is inheriting from \linkS4class{SpatialPolygons}.
 #'    \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
 #'      system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from
@@ -605,7 +605,7 @@ extract_from_external_raster_old <- function(x, data, ...) {
 #' Re-aggregation of spatial polygon data by spatial rectangles/polygons
 #'
 #' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
-#'  information and not the area-weigthed sum.
+#'  information and not the area-weighted sum.
 #'
 #' @param x A \linkS4class{SpatialPolygons} object from which data are extracted.
 #' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the

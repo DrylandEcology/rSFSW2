@@ -260,7 +260,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::set_swCloud(swRunScenariosData[[1]]) <- tr_cloud[[i_sw_input_treatments$cloudin]]
 
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
-    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
+    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but could not for the experimental design because at that time information was unkown
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&

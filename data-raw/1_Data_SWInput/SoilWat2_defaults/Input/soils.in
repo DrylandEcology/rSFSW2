@@ -1,5 +1,5 @@
 # Soil layer definitions
-# Location: 
+# Location:
 #
 # depth = (cm) lower limit of layer; layers must be in order of depth.
 # matricd = (g/cm^3) bulk density of soil in this layer.
@@ -9,7 +9,7 @@
 # %sand = (frac) proportion of sand in layer (0-1.0).
 # %clay = (frac) proportion of clay in layer (0-1.0).
 # imperm = (frac) proportion of 'impermeability' to water percolation(/infiltration/drainage) in layer (0-1.0)
-# soiltemp = the initial temperature of each soil layer (in celcius), from the day before the simulation starts
+# soiltemp = the initial temperature of each soil layer (in Celsius), from the day before the simulation starts
 # Note that the evco and trco columns must sum to 1.0 or they will
 # be normalized.
 #

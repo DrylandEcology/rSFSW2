@@ -78,7 +78,7 @@ dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
 #' @param fdbWeather A character string. The file path of weather database.
 #' @param repeats An integer value. The number of times each weather object is extracted
 #   (repeats > 1 enable comparison of the duplicates).
-#' @param do_preprocess_tempfiles A logial value. Set to TRUE, for instance, if a
+#' @param do_preprocess_tempfiles A logical value. Set to TRUE, for instance, if a
 #'   previous run was prematurely aborted.
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
 #'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values

@@ -138,7 +138,7 @@ fill_bounding_box <- function(box, vals) {
 #' @return A list with two elements
 #'  \describe{
 #'    \item{data}{A copy of \code{data} with adjusted values.}
-#'    \item{PPT_to_remove}{The total amount of precipitation that couldn't be removed from \code{data} due to lack of precipitation.}
+#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
 #'  }
 add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerEvent = NULL) {
   stopifnot(xor(is.null(deltaPerEvent), is.null(addDelta)))
@@ -436,7 +436,7 @@ applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
 #' @return A list with two elements
 #'  \describe{
 #'    \item{data}{A copy of \code{data} with adjusted values.}
-#'    \item{PPT_to_remove}{The total amount of precipitation that couldn't be removed from \code{data} due to lack of precipitation.}
+#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
 #'  }
 applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, monthly) {
   ppt <- rep(0, length(data))
