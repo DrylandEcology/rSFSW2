@@ -38,7 +38,8 @@ Suggests:
     knitr,
     rmarkdown,
     testthat,
-    covr
+    covr,
+    lintr
 Remotes:
     github::khufkens/daymetr,
     github::dschlaep/weathergen
