@@ -125,7 +125,51 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 #'  Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 #'
 #' @export
-calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(SFSW2_prj_meta,
+calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sand, clay,
+  depth_max_bs_evap_cm) {
+
+  depth_min_bs_evap <- min(layers_depth[, 1])
+  stopifnot(stats::na.exclude(depth_min_bs_evap < depth_max_bs_evap_cm))
+
+  lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
+    xdm <- depth_max_bs_evap_cm - x
+    i0 <- abs(xdm) < SFSW2_glovars[["tol"]]
+    ld <- if (any(i0, na.rm = TRUE)) {
+      which(i0)
+    } else {
+      temp <- which(xdm < 0)
+      if (length(temp) > 0) temp[1] else length(x)
+    }
+    c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
+  }))
+  ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
+
+  sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) / ldepth_max_bs_evap
+  clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) / ldepth_max_bs_evap
+
+  temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
+  depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE),
+    depth_max_bs_evap_cm, na.rm = TRUE)
+  lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
+    i0 <- abs(x) < SFSW2_glovars[["tol"]]
+    ld <- if (any(i0, na.rm = TRUE)) {
+      which(i0)
+    } else {
+      temp <- which(x < 0)
+      if (length(temp) > 0) temp[1] else sum(!is.na(x))
+    }
+    c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
+  }))
+
+  # function made up to match previous cummulative distributions
+  temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)
+  temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
+  coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
+  coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
+}
+
+
+get_BareSoilEvaporationCoefficientsForSoilInputFile <- function(SFSW2_prj_meta,
   SFSW2_prj_inputs, runIDs_adjust, resume = TRUE, verbose = FALSE) {
 
   if (verbose) {
@@ -159,47 +203,14 @@ calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture <- function(SFSW2_p
     temp <- SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, grep("depth_L",
       names(SFSW2_prj_inputs[["sw_input_soillayers"]]))[use_layers], drop = FALSE]
     layers_depth <- as.matrix(temp)
-    depth_min_bs_evap <- min(layers_depth[, 1])
-    stopifnot(stats::na.exclude(depth_min_bs_evap < SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]]))
-
-    lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
-      xdm <- SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]] - x
-      i0 <- abs(xdm) < SFSW2_glovars[["tol"]]
-      ld <- if (any(i0, na.rm = TRUE)) {
-        which(i0)
-      } else {
-        temp <- which(xdm < 0)
-        if (length(temp) > 0) temp[1] else length(x)
-      }
-      c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
-    }))
-    ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
 
     #TODO: add influence of gravel
     sand <- SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_sand, drop = FALSE]
     clay <- SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_clay, drop = FALSE]
-    sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) / ldepth_max_bs_evap
-    clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) / ldepth_max_bs_evap
 
-    temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
-    depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE),
-      SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]], na.rm = TRUE)
-    lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
-      i0 <- abs(x) < SFSW2_glovars[["tol"]]
-      ld <- if (any(i0, na.rm = TRUE)) {
-        which(i0)
-      } else {
-        temp <- which(x < 0)
-        if (length(temp) > 0) temp[1] else sum(!is.na(x))
-      }
-      c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
-    }))
+    coeff_bs_evap <- calc_BareSoilEvaporationCoefficientsFromSoilTexture(layers_depth, sand, clay,
+      depth_max_bs_evap_cm = SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]])
 
-    # function made up to match previous cummulative distributions
-    temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)
-    temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
-    coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
-    coeff_bs_evap <- coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
 
     #add data to sw_input_soils and set the use flags
     icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x) any(x > SFSW2_glovars[["tol"]]))))

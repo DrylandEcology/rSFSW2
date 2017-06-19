@@ -492,7 +492,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
     if (todo_intracker(SFSW2_prj_meta, "calc_bsevap", "prepared")) {
 
-      SFSW2_prj_inputs <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(
+      SFSW2_prj_inputs <- get_BareSoilEvaporationCoefficientsForSoilInputFile(
         SFSW2_prj_meta, SFSW2_prj_inputs, runIDs_adjust, resume = opt_behave[["resume"]],
         verbose = opt_verbosity[["verbose"]])
 
