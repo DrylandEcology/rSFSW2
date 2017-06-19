@@ -106,7 +106,8 @@ if (file.exists(fmeta)) {
   setup_rSFSW2_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
-  warning("Specify project description/metadata via file ", shQuote(basename(fmetar)),
+  warning("'SFSW2_project_code.R': Check/adjust project description/metadata in file ",
+    shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
     immediate. = TRUE)
 
   # 1c) Load and prepare project description
@@ -142,6 +143,10 @@ if (actions[["prep_inputs"]]) {
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
+    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
 }
 
 
@@ -155,6 +160,10 @@ if (actions[["check_inputs"]]) {
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
+    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
 }
 
 
