@@ -1812,7 +1812,7 @@ get_GCMdata_netCDF <- function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, 
 calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
   climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
-  getYears, assocYears, sim_time, task_seed, opt_DS, project_paths,
+  getYears, assocYears, sim_time, task_seed, opt_DS, project_paths, resume,
   verbose, print.debug) {
 
   on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
@@ -2079,7 +2079,8 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
   climate.ambient, locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type,
-  getYears, assocYears, sim_time, seeds_DS, opt_DS, project_paths, verbose, print.debug) {
+  getYears, assocYears, sim_time, seeds_DS, opt_DS, project_paths, resume, verbose, 
+  print.debug) {
 
   temp <- try(calc.ScenarioWeather(i = i,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2095,6 +2096,7 @@ try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
           task_seed = seeds_DS[[i]],
           opt_DS = opt_DS,
           project_paths = project_paths,
+          resume = resume,
           verbose = verbose, print.debug = print.debug))
 
   if (inherits(temp, "try-error")) {
@@ -2124,7 +2126,7 @@ try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
   assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient, dbW_iSiteTable,
-  dbW_iScenarioTable, dbW_compression_type, sim_time, seeds_DS, opt_DS, verbose,
+  dbW_iScenarioTable, dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
   print.debug, seed = NA) {
 
   #requests ids_ToDo: fastest if nc file is
@@ -2154,6 +2156,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
           project_paths = project_paths,
+          resume = resume,
           verbose = verbose, print.debug = print.debug)
 
       Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
@@ -2178,6 +2181,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
           project_paths = project_paths,
+          resume = resume,
           verbose = verbose, print.debug = print.debug)
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_disconnectConnection())
@@ -2205,6 +2209,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
       seeds_DS = seeds_DS,
       opt_DS = opt_DS,
       project_paths = project_paths,
+      resume = resume,
       verbose = verbose, print.debug = print.debug)
     ids_Done <- do.call(c, ids_Done)
 
@@ -2304,7 +2309,7 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
   is_netCDF, is_NEX, iDS_runIDs_sites, include_YN_climscen, climDB_meta, reqGCMs, reqRCPs,
   reqRCPsPerGCM, reqDownscalingsPerGCM, dbW_iSiteTable, dbW_iScenarioTable,
-  dbW_compression_type, opt_parallel, verbose = FALSE, print.debug = FALSE) {
+  dbW_compression_type, opt_parallel, resume, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2540,6 +2545,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
       sim_time = SFSW2_prj_meta[["sim_time"]],
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
       opt_DS = SFSW2_prj_meta[["sim_scens"]][["opt_DS"]],
+      resume = resume,
       verbose = verbose, print.debug = print.debug)
 
     ids_Done <- sort(unique(c(ids_Done, out)))
@@ -2584,7 +2590,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
 #' Extract climate scenarios
 #' @export
 ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-  todos, opt_parallel, verbose = FALSE, print.debug = FALSE) {
+  todos, opt_parallel, resume, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -2661,7 +2667,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
         reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
         dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
         dbW_compression_type = dbW_compression_type, opt_parallel = opt_parallel,
-        verbose = verbose, print.debug = print.debug)
+        resume = resume, verbose = verbose, print.debug = print.debug)
     }
   }
 
@@ -2841,7 +2847,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   if (any(todos)) {
     if (any(which_NEX) || any(which_netCDF)) {
       temp <- ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-        todos, opt_parallel, verbose = opt_verbosity[["verbose"]],
+        todos, opt_parallel, resume = resume, verbose = opt_verbosity[["verbose"]],
         print.debug = opt_verbosity[["print.debug"]])
 
         SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
