@@ -584,7 +584,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 ########################## START SSURGO EXTRACTION #############################
 
 ################################################################################
-# Quick information 
+# Quick information
 ################################################################################
 # Cases where STATSGO is extracted:
 #   1) SSURGO failed to download/extract with the FedData library
@@ -601,12 +601,12 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
 #' @author Zachary Kramer, \email{kramer.zachary.nau@gmail.com}
 #' @title Download and extract SSURGO data
 #' @description Download the respective SSURGO area for each site, extract
-#' the data into both spatial and tabular files, choose the most prominent keys, 
+#' the data into both spatial and tabular files, choose the most prominent keys,
 #' extract the respective data within the keys, and populate the soil layers and soil texture
 #' slots in the MMC variable with that data.
 #' @export
 do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, SWRunInformation, print.debug, sim_size, sim_space, dir_ex_soil, resume) {
-  
+
   # Begin main function (called at end)
   main <- function() {
 
@@ -618,7 +618,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     # Set directory
     old_wd <- getwd()
     # Create new directory if it doesn't exist
-    dir.create(dir_data_SSURGO, showWarnings = F, recursive = T)  
+    dir.create(dir_data_SSURGO, showWarnings = F, recursive = T)
     # Set working directory
     setwd(dir_data_SSURGO)
     # Iterate through each site
@@ -649,7 +649,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       # Find the most prominent mukey, cokey, and the corresponding chkeys
       ########################################################################
       if (print.debug) cat("\n    > Choosing keys...")
-      
+
       # Go through each cokey for each mukey
       keys <- tryCatch({ choose_keys(downloaded_soil_data)},
                        error   = function(e) { error_warning_msg(label, lat, lon, e) },
@@ -659,12 +659,12 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
         do_STATSGO <<- TRUE
         next  # No keys exist, so move on to the next site
       }
-      
+
       ######################################################################
       # For simplicity, extract only the fields that we will be working with
       ######################################################################
       if (print.debug) cat("\n    > Extracting needed data from SSURGO CSVs...")
-      
+
       # Extract data
       extracted_soil_data <- extract_and_format_soil_data(downloaded_soil_data, keys, label)
       # Do any horizons exist?
@@ -677,12 +677,12 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
         if (print.debug) cat("\n        > All of the horizons lacked data; will fill with STATSGO\n\n")
         next
       }
-      
+
       ######################################################################
       # Convert SSURGO units to our units
       ######################################################################
       extracted_soil_data <- convert_units(extracted_soil_data)
-      
+
       ######################################################################
       # Update input file values (soil layers, soil texture, input master)
       ######################################################################
@@ -696,7 +696,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
         if (print.debug) cat("\n    > Done!\n\n")
       }
     }
-    
+
     ########################################################################
     # Extract STATSGO based on described cases
     ########################################################################
@@ -710,24 +710,24 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     ########################################################################
     utils::write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]), file = fnames_in[["fsoils"]], row.names = FALSE)
     utils::write.csv(MMC[["input2"]], file = fnames_in[["fslayers"]], row.names = FALSE)
-    
+
     ########################################################################
     # Exit
     ########################################################################
     setwd(old_wd)
   }
   # End main function
-  
+
   ############################################################################
   # Helper functions
   ############################################################################
   # Simplistic functions
   is.not.null         <- function(x) return(! is.null(x))
-  is.not.na           <- function(x) return(! is.na(x)) 
+  is.not.na           <- function(x) return(! is.na(x))
   update_input_use    <- function(column, value) if (is.not.na(value)) MMC[["use"]][column] <<- TRUE
   update_soil_texture <- function(row, column, value) if (is.not.na(value)) MMC[["input"]][row, column] <<- value
   update_soil_layer   <- function(row, column, value) if (is.not.na(value)) MMC[["input2"]][row, column] <<- value
-  
+
   #' @title Error/Warning Message
   #' @description Prints out why a function call failed
   #' It will also enable the extraction of STATSGO once all sites are finished
@@ -747,7 +747,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     do_STATSGO <<- TRUE
     NULL
   }
-  
+
   #' @title Convert coordinates to a bounding box
   #' @description Create a raster polygon to grab an area from SSURGO via coordinates
   #' @note FedData cannot grab a single pair of coordinates
@@ -757,7 +757,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   #' @return A raster object that serves as a bounding box
   convert_coords_to_bounding_box <- function(lat, lon, s = .00000001)
     polygon_from_extent(raster::extent(lon, lon + s, lat, lat + s), proj4string = "+proj=longlat +datum=NAD83 +no_defs")
-  
+
   #' @title Choose mukey, cokey(s), and chkey(s)
   #' @description Choose the mukey with the largest summed component percent, the cokey with the largest individual component percent (within the mukey),
   #' then grab all chkeys that match the cokey.
@@ -766,7 +766,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   #'                  (2) "tabular": A named list of data.frame's with the SSURGO tabular data}
   #' @return list consisting of the mukey, cokey, and chkey(s)
   choose_keys <- function(soil_data) {
-    
+
     ############################################################################
     # Return the mukey with the largest total component percent
     #     > Could be replaced with an apply statement
@@ -784,11 +784,11 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
           mukey <- DATA$mukey[i]                          # Next mukey
           s     <- 0                                      # Reset sum
         }
-        s <- s + DATA$comppct.r[i]  
+        s <- s + DATA$comppct.r[i]
       }
       largest_mukey
     }
-    
+
     ############################################################################
     # Return the cokey with the largest individual component percent
     #     > Could be replaced with an apply statement
@@ -798,27 +798,27 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       cokey       <- FALSE
       for (i in 1:nrow(DATA))
         if (DATA$mukey[i] == mukey)               # Only search within our chosen mukey
-          if (DATA$comppct.r[i] > largest_pct) {  # New highest component percent 
+          if (DATA$comppct.r[i] > largest_pct) {  # New highest component percent
             largest_pct <- DATA$comppct.r[i]
             cokey       <- DATA$cokey[i]          # Save cokey
           }
       cokey
     }
-    
+
     #' @title Extract needed fields
-    #' @descripion
+    #' @description
     #' Creates a data frame that contains component percent, mukey, cokey, and chkey.
-    #' 
+    #'
     #' Grabbing data:
     #'    > Mukey, component percent, and cokey are grabbed from component
     #'    > Cokey and chkey are grabbed from chorizon
-    #'    > Chkey is grabbed from chfrags. 
+    #'    > Chkey is grabbed from chfrags.
     #'        (Fragvol is also grabbed, since at least two fields are needed to maintain a data frame)
     #'
     #' Joining data:
     #'    > Component is joined with chorizon by cokey
     #'    > The above data frame is joined with chfrags by chkey
-    #' 
+    #'
     #' @return a data frame with component percent, mukey, cokey, and chkey
     grab_data <- function(soil_data) {
       # COMPONENT
@@ -827,7 +827,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       component_data <- component[, ][, fields]               # Grab all rows of the defined fields
       # CHORIZON
       fields         <- c('cokey', 'chkey')
-      chorizon       <- soil_data$tabular$chorizon      
+      chorizon       <- soil_data$tabular$chorizon
       chorizon_data  <- chorizon[, ][, fields]
       # CHFRAGS
       fields         <- c('fragvol.r', 'chkey')               # Two fields are necessary to maintain a data frame
@@ -837,7 +837,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       intermediate   <- merge(component_data, chorizon_data)  # Join by cokey
       DATA           <- merge(intermediate, chfrags_data)     # Join by chkey
     }
-    
+
     ############################################################################
     # Main
     ############################################################################
@@ -858,10 +858,10 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
         chkeys <- c(chkeys, DATA$chkey[i])
     c(mukey, cokey, chkeys)
   }
-  
+
   #' @title Extract and format soil data
   #' @description Extract the needed data fields from the input, but only if the data fields match the chosen keys.
-  #' Some aspects of this functon are not neccessary, as data could be extracted and immediately populated into MMC, 
+  #' Some aspects of this functon are not neccessary, as data could be extracted and immediately populated into MMC,
   #' but storing the data in variables makes for better organization and troubleshooting.
   #' @details \preformatted{The following columns of data will be extracted:
   #'    > chorizon
@@ -895,7 +895,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     muaggatt          <- soil_data$tabular$muaggatt
     rows              <- muaggatt$mukey %in% keys
     muaggatt_data     <- muaggatt[rows, ][, fields]
-    fields            <- c('fragvol.r', 'chkey') 
+    fields            <- c('fragvol.r', 'chkey')
     chfrags           <- soil_data$tabular$chfrags
     rows              <- chfrags$chkey %in% keys
     chfrags_data      <- chfrags[rows, ][, fields]
@@ -915,11 +915,11 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     # Return
     d
   }
-  
+
   #' @title Update the soil layers and soil texture inputs
   #' @param formatted_data - see return value of extract_and_format_soil_data
   update_input_data <- function(formatted_data, label, keys, row_num) {
-    
+
     ############################################################################
     # Extract data
     ############################################################################
@@ -933,7 +933,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     comppct      <- formatted_data$comppct.r
     column_names <- data.frame(sand="Sand_L", clay="Clay_L", matrix="Matricd_L", depth="depth_L", gravel="GravelContent_L")
     failures     <- 0
-    
+
     ############################################################################
     # Initialize
     ############################################################################
@@ -976,11 +976,11 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       update_input_use(paste(column_names$gravel, 1, sep = ""), gravel[1])
       update_soil_texture(x, paste(column_names$sand, 1, sep=""), sand[1])
       update_soil_texture(x, paste(column_names$clay, 1, sep=""), clay[1])
-      update_soil_texture(x, paste(column_names$matrix, 1, sep=""), dbthirdbar[1])  
-      update_soil_texture(x, paste(column_names$gravel, 1, sep=""), gravel[1])  
+      update_soil_texture(x, paste(column_names$matrix, 1, sep=""), dbthirdbar[1])
+      update_soil_texture(x, paste(column_names$gravel, 1, sep=""), gravel[1])
       update_soil_layer(x2, paste(column_names$depth, 1, sep=""), 15)  # Set the depth for this layer
     }
-    
+
     ############################################################################
     # Insert incremented fields
     ############################################################################
@@ -1006,14 +1006,14 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       update_input_use(paste(column_names$gravel, k, sep = ""), gravel[j])
       update_soil_texture(x, paste(column_names$sand, k, sep=""), sand[j])
       update_soil_texture(x, paste(column_names$clay, k, sep=""), clay[j])
-      update_soil_texture(x, paste(column_names$matrix, k, sep=""), dbthirdbar[j])  
-      update_soil_texture(x, paste(column_names$gravel, k, sep=""), gravel[j])  
+      update_soil_texture(x, paste(column_names$matrix, k, sep=""), dbthirdbar[j])
+      update_soil_texture(x, paste(column_names$gravel, k, sep=""), gravel[j])
       update_soil_layer(x2, paste(column_names$depth, k, sep=""), hzdepb[j])  # Set the depth for this layer
     }
-    
+
     return(1)
   }
-  
+
   #' @title Convert SSURGO units to our units
   #' @details \preformatted{
   #'                         | SSURGO  |     Ours     | Conversion
@@ -1028,7 +1028,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   #'        > fragvol.r      | percent |   fraction   | divide by 100
   #' > muaggatt
   #'        > brockdepmin    |   cm    |      cm      | none}
-  #' @note Units retreived from SSURGO Metadata: 
+  #' @note Units retreived from SSURGO Metadata:
   #'       http://www.nrcs.usda.gov/wps/PA_NRCSConsumption/download?cid=stelprdb1241114&ext=pdf
   #' @return matrix containing the fields from chorizon, chfrags, and muaggat
   convert_units <- function(formatted_data) {
@@ -1043,8 +1043,8 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     }
     formatted_data
   }
-  
-  
+
+
   ##############################################################################
   # Call main function
   ##############################################################################
@@ -1052,14 +1052,14 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-    
+
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
                           round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-  
+
   # Require FedData library
   stopifnot(requireNamespace("FedData"))
-  
+
   # Initialize settings
   do_STATSGO               <- FALSE  # Indicates that STATSGO should be extracted to fill in missing data
   MMC[["idone"]]["SSURGO"] <- FALSE  # Meaning before the run, SSURGO has not finished
@@ -1122,7 +1122,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       resume           = resume
     )
   }
-  
+
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
     MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
