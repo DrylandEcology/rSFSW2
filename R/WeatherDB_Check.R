@@ -34,6 +34,7 @@ dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
     sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (?) ",
       "ORDER BY Site_id, Scenario")
     rs <- DBI::dbSendStatement(con, sql)
+    on.exit(RSQLite::dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
       if (opt_verbosity[["print.debug"]]) {
@@ -60,8 +61,6 @@ dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
         }
       }
     }
-
-    RSQLite::dbClearResult(rs)
 
   } else {
     stop("'has_missingClimScens': table 'WeatherData' is missing from 'dbWeather'")
