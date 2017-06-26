@@ -48,8 +48,8 @@ Organizing previous state and streams of random number generator
 \section{Note}{
  Parallelized function calls without using RNG
  \itemize{
-   \item \code{ISRICWISE12_extract_SUIDs}
-   \item \code{ISRICWISE12_try_weightedMeanForSimulationCell}
+   \item \code{ISRICWISE5minV1b_extract_SUIDs}
+   \item \code{ISRICWISE5minV1b_try_weightedMeanForSimulationCell}
    \item \code{collect_EnsembleFromScenarios}
    \item \code{missing_Pids_outputDB}
    \item \code{gribDailyWeatherData}

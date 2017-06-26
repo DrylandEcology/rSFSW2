@@ -259,7 +259,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'    \item{SUID}{A numeric vectors. The sorted unique values.}
 #'    \item{fraction}{A numeric vector. The relative areas covered by \code{values}.}
 #'  }
-ISRICWISE12_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
+ISRICWISE5minV1b_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
   stopifnot(requireNamespace("sp"))
 
   out <- try(reaggregate_raster(x = grid,
@@ -279,7 +279,7 @@ ISRICWISE12_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites) {
   }
 }
 
-ISRICWISE12_get_prids <- function(suid, dat_wise, layer_N) {
+ISRICWISE5minV1b_get_prids <- function(suid, dat_wise, layer_N) {
   soils <- dat_wise[dat_wise$SUID == suid, ]
   frac <- unique(soils[, c("PROP", "PRID")])
   depth <- tapply(soils$BotDep, soils$PRID, max)
@@ -292,24 +292,24 @@ ISRICWISE12_get_prids <- function(suid, dat_wise, layer_N) {
      soildat = soils)
 }
 
-ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
+ISRICWISE5minV1b_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
   sum(soildat_rows * frac, dat, na.rm = TRUE) #weighted mean = sum of values x weights
 }
 
-#' Calculate the weighted mean soil variables from ISRIC-WISE v1.2 for one simulation cell
+#' Calculate the weighted mean soil variables from ISRIC-WISE 5-arcmin v1.2 for one simulation cell
 #'
 #' @param i An integer value. The cell number.
 #' @param i_sim_cells_SUIDs A named numeric vector. A row of of the data.frame returned
-#'    by \code{\link{ISRICWISE12_extract_SUIDs}}.
+#'    by \code{\link{ISRICWISE5minV1b_extract_SUIDs}}.
 #' @param sim_soils A named numeric vector. First element is 'i' and second is 'depth'.
 #'    The following elements represent the soil variables (currently, "density", "sand",
 #'    "clay", "rock", "carbon"; see \code{\link{prepare_ExtractData_Soils}}) for each of
 #'    the maximally possible soil layers (see \code{SFSW2_glovars[["slyrs_maxN"]]}).
 #'    Input is an empty template.
-#' @param layer_N An integer value. The number of soil layers in the ISRIC-WISE v1.2
+#' @param layer_N An integer value. The number of soil layers in the ISRIC-WISE 5-arcmin v1.2
 #'    dataset (i.e., 5, see \code{\link{do_ExtractSoilDataFromISRICWISEv12_Global}}).
 #' @param layer_Nsim An integer value. The number of soil layers of a \code{rSFSW2} project
-#'    representing the ISRIC-WISE v1.2 dataset (i.e., 6, see
+#'    representing the ISRIC-WISE 5-arcmin v1.2 dataset (i.e., 6, see
 #'    \code{\link{do_ExtractSoilDataFromISRICWISEv12_Global}}).
 #' @param ldepth An integer vector. The depth limits of the extracted \code{rSFSW2}
 #'    project soil layers including zero where \code{layer_Nsim + 1 == length(ldepth)}.
@@ -317,7 +317,7 @@ ISRICWISE12_get_SoilDatValuesForLayer <- function(dat, soildat_rows, frac) {
 #' @param nvars An integer value. The number of soil variables extracted from ISRIC-WISE
 #'    v1.2 (currently, 5; see \code{\link{prepare_ExtractData_Soils}}).
 #'
-ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
+ISRICWISE5minV1b_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
   sim_soils, layer_N, layer_Nsim, ldepth, dat_wise, nvars) {
 
   #Init
@@ -330,7 +330,7 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
   #Do calculations if any soils in this simulation cell
   if (i_sim_cells_SUIDs["SUIDs_N"] > 0) {
     this_simCell <- c(as.list(i_sim_cells_SUIDs),
-      soils = list(t(sapply(i_sim_cells_SUIDs["SUID"], FUN = ISRICWISE12_get_prids,
+      soils = list(t(sapply(i_sim_cells_SUIDs["SUID"], FUN = ISRICWISE5minV1b_get_prids,
       dat_wise = dat_wise, layer_N = layer_N))))
 
     # loop through the suids within this simulation cell; each suid may be composed of
@@ -362,23 +362,23 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
 
           # bulk density (kg/dm3)
           ids <- paste0("density_L", ils)
-          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+          sim_soils[ids] <- ISRICWISE5minV1b_get_SoilDatValuesForLayer(dat = sim_soils[ids],
             soildat_rows = this_soil$soildat[irow, "BULK"], frac = pfracl)
           # Sand mass (%)
           ids <- paste0("sand_L", ils)
-          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+          sim_soils[ids] <- ISRICWISE5minV1b_get_SoilDatValuesForLayer(dat = sim_soils[ids],
             soildat_rows = this_soil$soildat[irow, "SDTO"], frac = pfracl)
           # clay mass (%)
           ids <- paste0("clay_L", ils)
-          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+          sim_soils[ids] <- ISRICWISE5minV1b_get_SoilDatValuesForLayer(dat = sim_soils[ids],
             soildat_rows = this_soil$soildat[irow, "CLPC"], frac = pfracl)
           # coarse fragments (vol % > 2 mm)
           ids <- paste0("rock_L", ils)
-          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+          sim_soils[ids] <- ISRICWISE5minV1b_get_SoilDatValuesForLayer(dat = sim_soils[ids],
             soildat_rows = this_soil$soildat[irow, "CFRAG"], frac = pfracl)
           # total organic carbon content (g C / kg)
           ids <- paste0("carbon_L", ils)
-          sim_soils[ids] <- ISRICWISE12_get_SoilDatValuesForLayer(dat = sim_soils[ids],
+          sim_soils[ids] <- ISRICWISE5minV1b_get_SoilDatValuesForLayer(dat = sim_soils[ids],
             soildat_rows = this_soil$soildat[irow, "TOTC"], frac = pfracl)
         }
       }
@@ -394,13 +394,13 @@ ISRICWISE12_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
 }
 
 
-ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
+ISRICWISE5minV1b_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
   template_simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise = dat_wise,
   nvars) {
 
   if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
 
-  temp <- try(ISRICWISE12_calc_weightedMeanForSimulationCell(i,
+  temp <- try(ISRICWISE5minV1b_calc_weightedMeanForSimulationCell(i,
         i_sim_cells_SUIDs = sim_cells_SUIDs[i, ],
         sim_soils = template_simulationSoils,
         layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth, dat_wise = dat_wise,
@@ -410,7 +410,7 @@ ISRICWISE12_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 }
 
 
-#' Extract soil data from ISRIC-WISE v1.2
+#' Extract soil data from ISRIC-WISE 5-arcmin v1.2
 #'
 #' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
 #'  arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
@@ -476,7 +476,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
           sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo,
-            FUN = ISRICWISE12_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
+            FUN = ISRICWISE5minV1b_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise)
 
           Rmpi::mpi.bcast.cmd(rm(list = ls()))
@@ -485,7 +485,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
         } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
           sim_cells_SUIDs <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
-            fun = ISRICWISE12_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
+            fun = ISRICWISE5minV1b_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise)
 
           parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
@@ -496,7 +496,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
         }
 
       } else {
-        sim_cells_SUIDs <- lapply(is_ToDo, FUN = ISRICWISE12_extract_SUIDs,
+        sim_cells_SUIDs <- lapply(is_ToDo, FUN = ISRICWISE5minV1b_extract_SUIDs,
           res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise)
       }
     }
@@ -516,7 +516,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
         ws <- Rmpi::mpi.applyLB(X = is_ToDo,
-          FUN = ISRICWISE12_try_weightedMeanForSimulationCell,
+          FUN = ISRICWISE5minV1b_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISEv12,
@@ -528,7 +528,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
         ws <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
-          fun = ISRICWISE12_try_weightedMeanForSimulationCell,
+          fun = ISRICWISE5minV1b_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISEv12,
@@ -539,7 +539,7 @@ do_ExtractSoilDataFromISRICWISEv12_Global <- function(MMC, sim_size, sim_space,
       }
 
     } else {
-      ws <- lapply(is_ToDo, FUN = ISRICWISE12_try_weightedMeanForSimulationCell,
+      ws <- lapply(is_ToDo, FUN = ISRICWISE5minV1b_try_weightedMeanForSimulationCell,
         sim_cells_SUIDs = sim_cells_SUIDs,
         template_simulationSoils = template_simulationSoils,
         layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISEv12,

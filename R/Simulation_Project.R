@@ -220,7 +220,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["use_sim_spatial"]] <-
       (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]])) ||
+        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
+        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV10_Global"]])) ||
       (todo_intracker(SFSW2_prj_meta, "elev_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
         SFSW2_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]])) ||
@@ -385,7 +386,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   #------ DATA EXTRACTIONS
   #--- Soil data
   if (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV10_Global"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared")) {
 

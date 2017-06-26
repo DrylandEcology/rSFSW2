@@ -2,13 +2,13 @@
 % Please edit documentation in R/ExtractData_Soils.R
 \name{do_ExtractSoilDataFromISRICWISEv12_Global}
 \alias{do_ExtractSoilDataFromISRICWISEv12_Global}
-\title{Extract soil data from ISRIC-WISE v1.2}
+\title{Extract soil data from ISRIC-WISE 5-arcmin v1.2}
 \usage{
 do_ExtractSoilDataFromISRICWISEv12_Global(MMC, sim_size, sim_space, dir_ex_soil,
   fnames_in, opt_parallel, resume, verbose)
 }
 \description{
-Extract soil data from ISRIC-WISE v1.2
+Extract soil data from ISRIC-WISE 5-arcmin v1.2
 }
 \section{Note}{
  Cells with no soil values include those with \code{SUID = c(0 = Water,

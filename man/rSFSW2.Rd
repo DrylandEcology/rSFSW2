@@ -65,11 +65,12 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@unibas.ch}
+\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@yale.edu}
 
 Other contributors:
 \itemize{
   \item Caitlin Andrews [contributor]
+  \item Zach Kramer [contributor]
   \item Ryan Murphy [contributor]
 }
 
