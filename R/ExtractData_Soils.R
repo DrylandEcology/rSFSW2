@@ -243,8 +243,8 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 }
 
 
-#' A wrapper for \code{reaggregate_raster} design to work with raster data from ISRIC-WISE
-#' versions 5-arcmin v1.2 and 30-arcsec v1.0
+#' A wrapper for \code{reaggregate_raster} designed to work with the rasters of the
+#' ISRIC-WISE datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
 #'
 #' @param i An integer value. The index to select a location from among \code{sp_sites}
 #'  and the corresponding resolution \code{res}.
@@ -368,7 +368,7 @@ ISRICWISE_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
     this_simCell <- c(as.list(i_sim_cells_SUIDs),
       soils = list(t(sapply(i_sim_cells_SUIDs[["SUID"]], FUN = ISRICWISE_get_prids,
       dat_wise = dat_wise, layer_N = layer_N, colname_suid = var_tags[["suid"]]))))
-    
+
     # loop through the suids within this simulation cell; each suid may be composed of
     #   several prids
     for (k in seq_len(this_simCell[["SUIDs_N"]])) {
