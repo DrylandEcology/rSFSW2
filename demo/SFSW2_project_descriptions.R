@@ -184,7 +184,7 @@ opt_input <- list(
   #     'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data
   #     is available for both
   #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has first priority,
-  #     then 'ExtractSoilDataFromISRICWISE30secV10_Global' has second priority, and
+  #     then 'ExtractSoilDataFromISRICWISE30secV1a_Global' has second priority, and
   #     'ExtractSoilDataFromISRICWISEv12_Global' has third priority on a per site basis
   #     if more than one are requested and data are available for multiple sources
   #   - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over
@@ -292,7 +292,7 @@ opt_out_fix <- list(
 # - actions[["map_inputs"]]
 # - external extractions:
 #  - soils: "ExtractSoilDataFromISRICWISEv12_Global",
-#     "ExtractSoilDataFromISRICWISE30secV10_Global",
+#     "ExtractSoilDataFromISRICWISE30secV1a_Global",
 #     "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
 #  - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
 #  - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA"
