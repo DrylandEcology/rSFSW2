@@ -23,8 +23,24 @@ Extract soil data from one of the ISRIC-WISE datasets
 }
 
 \section{Note}{
- Cells with no soil values include those with \code{SUID = c(0 = Water,
- 6997 = Water, 6694 = Rock, or 6998 = Glacier)}
+ Cells with negative soil values indicate non-soils and are eliminated
+  before aggregations: \enumerate{
+  \item 1) ISRIC-WISE 5-arcmin v1.2 (Batjes 2012) \itemize{
+      \item -1: Oceans and inland waters (SUIDS %in% c(0, 1972, 6997))
+      \item -2: Glaciers and snow caps (SUIDS %in% 6998)
+      \item -3: No/insufficient data
+      \item -7: Rock outcrops (or shallow subsoils) (SUIDS %in% 6694)
+    }
+  \item 2) ISRIC-WISE 30-arcsec v1.0 (Batjes 2015) \itemize{
+      \item -1: Oceans and inland waters
+      \item -2: Glaciers and snow caps
+      \item -3: Rock outcrops
+      \item -4: Dunes/Shifting sands
+      \item -5: Salt flats
+      \item -7: 'Rocky' subsoils as for Leptosols
+      \item -9: Remaining miscellaneous units
+    }
+  }
 }
 
 \references{

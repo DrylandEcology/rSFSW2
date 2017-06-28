@@ -29,8 +29,9 @@ A list with four elements
    \item{i}{An integer value. The location index.}
    \item{SUIDs_N}{An integer vector. The number of unique values within the rectangle
      of \code{x}.}
-   \item{SUID}{A numeric vectors. The sorted unique values.}
-   \item{fraction}{A numeric vector. The relative areas covered by \code{values}.}
+   \item{SUID}{A numeric vector or a vector of character strings. The unique soil
+     soil identifier values or \code{NA}.}
+   \item{fraction}{A numeric vector. The relative areas covered by \code{SUID}.}
  }
 }
 \description{
