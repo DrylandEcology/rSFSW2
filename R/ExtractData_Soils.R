@@ -74,13 +74,15 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 #' CONUS-SOIL is a rasterized and controlled STATSGO data set; information for 11 soil
 #' are layers available.
 #'
+#' @param default_TOC_GperKG A numeric value. The default value is 0 g TOC per kg soil.
+#'
 #' @references Miller, D. A. and R. A. White. 1998. A conterminous United States
 #'  multilayer soil characteristics dataset for regional climate and hydrology modeling.
 #'  Earth Interactions 2:1-26.
 #' @section Note(drs): it appears that NODATA values are recorded as 0
 #'
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_space,
-  dir_ex_soil, fnames_in, resume, verbose) {
+  dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -219,6 +221,9 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     total_matric[!is.finite(total_matric)] <- NA
     MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand / total_matric
     MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay / total_matric
+
+    # There is no organic carbon data, set all values to a default
+    MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
 
     # Determine successful extractions
     i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
