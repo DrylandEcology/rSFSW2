@@ -456,7 +456,8 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
   template_simulationSoils, layer_N, layer_Nsim, ldepth, dat_wise = dat_wise,
   nvars, var_tags, val_rocks) {
 
-  if (i %% 1000 == 0) print(paste(Sys.time(), "done:", i))
+  if (i %% 1000 == 0)
+    print(paste(Sys.time(), "'ISRICWISE_try_weightedMeanForSimulationCell' done:", i))
 
   temp <- try(ISRICWISE_calc_weightedMeanForSimulationCell(i,
     i_sim_cells_SUIDs = sim_cells_SUIDs[i, ], sim_soils = template_simulationSoils,
@@ -521,7 +522,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+
+    on.exit(enable_debug_dump(match.call()[[1]]), add = TRUE)
   }
+
   stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
 
   MMC[["idone"]][dataset] <- FALSE
@@ -719,6 +723,12 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
         ldepths_cm = ldepth_WISE[-1], lys = seq_len(layer_Nsim), fnames_in)
     }
+  }
+
+  if (verbose) {
+    # Remove debug dumping but not other 'on.exit' expressions before returning without error
+    oe <- sys.on.exit()[-2]
+    on.exit(eval(oe), add = FALSE)
   }
 
   MMC
