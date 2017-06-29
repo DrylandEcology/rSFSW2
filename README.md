@@ -12,6 +12,9 @@ Some recent references
 * Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology of adjacent
   sagebrush and lodgepole pine ecosystems: The consequences of climate change and
   disturbance. Ecosystems 17:590-605.
+* Palmquist, K.A., Schlaepfer, D.R., Bradford, J.B., and Lauenroth, W.K. 2016.
+  Mid-latitude shrub steppe plant communities: climate change consequences for soil water
+  resources. Ecology 97:2342–2354.
 * Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012. Ecohydrological niche of
   sagebrush ecosystems. Ecohydrology 5:453-466.
 
@@ -40,8 +43,8 @@ You can contribute to this project in different ways:
 1. Reporting [issues](https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues)
 2. Contributing code and sending a [pull request](https://github.com/Burke-Lauenroth-Lab/rSFSW2/pulls)
 
-Please write an issue before creating a new branch and eventually sending a pull request
-both of which reference the issue ['issue #[issue number]'](https://help.github.com/articles/autolinked-references-and-urls/#issues-and-pull-requests).
+Please follow our [guidelines](https://github.com/Burke-Lauenroth-Lab/workflow_guidelines).
+
 
 # Code of conduct
 Please note that this project is released with a

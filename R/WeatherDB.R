@@ -245,7 +245,11 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
   if (!file.exists(dir.grib)) { # value of gribDir defined in cfsr_convert.c
-    stopifnot(system2(command = "ln", args = paste("-s",
+    # If a previous soft link still exists at dir.grib, but cannot be found by
+    # file.exists() because the link is 'dead' (but it is still listed by list.files())
+    # then use options -F -f to remove the link before creating a new one -- otherwise,
+    # the command 'ln' reports an error
+    stopifnot(system2(command = "ln", args = paste("-sFf",
       shQuote(file.path(dir.cfsr.data, fname_gribDir)),
       shQuote(dir.grib))) == 0)
   }
