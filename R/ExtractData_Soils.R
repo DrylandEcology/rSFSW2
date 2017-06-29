@@ -520,10 +520,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " for dataset ",
       shQuote(dataset)))
 
+    on.exit(enable_debug_dump(file_tag = match.call()[[1]]), add = FALSE)
+
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
-
-    on.exit(enable_debug_dump(match.call()[[1]]), add = TRUE)
   }
 
   stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
