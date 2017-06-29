@@ -56,6 +56,77 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 }
 
 
+
+#' Expression for dumping of objects from an evaluation stack
+#'
+#' Create an expression for functions 'f' to set on.exit() such that all objects from the
+#' evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+#'
+#' @param dir_out A character string. The path to where the 'RData' file is dumped.
+#' @param file_tag A character string. Will become final part of the 'RData' file name.
+#'
+#' @return Expression.
+#' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
+#'
+#' @examples
+#' \dontrun{
+#' f2 <- function(x, cause_error = FALSE) {
+#'   print(match.call())
+#'   print(environment())
+#'   # Enable debug dumping
+#'   on.exit(enable_debug_dump(file_tag = match.call()[[1]]), add = TRUE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit from", match.call()[[1]])), add = TRUE)
+#'
+#'   res <- x + 100
+#'   if (cause_error) stop("Create error and force debug dumping")
+#'
+#'   # Remove debug dumping but not other 'on.exit' expressions before returning without error
+#'   oe <- sys.on.exit()[-2]
+#'   on.exit(eval(oe), add = FALSE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
+#'   res
+#' }
+#'
+#' f1 <- function(x, cause_error) {
+#'   print(paste(match.call()[[1]], x))
+#'   print(environment())
+#'   try(f2(x + 1, cause_error))
+#' }
+#'
+#' f1(0, cause_error = FALSE)
+#' f1(0, cause_error = TRUE)
+#' x <- new.env()
+#' load("last.dump.f2.RData", envir = x)
+#' ls.str(x)
+#'
+#' # Clean up
+#' unlink("last.dump.f2.RData")
+#' }
+#'
+#' @export
+enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
+  {
+    op_prev <- options("warn")
+    options(warn = 0)
+    env_tosave <- new.env()
+
+    # Loop through evaluation frame stack, with global environment and
+    # without 'enable_debug_dump', and collect objects
+    ids_frame <- sys.parents()[-1]
+    for (k in ids_frame) {
+      list2env(as.list(sys.frame(sys.parent(k))), envir = env_tosave)
+    }
+    list2env(as.list(globalenv()), envir = env_tosave)
+
+    save(list = ls(envir = env_tosave), envir = env_tosave,
+      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag), ".RData")))
+    options(op_prev)
+  }
+}
+
+
 getStartYear <- function(simstartyr, spinup_N = 1L) {
   as.integer(simstartyr + spinup_N)
 }
@@ -1243,5 +1314,3 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
   SWRunInformation
 }
-
-

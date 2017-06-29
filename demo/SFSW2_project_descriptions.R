@@ -170,9 +170,12 @@ opt_input <- list(
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-      #   - ISRIC-WISE v1.2: 1-km re-gridded; data expected
+      #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
-      "ExtractSoilDataFromISRICWISEv12_Global", 0
+      "ExtractSoilDataFromISRICWISEv12_Global", 0,
+      #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
+      #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
+      "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
   ),
 
   # Approach to determine prioprities of external data source extractions
@@ -180,9 +183,10 @@ opt_input <- list(
   #   - Elevation: 'ExtractElevation_NED_USA' has priority over
   #     'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data
   #     is available for both
-  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over
-  #     'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested
-  #     and data is available for both
+  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has first priority,
+  #     then 'ExtractSoilDataFromISRICWISE30secV1a_Global' has second priority, and
+  #     'ExtractSoilDataFromISRICWISEv12_Global' has third priority on a per site basis
+  #     if more than one are requested and data are available for multiple sources
   #   - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over
   #     'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and
   #     data is available for both
@@ -288,6 +292,7 @@ opt_out_fix <- list(
 # - actions[["map_inputs"]]
 # - external extractions:
 #  - soils: "ExtractSoilDataFromISRICWISEv12_Global",
+#     "ExtractSoilDataFromISRICWISE30secV1a_Global",
 #     "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
 #  - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
 #  - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA"
