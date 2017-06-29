@@ -16,14 +16,25 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
+      if (verbose) {
+        print(paste0("rSFSW2's ", temp_call, ": checks existing weather database for ",
+        "complete location/sites and scenario tables."))
+      }
+
       # Check if requested climate scenarios are listed in table; if not add to table
       rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
       dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
 
       i_add <- !(SFSW2_prj_meta[["sim_scens"]][["id"]] %in% dbW_iScenarioTable[, "Scenario"])
       if (any(i_add)) {
-        rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]][i_add])
+        new_scens <- SFSW2_prj_meta[["sim_scens"]][["id"]][i_add]
+        if (verbose) {
+          print(paste0("rSFSW2's ", temp_call, ": adds new scenarios: ",
+            paste(shQuote(new_scens), collapse = " - ")))
+        }
+        rSOILWAT2::dbW_addScenarios(new_scens)
       }
+
       rSOILWAT2::dbW_disconnectConnection()
 
       return(invisible(TRUE))

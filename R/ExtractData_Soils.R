@@ -705,7 +705,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 
     if (verbose) {
       print(paste0("rSFSW2's ", temp_call, " for dataset ", shQuote(dataset),
-        ": soil data was extracted for n =", sum(i_good), "out of", n_extract, "sites"))
+        ": soil data was extracted for n = ", sum(i_good), " out of ", n_extract, " sites"))
     }
 
     if (any(i_good)) {
