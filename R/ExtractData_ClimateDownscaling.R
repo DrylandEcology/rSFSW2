@@ -2293,7 +2293,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
   if (length(temp_files) > 0) {
     if (verbose) {
       print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " with adding temporary ",
-        "files into database for ", shQuote(clim_source)))
+        "files (", length(temp_files), ") into database for ", shQuote(clim_source)))
 
       on.exit({
         print(paste0("rSFSW2's ", temp_call, ": ended after ",
