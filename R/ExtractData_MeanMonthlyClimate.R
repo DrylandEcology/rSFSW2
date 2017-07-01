@@ -265,7 +265,9 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     add = TRUE)
 
 
-  if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
+  if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
+    inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error")) {
+
     SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
       dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
       dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))

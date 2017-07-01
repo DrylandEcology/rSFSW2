@@ -7,14 +7,14 @@
 #'  C4 grasses.
 #'
 #' @param MAP_mm A numeric value. Mean annual precipitation in millimeter of the location.
-#' @param MAT_C A numeric value. Mean annual temperature in degree Celcius.
+#' @param MAT_C A numeric value. Mean annual temperature in degree Celsius.
 #' @param mean_monthly_ppt_mm A numeric vector of length 12. Mean monthly precipitation
 #'  in millimeter.
 #' @param dailyC4vars A named numeric vector of length 3. \describe{
 #'    \item{\code{Month7th_NSadj_MinTemp_C}}{Mean minimum temperature of July on the
 #'      northern hemisphere and January on the southern hemisphere}
 #'    \item{\code{DegreeDaysAbove65F_NSadj_DaysC}}{Degree days above 65 F = 18.33 C in units
-#'      of days x degree Celcius}
+#'      of days x degree Celsius}
 #'    \item{\code{LengthFreezeFreeGrowingPeriod_NSadj_Days}}{Mean annual number of days
 #'      of the longest continuous period where minimum daily temperature remain above
 #'      freezing}
@@ -321,7 +321,7 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
 #' @param isNorth A logical value. \code{TRUE} for locations on northern hemisphere.
 #' @param MAP_mm A numeric value. Mean annual precipitation in millimeter of the location.
 #' @param mean_monthly_temp_C A numeric vector of length 12. Mean monthly temperature
-#'  in Celcius. The default inputs considered March-October as growing season.
+#'  in Celsius. The default inputs considered March-October as growing season.
 #'
 #' @section Default inputs: \itemize{
 #'    \item Shrubs are based on location 'IM_USC00107648_Reynolds' which resulted in a

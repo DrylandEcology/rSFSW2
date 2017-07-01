@@ -270,6 +270,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     rSOILWAT2::swCarbon_Historical_Sto(swRunScenariosData[[1]])  <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Historical, ignore.case = TRUE))
     if (!is.na(i_sw_input_treatments$CO2_RCP))
       rSOILWAT2::swCarbon_RCP(swRunScenariosData[[1]]) <- as.integer(i_sw_input_treatments$CO2_RCP)
+
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -1572,6 +1573,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (tasks$execute[sc] == 1L) {
       runDataSC <- NULL
+      is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
       scw <- if (opt_sim[["use_dbW_future"]]) sc else 1L
       mDepth <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
@@ -1579,59 +1581,57 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (DeltaX[2] > 0) {
         if (opt_verbosity[["print.debug"]])
           print(paste("Using pre-determined DeltaX =", DeltaX[1]))
+
         if (DeltaX[2] == 2L)
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
+      }
 
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-      } else {
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      # Testing for error in soil temperature module
+      is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
 
-        ## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-        is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
+      if (is_SOILTEMP_INSTABLE[sc]) {
+        ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
+        i_soil_rep <- 0
+        DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
 
-        if (is_SOILTEMP_INSTABLE) {
-          ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
-          i_soil_rep <- 0
-          DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
+        while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE[sc] &&
+          DeltaX[1] <= mDepth && i_soil_rep < 10) {
 
-          while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE && DeltaX[1] <= mDepth && i_soil_rep < 10) {
-            ## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
-            repeat {
-              DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
-              if (mDepth %% DeltaX[1] == 0) break
-            }
-
-            ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-            rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
-            if (opt_verbosity[["print.debug"]]) print(paste("Site", i_sim, i_label, "SOILWAT2 called again with deltaX = ", rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met."))
-
-            runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
-
-            ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-            is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
-            i_soil_rep <- i_soil_rep + 1
+          ## Make sure that the increment for the soil layers is a multiple of the MaxDepth,
+          #   modulus of 0 means no remainder and thus a multiple of the MaxDepth
+          repeat {
+            DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
+            if (mDepth %% DeltaX[1] == 0) break
           }
 
-          DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
+          ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
+          if (opt_verbosity[["print.debug"]]) print(paste("Site", i_sim, i_label, "SOILWAT2 called again with deltaX = ", rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met."))
 
-          #TODO: change deltaX_Param for all [> sc] as well
-          if (opt_out_run[["saveRsoilwatInput"]])
-            save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-              ClimatePerturbationsVals, file = f_sw_input)
+          runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-        } else {
-          DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
+          ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
+          is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
+          i_soil_rep <- i_soil_rep + 1
         }
+
+        DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE[sc]) 2L else -1L
+
+        #TODO: change deltaX_Param for all [> sc] as well
+        if (opt_out_run[["saveRsoilwatInput"]])
+          save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
+            ClimatePerturbationsVals, file = f_sw_input)
+
+      } else {
+        DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
       }
 
       if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
@@ -1639,7 +1639,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     if (opt_out_run[["saveRsoilwatOutput"]])
-      save(runDataSC, file = f_sw_output[sc])
+      save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
     }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
@@ -1649,9 +1649,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #------------------------AGGREGATE SOILWAT2 OUTPUT
     if (tasks$execute[sc] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
-      !inherits(runDataSC, "swOutput")) {
-      tasks$aggregate[sc] <- -1L
+      !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
+      tasks$aggregate[sc] <- -1L
     }
 
 
@@ -2247,33 +2247,40 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_percolation"]), "Year")
-          if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
-            drain.topTobottom <- temp1[isim_time$index.useyr, 1+DeepestTopLayer]
-          } else {
-            drain.topTobottom <- NA
-          }
+          drain.topTobottom <- if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
+              temp1[isim_time$index.useyr, 1+DeepestTopLayer]
+            } else NA
+
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_hd"]), "Year")
-          if (length(topL) > 1) {
-            hydred.topTobottom <- apply(temp1[isim_time$index.useyr, 1+topL, drop = FALSE], 1, sum)
-          } else {
-            hydred.topTobottom <- temp1[isim_time$index.useyr, 1+topL]
-          }
+          hydred.topTobottom <- if (length(topL) > 1) {
+              apply(temp1[isim_time$index.useyr, 1+topL], 1, sum)
+            } else {
+              temp1[isim_time$index.useyr, 1+topL]
+            }
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_swcbulk"]), "Day")
-          if (isim_time$index.usedy[1] == 1) { #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
-            index.usedyPlusOne <- isim_time$index.usedy[-length(isim_time$index.usedy)]+1
-          } else {
-            index.usedyPlusOne <- isim_time$index.usedy
-          }
-          if (length(topL) > 1) {
-            swcdyflux <- apply(temp1[index.usedyPlusOne, 2+ld], 1, sum) - apply(temp1[index.usedyPlusOne-1, 2+ld], 1, sum)
-          } else {
-            swcdyflux <- temp1[index.usedyPlusOne, 2+ld] - temp1[index.usedyPlusOne-1, 2+ld]
-          }
+          index.usedyPlusOne <- if (isim_time$index.usedy[1] == 1) { #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
+              isim_time$index.usedy[-length(isim_time$index.usedy)]+1
+            } else {
+              isim_time$index.usedy
+            }
+          swcdyflux <- if (length(ld) > 1) {
+              apply(temp1[index.usedyPlusOne, 2+ld], 1, sum) -
+                apply(temp1[index.usedyPlusOne-1, 2+ld], 1, sum)
+            } else {
+              temp1[index.usedyPlusOne, 2+ld] - temp1[index.usedyPlusOne-1, 2+ld]
+            }
           swc.flux <- tapply(swcdyflux, temp1[index.usedyPlusOne, 1], sum)
 
+          fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt,
+            prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter,
+            Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot,
+            evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top,
+            transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val,
+            swc.flux)
+
           #mean fluxes
-          resMeans[nv:(nv+22)] <- apply(fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt, prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter, Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot, evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux), 2, mean)
+          resMeans[nv:(nv+22)] <- apply(fluxtemp, 2, mean)
           resMeans[nv+23] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
           resMeans[nv+24] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
           resMeans[nv+25] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
@@ -2573,6 +2580,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           stopifnot(any(opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == c("data", "conditions", "regime")))
 
           #Result containers
+          has_simulated_SoilTemp <- has_realistic_SoilTemp <- NA
           SMTR <- list()
           temp <- STR_names()
           SMTR[["STR"]] <- matrix(0, nrow = 1, ncol = length(temp), dimnames = list(NULL, temp))
@@ -2586,11 +2594,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
             "meanTair_Tsoil50_offset_C", paste0("V", 7:45))))
 
-          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
+          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) &&
+            isTRUE(!is_SOILTEMP_INSTABLE[sc])) { #we need soil temperature
+
+            has_simulated_SoilTemp <- 1
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
             if (!anyNA(soiltemp.dy.all$val) && all(soiltemp.dy.all$val[, -(1:2)] < 100)) {
               # 100 C as upper realistic limit from Garratt, J.R. (1992). Extreme maximum land surface temperatures. Journal of Applied Meteorology, 31, 1096-1105.
+              has_realistic_SoilTemp <- 1
               if (!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "yrAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("soiltemp.mo.all")) soiltemp.mo.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "moAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -2744,7 +2756,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
               calc50 <- !(Fifty_depth == soildat[i_depth50, "depth_cm"])
               if (calc50) {
-                weights50 <- abs(Fifty_depth - soildat[i_depth50 + c(1, 0), "depth_cm"])
+                weights50 <- calc_weights_from_depths(i_depth50, Fifty_depth, soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_depth50, weights50))
                 i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
 
@@ -2758,7 +2770,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
               calcMCS <- !(MCS_depth == soildat[i_MCS, "depth_cm"])
               if (any(calcMCS)) for (k in which(calcMCS)) {
-                weightsMCS <- abs(MCS_depth[k] - soildat[i_MCS[k] + c(1, 0), "depth_cm"])
+                weightsMCS <- calc_weights_from_depths(i_MCS[k], MCS_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_MCS[k], weightsMCS))
                 i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
 
@@ -2772,7 +2784,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
               calcLanh <- !(Lanh_depth == soildat[i_Lanh, "depth_cm"])
               if (any(calcLanh)) for (k in which(calcLanh)) {
-                weightsLanh <- abs(Lanh_depth[k] - soildat[i_Lanh[k] + c(1, 0), "depth_cm"])
+                weightsLanh <- calc_weights_from_depths(i_Lanh[k], Lanh_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_Lanh[k], weightsLanh))
                 i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
 
@@ -3105,18 +3117,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             } else {
               if (opt_verbosity[["verbose"]])
                 print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
-                SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              has_realistic_SoilTemp <- 0
             }
 
           } else {
             if (opt_verbosity[["verbose"]])
               print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            has_simulated_SoilTemp <- 0
           }
 
           if (prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-            nv_new <- nv + 8
-            resMeans[nv:(nv_new - 1)] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
+            nv_new <- nv + 10
+            resMeans[nv:(nv_new - 1)] <- c(has_simulated_SoilTemp, has_realistic_SoilTemp,
+              Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
               permafrost_yrs, SMR_normalyears_N, as.integer(has_Ohorizon))
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]

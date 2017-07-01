@@ -88,7 +88,6 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
           collapse = ", "), ")")
       rs <- DBI::dbSendStatement(conEnsembleDB, sql)
       DBI::dbBind(rs, param = as.list(dat))
-      res <- DBI::dbFetch(rs)
       DBI::dbClearResult(rs)
 
       written <- 1
@@ -105,14 +104,14 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
       columns <- paste0("\"", columns, "\"", collapse = ", ")
       sqlString <- paste0("SELECT '", Table, "'.P_id AS P_id, header.Scenario AS Scenario, ", columns, " FROM '", Table, "' INNER JOIN header ON '", Table, "'.P_id = header.P_id WHERE header.P_id BETWEEN ", start, " AND ", stop, " AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;")
       res <- DBI::dbSendStatement(con, sqlString)
-      dataScen.Mean <- DBI::fetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
+      dataScen.Mean <- DBI::dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
       DBI::dbClearResult(res)
 
       columnCutoff <- match("Scenario", colnames(dataScen.Mean))
       if (export.header) {
         sqlString <- paste0("SELECT '", Table, "'.P_id AS P_id ", if (Layers) ", Soil_Layer ", "FROM '", Table, "', header WHERE '", Table, "'.P_id = header.P_id AND header.P_id BETWEEN ", start, " AND ", stop, " AND header.Scenario = 'Current' ORDER BY P_id;")
         res <- DBI::dbSendStatement(con, sqlString)
-        headerInfo <- DBI::fetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
+        headerInfo <- DBI::dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
         DBI::dbClearResult(res)
       }
       col.names <- colnames(dataScen.Mean[, -(1:columnCutoff)])

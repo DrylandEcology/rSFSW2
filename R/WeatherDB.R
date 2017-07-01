@@ -16,6 +16,16 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
+      # Check if requested climate scenarios are listed in table; if not add to table
+      rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+      dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
+
+      i_add <- !(SFSW2_prj_meta[["sim_scens"]][["id"]] %in% dbW_iScenarioTable[, "Scenario"])
+      if (any(i_add)) {
+        rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]][i_add])
+      }
+      rSOILWAT2::dbW_disconnectConnection()
+
       return(invisible(TRUE))
 
     } else {
@@ -226,16 +236,22 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 
   #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
   if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
-    temp2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) temp else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
-    stopifnot(nchar(temp2) > 0)
-    file.copy(from = temp2, to = wgrib2)
+    path_wgrib2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) temp else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
+    stopifnot(nchar(path_wgrib2) > 0)
+    file.copy(from = path_wgrib2, to = wgrib2)
   }
 
   #Soft link to gribbed data
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
   if (!file.exists(dir.grib)) { # value of gribDir defined in cfsr_convert.c
-    stopifnot(system2(command = "ln", args = paste("-s", file.path(dir.cfsr.data, fname_gribDir), dir.grib)) == 0)
+    # If a previous soft link still exists at dir.grib, but cannot be found by
+    # file.exists() because the link is 'dead' (but it is still listed by list.files())
+    # then use options -F -f to remove the link before creating a new one -- otherwise,
+    # the command 'ln' reports an error
+    stopifnot(system2(command = "ln", args = paste("-sFf",
+      shQuote(file.path(dir.cfsr.data, fname_gribDir)),
+      shQuote(dir.grib))) == 0)
   }
 
   #Set up temporary directory for C code to store objects
@@ -410,15 +426,14 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   }
 
   if (get_from_ornl) {
-    # daymetr package: https://bitbucket.org/khufkens/daymetr
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
-    dm_temp <- try(daymetr::download.daymet(site = cellID, lat = Ydm_WGS84,
+    dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
       lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
 
     if (file.exists(flocal) && !identical(flocal, ftemp)) {
-      # Move file, which was downloaded to current directory by 'daymetr::download.daymet',
+      # Move file, which was downloaded to current directory by 'daymetr::download_daymet',
       # to data folder
       file.rename(from = flocal, to = ftemp)
     }

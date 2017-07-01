@@ -826,13 +826,13 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
       Sys.time()))
   #Get sql for tables and index
   resSQL <- DBI::dbSendStatement(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-  sqlTables <- DBI::fetch(resSQL, n = -1)
+  sqlTables <- DBI::dbFetch(resSQL, n = -1)
   sqlTables <- unlist(sqlTables)
   sqlTables <- sqlTables[-grep(pattern = "sqlite_sequence", sqlTables)]
   DBI::dbClearResult(resSQL)
 
   resIndex <- DBI::dbSendStatement(con, "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name;")
-  sqlView <- DBI::fetch(resIndex, n = -1)
+  sqlView <- DBI::dbFetch(resIndex, n = -1)
   DBI::dbClearResult(resIndex)
 
   sqlView <- unlist(sqlView)
@@ -1020,12 +1020,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- DBI::dbSendStatement(con_dbOut, sql)
       DBI::dbBind(rs, param = list(folder = temp))
-      res <- DBI::dbFetch(rs)
       DBI::dbClearResult(rs)
-
-      # Slightly slower alternative to RSQLite::dbGetPreparedQuery()
-#        RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
-#          value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
 
     } else {
       stop("All WeatherFolder names in master input file are NAs.")
@@ -1073,7 +1068,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
     rs <- DBI::dbSendStatement(con_dbOut, sql)
     DBI::dbBind(rs, param = list(label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
-    res <- DBI::dbFetch(rs)
     DBI::dbClearResult(rs)
 
   }
@@ -1124,7 +1118,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- DBI::dbSendStatement(con_dbOut, sql)
         DBI::dbBind(rs, param = as.list(LWF_index[temp, ]))
-        res <- DBI::dbFetch(rs)
         DBI::dbClearResult(rs)
       }
     }
@@ -1145,9 +1138,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (!ttemp) {
       print(SFSW2_prj_inputs[["create_experimentals"]])
       print("'db_experimentals':")
-      str(db_experimentals)
+      print(db_experimentals)
       print("'SFSW2_prj_inputs[[\"sw_input_experimentals\"]]':")
-      str(SFSW2_prj_inputs[["sw_input_experimentals"]])
+      print(SFSW2_prj_inputs[["sw_input_experimentals"]])
       stop("Each row of 'experimental-design' must be unique.")
     }
 
@@ -1383,7 +1376,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = as.list(dtemp))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
 
   #Insert the data into the treatments table
@@ -1391,7 +1383,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     colnames(db_combined_exp_treatments), collapse = ", "), ")")
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = as.list(db_combined_exp_treatments))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
 
 
@@ -1402,7 +1393,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
 
   ##################################################
@@ -1424,7 +1414,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = list(label = temp))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
   ##################################################
 
@@ -1465,7 +1454,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = as.list(db_runs))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
   ##################################################
 
@@ -1757,7 +1745,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       #     - consec = consecutive
       temp <- c(temp,
         paste0("NRCS_",
-          c(c("Depth50cmOrImpermeable_cm",
+          c(c("SoilTemp_simulated_TF", "SoilTemp_realistic_TF", "Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
               "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),

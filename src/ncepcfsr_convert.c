@@ -1,33 +1,60 @@
-/**************************************************************************************************************************************
-	cfsr_convert.c
+/****************************************************************************************
+  cfsr_convert.c
 
-	Author: 	Donovan Miller
-	Purpose: 	Access CFSR data (at: "http://rda.ucar.edu/pub/cfsr.html"), and prepare daily weather and mean monthly climate files for SoilWat
-	Date: 		07/12/2012
-	Usage: 		./cfsr_convert yearLow yearHigh inputFile
-					-inputFile should be a .csv file containing latitude in the 8th column, longitude in the 7th column, and site name in the 11th column for each row, wherein the first row is column headings.
-					-program doesn't always seem to read in .csv files made by Excel properly for some reason (this problem should be fixed now)
-					-latitude and longitude values should be in decimal degrees
+  Author:   Donovan Miller
+  Purpose:  Access CFSR data (at: "http://rda.ucar.edu/pub/cfsr.html"), and prepare daily
+            weather and mean monthly climate files for SoilWat
+  Date:     07/12/2012
+  Usage:    ./cfsr_convert yearLow yearHigh inputFile
+            - inputFile should be a .csv file containing latitude in the 8th column,
+              longitude in the 7th column, and site name in the 11th column for each row,
+              wherein the first row is column headings.
+            - program doesn't always seem to read in .csv files made by Excel properly
+              for some reason (this problem should be fixed now)
+            - latitude and longitude values should be in decimal degrees
 
-				./cfsr_convert -c
-					-this option will chop up all of the daily grib files & get rid of the unnecessary values... this will take a while.
+            ./cfsr_convert -c
+            - this option will chop up all of the daily grib files & get rid of the
+              unnecessary values... this will take a while.
 
- 	Requires:	wgrib2 program (at: "http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/").  The compiled version of wgrib2 must be in the same folder as this program.
- 				filefuncs2, generic2, & mymemory2.  For file i/o mainly.  The versions used by this program are slightly edited from the ones in soilwat, so don't get them confused.
+  Requires:
+    - wgrib2 program (obtain from "http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/").
+      The compiled version of wgrib2 must be in the same folder as this program.
+    - filefuncs2, generic2, & mymemory2.  For file i/o mainly. The versions used by this
+      program are slightly edited from the ones in soilwat, so don't get them confused.
 
- 	WARNING:	process forking & running of wgrib2 will only work on a UNIX based computer.  For use on a windows computer, rewrite wgrib2() function to use spawnv().  Also, all of the multi-threading would have to be rewritten as it is also written using fork().  Also, all the calls to system will probably have to be rewritten.  Probably many more things would have to be rewritten as well, but that's all I can think of at the moment...
+  WARNING: process forking & running of wgrib2 will only work on a UNIX based computer.
+    For use on a windows computer, rewrite wgrib2() function to use spawnv(). Also, all
+    of the multi-threading would have to be rewritten as it is also written using fork().
+    Also, all the calls to system will probably have to be rewritten.  Probably many more
+    things would have to be rewritten as well, but that's all I can think of at the
+    moment...
 
- 	REFER TO THE MAKEFILE FOR COMPILING INSTRUCTIONS
+  REFER TO THE MAKEFILE FOR COMPILING INSTRUCTIONS
 
- 	NOTE: wgrib2 can be a pain to compile.  On mac it was pretty painless, I just typed make and it worked (the terminal will look like it's freaking out for a few minutes though while compiling).  The compiler I was using was gcc.
- 			On JANUS it's slightly more complicated, as they don't have gcc.  First, I had to give "function.sh" file executable permissions using chmod.  Second, I had to add "CC=icc" line to the makefile.  Lastly, I had to remove the line that stops the makefile if the intel compiler (icc) is specified.
- 			There is a note in the makefile that the Jasper library (used for jpeg2000 compression in wgrib2) will not work correctly when compiled with the intel compiler, but that shouldn't matter since the grib2 files we are extracting data from are not packed using the jpeg2000 format... wgrib2 is also able to change the way the data is packed if truly necessary, but this program is not set up to handle that.
+  NOTE: wgrib2 can be a pain to compile.  On mac it was pretty painless, I just typed
+    make and it worked (the terminal will look like it's freaking out for a few minutes
+    though while compiling).  The compiler I was using was gcc. On JANUS it's slightly
+    more complicated, as they don't have gcc.  First, I had to give "function.sh" file
+    executable permissions using chmod.  Second, I had to add "CC=icc" line to the
+    makefile.  Lastly, I had to remove the line that stops the makefile if the intel
+    compiler (icc) is specified. There is a note in the makefile that the Jasper library
+    (used for jpeg2000 compression in wgrib2) will not work correctly when compiled with
+    the intel compiler, but that shouldn't matter since the grib2 files we are
+    extracting data from are not packed using the jpeg2000 format... wgrib2 is also
+    able to change the way the data is packed if truly necessary, but this program is
+    not set up to handle that.
 
-**************************************************************************************************************************************/
+  USAGE in R package 'rSFSW2': commented with '// Used in R package rSFSW2'
+    - externalized functions: dailyWeather2_R, dailyWeather2Write_R, monthlyClimate2_R,
+      writeMonthlyClimate2_R
+*****************************************************************************************/
 
-/**************************************************************************************************************************************
-	includes, defines, & variables
-**************************************************************************************************************************************/
+#define RSFSW2_NCEPCFSR 1
+
+/****************************************************************************************
+  includes, defines, & variables
+*****************************************************************************************/
 
 #include <assert.h>
 #include <ctype.h>
@@ -49,16 +76,19 @@
  * Basic definitions
  ***************************************************/
 
+// Used in R package rSFSW2
 #define isnull(a) (NULL == (a))
 
 #define chrBuf 4096
-char errstr[chrBuf];
 extern char inbuf[];
+
+#ifndef RSFSW2_NCEPCFSR
+  char errstr[chrBuf];
+#endif
 
 
 // define NCEP/CFSR data
 #define weathPrefix "weath"
-
 #define yearBoundLow  1979
 #define yearBoundHigh 2010
 
@@ -69,7 +99,6 @@ int toDebug = 0; 			// 1 to print debug messages, 0 to not. (recommended: 0)
 int multiThread = 1; 		// 1 to run in multiple threads (much faster), 0 to not. (recommended: 1, 0 if on JANUS b/c it's not working correctly for some unknown reason on JANUS.  It could be issues with pointers, a bug in the intel compiler, or maybe some other arbitrary reason)
 int removeFiles = 1;		// 1 to remove unnecessary files afterwards, 0 to not. (recommended: 1)
 int suppresswGrib2 = 1; 	// 1 to suppress the output of wGrib2 into the terminal, 0 to not. (recommended: 1, wGrib2 outputs a crap ton...)
-
 
 
 #define gribDir "griblargeC2//" //the directory the gribfiles are located in... "" for the same directory the program is in.  Needs a // at the end...
@@ -93,6 +122,7 @@ int suppresswGrib2 = 1; 	// 1 to suppress the output of wGrib2 into the terminal
 	functions
 **************************************************************************************************************************************/
 
+// Used in R package rSFSW2
 static void uncomment_cstyle(char *p) {
 /*-------------------------------------------
   overwrite chars in a string pointed to by p with
@@ -115,6 +145,7 @@ static void uncomment_cstyle(char *p) {
 
 
 /*****************************************************/
+// Used in R package rSFSW2
 char *Str_TrimRight(char *s) {
 /*-------------------------------------------
  * Trim a string by setting first trailing space to '\0'
@@ -134,9 +165,8 @@ char *Str_TrimRight(char *s) {
 
 
 
-
-
 /*****************************************************/
+// Used in R package rSFSW2
 void UnComment( char *s) {
 /*-------------------------------------------
   Decomments a string by :
@@ -170,13 +200,14 @@ void UnComment( char *s) {
 
 
 /**************************************************************/
+// Used in R package rSFSW2
 Bool GetALine( FILE *f, char buf[]) {
 /* Read a line of possibly commented input from the file *f.
  * Skip blank lines and comment lines.  Comments within the
  * line are removed and trailing whitespace is removed.
  */
  if(isnull(f)) {
-  	fprintf(stderr, "ERROR: tried to read from NULL file\n");
+  	printf("ERROR: tried to read from NULL file\n");
   	return FALSE;
   }
 
@@ -192,23 +223,27 @@ Bool GetALine( FILE *f, char buf[]) {
          break;
       }
    }
-   return(not_eof);
+   return not_eof;
 }
 
 
 
 
 /**************************************************************/
+// Used in R package rSFSW2
 FILE * OpenFile(const char *name, const char *mode) {
   FILE *fp;
 
   fp=fopen(name, mode);
-  if ( isnull(fp) )
+  if ( isnull(fp) ) {
     printf("Cannot open file %s: %s\n",name,strerror(errno));
-  return(fp);
+  }
+
+  return fp;
 }
 
 /**************************************************************/
+// Used in R package rSFSW2
 void CloseFile( FILE **f) {
 /* This routine is a wrapper for the basic fclose() so
    it might be possible to add more code like error checking
@@ -219,7 +254,7 @@ void CloseFile( FILE **f) {
 */
 
   if(*f == NULL) {
-  	fprintf(stderr, "ERROR: tried to close NULL file\n");
+  	printf("ERROR: tried to close NULL file\n");
   	return;
   }
 
@@ -241,6 +276,8 @@ Bool file_exists(const char * filename)
 
 
 
+#ifndef RSFSW2_NCEPCFSR
+
 /**************************************************************/
 Bool DirExists(const char *dname) {
   /* test for existance of a directory
@@ -253,7 +290,7 @@ Bool DirExists(const char *dname) {
   if (0==stat(dname, &statbuf))
     result = (statbuf.st_mode & S_IFDIR) ? TRUE : FALSE;
 
-  return(result);
+  return result;
 }
 
 
@@ -299,7 +336,7 @@ Bool MkDir( const char *dname) {
 
   if (NULL == (c = strdup(dname)) ) {
     printf("Out of memory making string in MkDir()");
-    exit(-1);
+    return FALSE;
   }
 
   n=0;
@@ -332,13 +369,10 @@ void MkDir2( const char *dname) { // doing this the cheap and easy way...
 	system(temp);
 }
 
+#endif
 
 
-
-
-
-
-
+// Used in R package rSFSW2
 // remove file function
 void removeAFile(char* filename) {
 	if(file_exists(filename)) {
@@ -350,34 +384,21 @@ void removeAFile(char* filename) {
 }
 
 
-// flushes all the print statements...
-void printFlush() {
-  fflush(stdout); // flush stdout & stderr... call this before forking
-  fflush(stderr);
-}
 
-// this function handles errors by printing a message to stdout, and then exiting if specified...
-void error(int toExit, const char *message) {
-	printf("%s", message);
-	if(toExit == 1) {
-		printf(" exiting\n");
-		exit(0);
-	}
-}
-
-
-
+// Used in R package rSFSW2
 // this function converts temperatures in Kelvin to temperatures in Celsius
 double kelvinToCelsius(double kelvin) {
 	return (kelvin - 273.15); // celsius = kelvin - 273.15, pretty simple equation...
 }
 
+// Used in R package rSFSW2
 // converting from (kg m^-2 s^-1) to cm/day... kg m^-2 s^-1 should be equal to mm/second
 // for precipitation...
 double kgToCM(double kg) {
 	return ((60 * 60 * 24 * kg) / 10.0);
 }
 
+// Used in R package rSFSW2
 // this function takes in the u & v components of the wind (m s^-1) and returns the wind speed (m/s)
 // make sure u & v values are positive before sending them to the function...
 double getWindSpeed(double u, double v) {
@@ -391,11 +412,40 @@ double getWindSpeed(double u, double v) {
 	// we can then use the fact that sin(angle C) = BA/CA to find CA
 	// so, the wind velocity = CA = BA/sin(angle C)
 	//velocity = v / sin(angleC);
+  double w = sqrt( (u * u) + (v * v));
 
-	return sqrt( (u * u) + (v * v)); //this will get the windspeed corectly I think too...
+	return w; //this will get the windspeed corectly I think too...
 	//return velocity; // we can simply return the velocity since 1 (m s^-1) is equal to 1 m/s, so no conversion is necessary
 }
 
+
+// Used in R package rSFSW2
+// calls the system... will supress the output of the call if suppresswGrib2 is 1...
+void callSystem(char* call) {
+  #if defined(_WIN32) || defined(_WIN64)
+    printf("ERROR: multi-threading for function callSystem is not supported on Windows");
+    return;
+
+  #else
+    int pid = fork();
+    if(pid == 0) { //child
+      if(suppresswGrib2 == 1) freopen("/dev/null", "w", stdout);
+      system(call);
+      return;
+
+    } else //parent
+        waitpid(0, NULL, 0);
+  #endif
+}
+
+
+#ifndef RSFSW2_NCEPCFSR
+
+// flushes all the print statements...
+void printFlush() {
+  fflush(stdout); // flush stdout & stderr... call this before forking
+  fflush(stderr);
+}
 
 // forks the process and then runs wgrib2 & waits until it finishes... this will only work correctly on a UNIX based computer.  Replace all the forking and use spawnv on a windows based computer.
 void wgrib2(char *argv[]) {
@@ -403,12 +453,15 @@ void wgrib2(char *argv[]) {
   printFlush(); // empty the io buffers before forking...
 
   #if defined(_WIN32) || defined(_WIN64)
-    fprintf(stderr, "ERROR: multi-threading for function wgrib2 is not supported on Windows");
-    exit(1);
+    printf("ERROR: multi-threading for function wgrib2 is not supported on Windows");
+    return;
+
   #else
     int mypid = fork();
     if(mypid < 0) {
-      error(1, "ERROR: process failed to fork and run wgrib2\n");
+      printf("ERROR: process failed to fork and run wgrib2\n");
+      return;
+
     } else if(0 == mypid) { // child process
         if(suppresswGrib2 == 1) {
           freopen("/dev/null", "w", stdout); //redirects stdout to "/dev/null".  /dev/null is a special file that discards all data written to it.  It's like a black hole.  This doesn't affect the output of the main program, since this is only done in the child process.  (which is terminated after the execv call)
@@ -416,8 +469,8 @@ void wgrib2(char *argv[]) {
         }
         execv("wgrib2", argv);
         //program should never reach this line unless there is an error calling execv
-        fprintf(stderr, "ERROR: running wgrib2 failed\n");
-        exit(1);
+        printf("ERROR: running wgrib2 failed\n");
+        return;
     } else {  // parent process
         waitpid (0, NULL, 0); // waitpid() waits for the child process to finish...
     }
@@ -425,28 +478,12 @@ void wgrib2(char *argv[]) {
 }
 
 
-// calls the system... will supress the output of the call if suppresswGrib2 is 1...
-void callSystem(char* call) {
-  #if defined(_WIN32) || defined(_WIN64)
-    fprintf(stderr, "ERROR: multi-threading for function callSystem is not supported on Windows");
-    exit(1);
-  #else
-    int pid = fork();
-    if(pid == 0) { //child
-      if(suppresswGrib2 == 1) freopen("/dev/null", "w", stdout);
-      system(call);
-      exit(0);
-    } else //parent
-        waitpid(0, NULL, 0);
-  #endif
-}
-
 // calls wgrib2 to chop a daily grib file... changes the packing of the output grib file to complex3 also
 // type 0 is for tmax, type 1 is for tmin, and type 2 is for ppt
 void chopGribFile(char *inFileName, char *outFileName, char *tempFileName, char *tempFileName2, int type) {
 	if(type < 0 || type > 2) {
 		printf("Invalid chop type specified, exiting\n");
-		exit(0);
+		return;
 	}
 
 	char systemCall[4096]; //might need to make this bigger if the directories are really long...
@@ -528,18 +565,21 @@ void chopDailyGribFiles(char *directory) {
 			sprintf(temp5, "%s//%s%d%s_temp2.grb2", directory, pptGribPre, i, temp2);
 			chopGribFile(temp, temp3, temp4, temp5, 2);
 
-			exit(0);
+			return;
 		}
 
 	gettimeofday(&mtime2, NULL);
 	int diffTime2 = mtime2.tv_sec - mtime1.tv_sec;
 	if(toDebug) printf("chopping took: %d secs\n", diffTime2);
 
-	exit(0);
+	return;
 }
 
+#endif
 
 
+
+// Used in R package rSFSW2
 // at the moment this call is only be used in R, this function and the dailyWeather2Write are an alternate way of doing the same thing as the other daily weather function...
 // nSites should be less then 900...
 // type 0 = tmax, 1 = tmin, 2 = ppt...
@@ -573,10 +613,12 @@ void dailyWeather2(int nSites, double latitudes[], double longitudes[], int year
 	callSystem(systemCall);
 }
 
+// Used in R package rSFSW2
 void dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int* year, int* month, int* type) {
 	dailyWeather2(*nSites, latitudes, longitudes, *year, *month, *type);
 }
 
+// Used in R package rSFSW2
 // at the moment, this call is only used in R
 // this function takes the files output by dailyWeather2 and writes them into the weath.year file for each site... must be called for every year.
 // WARNING: this call opens & writes to lots of files, so there might be errors if your OS can't handle the amount of files it opens.
@@ -616,7 +658,8 @@ void dailyWeather2Write(int nSites, char* siteNames[], char* siteDirs[], int yea
 			GetALine(pptFile, temp);
 			sscanf(temp, ",val=%lf", &ppt); // %lf reads in scientific notation correctly, luckily...
 
-			fprintf(siteFiles[i], "%d\t%5.2f\t%5.2f\t%5.2f\n", j+1, kelvinToCelsius(tmax), kelvinToCelsius(tmin), kgToCM( (ppt / 4.0) )); // '\t' is the tab character
+			fprintf(siteFiles[i], "%d\t%5.2f\t%5.2f\t%5.2f\n", j+1, kelvinToCelsius(tmax),
+			  kelvinToCelsius(tmin), kgToCM( (ppt / 4.0) )); // '\t' is the tab character
 
 			i++;
 			if(i >= nSites) {
@@ -634,12 +677,14 @@ void dailyWeather2Write(int nSites, char* siteNames[], char* siteDirs[], int yea
 		CloseFile(&siteFiles[i]);
 }
 
+// Used in R package rSFSW2
 void dailyWeather2Write_R(int* nSites, char* siteNames[], char* siteDirs[], int* year) {
 	dailyWeather2Write(*nSites, siteNames, siteDirs, *year);
 }
 
 
 
+// Used in R package rSFSW2
 // this function and writeMonthlyClimate2 do the same thing as writeMonthlyClimate, except in a different way...
 // this is only used in R at the moment... it outputs a file containing the values for the years specified for the type specified into a file in the siteDir for each site
 // type 0 = relative humidity, 1 = wind speed, 2 = cloud cover...
@@ -718,10 +763,12 @@ void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* 
 	CloseFile(&inFile);
 }
 
+// Used in R package rSFSW2
 void monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[], char* siteDirs[], int* yearLow, int* yearHigh, int* type) {
 	monthlyClimate2(*nSites, latitudes, longitudes, siteDirs, *yearLow, *yearHigh, *type);
 }
 
+// Used in R package rSFSW2
 // this function is only called from R at the moment...
 // used to take the raw values from rh.txt cc.txt & ws.txt and combine them into the monthly averages contained in mc.csv
 // it simply needs the directory that the 3 files are located in...
@@ -823,6 +870,7 @@ void writeMonthlyClimate2(char* siteDir) {
 	}
 }
 
+// Used in R package rSFSW2
 void writeMonthlyClimate2_R(char **siteDir) {
 	writeMonthlyClimate2(*siteDir);
 }

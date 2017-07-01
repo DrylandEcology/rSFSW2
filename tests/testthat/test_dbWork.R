@@ -12,6 +12,7 @@ runsN_total <- runsN_master * expN
 runIDs_total <- seq_len(runsN_total)
 runIDs <- runIDs_total[rep(include_YN, times = expN)]
 sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total, expN = expN)
+time_set3 <- c(50, 75, 125)
 #fname_log <- "log_dbWork.txt"
 verbose <- FALSE
 
@@ -49,6 +50,16 @@ pretend_sim <- function(cl, runIDs, dbpath, flock, verbose) {
   }
 }
 
+expect_dbWork_check <- function(x, len, sum) {
+  expect_s3_class(x, "data.frame")
+  expect_identical(dim(x), c(len, 3L))
+  expect_identical(colnames(x), c("completed", "failed", "inwork"))
+  if (prod(dim(x)) > 0)
+    expect_equal(sum(x), sum)
+  invisible()
+}
+  
+
 
 
 # Parallel
@@ -66,7 +77,7 @@ parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork
 
 
 #--- Unit tests
-test_that("dbWork", {
+test_that("dbWork: mock simulation", {
   # Init
   unlink(flock, recursive = TRUE)
   expect_true(setup_dbWork(dbpath, sim_size, include_YN))
@@ -91,3 +102,50 @@ parallel::stopCluster(cl)
 unlink(file.path(dbpath, "dbWork.sqlite3"))
 unlink(flock, recursive = TRUE)
 #unlink(fname_log)
+
+
+test_that("dbWork: access and manipulation functions", {
+  # Init
+  expect_true(setup_dbWork(dbpath, sim_size, include_YN))
+
+  # Testing 'dbWork_todos'
+  expect_identical(dbWork_todos(dbpath), runIDs)
+
+  # Testing 'dbWork_timing'
+  #   - expect length 0 because no runID is completed and timed
+  expect_length(dbWork_timing(dbpath), 0)
+  #   - set runIDs along 'time_set3' as complete with specified timing
+  for (k in seq_along(time_set3)) {
+    expect_true(dbWork_update_job(dbpath, runIDs[k], "completed", 
+      time_s = time_set3[k], verbose = verbose))
+    #   - expect timings for the completed runIDs
+    expect_identical(dbWork_timing(dbpath), time_set3[seq_len(k)])
+  }
+
+  # Testing 'dbWork_check' (part 1 of 2)
+  temp <- dbWork_check(dbpath, runIDs = runIDs[seq_along(time_set3)])
+  expect_dbWork_check(temp, length(time_set3), length(time_set3))
+
+  # Testing 'dbWork_redo'
+  #   - incorrect runIDs arguments doesn't change dbWork
+  expect_true(dbWork_redo(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE, 
+    TRUE, "a", -1, runsN_total + 1)))
+  expect_identical(dbWork_todos(dbpath), runIDs[-seq_along(time_set3)])
+  #   - attempt to reset runIDs which haven't completed yet
+  expect_true(dbWork_redo(dbpath, runIDs = runIDs[-seq_along(time_set3)]))
+  expect_identical(dbWork_todos(dbpath), runIDs[-seq_along(time_set3)])
+  #   - reset previously set runIDs along 'time_set3'
+  expect_true(dbWork_redo(dbpath, runIDs = runIDs[seq_along(time_set3)]))
+  expect_identical(dbWork_todos(dbpath), runIDs)
+  
+  # Testing 'dbWork_check' (part 2)
+  temp <- dbWork_check(dbpath, runIDs = runIDs[seq_along(time_set3)])
+  expect_dbWork_check(temp, length(time_set3), 0L)
+  #   - incorrect runIDs arguments returns a 0-row data.frame
+  temp <- dbWork_check(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE, 
+    TRUE, "a", -1, runsN_total + 1))
+  expect_dbWork_check(temp, 0L, 0L)
+})
+
+#--- Clean up
+unlink(file.path(dbpath, "dbWork.sqlite3"))
