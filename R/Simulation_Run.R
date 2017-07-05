@@ -263,11 +263,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
     # CO2 is currently ALWAYS ON, and if disabled the multipliers are 1
-    # VALUES MUST BE OF TYPE INTEGER, NOT NUMERIC
-    rSOILWAT2::swCarbon_Future_Bio(swRunScenariosData[[1]])      <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Future_Sto(swRunScenariosData[[1]])      <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Future, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Historical_Bio(swRunScenariosData[[1]])  <- length(grep("bio", i_sw_input_treatments$UseCO2Coefficients_Historical, ignore.case = TRUE))
-    rSOILWAT2::swCarbon_Historical_Sto(swRunScenariosData[[1]])  <- length(grep("sto", i_sw_input_treatments$UseCO2Coefficients_Historical, ignore.case = TRUE))
+    # Values must be integer, not logical
+    # Additionally, as.integer() must be used 
+    if (!is.na(i_sw_input_treatments$UseCO2BiomassMultiplier))
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(1)
+    else
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(0)
+    
+    if (!is.na(i_sw_input_treatments$UseCO2StomatalMultiplier))
+      rSOILWAT2::swCarbon_Use_Sto(swRunScenariosData[[1]]) <- as.integer(1)
+    else
+      rSOILWAT2::swCarbon_Use_Sto(swRunScenariosData[[1]]) <- as.integer(0)
+
     if (!is.na(i_sw_input_treatments$CO2_RCP))
       rSOILWAT2::swCarbon_RCP(swRunScenariosData[[1]]) <- as.integer(i_sw_input_treatments$CO2_RCP)
 
@@ -1534,6 +1541,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   for (sc in sc1:sim_scens[["N"]]) {
 
     # Extract scenario data for carbon dioxide effects
+    # TODO: Stop this section from causing the tmp[[sc]] error
+    #       Happens on sc == 2
     if (sc > 1) {  # Scenario 1 is "Current"
       # For string matching
       library(stringr)
@@ -1557,7 +1566,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if(is.na(RCP[1])) stop(paste("The RCP could not be found for model", model_name))
       }
     }
-    
+
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
 
     if (opt_verbosity[["print.debug"]])
