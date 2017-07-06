@@ -1589,18 +1589,37 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
   ncg
 }
 
-get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
+#' Read and interpret time dimension of a netCDF file with CF 1 or larger
+#'
+#' @param filename A character string. The name of a netCDF file.
+#'
+#' @return A list with six elements:
+#'  \describe{
+#'    \item{calendar}{The calendar type, see
+#'      \href{http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar}{CF-conventions}.}
+#'    \item{unit}{The units of the time dimension, see
+#'      \href{http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#time-coordinate}{CF-conventions}.}
+#'    \item{N}{The number of steps along the time dimension.}
+#'    \item{base}{The start date of the time dimension.}
+#'    \item{start}{A numeric vector representing the first date with named elements
+#'      'year' and 'month'.}
+#'    \item{end}{A numeric vector representing the last date with named elements 'year'
+#'      and 'month'.}
+#'  }
+#'
+#' @export
+read_time_netCDF <- function(filename) {
   stopifnot(requireNamespace("ncdf4"))
 
   nc <- ncdf4::nc_open(filename = filename, write = FALSE, readunlim = TRUE, verbose = FALSE)
+  ncdf4::nc_close(nc)
 
   utemp <- nc$dim$time$units
   tvals <- nc$dim$time$vals
   calendar <- nc$dim$time$calendar
-  ncdf4::nc_close(nc)
 
   N <- length(tvals)
-  # Start of time axis
+  # time_start of time axis
   utemp <- strsplit(utemp, split = " ", fixed = TRUE)[[1]]
   temp <- lapply(utemp, function(x) as.Date(x, format = "%Y-%m-%d"))
   tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]] # class 'Date' = # of days since Jan 1, 1970 in Gregorian calendar
@@ -1627,10 +1646,10 @@ get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
       calendar == "standard" || is.null(calendar)) {
 
     temp <- as.POSIXlt(tbase + tvals[1] / tunit, tz = "UTC")
-    start <- c(year = temp$year + 1900, month = temp$mon + 1)
+    time_start <- c(year = temp$year + 1900, month = temp$mon + 1)
 
     temp <- as.POSIXlt(tbase + tvals[N] / tunit, tz = "UTC")
-    end <- c(year = temp$year + 1900, month = temp$mon + 1)
+    time_end <- c(year = temp$year + 1900, month = temp$mon + 1)
 
   } else if (cdays > 0) {
     # all years are of a constant fixed duration
@@ -1645,39 +1664,46 @@ get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
       temp_end <- strptime(paste(temp$year + 1900 + to_add_years[2],
         to_add_days[2], sep = "-"), format = "%Y-%j", tz = "UTC")
 
-      start <- c(year = temp_start$year + 1900, month = temp_start$mon + 1)
-      end <- c(year = temp_end$year + 1900, month = temp_end$mon + 1)
+      time_start <- c(year = temp_start$year + 1900, month = temp_start$mon + 1)
+      time_end <- c(year = temp_end$year + 1900, month = temp_end$mon + 1)
 
     } else if (cdays == 360) {
       # all years are 360 days divided into 30 day months
       to_add_months <- floor(to_add_days / 30)
 
       temp <- as.POSIXlt(tbase, tz = "UTC")
-      start <- c(year = temp$year + 1900 + to_add_years[1],
+      time_start <- c(year = temp$year + 1900 + to_add_years[1],
         month = temp$mon + 1 + to_add_months[1])
-      end <- c(year = temp$year + 1900 + to_add_years[2],
+      time_end <- c(year = temp$year + 1900 + to_add_years[2],
         month = temp$mon + 1 + to_add_months[2])
     }
 
   } else stop("calendar of netCDF not recognized")
 
+  list(calendar = calendar, unit = tunit, N = N, base = tbase, start = time_start,
+    end = time_end)
+}
 
-  stopifnot(start["year"] <= startyear || (start["month"] == 1 && start["year"] == startyear))   #we only extract full years and require data from the start["year"] on
-  timeStartIndex <- (startyear - start["year"]) * 12 + 2 - start["month"] #we extract beginning with January of start["year"]
+get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
+  nc_time <- read_time_netCDF(filename)
+
+  stopifnot(nc_time[["start"]]["year"] <= startyear ||
+    (nc_time[["start"]]["month"] == 1 && nc_time[["start"]]["year"] == startyear))   #we only extract full years and require data from the start["year"] on
+  temp <- startyear - nc_time[["start"]]["year"]
+  timeStartIndex <- temp * 12 + 2 - nc_time[["start"]]["month"] #we extract beginning with January of start["year"]
 
   #account for missing months: assume all are at the end; e.g., precipitation of 'HadGEM2-ES' has values only until Nov 2099 instead Dec 2100
   timeCount_should <- (endyear - startyear + 1) * 12 #timeCount must include a count at timeStartIndex; to extract two values at 1:2, have timeStartIndex = 1 and timeCount = 2
   N_should <- timeStartIndex + timeCount_should - 1
-  if (N >= N_should) {
+  if (nc_time[["N"]] >= N_should) {
     timeCount <- timeCount_should
     addMissingMonthAtEnd <- 0
   } else {
-    timeCount <- N - timeStartIndex + 1
-    addMissingMonthAtEnd <- N_should - N
+    timeCount <- nc_time[["N"]] - timeStartIndex + 1
+    addMissingMonthAtEnd <- N_should - nc_time[["N"]]
   }
 
-  list(timeStartIndex = timeStartIndex,
-    timeCount = timeCount,
+  list(timeStartIndex = timeStartIndex, timeCount = timeCount,
     addMissingMonthAtEnd = addMissingMonthAtEnd)
 }
 
