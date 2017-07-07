@@ -56,7 +56,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
             Label = SWRunInformation$WeatherFolder,
             stringsAsFactors = FALSE),
     site_subset = temp_runIDs_sites,
-    scenarios = data.frame(Scenario = SFSW2_prj_meta[["sim_scens"]][["id"]]),
+    scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
     compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
 
   # Extract weather data and move to weather database based on inclusion-invariant 'site_id'
