@@ -2132,7 +2132,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #TODO: create chunks for ids_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 
-  if (opt_parallel[["has_parallel"]]) {
+  if (opt_parallel[["has"]]) {
     if (!is.na(seed)) set.seed(seed)
     ids_ToDo <- sample(x = ids_ToDo, size = length(ids_ToDo)) #attempt to prevent reading from same .nc at the same time
 
@@ -2157,8 +2157,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           verbose = verbose, print.debug = print.debug)
 
       Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
       parallel::clusterCall(opt_parallel[["cl"]],
@@ -2181,12 +2179,12 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           verbose = verbose, print.debug = print.debug)
 
       parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_disconnectConnection())
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
 
     } else {
       ids_Done <- NULL
     }
+
+    clean_SFSW2_cluster(opt_parallel)
 
   } else {
     rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
@@ -2601,7 +2599,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   opt_parallel <- setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -2669,6 +2667,10 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
     file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
   unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   list(SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta)
 }

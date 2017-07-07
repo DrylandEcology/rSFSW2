@@ -896,7 +896,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   opt_parallel <- setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -913,7 +913,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
     SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
-  if (opt_parallel[["has_parallel"]]) {
+  if (opt_parallel[["has"]]) {
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
@@ -925,9 +925,6 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
-
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
       missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
@@ -937,10 +934,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
         missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
           fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
     }
+
+    clean_SFSW2_cluster(opt_parallel)
 
   } else {
     missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -1000,6 +996,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
    }
   }
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
     missing_runIDs = missing_runIDs))

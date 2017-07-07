@@ -599,7 +599,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
         crs_from = sim_space[["sim_crs"]], sp = run_sites_wise,
         crs_sp = sim_space[["crs_sites"]], crs_to = raster::crs(grid_wise))
 
-      if (opt_parallel[["has_parallel"]]) {
+      if (opt_parallel[["has"]]) {
 
         #call the simulations depending on parallel backend
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -608,20 +608,16 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
             FUN = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise, att = rat_att)
 
-          Rmpi::mpi.bcast.cmd(rm(list = ls()))
-          Rmpi::mpi.bcast.cmd(gc())
-
         } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
           sim_cells_SUIDs <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
             fun = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise, att = rat_att)
 
-          parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-          parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
-
         } else {
           sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 0, SUID = NA, fraction = 1)
         }
+
+        clean_SFSW2_cluster(opt_parallel)
 
       } else {
         sim_cells_SUIDs <- lapply(is_ToDo, FUN = ISRICWISE_extract_SUIDs,
@@ -648,7 +644,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     template_simulationSoils[] <- NA
     template_simulationSoils["depth"] <- 0
 
-    if (opt_parallel[["has_parallel"]]) {
+    if (opt_parallel[["has"]]) {
       #call the simulations depending on parallel backend
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
 
@@ -660,9 +656,6 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           dat_wise = dat_wise, nvars = MMC[["nvars"]], var_tags = var_tags,
           val_rocks = val_rocks)
 
-        Rmpi::mpi.bcast.cmd(rm(list = ls()))
-        Rmpi::mpi.bcast.cmd(gc())
-
       } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
 
         ws <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
@@ -672,10 +665,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISE,
           dat_wise = dat_wise, nvars = MMC[["nvars"]], var_tags = var_tags,
           val_rocks = val_rocks)
-
-        parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-        parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
       }
+
+      clean_SFSW2_cluster(opt_parallel)
 
     } else {
       ws <- lapply(is_ToDo, FUN = ISRICWISE_try_weightedMeanForSimulationCell,
@@ -727,7 +719,8 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 
   if (verbose) {
     # Remove debug dumping but not other 'on.exit' expressions before returning without error
-    oe <- sys.on.exit()[-2]
+    oe <- sys.on.exit()
+    oe <- remove_from_onexit_expression(oe, "enable_debug_dump")
     on.exit(eval(oe), add = FALSE)
   }
 
@@ -748,7 +741,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   opt_parallel <- setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -794,6 +787,9 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   SFSW2_prj_inputs[["sw_input_soils_use"]] <- MMC[["use"]]
   SFSW2_prj_inputs[["sw_input_soils"]] <- MMC[["input"]]
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   SFSW2_prj_inputs
 }

@@ -2,10 +2,10 @@
 % Please edit documentation in R/Parallel.R
 \name{exit_SFSW2_cluster}
 \alias{exit_SFSW2_cluster}
-\title{Clean up and terminate the parallel cluster used for a rSFSW2 simulation project}
+\title{Clean up and terminate a parallel cluster used for a rSFSW2 simulation project}
 \usage{
 exit_SFSW2_cluster(opt_parallel, verbose = FALSE)
 }
 \description{
-Clean up and terminate the parallel cluster used for a rSFSW2 simulation project
+Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
 }

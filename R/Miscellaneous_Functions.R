@@ -82,7 +82,8 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 #'   if (cause_error) stop("Create error and force debug dumping")
 #'
 #'   # Remove debug dumping but not other 'on.exit' expressions before returning without error
-#'   oe <- sys.on.exit()[-2]
+#'   oe <- sys.on.exit()
+#'   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
 #'   on.exit(eval(oe), add = FALSE)
 #'   # Add to 'on.exit'
 #'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
@@ -126,6 +127,21 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
   }
 }
 
+#' Remove one of possibly several expressions recorded by \code{on.exit}
+#'
+#' @param sysonexit An expression. The returned value of a call to \code{sys.on.exit()}
+#'   from inside the calling function.
+#' @param tag A character string. An string identifying which of the recorded expressions
+#'   should be removed.
+#' @seealso \code{\link{enable_debug_dump}} for examples
+#' @export
+remove_from_onexit_expression <- function(sysonexit, tag) {
+  if (!is.null(sysonexit) && nchar(tag) > 0) {
+    sysonexit[regexpr(tag, sysonexit) < 0]
+  } else {
+    sysonexit
+  }
+}
 
 getStartYear <- function(simstartyr, spinup_N = 1L) {
   as.integer(simstartyr + spinup_N)

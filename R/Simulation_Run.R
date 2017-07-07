@@ -1491,7 +1491,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #prepare SQL result container
     SQL <- SQLcurrent <- character(0)
 
-    fid <- if (opt_parallel[["has_parallel"]]) {
+    fid <- if (opt_parallel[["has"]]) {
         if (opt_parallel[["parallel_backend"]] == "mpi") {
           Rmpi::mpi.comm.rank()
         } else if (opt_parallel[["parallel_backend"]] == "cluster") {
@@ -4697,7 +4697,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     MoreArgs[["sim_size"]][["runsN_master"]])
 
   #--- call the simulations depending on parallel backend
-  if (MoreArgs[["opt_parallel"]][["has_parallel"]]) {
+  if (MoreArgs[["opt_parallel"]][["has"]]) {
     unlink(MoreArgs[["opt_parallel"]][["lockfile"]], recursive = TRUE)
 
 
@@ -4813,8 +4813,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       }
 
       Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
-      Rmpi::mpi.bcast.cmd(rm(list = ls())) #do not remove 'ls(all = TRUE)' because there are important .XXX objects that are important for proper slave functioning!
-      Rmpi::mpi.bcast.cmd(gc())
     }
 
 
@@ -4854,9 +4852,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
       parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]],
         rSOILWAT2::dbW_disconnectConnection())
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], gc())
     }
+
+    clean_SFSW2_cluster(MoreArgs[["opt_parallel"]])
 
   } else { #call the simulations in serial
 

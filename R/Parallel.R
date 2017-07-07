@@ -151,7 +151,19 @@ mpi_work <- function(verbose = FALSE) {
 }
 
 
-#' Clean up and terminate the parallel cluster used for a rSFSW2 simulation project
+#' Properly end mpi slaves before quitting R (e.g., at a crash)
+#' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+mpi_last <- function() {
+  if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
+    if (Rmpi::mpi.comm.size(1) > 0)
+      Rmpi::mpi.close.Rslaves()
+    # .Call("mpi_finalize", PACKAGE = "Rmpi")
+    Rmpi::mpi.exit()
+  }
+}
+
+
+#' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
 #' @export
 exit_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
 
@@ -164,46 +176,15 @@ exit_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  opt_parallel <- clean_SFSW2_cluster(opt_parallel, verbose = FALSE)
+  if (opt_parallel[["has"]]) {
+    if (identical(opt_parallel[["parallel_backend"]], "mpi") &&
+      !is.null(opt_parallel[["mpi"]])) {
 
-  if (opt_parallel[["has_parallel"]]) {
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
-      # Rmpi::mpi.close.Rslaves(dellog = FALSE)
-
-      Rmpi::mpi.exit()
-    }
-
-    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
-      !is.null(opt_parallel[["cl"]])) {
-
-      parallel::stopCluster(opt_parallel[["cl"]])
-    }
-  }
-
-  invisible(opt_parallel)
-}
-
-
-#' Clean the parallel cluster used for a rSFSW2 simulation project
-#' @export
-clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
-
-  if (verbose) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
-  }
-
-  if (opt_parallel[["has_parallel"]]) {
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
       if (verbose) {
         print(paste("Cleaning up", opt_parallel[["workersN"]], "mpi workers."))
       }
-      Rmpi::mpi.finalize()
+
+      mpi_last()
     }
 
     if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
@@ -213,13 +194,40 @@ clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
         print(paste("Cleaning up", opt_parallel[["workersN"]], "socket cluster",
           "workers."))
       }
+
       parallel::stopCluster(opt_parallel[["cl"]])
     }
 
     opt_parallel <- init_SFSW2_cluster(opt_parallel)
   }
 
-  opt_parallel
+  invisible(opt_parallel)
+}
+
+
+#' Clean memory and workspace of parallel cluster workers
+#'
+#' @section Notes: Do not call 'ls(all = TRUE)' because there are important (hidden)
+#'    \code{.X} objects that are important for proper worker functioning!
+clean_SFSW2_cluster <- function(opt_parallel) {
+
+  if (opt_parallel[["has"]]) {
+    if (identical(opt_parallel[["parallel_backend"]], "mpi") &&
+      !is.null(opt_parallel[["mpi"]])) {
+
+      Rmpi::mpi.bcast.cmd(rm(list = ls()))
+      Rmpi::mpi.bcast.cmd(gc())
+    }
+
+    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
+      !is.null(opt_parallel[["cl"]])) {
+
+      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
+      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
+    }
+  }
+
+  invisible(NULL)
 }
 
 #' Initialize a parallel cluster
@@ -227,9 +235,10 @@ clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
 init_SFSW2_cluster <- function(opt_parallel) {
   opt_parallel[["workersN"]] <- 1
   opt_parallel[["cl"]] <- NULL
+  opt_parallel[["mpi"]] <- NULL
   unlink(opt_parallel[["lockfile"]], recursive = TRUE)
   opt_parallel[["lockfile"]] <- NULL
-  opt_parallel[["has_parallel"]] <- FALSE
+  opt_parallel[["has"]] <- FALSE
   # Worker tag: this needs to be an object with a name starting with a dot as in '.x'
   #  so that it does not get deleted by `rm(list = ls())`
   opt_parallel[["worker_tag"]] <- ".node_id"
@@ -251,11 +260,11 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       opt_parallel[["workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
   }
 
-  if (is.null(opt_parallel[["has_parallel"]]) && is.null(opt_parallel[["workersN"]])) {
+  if (is.null(opt_parallel[["has"]]) && is.null(opt_parallel[["workersN"]])) {
     opt_parallel <- init_SFSW2_cluster(opt_parallel)
   }
 
-  if (!opt_parallel[["has_parallel"]] && opt_parallel[["parallel_runs"]]) {
+  if (!opt_parallel[["has"]] && opt_parallel[["parallel_runs"]]) {
 
     opt_parallel[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
       tmpdir = normalizePath(tempdir()))
@@ -266,41 +275,39 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
         print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
-          shQuote("https://www.open-mpi.org/software/ompi/"), "with install instructions at",
+          shQuote("https://www.open-mpi.org/software/ompi/"),
+          "with installation instructions at",
           shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
-        print(paste("If no MPI is available, installation of 'Rmpi' will fail and may print",
-          "the error message: 'Cannot find mpi.h header file'"))
+        stop("If no MPI is available, installation of 'Rmpi' will fail and may print",
+          "the error message: 'Cannot find mpi.h header file'")
       }
 
-      Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
+      if (is.null(opt_parallel[["mpi"]])) {
+        Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
+        reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
-      mpi_last <- function(x) {
-        # Properly end mpi slaves before quitting R (e.g., at a crash)
-        # based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
-
-        if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
-          if (Rmpi::mpi.comm.size(1) > 0)
-            Rmpi::mpi.close.Rslaves()
-          # .Call("mpi_finalize", PACKAGE = "Rmpi")
-          Rmpi::mpi.exit()
-        }
+      } else {
+        print("MPI master/workers are already set up.")
       }
-
-      reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
       if (verbose)
         print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
 
-      opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-        outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
-        "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
+      if (is.null(opt_parallel[["cl"]])) {
+        opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
+          outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
+          "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
       # pos = 1 assigns into globalenv() of the worker
-      parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
-        function(x, id) assign(id, x, pos = 1L), id = opt_parallel[["worker_tag"]])
+        parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
+          function(x, id) assign(id, x, pos = 1L), id = opt_parallel[["worker_tag"]])
+
+      } else {
+        print("Socket cluster is already set up.")
+      }
     }
 
     opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
@@ -309,7 +316,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
       }
 
-    opt_parallel[["has_parallel"]] <- opt_parallel[["workersN"]] > 1
+    opt_parallel[["has"]] <- opt_parallel[["workersN"]] > 1
   }
 
   opt_parallel

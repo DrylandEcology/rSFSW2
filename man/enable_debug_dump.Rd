@@ -32,7 +32,8 @@ f2 <- function(x, cause_error = FALSE) {
   if (cause_error) stop("Create error and force debug dumping")
 
   # Remove debug dumping but not other 'on.exit' expressions before returning without error
-  oe <- sys.on.exit()[-2]
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
   on.exit(eval(oe), add = FALSE)
   # Add to 'on.exit'
   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)

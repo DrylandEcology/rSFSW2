@@ -118,7 +118,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     #--- Set up parallelization
     opt_parallel <- setup_SFSW2_cluster(opt_parallel,
       dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
-    on.exit(clean_SFSW2_cluster(opt_parallel, verbose), add = TRUE)
+    on.exit(exit_SFSW2_cluster(opt_parallel, verbose), add = TRUE)
 
     on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
       kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -196,6 +196,10 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
   }
+
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   invisible(rSOILWAT2::dbW_disconnectConnection())
 }
@@ -615,7 +619,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   sp_locs <- sp::SpatialPoints(coords = coords_WGS84, proj4string = prj_geographicWGS84)
   sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
 
-  if (opt_parallel[["has_parallel"]])
+  if (opt_parallel[["has"]])
     raster::beginCluster(n = opt_parallel[["ncores"]], type = "SOCK")
 
   #TODO: re-write for a more memory friendly approach
@@ -657,7 +661,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     save(NRC_weather, iy, file = wtemp_file)
   }
 
-  if (opt_parallel[["has_parallel"]])
+  if (opt_parallel[["has"]])
     raster::endCluster()
 
 
@@ -771,7 +775,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     setwd(dir_ex_cfsr)
 
     # set up parallel
-    if (opt_parallel[["has_parallel"]]) {
+    if (opt_parallel[["has"]]) {
 
       if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
         Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
@@ -798,7 +802,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #      if (opt_verbosity[["print.debug"]])
 #        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
 
-      if (opt_parallel[["has_parallel"]]) {
+      if (opt_parallel[["has"]]) {
         if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
           if (daily) {
             nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
@@ -840,6 +844,8 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
           }
         }
 
+        clean_SFSW2_cluster(opt_parallel)
+
       } else {
           if (daily) {
             nDailyReads <- lapply(X = seq_len(nrow(do_daily)),
@@ -874,18 +880,6 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
       if (monthly && k == length(do_sites)) { # only do at the end
         nMonthlyWrites <- do.call(sum, nMonthlyWrites)
         stopifnot(nMonthlyWrites == n_sites)
-      }
-    }
-
-    # clean up parallel
-    if (opt_parallel[["has_parallel"]]) {
-      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-        Rmpi::mpi.bcast.cmd(rm(list = ls()))
-        Rmpi::mpi.bcast.cmd(gc())
-      }
-      if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-        parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
       }
     }
 
