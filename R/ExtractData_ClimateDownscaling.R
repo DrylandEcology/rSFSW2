@@ -2327,26 +2327,36 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
         add = TRUE)
     }
 
+    req_wdata_fields <- c("todo", "rcps", "futures", "downscaling", "tag", "Scenario",
+      "Scenario_id", "Site_id", "StartYear", "EndYear", "weatherData")
+
     for (f in temp_files) {
+      ok <- TRUE
       ftemp <- file.path(dir_out_temp, f)
       df_wdataOut <- readRDS(file = ftemp)
 
-      ok <- TRUE
-      for (k in which(df_wdataOut[, "todo"])) if (!is.na(df_wdataOut[k, "weatherData"])) {
-        res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
-          Site_id = df_wdataOut[k, "Site_id"],
-          Scenario_id = df_wdataOut[k, "Scenario_id"],
-          StartYear = df_wdataOut[k, "StartYear"],
-          EndYear = df_wdataOut[k, "EndYear"],
-          weather_blob = df_wdataOut[k, "weatherData"]))
-        ok <- ok && !inherits(res, "try-error")
+      if (all(req_wdata_fields %in% names(df_wdataOut))) {
+        for (k in which(df_wdataOut[, "todo"])) if (!is.na(df_wdataOut[k, "weatherData"])) {
+          res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
+            Site_id = df_wdataOut[k, "Site_id"],
+            Scenario_id = df_wdataOut[k, "Scenario_id"],
+            StartYear = df_wdataOut[k, "StartYear"],
+            EndYear = df_wdataOut[k, "EndYear"],
+            weather_blob = df_wdataOut[k, "weatherData"]))
+          ok <- ok && !inherits(res, "try-error")
+        }
+
+        if (verbose) {
+          print(paste0(Sys.time(), ": temporary scenario file ", shQuote(f),
+            if (ok) " successfully added to weather database" else " failed", "."))
+        }
+
+      } else {
+        print(paste("Temporary scenario file", shQuote(f), "cannot be read likely",
+          " because it is corrupted or contains malformed data."))
       }
 
-      unlink(ftemp)
-      if (verbose) {
-        print(paste0(Sys.time(), ": temporary scenario file ", shQuote(f),
-          if (ok) " successfully added to weather database" else " failed", "."))
-      }
+      if (ok) unlink(ftemp)
     }
   }
 
@@ -2613,20 +2623,22 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
     temp <- strsplit(unlist(temp), split = ".", fixed = TRUE)
     temp <- lapply(temp, function(x) x[1])
     ids_Done <- sort(unique(c(ids_Done, as.integer(unlist(temp)))))
-  }
-
-  while (repeatExtractionLoops_maxN > repeatN &&
-    length(ids_ToDo <- if (length(ids_Done) > 0) ids_AllToDo[-ids_Done] else ids_AllToDo) > 0) {
 
     # Process any temporary datafile from a potential previous run
     copy_tempdata_to_dbW(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       clim_source, dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       verbose)
+  }
+
+  # Loop
+  while (repeatExtractionLoops_maxN > repeatN &&
+    length(ids_ToDo <- if (length(ids_Done) > 0) ids_AllToDo[-ids_Done] else ids_AllToDo) > 0) {
 
     repeatN <- repeatN + 1
-    if (verbose)
+    if (verbose) {
       print(paste(shQuote(clim_source), "will run the", repeatN, ". time to extract",
         length(ids_ToDo), "requests"))
+    }
 
     ids_seeds <- as.vector(outer(seq_along(reqGCMs),
       (iDS_runIDs_sites - 1) * length(reqGCMs), FUN = "+"))
@@ -2651,6 +2663,11 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
     ids_Done <- sort(unique(c(ids_Done, out)))
     saveRDS(ids_Done, file = logFile)
   }
+
+  # Process any temporary datafile from a current run
+  copy_tempdata_to_dbW(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+    clim_source, dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    verbose)
 
   # Determine progress
   if (length(ids_Done) > 0) {
