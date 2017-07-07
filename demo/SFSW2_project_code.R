@@ -202,7 +202,12 @@ if (actions[["check_dbOut"]]) {
 
 
 ##############################################################################
+#------ 8) FINISH RUN CLEANLY
 
+#--- Terminate infrastructure for parallel framework runs
+exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]])
+
+#--- Goodbye message
 writeLines(c("",
   "##############################################################################",
   paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run ended at",
