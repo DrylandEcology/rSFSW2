@@ -1615,6 +1615,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
       !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
+      tasks$aggregate[sc] <- -1L
     }
 
 

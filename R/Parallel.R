@@ -150,6 +150,41 @@ mpi_work <- function(verbose = FALSE) {
   Rmpi::mpi.send.Robj(junk, 0, 3)
 }
 
+
+#' Clean up and terminate the parallel cluster used for a rSFSW2 simulation project
+#' @export
+exit_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  opt_parallel <- clean_SFSW2_cluster(opt_parallel, verbose = FALSE)
+
+  if (opt_parallel[["has_parallel"]]) {
+    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
+      # Rmpi::mpi.close.Rslaves(dellog = FALSE)
+
+      Rmpi::mpi.exit()
+    }
+
+    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
+      !is.null(opt_parallel[["cl"]])) {
+
+      parallel::stopCluster(opt_parallel[["cl"]])
+    }
+  }
+
+  invisible(opt_parallel)
+}
+
+
 #' Clean the parallel cluster used for a rSFSW2 simulation project
 #' @export
 clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
@@ -164,24 +199,20 @@ clean_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
   }
 
   if (opt_parallel[["has_parallel"]]) {
-
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      if (verbose)
+      if (verbose) {
         print(paste("Cleaning up", opt_parallel[["workersN"]], "mpi workers."))
-
-      #TODO: The following line is commented because Rmpi::mpi.comm.disconnect(comm) hangs
-      # Rmpi::mpi.close.Rslaves(dellog = FALSE)
-
-      Rmpi::mpi.exit()
+      }
+      Rmpi::mpi.finalize()
     }
 
     if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
       !is.null(opt_parallel[["cl"]])) {
 
-      if (verbose)
+      if (verbose) {
         print(paste("Cleaning up", opt_parallel[["workersN"]], "socket cluster",
           "workers."))
-
+      }
       parallel::stopCluster(opt_parallel[["cl"]])
     }
 
