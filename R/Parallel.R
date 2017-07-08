@@ -1,4 +1,4 @@
-#' Export R objects to MPI slaves or socket workers
+#' Export R objects to MPI/socket workers
 #'
 #' @param varlist A vector of R object names to export
 #' @param list_envs A list of environments in which to search for the R objects
@@ -107,7 +107,7 @@ export_objects_to_workers <- function(obj_env,
 #' @references
 #'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
 #' @section Note:
-#'  If an error occurs, then the slave will likely not report back to master because
+#'  If an error occurs, then the worker will likely not report back to master because
 #'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
 #' @export
 mpi_work <- function(verbose = FALSE) {
@@ -115,6 +115,10 @@ mpi_work <- function(verbose = FALSE) {
   #     1 = ready_for_task, 2 = done_task, 3 = exiting
   # Note the use of the tag for received messages:
   #     1 = task, 2 = done_tasks
+
+  if (verbose) {
+    print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "starts working."))
+  }
 
   junk <- 0L
   done <- 0L
@@ -130,7 +134,7 @@ mpi_work <- function(verbose = FALSE) {
     if (tag == 1L) {
       if (dat$do_OneSite) {
         if (verbose)
-          print(paste(Sys.time(), "MPI slave", Rmpi::mpi.comm.rank(), "works on:",
+          print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "works on:",
             dat$i_sim, dat$i_labels))
 
         result <- do.call("do_OneSite", args = dat[-1])
@@ -142,7 +146,7 @@ mpi_work <- function(verbose = FALSE) {
     } else if (tag == 2L) {
       done <- 1L
       if (verbose)
-        print(paste(Sys.time(), "MPI slave", Rmpi::mpi.comm.rank(),
+        print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(),
           "shuts down 'mpi_work()'"))
     }
     # We'll just ignore any unknown messages
@@ -151,7 +155,7 @@ mpi_work <- function(verbose = FALSE) {
 }
 
 
-#' Properly end mpi slaves before quitting R (e.g., at a crash)
+#' Properly end mpi workers before quitting R (e.g., at a crash)
 #' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
 mpi_last <- function() {
   if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")

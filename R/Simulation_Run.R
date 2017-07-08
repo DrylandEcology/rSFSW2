@@ -4705,10 +4705,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
 #      temp <- export_objects_to_workers(obj2exp, "mpi")
 #      if (temp) { # Check success of export to MPI workers
-#        if (MoreArgs[["print.debug"]]) {
-#          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
-#            length(ls()), "objects")))
-#        }
+        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
+          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
+            length(ls()), "objects")))
+        }
 #
 #      } else {
 #        #Rmpi::mpi.close.Rslaves()
@@ -4722,26 +4722,26 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
 
       junk <- 0L
-      closed_slaves <- 0L
+      closed_workers <- 0L
       runs.completed <- 1L
       #sTag <- c("Ready for task", "Done with Task", "Exiting")
 
-      while (closed_slaves < MoreArgs[["opt_parallel"]][["workersN"]]) {
+      while (closed_workers < MoreArgs[["opt_parallel"]][["workersN"]]) {
 
       tryCatch({
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
+          print(paste(Sys.time(), ": master is waiting for workers to communicate"))
         }
 
         complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
         complete_info <- Rmpi::mpi.get.sourcetag()
-        slave_id <- complete_info[1]
+        worker_id <- complete_info[1]
         tag <- complete_info[2]
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
           print(paste(Sys.time(),
-                      ": master has received communication from slave", slave_id,
+                      ": master has received communication from worker", worker_id,
                       "with tag", tag,
                       "and message", paste(complete, collapse = ", ")))
         }
@@ -4751,7 +4751,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) <
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
-          # slave is ready for a task. Give it the next task, or tell it tasks
+          # worker is ready for a task. Give it the next task, or tell it tasks
           # are done if there are none.
           if ((runs.completed <= MoreArgs[["sim_size"]][["runsN_todo"]]) && has_time_to_simulate) {
             # Send a task, and then remove it from the task list
@@ -4772,15 +4772,15 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               SimParams = MoreArgs)
 
             if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-              print(paste("Slave:", slave_id,
+              print(paste("Worker:", worker_id,
                           "Run:", MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
                           "started at", Sys.time()))
             }
-            Rmpi::mpi.send.Robj(dataForRun, slave_id, 1)
+            Rmpi::mpi.send.Robj(dataForRun, worker_id, 1)
             runs.completed <- runs.completed + 1L
 
           } else {
-            Rmpi::mpi.send.Robj(junk, slave_id, 2)
+            Rmpi::mpi.send.Robj(junk, worker_id, 2)
           }
 
         } else if (tag == 2L) {
@@ -4791,19 +4791,19 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           }
 
         } else if (tag == 3L) {
-          # A slave has closed down.
-          closed_slaves <- closed_slaves + 1L
+          # A worker has closed down.
+          closed_workers <- closed_workers + 1L
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste("Slave:", slave_id, "closed at", Sys.time()))
+            print(paste("Worker:", worker_id, "closed at", Sys.time()))
           }
 
         } else if (tag == 4L) {
-          #The slave had a problem with Soilwat record Slave number and the Run number.
-          print("Problem with run:", complete, "on slave:", slave_id, "at", Sys.time())
+          #The worker had a problem with Soilwat record
+          print("Problem with run:", complete, "on worker:", worker_id, "at", Sys.time())
           ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]], "ProblemRuns.csv")
           if (!file.exists(ftemp))
-            cat("Slave, Run", file = ftemp, sep = "\n")
-          cat(paste(slave_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
+            cat("Worker, Run", file = ftemp, sep = "\n")
+          cat(paste(worker_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
         }
 
       }, interrupt = function(interrupt) {
