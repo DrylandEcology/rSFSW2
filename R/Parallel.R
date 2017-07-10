@@ -288,6 +288,10 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
       if (is.null(opt_parallel[["mpi"]])) {
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
+        Rmpi::mpi.bcast.cmd(library("rSFSW2"))
+        Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
+        opt_parallel[["mpi"]] <- TRUE
+
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
       } else {
