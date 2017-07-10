@@ -4705,10 +4705,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
 #      temp <- export_objects_to_workers(obj2exp, "mpi")
 #      if (temp) { # Check success of export to MPI workers
-        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
-            length(ls()), "objects")))
-        }
+#        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
+#          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
+#            length(ls()), "objects")))
+#        }
 #
 #      } else {
 #        #Rmpi::mpi.close.Rslaves()
@@ -4716,8 +4716,15 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 #        stop("Rmpi workers have insufficient data to execute jobs")
 #      }
 
-      Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection,
+      # We have to rename rSOILWAT2 functions locally (and export to workers):
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+      # is not the name of a function
+       temp_fun <- function(...) rSOILWAT2::dbW_setConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(temp_fun)
+      Rmpi::mpi.remote.exec(cmd = temp_fun,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+
       Rmpi::mpi.bcast.cmd(cmd = mpi_work,
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
 
@@ -4812,7 +4819,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       })
       }
 
-      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
+      # We have to rename rSOILWAT2 functions locally (and export to workers):
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+      # is not the name of a function
+      temp_fun <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(temp_fun)
+      Rmpi::mpi.bcast.cmd(cmd = temp_fun)
     }
 
 
@@ -4855,6 +4868,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     }
 
     clean_SFSW2_cluster(MoreArgs[["opt_parallel"]])
+
 
   } else { #call the simulations in serial
 

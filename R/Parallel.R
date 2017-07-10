@@ -274,9 +274,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       tmpdir = normalizePath(tempdir()))
 
     if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-      if (verbose)
-        print(paste("Setting up", opt_parallel[["num_cores"]], "mpi workers."))
-
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
         print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
           shQuote("https://www.open-mpi.org/software/ompi/"),
@@ -287,6 +284,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       }
 
       if (is.null(opt_parallel[["mpi"]])) {
+        if (verbose)
+          print(paste("Setting up", opt_parallel[["num_cores"]], "mpi workers."))
+
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
         Rmpi::mpi.bcast.cmd(library("rSFSW2"))
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
@@ -299,10 +299,10 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
       }
 
     } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-      if (verbose)
-        print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
-
       if (is.null(opt_parallel[["cl"]])) {
+        if (verbose)
+          print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
+
         opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
           outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
           "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
