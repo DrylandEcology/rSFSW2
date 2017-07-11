@@ -2,12 +2,12 @@
 % Please edit documentation in R/Parallel.R
 \name{mpi_last}
 \alias{mpi_last}
-\title{Properly end mpi slaves before quitting R (e.g., at a crash)}
+\title{Properly end mpi workers before quitting R (e.g., at a crash)}
 \usage{
-mpi_last()
+mpi_last(gv)
 }
 \description{
-Properly end mpi slaves before quitting R (e.g., at a crash)
+Properly end mpi workers before quitting R (e.g., at a crash)
 }
 \section{Notes}{
  code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt

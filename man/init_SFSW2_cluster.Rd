@@ -4,7 +4,7 @@
 \alias{init_SFSW2_cluster}
 \title{Initialize a parallel cluster}
 \usage{
-init_SFSW2_cluster(opt_parallel)
+init_SFSW2_cluster()
 }
 \description{
 Initialize a parallel cluster

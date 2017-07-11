@@ -4,13 +4,8 @@
 \alias{clean_SFSW2_cluster}
 \title{Clean memory and workspace of parallel cluster workers}
 \usage{
-clean_SFSW2_cluster(opt_parallel)
+clean_SFSW2_cluster()
 }
 \description{
 Clean memory and workspace of parallel cluster workers
 }
-\section{Notes}{
- Do not call 'ls(all = TRUE)' because there are important (hidden)
-   \code{.X} objects that are important for proper worker functioning!
-}
-

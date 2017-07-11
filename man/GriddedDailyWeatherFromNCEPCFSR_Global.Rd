@@ -5,9 +5,9 @@
 \title{Extract gridded daily weather from NCEP/CFSR for sites globally}
 \usage{
 GriddedDailyWeatherFromNCEPCFSR_Global(site_ids, dat_sites, tag_WeatherFolder,
-  start_year, end_year, meta_cfsr, n_site_per_core = 100, opt_parallel,
-  rm_temp = TRUE, resume = FALSE, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
+  start_year, end_year, meta_cfsr, n_site_per_core = 100, rm_temp = TRUE,
+  resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip",
+  dbW_digits, verbose = FALSE)
 }
 \value{
 An invisible zero. A list of which each element represents one year of daily
