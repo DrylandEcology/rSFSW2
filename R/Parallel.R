@@ -157,16 +157,27 @@ mpi_work <- function(verbose = FALSE) {
 
 #' Properly end mpi workers before quitting R (e.g., at a crash)
 #' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
-mpi_last <- function() {
-  if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
-    #if (Rmpi::mpi.comm.size(1) > 0)
-    #  Rmpi::mpi.close.Rslaves() # (drs; July 11, 2017): This command crashes my installation
+mpi_last <- function(gv) {
+  if (requireNamespace("Rmpi")) {
 
-    # I want to use 'Rmpi::mpi.exit' here instead '.Call("mpi_finalize", PACKAGE = "Rmpi")'
-    # but as of Rmpi v0.6.6, 'mpi.exit' calls 'detach(package:Rmpi) which results in
-    # "Error in detach(package:Rmpi) : invalid 'name' argument"
-    # because the rSFSW2 package never attaches 'Rmpi'.
-    .Call("mpi_finalize", PACKAGE = "Rmpi")
+    # Rmpi::mpi.comm.size(1) crashes with a segfault if there are no workers running due
+    # to .Call("mpi_comm_is_null", as.integer(comm), PACKAGE = "Rmpi")
+    if (gv[["p_has"]] && Rmpi::mpi.comm.size(1) > 0) {
+      #Rmpi::mpi.close.Rslaves() # This command hangs my session
+      # because of the call to Rmpi::mpi.comm.disconnect(); even wrapping this in try()
+      # doesn't prevent it from hanging.
+      Rmpi::mpi.bcast.cmd(cmd = break)
+      #try(Rmpi::mpi.comm.disconnect())
+      Rmpi::mpi.bcast.cmd(cmd = .Call("mpi_finalize", PACKAGE = "Rmpi"))
+
+    } else {
+      # Maybe master still needs to finalize?
+      Rmpi::mpi.finalize()
+    }
+
+    # I cannot use 'Rmpi::mpi.exit' here because Rmpi v0.6.6, 'mpi.exit' calls \
+    # 'detach(package:Rmpi) which results in "Error in detach(package:Rmpi) : invalid 'name' argument"
+    # since the rSFSW2 package never attaches 'Rmpi'.
   }
 }
 
@@ -189,17 +200,39 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
       "of the", shQuote(SFSW2_glovars[["p_type"]]), "cluster."))
     }
 
-    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
-      mpi_last()
-
-    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
       parallel::stopCluster(SFSW2_glovars[["p_cl"]])
+
+    } else if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
+      mpi_last(SFSW2_glovars)
+
+      # Locate remaining R workers
+      #   - remove master PID
+      pids <- SFSW2_glovars[["p_pids"]][!(Sys.getpid() == SFSW2_glovars[["p_pids"]])]
+      #   - remove PIDs that are properly closed down
+      isalive <- if (.Platform$OS.type == "unix") {
+          sapply(pids, function(x)
+            NROW(system2("ps", args = paste("-p", x), stdout = TRUE)) > 0)
+
+        } else if (.Platform$OS.type == "windows") {
+          sapply(pids, function(x) {
+            temp <- system2("tasklist", args = paste0('/FI "PID eq ', x, '"'), stdout = TRUE)
+            NROW(temp) > 1
+          })
+        } else NULL
+      pids <- pids[isalive]
+
+      if (length(pids) > 0) {
+        print(paste("Something went wrong when taking down the cluster: kill remaining",
+          "R workers with PIDs =", paste(pids, collapse = ", ")))
+        # This is likely because Rmpi::mpi.close.Rslaves() [due to Rmpi::mpi.comm.disconnect()]
+        # doesn't work as of Rmpi v0.6.6
+
+        tools::pskill(pids, signal = tools::SIGKILL)
+      }
     }
 
-    # Kill R workers in case something went wrong when taking down the cluster
-    tools::pskill(SFSW2_glovars[["p_pids"]], signal = tools::SIGKILL)
-
-    # Re-initialize the package parallel settings
+    # Reset the package parallel settings
     init_SFSW2_cluster()
   }
 
@@ -211,7 +244,7 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
 clean_SFSW2_cluster <- function() {
   if (SFSW2_glovars[["p_has"]]) {
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
-      Rmpi::mpi.bcast.cmd(cmd = clean_worker)
+      Rmpi::mpi.bcast.cmd(cmd = clean_worker())
     }
 
     if (identical(SFSW2_glovars[["p_type"]], "socket")) {
@@ -292,7 +325,8 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
 
         SFSW2_glovars[["p_cl"]] <- TRUE
-        SFSW2_glovars[["p_pids"]] <- as.integer(unlist(Rmpi::mpi.remote.exec(cmd = Sys.getpid)))
+        SFSW2_glovars[["p_pids"]] <- as.integer(Rmpi::mpi.remote.exec(cmd = Sys.getpid(),
+          simplify = FALSE))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
@@ -309,8 +343,8 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
           outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
           "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
 
-        SFSW2_glovars[["p_pids"]] <- as.integer(unlist(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
-          fun = Sys.getpid)))
+        SFSW2_glovars[["p_pids"]] <- as.integer(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
+          fun = Sys.getpid))
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
