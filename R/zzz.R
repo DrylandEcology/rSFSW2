@@ -38,6 +38,7 @@
   assign("p_workersN", 1L, envir = SFSW2_glovars) # Number of currently set-up workers
   assign("p_cl", NULL, envir = SFSW2_glovars) # Parallel cluster
   assign("p_has", FALSE, envir = SFSW2_glovars) # Do we have a parallel cluster set up?
+  assign("p_pids", NULL, envir = SFSW2_glovars) # Process IDs of workers
   assign("lockfile", NULL, envir = SFSW2_glovars)
   # Worker tag: this needs to be an object with a name starting with a dot as in '.x'
   #  so that it does not get deleted by `rm(list = ls())`

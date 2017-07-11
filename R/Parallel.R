@@ -292,7 +292,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
 
         SFSW2_glovars[["p_cl"]] <- TRUE
-        SFSW2_glovars[["p_pids"]] <- unlist(Rmpi::mpi.remote.exec(cmd = Sys.getpid))
+        SFSW2_glovars[["p_pids"]] <- as.integer(unlist(Rmpi::mpi.remote.exec(cmd = Sys.getpid)))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
@@ -309,8 +309,8 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
           outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
           "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
 
-        SFSW2_glovars[["p_pids"]] <- unlist(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
-          fun = Sys.getpid))
+        SFSW2_glovars[["p_pids"]] <- as.integer(unlist(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
+          fun = Sys.getpid)))
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
