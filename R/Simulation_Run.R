@@ -62,7 +62,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   list2env(as.list(SimParams), envir = environment())
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
-    with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
   flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
     flag = "0")
@@ -1491,11 +1491,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #prepare SQL result container
     SQL <- SQLcurrent <- character(0)
 
-    fid <- if (opt_parallel[["has"]]) {
-        if (opt_parallel[["parallel_backend"]] == "mpi") {
+    fid <- if (SFSW2_glovars[["p_has"]]) {
+        if (SFSW2_glovars[["p_type"]] == "mpi") {
           Rmpi::mpi.comm.rank()
-        } else if (opt_parallel[["parallel_backend"]] == "cluster") {
-          get(opt_parallel[["worker_tag"]], envir = globalenv())
+        } else if (SFSW2_glovars[["p_type"]] == "socket") {
+          get(SFSW2_glovars[["p_wtag"]], envir = globalenv())
         }
       } else {
         0L
@@ -4631,7 +4631,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim,
     status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
-    with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
   if (status) {
     #ETA estimation
@@ -4644,7 +4644,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         "Simulation project is ", round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
 
       if (opt_verbosity[["print.eta"]]) {
-        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / opt_parallel[["workersN"]]) *
+        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / SFSW2_glovars[["p_workersN"]]) *
           sapply(list(mean, stats::sd), function(f) f(times, na.rm = TRUE)))
         pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) stats::qt(0.975, n) else NA}# 95% prediction interval
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
@@ -4686,7 +4686,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " for ",
       MoreArgs[["sim_size"]][["runsN_todo"]], " out of ",
       MoreArgs[["sim_size"]][["runsN_job"]], " runs on ",
-      MoreArgs[["opt_parallel"]][["workersN"]], " cores"))
+      SFSW2_glovars[["p_workersN"]], " cores"))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
@@ -4697,30 +4697,17 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     MoreArgs[["sim_size"]][["runsN_master"]])
 
   #--- call the simulations depending on parallel backend
-  if (MoreArgs[["opt_parallel"]][["has"]]) {
-    unlink(MoreArgs[["opt_parallel"]][["lockfile"]], recursive = TRUE)
+  if (SFSW2_glovars[["p_has"]]) {
+    unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
 
 
-    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "mpi")) {
-
-#      temp <- export_objects_to_workers(obj2exp, "mpi")
-#      if (temp) { # Check success of export to MPI workers
-#        if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-#          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
-#            length(ls()), "objects")))
-#        }
-#
-#      } else {
-#        #Rmpi::mpi.close.Rslaves()
-#        Rmpi::mpi.exit()
-#        stop("Rmpi workers have insufficient data to execute jobs")
-#      }
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
       # We have to rename rSOILWAT2 functions locally (and export to workers):
       # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
       # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
       # is not the name of a function
-       temp_fun <- function(...) rSOILWAT2::dbW_setConnection(...)
+      temp_fun <- function(...) rSOILWAT2::dbW_setConnection(...)
       Rmpi::mpi.bcast.Robj2slave(temp_fun)
       Rmpi::mpi.remote.exec(cmd = temp_fun,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
@@ -4733,7 +4720,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       runs.completed <- 1L
       #sTag <- c("Ready for task", "Done with Task", "Exiting")
 
-      while (closed_workers < MoreArgs[["opt_parallel"]][["workersN"]]) {
+      while (closed_workers < SFSW2_glovars[["p_workersN"]]) {
 
       tryCatch({
 
@@ -4829,9 +4816,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     }
 
 
-    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "cluster")) {
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      parallel::clusterCall(MoreArgs[["opt_parallel"]][["cl"]],
+      parallel::clusterCall(SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
 
@@ -4845,7 +4832,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       temp_ids <- cbind(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]], i_site = i_sites)
       temp_seqs <- seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]])
 
-      runs.completed <- parallel::clusterMap(MoreArgs[["opt_parallel"]][["cl"]],
+      runs.completed <- parallel::clusterMap(SFSW2_glovars[["p_cl"]],
         fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
         i_SWRunInformation = split(SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ], temp_seqs),
@@ -4863,11 +4850,11 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
       runs.completed <- sum(unlist(runs.completed))
 
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]],
+      parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
         rSOILWAT2::dbW_disconnectConnection())
     }
 
-    clean_SFSW2_cluster(MoreArgs[["opt_parallel"]])
+    clean_SFSW2_cluster()
 
 
   } else { #call the simulations in serial

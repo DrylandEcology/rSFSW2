@@ -35,13 +35,13 @@ do_import_objects <- function(obj_env) {
 
 #' Export objects to workers
 #'
-#' @param parallel_backend A character vector, either 'mpi' or 'cluster'
+#' @param parallel_backend A character vector, either 'mpi' or 'socket'
 #' @param cl A parallel (socket) cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
 #' @export
 export_objects_to_workers <- function(obj_env,
-  parallel_backend = c("mpi", "cluster"), cl = NULL) {
+  parallel_backend = c("mpi", "socket"), cl = NULL) {
 
   t.bcast <- Sys.time()
   parallel_backend <- match.arg(parallel_backend)
@@ -51,7 +51,7 @@ export_objects_to_workers <- function(obj_env,
   success <- FALSE
   done_N <- 0
 
-  if (inherits(cl, "cluster") && identical(parallel_backend, "cluster")) {
+  if (inherits(cl, "cluster") && identical(parallel_backend, "socket")) {
     # Remove suppressWarnings() when rSFSW2 becomes a R package
     temp <- suppressWarnings(try(parallel::clusterExport(cl, as.list(ls(obj_env)),
       envir = obj_env)))
@@ -169,111 +169,101 @@ mpi_last <- function() {
 
 #' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
 #' @export
-exit_SFSW2_cluster <- function(opt_parallel, verbose = FALSE) {
+exit_SFSW2_cluster <- function(verbose = FALSE) {
+  if (SFSW2_glovars[["p_has"]]) {
+    if (verbose) {
+      t1 <- Sys.time()
+      temp_call <- shQuote(match.call()[1])
+      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-  if (verbose) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+    }
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
-  }
+    if (verbose) {
+      print(paste("Cleaning up", SFSW2_glovars[["p_workersN"]], "workers",
+      "of the", shQuote(SFSW2_glovars[["p_type"]]), "cluster."))
+    }
 
-  if (opt_parallel[["has"]]) {
-    if (identical(opt_parallel[["parallel_backend"]], "mpi") &&
-      !is.null(opt_parallel[["mpi"]])) {
-
-      if (verbose) {
-        print(paste("Cleaning up", opt_parallel[["workersN"]], "mpi workers."))
-      }
-
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       mpi_last()
+
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      parallel::stopCluster(SFSW2_glovars[["p_cl"]])
     }
 
-    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
-      !is.null(opt_parallel[["cl"]])) {
-
-      if (verbose) {
-        print(paste("Cleaning up", opt_parallel[["workersN"]], "socket cluster",
-          "workers."))
-      }
-
-      parallel::stopCluster(opt_parallel[["cl"]])
-    }
-
-    opt_parallel <- init_SFSW2_cluster(opt_parallel)
+    init_SFSW2_cluster()
   }
 
-  invisible(opt_parallel)
+  invisible(TRUE)
 }
 
 
 #' Clean memory and workspace of parallel cluster workers
-#'
-#' @section Notes: Do not call 'ls(all = TRUE)' because there are important (hidden)
-#'    \code{.X} objects that are important for proper worker functioning!
-clean_SFSW2_cluster <- function(opt_parallel) {
-
-  if (opt_parallel[["has"]]) {
-    if (identical(opt_parallel[["parallel_backend"]], "mpi") &&
-      !is.null(opt_parallel[["mpi"]])) {
-
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
+clean_SFSW2_cluster <- function() {
+  if (SFSW2_glovars[["p_has"]]) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
+      Rmpi::mpi.bcast.cmd(cmd = clean_worker)
     }
 
-    if (identical(opt_parallel[["parallel_backend"]], "cluster") &&
-      !is.null(opt_parallel[["cl"]])) {
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = clean_worker)
     }
   }
 
-  invisible(NULL)
+  invisible(TRUE)
+}
+
+#' Remove almost all objects from a worker's global environment
+#'
+#' Remove all objects except those with a name starting with a dot '.'
+#' @section Notes: Do not call 'ls(all = TRUE)' because there are important (hidden)
+#'    \code{.X} objects that are important for proper worker functioning!
+clean_worker <- function() {
+  rm(list = ls(envir = globalenv(), all.names = FALSE), envir = globalenv())
+  gc()
+
+  invisible(TRUE)
 }
 
 #' Initialize a parallel cluster
 #' @export
-init_SFSW2_cluster <- function(opt_parallel) {
-  opt_parallel[["workersN"]] <- 1
-  opt_parallel[["cl"]] <- NULL
-  opt_parallel[["mpi"]] <- NULL
-  unlink(opt_parallel[["lockfile"]], recursive = TRUE)
-  opt_parallel[["lockfile"]] <- NULL
-  opt_parallel[["has"]] <- FALSE
-  # Worker tag: this needs to be an object with a name starting with a dot as in '.x'
-  #  so that it does not get deleted by `rm(list = ls())`
-  opt_parallel[["worker_tag"]] <- ".node_id"
+init_SFSW2_cluster <- function() {
+  assign("p_workersN", 1L, envir = SFSW2_glovars) # Number of currently set-up workers
+  assign("p_cl", NULL, envir = SFSW2_glovars) # Parallel cluster
 
-  opt_parallel
+  unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
+  assign("lockfile", NULL, envir = SFSW2_glovars)
+
+  invisible(TRUE)
 }
 
 
 #' Set-up a parallel cluster to be used for a rSFSW2 simulation project
 #' @export
 setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
-  if (verbose) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
-      opt_parallel[["workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
+  if (!SFSW2_glovars[["p_has"]]) {
+    init_SFSW2_cluster()
   }
 
-  if (is.null(opt_parallel[["has"]]) && is.null(opt_parallel[["workersN"]])) {
-    opt_parallel <- init_SFSW2_cluster(opt_parallel)
-  }
+  if (!SFSW2_glovars[["p_has"]] && opt_parallel[["parallel_runs"]]) {
+    if (verbose) {
+      t1 <- Sys.time()
+      temp_call <- shQuote(match.call()[1])
+      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-  if (!opt_parallel[["has"]] && opt_parallel[["parallel_runs"]]) {
+      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
+        SFSW2_glovars[["p_workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
+    }
 
-    opt_parallel[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
+    SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],
+      mpi = "mpi", socket = "socket", cluster = "socket", NA_character_)
+
+    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
       tmpdir = normalizePath(tempdir()))
 
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
         print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
           shQuote("https://www.open-mpi.org/software/ompi/"),
@@ -283,14 +273,14 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
           "the error message: 'Cannot find mpi.h header file'")
       }
 
-      if (is.null(opt_parallel[["mpi"]])) {
+      if (!isTRUE(SFSW2_glovars[["p_cl"]])) {
         if (verbose)
-          print(paste("Setting up", opt_parallel[["num_cores"]], "mpi workers."))
+          print(paste("Setting up", opt_parallel[["num_cores"]], "mpi cluster workers."))
 
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
         Rmpi::mpi.bcast.cmd(library("rSFSW2"))
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
-        opt_parallel[["mpi"]] <- TRUE
+        SFSW2_glovars[["p_cl"]] <- TRUE
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
@@ -298,34 +288,35 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         print("MPI master/workers are already set up.")
       }
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-      if (is.null(opt_parallel[["cl"]])) {
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      if (is.null(SFSW2_glovars[["p_cl"]])) {
         if (verbose)
           print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
 
-        opt_parallel[["cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
+        SFSW2_glovars[["p_cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
           outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
           "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
       # pos = 1 assigns into globalenv() of the worker
-        parallel::clusterApplyLB(opt_parallel[["cl"]], seq_len(opt_parallel[["num_cores"]]),
-          function(x, id) assign(id, x, pos = 1L), id = opt_parallel[["worker_tag"]])
+        parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], seq_len(opt_parallel[["num_cores"]]),
+          function(x, id) assign(id, x, pos = 1L), id = SFSW2_glovars[["p_wtag"]])
 
       } else {
         print("Socket cluster is already set up.")
       }
     }
 
-    opt_parallel[["workersN"]] <- if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    SFSW2_glovars[["p_workersN"]] <- if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
         Rmpi::mpi.comm.size() - 1
       } else {
         opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
       }
 
-    opt_parallel[["has"]] <- opt_parallel[["workersN"]] > 1
+    SFSW2_glovars[["p_has"]] <- !is.null(SFSW2_glovars[["p_cl"]]) &&
+      SFSW2_glovars[["p_workersN"]] > 1
   }
 
-  opt_parallel
+  invisible(TRUE)
 }

@@ -893,10 +893,10 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -913,9 +913,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
     SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
-  if (opt_parallel[["has"]]) {
+  if (SFSW2_glovars[["p_has"]]) {
 
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
       missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -925,18 +925,18 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables, fun = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
+        missing_Pids_current <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables,
           fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
     }
 
-    clean_SFSW2_cluster(opt_parallel)
+    clean_SFSW2_cluster()
 
   } else {
     missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])

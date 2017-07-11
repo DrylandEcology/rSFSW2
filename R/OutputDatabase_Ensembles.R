@@ -64,8 +64,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
   }
 
   collect_EnsembleFromScenarios <- function(Table, name.OutputDB, t.overall, opt_job_time,
-    opt_parallel, dir_out, sim_scens, ensemble.families, ensemble.levels,
-    save.scenario.ranks, opt_chunks) {
+    dir_out, sim_scens, ensemble.families, ensemble.levels, save.scenario.ranks,
+    opt_chunks) {
 
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
     #########TIMING#########
@@ -128,7 +128,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
       }
     }
 
-    if (!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !opt_parallel[["has"]] | !identical(opt_parallel[["parallel_backend"]], "mpi")) {#figure need at least 3 hours for big ones
+    if (!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !SFSW2_glovars[["p_has"]] | !identical(SFSW2_glovars[["p_type"]], "mpi")) {#figure need at least 3 hours for big ones
       tfile <- file.path(dir_out, paste0("dbEnsemble_", sub(pattern = "_Mean", replacement = "", Table, ignore.case = TRUE), ".sqlite3"))
       conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname = tfile)
 
@@ -142,7 +142,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
         EnsembleTimeStop <- Sys.time() - t.overall
         units(EnsembleTimeStop) <- "secs"
         EnsembleTimeStop <- as.double(EnsembleTimeStop)
-        if ((EnsembleTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) & opt_parallel[["has"]] & identical(opt_parallel[["parallel_backend"]], "mpi")) {#figure need at least 4 hours for a ensemble
+        if ((EnsembleTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) & SFSW2_glovars[["p_has"]] & identical(SFSW2_glovars[["p_type"]], "mpi")) {#figure need at least 4 hours for a ensemble
           break
         }
         print(paste0("Table: ", Table, ", Ensemble: ", ensemble.families[j], " started at ", EnsembleTime <- Sys.time()))
@@ -221,25 +221,25 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
   Tables <- dbOutput_ListOutputTables(con)
   Tables <- Tables[-grep(pattern = "_sd", Tables, ignore.case = T)]
 
-  if (opt_parallel[["has"]]) {
+  if (SFSW2_glovars[["p_has"]]) {
     #call the simulations depending on parallel backend
 
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
       ensembles.completed <- Rmpi::mpi.applyLB(X = Tables,
         FUN = collect_EnsembleFromScenarios,
         name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      ensembles.completed <- parallel::clusterApplyLB(opt_parallel[["cl"]],
+      ensembles.completed <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
         x = Tables, fun = collect_EnsembleFromScenarios,
         name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
@@ -248,7 +248,7 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
   } else {
     ensembles.completed <- lapply(Tables, FUN = collect_EnsembleFromScenarios,
         name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]], opt_parallel = opt_parallel,
+        opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)

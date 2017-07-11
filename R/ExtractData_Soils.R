@@ -509,8 +509,8 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 #'     }
 #'   }
 do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
-  dir_ex_soil, fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), opt_parallel,
-  resume, verbose) {
+  dir_ex_soil, fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), resume,
+  verbose) {
 
   dataset <- match.arg(dataset)
 
@@ -599,17 +599,17 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
         crs_from = sim_space[["sim_crs"]], sp = run_sites_wise,
         crs_sp = sim_space[["crs_sites"]], crs_to = raster::crs(grid_wise))
 
-      if (opt_parallel[["has"]]) {
+      if (SFSW2_glovars[["p_has"]]) {
 
         #call the simulations depending on parallel backend
-        if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+        if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
           sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo,
             FUN = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise, att = rat_att)
 
-        } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-          sim_cells_SUIDs <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
+        } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+          sim_cells_SUIDs <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = is_ToDo,
             fun = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
             sp_sites = run_sites_wise, att = rat_att)
 
@@ -617,7 +617,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 0, SUID = NA, fraction = 1)
         }
 
-        clean_SFSW2_cluster(opt_parallel)
+        clean_SFSW2_cluster()
 
       } else {
         sim_cells_SUIDs <- lapply(is_ToDo, FUN = ISRICWISE_extract_SUIDs,
@@ -644,9 +644,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     template_simulationSoils[] <- NA
     template_simulationSoils["depth"] <- 0
 
-    if (opt_parallel[["has"]]) {
+    if (SFSW2_glovars[["p_has"]]) {
       #call the simulations depending on parallel backend
-      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
         ws <- Rmpi::mpi.applyLB(X = is_ToDo,
           FUN = ISRICWISE_try_weightedMeanForSimulationCell,
@@ -656,9 +656,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           dat_wise = dat_wise, nvars = MMC[["nvars"]], var_tags = var_tags,
           val_rocks = val_rocks)
 
-      } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+      } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-        ws <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = is_ToDo,
+        ws <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = is_ToDo,
           fun = ISRICWISE_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
@@ -667,7 +667,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           val_rocks = val_rocks)
       }
 
-      clean_SFSW2_cluster(opt_parallel)
+      clean_SFSW2_cluster()
 
     } else {
       ws <- lapply(is_ToDo, FUN = ISRICWISE_try_weightedMeanForSimulationCell,
@@ -738,10 +738,10 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   field_include <- "Include_YN_SoilSources"
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -768,7 +768,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]], dataset = "ISRICWISE30secV1a",
-      opt_parallel, resume, verbose)
+      resume, verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISEv12_Global) {
@@ -776,7 +776,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]], dataset = "ISRICWISEv12",
-      opt_parallel, resume, verbose)
+      resume, verbose)
   }
 
   SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,

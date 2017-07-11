@@ -2123,7 +2123,7 @@ try.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 #'  are passed to \code{\link{set.seed}}.
 tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
-  assocYears, project_paths, fdbWeather, opt_parallel, climate.ambient, dbW_iSiteTable,
+  assocYears, project_paths, fdbWeather, climate.ambient, dbW_iSiteTable,
   dbW_iScenarioTable, dbW_compression_type, sim_time, seeds_DS, opt_DS, verbose,
   print.debug, seed = NA) {
 
@@ -2132,12 +2132,12 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
   #  - TODO: many sites are extracted from one nc-read instead of one site per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #TODO: create chunks for ids_ToDo of size sites_per_chunk_N that use the same access to a nc file and distribute among workersN
 
-  if (opt_parallel[["has"]]) {
+  if (SFSW2_glovars[["p_has"]]) {
     if (!is.na(seed)) set.seed(seed)
     ids_ToDo <- sample(x = ids_ToDo, size = length(ids_ToDo)) #attempt to prevent reading from same .nc at the same time
 
     # extract the GCM data depending on parallel backend
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
 
       ids_Done <- Rmpi::mpi.applyLB(X = ids_ToDo, FUN = try.ScenarioWeather,
@@ -2158,11 +2158,11 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
 
       Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-      parallel::clusterCall(opt_parallel[["cl"]],
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      parallel::clusterCall(SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
 
-      ids_Done <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = ids_ToDo, fun = try.ScenarioWeather,
+      ids_Done <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = ids_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
           climDB_meta = climDB_meta, climDB_files = climDB_files,
           reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
@@ -2178,13 +2178,13 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           project_paths = project_paths,
           verbose = verbose, print.debug = print.debug)
 
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rSOILWAT2::dbW_disconnectConnection())
+      parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]], rSOILWAT2::dbW_disconnectConnection())
 
     } else {
       ids_Done <- NULL
     }
 
-    clean_SFSW2_cluster(opt_parallel)
+    clean_SFSW2_cluster()
 
   } else {
     rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
@@ -2302,7 +2302,7 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
   is_netCDF, is_NEX, iDS_runIDs_sites, include_YN_climscen, climDB_meta, reqGCMs, reqRCPs,
   reqRCPsPerGCM, reqDownscalingsPerGCM, dbW_iSiteTable, dbW_iScenarioTable,
-  dbW_compression_type, opt_parallel, verbose = FALSE, print.debug = FALSE) {
+  dbW_compression_type, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2531,7 +2531,6 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
       getYears = getYears, assocYears = assocYears,
       project_paths = SFSW2_prj_meta[["project_paths"]],
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      opt_parallel = opt_parallel,
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
       dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
       dbW_compression_type = dbW_compression_type,
@@ -2596,10 +2595,10 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   #--- SET UP PARALLELIZATION
   # used in:
   #   - GriddedDailyWeatherFromNCEPCFSR_Global
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -2658,8 +2657,8 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
         climDB_meta = climDB_metas[[ics]], reqGCMs = reqGCMs, reqRCPs = reqRCPs,
         reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
         dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
-        dbW_compression_type = dbW_compression_type, opt_parallel = opt_parallel,
-        verbose = verbose, print.debug = print.debug)
+        dbW_compression_type = dbW_compression_type, verbose = verbose,
+        print.debug = print.debug)
     }
   }
 

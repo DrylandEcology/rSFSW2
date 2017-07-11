@@ -254,10 +254,10 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -304,7 +304,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
       dir_ex_cfsr = SFSW2_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
-      opt_parallel = opt_parallel, rm_mc_files = TRUE, resume = resume))
+      rm_mc_files = TRUE, resume = resume))
 
     if (inherits(temp, "try-error"))
       stop(temp)
