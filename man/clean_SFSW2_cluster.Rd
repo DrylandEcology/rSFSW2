@@ -2,10 +2,10 @@
 % Please edit documentation in R/Parallel.R
 \name{clean_SFSW2_cluster}
 \alias{clean_SFSW2_cluster}
-\title{Clean the parallel cluster used for a rSFSW2 simulation project}
+\title{Clean memory and workspace of parallel cluster workers}
 \usage{
-clean_SFSW2_cluster(opt_parallel, verbose = FALSE)
+clean_SFSW2_cluster()
 }
 \description{
-Clean the parallel cluster used for a rSFSW2 simulation project
+Clean memory and workspace of parallel cluster workers
 }

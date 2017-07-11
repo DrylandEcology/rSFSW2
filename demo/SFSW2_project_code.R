@@ -128,9 +128,6 @@ if (file.exists(fmeta)) {
 source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
 
-#--- Set up infrastructure for parallel framework runs
-opt_parallel <- init_SFSW2_cluster(opt_parallel)
-
 
 
 ##############################################################################
@@ -205,7 +202,7 @@ if (actions[["check_dbOut"]]) {
 #------ 8) FINISH RUN CLEANLY
 
 #--- Terminate infrastructure for parallel framework runs
-exit_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]])
+exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
 
 #--- Goodbye message
 writeLines(c("",
