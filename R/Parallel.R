@@ -196,6 +196,10 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
       parallel::stopCluster(SFSW2_glovars[["p_cl"]])
     }
 
+    # Kill R workers in case something went wrong when taking down the cluster
+    tools::pskill(SFSW2_glovars[["p_pids"]], signal = tools::SIGKILL)
+
+    # Re-initialize the package parallel settings
     init_SFSW2_cluster()
   }
 
@@ -235,6 +239,8 @@ clean_worker <- function() {
 init_SFSW2_cluster <- function() {
   assign("p_workersN", 1L, envir = SFSW2_glovars) # Number of currently set-up workers
   assign("p_cl", NULL, envir = SFSW2_glovars) # Parallel cluster
+  assign("p_has", FALSE, envir = SFSW2_glovars) # Do we have a parallel cluster set up?
+  assign("p_pids", NULL, envir = SFSW2_glovars) # Process IDs of workers
 
   unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
   assign("lockfile", NULL, envir = SFSW2_glovars)
@@ -284,7 +290,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
         Rmpi::mpi.bcast.cmd(library("rSFSW2"))
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
+
         SFSW2_glovars[["p_cl"]] <- TRUE
+        SFSW2_glovars[["p_pids"]] <- unlist(Rmpi::mpi.remote.exec(cmd = Sys.getpid))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
@@ -300,6 +308,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
         SFSW2_glovars[["p_cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
           outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
           "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
+
+        SFSW2_glovars[["p_pids"]] <- unlist(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
+          fun = Sys.getpid))
 
 #TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
 #  -> R CMD CHECK reports this nevertheless as issue
