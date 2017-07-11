@@ -48,6 +48,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
   dw_source <- SWRunInformation[temp_runIDs_sites, "dailyweather_source"]
 
+
   # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
   rSOILWAT2::dbW_createDatabase(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
     site_data = data.frame(Site_id = SWRunInformation$site_id,
@@ -125,11 +126,14 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(dw_source == "NCEPCFSR_Global")]
   ids_Livneh_extraction <- temp_runIDs_sites[which(dw_source == "Livneh2013_NorthAmerica")]
 
-  if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0) {
+
+  # Weather extraction with parallel support
+  if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0 ||
+    length(ids_Livneh_extraction) > 0) {
     #--- Set up parallelization
-    opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+    setup_SFSW2_cluster(opt_parallel,
       dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
-    on.exit(clean_SFSW2_cluster(opt_parallel, verbose), add = TRUE)
+    on.exit(exit_SFSW2_cluster(verbose), add = TRUE)
 
     on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
       kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -161,7 +165,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      opt_parallel, SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
   }
 
@@ -178,7 +182,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       backup       = TRUE,
       comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
       dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-      opt_parallel = opt_parallel,
       verbose     = verbose)
   }
 
@@ -199,7 +202,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
       meta_cfsr = SFSW2_prj_meta[["prepd_CFSR"]],
       n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
-      opt_parallel = opt_parallel,
       rm_temp = deleteTmpSQLFiles,
       resume = opt_behave[["resume"]],
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
@@ -207,6 +209,10 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
       verbose = verbose)
   }
+
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   invisible(rSOILWAT2::dbW_disconnectConnection())
 }
@@ -602,7 +608,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 #' @export
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   coords_WGS84, start_year, end_year, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", opt_parallel, dbW_digits, verbose = FALSE) {
+  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -626,8 +632,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   sp_locs <- sp::SpatialPoints(coords = coords_WGS84, proj4string = prj_geographicWGS84)
   sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
 
-  if (opt_parallel[["has_parallel"]])
-    raster::beginCluster(n = opt_parallel[["ncores"]], type = "SOCK")
+  if (SFSW2_glovars[["p_has"]])
+    raster::beginCluster(n = SFSW2_glovars[["p_workersN"]], type = "SOCK")
 
   #TODO: re-write for a more memory friendly approach
 
@@ -668,7 +674,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     save(NRC_weather, iy, file = wtemp_file)
   }
 
-  if (opt_parallel[["has_parallel"]])
+  if (SFSW2_glovars[["p_has"]])
     raster::endCluster()
 
 
@@ -717,7 +723,6 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_digits = 2,
                 yearLow, yearHigh, dir_ex_cfsr, dir_temp,
                 n_site_per_core = 100,
-                opt_parallel,
                 rm_mc_files = FALSE, resume = FALSE) {
 
 #str(dat_sites): 'data.frame':  n_sites obs. of  3 variables:
@@ -782,13 +787,12 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     setwd(dir_ex_cfsr)
 
     # set up parallel
-    if (opt_parallel[["has_parallel"]]) {
-
-      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (SFSW2_glovars[["p_has"]]) {
+      if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
         Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
 
-      } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        parallel::clusterCall(opt_parallel[["cl"]], fun = setwd, dir = dir_ex_cfsr)
+      } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+        parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = setwd, dir = dir_ex_cfsr)
       }
     }
 
@@ -809,8 +813,8 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #      if (opt_verbosity[["print.debug"]])
 #        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
 
-      if (opt_parallel[["has_parallel"]]) {
-        if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+      if (SFSW2_glovars[["p_has"]]) {
+        if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
           if (daily) {
             nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
               FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
@@ -830,26 +834,28 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
               FUN = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
 
-        } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
+        } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
           if (daily) {
-            nDailyReads <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = seq_len(nrow(do_daily)),
+            nDailyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = seq_len(nrow(do_daily)),
               fun = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
               latitudes = lats, longitudes = longs)
 
-            nDailyWrites <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = years, fun = writeDailyWeatherData,
+            nDailyWrites <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = years, fun = writeDailyWeatherData,
               nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
               siteDirsC = dtemp)
           }
           if (monthly) {
-            nMonthlyReads <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = 0L:(n_climvars - 1L),
+            nMonthlyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = 0L:(n_climvars - 1L),
               fun = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
               longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = seq_len(n_sites_all),
+            nMonthlyWrites <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = seq_len(n_sites_all),
               fun = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
         }
+
+        clean_SFSW2_cluster()
 
       } else {
           if (daily) {
@@ -885,18 +891,6 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
       if (monthly && k == length(do_sites)) { # only do at the end
         nMonthlyWrites <- do.call(sum, nMonthlyWrites)
         stopifnot(nMonthlyWrites == n_sites)
-      }
-    }
-
-    # clean up parallel
-    if (opt_parallel[["has_parallel"]]) {
-      if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
-        Rmpi::mpi.bcast.cmd(rm(list = ls()))
-        Rmpi::mpi.bcast.cmd(gc())
-      }
-      if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-        parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-        parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
       }
     }
 
@@ -956,7 +950,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #'    Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
 #' @export
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_WeatherFolder,
-  start_year, end_year, meta_cfsr, n_site_per_core = 100, opt_parallel, rm_temp = TRUE,
+  start_year, end_year, meta_cfsr, n_site_per_core = 100, rm_temp = TRUE,
   resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits,
   verbose = FALSE) {
 
@@ -976,7 +970,6 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
     dir_ex_cfsr = meta_cfsr$dir_ex_cfsr,
     dir_temp = dir_temp,
     n_site_per_core = n_site_per_core,
-    opt_parallel = opt_parallel,
     rm_mc_files = TRUE,
     resume = resume)
 
@@ -1051,7 +1044,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, dat_sites, tag_Weat
 #' @export
 extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, coords,
   start_year, end_year, f_check = TRUE, backup = TRUE, comp_type = "gzip", dbW_digits = 2,
-  opt_parallel = NULL, verbose = FALSE) {
+  verbose = FALSE) {
 
     if (verbose) {
       t1 <- Sys.time()
@@ -1149,10 +1142,10 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, coor
     }
 
 #    # Prepare parallel extraction if set to TRUE
-#    if (opt_parallel[["parallel_runs"]]) {
+#    if (SFSW2_glovars[["p_has"]]) {
 #      # raster::beginCluster has no effect because 'extract' only supports rasterCluster
 #      # for SpatialPolygon extractions (raster v2.5.8)
-#      raster::beginCluster(n = opt_parallel[["num_cores"]], type = "SOCK")
+#      raster::beginCluster(n = SFSW2_glovars[["p_workersN"]], type = "SOCK")
 #    }
 
     #######################
@@ -1200,7 +1193,7 @@ if (!interactive()) {
     }
 
 #    # Stop parallel execution
-#    if (opt_parallel[["parallel_runs"]]) {
+#    if (SFSW2_glovars[["p_has"]]) {
 #      raster::endCluster()
 #    }
 

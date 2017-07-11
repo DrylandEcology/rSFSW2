@@ -6,7 +6,7 @@
 \usage{
 extract_daily_weather_from_livneh(dir_data, dir_temp, site_ids, coords,
   start_year, end_year, f_check = TRUE, backup = TRUE, comp_type = "gzip",
-  dbW_digits = 2, opt_parallel = NULL, verbose = FALSE)
+  dbW_digits = 2, verbose = FALSE)
 }
 \arguments{
 \item{dir_data}{directory containing Livneh data}
