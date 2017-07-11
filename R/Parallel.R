@@ -159,10 +159,14 @@ mpi_work <- function(verbose = FALSE) {
 #' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
 mpi_last <- function() {
   if (requireNamespace("Rmpi")) { # && is.loaded("mpi_initialize") && is.loaded("mpi_finalize")
-    if (Rmpi::mpi.comm.size(1) > 0)
-      Rmpi::mpi.close.Rslaves()
-    # .Call("mpi_finalize", PACKAGE = "Rmpi")
-    Rmpi::mpi.exit()
+    #if (Rmpi::mpi.comm.size(1) > 0)
+    #  Rmpi::mpi.close.Rslaves() # (drs; July 11, 2017): This command crashes my installation
+
+    # I want to use 'Rmpi::mpi.exit' here instead '.Call("mpi_finalize", PACKAGE = "Rmpi")'
+    # but as of Rmpi v0.6.6, 'mpi.exit' calls 'detach(package:Rmpi) which results in
+    # "Error in detach(package:Rmpi) : invalid 'name' argument"
+    # because the rSFSW2 package never attaches 'Rmpi'.
+    .Call("mpi_finalize", PACKAGE = "Rmpi")
   }
 }
 
