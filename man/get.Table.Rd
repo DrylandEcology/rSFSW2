@@ -5,7 +5,8 @@
 \title{Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)}
 \usage{
 get.Table(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
-  i_climCat = 1, whereClause = NULL, addPid = FALSE)
+  i_climCat = 1, whereClause = NULL, addPid = FALSE,
+  climate.ambient = "Current")
 }
 \description{
 Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
