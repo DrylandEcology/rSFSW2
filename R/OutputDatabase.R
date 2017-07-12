@@ -351,10 +351,10 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
 #' Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.SeveralOverallVariables <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
-  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL) {
+  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
-    dat <- if (climCat[i_climCat, 1] == "Current") {
+    dat <- if (climCat[i_climCat, 1] == climate.ambient) {
           get.SeveralOverallVariables_Scenario(
             fdbrSFSW2 = fdbrSFSW2,
             responseName = responseName,
@@ -459,11 +459,11 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
 #' Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
-  i_climCat = 1, whereClause = NULL, addPid = FALSE) {
+  i_climCat = 1, whereClause = NULL, addPid = FALSE, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     #print(paste(paste(responseName, collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid))
-    if (climCat[i_climCat, 1] == "Current") {
+    if (climCat[i_climCat, 1] == climate.ambient) {
       scenario <- climCat[i_climCat, 1]
       con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]

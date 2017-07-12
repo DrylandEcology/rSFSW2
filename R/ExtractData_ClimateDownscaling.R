@@ -1849,7 +1849,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
   #Scenario monthly weather time-series: Get GCM data for each scenario and time slice
   scen.monthly <- matrix(vector("list", (getYears$n_first + getYears$n_second) * (1 + length(rcps))),
     ncol = getYears$n_first+getYears$n_second,
-    dimnames = list(c("Current", rcps),
+    dimnames = list(c(climate.ambient, rcps),
                     c(paste0("first", seq_len(getYears$n_first)),
                       paste0("second", seq_len(getYears$n_second)))))
   if (print.debug)
@@ -2063,8 +2063,8 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
     wdataOut[[ir]] <- types
   }
 
-  saveRDS(wdataOut,
-    file = file.path(project_paths[["dir_out_temp"]], gcm, paste0(clim_source, "_", i, ".rds")))
+  saveRDS(wdataOut, file = file.path(project_paths[["dir_out_temp"]], tolower(gcm),
+    paste0(clim_source, "_", i, ".rds")))
   res <- i
   on.exit()
 
@@ -2300,9 +2300,8 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 
 #access climate change data
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
-  is_netCDF, is_NEX, iDS_runIDs_sites, include_YN_climscen, climDB_meta, reqGCMs, reqRCPs,
-  reqRCPsPerGCM, reqDownscalingsPerGCM, dbW_iSiteTable, dbW_iScenarioTable,
-  dbW_compression_type, verbose = FALSE, print.debug = FALSE) {
+  is_netCDF, is_NEX, iDS_runIDs_sites, include_YN_climscen, climDB_meta, dbW_iSiteTable,
+  dbW_iScenarioTable, dbW_compression_type, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2379,11 +2378,13 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
 
   # Force dataset specific lower/uper case for GCMs and RCPs, i.e., use values from
   # 'climbDB_struct' and not reqGCMs and reqRCPs
-  temp <- match(tolower(reqGCMs), tolower(climDB_struct[["id_gcm"]]), nomatch = 0)
+  temp <- match(tolower(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]),
+    tolower(climDB_struct[["id_gcm"]]), nomatch = 0)
   reqGCMs <- as.character(climDB_struct[["id_gcm"]][temp])
-  temp <- match(tolower(reqRCPs), tolower(climDB_struct[["id_scen"]]), nomatch = 0)
+  temp <- match(tolower(SFSW2_prj_meta[["sim_scens"]][["reqCSs"]]),
+    tolower(climDB_struct[["id_scen"]]), nomatch = 0)
   reqRCPs <- as.character(climDB_struct[["id_scen"]][temp])
-  reqRCPsPerGCM <- lapply(reqRCPsPerGCM, function(r) {
+  reqRCPsPerGCM <- lapply(SFSW2_prj_meta[["sim_scens"]][["reqCSsPerM"]], function(r) {
       temp <- match(tolower(r), tolower(climDB_struct[["id_scen"]]), nomatch = 0)
       as.character(climDB_struct[["id_scen"]][temp])
     })
@@ -2398,7 +2399,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
   locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
 
-  if (any("wgen-package" %in% unlist(reqDownscalingsPerGCM))) {
+  if (any("wgen-package" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]))) {
     icols <- c("wgen_dry_spell_changes", "wgen_wet_spell_changes", "wgen_prcp_cv_changes")
     locations <- cbind(locations, SFSW2_prj_inputs[["sw_input_treatments"]][, icols])
   }
@@ -2608,33 +2609,19 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
   dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
+  dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
   dbW_compression_type <- rSOILWAT2::dbW_compression()
   rSOILWAT2::dbW_disconnectConnection()
 
-  temp <- strsplit(SFSW2_prj_meta[["sim_scens"]][["models"]], split = ".", fixed = TRUE)
-  if (!all(lengths(temp) == 4L))
-    stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
-      "concatenated by '.'")
-
-  climScen <- data.frame(matrix(unlist(temp), ncol = 4, byrow = TRUE),
-    stringsAsFactors = FALSE)
-  climScen$imap_todbW <- match(SFSW2_prj_meta[["sim_scens"]][["models"]],
-    table = dbW_iScenarioTable$Scenario, nomatch = 0)
-  dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
-  reqGCMs <- unique(climScen[, 4])
-  reqRCPs <- unique(climScen[, 3])
-  reqRCPsPerGCM <- lapply(reqGCMs, function(x) unique(climScen[x == climScen[, 4], 3]))
-  reqDownscalingsPerGCM <- lapply(reqGCMs, function(x)
-    unique(climScen[x == climScen[, 4], 1]))
-
-  for (i in seq_along(reqGCMs)) {
-    dir.create2(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], reqGCMs[i]),
-      showWarnings = FALSE, recursive = TRUE)
+  for (m in SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) {
+    dir.create2(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      tolower(m)), showWarnings = FALSE, recursive = TRUE)
   }
 
   # Generate seeds for climate change downscaling
   SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]] <- generate_RNG_streams(
-    N = length(reqGCMs) * SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+    N = length(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) *
+      SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
     seed = SFSW2_prj_meta[["rng_specs"]][["global_seed"]],
     reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]])
 
@@ -2652,10 +2639,8 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
       include_YN_climscen <- get_climatechange_data(clim_source = ics,
         SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta,
         is_netCDF = grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)", ics),
-        is_NEX = grepl("NEX", ics),
-        iDS_runIDs_sites = iDS_runIDs_sites, include_YN_climscen = include_YN_climscen,
-        climDB_meta = climDB_metas[[ics]], reqGCMs = reqGCMs, reqRCPs = reqRCPs,
-        reqRCPsPerGCM = reqRCPsPerGCM, reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        is_NEX = grepl("NEX", ics), iDS_runIDs_sites = iDS_runIDs_sites,
+        include_YN_climscen = include_YN_climscen, climDB_meta = climDB_metas[[ics]],
         dbW_iSiteTable = dbW_iSiteTable, dbW_iScenarioTable = dbW_iScenarioTable,
         dbW_compression_type = dbW_compression_type, verbose = verbose,
         print.debug = print.debug)
@@ -2691,7 +2676,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 
   stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
 
-  if (length(SFSW2_prj_meta[["sim_scens"]][["models"]]) > 0) {
+  if (SFSW2_prj_meta[["sim_scens"]][["N"]] > 1) {
 
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       #Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
@@ -2707,7 +2692,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
     list.scenarios.external <- basename(list.dirs2(path = dir.ex.dat, full.names = FALSE,
       recursive = FALSE))
 
-    if (all(SFSW2_prj_meta[["sim_scens"]][["models"]] %in% list.scenarios.external)) {
+    if (all(SFSW2_prj_meta[["sim_scens"]][["id"]][-1] %in% list.scenarios.external)) {
       #locations of simulation runs
       locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
         proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
@@ -2715,8 +2700,8 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
       # keep track of successful/unsuccessful climate scenarios
       include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
 
-      for (sc in seq_along(SFSW2_prj_meta[["sim_scens"]][["models"]])) {
-        dir.ex.dat.sc <- file.path(dir.ex.dat, SFSW2_prj_meta[["sim_scens"]][["models"]][sc])
+      for (sc in seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]] - 1)) {
+        dir.ex.dat.sc <- file.path(dir.ex.dat, SFSW2_prj_meta[["sim_scens"]][["id"]][1 + sc])
         temp <- basename(list.dirs2(path = dir.ex.dat.sc, full.names = FALSE,
           recursive = FALSE))
 
@@ -2791,7 +2776,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
         file = file.path(SFSW2_prj_meta[["fnames_in"]][["fclimscen_delta"]]), row.names = FALSE)
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      include_YN_climscen <- as.numeric(include_YN_climscen >= length(SFSW2_prj_meta[["sim_scens"]][["models"]]))
+      include_YN_climscen <- as.numeric(include_YN_climscen >= (SFSW2_prj_meta[["sim_scens"]][["N"]] - 1))
       SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
       utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]], file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
