@@ -779,7 +779,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
-            startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]], Scenario = scen)), silent = TRUE)
+            startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
+            Scenario = scen)), silent = TRUE)
       }
     }
 
