@@ -400,7 +400,7 @@ ISRICWISE_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
     sim_soils["depth"] <- 0
 
     this_simCell <- c(as.list(i_sim_cells_SUIDs),
-      soils = list(t(sapply(i_sim_cells_SUIDs[["SUID"]], FUN = ISRICWISE_get_prids,
+      soils = list(t(sapply(i_sim_cells_SUIDs[["SUID"]], ISRICWISE_get_prids,
       dat_wise = dat_wise, layer_N = layer_N, colname_suid = var_tags[["suid"]]))))
 
     # loop through the suids within this simulation cell; each suid may be composed of
@@ -590,9 +590,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       cell_res_wise <- NULL
       suids <- raster::extract(grid_wise, run_sites_wise)
       if (!is.null(rat_att)) {
-        suids <- raster::factorValues(grid_wise, temp, att = rat_att)
+        suids <- as.character(raster::factorValues(grid_wise, suids, att = rat_att)[[1]])
       }
-      sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
+      sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1,
+        stringsAsFactors = FALSE)
 
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_wise <- align_with_target_res(res_from = sim_space[["sim_res"]],
@@ -624,9 +625,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise,
           att = rat_att)
       }
+      
+      sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
     }
 
-    sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
     if ("i" %in% dimnames(sim_cells_SUIDs)[[1]]) {
       sim_cells_SUIDs <- t(sim_cells_SUIDs)
     }
