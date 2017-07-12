@@ -2135,10 +2135,12 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
           shQuote(df_wdataOut[k, "downscaling"]), "'downscaled fut' - 'obs hist': ",
           paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
 
-        temp <- apply(scen.fut.down_mean[, -1] - scen.hist.monthly_mean[, -1], 2, mean)
-        print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], ": ",
-          shQuote(df_wdataOut[k, "downscaling"]), ": 'downscaled fut' - 'scen hist': ",
-          paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
+        if (exists("scen.hist.monthly_mean")) { # this doesn't exist, e.g., for 'raw' DSing
+          temp <- apply(scen.fut.down_mean[, -1] - scen.hist.monthly_mean[, -1], 2, mean)
+          print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], ": ",
+            shQuote(df_wdataOut[k, "downscaling"]), ": 'downscaled fut' - 'scen hist': ",
+            paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
+        }
       }
 
       years <- as.integer(names(scen.fut.daily))
@@ -2645,8 +2647,8 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
     out <- tryToGet_ClimDB(ids_ToDo = ids_ToDo, clim_source = clim_source,
       is_netCDF = is_netCDF, is_NEX = is_NEX, climDB_meta = climDB_meta,
       climDB_files = climDB_files, reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
-      reqDownscalingsPerGCM = reqDownscalingsPerGCM, locations = locations,
-      getYears = getYears, assocYears = assocYears,
+      reqDownscalingsPerGCM = SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]],
+      locations = locations, getYears = getYears, assocYears = assocYears,
       project_paths = SFSW2_prj_meta[["project_paths"]],
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
