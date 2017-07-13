@@ -14,6 +14,15 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
+  site_data <- data.frame(Site_id = SWRunInformation$site_id,
+    Latitude = SWRunInformation$Y_WGS84, Longitude = SWRunInformation$X_WGS84,
+    Label = SWRunInformation$WeatherFolder, stringsAsFactors = FALSE)
+
+  do_new <- FALSE # flag to indicate if a new weather database should be created
+  do_add <- FALSE # flag to indicate if ambient daily weather data should be added
+
+  #--- Check if weather database exists and contains requested data
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
       if (verbose) {
@@ -24,7 +33,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-      # Check if requested climate scenarios are listed in table; if not add to table
+      #-- Check if requested climate scenarios are listed in table; if not add to database
       dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
 
       i_add <- !(SFSW2_prj_meta[["sim_scens"]][["id"]] %in% dbW_iScenarioTable[, "Scenario"])
@@ -34,198 +43,255 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
           print(paste0("rSFSW2's ", temp_call, ": adds new scenarios: ",
             paste(shQuote(new_scens), collapse = " - ")))
         }
-        rSOILWAT2::dbW_addScenarios(new_scens)
+        stopifnot(rSOILWAT2::dbW_addScenarios(new_scens))
       }
 
-      rSOILWAT2::dbW_disconnectConnection()
 
-      return(invisible(TRUE))
+      #-- Check if requested sites are complete
+      add_runIDs_sites <- NULL
+      dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+
+      # - Site is already in weather database but without ambient weather data (e.g.,
+      #   because a previous run was prematurely terminated)
+      temp <- dbW_missingAmbient_siteIDs(
+        req_sites = site_data[temp_runIDs_sites, ],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        dbW_iSiteTable = dbW_iSiteTable,
+        opt_chunks = opt_chunks, verbose = verbose)
+      temp <- temp[, "Site_id"]
+
+      if (length(temp) > 0) {
+          do_add <- TRUE
+          add_runIDs_sites <- c(add_runIDs_sites, temp)
+      }
+
+      # - Site is already in weather database but with NA label (e.g., because
+      #   site was previously turned off)
+      if (anyNA(dbW_iSiteTable[, "Label"])) {
+        temp <- which(is.na(dbW_iSiteTable[, "Label"]))
+        idbW_sites <- dbW_iSiteTable[temp, "Site_id"]
+        i_turnon <- unlist(lapply(idbW_sites, function(x) {
+            temp <- which(x == site_data[, "Site_id"])
+            itemp <- is.na(site_data[temp, "Label"]) || identical(site_data[temp, "Label"], "NA")
+            if (itemp) 0 else temp
+          }))
+
+        i_use <- i_turnon > 0
+        if (any(i_use)) {
+          i_turnon2 <- i_turnon[i_use]
+          idbW_sites2 <- idbW_sites[i_use]
+
+          stopifnot(rSOILWAT2::dbW_updateSites(site_ids = idbW_sites2,
+            new_data = site_data[i_turnon2, ]))
+
+          dbW_iSiteTable[idbW_sites2, ] <- site_data[i_turnon2, ]
+          do_add <- TRUE
+          add_runIDs_sites <- c(add_runIDs_sites, i_turnon2)
+        }
+      }
+
+      # - Site is not in weather database: add to database
+      i_new <- !(site_data[, "Label"] %in% dbW_iSiteTable[, "Label"])
+      if (any(i_new)) {
+        stopifnot(rSOILWAT2::dbW_addSites(site_data = site_data[i_new, ],
+          site_subset = temp_runIDs_sites[i_new]))
+
+        add_runIDs_sites <- c(add_runIDs_sites, i_turnon2)
+        do_add <- TRUE
+      }
 
     } else {
       print("Removing old weather database")
       unlink(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+      do_new <- TRUE
     }
   }
 
-  temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
-  dw_source <- SWRunInformation[temp_runIDs_sites, "dailyweather_source"]
 
+  if (do_new) {
+    #--- Create a new weather database
+    # weather database contains rows for 1:max(SWRunInformation$site_id) (whether
+    # included or not)
+    stopifnot(rSOILWAT2::dbW_createDatabase(
+      dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      site_data = site_data, site_subset = temp_runIDs_sites,
+      scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
+    do_add <- TRUE
+    add_runIDs_sites <- temp_runIDs_sites
+  }
 
-  # weather database contains rows for 1:max(SWRunInformation$site_id) (whether included or not)
-  rSOILWAT2::dbW_createDatabase(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-    site_data = data.frame(Site_id = SWRunInformation$site_id,
-            Latitude = SWRunInformation$Y_WGS84,
-            Longitude = SWRunInformation$X_WGS84,
-            Label = SWRunInformation$WeatherFolder,
-            stringsAsFactors = FALSE),
-    site_subset = temp_runIDs_sites,
-    scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
-    compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
+  if (do_add && length(add_runIDs_sites) > 0) {
+    rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  # Extract weather data and move to weather database based on inclusion-invariant 'site_id'
-  # Extract weather data per site
-  if (verbose)
-    print(paste(Sys.time(), "started with moving single site weather data to database"))
+    #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
+    # Extract weather data per site
+    if (verbose)
+      print(paste(Sys.time(), "started with moving single site weather data to database"))
 
-  temp <- dw_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica")
-  ids_single <- which(temp) ## position in 'runIDs_sites'
+    dw_source <- SWRunInformation[add_runIDs_sites, "dailyweather_source"]
+    temp <- dw_source %in% c("LookupWeatherFolder", "Maurer2002_NorthAmerica")
+    ids_single <- which(temp) ## position in 'runIDs_sites'
 
-  if (length(ids_single) > 0) {
-    if (any(dw_source == "Maurer2002_NorthAmerica"))
-      Maurer <- with(SWRunInformation[temp_runIDs_sites[ids_single], ],
-        create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
+    if (length(ids_single) > 0) {
+      if (any(dw_source == "Maurer2002_NorthAmerica"))
+        Maurer <- with(SWRunInformation[add_runIDs_sites[ids_single], ],
+          create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84))
 
-    for (i in seq_along(ids_single)) {
-      i_idss <- ids_single[i]
-      i_site <- temp_runIDs_sites[i_idss]
+      for (i in seq_along(ids_single)) {
+        i_idss <- ids_single[i]
+        i_site <- add_runIDs_sites[i_idss]
 
-      if (verbose && i %% 100 == 1)
-        print(paste(Sys.time(), "storing weather data of site",
-          SWRunInformation$Label[i_site], ":", i, "of", length(ids_single),
-          "sites in database"))
+        if (verbose && i %% 100 == 1)
+          print(paste(Sys.time(), "storing weather data of site",
+            SWRunInformation$Label[i_site], ":", i, "of", length(ids_single),
+            "sites in database"))
 
-      if (dw_source[i_idss] == "LookupWeatherFolder") {
-        weatherData <- ExtractLookupWeatherFolder(dir.weather =
-          file.path(SFSW2_prj_meta[["project_paths"]][["dir_in_treat"]], "LookupWeatherFolder"),
-          weatherfoldername = SWRunInformation$WeatherFolder[i_site],
-          SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
+        if (dw_source[i_idss] == "LookupWeatherFolder") {
+          weatherData <- ExtractLookupWeatherFolder(dir.weather =
+            file.path(SFSW2_prj_meta[["project_paths"]][["dir_in_treat"]],
+              "LookupWeatherFolder"),
+            weatherfoldername = SWRunInformation$WeatherFolder[i_site],
+            SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
 
-      } else if (dw_source[i_idss] == "Maurer2002_NorthAmerica") {
-        weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-          dir_data = SFSW2_prj_meta[["project_paths"]][["dir_maurer2002"]],
-          cellname = Maurer[i],
-          startYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-          endYear = SFSW2_prj_meta[["sim_time"]][["endyr"]],
-          SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
+        } else if (dw_source[i_idss] == "Maurer2002_NorthAmerica") {
+          weatherData <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+            dir_data = SFSW2_prj_meta[["project_paths"]][["dir_maurer2002"]],
+            cellname = Maurer[i],
+            startYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+            endYear = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+            SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]])
 
-      } else {
-        stop(paste(dw_source[i_idss], "not implemented"))
+        } else {
+          stop(paste(dw_source[i_idss], "not implemented"))
+        }
+
+        if (!is.null(weatherData) && length(weatherData) > 0 &&
+          !inherits(weatherData, "try-error")) {
+
+          years <- as.integer(names(weatherData))
+          data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
+            type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
+          rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
+            Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
+            weather_blob = data_blob)
+
+        } else {
+          print(paste("Moving daily weather data to database unsuccessful",
+            SWRunInformation$Label[i_site]))
+        }
       }
+    }
 
-      if (!is.null(weatherData) && length(weatherData) > 0 &&
-        !inherits(weatherData, "try-error")) {
+    # Extract weather data for all sites based on inclusion-invariant 'site_id'
+    if (verbose)
+      print(paste(Sys.time(), "started with extracting gridded weather data to database"))
 
-        years <- as.integer(names(weatherData))
-        data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
-          type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
-        rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = SWRunInformation$site_id[i_site],
-          Scenario_id = 1, StartYear = years[1], EndYear = years[length(years)],
-          weather_blob = data_blob)
+    ids_DayMet_extraction <- add_runIDs_sites[which(dw_source == "DayMet_NorthAmerica")]
+    ids_NRCan_extraction <- add_runIDs_sites[which(dw_source == "NRCan_10km_Canada")]
+    ids_NCEPCFSR_extraction <- add_runIDs_sites[which(dw_source == "NCEPCFSR_Global")]
+    ids_Livneh_extraction <- add_runIDs_sites[which(dw_source == "Livneh2013_NorthAmerica")]
 
-      } else {
-        print(paste("Moving daily weather data to database unsuccessful",
-          SWRunInformation$Label[i_site]))
+
+    # Weather extraction with parallel support
+    if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0 ||
+      length(ids_Livneh_extraction) > 0) {
+      #--- Set up parallelization
+      setup_SFSW2_cluster(opt_parallel,
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
+      on.exit(exit_SFSW2_cluster(verbose), add = TRUE)
+
+      on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+        kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+        normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
+        add = TRUE)
+     }
+
+    if (length(ids_DayMet_extraction) > 0) {
+      ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.daymet"]],
+        site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
+        coords_WGS84 = SWRunInformation[ids_DayMet_extraction,
+          c("X_WGS84", "Y_WGS84"), drop = FALSE],
+        start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+        end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+        dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose = verbose)
+    }
+
+    if (length(ids_NRCan_extraction) > 0) {
+      ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
+        site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
+        coords_WGS84 = SWRunInformation[ids_NRCan_extraction,
+          c("X_WGS84", "Y_WGS84"), drop = FALSE],
+        start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+        end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+        dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose = verbose)
+    }
+
+    if (length(ids_Livneh_extraction) > 0) {
+      extract_daily_weather_from_livneh(
+        dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]],
+        dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        site_ids     = SWRunInformation$site_id[ids_Livneh_extraction],
+        coords       = SWRunInformation[ids_Livneh_extraction,
+                       c("X_WGS84", "Y_WGS84"), drop = FALSE],
+        start_year   = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+        end_year     = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+        f_check      = TRUE,
+        backup       = TRUE,
+        comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose     = verbose)
+    }
+
+    if (length(ids_NCEPCFSR_extraction) > 0) {
+      if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
+        SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
+          dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
+          dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
       }
+      stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
+
+      GriddedDailyWeatherFromNCEPCFSR_Global(
+        site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
+        dat_sites = SWRunInformation[ids_NCEPCFSR_extraction,
+          c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
+        tag_WeatherFolder = SFSW2_prj_meta[["opt_sim"]][["tag_WeatherFolder"]],
+        start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+        end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+        meta_cfsr = SFSW2_prj_meta[["prepd_CFSR"]],
+        n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
+        rm_temp = deleteTmpSQLFiles,
+        resume = opt_behave[["resume"]],
+        dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose = verbose)
     }
+
+    oe <- sys.on.exit()
+    oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+    on.exit(eval(oe), add = FALSE)
   }
 
-  # Extract weather data for all sites based on inclusion-invariant 'site_id'
-  if (verbose)
-    print(paste(Sys.time(), "started with extracting gridded weather data to database"))
-
-  ids_DayMet_extraction <- temp_runIDs_sites[which(dw_source == "DayMet_NorthAmerica")] ## position in 'runIDs_sites'
-  ids_NRCan_extraction <- temp_runIDs_sites[which(dw_source == "NRCan_10km_Canada")]
-  ids_NCEPCFSR_extraction <- temp_runIDs_sites[which(dw_source == "NCEPCFSR_Global")]
-  ids_Livneh_extraction <- temp_runIDs_sites[which(dw_source == "Livneh2013_NorthAmerica")]
-
-
-  # Weather extraction with parallel support
-  if (length(ids_NRCan_extraction) > 0 || length(ids_NCEPCFSR_extraction) > 0 ||
-    length(ids_Livneh_extraction) > 0) {
-    #--- Set up parallelization
-    setup_SFSW2_cluster(opt_parallel,
-      dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
-    on.exit(exit_SFSW2_cluster(verbose), add = TRUE)
-
-    on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
-      kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
-      normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
-      add = TRUE)
-   }
-
-  if (length(ids_DayMet_extraction) > 0) {
-    ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-      dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.daymet"]],
-      site_ids = SWRunInformation$site_id[ids_DayMet_extraction],
-      coords_WGS84 = SWRunInformation[ids_DayMet_extraction,
-        c("X_WGS84", "Y_WGS84"), drop = FALSE],
-      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
-      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-      verbose = verbose)
-  }
-
-  if (length(ids_NRCan_extraction) > 0) {
-    ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
-      dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
-      site_ids = SWRunInformation$site_id[ids_NRCan_extraction],
-      coords_WGS84 = SWRunInformation[ids_NRCan_extraction,
-        c("X_WGS84", "Y_WGS84"), drop = FALSE],
-      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
-      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-      verbose = verbose)
-  }
-
-  if (length(ids_Livneh_extraction) > 0) {
-    extract_daily_weather_from_livneh(
-      dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]],
-      dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      site_ids     = SWRunInformation$site_id[ids_Livneh_extraction],
-      coords       = SWRunInformation[ids_Livneh_extraction,
-                     c("X_WGS84", "Y_WGS84"), drop = FALSE],
-      start_year   = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year     = SFSW2_prj_meta[["sim_time"]][["endyr"]],
-      f_check      = TRUE,
-      backup       = TRUE,
-      comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-      verbose     = verbose)
-  }
-
-  if (length(ids_NCEPCFSR_extraction) > 0) {
-    if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
-      SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
-        dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
-        dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
-    }
-    stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
-
-    GriddedDailyWeatherFromNCEPCFSR_Global(
-      site_ids = SWRunInformation$site_id[ids_NCEPCFSR_extraction],
-      dat_sites = SWRunInformation[ids_NCEPCFSR_extraction,
-        c("WeatherFolder", "X_WGS84", "Y_WGS84"), drop = FALSE],
-      tag_WeatherFolder = SFSW2_prj_meta[["opt_sim"]][["tag_WeatherFolder"]],
-      start_year = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
-      end_year = SFSW2_prj_meta[["sim_time"]][["endyr"]],
-      meta_cfsr = SFSW2_prj_meta[["prepd_CFSR"]],
-      n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
-      rm_temp = deleteTmpSQLFiles,
-      resume = opt_behave[["resume"]],
-      dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-      SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-      verbose = verbose)
-  }
-
-  oe <- sys.on.exit()
-  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
-  on.exit(eval(oe), add = FALSE)
-
-  invisible(rSOILWAT2::dbW_disconnectConnection())
+  invisible(TRUE)
 }
 
 
 #' Check that version of dbWeather suffices
 check_dbWeather_version <- function(fdbWeather) {
   rSOILWAT2::dbW_setConnection(fdbWeather)
-  v_dbW <- rSOILWAT2::dbW_version()
-  rSOILWAT2::dbW_disconnectConnection()
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
+  v_dbW <- rSOILWAT2::dbW_version()
   success <- v_dbW >= SFSW2_glovars[["minVersion_dbWeather"]]
 
   if (!success) {

@@ -11,7 +11,7 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
 Depends:
     R (>= 3.3.0)
 Imports:
-    rSOILWAT2 (>= 1.2.12),
+    rSOILWAT2 (>= 1.2.14),
     RSQLite (>= 1.1),
     DBI (>= 0.5),
     Rcpp (>= 0.12.7),
