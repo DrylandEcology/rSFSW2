@@ -15,8 +15,9 @@ dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
 
   # Extract design information from dbWeather
   rSOILWAT2::dbW_setConnection(fdbWeather)
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
-  rSOILWAT2::dbW_disconnectConnection()
 
   # Determine 'site_id's for which the dbWeather should contain daily weather data for
   # every climate scenario
@@ -136,6 +137,8 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   #---Connect to weather database
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
   fsite <- file.path(file.path(dir_out, "Sites.cvs"))
   if (!file.exists(fsite)) {
     dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
@@ -150,7 +153,6 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   } else {
     dbW_iScenarioTable <- utils::read.csv(fscen, header = TRUE)
   }
-  rSOILWAT2::dbW_disconnectConnection()
 
 
 

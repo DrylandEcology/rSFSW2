@@ -2227,6 +2227,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
     # extract the GCM data depending on parallel backend
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
+      on.exit(Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
 
       ids_Done <- Rmpi::mpi.applyLB(X = ids_ToDo, FUN = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2245,11 +2246,11 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
-      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
-
     } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
       parallel::clusterCall(SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
+      on.exit(parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
+        rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
 
       ids_Done <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = ids_ToDo, fun = try.ScenarioWeather,
           clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2268,8 +2269,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
-      parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]], rSOILWAT2::dbW_disconnectConnection())
-
     } else {
       ids_Done <- NULL
     }
@@ -2278,6 +2277,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
 
   } else {
     rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     ids_Done <- lapply(ids_ToDo, FUN = try.ScenarioWeather,
       clim_source = clim_source, is_netCDF = is_netCDF, is_NEX = is_NEX,
@@ -2296,8 +2296,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_met
       resume = resume,
       verbose = verbose, print.debug = print.debug)
     ids_Done <- do.call(c, ids_Done)
-
-    rSOILWAT2::dbW_disconnectConnection()
   }
 
   sort(unlist(ids_Done))
@@ -2732,11 +2730,12 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     add = TRUE)
 
   rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
   dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
   dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
   dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
   dbW_compression_type <- rSOILWAT2::dbW_compression()
-  rSOILWAT2::dbW_disconnectConnection()
 
   for (m in SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) {
     dir.create2(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],

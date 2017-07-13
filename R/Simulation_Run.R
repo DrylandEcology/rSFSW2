@@ -4708,10 +4708,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
       # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
       # is not the name of a function
-      temp_fun <- function(...) rSOILWAT2::dbW_setConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(temp_fun)
-      Rmpi::mpi.remote.exec(cmd = temp_fun,
+      dbW_setConnection <- function(...) rSOILWAT2::dbW_setConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(dbW_setConnection)
+      Rmpi::mpi.remote.exec(cmd = dbW_setConnection,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+      dbW_disconnectConnection <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection)
+      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection), add = TRUE)
 
       Rmpi::mpi.bcast.cmd(cmd = mpi_work,
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
@@ -4806,14 +4809,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         print(interrupt)
       })
       }
-
-      # We have to rename rSOILWAT2 functions locally (and export to workers):
-      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-      # is not the name of a function
-      temp_fun <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(temp_fun)
-      Rmpi::mpi.bcast.cmd(cmd = temp_fun)
     }
 
 
@@ -4822,6 +4817,8 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       parallel::clusterCall(SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+      on.exit(parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
+        rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]],
@@ -4850,9 +4847,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
 
       runs.completed <- sum(unlist(runs.completed))
-
-      parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
-        rSOILWAT2::dbW_disconnectConnection())
     }
 
     clean_SFSW2_cluster()
@@ -4860,7 +4854,8 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   } else { #call the simulations in serial
 
-    rSOILWAT2::dbW_setConnection(dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+    rSOILWAT2::dbW_setConnection(MoreArgs[["fnames_in"]][["fdbWeather"]])
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     runs.completed <- lapply(seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
       function(i_sim) {
@@ -4880,8 +4875,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       }
     )
     runs.completed <- sum(unlist(runs.completed))
-
-    rSOILWAT2::dbW_disconnectConnection()
   }
 
   runs.completed

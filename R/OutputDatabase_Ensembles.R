@@ -68,6 +68,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     opt_chunks) {
 
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     #########TIMING#########
     TableTimeStop <- Sys.time() - t.overall
     units(TableTimeStop) <- "secs"
@@ -131,6 +133,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     if (!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !SFSW2_glovars[["p_has"]] | !identical(SFSW2_glovars[["p_type"]], "mpi")) {#figure need at least 3 hours for big ones
       tfile <- file.path(dir_out, paste0("dbEnsemble_", sub(pattern = "_Mean", replacement = "", Table, ignore.case = TRUE), ".sqlite3"))
       conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname = tfile)
+      on.exit(DBI::dbDisconnect(conEnsembleDB), add = TRUE)
 
       nfiles <- 0
       #Grab x rows at a time
@@ -217,6 +220,7 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
 
   con <- DBI::dbConnect(RSQLite::SQLite(),
     dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   Tables <- dbOutput_ListOutputTables(con)
   Tables <- Tables[-grep(pattern = "_sd", Tables, ignore.case = T)]

@@ -77,3 +77,5 @@ if (TableNumber == 0) {
 }
 
 
+DBI::dbDisconnect(con)
+
