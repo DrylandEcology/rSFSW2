@@ -14,7 +14,7 @@ Rmpi work function for calling \code{do_OneSite}
 }
 \section{Note}{
 
- If an error occurs, then the slave will likely not report back to master because
+ If an error occurs, then the worker will likely not report back to master because
  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
 }
 

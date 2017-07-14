@@ -5,8 +5,8 @@
 \title{Extract soil data from one of the ISRIC-WISE datasets}
 \usage{
 do_ExtractSoilDataFromISRICWISE_Global(MMC, sim_size, sim_space, dir_ex_soil,
-  fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), opt_parallel,
-  resume, verbose)
+  fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), resume,
+  verbose)
 }
 \arguments{
 \item{dataset}{A character string. Identifies the ISRIC-WISE dataset from which

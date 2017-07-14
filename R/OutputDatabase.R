@@ -351,10 +351,10 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
 #' Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.SeveralOverallVariables <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
-  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL) {
+  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
-    dat <- if (climCat[i_climCat, 1] == "Current") {
+    dat <- if (climCat[i_climCat, 1] == climate.ambient) {
           get.SeveralOverallVariables_Scenario(
             fdbrSFSW2 = fdbrSFSW2,
             responseName = responseName,
@@ -459,11 +459,11 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
 #' Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
-  i_climCat = 1, whereClause = NULL, addPid = FALSE) {
+  i_climCat = 1, whereClause = NULL, addPid = FALSE, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     #print(paste(paste(responseName, collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid))
-    if (climCat[i_climCat, 1] == "Current") {
+    if (climCat[i_climCat, 1] == climate.ambient) {
       scenario <- climCat[i_climCat, 1]
       con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]
@@ -893,10 +893,10 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -913,9 +913,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
     SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
-  if (opt_parallel[["has_parallel"]]) {
+  if (SFSW2_glovars[["p_has"]]) {
 
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
       missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -925,22 +925,18 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-
-      missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables, fun = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
+        missing_Pids_current <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables,
           fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
     }
+
+    clean_SFSW2_cluster()
 
   } else {
     missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -1000,6 +996,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
    }
   }
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
     missing_runIDs = missing_runIDs))

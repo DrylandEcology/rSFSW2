@@ -4,11 +4,11 @@
 \alias{export_objects_to_workers}
 \title{Export objects to workers}
 \usage{
-export_objects_to_workers(obj_env, parallel_backend = c("mpi", "cluster"),
+export_objects_to_workers(obj_env, parallel_backend = c("mpi", "socket"),
   cl = NULL)
 }
 \arguments{
-\item{parallel_backend}{A character vector, either 'mpi' or 'cluster'}
+\item{parallel_backend}{A character vector, either 'mpi' or 'socket'}
 
 \item{cl}{A parallel (socket) cluster object}
 }
