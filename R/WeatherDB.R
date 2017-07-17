@@ -18,6 +18,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   site_data <- data.frame(Site_id = SWRunInformation$site_id,
     Latitude = SWRunInformation$Y_WGS84, Longitude = SWRunInformation$X_WGS84,
     Label = SWRunInformation$WeatherFolder, stringsAsFactors = FALSE)
+  site_data[site_data == "NA"] <- NA
 
   do_new <- FALSE # flag to indicate if a new weather database should be created
   do_add <- FALSE # flag to indicate if ambient daily weather data should be added
@@ -72,7 +73,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         idbW_sites <- dbW_iSiteTable[temp, "Site_id"]
         i_turnon <- unlist(lapply(idbW_sites, function(x) {
             temp <- which(x == site_data[, "Site_id"])
-            itemp <- is.na(site_data[temp, "Label"]) || identical(site_data[temp, "Label"], "NA")
+            itemp <- is.na(site_data[temp, "Label"])
             if (itemp) 0 else temp
           }))
 
@@ -93,10 +94,9 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       # - Site is not in weather database: add to database
       i_new <- !(site_data[, "Label"] %in% dbW_iSiteTable[, "Label"])
       if (any(i_new)) {
-        stopifnot(rSOILWAT2::dbW_addSites(site_data = site_data[i_new, ],
-          site_subset = temp_runIDs_sites[i_new]))
+        stopifnot(rSOILWAT2::dbW_addSites(site_data[i_new, ]))
 
-        add_runIDs_sites <- c(add_runIDs_sites, i_turnon2)
+        add_runIDs_sites <- c(add_runIDs_sites, which(i_new))
         do_add <- TRUE
       }
 
@@ -121,11 +121,18 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     add_runIDs_sites <- temp_runIDs_sites
   }
 
+  # Obtain siteIDs as seen by the weather database
+  add_runIDs_sites <- sort(unique(add_runIDs_sites))
+  dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+  itemp <- match(site_data[add_runIDs_sites, "Label"], dbW_iSiteTable[, "Label"], 
+    nomatch = 0)
+  siteID_by_dbW <- dbW_iSiteTable[itemp, "Site_id"]
+
+  #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
   if (do_add && length(add_runIDs_sites) > 0) {
     rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
     on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-    #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
     # Extract weather data per site
     if (verbose)
       print(paste(Sys.time(), "started with moving single site weather data to database"))

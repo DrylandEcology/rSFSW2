@@ -19,7 +19,7 @@ dbW_missingAmbient_siteIDs <- function(req_sites, fdbWeather, dbW_iSiteTable = N
       dbW_iSiteTable <- DBI::dbReadTable(con, "Sites")
     }
 
-    itemp <- match(req_sites[, "Label"], dbW_iSiteTable[, "Label"], nomatch = 0)
+    itemp <- match(req_sites[, "Label"], dbW_iSiteTable[, "Label"], nomatch = NA)
     req_sites <- data.frame(req_sites, siteID_by_dbW = dbW_iSiteTable[itemp, "Site_id"],
       stringsAsFactors = FALSE)
 
