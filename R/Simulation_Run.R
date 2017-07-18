@@ -275,8 +275,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     else
       rSOILWAT2::swCarbon_Use_Sto(swRunScenariosData[[1]]) <- as.integer(0)
 
-    if (!is.na(i_sw_input_treatments$CO2_RCP))
-      rSOILWAT2::swCarbon_RCP(swRunScenariosData[[1]]) <- as.integer(i_sw_input_treatments$CO2_RCP)
+    if (!is.na(i_sw_input_treatments$CO2_Scenario))
+      rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[1]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
 
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
@@ -1540,33 +1540,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   for (sc in sc1:sim_scens[["N"]]) {
 
-    # Extract scenario data for carbon dioxide effects
-    # TODO: Stop this section from causing the tmp[[sc]] error
-    #       Happens on sc == 2
+    # Extract scenario data for CO2 effects
     if (sc > 1) {  # Scenario 1 is "Current"
-      # For string matching
-      library(stringr)
+      scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
+      if (!is.na(scenario))
+        rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(scenario)
       
-      # This scenario's name
-      model_name <- sim_scens$models[sc-1]  # The first model "Current" isn't stored here, so scenario 2 is model 1
-      
-      # Extract the delta year
-      # "hybrid-delta-3mod.d40yrs.RCP85.CESM1-CAM5" --> 40
-      delta <- str_match(model_name, "d[0-9]+yrs")
-      delta <- str_match(delta, "[0-9]+")
-      rSOILWAT2::swCarbon_Delta(swRunScenariosData[[sc]]) <- as.integer(delta[1])
-      if (is.na(delta[1])) stop(paste("The delta year could not be found for model", model_name))
-      
-      # Extract the RCP if the user did not override
-      # "hybrid-delta-3mod.d40yrs.RCP85.CESM1-CAM5" --> 85
-      if (is.na(i_sw_input_treatments$CO2_RCP)) {
-        RCP <- str_match(model_name, "RCP[0-9]+")
-        RCP <- str_match(RCP, "[0-9]+")
-        rSOILWAT2::swCarbon_RCP(swRunScenariosData[[sc]]) <- as.integer(RCP[1])
-        if(is.na(RCP[1])) stop(paste("The RCP could not be found for model", model_name))
-      }
+      delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
+      if (!is.na(delta_yr))
+        rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
     }
-
+    
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
 
     if (opt_verbosity[["print.debug"]])
