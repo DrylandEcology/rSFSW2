@@ -811,6 +811,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
+        
+        # Extract scenario data for CO2 effects
+        scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
+        delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
+        if (!is.na(scenario))
+          rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(scenario)
+        if (!is.na(delta_yr))
+          rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
       } else {
         if (prj_todos[["need_cli_means"]]) {
           if (opt_verbosity[["print.debug"]]) print("Start of get SiteClimate")
@@ -1539,17 +1547,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:sim_scens[["N"]]) {
-
-    # Extract scenario data for CO2 effects
-    if (sc > 1) {  # Scenario 1 is "Current"
-      scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
-      if (!is.na(scenario))
-        rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(scenario)
-      
-      delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
-      if (!is.na(delta_yr))
-        rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
-    }
     
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
 
