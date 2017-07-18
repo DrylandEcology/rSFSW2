@@ -2332,7 +2332,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
     }
 
     req_wdata_fields <- c("todo", "rcps", "futures", "downscaling", "tag", "Scenario",
-      "Scenario_id", "Site_id", "StartYear", "EndYear", "weatherData")
+      "Scenario_id", "Site_id_by_dbW", "StartYear", "EndYear", "weatherData")
 
     for (f in temp_files) {
       ok <- TRUE
@@ -2514,7 +2514,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   # locations of simulation runs
   icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
   locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
-  itemp <- match(SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, "Label"],
+  itemp <- match(SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, "WeatherFolder"],
     dbW_iSiteTable[, "Label"], nomatch = NA)
   if (anyNA(itemp)) {
     stop("Not all sites (labels) available in weather database.")

@@ -20,7 +20,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     Label = SWRunInformation$WeatherFolder, stringsAsFactors = FALSE)
   site_data[site_data == "NA"] <- NA
 
-  do_new <- FALSE # flag to indicate if a new weather database should be created
+  do_new <- TRUE # flag to indicate if a new weather database should be created
   do_add <- FALSE # flag to indicate if ambient daily weather data should be added
   add_runIDs_sites <- NULL
 
@@ -32,6 +32,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         "complete location/sites and scenario tables."))
       }
 
+      do_new <- FALSE
       rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
@@ -103,7 +104,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     } else {
       print("Removing old weather database")
       unlink(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
-      do_new <- TRUE
     }
   }
 
@@ -114,7 +114,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     # included or not)
     stopifnot(rSOILWAT2::dbW_createDatabase(
       dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_data = site_data, site_subset = temp_runIDs_sites,
+      site_data = site_data,
       scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
       compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
     do_add <- TRUE
