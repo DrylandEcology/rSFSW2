@@ -22,6 +22,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   do_new <- FALSE # flag to indicate if a new weather database should be created
   do_add <- FALSE # flag to indicate if ambient daily weather data should be added
+  add_runIDs_sites <- NULL
 
   #--- Check if weather database exists and contains requested data
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
@@ -49,7 +50,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
 
       #-- Check if requested sites are complete
-      add_runIDs_sites <- NULL
       dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
 
       # - Site is already in weather database but without ambient weather data (e.g.,
@@ -62,8 +62,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       temp <- temp[, "Site_id"]
 
       if (length(temp) > 0) {
-          do_add <- TRUE
-          add_runIDs_sites <- c(add_runIDs_sites, temp)
+        do_add <- TRUE
+        add_runIDs_sites <- c(add_runIDs_sites, temp)
       }
 
       # - Site is already in weather database but with NA label (e.g., because
@@ -122,14 +122,16 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   }
 
   # Obtain siteIDs as seen by the weather database
-  add_runIDs_sites <- sort(unique(add_runIDs_sites))
-  dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
-  itemp <- match(site_data[add_runIDs_sites, "Label"], dbW_iSiteTable[, "Label"],
-    nomatch = NA)
-  if (anyNA(itemp)) {
-    stop("Not all sites (labels) available in weather database.")
+  if (length(add_runIDs_sites) > 0) {
+    add_runIDs_sites <- sort(unique(add_runIDs_sites))
+    dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+    itemp <- match(site_data[add_runIDs_sites, "Label"], dbW_iSiteTable[, "Label"],
+      nomatch = NA)
+    if (anyNA(itemp)) {
+      stop("Not all sites (labels) available in weather database.")
+    }
+    add_siteIDs_by_dbW <- dbW_iSiteTable[itemp, "Site_id"]
   }
-  add_siteIDs_by_dbW <- dbW_iSiteTable[itemp, "Site_id"]
 
   #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
   if (do_add && length(add_runIDs_sites) > 0) {
