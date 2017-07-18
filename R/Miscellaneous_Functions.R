@@ -1262,8 +1262,8 @@ setup_scenarios <- function(sim_scens, future_yrs) {
     # ConcScen = concentration scenarios, e.g., SRESs, RCPs
     colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
     # see 'setup_simulation_time' for how 'future_yrs' is created
-    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 1,
-      nchar(climScen[, "DeltaStr_yrs"]) - 2))
+    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
+      nchar(climScen[, "DeltaStr_yrs"]) - 3))
 
     #--- List unique sets of requested scenario name parts
     reqMs <- unique(climScen[, "Model"])
