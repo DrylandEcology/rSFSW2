@@ -212,20 +212,20 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   sitesN <- sum(used_sites)
 
   climate <- as.data.frame(matrix(NA, nrow = nrow(dbW_iScenarioTable) * sitesN,
-                    ncol = 3 + length(vars),
-                    dimnames = list(NULL, c("Site_id", "Scenario_id", "Status", vars))))
-  climate[, "Site_id"] <- dbW_iSiteTable[used_sites, "Site_id"]
+    ncol = 3 + length(vars),
+    dimnames = list(NULL, c("Site_id_by_dbW", "Scenario_id", "Status", vars))))
+  climate[, "Site_id_by_dbW"] <- dbW_iSiteTable[used_sites, "Site_id"]
   climate[, "Scenario_id"] <- rep(dbW_iScenarioTable[, "id"], each = sitesN)
 
   ids_todo <- seq_len(nrow(climate))
 
 
   #---Check progress
-  make_ids <- compiler::cmpfun(function(data, id_vars = c("Site_id", "Scenario_id")) {
+  make_ids <- compiler::cmpfun(function(data, id_vars = c("Site_id_by_dbW", "Scenario_id")) {
     as.vector(apply(data[, id_vars, drop = FALSE], 1, paste0, collapse = "_"))
   })
 
-  revert_ids <- compiler::cmpfun(function(ids, id_vars = c("Site_id", "Scenario_id"), id_class = "integer") {
+  revert_ids <- compiler::cmpfun(function(ids, id_vars = c("Site_id_by_dbW", "Scenario_id"), id_class = "integer") {
     temp <- as.data.frame(t(simplify2array(strsplit(ids, split = "_", fixed = TRUE))), stringsAsFactors = FALSE)
     stopifnot(length(id_vars) == ncol(temp))
     colnames(temp) <- id_vars
@@ -259,7 +259,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       # Transfer to output
       if (nrow(climate_good) > 0) {
         temp <- copy_matches(out = climate, data = climate_good,
-                  match_vars = c("Site_id", "Scenario_id"),
+                  match_vars = c("Site_id_by_dbW", "Scenario_id"),
                   copy_vars = c("Status", vars),
                   ids_out = ids_todo)
         climate <- temp[["out"]]
@@ -291,10 +291,12 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     if (i %% 1000 == 1) print(paste0(Sys.time(), ": checking ", i, "-th entry"))
 
     idss <- unlist(idss)
-    tr <- data[data[, "Site_id"] == idss["Site_id"] & data[, "Scenario_id"] == idss["Scenario_id"], ]
+    temp <- data[, "Site_id_by_dbW"] == idss["Site_id_by_dbW"] &
+      data[, "Scenario_id"] == idss["Scenario_id"]
+    tr <- data[temp, ]
 
     res <- unlist(c(seq_id = i, Dups_N = nrow(tr),
-          tr[1, c("Site_id", "Scenario_id")],
+          tr[1, c("Site_id_by_dbW", "Scenario_id")],
           Status = -1L))
 
     if (NROW(tr) >= repeats) {
@@ -317,7 +319,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       climate_progress <- utils::read.csv(ftemp, header = TRUE)
 
       if (nrow(climate_progress) > 0) {
-        ids_progress <- as.vector(apply(climate_progress[, c("Site_id", "Scenario_id")],
+        ids_progress <- as.vector(apply(climate_progress[, c("Site_id_by_dbW", "Scenario_id")],
           1, paste0, collapse = "_"))
         ids_unique <- sort(unique(ids_progress))
         idus_ss <- revert_ids(ids_unique)
@@ -361,7 +363,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
           utils::write.table(climate_good, file = fout, append = TRUE, sep = ",", dec = ".",
             qmethod = "double", row.names = FALSE, col.names = FALSE)
           temp <- copy_matches(out = climate, data = climate_good,
-                    match_vars = c("Site_id", "Scenario_id"),
+                    match_vars = c("Site_id_by_dbW", "Scenario_id"),
                     copy_vars = c("Status", vars),
                     ids_out = ids_todo)
           climate <- temp[["out"]]
@@ -412,10 +414,10 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
     if (i %% 1000 == 1)
       print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ",
-        iclimate["Site_id"], "/", scen))
+        iclimate["Site_id_by_dbW"], "/", scen))
 
     # Access data from database
-    wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
+    wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
             startYear = startyear, endYear = endyear,
             Scenario = scen),
           silent = TRUE)
@@ -425,7 +427,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       rSOILWAT2::dbW_disconnectConnection()
       rSOILWAT2::dbW_setConnection(dbFilePath = db_name, FALSE)
 
-      wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
+      wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
               startYear = startyear, endYear = endyear,
               Scenario = scen),
             silent = TRUE)
@@ -434,7 +436,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     if (inherits(wtemp, "try-error")) {
       iclimate["Status"] <- 0
       print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ",
-        iclimate["Site_id"], "/", scen, " failed:", wtemp))
+        iclimate["Site_id_by_dbW"], "/", scen, " failed:", wtemp))
 
     } else {
       iclimate["Status"] <- 1
@@ -518,9 +520,9 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   identical(failed, iNAs)
   print(paste0("Unsuccessful extractions: n = ", sum(failed), "; f = ",
     signif(sum(failed) / length(failed), 2)))
-  with(climate[failed, ], plot(Site_id, Scenario_id))
+  with(climate[failed, ], plot(Site_id_by_dbW, Scenario_id))
 
-  failed_siteID <- climate[failed, "Site_id"]
+  failed_siteID <- climate[failed, "Site_id_by_dbW"]
   print(paste0("Sites with at least one unsuccessful extractions: n = ",
     length(unique(failed_siteID))))
   failed_siteID_freq <- tapply(rep(1, sum(failed)), failed_siteID, sum)
@@ -538,11 +540,11 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   # Variation among downscaled scenarios as difference to current
 
   dat <- climate[!failed & climate$Scenario_id > 1, ]
-  dat_cur <- climate[climate$Site_id %in% dat$Site_id & climate$Scenario_id == 1, ]
+  dat_cur <- climate[climate$Site_id_by_dbW %in% dat$Site_id_by_dbW & climate$Scenario_id == 1, ]
   dat <- dat[do.call(order, dat), ]
 
   dat_cur <- copy_matches(out = dat, data = dat_cur[do.call(order, dat_cur), ],
-          match_vars = c("Site_id"),
+          match_vars = c("Site_id_by_dbW"),
           copy_vars = vars)[["out"]]
 
   dat_diff <- dat
@@ -556,7 +558,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   for (iv in vars) {
     print(paste0("Mean variation within sites among downscaled scenarios for variable ", iv))
-    temp <- stats::aggregate(dat_diff[, iv], by = list(dat_diff$Site_id), FUN = function(x) {
+    temp <- stats::aggregate(dat_diff[, iv], by = list(dat_diff$Site_id_by_dbW), FUN = function(x) {
       rx <- range(x)
       c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
     })
