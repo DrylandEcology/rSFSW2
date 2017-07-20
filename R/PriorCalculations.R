@@ -150,7 +150,7 @@ calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sa
   temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2 # equation from re-analysis
   depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE),
     depth_max_bs_evap_cm, na.rm = TRUE)
-  lyrs_bs_evap <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
+  lyrs_bs_evap0 <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
     i0 <- abs(x) < SFSW2_glovars[["tol"]]
     ld <- if (any(i0, na.rm = TRUE)) {
       which(i0)
@@ -158,12 +158,14 @@ calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sa
       temp <- which(x < 0)
       if (length(temp) > 0) temp[1] else sum(!is.na(x))
     }
-    c(rep(TRUE, ld), rep(FALSE, length(x) - ld))
+    ld0 <- max(0, ld - 1)
+
+    c(rep(TRUE, ld0), rep(FALSE, length(x) - ld0))
   }))
 
   # function made up to match previous cummulative distributions
   temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)
-  temp_coeff[!lyrs_bs_evap | is.na(temp_coeff)] <- 1
+  temp_coeff[!lyrs_bs_evap0 | is.na(temp_coeff)] <- 1
   coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
   coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
 }
