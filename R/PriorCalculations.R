@@ -67,10 +67,9 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
       # Add identified layers
       sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
         sw_input_soils_data[[iv]][il_set, ])
-
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
-        il_weight <- abs(lnew - ldset[ilnew + 1:0])
+        il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
         sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
           add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
             method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
@@ -101,7 +100,7 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
         file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]], row.names = FALSE)
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      print(paste0("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
+      print(paste("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
         "adjust lookup tables with per-layer values if applicable for this project"))
     }
 

@@ -7,7 +7,8 @@
 try.ScenarioWeather(i, clim_source, is_netCDF, is_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
   locations, dbW_iSiteTable, dbW_iScenarioTable, compression_type, getYears,
-  assocYears, sim_time, seeds_DS, opt_DS, project_paths, verbose, print.debug)
+  assocYears, sim_time, seeds_DS, opt_DS, project_paths, resume, verbose,
+  print.debug)
 }
 \description{
 A wrapper function for \code{calc.ScenarioWeather} with error control.

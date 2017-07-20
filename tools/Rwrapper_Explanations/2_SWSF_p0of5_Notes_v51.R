@@ -39,7 +39,7 @@
 #                        - 'extract climate change scenarios' (data is written to 'datafile.weathersetup'),
 #                        - 'extract topography and elevation' (elevation, aspect, and slope is written to 'datafile.SWRunInformation'),
 #                  - 2. step: code creates SOILWAT2-runs with copies of SOILWAT2 input files from 'dir_in_sw'
-#                  - 3. step: if flagged in 'datafile.treatments', then entire SOILWAT2 input files or substantial chunks are replaced with files from folder 'dir.sw.tr' 
+#                  - 3. step: if flagged in 'datafile.treatments', then entire SOILWAT2 input files or substantial chunks are replaced with files from folder 'dir.sw.tr'
 #                        Options for input files: sw, filesin, prodin, siteparamin, soilsin, weathersetupin, cloudin
 #                        Options for chunks:
 #                          - 'weather' (the entire folder for the weather data, i.e., cloudin and yearly files of daily weather, is copied)
@@ -107,7 +107,7 @@
 #    - 'datafile.soils'
 #    - 'datafile.weathersetup'
 
-#  'datafile.climatescenarios': datafile describes the monthly PPT-factors and Temp-addands for each climate scenario, including the standard scenario, defined by 'Scenario_No' and 'Scenario_X' in 'datafile.SWRunInformation' 
+#  'datafile.climatescenarios': datafile describes the monthly PPT-factors and Temp-addands for each climate scenario, including the standard scenario, defined by 'Scenario_No' and 'Scenario_X' in 'datafile.SWRunInformation'
 #  the first line of datafile specifies whether information is to be added to the input files (flags)
 #  NOTE: there are three ways to incorporate climate scenarios
 #      1. Use 'Scenario_No', i.e., > 0, then each row represents 1+Scenario_No SOILWAT2-runs, the standard and 'Scenario_No' climate scenarios, as defined in 'datafile.climatescenarios'
@@ -147,7 +147,7 @@
 #Adding a daily response variable
 #  1. Add variable name to option list for output_aggregate_daily
 #  2. Add code to calculate response variable in the 'daily output' part of the aggregate section of do_OneSite function
-#  3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly        
+#  3. Update scaler, agg.file, agg.analysis, and agg.agg accordingly
 
 #soilWat shared object data indexs are listed in output.
 
@@ -206,7 +206,7 @@
 #    - fixed bug in 'dailySnowpack': checks now that there are enough snow years available (i.e., 2) to calculate response variables
 #  v40 (20120113-20120123):
 #    - added flag 'deleteSoilWatOutputAfterAggregation': deletes all SOILWAT2 simulation output after aggregation for run is complete, but maintains the SOILWAT2 input file structure; this safes space (e.g., for 1000 years of complete output = 490 MB); if other response variables are needed, then only actions == c("sim_execute", "sim_aggregate") are needed, but not "sim_create"
-#    - fixed bug in column names of daily aggregations 
+#    - fixed bug in column names of daily aggregations
 #    - added vector 'delete.exceptions': if 'deleteSoilWatOutputAfterAggregation' is turned on, then it doesn't delete files listed
 #    - fixed bug in 'dailyWeatherEventSizeDistribution': incorrect result or subscript out of bounds if no data present for a summary bin
 #  v41 (20120123-20120217):
@@ -261,7 +261,7 @@
 #    - updated 'ArtemisiaTridentataRegeneration' and made it on average 15% faster
 #    - renamed 'ArtemisiaTridentataRegeneration' to 'dailyRegeneration_byTempSWPSnow'
 #    - parameter values for 'dailyRegeneration_byTempSWPSnow' are read in from a species.csv file from folder input/regeneration
-#    - added option for multiple species in 'dailyRegeneration_byTempSWPSnow': for each file in folder input/regeneration, 'dailyRegeneration_byTempSWPSnow' is called 
+#    - added option for multiple species in 'dailyRegeneration_byTempSWPSnow': for each file in folder input/regeneration, 'dailyRegeneration_byTempSWPSnow' is called
 #    - added option 'be.quiet': if TRUE, no reports on timing and runs is printed
 #  v46 (20120705-20120725)
 #    - (DLM) added a few changes for running on JANUS, made a R script to run the framework (rToCallR.R) that sets a global variable "use_janus" to make a few minor changes for specifically running the code on JANUS.  (ie. doesn't load libraries since they're not installed on JANUS, sets the project directory differently, sets the number of cores to use differently, & calls the C code slightly differently).
@@ -274,7 +274,7 @@
 #    - added function 'VWCtoSWP': converting VWC for layers with known sand and clay contents to SWP
 #    - aggregation of SWP across soil layers is now done by first aggregating VWC (weighted by soil layer widths) and then converting to SWP because SWP is not linear
 #    - improved 'resume': now checks first for each temporary output file and then decides whether it needs to re-execute SOILWAT2 and aggregate or not
-#    - improved handling of 'include_YN': the work-horse function is now only called for runs/sites with include_YN > 0 
+#    - improved handling of 'include_YN': the work-horse function is now only called for runs/sites with include_YN > 0
 #  v47 (20120725-20120829)
 #    - implemented parallelization with doSNOW/snow as an option to doMC/multicore - JANUS: only use snow, because multicore cannot access cores outside master node
 #    - calculation of 'calculate doy_ForEachUsedDay, month_ForEachUsedDay, and year_ForEachUsedDay' is expensive for many years: creation of these vectors once before each simulation is started if possible, i.e., already executed and all simulations have same simulation years
@@ -286,7 +286,7 @@
 #    - added option to check completeness of SOILWAT2 simulation directories and of temporary output aggregation files 'checkCompleteness'; creates a list with missing directories and files
 #    - (DLM) added option to use Rmpi for the multi-threading, it's performing better on JANUS and is slightly easier to debug then using SNOW (as it will print out an error message for every site that fails, unlike SNOW which will only print out the first error).  The only bad thing is that the output is harder to read as all the print statements that are made inside the do_OneSite() function are seperated into log files for each thread by Rmpi.  To keep all the logfiles change the call to mpi.close.Rslaves(dellog = TRUE) to mpi.close.Rslaves(dellog = FALSE).  It's fairly easy to check if it ran right because if any of them do not it will still print the error to the main logfile (or stdout if running locally).
 #    - (DLM) changed dir.create2 & file.copy2 functions to recursively call themselves until the file/dir is copied/created.  This is because for some strange reason when using MPI on JANUS, the functions both don't work everytime and fail to throw an error when they don't work.  It's quite aggravating really, but this is the only way I got it actually working.
-#    - (DLM) program is still called the same on JANUS when using Rmpi, ex: "R --no-save --slave < 2_SoilWatSimulationFramework_PC_GlobalDrylandEcoHydro_PrelimSim_v47.R", and is running correctly on JANUS again
+#    - (DLM) program is still called the same on JANUS when using Rmpi, ex: "R --no-save --worker < 2_SoilWatSimulationFramework_PC_GlobalDrylandEcoHydro_PrelimSim_v47.R", and is running correctly on JANUS again
 #    - (DLM) fixed bug in daily aggregation if no daily aggregation was selected
 #    - fixed bug in "CalculateBareSoilEvaporationCoefficientsFromSoilTexture"
 #    - fixed bug in "CalculateFieldCapacityANDWiltingPointFromSoilTexture": call to SWPtoVWC was not designed for matrices of sand and clay
@@ -309,14 +309,14 @@
 #    - (rjm)           growseason_Tlimit_C   - used to define threshold temp of a growing month
 #    - (rjm)            grass.c4.fractionG, grass.c3.fractionG, grass.Annual.fraction - represent percentage of Grass based on various values.
 #    - (rjm) added code to find relative composition of vegetation based on climate
-#    - (rjm) added code to adjust composition based on mean temp and mean ppt. 
+#    - (rjm) added code to adjust composition based on mean temp and mean ppt.
 #    - (rjm) added code to calc rooting fraction based on those relative composition
 #    - (rjm) Fixed the code so that all 'create' sections based on climate is carried out after the climate change scenario are made
 #    - more verbose during preparation stages of code
 #    - streamlined code for parallelization
 #    - added option in overall aggregations: 'dailyC4_TempVar' = c('mean July minimum temperature', 'mean length of annual freeze-free periods (days)', 'mean annual degree-days above 65F (day C)'
 #    - replaced simTime$mo == 1:12 with global variable SFSW2_glovars[["st_mo"]]: functions to extract external information don't need to import simTime any more
-#    - added function 'simTiming_ForEachUsedTimeUnit' to calculate necessary timing variables such as 'doy_ForEachUsedDay' without readin from SOILWAT2 files (which was quite costly) 
+#    - added function 'simTiming_ForEachUsedTimeUnit' to calculate necessary timing variables such as 'doy_ForEachUsedDay' without readin from SOILWAT2 files (which was quite costly)
 #    - accounting for North/South hemispheres:
 #      - added global option flag 'adjust_NorthSouth': if TRUE then add a set of counting of the timing variables for sites with latitude < 0 (i.e., southern hemisphere), which have time shifted by 6 months (e.g., July becomes 1st month, etc.); i.e., introduced simTime2 as calculated by function 'simTiming_ForEachUsedTimeUnit'
 #        - this affects aggregation of: monthlySWPdryness, dailySWPdrynessANDwetness, dailySnowpack, dailyC4_TempVar, dailySWPbasedRegeneration, dailyRegeneration_byTempSWPSnow (param$Doy_SeedDispersalStart0 must be set correctly)
@@ -418,8 +418,8 @@
 #    - (rjm) fixed database creation so page size is max and using REAL instead of double.
 #    - (rjm) Each node writes out a sql file with all the data from run. This is loaded into the dbTables.db database after runs are finished
 #    - (rjm) Ensembles via database now works in with Rmpi. A database for each scenario table is generated with its ensembles.
-#    - (rjm) The weather is loaded from a database by the master node and gives it to slave node via memory OR it can look it up in files
-#    - (rjm) The soilwat setup files are loaded in memory via Rsoilwat structures objects and passed to the slaves who then work with that instead of files.
+#    - (rjm) The weather is loaded from a database by the master node and gives it to worker node via memory OR it can look it up in files
+#    - (rjm) The soilwat setup files are loaded in memory via Rsoilwat structures objects and passed to the workers who then work with that instead of files.
 #    - (rjm) daily values are sorted to match database.
 #    - (rjm) fixed SWA output only outputing for one crit
 #    - (drs) 'deleteSoilWatFolderAfterAggregation' set to FALSE: requests SOILWAT2 input/output to be stored on disk

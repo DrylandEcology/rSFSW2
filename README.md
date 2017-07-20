@@ -5,24 +5,74 @@
 
 # rSFSW2: A R package to create soil water balance simulation experiment
 
-Start with the demos and information at ```package?rSFSW2```
-
 Some recent references
 
 * Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology of adjacent
   sagebrush and lodgepole pine ecosystems: The consequences of climate change and
   disturbance. Ecosystems 17:590-605.
+* Palmquist, K.A., Schlaepfer, D.R., Bradford, J.B., and Lauenroth, W.K. 2016.
+  Mid-latitude shrub steppe plant communities: climate change consequences for soil water
+  resources. Ecology 97:2342–2354.
 * Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012. Ecohydrological niche of
   sagebrush ecosystems. Ecohydrology 5:453-466.
 
-## Note: repository renamed from SoilWat_R_Wrapper to rSFSW2 on Feb 23, 2017
-All existing information should [automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
-Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e.,
+
+### Obtain the source package
+
+There are several options:
+
+- Download the
+  [package zip file](https://github.com/Burke-Lauenroth-Lab/rSFSW2/archive/master.zip)
+  via your web browser.
+
+- Use git to clone
+  ```
+  git clone -b master --single-branch https://github.com/Burke-Lauenroth-Lab/rSFSW2.git rSFSW2
+  ```
+
+- Use git to clone step by step
+  ```
+  git clone https://github.com/Burke-Lauenroth-Lab/rSFSW2.git rSFSW2
+  cd rSFSW2/
+  git checkout master
+  ```
+
+### Installation
+
+'rSFSW2' will compile some c code via 'Rcpp'. Your computer must be set up adequately.
+- If you use a Windows OS, then you need the
+  [Rtools](http://cran.us.r-project.org/bin/windows/Rtools/)
+  installed that match your R version; please find further information for instance
+  [here](https://www.biostat.wisc.edu/~kbroman/Rintro/Rwinpack.html).
+- If you use a macOS, then you need [Xcode](https://developer.apple.com/xcode/) and
+  its [command-line tools](https://developer.apple.com/library/content/technotes/tn2339/_index.html)
+  installed; please find further information for instance
+  [here](https://railsapps.github.io/xcode-command-line-tools.html).
+
+
+After you downloaded the source package, run
 ```
-git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
+R CMD INSTALL rSFSW2
 ```
 
-# __Setup a new simulation project__:
+Or do all at once from within R:
+```{r}
+system2(command = "git", args = "clone -b master --single-branch https://github.com/Burke-Lauenroth-Lab/rSFSW2.git rSFSW2")
+tools::Rcmd(args = paste("INSTALL rSFSW2"))
+```
+
+If you want a binary version of the 'rSFSW2' package (e.g., to distribute to someone
+without development tools) for a platform to which you do not have access, then you may
+consider using one of the cloud services (no endorsements):
+- https://builder.r-hub.io offers different Linux, Windows, and mac OS flavors as targets
+- http://win-builder.r-project.org/ offers Windows OS as target
+
+
+# Use rSFSW2 for your simulation project
+
+Familiarize yourself with the demos and information at ```package?rSFSW2```
+
+__Setup a new simulation project__:
 1) Install and attach 'rSFSW2' if not already done so (Note: required version of
    rSOILWAT2 must already be present)
 2) Create a skeleton project `setup_rSFSW2_project_infrastructure(dir_prj =
@@ -40,8 +90,8 @@ You can contribute to this project in different ways:
 1. Reporting [issues](https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues)
 2. Contributing code and sending a [pull request](https://github.com/Burke-Lauenroth-Lab/rSFSW2/pulls)
 
-Please write an issue before creating a new branch and eventually sending a pull request
-both of which reference the issue ['issue #[issue number]'](https://help.github.com/articles/autolinked-references-and-urls/#issues-and-pull-requests).
+Please follow our [guidelines](https://github.com/Burke-Lauenroth-Lab/workflow_guidelines).
+
 
 # Code of conduct
 Please note that this project is released with a
@@ -59,3 +109,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
+
+# Notes
+__Repository renamed from SoilWat_R_Wrapper to rSFSW2 on Feb 23, 2017__
+All existing information should [automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
+Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e.,
+```
+git remote set-url origin https://github.com/Burke-Lauenroth-Lab/rSFSW2.git
+```

@@ -38,3 +38,6 @@ for (i in 1:length(years)) {
   weatherData[[i]] <- methods::new("swWeatherData", year = years[i], data = ydata)
 }
 names(weatherData) <- years
+
+DBI::dbDisconnect(con)
+rSOILWAT2::dbW_disconnectConnection()

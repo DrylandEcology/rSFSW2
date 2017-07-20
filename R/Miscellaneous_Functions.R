@@ -56,6 +56,93 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 }
 
 
+
+#' Expression for dumping of objects from an evaluation stack
+#'
+#' Create an expression for functions 'f' to set on.exit() such that all objects from the
+#' evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+#'
+#' @param dir_out A character string. The path to where the 'RData' file is dumped.
+#' @param file_tag A character string. Will become final part of the 'RData' file name.
+#'
+#' @return Expression.
+#' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
+#'
+#' @examples
+#' \dontrun{
+#' f2 <- function(x, cause_error = FALSE) {
+#'   print(match.call())
+#'   print(environment())
+#'   # Enable debug dumping
+#'   on.exit(enable_debug_dump(file_tag = match.call()[[1]]), add = TRUE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit from", match.call()[[1]])), add = TRUE)
+#'
+#'   res <- x + 100
+#'   if (cause_error) stop("Create error and force debug dumping")
+#'
+#'   # Remove debug dumping but not other 'on.exit' expressions before returning without error
+#'   oe <- sys.on.exit()
+#'   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
+#'   on.exit(eval(oe), add = FALSE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
+#'   res
+#' }
+#'
+#' f1 <- function(x, cause_error) {
+#'   print(paste(match.call()[[1]], x))
+#'   print(environment())
+#'   try(f2(x + 1, cause_error))
+#' }
+#'
+#' f1(0, cause_error = FALSE)
+#' f1(0, cause_error = TRUE)
+#' x <- new.env()
+#' load("last.dump.f2.RData", envir = x)
+#' ls.str(x)
+#'
+#' # Clean up
+#' unlink("last.dump.f2.RData")
+#' }
+#'
+#' @export
+enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
+  {
+    op_prev <- options("warn")
+    options(warn = 0)
+    env_tosave <- new.env()
+
+    # Loop through evaluation frame stack, with global environment and
+    # without 'enable_debug_dump', and collect objects
+    ids_frame <- sys.parents()[-1]
+    for (k in ids_frame) {
+      list2env(as.list(sys.frame(sys.parent(k))), envir = env_tosave)
+    }
+    list2env(as.list(globalenv()), envir = env_tosave)
+
+    save(list = ls(envir = env_tosave), envir = env_tosave,
+      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag), ".RData")))
+    options(op_prev)
+  }
+}
+
+#' Remove one of possibly several expressions recorded by \code{on.exit}
+#'
+#' @param sysonexit An expression. The returned value of a call to \code{sys.on.exit()}
+#'   from inside the calling function.
+#' @param tag A character string. An string identifying which of the recorded expressions
+#'   should be removed.
+#' @seealso \code{\link{enable_debug_dump}} for examples
+#' @export
+remove_from_onexit_expression <- function(sysonexit, tag) {
+  if (!is.null(sysonexit) && nchar(tag) > 0) {
+    sysonexit[regexpr(tag, sysonexit) < 0]
+  } else {
+    sysonexit
+  }
+}
+
 getStartYear <- function(simstartyr, spinup_N = 1L) {
   as.integer(simstartyr + spinup_N)
 }
@@ -1146,23 +1233,53 @@ convert_to_todo_list <- function(x) {
 
 
 setup_scenarios <- function(sim_scens, future_yrs) {
+  #--- Create complete scenario names
   # make sure 'ambient' is not among models
-  sim_scens[["models"]] <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
+  temp <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
     invert = TRUE, value = TRUE)
 
-  if (length(sim_scens[["models"]]) > 0) {
+  if (length(temp) > 0) {
     # add (multiple) future_yrs
-    sim_scens[["models"]] <- paste0(rownames(future_yrs), ".", rep(sim_scens[["models"]],
-      each = nrow(future_yrs)))
+    temp <- paste0(rownames(future_yrs), ".", rep(temp, each = nrow(future_yrs)))
     # add (multiple) downscaling.method
-    sim_scens[["models"]] <- paste0(sim_scens[["method_DS"]], ".",
-      rep(sim_scens[["models"]], each = length(sim_scens[["method_DS"]])))
+    temp <- paste0(sim_scens[["method_DS"]], ".",
+      rep(temp, each = length(sim_scens[["method_DS"]])))
   }
 
   # make sure 'ambient' is first entry
-  temp <- c(sim_scens[["ambient"]], sim_scens[["models"]])
+  id <- c(sim_scens[["ambient"]], temp)
+  N <- length(id)
 
-  c(sim_scens, list(id = temp, N = length(temp)))
+  if (N > 1) {
+    #--- Create table with scenario name parts for each scenario
+    temp <- strsplit(id[-1], split = ".", fixed = TRUE)
+    if (!all(lengths(temp) == 4L))
+      stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
+        "concatenated by '.'")
+
+    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4, byrow = TRUE),
+      stringsAsFactors = FALSE)
+    # ConcScen = concentration scenarios, e.g., SRESs, RCPs
+    colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
+    # see 'setup_simulation_time' for how 'future_yrs' is created
+    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
+      nchar(climScen[, "DeltaStr_yrs"]) - 3))
+
+    #--- List unique sets of requested scenario name parts
+    reqMs <- unique(climScen[, "Model"])
+    reqCSs <- unique(climScen[, "ConcScen"])
+    reqCSsPerM <- lapply(reqMs, function(x)
+      unique(climScen[x == climScen[, "Model"], "ConcScen"]))
+    reqDSsPerM <- lapply(reqMs, function(x)
+      unique(climScen[x == climScen[, "Model"], "Downscaling"]))
+
+  } else {
+    # Only ambient scenario
+    climScen <- reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
+  }
+
+  c(sim_scens, list(id = id, N = N, df = climScen, reqMs = reqMs,
+    reqCSs = reqCSs, reqCSsPerM = reqCSsPerM, reqDSsPerM = reqDSsPerM))
 }
 
 setup_mean_daily_output_requests <- function(req_mean_daily, opt_agg) {
@@ -1243,5 +1360,3 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
   SWRunInformation
 }
-
-

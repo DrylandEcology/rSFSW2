@@ -220,7 +220,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["use_sim_spatial"]] <-
       (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]])) ||
+        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
+        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV1a_Global"]])) ||
       (todo_intracker(SFSW2_prj_meta, "elev_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
         SFSW2_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]])) ||
@@ -385,7 +386,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   #------ DATA EXTRACTIONS
   #--- Soil data
   if (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV1a_Global"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared")) {
 
@@ -699,10 +701,10 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   # used in:
   #   - loop calling do_OneSite
   #   - ensembles
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -823,13 +825,17 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
 
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
+
 
   #---------------------------------------------------------------------------------------#
   #------------------------OVERALL TIMING
   delta.overall <- difftime(Sys.time(), t1, units = "secs")
 
   compile_overall_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
-    SFSW2_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
+    SFSW2_prj_meta[["project_paths"]][["dir_out"]], SFSW2_glovars[["p_workersN"]],
     runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
     0, 0)
 
