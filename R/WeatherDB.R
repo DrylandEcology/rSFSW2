@@ -37,18 +37,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
       #-- Check if requested climate scenarios are listed in table; if not add to database
-      dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
-
-      i_add <- !(SFSW2_prj_meta[["sim_scens"]][["id"]] %in% dbW_iScenarioTable[, "Scenario"])
-      if (any(i_add)) {
-        new_scens <- SFSW2_prj_meta[["sim_scens"]][["id"]][i_add]
-        if (verbose) {
-          print(paste0("rSFSW2's ", temp_call, ": adds new scenarios: ",
-            paste(shQuote(new_scens), collapse = " - ")))
-        }
-        stopifnot(rSOILWAT2::dbW_addScenarios(new_scens))
-      }
-
+      stopifnot(rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]]))
 
       #-- Check if requested sites are complete
       dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
