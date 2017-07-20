@@ -1898,31 +1898,19 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
     temp1[, "Site_id_by_dbW"] <-  rep(Site_id_by_dbW, n)
   }
 
-  temp2 <- matrix(NA, nrow = n, ncol = 3, dimnames = list(NULL, c("StartYear", "EndYear",
-    "weatherData")))
-  df_wdataOut <- data.frame(todo = rep(TRUE, n), temp1, temp2, stringsAsFactors = FALSE)
+  temp <- rep(NA, n)
+  temp <- list(todo = rep(TRUE, n), StartYear = temp, EndYear = temp, weatherData = temp)
+  df_wdataOut <- c(temp, as.list(temp1))
 
   # Determine if any are already downscaled and stored in weather database
   if (resume) {
-    for (k in seq_len(dim(df_wdataOut)[1])) {
-      ##TODO: (issue #71)[https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues/71]
-      # once we use real calendar years for future scenarios then update the checks to
-      # startYear = sim_time[["simstartyr"]] + delta, endYear = sim_time[["endyr"]] + delta
-      # and set
-      #      delta <- sim_time[["future_yrs"]][df_wdataOut[k, "futures"], "delta"]
-
-      temp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = Site_id_by_dbW,
-        Scenario = paste(df_wdataOut[k, "downscaling"], df_wdataOut[k, "tag"],
-          gcm, sep = ".")),
-        silent = TRUE)
-
-      df_wdataOut[k, "todo"] <- inherits(temp, "try-error")
-    }
+    df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
+      Site_ids = Site_id_by_dbW, Scenario_ids = df_wdataOut[["Scenario_id"]])[1, ]
   }
-  ids_down <- which(df_wdataOut[, "todo"])
+  ids_down <- which(df_wdataOut[["todo"]])
 
   if (length(ids_down) > 0) {
-    rcps <- unique(df_wdataOut[ids_down, "rcps"])
+    rcps <- unique(df_wdataOut[["rcps"]][ids_down])
 
     #Scenario monthly weather time-series: Get GCM data for each scenario and time slice
     scen.monthly <- matrix(vector("list", (getYears$n_first + getYears$n_second) * (1 +
@@ -2006,7 +1994,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 
     obs.hist.daily <- rSOILWAT2::dbW_getWeatherData(Site_id = Site_id_by_dbW,
       startYear = sim_time[["simstartyr"]], endYear = sim_time[["endyr"]],
-      Scenario = climate.ambient)
+      Scenario_id = 1L)
 
     if (obs.hist.daily[[1]]@year < 1950) {
       #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't
@@ -2017,7 +2005,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
     }
 
     sim_years <- as.integer(names(obs.hist.daily))
-    obs.hist.monthly <- rSOILWAT2::dbW_weatherData_to_monthly(dailySW = obs.hist.daily)
+    obs.hist.monthly <- rSOILWAT2::dbW_weatherData_to_monthly(obs.hist.daily)
 
     if (print.debug) {
       obs.hist.monthly_mean <- stats::aggregate(obs.hist.monthly[, -(1:2)],
@@ -2040,14 +2028,14 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 
     # Loop through todos for downscaling
     for (k in ids_down) {
-      ir <- which(rcps == df_wdataOut[k, "rcps"])
-      it <- which(rownames(sim_time[["future_yrs"]]) == df_wdataOut[k, "futures"])
+      ir <- which(rcps == df_wdataOut[["rcps"]][k])
+      it <- which(rownames(sim_time[["future_yrs"]]) == df_wdataOut[["futures"]][k])
 
       # Put historical data together
       #NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs because some GCMs do
       #  not provide data for the last month of a time slice (e.g. December 2005 may be NA)
       scen.hist.monthly <- NULL
-      if (!all(df_wdataOut[k, "downscaling"] == "raw")) {
+      if (!all(df_wdataOut[["downscaling"]][k] == "raw")) {
         for (itt in which(assocYears[["historical"]]$first))
           scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
 
@@ -2067,10 +2055,10 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 
       # Put future data together
       scen.fut.monthly <- NULL
-      for (itt in which(assocYears[[df_wdataOut[k, "tag"]]]$first))
+      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$first))
         scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
 
-      for (itt in which(assocYears[[df_wdataOut[k, "tag"]]]$second))
+      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$second))
         scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
 
       if (print.debug) {
@@ -2089,10 +2077,10 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 
       #Apply downscaling
       if (print.debug)
-        print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], " downscaling with method ",
-          shQuote(df_wdataOut[k, "downscaling"])))
+        print(paste0(i, "-th extraction: ", df_wdataOut[["tag"]][k], " downscaling with method ",
+          shQuote(df_wdataOut[["downscaling"]][k])))
 
-      dm_fun <- switch(df_wdataOut[k, "downscaling"],
+      dm_fun <- switch(df_wdataOut[["downscaling"]][k],
         raw = downscale.raw,
         delta = downscale.delta,
         `hybrid-delta` = downscale.deltahybrid,
@@ -2101,7 +2089,7 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
         stop)
 
       # a list of additional parameters for downscaling
-      dm_add_params <- switch(df_wdataOut[k, "downscaling"], raw = NULL, delta = NULL,
+      dm_add_params <- switch(df_wdataOut[["downscaling"]][k], raw = NULL, delta = NULL,
         `hybrid-delta` = NULL,
         `hybrid-delta-3mod` = NULL,
         `wgen-package` = list(
@@ -2123,8 +2111,8 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
 
         if (!inherits(scen.fut.daily, "try-error")) {
           if (!do_checks)
-            print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], ": ",
-              shQuote(df_wdataOut[k, "downscaling"]), " quality checks turned off"))
+            print(paste0(i, "-th extraction: ", df_wdataOut[["tag"]][k], ": ",
+              shQuote(df_wdataOut[["downscaling"]][k]), " quality checks turned off"))
           break
         }
       }
@@ -2137,22 +2125,23 @@ calc.ScenarioWeather <- function(i, clim_source, is_netCDF, is_NEX,
         scen.fut.down_mean <- stats::aggregate(temp[, -(1:2)], list(temp[, "Month"]), mean)
 
         temp <- apply(scen.fut.down_mean[, -1] - obs.hist.monthly_mean[, -1], 2, mean)
-        print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], ": ",
-          shQuote(df_wdataOut[k, "downscaling"]), "'downscaled fut' - 'obs hist': ",
+        print(paste0(i, "-th extraction: ", df_wdataOut[["tag"]][k], ": ",
+          shQuote(df_wdataOut[["downscaling"]][k]), "'downscaled fut' - 'obs hist': ",
           paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
 
         if (exists("scen.hist.monthly_mean")) { # this doesn't exist, e.g., for 'raw' DSing
           temp <- apply(scen.fut.down_mean[, -1] - scen.hist.monthly_mean[, -1], 2, mean)
-          print(paste0(i, "-th extraction: ", df_wdataOut[k, "tag"], ": ",
-            shQuote(df_wdataOut[k, "downscaling"]), ": 'downscaled fut' - 'scen hist': ",
+          print(paste0(i, "-th extraction: ", df_wdataOut[["tag"]][k], ": ",
+            shQuote(df_wdataOut[["downscaling"]][k]), ": 'downscaled fut' - 'scen hist': ",
             paste(colnames(obs.hist.monthly[, -(1:2)]), "=", round(temp, 2), collapse = ", ")))
         }
       }
 
       years <- as.integer(names(scen.fut.daily))
-      df_wdataOut[k, c("StartYear", "EndYear")] <- c(years[1], years[length(years)])
-      df_wdataOut[k, "weatherData"] <- rSOILWAT2::dbW_weatherData_to_blob(scen.fut.daily,
-        compression_type)
+      df_wdataOut[["StartYear"]][k] <- years[1]
+      df_wdataOut[["EndYear"]][k] <- years[length(years)]
+      df_wdataOut[["weatherData"]][k] <- list(
+        rSOILWAT2::dbW_weatherData_to_blob(scen.fut.daily, compression_type))
     }
   }
 
@@ -2340,13 +2329,13 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
       df_wdataOut <- readRDS(file = ftemp)
 
       if (all(req_wdata_fields %in% names(df_wdataOut))) {
-        for (k in which(df_wdataOut[, "todo"])) if (!is.na(df_wdataOut[k, "weatherData"])) {
+        for (k in which(df_wdataOut[["todo"]])) if (!is.na(df_wdataOut[["weatherData"]][k])) {
           res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
-            Site_id = df_wdataOut[k, "Site_id_by_dbW"],
-            Scenario_id = df_wdataOut[k, "Scenario_id"],
-            StartYear = df_wdataOut[k, "StartYear"],
-            EndYear = df_wdataOut[k, "EndYear"],
-            weather_blob = df_wdataOut[k, "weatherData"]))
+            Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
+            Scenario_id = df_wdataOut[["Scenario_id"]][k],
+            StartYear = df_wdataOut[["StartYear"]][k],
+            EndYear = df_wdataOut[["EndYear"]][k],
+            weather_blob = df_wdataOut[["weatherData"]][k][[1]]))
           ok <- ok && !inherits(res, "try-error")
         }
 

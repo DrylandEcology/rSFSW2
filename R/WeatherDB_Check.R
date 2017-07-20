@@ -418,9 +418,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
     # Access data from database
     wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
-            startYear = startyear, endYear = endyear,
-            Scenario = scen),
-          silent = TRUE)
+      startYear = startyear, endYear = endyear, Scenario = scen), silent = TRUE)
 
     if (inherits(wtemp, "try-error")) {
       # Maybe the connection to the database failed? Re-set connection and attempt extraction once more
@@ -428,9 +426,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       rSOILWAT2::dbW_setConnection(dbFilePath = db_name, FALSE)
 
       wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
-              startYear = startyear, endYear = endyear,
-              Scenario = scen),
-            silent = TRUE)
+        startYear = startyear, endYear = endyear, Scenario = scen), silent = TRUE)
     }
 
     if (inherits(wtemp, "try-error")) {
