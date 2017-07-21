@@ -6,8 +6,7 @@ cache: packages
 warnings_are_errors: false # this is only needed for rSOILWAT2
 before_install:
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
-  - cd /tmp/rSOILWAT2
-  - ./tools/TarAndInstall_31n.sh
+  - R CMD INSTALL /tmp/rSOILWAT2
 
 after_success:
   - Rscript -e 'covr::codecov()'
