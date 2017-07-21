@@ -1,4 +1,5 @@
-# DO NOT CHANGE the "init" and "install" sections below
+environment:
+  _R_CHECK_FORCE_SUGGESTS_: false
 
 # Download script file from GitHub
 init:
@@ -10,6 +11,7 @@ init:
 
 install:
   - ps: Bootstrap
+  - travis-tool.sh install_r blob DBI RSQLite
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL C:/tmp/rSOILWAT2
 
