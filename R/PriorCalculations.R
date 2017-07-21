@@ -111,10 +111,10 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 }
 
 
-#' Calculate potential bare-soil evaporation coefficients per soil layer
+#' Calculate potential bare-soil evaporation coefficients
 #'
 #' Soil texture influence based on re-analysis of data from Wythers et al. 1999.
-#' Default of depth_max_bs_evap = 15 cm from Torres et al. 2010.
+#' Default of \code{depth_max_bs_evap} = 15 cm from Torres et al. 2010.
 #'
 #' @references Torres EA, Calera A (2010) Bare soil evaporation under high evaporation
 #'  demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-
@@ -123,23 +123,22 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 #' @references Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under
 #'  Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 #'
-#' @param layers_depth A numeric vector, matrix, or data.frame. If input is a vector,
-#'  then this is converted to a 1-row matrix; this is unless if \code{sand} and
-#'  \code{clay} are not vectors (i.e., suggesting more than 1 site), then input is
-#'  converted to a matrix assuming identical soil layer depths at each site.
-#'  Values describe the lower soil layer depth in centimeters.
-#' @param sand A numeric vector, matrix, or data.frame. Rows correspond to sites
-#'  and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
-#'  Values are the mass-percentage of sand content.
-#' @param clay A numeric vector, matrix, or data.frame. Rows correspond to sites
-#'  and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
-#'  Values are the mass-percentage of clay content.
+#' @param layers_depth A numeric vector, matrix, or data.frame. Values describe the lower
+#'  soil layer depths in units of centimeters.
+#' @param sand A numeric vector, matrix, or data.frame. Values are sand contents in units
+#'  of mass-percentage / 100.
+#' @param clay A numeric vector, matrix, or data.frame. Values are clay contents in units
+#'  of mass-percentage / 100.
 #' @param depth_max_bs_evap_cm A numeric value. The maximal soil depth in centimeters from
 #'  which bare-soil evaporation is potentially drawing moisture.
 #'
-#' @section Notes: Rows of soil inputs arguments \code{layers_depth}, \code{sand}, and
-#'  \code{clay} correspond to sites and columns to soil layers. Input arguments must have
-#'  the same number of sites and soil layers.
+#' @section Notes: Rows of soil input arguments \code{layers_depth}, \code{sand}, and
+#'  \code{clay} correspond to sites and columns to soil layers. If \code{sand} and/or
+#'  \code{clay} are vectors, then they are converted to 1-row matrices.
+#'  If \code{layers_depth} is a vector, then it is converted to a matrix with as many
+#'  sites/rows as \code{sand} and \code{clay} have. That is the code assumes identical
+#'  soil layer depths for each site. All soil input arguments must have a the same number
+#'  of sites and of soil layers, i.e., identical matrix dimensions.
 #'
 #' @return A numeric matrix with potential bare-soil evaporation coefficients where rows
 #'  correspond to sites and columns to soil layers.
