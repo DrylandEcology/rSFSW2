@@ -1,7 +1,6 @@
 context("dbOutput: action: check")
 
 #--- Inputs
-library("RSQLite")
 test_table <- "test"
 
 init_testDB <- function(test_table. = test_table) {

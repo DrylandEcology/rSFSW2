@@ -486,7 +486,7 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 #'   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,
 #'   61-68 (http://dx.doi.org/10.1016/j.geoderma.2016.01.034).
 #' @references Batjes N.H. 2015. World soil property estimates for broad-scale modelling
-#'   (WISE30sec, ver. 1.0). Report 2015/01, ISRIC—World Soil Information, Wageningen
+#'   (WISE30sec, ver. 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
 #'   [available at ISRIC Soil Data Hub](http://geonode.isric.org/search/?title__icontains=World%20soil%20property%20estimates%20for%20broad-scale%20modelling%20(WISE30sec)&limit=100&offset=0),
 #'   with addendum and corrigendum.
 #'
@@ -625,7 +625,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise,
           att = rat_att)
       }
-      
+
       sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
     }
 
