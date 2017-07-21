@@ -1,4 +1,5 @@
 environment:
+  USE_RTOOLS: true
   _R_CHECK_FORCE_SUGGESTS_: false
 
 # Download script file from GitHub
@@ -16,9 +17,6 @@ install:
   - R CMD INSTALL C:/tmp/rSOILWAT2
 
 # Adapt as necessary starting from here
-environment:
-  USE_RTOOLS: true
-
 cache:
   - C:\RLibrary
 

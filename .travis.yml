@@ -5,7 +5,8 @@ env:
   - _R_CHECK_FORCE_SUGGESTS_=false
 sudo: false
 cache: packages
-warnings_are_errors: false # this is only needed because of rSOILWAT2
+warnings_are_errors: false # turn this back on for more severe testing
+r_packages: blob DBI RSQLite
 before_install:
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL /tmp/rSOILWAT2
