@@ -1,6 +1,12 @@
 context("lints")
-# skip_on_cran()
 
-if (requireNamespace("lintr", quietly = TRUE)) {
-  test_that("Package Style", lintr::expect_lint_free())
-}
+test_that("Package Style", {
+  skip("rSFSW2 is not ready for 'lint' testing...")
+  skip_on_cran()
+  skip_on_travis()
+  skip_on_appveyor()
+  skip_if_not_installed("lintr")
+
+  lintr::expect_lint_free()
+})
+
