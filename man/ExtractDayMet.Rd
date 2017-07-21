@@ -10,7 +10,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(dir_data, site_ids,
   coords_WGS84, start_year, end_year, dbW_digits)
 
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(dir_data, site_ids,
-  coords_WGS84, start_year, end_year, dir_temp = tempdir(),
+  site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
   dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
 }
 \value{

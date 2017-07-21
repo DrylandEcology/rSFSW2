@@ -111,7 +111,7 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 }
 
 
-#' Calculate potential bare soil evaporation coefficients per soil layer
+#' Calculate potential bare-soil evaporation coefficients per soil layer
 #'
 #' Soil texture influence based on re-analysis of data from Wythers et al. 1999.
 #' Default of depth_max_bs_evap = 15 cm from Torres et al. 2010.
@@ -123,12 +123,63 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 #' @references Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under
 #'  Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
 #'
+#' @param layers_depth A numeric vector, matrix, or data.frame. If input is a vector,
+#'  then this is converted to a 1-row matrix; this is unless if \code{sand} and
+#'  \code{clay} are not vectors (i.e., suggesting more than 1 site), then input is
+#'  converted to a matrix assuming identical soil layer depths at each site.
+#'  Values describe the lower soil layer depth in centimeters.
+#' @param sand A numeric vector, matrix, or data.frame. Rows correspond to sites
+#'  and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
+#'  Values are the mass-percentage of sand content.
+#' @param clay A numeric vector, matrix, or data.frame. Rows correspond to sites
+#'  and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
+#'  Values are the mass-percentage of clay content.
+#' @param depth_max_bs_evap_cm A numeric value. The maximal soil depth in centimeters from
+#'  which bare-soil evaporation is potentially drawing moisture.
+#'
+#' @section Notes: Rows of soil inputs arguments \code{layers_depth}, \code{sand}, and
+#'  \code{clay} correspond to sites and columns to soil layers. Input arguments must have
+#'  the same number of sites and soil layers.
+#'
+#' @return A numeric matrix with potential bare-soil evaporation coefficients where rows
+#'  correspond to sites and columns to soil layers.
+#'
 #' @export
 calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sand, clay,
-  depth_max_bs_evap_cm) {
+  depth_max_bs_evap_cm = 15) {
 
-  depth_min_bs_evap <- min(layers_depth[, 1])
-  stopifnot(stats::na.exclude(depth_min_bs_evap < depth_max_bs_evap_cm))
+  # sand and clay must have identical number of sites and layers
+  stopifnot(dim(sand) == dim(clay))
+
+  # sand and clay must have values between 0 and 1
+  stopifnot(is.numeric(sand), sand >= 0, sand <= 1)
+  stopifnot(is.numeric(clay), clay >= 0, clay <= 1)
+  stopifnot(sand + clay <= 1)
+
+  # soil layer depths must be finite and positive
+  stopifnot(is.finite(layers_depth), layers_depth > 0)
+
+  # If inputs are not site x layers tables, then convert them into 1 site x layers table
+  if (is.null(dim(sand))) {
+    sand <- matrix(sand, nrow = 1, ncol = length(sand))
+  }
+  if (is.null(dim(clay))) {
+    clay <- matrix(clay, nrow = 1, ncol = length(clay))
+  }
+  if (is.null(dim(layers_depth))) {
+    layers_depth <- matrix(layers_depth, nrow = dim(sand)[1], ncol = length(layers_depth),
+      byrow = TRUE)
+  }
+  # all soil inputs must have identical number of sites and layers
+  stopifnot(dim(sand) == dim(layers_depth))
+
+  depth_min_bs_evap <- min(layers_depth[, 1], na.rm = TRUE)
+  if (depth_min_bs_evap > depth_max_bs_evap_cm) {
+    # all sites have first layer with coeff = 1
+    res <- array(1, dim = dim(sand))
+    res[, -1] <- 0
+    return(res)
+  }
 
   lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
     xdm <- depth_max_bs_evap_cm - x

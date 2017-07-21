@@ -2,15 +2,43 @@
 % Please edit documentation in R/PriorCalculations.R
 \name{calc_BareSoilEvaporationCoefficientsFromSoilTexture}
 \alias{calc_BareSoilEvaporationCoefficientsFromSoilTexture}
-\title{Calculate potential bare soil evaporation coefficients per soil layer}
+\title{Calculate potential bare-soil evaporation coefficients per soil layer}
 \usage{
 calc_BareSoilEvaporationCoefficientsFromSoilTexture(layers_depth, sand, clay,
-  depth_max_bs_evap_cm)
+  depth_max_bs_evap_cm = 15)
+}
+\arguments{
+\item{layers_depth}{A numeric vector, matrix, or data.frame. If input is a vector,
+then this is converted to a 1-row matrix; this is unless if \code{sand} and
+\code{clay} are not vectors (i.e., suggesting more than 1 site), then input is
+converted to a matrix assuming identical soil layer depths at each site.
+Values describe the lower soil layer depth in centimeters.}
+
+\item{sand}{A numeric vector, matrix, or data.frame. Rows correspond to sites
+and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
+Values are the mass-percentage of sand content.}
+
+\item{clay}{A numeric vector, matrix, or data.frame. Rows correspond to sites
+and columns to layers. If input is a vector, then this is converted to a 1-row matrix.
+Values are the mass-percentage of clay content.}
+
+\item{depth_max_bs_evap_cm}{A numeric value. The maximal soil depth in centimeters from
+which bare-soil evaporation is potentially drawing moisture.}
+}
+\value{
+A numeric matrix with potential bare-soil evaporation coefficients where rows
+ correspond to sites and columns to soil layers.
 }
 \description{
 Soil texture influence based on re-analysis of data from Wythers et al. 1999.
 Default of depth_max_bs_evap = 15 cm from Torres et al. 2010.
 }
+\section{Notes}{
+ Rows of soil inputs arguments \code{layers_depth}, \code{sand}, and
+ \code{clay} correspond to sites and columns to soil layers. Input arguments must have
+ the same number of sites and soil layers.
+}
+
 \references{
 Torres EA, Calera A (2010) Bare soil evaporation under high evaporation
  demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-

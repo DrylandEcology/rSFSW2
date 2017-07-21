@@ -5,7 +5,7 @@
 \title{Extract gridded daily weather from NR Canada for Canadian sites}
 \usage{
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada(dir_data, site_ids,
-  coords_WGS84, start_year, end_year, dir_temp = tempdir(),
+  site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
   dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
 }
 \value{
