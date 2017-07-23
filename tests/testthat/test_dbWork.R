@@ -4,12 +4,17 @@ context("dbWork: runIDs organization")
 #  - travis  on July 21, 2017: "Error in .check_ncores(length(names)) : 10 simultaneous
 #    processes spawned"
 
-temp <- list(
-  #s1 = try(skip_on_cran(), silent = TRUE),
-  s1 = try(stopifnot(!identical(Sys.getenv("NOT_CRAN"), "false")), silent = TRUE),
-  s2 = try(skip_on_travis(), silent = TRUE),
-  s3 = try(skip_on_appveyor(), silent = TRUE))
-do_skip <- sapply(temp, inherits, what = "try-error")
+# skip_on_travis() and skip_on_appveyor() are meant to be used within test_that() calls.
+# Here, we need to skip preparation code outside of a test_that call. However, the skip_*
+# functions cause CIs to error out, even when wrapped in try() statements, with
+#   - "Error: On Appveyor", respectively
+#   - "Error: On Travis"
+# Check values of the ENV variables directly as a work-around:
+
+do_skip <- c(
+  identical(tolower(Sys.getenv("NOT_CRAN")), "true"), # skip_on_cran()
+  identical(tolower(Sys.getenv("TRAVIS")), "true"),   # skip_on_travis()
+  identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
 
 if (!any(do_skip)) {
 
