@@ -6,8 +6,7 @@ env:
 sudo: false
 cache:
   - packages
-warnings_are_errors:
-  - false # turn this back on for more severe testing
+warnings_are_errors: false # turn this back on for more severe testing
 
 before_install:
   # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install' and
