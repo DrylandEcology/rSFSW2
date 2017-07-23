@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // germination_wait_times
 IntegerVector germination_wait_times(const IntegerVector& time_to_germinate, const IntegerVector& duration_fave_cond);
-RcppExport SEXP rSFSW2_germination_wait_times(SEXP time_to_germinateSEXP, SEXP duration_fave_condSEXP) {
+RcppExport SEXP _rSFSW2_germination_wait_times(SEXP time_to_germinateSEXP, SEXP duration_fave_condSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -19,7 +19,7 @@ END_RCPP
 }
 // get_KilledBySoilLayers
 LogicalVector get_KilledBySoilLayers(const IntegerVector& relevantLayers, const LogicalMatrix& kill_conditions);
-RcppExport SEXP rSFSW2_get_KilledBySoilLayers(SEXP relevantLayersSEXP, SEXP kill_conditionsSEXP) {
+RcppExport SEXP _rSFSW2_get_KilledBySoilLayers(SEXP relevantLayersSEXP, SEXP kill_conditionsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -31,7 +31,7 @@ END_RCPP
 }
 // setFALSE_SeedlingSurvival_1stSeason
 LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s, const IntegerVector& ry_year_day, const IntegerVector& ry_useyrs, int y, int doy);
-RcppExport SEXP rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
+RcppExport SEXP _rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -43,4 +43,25 @@ BEGIN_RCPP
     rcpp_result_gen = Rcpp::wrap(setFALSE_SeedlingSurvival_1stSeason(ss1s, ry_year_day, ry_useyrs, y, doy));
     return rcpp_result_gen;
 END_RCPP
+}
+
+RcppExport void C_dailyWeather2_R(void *, void *, void *, void *, void *, void *);
+RcppExport void C_dailyWeather2Write_R(void *, void *, void *, void *);
+RcppExport void C_monthlyClimate2_R(void *, void *, void *, void *, void *, void *, void *);
+RcppExport void C_writeMonthlyClimate2_R(void *);
+
+static const R_CallMethodDef CallEntries[] = {
+    {"_rSFSW2_germination_wait_times", (DL_FUNC) &_rSFSW2_germination_wait_times, 2},
+    {"_rSFSW2_get_KilledBySoilLayers", (DL_FUNC) &_rSFSW2_get_KilledBySoilLayers, 2},
+    {"_rSFSW2_setFALSE_SeedlingSurvival_1stSeason", (DL_FUNC) &_rSFSW2_setFALSE_SeedlingSurvival_1stSeason, 5},
+    {"C_dailyWeather2_R",        (DL_FUNC) &C_dailyWeather2_R,        6},
+    {"C_dailyWeather2Write_R",   (DL_FUNC) &C_dailyWeather2Write_R,   4},
+    {"C_monthlyClimate2_R",      (DL_FUNC) &C_monthlyClimate2_R,      7},
+    {"C_writeMonthlyClimate2_R", (DL_FUNC) &C_writeMonthlyClimate2_R, 1},
+    {NULL, NULL, 0}
+};
+
+RcppExport void R_init_rSFSW2(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
 }

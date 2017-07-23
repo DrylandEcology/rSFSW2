@@ -38,7 +38,7 @@
 #'    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #'    GNU General Public License for more details.
 #'
-#' @useDynLib rSFSW2, .registration = TRUE, .fixes = "C_"
+#' @useDynLib rSFSW2, .registration = TRUE
 #' @docType package
 #' @name rSFSW2
 "_PACKAGE"

@@ -14,7 +14,7 @@ Imports:
     rSOILWAT2 (>= 1.3.4),
     RSQLite (>= 1.1),
     DBI (>= 0.5),
-    Rcpp (>= 0.12.7),
+    Rcpp (>= 0.12.12),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
     methods

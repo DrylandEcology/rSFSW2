@@ -46,8 +46,8 @@
     not set up to handle that.
 
   USAGE in R package 'rSFSW2': commented with '// Used in R package rSFSW2'
-    - externalized functions: dailyWeather2_R, dailyWeather2Write_R, monthlyClimate2_R,
-      writeMonthlyClimate2_R
+    - externalized functions: C_dailyWeather2_R, C_dailyWeather2Write_R, C_monthlyClimate2_R,
+      C_writeMonthlyClimate2_R
 *****************************************************************************************/
 
 #define RSFSW2_NCEPCFSR 1
@@ -614,7 +614,7 @@ void dailyWeather2(int nSites, double latitudes[], double longitudes[], int year
 }
 
 // Used in R package rSFSW2
-void dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int* year, int* month, int* type) {
+void C_dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int* year, int* month, int* type) {
 	dailyWeather2(*nSites, latitudes, longitudes, *year, *month, *type);
 }
 
@@ -678,7 +678,7 @@ void dailyWeather2Write(int nSites, char* siteNames[], char* siteDirs[], int yea
 }
 
 // Used in R package rSFSW2
-void dailyWeather2Write_R(int* nSites, char* siteNames[], char* siteDirs[], int* year) {
+void C_dailyWeather2Write_R(int* nSites, char* siteNames[], char* siteDirs[], int* year) {
 	dailyWeather2Write(*nSites, siteNames, siteDirs, *year);
 }
 
@@ -764,7 +764,7 @@ void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* 
 }
 
 // Used in R package rSFSW2
-void monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[], char* siteDirs[], int* yearLow, int* yearHigh, int* type) {
+void C_monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[], char* siteDirs[], int* yearLow, int* yearHigh, int* type) {
 	monthlyClimate2(*nSites, latitudes, longitudes, siteDirs, *yearLow, *yearHigh, *type);
 }
 
@@ -871,6 +871,6 @@ void writeMonthlyClimate2(char* siteDir) {
 }
 
 // Used in R package rSFSW2
-void writeMonthlyClimate2_R(char **siteDir) {
+void C_writeMonthlyClimate2_R(char **siteDir) {
 	writeMonthlyClimate2(*siteDir);
 }
