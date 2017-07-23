@@ -2938,9 +2938,10 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
     SFSW2_prj_meta[["sim_scens"]][["sources"]])
 
   if (resume) {
-    todos <- dbW_has_missingClimScens(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      SFSW2_prj_inputs, req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity,
-      opt_chunks)
+    todos <- dbW_has_missingClimScens(
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], SFSW2_prj_inputs,
+      runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+      req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity, opt_chunks)
 
   } else {
     todos <- SFSW2_prj_inputs[["include_YN"]] &

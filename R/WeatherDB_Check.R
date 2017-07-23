@@ -63,7 +63,7 @@ dbW_missingAmbient_siteIDs <- function(req_sites, fdbWeather, dbW_iSiteTable = N
 #'  all data are in the weather database, then \code{FALSE}.
 #'
 #' @export
-dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
+dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, runIDs_sites, req_scenN,
   opt_verbosity, opt_chunks) {
   # Init: set every included site as having missing climate scenario data. If a site_id
   #   is found to have all climate scenario data, then set its todo element to FALSE
@@ -71,7 +71,7 @@ dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
 
   # Determine 'site_id's for which the dbWeather should contain daily weather data for
   # every climate scenario
-  req_siteIDs <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] # equal to SFSW2_prj_inputs[["SWRunInformation"]][todos, "site_id"]
+  req_siteIDs <- runIDs_sites # runIDs_sites equal to SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] and equal to SFSW2_prj_inputs[["SWRunInformation"]][todos, "site_id"]
 
   # Check presence of records with climate scenario data in dbWeather
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fdbWeather, flags = RSQLite::SQLITE_RO)
