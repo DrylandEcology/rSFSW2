@@ -80,17 +80,10 @@ test_data <- list(
 )
 
 
-# rSFSW2 version of function 'germination_wait_times()' uses argument "PACKAGE = 'rSFSW2'"
-# in .Call; however, this is not available when run with R CMD check
-germination_wait_times2 <- function(time_to_germinate, duration_fave_cond) {
-    .Call(C_rSFSW2_germination_wait_times, time_to_germinate, duration_fave_cond)
-}
-
-
 test_that("germination_wait_times", {
 
   for (k in seq_along(test_data))
-    with(test_data[[k]], expect_equal(as.integer(germination_wait_times2(ttg, dfc)), ref,
+    with(test_data[[k]], expect_equal(as.integer(germination_wait_times(ttg, dfc)), ref,
       info = paste("Test dataset =", shQuote(names(test_data)[k]))))
 
   if (FALSE) {
@@ -99,7 +92,7 @@ test_that("germination_wait_times", {
       print(paste("ttg =", paste(test_data[[k]][["ttg"]], collapse = ", ")))
       print(paste("dfc =", paste(test_data[[k]][["dfc"]], collapse = ", ")))
       print(paste("ref =", paste(test_data[[k]][["ref"]], collapse = ", ")))
-      out <- as.integer(germination_wait_times2(test_data[[k]][["ttg"]], test_data[[k]][["dfc"]]))
+      out <- as.integer(germination_wait_times(test_data[[k]][["ttg"]], test_data[[k]][["dfc"]]))
       print(paste("out =", paste(out, collapse = ", ")))
       print("")
     }
@@ -107,10 +100,10 @@ test_that("germination_wait_times", {
 
   #--- Errors
   # time_to_germinate is not NA, but duration_fave_cond is NA
-  expect_error(germination_wait_times2(1, NA))
+  expect_error(germination_wait_times(1, NA))
   # germination takes longer than available favorable condition
-  expect_error(germination_wait_times2(2, 1))
-  expect_error(germination_wait_times2(c(3, NA, 1), c(2, NA, 1)))
+  expect_error(germination_wait_times(2, 1))
+  expect_error(germination_wait_times(c(3, NA, 1), c(2, NA, 1)))
   # arguments not of identical length
-  expect_error(germination_wait_times2(rep(1, 10), 8:1))
+  expect_error(germination_wait_times(rep(1, 10), 8:1))
 })

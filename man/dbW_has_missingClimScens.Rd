@@ -5,8 +5,8 @@
 \title{Determine which site_ids in the weather database do not have weather data for every
 requested climate scenario}
 \usage{
-dbW_has_missingClimScens(fdbWeather, SFSW2_prj_inputs, req_scenN, opt_verbosity,
-  opt_chunks)
+dbW_has_missingClimScens(fdbWeather, SFSW2_prj_inputs, runIDs_sites, req_scenN,
+  opt_verbosity, opt_chunks)
 }
 \value{
 A logical vector of length \code{SFSW2_prj_meta[["sim_size"]][["runsN_master"]]}.

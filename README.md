@@ -61,12 +61,19 @@ system2(command = "git", args = "clone -b master --single-branch https://github.
 tools::Rcmd(args = paste("INSTALL rSFSW2"))
 ```
 
+### Binary package version
 If you want a binary version of the 'rSFSW2' package (e.g., to distribute to someone
 without development tools) for a platform to which you do not have access, then you may
 consider using one of the cloud services (no endorsements):
 - https://builder.r-hub.io offers different Linux, Windows, and mac OS flavors as targets
 - http://win-builder.r-project.org/ offers Windows OS as target
 
+Alternatively, you may access the previous binary package version for Windows OS from our
+CI appveyor service if the build was successful and an artifact was generated for the
+binary package (this would be named 'rSWSF2_X.Y.Z.zip' with version number X.Y.Z) at
+- https://ci.appveyor.com/project/dschlaep/soilwat-r-wrapper/build/artifacts
+If the latest build should have failed, then you may want to check out the 'History' tab
+for binaries of older versions.
 
 # Use rSFSW2 for your simulation project
 
