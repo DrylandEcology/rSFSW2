@@ -1,6 +1,7 @@
 context("Soil functions")
 
 #--- INPUTS
+print_debug <- FALSE
 vars <- c("ld", "sp", "cp", "md")
 get_siteN <- function(x) if (is.null(dim(x))) 1L else dim(x)[1]
 get_layerN <- function(x) if (is.null(dim(x))) length(x) else dim(x)[2]
@@ -42,29 +43,34 @@ clay <- list(
   matrix(0.2, nrow = sites_Nmax, ncol = lyrs_Nmax))
 
 #--- TESTS
+k <- 1
 test_that("Bare-soil evaporation coefficients", {
   for (k1 in seq_along(layers_depth)) {
     for (k2 in seq_along(sand)) {
       for (k3 in seq_along(depth_max_bs_evap_cm)) {
         ld <- layers_depth[[k1]]
-        sp <- sand[[k2]][seq_len(lyrs_N[k1])]
-        cp <- clay[[k2]][seq_len(lyrs_N[k1])]
+        sp <- sand[[k2]][min(get_siteN(sand[[k2]]), seq_len(lyrs_N[k1]))]
+        cp <- clay[[k2]][min(get_siteN(clay[[k2]]), seq_len(lyrs_N[k1]))]
         md <- depth_max_bs_evap_cm[k3]
         Ns <- get_siteN(sp)
         Nl <- get_layerN(sp)
 
-        info <- paste(lapply(vars, function(x) {
+        info <- paste0("Test #", k, ": ", k1, k2, k3, ": input = ",
+          paste(lapply(vars, function(x) {
             temp <- get(x)
             paste(x, "=", paste(temp, collapse = "-"))
-          }), collapse = " / ")
+          }), collapse = " / "))
 
         if (anyNA(ld) || anyNA(sp) || anyNA(cp) || anyNA(md) ||
-            Nl != length(ld) || Ns != get_siteN(cp) || Nl != get_layerN(cp) ||
-            any(ld <= 0) || any(sp < 0) || any(cp < 0) || any(sp > 1) || any(cp > 1) ||
-            any(sp + cp > 1)) {
+            Nl < length(ld) || Ns != get_siteN(cp) || Nl != get_layerN(cp) ||
+            any(md < 0) || any(ld <= 0) || any(sp < 0) || any(cp < 0) || any(sp > 1) || 
+            any(cp > 1) || any(sp + cp > 1)) {
+
+          if (print_debug) {
+            print(paste0(k1, k2, k3, ": ", info, ": expect error"))
+          }
           expect_error(calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md),
             info = info)
-
         } else {
           bsevap_coeff <- calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md)
 
@@ -87,8 +93,13 @@ test_that("Bare-soil evaporation coefficients", {
           expect_equal(apply(bsevap_coeff, 1, function(x) sum(x > 0)) <= rep(lmax, Ns),
             rep(TRUE, Ns), info = info)
 
-          #print(paste0(k1, k2, k3, ": ", info, ": bsevap = ", paste(bsevap_coeff, collapse = ":")))
+          if (print_debug) {
+            print(paste0(k1, k2, k3, ": ", info, ": bsevap = ", paste(bsevap_coeff, 
+              collapse = ":")))
+          }
         }
+        
+        k <- k + 1
       }
     }
   }

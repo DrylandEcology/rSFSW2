@@ -147,18 +147,7 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sand, clay,
   depth_max_bs_evap_cm = 15) {
 
-  # sand and clay must have identical number of sites and layers
-  stopifnot(dim(sand) == dim(clay))
-
-  # sand and clay must have values between 0 and 1
-  stopifnot(is.numeric(sand), sand >= 0, sand <= 1)
-  stopifnot(is.numeric(clay), clay >= 0, clay <= 1)
-  stopifnot(sand + clay <= 1)
-
-  # soil layer depths must be finite and positive
-  stopifnot(is.finite(layers_depth), layers_depth > 0)
-
-  # If inputs are not site x layers tables, then convert them into 1 site x layers table
+  #--- If inputs are not site x layers, then convert them into 1 site x layers table
   if (is.null(dim(sand))) {
     sand <- matrix(sand, nrow = 1, ncol = length(sand))
   }
@@ -169,8 +158,26 @@ calc_BareSoilEvaporationCoefficientsFromSoilTexture <- function(layers_depth, sa
     layers_depth <- matrix(layers_depth, nrow = dim(sand)[1], ncol = length(layers_depth),
       byrow = TRUE)
   }
-  # all soil inputs must have identical number of sites and layers
-  stopifnot(dim(sand) == dim(layers_depth))
+
+  #--- Test inputs
+  # - sand and clay have identical number of sites and layers
+  # - all soil inputs have identical number of sites and at least as many layers as depths
+  # - soil layer depths are numeric and positive -- or NA, if all deeper layers are NA
+  # - sand and clay are numeric and values between 0 and 1 -- or NA, if all deeper
+  #   layers are NA as well
+  # - the sum of sand and clay is less or equal to 1
+  sand_and_clay <- sand + clay
+  stopifnot(
+    identical(dim(sand), dim(clay)),
+    identical(dim(sand)[1], dim(layers_depth)[1]), dim(sand)[2] >= dim(layers_depth)[2],
+    is.numeric(layers_depth), layers_depth > 0 | has_NAs_pooled_at_depth(layers_depth),
+    is.numeric(unlist(sand)), sand >= 0 & sand <= 1 | has_NAs_pooled_at_depth(sand),
+    is.numeric(unlist(clay)), clay >= 0 & clay <= 1 | has_NAs_pooled_at_depth(clay),
+    sand_and_clay <= 1 | has_NAs_pooled_at_depth(sand_and_clay),
+    is.finite(depth_max_bs_evap_cm) & depth_max_bs_evap_cm >= 0)
+
+
+  #--- Calculate
 
   depth_min_bs_evap <- min(layers_depth[, 1], na.rm = TRUE)
   if (depth_min_bs_evap > depth_max_bs_evap_cm) {
