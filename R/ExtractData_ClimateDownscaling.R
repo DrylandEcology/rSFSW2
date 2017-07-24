@@ -1653,29 +1653,39 @@ read_time_netCDF <- function(filename) {
 
   } else if (cdays > 0) {
     # all years are of a constant fixed duration
+    tbase_utc <- as.POSIXlt(tbase, tz = "UTC")
     temp <- tvals[c(1, N)] / tunit
     to_add_years <- temp %/% cdays
-    to_add_days <- temp %% cdays
+    to_add_days <- temp %% cdays # base0
+
+    # Convert to base1
+    iday_less_base <- to_add_days == 0
+    if (any(iday_less_base)) {
+      to_add_years[iday_less_base] <- to_add_years[iday_less_base] - 1L
+      to_add_days[iday_less_base] <- cdays - 1L
+    }
 
     if (cdays > 360) {
-      temp <- as.POSIXlt(tbase, tz = "UTC")
-      temp_start <- strptime(paste(temp$year + 1900 + to_add_years[1],
+      # calendar is one of 'noleap', '365_day', 'all_leap', and '366_day'
+
+      # format '%j' is base1: Day of year as decimal number (001–366)
+      temp_start <- strptime(paste(tbase_utc$year + 1900 + to_add_years[1],
         to_add_days[1], sep = "-"), format = "%Y-%j", tz = "UTC")
-      temp_end <- strptime(paste(temp$year + 1900 + to_add_years[2],
+      temp_end <- strptime(paste(tbase_utc$year + 1900 + to_add_years[2],
         to_add_days[2], sep = "-"), format = "%Y-%j", tz = "UTC")
 
       time_start <- c(year = temp_start$year + 1900, month = temp_start$mon + 1)
       time_end <- c(year = temp_end$year + 1900, month = temp_end$mon + 1)
 
     } else if (cdays == 360) {
-      # all years are 360 days divided into 30 day months
+      # all years are 360 days divided into 30-day months
       to_add_months <- floor(to_add_days / 30)
 
-      temp <- as.POSIXlt(tbase, tz = "UTC")
-      time_start <- c(year = temp$year + 1900 + to_add_years[1],
-        month = temp$mon + 1 + to_add_months[1])
-      time_end <- c(year = temp$year + 1900 + to_add_years[2],
-        month = temp$mon + 1 + to_add_months[2])
+      # POSIXlt element 'mon' is base0: 0–11: months after the first of the year.
+      time_start <- c(year = tbase_utc$year + 1900 + to_add_years[1],
+        month = tbase_utc$mon + 1 + to_add_months[1])
+      time_end <- c(year = tbase_utc$year + 1900 + to_add_years[2],
+        month = tbase_utc$mon + 1 + to_add_months[2])
     }
 
   } else stop("calendar of netCDF not recognized")
