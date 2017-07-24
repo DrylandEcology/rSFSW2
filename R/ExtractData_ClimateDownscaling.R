@@ -1575,8 +1575,12 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
 
   #Get latitudes/longitudes from the netCDF files...; they are the same for each CMIP x extent
   #  - these are used to get the correct indices in the whereNearest function
-  lats <- nc$dim$lat$vals
-  lons <- nc$dim$lon$vals
+  dim_lat <- grep("(\\lat\\b)|(\\blatitude\\b)", names(nc$dim), value = TRUE, ignore.case = TRUE)
+  dim_lon <- grep("(\\lon\\b)|(\\blongitude\\b)", names(nc$dim), value = TRUE, ignore.case = TRUE)
+  stopifnot(length(dim_lat) > 0, length(dim_lon) > 0)
+
+  lats <- nc$dim[[dim_lat]]$vals
+  lons <- nc$dim[[dim_lon]]$vals
   #close the netCDF file
   ncdf4::nc_close(nc)
 
@@ -1588,6 +1592,23 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
 
   ncg
 }
+
+
+get_time_unit <- function(tunit) {
+  # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#time-coordinate
+  if (grepl("(day)|(d)", tunit, ignore.case = TRUE)) {
+    1
+  } else if (grepl("(hour)|(h)", tunit, ignore.case = TRUE)) {
+    24
+  } else if (grepl("(minute)|(min)", tunit, ignore.case = TRUE)) {
+    1440
+  } else if (grepl("(second)|(sec)", tunit, ignore.case = TRUE) || "s" == tunit) {
+    86400
+  } else {
+    stop("time unit of netCDF not recognized")
+  }
+}
+
 
 #' Read and interpret time dimension of a netCDF file with CF 1 or larger
 #'
@@ -1614,85 +1635,95 @@ read_time_netCDF <- function(filename) {
   nc <- ncdf4::nc_open(filename = filename, write = FALSE, readunlim = TRUE, verbose = FALSE)
   ncdf4::nc_close(nc)
 
-  utemp <- nc$dim$time$units
-  tvals <- nc$dim$time$vals
-  calendar <- nc$dim$time$calendar
+  dim_time <- grep("(\\btime\\b)|(\\bt\\b)", names(nc$dim), value = TRUE, ignore.case = TRUE)
+  stopifnot(length(dim_time) > 0)
+  utemp <- nc$dim[[dim_time]]$units
+  tvals <- nc$dim[[dim_time]]$vals
+  calendar <- nc$dim[[dim_time]]$calendar
 
   N <- length(tvals)
-  # time_start of time axis
   utemp <- strsplit(utemp, split = " ", fixed = TRUE)[[1]]
-  temp <- lapply(utemp, function(x) as.Date(x, format = "%Y-%m-%d"))
-  tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]] # class 'Date' = # of days since Jan 1, 1970 in Gregorian calendar
-  stopifnot(length(tbase) == 1)
+  tunit <- get_time_unit(utemp[1])
+  temp12 <- rep(NA, 2)
 
-  tunit <- utemp[1]
-  # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#time-coordinate
-  tunit <- if (grepl("(day)|(d)", tunit, ignore.case = TRUE)) {
-      1
-    } else if (grepl("(hour)|(h)", tunit, ignore.case = TRUE)) {
-      24
-    } else if (grepl("(minute)|(min)", tunit, ignore.case = TRUE)) {
-      1440
-    } else if (grepl("(second)|(sec)", tunit, ignore.case = TRUE) || "s" == tunit) {
-      86400
-    } else stop("time unit of netCDF not recognized")
+  if ("as" %in% utemp) {
+    # for instance: "day as %Y%m%d.%f" used by 'pr_Amon_EC-EARTH-DMI_1pctCO2_r1i1p1_185001-198912.nc'
+    iformat <- utemp[grep("%Y", utemp)[1]]
 
-  # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
-  cdays <- switch(calendar,
-    noleap = 365, `365_day` = 365, `all_leap` = 366, `366_day` = 366, `360_day` = 360,
-    -1)
-
-  if (calendar == "proleptic_gregorian" || calendar == "gregorian" ||
-      calendar == "standard" || is.null(calendar)) {
-
-    temp <- as.POSIXlt(tbase + tvals[1] / tunit, tz = "UTC")
-    time_start <- c(year = temp$year + 1900, month = temp$mon + 1)
-
-    temp <- as.POSIXlt(tbase + tvals[N] / tunit, tz = "UTC")
-    time_end <- c(year = temp$year + 1900, month = temp$mon + 1)
-
-  } else if (cdays > 0) {
-    # all years are of a constant fixed duration
-    tbase_utc <- as.POSIXlt(tbase, tz = "UTC")
-    temp <- tvals[c(1, N)] / tunit
-    to_add_years <- temp %/% cdays
-    to_add_days <- temp %% cdays # base0
-
-    # Convert to base1
-    iday_less_base <- to_add_days == 0
-    if (any(iday_less_base)) {
-      to_add_years[iday_less_base] <- to_add_years[iday_less_base] - 1L
-      to_add_days[iday_less_base] <- cdays - 1L
+    if (is.na(as.Date(as.character(tvals[1]), format = iformat))) {
+      iformat <- sub(".%f", "", iformat)
     }
+    
+    temp12 <- lapply(tvals[c(1, N)], function(x) 
+      strptime(as.character(x), format = iformat, tz = "UTC"))
+    tbase <- temp12[[1]]
 
-    if (cdays > 360) {
-      # calendar is one of 'noleap', '365_day', 'all_leap', and '366_day'
+  } else if ("since" %in% utemp) {
+    # for instance: "days since 1765-12-01 00:00:00" used by 'pr_Amon_HadCM3_1pctCO2_r1i1p1_000101-010012.nc'
+    temp <- lapply(utemp, function(x) as.Date(x, format = "%Y-%m-%d"))
+    tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]]
+    stopifnot(length(tbase) == 1)
 
-      # format '%j' is base1: Day of year as decimal number (001–366)
-      temp_start <- strptime(paste(tbase_utc$year + 1900 + to_add_years[1],
-        to_add_days[1], sep = "-"), format = "%Y-%j", tz = "UTC")
-      temp_end <- strptime(paste(tbase_utc$year + 1900 + to_add_years[2],
-        to_add_days[2], sep = "-"), format = "%Y-%j", tz = "UTC")
+    # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
+    cdays <- switch(calendar,
+      noleap = 365, `365_day` = 365, `all_leap` = 366, `366_day` = 366, `360_day` = 360,
+      -1)
 
-      time_start <- c(year = temp_start$year + 1900, month = temp_start$mon + 1)
-      time_end <- c(year = temp_end$year + 1900, month = temp_end$mon + 1)
+    if (calendar == "proleptic_gregorian" || calendar == "gregorian" ||
+        calendar == "standard" || is.null(calendar)) {
 
-    } else if (cdays == 360) {
-      # all years are 360 days divided into 30-day months
-      to_add_months <- floor(to_add_days / 30)
+      temp12 <- lapply(tvals[c(1, N)], function(x)
+        as.POSIXlt(tbase + x / tunit, tz = "UTC"))
 
-      # POSIXlt element 'mon' is base0: 0–11: months after the first of the year.
-      time_start <- c(year = tbase_utc$year + 1900 + to_add_years[1],
-        month = tbase_utc$mon + 1 + to_add_months[1])
-      time_end <- c(year = tbase_utc$year + 1900 + to_add_years[2],
-        month = tbase_utc$mon + 1 + to_add_months[2])
-    }
+    } else if (cdays > 0) {
+      # all years are of a constant fixed duration
+      tbase_utc <- as.POSIXlt(tbase, tz = "UTC")
+      temp <- tvals[c(1, N)] / tunit
+      to_add_years <- temp %/% cdays
+      to_add_days <- temp %% cdays # base0
 
-  } else stop("calendar of netCDF not recognized")
+      # Convert to base1
+      iday_less_base <- to_add_days == 0
+      if (any(iday_less_base)) {
+        to_add_years[iday_less_base] <- to_add_years[iday_less_base] - 1L
+        to_add_days[iday_less_base] <- cdays - 1L
+      }
 
-  list(calendar = calendar, unit = tunit, N = N, base = tbase, start = time_start,
-    end = time_end)
+      if (cdays > 360) {
+        # calendar is one of 'noleap', '365_day', 'all_leap', and '366_day'
+        # format '%j' is base1: Day of year as decimal number (001–366)
+        temp12 <- lapply(1:2, function(k) 
+          strptime(paste(tbase_utc$year + 1900 + to_add_years[k],
+            to_add_days[k], sep = "-"), format = "%Y-%j", tz = "UTC"))
+
+      } else if (cdays == 360) {
+        # all years are 360 days divided into 30-day months
+        to_add_months <- floor(to_add_days / 30)
+
+        # POSIXlt element 'mon' is base0: 0–11: months after the first of the year.
+        temp_yr <- tbase_utc$year + 1900 + to_add_years
+        temp_mon <-  tbase_utc$mon + 1 + to_add_months
+        mons_next_yr <- temp_mon - 12
+        imon_next_yr <- mons_next_yr > 0
+        if (any(imon_next_yr)) {
+          temp_yr[imon_next_yr] <- temp_yr[imon_next_yr] + 1
+          temp_mon[imon_next_yr] <- mons_next_yr[imon_next_yr]
+        }
+        
+        temp12 <- lapply(1:2, function(k) c(year = temp_yr[k], month = temp_mon[k]))
+      }
+
+    } else stop("calendar of netCDF not recognized")
+  } else stop("time unit of netCDF not recognized")
+
+  time12 <- lapply(temp12, function(x) {
+    if (inherits(x, "POSIXt")) c(year = x$year + 1900, month = x$mon + 1) else x
+  })
+
+  list(calendar = calendar, unit = tunit, N = N, base = tbase, start = time12[[1]],
+    end = time12[[2]])
 }
+
 
 get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
   nc_time <- read_time_netCDF(filename)
@@ -1720,7 +1751,7 @@ get_TimeIndices_netCDF <- function(filename, startyear, endyear) {
 do_ncvar_netCDF <- function(nc, nc_perm, variable, ncg, nct) {
   stopifnot(requireNamespace("ncdf4"))
 
-  index <- which("time" == nc_perm)
+  index <- grep("(\\btime\\b)|(\\bt\\b)", nc_perm, ignore.case = TRUE)
 
   if (index == 3L) {
     # if file is in order of (lat, lon, time)
@@ -1742,16 +1773,18 @@ extract_variable_netCDF <- function(filepath, variable, unit, ncg, nct, lon, lat
   # the 'raster' package (version <= '2.5.2') cannot handle non-equally spaced cells
   nc <- ncdf4::nc_open(filename = filepath, write = FALSE, readunlim = TRUE, verbose = FALSE)
 
-  stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[variable]]$units)))
+  nc_var <- grep(paste0("\\b", variable, "\\b"), names(nc$var), value = TRUE, ignore.case = TRUE)
+  stopifnot(length(nc_var) > 0)
+  stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[nc_var]]$units)))
 
   # getting the values from the netCDF files...
-  nc_perm <- sapply(nc$var[[variable]]$dim, function(x) x$name)
-  res <- try(do_ncvar_netCDF(nc, nc_perm, variable, ncg, nct))
+  nc_perm <- sapply(nc$var[[nc_var]]$dim, function(x) x$name)
+  res <- try(do_ncvar_netCDF(nc, nc_perm, nc_var, ncg, nct))
   if (inherits(res, "try-error")) {
     # in case of 'HadGEM2-ES x RCP45' where pr and tasmax/tasmin have different timings
     ncg <- get_SpatialIndices_netCDF(filename = filepath, lon, lat)
     nct <- get_TimeIndices_netCDF(filename = filepath, startyear, endyear)
-    res <- do_ncvar_netCDF(nc, nc_perm, variable, ncg, nct)
+    res <- do_ncvar_netCDF(nc, nc_perm, nc_var, ncg, nct)
   }
   ncdf4::nc_close(nc) #close the netCDF file
 

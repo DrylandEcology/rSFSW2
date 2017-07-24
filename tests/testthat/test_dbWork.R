@@ -12,7 +12,7 @@ context("dbWork: runIDs organization")
 # Check values of the ENV variables directly as a work-around:
 
 do_skip <- c(
-  identical(tolower(Sys.getenv("NOT_CRAN")), "true"), # skip_on_cran()
+  identical(tolower(Sys.getenv("NOT_CRAN")), "false"), # whereas skip_on_cran() skips if not "true", I believe it should skip only if "false" (i.e., not "" and not "true")
   identical(tolower(Sys.getenv("TRAVIS")), "true"),   # skip_on_travis()
   identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
 
