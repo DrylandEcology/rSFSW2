@@ -3,7 +3,7 @@ environment:
     - R_ARCH: i386
     - R_ARCH: x64
   USE_RTOOLS: true
-  R_CHECK_FORCE_SUGGESTS_: false
+  _R_CHECK_FORCE_SUGGESTS_: false
 
 matrix:
   fast_finish: true
