@@ -1,6 +1,14 @@
 environment:
-  USE_RTOOLS: true
-  _R_CHECK_FORCE_SUGGESTS_: false
+  matrix:
+    - R_ARCH: i386
+    - R_ARCH: x64
+  global:
+    - R_BUILD_ARGS: "--no-manual --merge-multiarch"
+    - USE_RTOOLS: true
+    - _R_CHECK_FORCE_SUGGESTS_: false
+
+matrix:
+  fast_finish: true
 
 # Download script file from GitHub
 init:
