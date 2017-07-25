@@ -2,7 +2,6 @@ environment:
   matrix:
     - R_ARCH: i386
     - R_ARCH: x64
-  R_BUILD_ARGS: "--no-manual --merge-multiarch"
   USE_RTOOLS: true
   R_CHECK_FORCE_SUGGESTS_: false
 
