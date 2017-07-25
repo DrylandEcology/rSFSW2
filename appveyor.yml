@@ -1,6 +1,12 @@
 environment:
+  matrix:
+    - R_ARCH: i386
+    - R_ARCH: x64
   USE_RTOOLS: true
   _R_CHECK_FORCE_SUGGESTS_: false
+
+matrix:
+  fast_finish: true
 
 # Download script file from GitHub
 init:
