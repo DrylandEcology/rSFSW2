@@ -1,6 +1,7 @@
 [![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
-  [![Build status](https://ci.appveyor.com/api/projects/status/kpbf892lmb77x69i?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
-  [![Coverage Status](https://coveralls.io/repos/github/Burke-Lauenroth-Lab/rSFSW2/badge.svg?branch=master)](https://coveralls.io/github/Burke-Lauenroth-Lab/rSFSW2?branch=master)
+  [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/kpbf892lmb77x69i?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
+  [![codecov status](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2/branch/master/graph/badge.svg)](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2)
+
 
 
 # rSFSW2: A R package to create soil water balance simulation experiment
