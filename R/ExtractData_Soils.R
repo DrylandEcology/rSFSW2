@@ -226,11 +226,11 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
 
     # Determine successful extractions
+    MMC[["idone"]]["CONUSSOIL1"] <- TRUE
     i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["CONUSSOIL1"] <- TRUE
       i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
@@ -692,6 +692,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     # 'bulk density' here is of the matric component, i.e., what we call matric density
     #matricd <- (ws[, grep("bulk", colnames(ws))] - 2.65 * ws[, grep("rock", colnames(ws))]) / (1 - ws[, grep("rock", colnames(ws))])
 
+    # Determine successful extractions
+    MMC[["idone"]][dataset] <- TRUE
+
     i_good <- rep(FALSE, n_extract)
     ids <- seq_len(2 + layer_Nsim * MMC[["nvars"]])
     i_good[ws[stats::complete.cases(ws[, ids]), "i"]] <- TRUE # i is index for todos
@@ -703,7 +706,6 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     }
 
     if (any(i_good)) {
-      MMC[["idone"]][dataset] <- TRUE
       i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
       MMC[["data"]][todos, seq_len(dim(ws)[2])] <- ws

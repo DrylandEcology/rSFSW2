@@ -103,26 +103,13 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
         "elevation data.")
     }
 
-    i_good <- stats::complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
-    MMC[["source"]][which(todos)[!i_good]] <- NA
-
-    if (any(i_good)) {
-      MMC[["idone"]]["NEDUSA1"] <- TRUE
-      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
-      i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
-      MMC[["source"]][i_Done] <- "Elevation_NED_USA"
-      if (verbose)
-        print(paste("'ExtractElevation_NED_USA' was extracted for n =", sum(i_good),
-          "out of", n_extract, "sites"))
-    }
-
-    # Save extracted data to disk
-    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
-    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
+    # Determine successful extractions
+    MMC[["idone"]]["NEDUSA1"] <- TRUE
+    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
     MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["NEDUSA1"] <- TRUE
       MMC[["source"]][i_good] <- "Elevation_NED_USA"
       if (verbose)
         print(paste("'ExtractElevation_NED_USA' was extracted for n =",
@@ -204,22 +191,13 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
         "extracting elevation data.")
     }
 
-    i_good <- stats::complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
-    MMC[["source"]][which(todos)[!i_good]] <- NA
+    # Determine successful extractions
+    MMC[["idone"]]["HWSD1"] <- TRUE
+    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["HWSD1"] <- TRUE
-      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
-      i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
-
-      MMC[["source"]][i_Done] <- "Elevation_HWSD_Global"
-      if (verbose)
-        print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good),
-          "out of", n_extract, "sites"))
-    }
-
-    if (any(i_good)) {
-      MMC[["idone"]]["HWSD1"] <- TRUE
       MMC[["source"]][i_good] <- "Elevation_HWSD_Global"
       if (verbose)
         print(paste("'ExtractElevation_HWSD_Global' was extracted for n =",

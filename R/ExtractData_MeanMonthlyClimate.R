@@ -199,13 +199,13 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     MMC[["data"]][todos, "cover", ] <- 100 - MMC[["data"]][todos, "cover", ]
 
 
-    # Save extracted data to disk
+    # Determine successful extractions
+    MMC[["idone"]]["NCDC1"] <- TRUE
     i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
     i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
     MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["NCDC1"] <- TRUE
       MMC[["source"]][i_good] <- "ClimateNormals_NCDC2005_USA"
       if (verbose)
         print(paste("Data from 'NCDC2005_USA' was extracted for n =", sum(i_good),
@@ -318,13 +318,13 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     MMC[["data"]][todos, "cover", ][irowL, ] <- res[irow, grepl("Cloud", colnames(res))]
     MMC[["data"]][todos, "wind", ][irowL, ] <- res[irow, grepl("Wind", colnames(res))]
 
-    # Save extracted data to disk
+    # Determine successful extractions
+    MMC[["idone"]]["NCEPCFSR1"] <- TRUE
     i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
     i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
     MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["NCEPCFSR1"] <- TRUE
       MMC[["source"]][i_good] <- "ClimateNormals_NCEPCFSR_Global"
       if (verbose)
         print(paste("Data from 'NCEPCFSR_Global' was extracted for n =", sum(i_good),
