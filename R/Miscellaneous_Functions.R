@@ -1368,7 +1368,7 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
     if (any(notDone))
       print(paste0(shQuote(field_sources), ": no data available for n = ", sum(notDone),
-        "sites."))
+        " sites."))
 
   } else {
       print(paste0(shQuote(field_sources), ": no data extracted because already available"))
