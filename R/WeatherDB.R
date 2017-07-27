@@ -72,8 +72,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
           i_turnon2 <- i_turnon[i_use]
           idbW_sites2 <- idbW_sites[i_use]
 
-          stopifnot(rSOILWAT2::dbW_updateSites(site_ids = idbW_sites2,
-            new_data = site_data[i_turnon2, ]))
+          stopifnot(rSOILWAT2::dbW_updateSites(Site_ids = idbW_sites2,
+            site_data = site_data[i_turnon2, ]))
 
           dbW_iSiteTable[idbW_sites2, ] <- site_data[i_turnon2, ]
           do_add <- TRUE
@@ -104,7 +104,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     stopifnot(rSOILWAT2::dbW_createDatabase(
       dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       site_data = site_data,
-      scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
       compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
