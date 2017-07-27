@@ -9,10 +9,7 @@ prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
   dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12), dimnames = list(NULL,
       c("RH", "cover", "wind"), NULL))
 
-  do_include <- if (field_include %in% names(SWRunInformation)) {
-      SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
-    } else {
-      rep(TRUE, sim_size[["runsN_sites"]])
+  do_include <- get_datasource_includefield(SWRunInformation, field_include, sim_size)
 
   list(source = sites_monthlyclim_source, data = dtemp, idone = vector(),
     use = sw_input_cloud_use, input = sw_input_cloud, do_include = do_include)

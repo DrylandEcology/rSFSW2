@@ -12,10 +12,7 @@ prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size, field_sour
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]], ncol = 1 + length(probs),
     dimnames = list(NULL, c("ELEV_m", if (scorp == "cell") paste0("ELEV_m_q", probs))))
 
-  do_include <- if (field_include %in% names(SWRunInformation)) {
-      SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
-    } else {
-      rep(TRUE, sim_size[["runsN_sites"]])
+  do_include <- get_datasource_includefield(SWRunInformation, field_include, sim_size)
 
   list(source = sites_elevation_source, data = dtemp, idone = vector(),
     probs = probs, input = SWRunInformation, do_include = do_include)

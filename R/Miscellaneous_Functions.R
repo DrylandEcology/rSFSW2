@@ -1330,6 +1330,14 @@ setup_aggregation_options <- function(opt_agg, ...) {
 }
 
 
+get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
+  if (field_include %in% names(SWRunInformation)) {
+    SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+  } else {
+    rep(TRUE, sim_size[["runsN_sites"]])
+  }
+}
+
 
 get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
   how_determine_sources) {

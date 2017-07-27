@@ -20,10 +20,7 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
                      intern = c("depth", lvars),
                      stringsAsFactors = FALSE)
 
-  do_include <- if (field_include %in% names(SWRunInformation)) {
-      SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
-    } else {
-      rep(TRUE, sim_size[["runsN_sites"]])
+  do_include <- get_datasource_includefield(SWRunInformation, field_include, sim_size)
 
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
