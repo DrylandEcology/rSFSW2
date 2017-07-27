@@ -17,12 +17,18 @@ climscen_metadata <- function() {
     CMIP3_ClimateWizardEnsembles_Global = list(
       bbox = fill_bounding_box(template_bbox, list(y = c(-55, 84), x = c(-180, 180))),
       tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099))),
-      units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C")),
+      units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C"),
+      var_desc = data.frame(tag = NA, fileVarTags = NA, unit_given = NA,
+        unit_real = NA)[0, ],
+      sep_fname = NULL, str_fname = NULL),
 
     CMIP3_ClimateWizardEnsembles_USA = list(
       bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 49.375), x = c(-124.75, -67))),
       tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099))),
-      units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C")),
+      units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C"),
+      var_desc = data.frame(tag = NA, fileVarTags = NA, unit_given = NA,
+        unit_real = NA)[0, ],
+      sep_fname = NULL, str_fname = NULL),
 
     CMIP3_BCSD_GDODCPUCLLNL_Global = list(
       bbox = fill_bounding_box(template_bbox, list(y = c(-55.25-0.25, 83.25+0.25), x = c(-179.75-0.25, 179.75+0.25))),
@@ -1607,13 +1613,13 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
 
 get_time_unit <- function(tunit) {
   # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#time-coordinate
-  if (grepl("(day)|(d)", tunit, ignore.case = TRUE)) {
+  if (grepl("(day)|(\\bd\\b)", tunit, ignore.case = TRUE)) {
     1
-  } else if (grepl("(hour)|(h)", tunit, ignore.case = TRUE)) {
+  } else if (grepl("(hour)|(\\bh\\b)", tunit, ignore.case = TRUE)) {
     24
-  } else if (grepl("(minute)|(min)", tunit, ignore.case = TRUE)) {
+  } else if (grepl("(minute)|(\\bmin\\b)|(\\bmins\\b)", tunit, ignore.case = TRUE)) {
     1440
-  } else if (grepl("(second)|(sec)", tunit, ignore.case = TRUE) || "s" == tunit) {
+  } else if (grepl("(second)|(sec)|(\\bs\\b)", tunit, ignore.case = TRUE)) {
     86400
   } else {
     stop("time unit of netCDF not recognized")
