@@ -1,6 +1,7 @@
 
 prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
-  field_sources, how_determine_sources, sw_input_cloud_use, sw_input_cloud) {
+  field_sources, field_include, how_determine_sources, sw_input_cloud_use,
+  sw_input_cloud) {
 
   sites_monthlyclim_source <- get_datasource_masterfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
@@ -8,8 +9,13 @@ prepare_ExtractData_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
   dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12), dimnames = list(NULL,
       c("RH", "cover", "wind"), NULL))
 
+  do_include <- if (field_include %in% names(SWRunInformation)) {
+      SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+    } else {
+      rep(TRUE, sim_size[["runsN_sites"]])
+
   list(source = sites_monthlyclim_source, data = dtemp, idone = vector(),
-    use = sw_input_cloud_use, input = sw_input_cloud)
+    use = sw_input_cloud_use, input = sw_input_cloud, do_include = do_include)
 }
 
 
@@ -61,7 +67,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     MMC[["source"]] == "ClimateNormals_NCDC2005_USA"
 
   if (resume) {
-    todos <- todos & (
+    todos <- todos & MMC[["do_include"]] & (
       has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "RH") |
       has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "SkyC") |
       has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "wind"))
@@ -281,7 +287,7 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     MMC[["source"]] == "ClimateNormals_NCEPCFSR_Global"
 
   if (resume) {
-    todos <- todos & (
+    todos <- todos & MMC[["do_include"]] & (
       has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "RH") |
       has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "SkyC") |
       has_nodata(MMC[["input"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ], "wind"))
@@ -353,6 +359,7 @@ ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inp
 
   MMC <- prepare_ExtractData_MeanMonthlyClimate(SFSW2_prj_inputs[["SWRunInformation"]],
     sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
+    field_include = field_include,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_cloud_use = SFSW2_prj_inputs[["sw_input_cloud_use"]],
     sw_input_cloud = SFSW2_prj_inputs[["sw_input_cloud"]])

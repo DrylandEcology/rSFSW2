@@ -3,7 +3,8 @@
 
 #' Preparations for the extraction of external soil datasets
 prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
-  how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
+  field_include, how_determine_sources, sw_input_soillayers, sw_input_soils_use,
+  sw_input_soils) {
 
   sites_soils_source <- get_datasource_masterfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
@@ -19,9 +20,14 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
                      intern = c("depth", lvars),
                      stringsAsFactors = FALSE)
 
+  do_include <- if (field_include %in% names(SWRunInformation)) {
+      SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+    } else {
+      rep(TRUE, sim_size[["runsN_sites"]])
+
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
-    cn = coln, vars = vars, nvars = nvars)
+    cn = coln, vars = vars, nvars = nvars, do_include = do_include)
 }
 
 
@@ -66,7 +72,7 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
   for (k in 1 + seq_len(MMC[["nvars"]])) {
     temp <- temp | has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], MMC[["vars"]][k, "input"])
   }
-  todos <- todos & temp
+  todos <- todos & MMC[["do_include"]] & temp
 }
 
 
@@ -755,6 +761,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
 
   MMC <- prepare_ExtractData_Soils(SFSW2_prj_inputs[["SWRunInformation"]],
     sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
+    field_include = field_include,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
     sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
