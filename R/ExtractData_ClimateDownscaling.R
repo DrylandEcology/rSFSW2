@@ -89,8 +89,8 @@ climscen_metadata <- function() {
       tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2100))),
       var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
                           fileVarTags = paste0(temp, "_"),
-                          unit_given = c("kg m-2 s-1", "K", "K", "K"),
-                          unit_real = c("mm/month", "C", "C", "C"),
+                          unit_given = temp <- c("kg m-2 s-1", "K", "K", "K"),
+                          unit_real = temp,
                           row.names = var_names_fixed, stringsAsFactors = FALSE),
       sep_fname = "_",
       str_fname = c(id_var = 1, id_gcm = 3, id_scen = 4, id_run = 5, id_time = 6))
