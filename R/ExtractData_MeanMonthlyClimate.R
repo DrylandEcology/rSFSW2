@@ -57,7 +57,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCDC1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -268,17 +268,6 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     add = TRUE)
 
 
-  if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
-    inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error")) {
-
-    SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
-      dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
-      dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
-  }
-
-  stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
-  stopifnot(requireNamespace("rgdal"))
-
   MMC[["idone"]]["NCEPCFSR1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
     MMC[["source"]] == "ClimateNormals_NCEPCFSR_Global"
@@ -296,6 +285,18 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     if (verbose)
       print(paste("Data from 'NCEPCFSR_Global' will be extracted for n =", n_extract,
         "sites"))
+
+    if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
+      inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error")) {
+
+      SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
+        dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
+        dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+    }
+
+    stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
+    stopifnot(requireNamespace("rgdal"))
+
 
     #locations of simulation runs
     locations <- SWRunInformation[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
