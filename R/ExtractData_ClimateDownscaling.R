@@ -89,8 +89,8 @@ climscen_metadata <- function() {
       tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2100))),
       var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
                           fileVarTags = paste0(temp, "_"),
-                          unit_given = c("kg m-2 s-1", "K", "K", "K"),
-                          unit_real = c("mm/month", "C", "C", "C"),
+                          unit_given = temp <- c("kg m-2 s-1", "K", "K", "K"),
+                          unit_real = temp,
                           row.names = var_names_fixed, stringsAsFactors = FALSE),
       sep_fname = "_",
       str_fname = c(id_var = 1, id_gcm = 3, id_scen = 4, id_run = 5, id_time = 6))
@@ -1554,7 +1554,7 @@ get_GCMdata_NEX <- function(i, ts_mons, dpm, gcm, scen, lon, lat,
 
   for (iv in seq_len(n_var)) {
     var_tag <- climDB_meta[["var_desc"]][iv, "tag"]
-    unit_conv <- climDB_meta[["var_desc"]][iv, "unit_real"]
+    unit_from <- climDB_meta[["var_desc"]][iv, "unit_real"]
 
     #Extract data
     clim[[iv]] <- extract_variable_NEX(i, variable = var_tag,
@@ -1564,10 +1564,10 @@ get_GCMdata_NEX <- function(i, ts_mons, dpm, gcm, scen, lon, lat,
 
     #Adjust units
     if (var_tag == "pr") {
-      clim[[iv]] <- convert_precipitation(clim[[iv]], unit_conv, dpm)
+      clim[[iv]] <- convert_precipitation(clim[[iv]], dpm, unit_from)
 
     } else if (grepl("tas", var_tag, ignore.case = TRUE)) {
-      clim[[iv]] <- convert_temperature(clim[[iv]], unit_conv)
+      clim[[iv]] <- convert_temperature(clim[[iv]], unit_from)
     }
   }
 
@@ -1871,13 +1871,13 @@ get_GCMdata_netCDF <- function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, 
   }
 
   # Convert units
-  unit_conv <- climDB_meta[["var_desc"]]["prcp", "unit_real"]
-  prcp <- convert_precipitation(prcp, unit_conv, dpm)
+  unit_from <- climDB_meta[["var_desc"]]["prcp", "unit_real"]
+  prcp <- convert_precipitation(prcp, dpm, unit_from)
 
-  unit_conv <- climDB_meta[["var_desc"]][c("tmin", "tmax", "tmean"), "unit_real"]
-  stopifnot(unit_conv[1] == unit_conv[2], unit_conv[1] == unit_conv[3])
-  tmin <- convert_temperature(tmin, unit_conv[1])
-  tmax <- convert_temperature(tmax, unit_conv[1])
+  unit_from <- climDB_meta[["var_desc"]][c("tmin", "tmax", "tmean"), "unit_real"]
+  stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
+  tmin <- convert_temperature(tmin, unit_from[1])
+  tmax <- convert_temperature(tmax, unit_from[1])
 
   list(cbind(year = ts_mons$year + 1900,
             month = ts_mons$mon + 1,
@@ -2867,7 +2867,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   if (SFSW2_prj_meta[["sim_scens"]][["N"]] > 1) {
 
