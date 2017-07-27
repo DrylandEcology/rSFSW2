@@ -1097,7 +1097,7 @@ benchmark_BLAS <- function(platform, seed = NA) {
 #' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
 #' @export
 convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
-  if (!identical(unit_to, "C")) {
+  if (!(unit_to %in% c("cm/month", "cm month-1"))) {
     stop("'convert_precipitation': only converts to units of 'cm month-1'")
   }
 
