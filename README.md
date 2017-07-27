@@ -1,5 +1,5 @@
 [![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
-  [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/kpbf892lmb77x69i?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
+  [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/90jbn06qby9a8b7n?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
   [![codecov status](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2/branch/master/graph/badge.svg)](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2)
 
 
@@ -66,15 +66,15 @@ tools::Rcmd(args = paste("INSTALL rSFSW2"))
 If you want a binary version of the 'rSFSW2' package (e.g., to distribute to someone
 without development tools) for a platform to which you do not have access, then you may
 consider using one of the cloud services (no endorsements):
-- https://builder.r-hub.io offers different Linux, Windows, and mac OS flavors as targets
-- http://win-builder.r-project.org/ offers Windows OS as target
+- [r-hub](https://builder.r-hub.io) offers different Linux, Windows, and mac OS flavors as targets
+- [win-builder](http://win-builder.r-project.org/) offers Windows OS as target
 
 Alternatively, you may access the previous binary package version for Windows OS from our
 CI appveyor service if the build was successful and an artifact was generated for the
-binary package (this would be named 'rSWSF2_X.Y.Z.zip' with version number X.Y.Z) at
-- https://ci.appveyor.com/project/dschlaep/soilwat-r-wrapper/build/artifacts
-If the latest build should have failed, then you may want to check out the 'History' tab
-for binaries of older versions.
+binary package (this would be named 'rSWSF2_X.Y.Z.zip' with version number X.Y.Z) from
+[here](https://ci.appveyor.com/project/dschlaep/rSFSW2/build/artifacts). If the latest
+build should have failed, then you may want to check out the 'History' tab for binaries
+of older versions.
 
 # Use rSFSW2 for your simulation project
 
