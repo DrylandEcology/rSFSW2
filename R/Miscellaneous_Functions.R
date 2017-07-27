@@ -1083,37 +1083,69 @@ benchmark_BLAS <- function(platform, seed = NA) {
 }
 
 
-#' Converts precipitation data to values in cm / month
-convert_precipitation <- function(x, unit_conv, dpm) {
-  if (unit_conv %in% c("mm/month", "mm month-1")) {
-    x <- x / 10
+#' Converts units of precipitation data
+#'
+#' @param x A numeric vector. Precipitation data as monthly series in units of
+#'   \code{unit_from}.
+#' @param dpm A numeric vector. Number of days per month in the time series \code{x}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "mm/month", "mm month-1", "mm/d", "mm d-1", "kg/m2/s", "kg m-2 s-1",
+#'   "mm/s", "mm s-1", "cm/month", "cm month-1".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "cm month-1" respectively "cm/month".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
+  if (!identical(unit_to, "C")) {
+    stop("'convert_precipitation': only converts to units of 'cm month-1'")
+  }
 
-  } else if (unit_conv %in% c("mm/d", "mm d-1")) {
-    x <- x * dpm / 10
+  if (unit_from %in% c("mm/month", "mm month-1")) {
+    x / 10
 
-  } else if (unit_conv %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
-    x <- x * dpm * 8640
+  } else if (unit_from %in% c("mm/d", "mm d-1")) {
+    x * dpm / 10
 
-  } else if (unit_conv %in% c("cm/month", "cm month-1")) {
+  } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
+    x * dpm * 8640
 
-  } else stop("Unknown precipitation unit: ", unit_conv)
+  } else if (unit_from %in% c("cm/month", "cm month-1")) {
+    x
 
-  x
+  } else {
+    stop("Unknown precipitation unit: ", unit_from)
+  }
 }
 
-#' Converts temperature data to values in degree Celsius
-convert_temperature <- function(x, unit_conv) {
-  if (unit_conv == "K") {
-    x <- x - 273.15
+#' Converts units of temperature data
+#'
+#' @param x A numeric vector. Temperature data as monthly series in units of
+#'   \code{unit_from}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "K", "F", and "C".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "C".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_temperature <- function(x, unit_from, unit_to = "C") {
+  if (!identical(unit_to, "C")) {
+    stop("'convert_temperature': only converts to units of degree Celsius")
+  }
 
-  } else if (unit_conv == "F") {
-    x <- (x - 32) * 0.5555556
+  if (identical(unit_from, "K")) {
+    x - 273.15
 
-  } else if (unit_conv == "C") {
+  } else if (identical(unit_from, "F")) {
+    (x - 32) * 0.5555556
 
-  } else stop("Unknown temperature unit: ", unit_conv[1])
+  } else if (identical(unit_from, "C")) {
+    x
 
-  x
+  } else {
+    stop("Unknown temperature unit: ", unit_from)
+  }
 }
 
 
