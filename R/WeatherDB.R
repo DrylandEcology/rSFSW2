@@ -478,7 +478,6 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cell
 
 
 get_DayMet_cellID <- function(coords_WGS84) {
-  stopifnot(requireNamespace("sp"))
 
   # Determine 1-km cell that contains requested location
   res_DayMet <- 1000L
@@ -691,8 +690,6 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   NRC_years <- as.integer(list.dirs(path = dir_temp, recursive = FALSE, full.names = FALSE))
   NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
@@ -1138,8 +1135,7 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     ########################################
     # Ensure necessary packages are loaded
     ########################################
-    stopifnot(requireNamespace("raster"), requireNamespace("sp"),
-              requireNamespace("rgdal"), requireNamespace("ncdf4"))
+    stopifnot(requireNamespace("rgdal"), requireNamespace("ncdf4"))
 
     ###################################################################
     # Helper function to convert coordinates to the correct resolution
@@ -1443,8 +1439,6 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
-
   if (!dir.exists(path))
     stop("'dw_NRCan_10km_Canada': ", path, " does not exist.")
 
@@ -1485,8 +1479,6 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
 
 dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
-
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   if (!dir.exists(path))
     stop("'dw_Livneh2013_NorthAmerica': ", path, " does not exist.")
