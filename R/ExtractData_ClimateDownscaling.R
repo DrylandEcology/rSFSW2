@@ -2995,11 +2995,13 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   which_ClimateWizard <- grepl("ClimateWizardEnsembles",
     SFSW2_prj_meta[["sim_scens"]][["sources"]])
 
+  todos <- SFSW2_prj_inputs[["include_YN"]]
   if (resume) {
-    todos <- dbW_has_missingClimScens(
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], SFSW2_prj_inputs,
-      runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
-      req_scenN = SFSW2_prj_meta[["sim_scens"]][["N"]], opt_verbosity, opt_chunks)
+    temp <- dbW_sites_with_missingClimScens(
+      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], opt_chunks, verbose)
+    todos[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- temp
 
   } else {
     todos <- SFSW2_prj_inputs[["include_YN"]] &

@@ -55,9 +55,9 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
       # - Site is already in weather database but without ambient weather data (e.g.,
       #   because a previous run was prematurely terminated)
-      imiss <- dbW_missingAmbient_siteIDs(
-        site_labels = site_data[temp_runIDs_sites, "Label"],
+      imiss <- dbW_sites_with_missingClimScens(
         siteID_by_dbW = siteID_by_dbW,
+        scen_labels = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         opt_chunks = opt_chunks, verbose = verbose)
 

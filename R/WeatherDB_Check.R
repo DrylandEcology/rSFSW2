@@ -1,26 +1,34 @@
-#' Determine which sites in the weather database do not have weather data for the
-#' ambient climate scenario
+#' Determine which site_ids in the weather database do not have weather data for every
+#' requested climate scenario
 #'
-#' @section Notes: The ambient climate scenario is supposed to always be scenario 1;
-#'  see how \code{setup_scenarios} constructs the scenarios.
+#' @return A logical vector of length \code{site_labels} respectively \code{siteID_by_dbW}.
+#'  The \code{TRUE} elements indicate sites for which the weather database lacks some or
+#'  all data. If all data are in the weather database, then \code{FALSE}.
 #'
 #' @export
-dbW_missingAmbient_siteIDs <- function(site_labels = NULL, siteID_by_dbW = NULL,
-  fdbWeather, opt_chunks, verbose = FALSE) {
+dbW_sites_with_missingClimScens <- function(site_labels = NULL, siteID_by_dbW = NULL,
+  scen_labels = NULL, scenID_by_dbW = NULL, fdbWeather, opt_chunks, verbose = FALSE) {
 
-  ltemp <- c(length(site_labels), length(siteID_by_dbW))
+  # The pairs of arguments should be both NULL; if they both are not NULL, then they must
+  # of identical length
+  si_ltemp <- c(length(site_labels), length(siteID_by_dbW))
+  si_ntemp <- c(is.null(site_labels), is.null(siteID_by_dbW))
+  sc_ltemp <- c(length(scen_labels), length(scenID_by_dbW))
+  sc_ntemp <- c(is.null(scen_labels), is.null(scenID_by_dbW))
 
-  stopifnot(is.null(site_labels) || is.null(siteID_by_dbW) ||
-    identical(ltemp[1], ltemp[2]))
+  stopifnot(!(si_ntemp[1] && si_ntemp[2]),
+    si_ntemp[1] || si_ntemp[2] || identical(si_ltemp[1], si_ltemp[2]))
+  stopifnot(!(sc_ntemp[1] && sc_ntemp[2]),
+    sc_ntemp[1] || sc_ntemp[2] || identical(sc_ltemp[1], sc_ltemp[2]))
 
-  n_todos <- max(ltemp)
+  req_scenN <- max(sc_ltemp)
+  n_todos <- max(si_ltemp)
   todos <- rep(TRUE, n_todos)
 
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fdbWeather, flags = RSQLite::SQLITE_RO)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
-
 
   if (DBI::dbExistsTable(con, "WeatherData")) {
     if (is.null(siteID_by_dbW)) {
@@ -30,98 +38,49 @@ dbW_missingAmbient_siteIDs <- function(site_labels = NULL, siteID_by_dbW = NULL,
       stop("Not all sites (labels) available in weather database.")
     }
 
-    do_chunks <- parallel::splitIndices(n_todos,
-      ceiling(n_todos / opt_chunks[["ensembleCollectSize"]]))
-
-    sql <- paste("SELECT Site_id FROM WeatherData WHERE Site_id IN (?) AND",
-      "Scenario=1 ORDER BY Site_id")
-    rs <- DBI::dbSendStatement(con, sql)
-    on.exit(RSQLite::dbClearResult(rs), add = TRUE)
-
-    for (k in seq_along(do_chunks)) {
-      if (opt_verbosity[["print.debug"]]) {
-        print(paste0("dbW_has_missingAmbientScen': ", Sys.time(), " is checking",
-          " availability of ambient climate scenario in 'dbWeather': chunk ", k,
-          " out of ", length(do_chunks), " chunks of 'sites"))
-      }
-
-      # Get site_id from dbWeather for chunked requested site_ids
-      RSQLite::dbBind(rs, list(siteID_by_dbW[do_chunks[[k]]]))
-      res <- RSQLite::dbFetch(rs)
-
-      # Compare expected with what is available in dbWeather
-      todos[siteID_by_dbW %in% res[, "Site_id"]] <- FALSE
+    if (is.null(scenID_by_dbW)) {
+      scenID_by_dbW = rSOILWAT2::dbW_getScenarioId(Scenario = scen_labels)
+    }
+    if (anyNA(scenID_by_dbW)) {
+      stop("Not all sites (labels) available in weather database.")
     }
 
-  } else {
-    stop("'dbW_has_missingAmbientScen': table 'WeatherData' is missing from 'dbWeather'")
-  }
-
-  todos
-}
-
-
-#' Determine which site_ids in the weather database do not have weather data for every
-#' requested climate scenario
-#'
-#' @return A logical vector of length \code{SFSW2_prj_meta[["sim_size"]][["runsN_master"]]}.
-#'  The elements at location \code{SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]} are
-#'  \code{TRUE} indicating the site_id for which the weather database lacks all data. If
-#'  all data are in the weather database, then \code{FALSE}.
-#'
-#' @export
-dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, runIDs_sites, req_scenN,
-  opt_verbosity, opt_chunks) {
-  # Init: set every included site as having missing climate scenario data. If a site_id
-  #   is found to have all climate scenario data, then set its todo element to FALSE
-  todos <- SFSW2_prj_inputs[["include_YN"]]
-
-  # Determine 'site_id's for which the dbWeather should contain daily weather data for
-  # every climate scenario
-  req_siteIDs <- runIDs_sites # runIDs_sites equal to SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] and equal to SFSW2_prj_inputs[["SWRunInformation"]][todos, "site_id"]
-
-  # Check presence of records with climate scenario data in dbWeather
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fdbWeather, flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
-
-  if (DBI::dbExistsTable(con, "WeatherData")) {
-    n_todos <- length(req_siteIDs)
     do_chunks <- parallel::splitIndices(n_todos,
       ceiling(n_todos / opt_chunks[["ensembleCollectSize"]]))
 
-    sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (?) ",
-      "ORDER BY Site_id, Scenario")
+    sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (:x1) ",
+      "AND Scenario IN (:x2) ORDER BY Site_id, Scenario")
     rs <- DBI::dbSendStatement(con, sql)
     on.exit(RSQLite::dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
       if (opt_verbosity[["print.debug"]]) {
-        print(paste0("has_missingClimScens': ", Sys.time(), " is checking availability",
-          " of climate scenarios in 'dbWeather': chunk ", k, " out of ", length(do_chunks),
-          " chunks of 'site_id's"))
+        print(paste0("'dbW_sites_with_missingClimScens': ", Sys.time(), " is checking",
+          " availability of climate scenarios in 'dbWeather': chunk ", k, " out of ",
+          length(do_chunks), " chunks of 'sites'"))
       }
 
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      RSQLite::dbBind(rs, list(req_siteIDs[do_chunks[[k]]]))
+      RSQLite::dbBind(rs, list(x1 = siteID_by_dbW[do_chunks[[k]]], x2 = scenID_by_dbW))
       res <- RSQLite::dbFetch(rs)
 
       if (dim(res)[1] > 0) {
-        temp <- tapply(res[, "Scenario"], res[, "Site_id"], max)
-        temp <- cbind(site_id = as.integer(names(temp)), scenN = temp)
+        temp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
+        temp <- cbind(Site_id = as.integer(names(temp)), scenN = temp)
 
         # Compare expected with what is available in dbWeather
-        # Good: sufficient scenarios are available: set their todos to FALSE
-        i_good <- temp[, "scenN"] >= req_scenN
+        # Good: requested scenarios are available: set their todos to FALSE
+        i_good <- temp[, "scenN"] == req_scenN
 
         if (any(i_good)) {
-          ids_good <- SFSW2_prj_inputs[["SWRunInformation"]][, "site_id"] %in% temp[i_good, "site_id"]
-          todos[ids_good] <- FALSE
+          todos[siteID_by_dbW %in% temp[ids_good, "Site_id"]] <- FALSE
         }
       }
     }
 
   } else {
-    stop("'has_missingClimScens': table 'WeatherData' is missing from 'dbWeather'")
+    stop("'dbW_sites_with_missingClimScens': table 'WeatherData' is missing from ",
+      "'dbWeather'")
   }
 
   todos
