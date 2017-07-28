@@ -142,8 +142,8 @@ if (actions[["prep_inputs"]]) {
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
   warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
-    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
+    "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
+    "and re-run project.", call. = FALSE, immediate. = TRUE)
 }
 
 

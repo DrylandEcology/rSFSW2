@@ -72,8 +72,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
           i_turnon2 <- i_turnon[i_use]
           idbW_sites2 <- idbW_sites[i_use]
 
-          stopifnot(rSOILWAT2::dbW_updateSites(site_ids = idbW_sites2,
-            new_data = site_data[i_turnon2, ]))
+          stopifnot(rSOILWAT2::dbW_updateSites(Site_ids = idbW_sites2,
+            site_data = site_data[i_turnon2, ]))
 
           dbW_iSiteTable[idbW_sites2, ] <- site_data[i_turnon2, ]
           do_add <- TRUE
@@ -104,7 +104,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     stopifnot(rSOILWAT2::dbW_createDatabase(
       dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       site_data = site_data,
-      scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
       compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
@@ -478,7 +478,6 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, cell
 
 
 get_DayMet_cellID <- function(coords_WGS84) {
-  stopifnot(requireNamespace("sp"))
 
   # Determine 1-km cell that contains requested location
   res_DayMet <- 1000L
@@ -691,8 +690,6 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   NRC_years <- as.integer(list.dirs(path = dir_temp, recursive = FALSE, full.names = FALSE))
   NRC_target_years <- NRC_years[NRC_years %in% start_year:end_year]
@@ -1138,8 +1135,7 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     ########################################
     # Ensure necessary packages are loaded
     ########################################
-    stopifnot(requireNamespace("raster"), requireNamespace("sp"),
-              requireNamespace("rgdal"), requireNamespace("ncdf4"))
+    stopifnot(requireNamespace("rgdal"), requireNamespace("ncdf4"))
 
     ###################################################################
     # Helper function to convert coordinates to the correct resolution
@@ -1443,8 +1439,6 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
-
   if (!dir.exists(path))
     stop("'dw_NRCan_10km_Canada': ", path, " does not exist.")
 
@@ -1485,8 +1479,6 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
 
 dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
-
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   if (!dir.exists(path))
     stop("'dw_Livneh2013_NorthAmerica': ", path, " does not exist.")

@@ -1,4 +1,29 @@
-
+#' Setting global 'warn' and 'error' options
+#'
+#' @param debug.warn.level An integer value. Sets the \code{warn} option.
+#' @param debug.dump.objects A logical value. Sets the \code{error} option.
+#'  See \code{details} section.
+#' @param dir_prj A character string. The path at which the RData file are saved if
+#'  \code{debug.dump.objects} is turned on.
+#' @param verbose A logical value.
+#'
+#' @return A list of length two with elements 'warn' and 'error' containing the status
+#'  of these two global options before resetting them by this function.
+#'
+#' @section Details: Accepted values of \code{debug.warn.level} are \itemize{
+#'  \item  warn < 0: warnings are ignored
+#'  \item  warn = 0: warnings are stored until the top-level function returns
+#'  \item  warn = 1: warnings are printed as they occur
+#'  \item  warn = 2: all warnings are turned into errors.
+#' }
+#'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
+#'  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
+#'  view the dumped frames first attach them with
+#'      `load(file.path(dir_prj, "last.dump.rda"))`
+#'  and then browse them with
+#'      `debugger(`path/to/file/last.dump.rda`)`
+#'
+#' @export
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".", verbose = FALSE) {
 
@@ -11,17 +36,9 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
   }
 
-  #    - warn < 0: warnings are ignored
-  #    - warn = 0: warnings are stored until the top–level function returns
-  #    - warn = 1: warnings are printed as they occur
-  #    - warn = 2: all warnings are turned into errors
   options(warn = debug.warn.level)
 
   if (debug.dump.objects) {
-    # dumps objects and frames to files, and (if not interactive) quits
-    # Note: view dumped frames with
-    # load(file.path(dir_prj, "last.dump.rda"))
-    # debugger(`path/to/file/last.dump.rda`)
     options(error = quote({
       dump_objs <- new.env()
 
@@ -1083,37 +1100,69 @@ benchmark_BLAS <- function(platform, seed = NA) {
 }
 
 
-#' Converts precipitation data to values in cm / month
-convert_precipitation <- function(x, unit_conv, dpm) {
-  if (unit_conv %in% c("mm/month", "mm month-1")) {
-    x <- x / 10
+#' Converts units of precipitation data
+#'
+#' @param x A numeric vector. Precipitation data as monthly series in units of
+#'   \code{unit_from}.
+#' @param dpm A numeric vector. Number of days per month in the time series \code{x}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "mm/month", "mm month-1", "mm/d", "mm d-1", "kg/m2/s", "kg m-2 s-1",
+#'   "mm/s", "mm s-1", "cm/month", "cm month-1".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "cm month-1" respectively "cm/month".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
+  if (!(unit_to %in% c("cm/month", "cm month-1"))) {
+    stop("'convert_precipitation': only converts to units of 'cm month-1'")
+  }
 
-  } else if (unit_conv %in% c("mm/d", "mm d-1")) {
-    x <- x * dpm / 10
+  if (unit_from %in% c("mm/month", "mm month-1")) {
+    x / 10
 
-  } else if (unit_conv %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
-    x <- x * dpm * 8640
+  } else if (unit_from %in% c("mm/d", "mm d-1")) {
+    x * dpm / 10
 
-  } else if (unit_conv %in% c("cm/month", "cm month-1")) {
+  } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
+    x * dpm * 8640
 
-  } else stop("Unknown precipitation unit: ", unit_conv)
+  } else if (unit_from %in% c("cm/month", "cm month-1")) {
+    x
 
-  x
+  } else {
+    stop("Unknown precipitation unit: ", unit_from)
+  }
 }
 
-#' Converts temperature data to values in degree Celsius
-convert_temperature <- function(x, unit_conv) {
-  if (unit_conv == "K") {
-    x <- x - 273.15
+#' Converts units of temperature data
+#'
+#' @param x A numeric vector. Temperature data as monthly series in units of
+#'   \code{unit_from}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "K", "F", and "C".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "C".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_temperature <- function(x, unit_from, unit_to = "C") {
+  if (!identical(unit_to, "C")) {
+    stop("'convert_temperature': only converts to units of degree Celsius")
+  }
 
-  } else if (unit_conv == "F") {
-    x <- (x - 32) * 0.5555556
+  if (identical(unit_from, "K")) {
+    x - 273.15
 
-  } else if (unit_conv == "C") {
+  } else if (identical(unit_from, "F")) {
+    (x - 32) * 0.5555556
 
-  } else stop("Unknown temperature unit: ", unit_conv[1])
+  } else if (identical(unit_from, "C")) {
+    x
 
-  x
+  } else {
+    stop("Unknown temperature unit: ", unit_from)
+  }
 }
 
 
@@ -1329,6 +1378,14 @@ setup_aggregation_options <- function(opt_agg, ...) {
   opt_agg
 }
 
+
+get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
+  if (field_include %in% names(SWRunInformation)) {
+    SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+  } else {
+    rep(TRUE, sim_size[["runsN_sites"]])
+  }
+}
 
 
 get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
