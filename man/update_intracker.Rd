@@ -28,3 +28,27 @@ The updated data.frame \code{ist}.
 \description{
 Update input tracker status
 }
+\examples{
+ # Create a new tracker object: if using 'demo' code to run a project, then the
+ # object 'SFSW2_prj_meta' will contain a tracker object with name 'input_status'
+ SFSW2_prj_meta <- list(input_status = rSFSW2:::init_intracker())
+
+ # Update the 'soil_data' trackers to indicate that data extraction has already been
+ # carried out (e.g., soil data were entered separately)
+ SFSW2_prj_meta[['input_status']] <- update_intracker(SFSW2_prj_meta[['input_status']],
+   tracker = "soil_data", prepared = TRUE)
+
+ # Reset the 'dbW_scenarios' trackers to so that both data population/extraction
+ # and checking steps are carried out again during the next run
+ SFSW2_prj_meta[['input_status']] <- update_intracker(SFSW2_prj_meta[['input_status']],
+   tracker = "dbW_scenarios", prepared = FALSE, checked = FALSE)
+
+ # Save updated metadata with tracker object to project directory to prepare for next
+ # run
+ SFSW2_prj_meta[["fnames_in"]] <- list(fmeta = tempfile())
+ saveRDS(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
+
+ #Clean up from example
+ unlink(SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
+
+}
