@@ -1,4 +1,29 @@
-
+#' Setting global 'warn' and 'error' options
+#'
+#' @param debug.warn.level An integer value. Sets the \code{warn} option.
+#' @param debug.dump.objects A logical value. Sets the \code{error} option.
+#'  See \code{details} section.
+#' @param dir_prj A character string. The path at which the RData file are saved if
+#'  \code{debug.dump.objects} is turned on.
+#' @param verbose A logical value.
+#'
+#' @return A list of length two with elements 'warn' and 'error' containing the status
+#'  of these two global options before resetting them by this function.
+#'
+#' @section Details: Accepted values of \code{debug.warn.level} are \itemize{
+#'  \item  warn < 0: warnings are ignored
+#'  \item  warn = 0: warnings are stored until the top-level function returns
+#'  \item  warn = 1: warnings are printed as they occur
+#'  \item  warn = 2: all warnings are turned into errors.
+#' }
+#'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
+#'  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
+#'  view the dumped frames first attach them with
+#'      `load(file.path(dir_prj, "last.dump.rda"))`
+#'  and then browse them with
+#'      `debugger(`path/to/file/last.dump.rda`)`
+#'
+#' @export
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".", verbose = FALSE) {
 
@@ -11,17 +36,9 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
   }
 
-  #    - warn < 0: warnings are ignored
-  #    - warn = 0: warnings are stored until the top–level function returns
-  #    - warn = 1: warnings are printed as they occur
-  #    - warn = 2: all warnings are turned into errors
   options(warn = debug.warn.level)
 
   if (debug.dump.objects) {
-    # dumps objects and frames to files, and (if not interactive) quits
-    # Note: view dumped frames with
-    # load(file.path(dir_prj, "last.dump.rda"))
-    # debugger(`path/to/file/last.dump.rda`)
     options(error = quote({
       dump_objs <- new.env()
 
