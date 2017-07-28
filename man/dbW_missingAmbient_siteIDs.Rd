@@ -2,14 +2,14 @@
 % Please edit documentation in R/WeatherDB_Check.R
 \name{dbW_missingAmbient_siteIDs}
 \alias{dbW_missingAmbient_siteIDs}
-\title{Determine which site_ids in the weather database do not have weather data for the
+\title{Determine which sites in the weather database do not have weather data for the
 ambient climate scenario}
 \usage{
-dbW_missingAmbient_siteIDs(req_sites, fdbWeather, dbW_iSiteTable = NULL,
-  opt_chunks, verbose = FALSE)
+dbW_missingAmbient_siteIDs(site_labels = NULL, siteID_by_dbW = NULL,
+  fdbWeather, opt_chunks, verbose = FALSE)
 }
 \description{
-Determine which site_ids in the weather database do not have weather data for the
+Determine which sites in the weather database do not have weather data for the
 ambient climate scenario
 }
 \section{Notes}{

@@ -1341,7 +1341,6 @@ downscale.wgen_package <- function(
   stopifnot(requireNamespace("zoo"), requireNamespace("weathergen"),
     requireNamespace("dplyr"), requireNamespace("lubridate"))
 
-  #scenario_id <- dbW_iScenarioTable[dbW_iScenarioTable[, "Scenario"] == tolower(paste("weathergen", tag, gcm, sep = ".")), "id"]
   # Time periods
   tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
     scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
@@ -1897,7 +1896,7 @@ get_GCMdata_netCDF <- function(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, 
 #' Extract climate scenario data and downscale to daily weather data
 calc.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, dbW_iScenarioTable, compression_type,
+  climate.ambient, locations, compression_type,
   getYears, assocYears, sim_time, task_seed, opt_DS, project_paths, resume,
   verbose, print.debug) {
 
@@ -1940,14 +1939,10 @@ calc.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
   n <- dim(temp1)[1]
   temp1[, "tag"] <- paste0(temp1[, "futures"], ".", temp1[, "rcps"])
   temp1[, "Scenario"] <- paste(temp1[, "downscaling"], temp1[, "tag"], gcm, sep = ".")
-  itemp <- match(tolower(temp1[, "Scenario"]),
-    table = tolower(dbW_iScenarioTable[, "Scenario"]), nomatch = NA)
-  if (anyNA(itemp)) {
-    stop("Not all requested scenarios matched up with entries in the weather ",
-      "database scenario table:\n",
-      paste("*", shQuote(temp1[, "Scenario"]), "=", itemp, collapse = "\n"))
-  } else {
-    temp1[, "Scenario_id"] <-  dbW_iScenarioTable[itemp, "id"]
+  temp1[, "Scenario_id"] <- dbW_getScenarioId(temp1[, "Scenario"], ignore.case = TRUE)
+  if (anyNA(temp1[, "Scenario_id"])) {
+    stop("Not all requested scenarios available in the weather database scenario table:\n",
+      paste(shQuote(temp1[temp1[, "Scenario_id"], "Scenario"]), collapse = ", "))
   }
 
   if (anyNA(Site_id_by_dbW)) {
@@ -2219,7 +2214,7 @@ calc.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
 #' @inheritParams calc.ScenarioWeather
 try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
   climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, dbW_iScenarioTable, compression_type,
+  climate.ambient, locations, compression_type,
   getYears, assocYears, sim_time, seeds_DS, opt_DS, project_paths, resume, verbose,
   print.debug) {
 
@@ -2230,7 +2225,6 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
@@ -2243,7 +2237,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
   if (inherits(temp, "try-error")) {
     print(paste(Sys.time(), temp))
     save(i, temp, clim_source, use_CF, use_NEX, climDB_meta, climDB_files, reqGCMs,
-        reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations, dbW_iScenarioTable,
+        reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations,
         compression_type, getYears, assocYears, sim_time, opt_DS, project_paths, verbose,
         file = file.path(project_paths[["dir_out_temp"]],
           paste0("ClimScen_failed_", i, "_l1.RData")))
@@ -2267,7 +2261,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
 tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
   assocYears, project_paths, fdbWeather, climate.ambient,
-  dbW_iScenarioTable, dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
+  dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
   print.debug, seed = NA) {
 
   #requests ids_ToDo: fastest if nc file is
@@ -2291,7 +2285,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
@@ -2314,7 +2307,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
-          dbW_iScenarioTable = dbW_iScenarioTable,
           compression_type = dbW_compression_type,
           getYears = getYears, assocYears = assocYears,
           sim_time = sim_time,
@@ -2341,7 +2333,6 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
       reqDownscalingsPerGCM = reqDownscalingsPerGCM,
       climate.ambient = climate.ambient,
       locations = locations,
-      dbW_iScenarioTable = dbW_iScenarioTable,
       compression_type = dbW_compression_type,
       getYears = getYears, assocYears = assocYears,
       sim_time = sim_time,
@@ -2477,7 +2468,7 @@ is_NEX <- function(x) {
 
 #access climate change data
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
-  iDS_runIDs_sites, include_YN_climscen, climDB_meta, dbW_iSiteTable, dbW_iScenarioTable,
+  iDS_runIDs_sites, include_YN_climscen, climDB_meta,
   dbW_compression_type, resume, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose)
@@ -2578,12 +2569,11 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   # locations of simulation runs
   icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
   locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
-  itemp <- match(SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, "WeatherFolder"],
-    dbW_iSiteTable[, "Label"], nomatch = NA)
-  if (anyNA(itemp)) {
+  locations[, "Site_id_by_dbW"] <- rSOILWAT2::dbW_getSiteId(
+    Labels = SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, "WeatherFolder"])
+  if (anyNA(locations[, "Site_id_by_dbW"])) {
     stop("Not all sites (labels) available in weather database.")
   }
-  locations[, "Site_id_by_dbW"] <- dbW_iSiteTable[itemp, "Site_id"]
 
   if (any("wgen-package" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]))) {
     icols <- c("wgen_dry_spell_changes", "wgen_wet_spell_changes", "wgen_prcp_cv_changes")
@@ -2726,7 +2716,6 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
       project_paths = SFSW2_prj_meta[["project_paths"]],
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
-      dbW_iScenarioTable = dbW_iScenarioTable,
       dbW_compression_type = dbW_compression_type,
       sim_time = SFSW2_prj_meta[["sim_time"]],
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
@@ -2808,9 +2797,6 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   rSOILWAT2::dbW_setConnection(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
-  dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
-  dbW_iScenarioTable[, "Scenario"] <- tolower(dbW_iScenarioTable[, "Scenario"])
   dbW_compression_type <- rSOILWAT2::dbW_compression()
 
   for (m in SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) {
@@ -2839,8 +2825,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
       include_YN_climscen <- get_climatechange_data(clim_source = ics,
         SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta,
         iDS_runIDs_sites = iDS_runIDs_sites, include_YN_climscen = include_YN_climscen,
-        climDB_meta = climDB_metas[[ics]], dbW_iSiteTable = dbW_iSiteTable,
-        dbW_iScenarioTable = dbW_iScenarioTable,
+        climDB_meta = climDB_metas[[ics]],
         dbW_compression_type = dbW_compression_type, resume = resume, verbose = verbose,
         print.debug = print.debug)
     }

@@ -40,54 +40,31 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       stopifnot(rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]]))
 
       #-- Check if requested sites are complete
-      dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
+      siteID_by_dbW <- rSOILWAT2::dbW_getSiteId(
+        Labels = site_data[temp_runIDs_sites, "Label"])
+
+      # - Site is not in weather database: add to database
+      i_new <- is.na(siteID_by_dbW)
+      if (any(i_new)) {
+        i_new <- temp_runIDs_sites[i_new]
+        stopifnot(rSOILWAT2::dbW_addSites(site_data[i_new, ]))
+
+        add_runIDs_sites <- c(add_runIDs_sites, site_data[i_new, "Site_id"])
+        do_add <- TRUE
+      }
 
       # - Site is already in weather database but without ambient weather data (e.g.,
       #   because a previous run was prematurely terminated)
-      temp <- dbW_missingAmbient_siteIDs(
-        req_sites = site_data[temp_runIDs_sites, ],
+      imiss <- dbW_missingAmbient_siteIDs(
+        site_labels = site_data[temp_runIDs_sites, "Label"],
+        siteID_by_dbW = siteID_by_dbW,
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        dbW_iSiteTable = dbW_iSiteTable,
         opt_chunks = opt_chunks, verbose = verbose)
-      temp <- temp[, "Site_id"]
 
-      if (length(temp) > 0) {
+      if (any(imiss)) {
         do_add <- TRUE
-        add_runIDs_sites <- c(add_runIDs_sites, temp)
-      }
-
-      # - Site is already in weather database but with NA label (e.g., because
-      #   site was previously turned off)
-      if (anyNA(dbW_iSiteTable[, "Label"])) {
-        temp <- which(is.na(dbW_iSiteTable[, "Label"]))
-        idbW_sites <- dbW_iSiteTable[temp, "Site_id"]
-        i_turnon <- unlist(lapply(idbW_sites, function(x) {
-            temp <- which(x == site_data[, "Site_id"])
-            itemp <- is.na(site_data[temp, "Label"])
-            if (itemp) 0 else temp
-          }))
-
-        i_use <- i_turnon > 0
-        if (any(i_use)) {
-          i_turnon2 <- i_turnon[i_use]
-          idbW_sites2 <- idbW_sites[i_use]
-
-          stopifnot(rSOILWAT2::dbW_updateSites(Site_ids = idbW_sites2,
-            site_data = site_data[i_turnon2, ]))
-
-          dbW_iSiteTable[idbW_sites2, ] <- site_data[i_turnon2, ]
-          do_add <- TRUE
-          add_runIDs_sites <- c(add_runIDs_sites, i_turnon2)
-        }
-      }
-
-      # - Site is not in weather database: add to database
-      i_new <- !(site_data[, "Label"] %in% dbW_iSiteTable[, "Label"])
-      if (any(i_new)) {
-        stopifnot(rSOILWAT2::dbW_addSites(site_data[i_new, ]))
-
-        add_runIDs_sites <- c(add_runIDs_sites, which(i_new))
-        do_add <- TRUE
+        add_runIDs_sites <- c(add_runIDs_sites,
+          site_data[temp_runIDs_sites[imiss], "Site_id"])
       }
 
     } else {
@@ -113,13 +90,11 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   # Obtain siteIDs as seen by the weather database
   if (length(add_runIDs_sites) > 0) {
     add_runIDs_sites <- sort(unique(add_runIDs_sites))
-    dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
-    itemp <- match(site_data[add_runIDs_sites, "Label"], dbW_iSiteTable[, "Label"],
-      nomatch = NA)
-    if (anyNA(itemp)) {
+    add_siteIDs_by_dbW <- rSOILWAT2::dbW_getSiteId(
+      Labels = site_data[add_runIDs_sites, "Label"])
+    if (anyNA(add_siteIDs_by_dbW)) {
       stop("Not all sites (labels) available in weather database.")
     }
-    add_siteIDs_by_dbW <- dbW_iSiteTable[itemp, "Site_id"]
   }
 
   #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
