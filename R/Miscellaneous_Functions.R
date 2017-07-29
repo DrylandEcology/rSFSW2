@@ -1124,6 +1124,9 @@ convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
   } else if (unit_from %in% c("mm/d", "mm d-1")) {
     x * dpm / 10
 
+  } else if (unit_from %in% c("cm/d", "cm d-1")) {
+    x * dpm
+
   } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
     x * dpm * 8640
 
