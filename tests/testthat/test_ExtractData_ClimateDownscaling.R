@@ -63,3 +63,22 @@ test_that("Check integrity of 'climscen_metadata'", {
   }
 })
 
+
+# Test 'is_ClimateForecastConvention' and 'is_NEX'
+test_that("Check convenction of requested climate data'", {
+  expect_false(is_ClimateForecastConvention("CMIP3_ClimateWizardEnsembles_Global"))
+  expect_false(is_NEX("CMIP3_ClimateWizardEnsembles_Global"))
+  expect_false(is_ClimateForecastConvention("CMIP3_ClimateWizardEnsembles_USA"))
+  expect_false(is_NEX("CMIP3_ClimateWizardEnsembles_USA"))
+  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_GDODCPUCLLNL_USA"))
+  expect_false(is_NEX("CMIP5_BCSD_GDODCPUCLLNL_USA"))
+  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_GDODCPUCLLNL_Global"))
+  expect_false(is_NEX("CMIP5_BCSD_GDODCPUCLLNL_Global"))
+  expect_false(is_ClimateForecastConvention("CMIP5_BCSD_NEX_USA"))
+  expect_true(is_NEX("CMIP5_BCSD_NEX_USA"))
+  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_SageSeer_USA"))
+  expect_false(is_NEX("CMIP5_BCSD_SageSeer_USA"))
+  expect_true(is_ClimateForecastConvention("CMIP5_ESGF_Global"))
+  expect_false(is_NEX("CMIP5_ESGF_Global"))
+})
+

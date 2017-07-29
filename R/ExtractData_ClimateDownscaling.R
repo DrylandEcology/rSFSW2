@@ -2455,13 +2455,13 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 
 
 #' @references http://cfconventions.org/
-is_ClimateForecastConvention <- function(x) {
-  grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)|(ESGF)", x)
+is_ClimateForecastConvention <- function(x, ignore.case = TRUE) {
+  grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)|(ESGF)", x, ignore.case = ignore.case)
 }
 
-#' @references http://cfconventions.org/
-is_NEX <- function(x) {
-  grepl("NEX", x)
+#' @references https://nex.nasa.gov/nex/projects/1356/
+is_NEX <- function(x, ignore.case = TRUE) {
+  grepl("NEX", x, ignore.case = ignore.case)
 }
 
 
