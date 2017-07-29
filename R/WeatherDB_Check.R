@@ -6,8 +6,9 @@
 #'  all data. If all data are in the weather database, then \code{FALSE}.
 #'
 #' @export
-dbW_sites_with_missingClimScens <- function(site_labels = NULL, siteID_by_dbW = NULL,
-  scen_labels = NULL, scenID_by_dbW = NULL, fdbWeather, opt_chunks, verbose = FALSE) {
+dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
+  siteID_by_dbW = NULL, scen_labels = NULL, scenID_by_dbW = NULL, chunk_size = 500L,
+  verbose = FALSE) {
 
   # The pairs of arguments should be both NULL; if they both are not NULL, then they must
   # of identical length
@@ -45,8 +46,7 @@ dbW_sites_with_missingClimScens <- function(site_labels = NULL, siteID_by_dbW = 
       stop("Not all sites (labels) available in weather database.")
     }
 
-    do_chunks <- parallel::splitIndices(n_todos,
-      ceiling(n_todos / opt_chunks[["ensembleCollectSize"]]))
+    do_chunks <- parallel::splitIndices(n_todos, ceiling(n_todos / chunk_size))
 
     sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (:x1) ",
       "AND Scenario IN (:x2) ORDER BY Site_id, Scenario")
@@ -61,7 +61,8 @@ dbW_sites_with_missingClimScens <- function(site_labels = NULL, siteID_by_dbW = 
       }
 
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      RSQLite::dbBind(rs, list(x1 = siteID_by_dbW[do_chunks[[k]]], x2 = scenID_by_dbW))
+      RSQLite::dbBind(rs, params = as.list(expand.grid(x1 = siteID_by_dbW[do_chunks[[k]]],
+        x2 = scenID_by_dbW, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)))
       res <- RSQLite::dbFetch(rs)
 
       if (dim(res)[1] > 0) {
@@ -69,11 +70,11 @@ dbW_sites_with_missingClimScens <- function(site_labels = NULL, siteID_by_dbW = 
         temp <- cbind(Site_id = as.integer(names(temp)), scenN = temp)
 
         # Compare expected with what is available in dbWeather
-        # Good: requested scenarios are available: set their todos to FALSE
+        # Good: all requested scenarios are available: set their todos to FALSE
         i_good <- temp[, "scenN"] == req_scenN
 
         if (any(i_good)) {
-          todos[siteID_by_dbW %in% temp[ids_good, "Site_id"]] <- FALSE
+          todos[siteID_by_dbW %in% temp[i_good, "Site_id"]] <- FALSE
         }
       }
     }

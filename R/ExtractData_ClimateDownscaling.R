@@ -1939,7 +1939,7 @@ calc.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
   n <- dim(temp1)[1]
   temp1[, "tag"] <- paste0(temp1[, "futures"], ".", temp1[, "rcps"])
   temp1[, "Scenario"] <- paste(temp1[, "downscaling"], temp1[, "tag"], gcm, sep = ".")
-  temp1[, "Scenario_id"] <- dbW_getScenarioId(temp1[, "Scenario"], ignore.case = TRUE)
+  temp1[, "Scenario_id"] <- rSOILWAT2::dbW_getScenarioId(temp1[, "Scenario"], ignore.case = TRUE)
   if (anyNA(temp1[, "Scenario_id"])) {
     stop("Not all requested scenarios available in the weather database scenario table:\n",
       paste(shQuote(temp1[temp1[, "Scenario_id"], "Scenario"]), collapse = ", "))
@@ -2665,7 +2665,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   }
   names(assocYears) <- names_assocYears
 
-  print(paste("Future scenario data will be extracted for a time period spanning ",
+  print(paste("Future scenario data will be extracted for a time period spanning",
     timeSlices[7, 4], "through",  max(stats::na.omit(timeSlices[, 4]))))
 
   #Repeat call to get climate data for all requests until complete
@@ -2998,9 +2998,11 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   todos <- SFSW2_prj_inputs[["include_YN"]]
   if (resume) {
     temp <- dbW_sites_with_missingClimScens(
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]], opt_chunks, verbose)
+      chunk_size = opt_chunks[["ensembleCollectSize"]],
+      verbose = opt_verbosity[["verbose"]])
     todos[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- temp
 
   } else {

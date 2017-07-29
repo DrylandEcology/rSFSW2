@@ -56,10 +56,10 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       # - Site is already in weather database but without ambient weather data (e.g.,
       #   because a previous run was prematurely terminated)
       imiss <- dbW_sites_with_missingClimScens(
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         siteID_by_dbW = siteID_by_dbW,
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        opt_chunks = opt_chunks, verbose = verbose)
+        chunk_size = opt_chunks[["ensembleCollectSize"]], verbose = verbose)
 
       if (any(imiss)) {
         do_add <- TRUE
