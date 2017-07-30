@@ -1056,59 +1056,69 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL,
   }
   out <- rep(NA, length.out = length(x))
 
-  if (isTRUE(type == "linear")) {
-    out[wet] <- stats::approx(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1], xout = x[wet],
-      method = "linear", rule = 2, ties = mean)$y
-
-    if (!isTRUE(lin_extrapol == "none")) {
-      # "same extrapolation as Boe et al. (2007), but neglecting the three highest/lowest correction terms" Thermessl et al. 2011 Climatic Change
-      qid <- switch(lin_extrapol, Boe = 0, Thermessl2012CC.QMv1b = 3)
-      nq <- nrow(fobj[["par"]]$modq)
-      largex <- x > fobj[["par"]]$modq[nq, 1] + SFSW2_glovars[["tol"]]
-      if (any(largex)) {
-        max.delta <- fobj[["par"]]$modq[nq - qid, 1] - fobj[["par"]]$fitq[nq - qid, 1]
-        out[largex] <- x[largex] - max.delta
-      }
-      smallx <- x < fobj[["par"]]$modq[1, 1] - SFSW2_glovars[["tol"]]
-      if (any(smallx)) {
-        min.delta <- fobj[["par"]]$modq[1 + qid, 1] - fobj[["par"]]$fitq[1 + qid, 1]
-        out[smallx] <- x[smallx] - min.delta
-      }
-    }
-  } else if (isTRUE(type == "tricub")) {
-    sfun <- stats::splinefun(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1], method = spline_method) #only "monoH.FC" would be appropriate here because we would want a monotone function if possible
-    temp <- sfun(x[wet])
-
-    #There seem to be at least two causes for abnormally high values from sfun()
-    #  1) extrapolation error
-    #  2) huge oscillations
-    #    2a) arising from non-monotone splines ('fmm' and 'natural')
-    #    2b) arising from numerical instabilities in the exact monotonicity for 'monoH.FC'
-
-    if (!is.null(monthly_extremes) && !isTRUE(fix_spline == "none")) {
-      # version previous to 20150705 didn't catch several bad cases, e.g., ix = 180099
-      # to prevent huge oscillation in 'fmm' and 'natural', we need to bound values between some small and some not-too large number
-      # apparently 'monoH.FC' does also show huge oscillations, e.g., ix = 82529 because of numerical instabilities in the exact monotonicity in fobj[["par"]]$modq[, 1]
-      icount <- 1
-      while ((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 && icount < 10) {
-        if (fix_spline == "fail") stop("Out-of-range splinefun values and 'fix_spline' set to fail")
-        sfun <- stats::splinefun(x = jitter(fobj[["par"]]$modq[, 1]), y = jitter(fobj[["par"]]$fitq[, 1]), method = spline_method)
-        temp <- sfun(x[wet])
-        icount <- icount + 1
-      }
-      if (itemp > 0)
-        stop("'doQmapQUANT.default_drs': jitter failed to fix out-of-range splinefun values")
-    }
-
-    out[wet] <- temp
+  if (var(fobj[["par"]]$modq[, 1]) < SFSW2_glovars[["tol"]]) {
+    # All values of 'fobj[["par"]]$modq[, 1]' are identical
+    # ==> stats::approx() and stats::splinefun() [unless method = "fmm"] will fail
+    # ==> use result from stats::splinefun(method = "fmm"), i.e., mean(y)
+    message("'doQmapQUANT.default_drs': interpolation is not possible because all ",
+      "'modq' values are identical; will return mean of 'fitq' for each 'x'.")
+    out[wet] <- mean(fobj[["par"]]$fitq[, 1])
 
   } else {
-    stop(paste("'doQmapQUANT.default_drs': unkown type", shQuote(type)))
+    if (identical(type, "linear")) {
+      out[wet] <- stats::approx(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1],
+        xout = x[wet], method = "linear", rule = 2, ties = mean)$y
+
+      if (!identical(lin_extrapol, "none")) {
+        qid <- switch(lin_extrapol, Boe = 0, Thermessl2012CC.QMv1b = 3)
+        nq <- nrow(fobj[["par"]]$modq)
+        largex <- x > fobj[["par"]]$modq[nq, 1] + SFSW2_glovars[["tol"]]
+        if (any(largex)) {
+          max.delta <- fobj[["par"]]$modq[nq - qid, 1] - fobj[["par"]]$fitq[nq - qid, 1]
+          out[largex] <- x[largex] - max.delta
+        }
+        smallx <- x < fobj[["par"]]$modq[1, 1] - SFSW2_glovars[["tol"]]
+        if (any(smallx)) {
+          min.delta <- fobj[["par"]]$modq[1 + qid, 1] - fobj[["par"]]$fitq[1 + qid, 1]
+          out[smallx] <- x[smallx] - min.delta
+        }
+      }
+    } else if (identical(type, "tricub")) {
+      sfun <- stats::splinefun(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1],
+        method = spline_method)
+      temp <- sfun(x[wet])
+
+      if (!is.null(monthly_extremes) && !identical(fix_spline, "none")) {
+        # version previous to 20150705 didn't catch several bad cases
+        icount <- 1
+        while ((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 &&
+          icount < 10) {
+
+          if (fix_spline == "fail") {
+            stop("Out-of-range splinefun values and 'fix_spline' set to fail")
+          }
+          sfun <- stats::splinefun(x = jitter(fobj[["par"]]$modq[, 1]),
+            y = jitter(fobj[["par"]]$fitq[, 1]), method = spline_method)
+          temp <- sfun(x[wet])
+          icount <- icount + 1
+        }
+        if (itemp > 0) {
+          stop("'doQmapQUANT.default_drs': jitter failed to fix out-of-range splinefun ",
+            "values")
+        }
+      }
+
+      out[wet] <- temp
+
+    } else {
+      stop(paste("'doQmapQUANT.default_drs': unkown type", shQuote(type)))
+    }
   }
 
   out[!wet] <- 0
-  if (!is.null(fobj$wet.day))
+  if (!is.null(fobj$wet.day)) {
     out[out < 0] <- 0
+  }
 
   out
 }
@@ -1123,32 +1133,36 @@ doQmapQUANT_drs <- function(x, fobj, type = NULL, montly_obs_base = NULL,
   type <- temp[1]
   type_mod <- temp[2]
 
-  if (isTRUE(type == "linear")) {
-    out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = type_mod,
+  if (identical(type, "linear")) {
+    out <- doQmapQUANT.default_drs(x, fobj, type = type, lin_extrapol = type_mod, ...)
+
+  } else if (identical(type, "tricub")) {
+    out <- doQmapQUANT.default_drs(x, fobj, type = type, spline_method = type_mod,
       monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
 
-  } else if (isTRUE(type == "tricub")) {
-    out <- doQmapQUANT.default_drs(x, fobj, type = "tricub", spline_method = type_mod,
-      monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
+  } else if (identical(type, "normal")) {
+    out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = "Boe", ...)
 
-  } else if (isTRUE(type == "normal")) {
-    # Tohver, I. M., A. F. Hamlet, and S.-Y. Lee. 2014. Impacts of 21st-Century Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North America. Journal of the American Water Resources Association 50:1461-1476.
-    # Appendix A, p. 6: "... values that are outside the observed quantile map (e.g. in the early parts of the 20th century) are interpolated using standard anomalies (i.e. number of standard deviations from the mean) calculated for the observed data and GCM data. Although this approach ostensibly assumes a normal distribution, it was found during testing to be much more stable than attempts to use more sophisticated approaches. In particular, the use of Extreme Value Type I or Generalized Extreme Value distributions for extending the tail of the probability distributions were both found to be highly unstable in practice and introduced unacceptable daily extremes in isolated grid cells. These errors occur because of irregularities in the shapes of the CDFs for observed and GCM data, which relates in part to the relatively small sample size used to construct the monthly CDFs (i.e. n = 30)."
-
-    out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = "Boe",
-      monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
-
+    # -Inf, smallest observed value, largest observed value, Inf
     target_range <- c(-Inf, fobj[["par"]]$modq[1, 1] -  SFSW2_glovars[["tol"]],
-      max(fobj[["par"]]$modq[, 1]) + SFSW2_glovars[["tol"]], Inf) # -Inf, smallest observed value, largest observed value, Inf
+      max(fobj[["par"]]$modq[, 1]) + SFSW2_glovars[["tol"]], Inf)
     out_of_range <- !(findInterval(x, target_range) == 2)
+    in_range <- !out_of_range
 
-    if (any(out_of_range)) {
-      tscore_x <- (x[out_of_range] - mean(montly_obs_base)) / stats::sd(montly_obs_base)
-      out[out_of_range] <- mean(out[!out_of_range]) + stats::sd(out[!out_of_range]) * tscore_x
+    if (length(monthly_obs_base) > 1 && sum(in_range) > 1) {
+      # need at least two values to calculate variance
+      if (any(out_of_range)) {
+        tscore_x <- (x[out_of_range] - mean(monthly_obs_base)) / stats::sd(monthly_obs_base)
+        out[out_of_range] <- mean(out[in_range]) + stats::sd(out[in_range]) * tscore_x
+      }
+    } else {
+      message("'doQmapQUANT_drs': type 'normal_anomalies' requires sufficient values ",
+        "in 'monthly_obs_base' and at least two mapped values that are not out of ",
+        "the target range")
     }
 
   } else {
-    stop(paste("'doQmapQUANT.drs': unkown type", shQuote(type)))
+    stop(paste("'doQmapQUANT_drs': unkown type", shQuote(type), shQuote(type_mod)))
   }
 
   out
