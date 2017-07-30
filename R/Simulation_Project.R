@@ -584,22 +584,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       stop("There are sites without a specified daily weather data source. ",
         "Provide data for every requested run.")
     }
-
-    # Check that INCLUDE_YN* are inclusive
-    icheck2 <- check_requested_sites(
-      SFSW2_prj_inputs[["include_YN"]], SFSW2_prj_inputs[["SWRunInformation"]],
-      SFSW2_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
-
-    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
-
-    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
   }
 
 
   #--- Check daily weather
-  if (todo_intracker(SFSW2_prj_meta, "dbW_current", "checked") ||
-    todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
+  if (todo_intracker(SFSW2_prj_meta, "dbW_current", "checked")) {
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] ||
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_future"]]) {
@@ -622,11 +611,25 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "dbW_current", checked = icheck)
+  }
 
-    if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
-      SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-        tracker = "dbW_scenarios", checked = icheck)
+
+  #--- Check scenario weather
+  if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
+
+    icheck <- dbW_sites_with_missingClimScens(
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      chunk_size = opt_chunks[["ensembleCollectSize"]],
+      verbose = opt_verbosity[["verbose"]])
+
+    if (any(icheck)) {
+      stop("Daily scenario weather data are not available for n = ", sum(icheck), " sites.")
     }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbW_scenarios", checked = all(!icheck))
   }
 
 
@@ -667,6 +670,19 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "climnorm_data", checked = icheck)
+  }
+
+
+  #--- Check that INCLUDE_YN* are inclusive
+  if (todo_intracker(SFSW2_prj_meta, "load_inputs", "checked")) {
+    icheck2 <- check_requested_sites(
+      SFSW2_prj_inputs[["include_YN"]], SFSW2_prj_inputs[["SWRunInformation"]],
+      SFSW2_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
+
+    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
   }
 
 
