@@ -59,17 +59,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     } else {
       0L
     }
-  tag_simfid <- paste0("[runID", i_sim, "/workerID", fid, "]")
 
+  # Print/tag for function call
+  tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")
+  temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
+  tag_funid <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid)
 
   if (SimParams[["opt_verbosity"]][["verbose"]]) {
-    temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
-    print(paste0(tag_simfid, ": rSFSW2's ", temp_call, ": started at ", t.do_OneSite))
+    print(paste0(tag_funid, ": started at ", t.do_OneSite))
 
-    on.exit({
-      print(paste0(tag_simfid, ": rSFSW2's ", temp_call, ": ended prematurely"))
-      cat("\n")
-    }, add = TRUE)
+    on.exit({print(paste0(tag_funid, ": ended prematurely")); cat("\n")}, add = TRUE)
   }
 
   temp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
@@ -77,7 +76,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   has_time_to_simulate <- temp < SimParams[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
   if (!has_time_to_simulate)
-    stop("Not enough time to simulate ", i_sim)
+    stop(tag_funid, ": not enough time to simulate.")
 
   list2env(as.list(SimParams), envir = environment())
 
@@ -88,7 +87,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     flag = "0")
 
   if (opt_verbosity[["debug.dump.objects"]]) {
-    print(paste0(tag_simfid, ": 'last.dump.do_OneSite_", i_sim, ".RData' on error."))
+    print(paste0(tag_funid, ": 'last.dump.do_OneSite_", i_sim, ".RData' on error."))
 
     on.exit({
       op_prev <- options("warn")
@@ -261,7 +260,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
-      print("SW treatment is not used because 'rSOILWAT2' package only uses one version of SOILWAT2. Sorry")
+      print(paste0(tag_simfid, ": SW treatment is not used because 'rSOILWAT2' package only uses one version of SOILWAT2. Sorry"))
     if (any(create_treatments == "filesin"))
       rSOILWAT2::set_swFiles(swRunScenariosData[[1]]) <- tr_files[[i_sw_input_treatments$filesin]]
     if (any(create_treatments == "prodin"))
@@ -811,15 +810,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
       tasks$create <- 0L
-      if (opt_verbosity[["verbose"]])
-        print(paste(i_sim, i_label, "i_sw_weatherList ERROR:", i_sw_weatherList))
+      print(paste0(tag_simfid, ": i_sw_weatherList ERROR:", i_sw_weatherList))
     }
 
     #copy and make climate scenarios from datafiles
     if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
       P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-      tag_simpidfid <- paste0("[runID", i_sim, "/PID", P_id, "/scenID", sc,
-        "/workerID", fid, "]")
+      tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -1316,7 +1313,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
               rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <-rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
-              print("To Cold to do Vegetation Scaling Season for Growing")
+              print(paste0(tag_simfid, ": to Cold to do Vegetation Scaling Season for Growing"))
             }
           } else if (ScalingSeason == "Nongrowing") {# Nongrowing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT <= growseason_Tlimit_C
             temp <- SiteClimate_Scenario$meanMonthlyTempC <= opt_sim[["growseason_Tlimit_C"]]
@@ -1332,7 +1329,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
               rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
-              print("To Hot to do Vegetation Scaling Season for NonGrowing")
+              print(paste0(tag_simfid, ": to Hot to do Vegetation Scaling Season for NonGrowing"))
             }
           }
         } else {
@@ -1547,8 +1544,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   for (sc in sc1:sim_scens[["N"]]) {
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-    tag_simpidfid <- paste0("[runID", i_sim, "/PID", P_id, "/scenID", sc,
-      "/workerID", fid, "]")
+    tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
     print_debug(opt_verbosity, tag_simpidfid, "executing", "SOILWAT2")
 
@@ -2132,7 +2128,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               }
 
             } else {
-              print(paste0(tag_simpidfid, "(", i_label, "): package 'SPEI' missing",
+              print(paste0(tag_simpidfid, ": package 'SPEI' missing",
                 "or simulation period shorter than ", binSPEI_m[iscale], " months. ",
                 "'monthlySPEIEvents' are not calculated."))
             }
@@ -2614,9 +2610,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 # Normal years for soil moisture regimes (Soil Survey Staff 2014: p.29)
                 # Should have a time period of 30 years to determine normal years
                 if (isim_time$no.useyr < 30)
-                  print(paste(i_label, "has only", isim_time$no.useyr, "years of data;",
-                    "determination of normal years for NRCS soil moisture regimes should",
-                    "be based on >= 30 years."))
+                  print(paste0(tag_simpidfid, ": has only", isim_time$no.useyr, "years ",
+                    "of data; determination of normal years for NRCS soil moisture ",
+                    "regimes should be based on >= 30 years."))
 
                 #   - Annual precipitation that is plus or minus one standard precipitation
                 #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
@@ -2793,11 +2789,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 soilLayers_N_NRCS <- dim(soildat)[1]
 
                 if (opt_verbosity[["verbose"]])
-                  print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
-                      " because of insufficient soil layers: required would be {",
-                        paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
-                        "} and available are {",
-                        paste(layers_depth, collapse = ", "), "}"))
+                  print(paste0(tag_simpidfid, ": interpolated soil layers for NRCS soil ",
+                    "regimes because of insufficient soil layers: required would be {",
+                    paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))),
+                    collapse = ", "), "} and available are {",
+                    paste(layers_depth, collapse = ", "), "}"))
               } else {
                 soilLayers_N_NRCS <- soilLayers_N
               }
@@ -3091,8 +3087,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   try(rm(list = to_del), silent = TRUE)
 
               } else {
-                if (opt_verbosity[["verbose"]])
-                  print(paste(i_label, "Number of normal years not long enough to calculate NRCS soil moisture regimes. Try increasing length of simulation"))
+                if (opt_verbosity[["verbose"]]) {
+                  print(paste0(tag_simpidfid, ": number of normal years not long enough ",
+                    "to calculate NRCS soil moisture regimes."))
+                }
 
                 SMTR[["SMR"]][] <- NA
               }
@@ -3106,15 +3104,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 try(rm(list = to_del), silent = TRUE)
 
             } else {
-              if (opt_verbosity[["verbose"]])
-                print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
+              if (opt_verbosity[["verbose"]]) {
+                print(paste0(tag_simpidfid, ": has unrealistic soil temperature values: ",
+                  "NRCS soil moisture/temperature regimes not calculated."))
+              }
               SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
               has_realistic_SoilTemp <- 0
             }
 
           } else {
-            if (opt_verbosity[["verbose"]])
-              print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
+            if (opt_verbosity[["verbose"]]) {
+              print(paste0(tag_simpidfid, ": soil temperature module turned off but ",
+                "required for NRCS Soil Moisture/Temperature Regimes."))
+            }
             SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
             has_simulated_SoilTemp <- 0
           }
@@ -4440,7 +4442,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
 
         } else {
-          print(paste0(tag_simpidfid, ": ", i_label, " aggregation unsuccessful:",
+          print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
             " incorrect number of aggregated variables: n = ", nv1,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
           tasks$aggregate[sc] <- 0L
@@ -4682,7 +4684,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (opt_verbosity[["verbose"]]) {
       n <- length(times) - 1
-      temp <- paste0(tag_simfid, ": rSFSW2's ", temp_call, ": completed in ",
+
+      temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
         delta.do_OneSite, " ", units(delta.do_OneSite), "; simulation project is ",
         round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
 
@@ -4705,8 +4708,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
   } else {
-    print(paste0(tag_simfid, ": rSFSW2's ", temp_call, ": unsuccessful after ",
-      delta.do_OneSite, " ", units(delta.do_OneSite), " with status of tasks = "))
+    print(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
+      units(delta.do_OneSite), " with status of tasks = "))
     print(unlist(sapply(tasks, table)))
   }
 
