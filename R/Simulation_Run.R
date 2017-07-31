@@ -107,6 +107,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
   set_RNG_stream(seed = rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]])
 
+  if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
+    temp <- paste(sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE), function(x)
+      paste(shQuote(x), "=", SFSW2_glovars[[x]])), collapse = " / ")
+    print(paste0(tag_funid, ": worker ID is 0 with global variables: ", temp))
+  }
 
 #-----------------------Check for experimentals
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
