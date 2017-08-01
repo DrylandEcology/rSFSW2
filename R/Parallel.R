@@ -126,7 +126,7 @@ export_parallel_glovars <- function(verbose = FALSE) {
       # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
       # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
       # is not the name of a function
-      .set_glovar <- function(x, value, verbose = FALSE) set_glovar(x, value, verbose)
+      .set_glovar <- function(x, value) set_glovar(x, value)
       Rmpi::mpi.bcast.Robj2slave(.set_glovar)
       for (x in p_varnames) {
         Rmpi::mpi.bcast.cmd(cmd = .set_glovar, x = x, value = SFSW2_glovars[[x]])
