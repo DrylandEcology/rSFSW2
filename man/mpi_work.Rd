@@ -24,6 +24,7 @@ Message tags sent by this function from workers to master: \itemize{
  \item 1 = worker is ready for master to send a task
  \item 2 = worker is done with a task
  \item 3 = worker is exiting
+ \item 4 = worker failed with task
 }
 Message tags from master which this function can receive and understand: \itemize{
  \item 1 = this communication is a new task

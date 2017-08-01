@@ -154,6 +154,7 @@ export_parallel_glovars <- function(verbose = FALSE) {
 #'  \item 1 = worker is ready for master to send a task
 #'  \item 2 = worker is done with a task
 #'  \item 3 = worker is exiting
+#'  \item 4 = worker failed with task
 #' }
 #' Message tags from master which this function can receive and understand: \itemize{
 #'  \item 1 = this communication is a new task
@@ -189,10 +190,16 @@ mpi_work <- function(verbose = FALSE) {
           print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "works on:",
             dat$i_sim, dat$i_labels))
 
-        result <- do.call("do_OneSite", args = dat[-1])
+        result <- try(do.call("do_OneSite", args = dat[-1]))
 
-        # Send result back to the master and message that task has been completed
-        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
+        if (inherits(results, "try-error")) {
+          # Tell master that task failed
+          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 4L)
+
+        } else {
+          # Send result back to the master and message that task has been completed
+          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
+        }
       }
 
     } else if (tag_from_master == 2L) {
