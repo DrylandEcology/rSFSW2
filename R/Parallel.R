@@ -146,32 +146,44 @@ export_parallel_glovars <- function(verbose = FALSE) {
 #'
 #' @references
 #'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
-#' @section Note:
+#' @section Notes:
 #'  If an error occurs, then the worker will likely not report back to master because
 #'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
+#' @section Details:
+#' Message tags sent by this function from workers to master: \itemize{
+#'  \item 1 = worker is ready for master to send a task
+#'  \item 2 = worker is done with a task
+#'  \item 3 = worker is exiting
+#' }
+#' Message tags from master which this function can receive and understand: \itemize{
+#'  \item 1 = this communication is a new task
+#'  \item 2 = tells worker to shut down because all tasks are completed
+#' }
+#'
 #' @export
 mpi_work <- function(verbose = FALSE) {
-  # Note the use of the tag for sent messages:
-  #     1 = ready_for_task, 2 = done_task, 3 = exiting
-  # Note the use of the tag for received messages:
-  #     1 = task, 2 = done_tasks
 
   if (verbose) {
     print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "starts working."))
   }
 
+  # Define tags
   junk <- 0L
-  done <- 0L
-  while (done != 1L) {
-    # Signal being ready to receive a new task
-    Rmpi::mpi.send.Robj(junk, 0, 1)
+  worker_is_done <- FALSE
+  master <- 0L
 
-    # Receive a task
+  #--- Loop until all work is completed
+  while (!worker_is_done) {
+    # Signal master that worker is ready to receive a new task
+    Rmpi::mpi.send.Robj(junk, dest = master, tag = 1L)
+
+    # Worker is receiving a message from master
     dat <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
     task_info <- Rmpi::mpi.get.sourcetag()
-    tag <- task_info[2]
+    tag_from_master <- task_info[2]
 
-    if (tag == 1L) {
+    if (tag_from_master == 1L) {
+      # Worker received a new task
       if (dat$do_OneSite) {
         if (verbose)
           print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "works on:",
@@ -179,19 +191,28 @@ mpi_work <- function(verbose = FALSE) {
 
         result <- do.call("do_OneSite", args = dat[-1])
 
-        # Send a result message back to the master
-        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
+        # Send result back to the master and message that task has been completed
+        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
       }
 
-    } else if (tag == 2L) {
-      done <- 1L
-      if (verbose)
+    } else if (tag_from_master == 2L) {
+      # Worker is told to shut down
+      worker_is_done <- TRUE
+
+      if (verbose) {
         print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(),
           "shuts down 'mpi_work()'"))
+      }
+
+    } else {
+      # We'll just ignore any unknown message from master
+      print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "received tag =",
+        tag_from_master, "from master but doesn't know what this means."))
     }
-    # We'll just ignore any unknown messages
   }
-  Rmpi::mpi.send.Robj(junk, 0, 3)
+
+  # Worker is signaling to master that it is exiting
+  Rmpi::mpi.send.Robj(junk, dest = master, tag = 3L)
 }
 
 
