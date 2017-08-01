@@ -1,7 +1,20 @@
-[![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
-  [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/90jbn06qby9a8b7n?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
-  [![codecov status](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2/branch/master/graph/badge.svg)](https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2)
 
+| Unix | Windows | Release | License | Coverage | Downloads |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+[ ![Travis build status][1]][2] | [![Appveyor build status][3]][4] | [ ![github release][5]][6] | [![license][7]][8] | [![codecov status][9]][10] | [![github downloads][11]][12] |
+
+[1]: https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master
+[2]: https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2
+[3]: https://ci.appveyor.com/api/projects/status/die00t8rjjhrb8i0/branch/master?svg=true
+[4]: https://ci.appveyor.com/project/dschlaep/rSFSW2/branch/master
+[5]: https://img.shields.io/github/release/Burke-Lauenroth-Lab/rSFSW2.svg?label=current+release
+[6]: https://github.com/Burke-Lauenroth-Lab/rSFSW2/releases
+[7]: https://img.shields.io/github/license/Burke-Lauenroth-Lab/rSFSW2.svg
+[8]: https://www.gnu.org/licenses/gpl.html
+[9]: https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2/branch/master/graph/badge.svg
+[10]: https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2
+[11]: https://img.shields.io/github/downloads/Burke-Lauenroth-Lab/rSFSW2/total.svg
+[12]: https://github.com/Burke-Lauenroth-Lab/rSFSW2
 
 
 # rSFSW2: A R package to create soil water balance simulation experiment
