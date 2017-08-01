@@ -189,15 +189,15 @@ mpi_work <- function(verbose = FALSE) {
       if (dat$do_OneSite) {
         if (verbose) {
           print(paste(Sys.time(), "MPI-worker", worker_id, "works on task =",
-            dat$i_sim, dat$i_SWRunInformation$Label))
+            dat$i_sim, shQuote(dat$i_SWRunInformation$Label)))
         }
 
         result <- try(do.call("do_OneSite", args = dat[-1]))
 
-        if (inherits(results, "try-error")) {
+        if (inherits(result, "try-error")) {
           # Tell master that task failed
           print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
-            dat$i_sim, "with error", paste(result, collapse = " / ")))
+            dat$i_sim, "with error", shQuote(paste(result, collapse = " / "))))
           Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 4L)
 
         } else {

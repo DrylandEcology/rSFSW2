@@ -4789,8 +4789,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
           print(paste(Sys.time(), ": MPI-master has received communication from worker",
-            worker_id, "with tag", tag_from_worker, "and message",
-            paste(complete, collapse = ", ")))
+            worker_id, "with tag", tag_from_worker))
         }
 
         if (tag_from_worker == 1L) {
@@ -4850,14 +4849,16 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         } else if (tag_from_worker == 4L) {
           #The worker had a problem
           print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
-            "failed with task:", paste(complete, collapse = ", ")))
+            "failed with task:", paste(complete, collapse = ", "), "-- storing info",
+            "in file 'MPI_ProblemRuns.tab'."))
 
-          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]], "ProblemRuns.csv")
+          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]],
+            "MPI_ProblemRuns.tab")
           if (!file.exists(ftemp)) {
-            cat("Worker, Run", file = ftemp, sep = "\n")
+            cat("Worker, Run, Error", file = ftemp, sep = "\n")
           }
-          cat(paste(worker_id, complete, sep = ","), file = ftemp, append = TRUE,
-            sep = "\n")
+          cat(paste(worker_id, complete$i, complete$r, sep = "\t"), file = ftemp,
+            append = TRUE, sep = "\n")
 
         } else {
           # We'll just ignore any unknown message from worker
