@@ -164,14 +164,15 @@ export_parallel_glovars <- function(verbose = FALSE) {
 #' @export
 mpi_work <- function(verbose = FALSE) {
 
-  if (verbose) {
-    print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "starts working."))
-  }
-
   # Define tags
   junk <- 0L
   worker_is_done <- FALSE
   master <- 0L
+  worker_id <- Rmpi::mpi.comm.rank()
+
+  if (verbose) {
+    print(paste(Sys.time(), "MPI-worker", worker_id, "starts working."))
+  }
 
   #--- Loop until all work is completed
   while (!worker_is_done) {
@@ -186,18 +187,25 @@ mpi_work <- function(verbose = FALSE) {
     if (tag_from_master == 1L) {
       # Worker received a new task
       if (dat$do_OneSite) {
-        if (verbose)
-          print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "works on:",
-            dat$i_sim, dat$i_labels))
+        if (verbose) {
+          print(paste(Sys.time(), "MPI-worker", worker_id, "works on task =",
+            dat$i_sim, dat$i_SWRunInformation$Label))
+        }
 
         result <- try(do.call("do_OneSite", args = dat[-1]))
 
         if (inherits(results, "try-error")) {
           # Tell master that task failed
+          print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
+            dat$i_sim, "with error", paste(result, collapse = " / ")))
           Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 4L)
 
         } else {
           # Send result back to the master and message that task has been completed
+          if (verbose) {
+            print(paste(Sys.time(), "MPI-worker", worker_id, "successfully completed",
+              "task =", dat$i_sim))
+          }
           Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
         }
       }
@@ -207,14 +215,13 @@ mpi_work <- function(verbose = FALSE) {
       worker_is_done <- TRUE
 
       if (verbose) {
-        print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(),
-          "shuts down 'mpi_work()'"))
+        print(paste(Sys.time(), "MPI-worker", worker_id, "shuts down 'mpi_work'"))
       }
 
     } else {
       # We'll just ignore any unknown message from master
-      print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "received tag =",
-        tag_from_master, "from master but doesn't know what this means."))
+      print(paste(Sys.time(), "MPI-worker", worker_id, "received tag =", tag_from_master,
+        "from master but doesn't know what this means."))
     }
   }
 
