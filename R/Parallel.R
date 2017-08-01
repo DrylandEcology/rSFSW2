@@ -96,6 +96,46 @@ export_objects_to_workers <- function(obj_env,
   success
 }
 
+#' This is for workers
+set_glovar <- function(x, value) {
+  # The environment 'SFSW2_glovars' is the one of the package copy on the workers!
+  assign(x = x, value = value, envir = SFSW2_glovars)
+}
+
+export_parallel_glovars <- function(verbose = FALSE) {
+  if (SFSW2_glovars[["p_has"]]) {
+    if (verbose) {
+      t1 <- Sys.time()
+      temp_call <- shQuote(match.call()[1])
+      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+    }
+
+    p_varnames <- grep("p_", ls(envir = SFSW2_glovars), value = TRUE)
+
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      for (x in p_varnames) {
+        parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = set_glovar, x = x,
+          value = SFSW2_glovars[[x]])
+      }
+
+    } else if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
+      # We have to rename functions locally (and export to workers):
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+      # is not the name of a function
+      .set_glovar <- function(x, value) set_glovar(x, value)
+      Rmpi::mpi.bcast.Robj2slave(.set_glovar)
+      for (x in p_varnames) {
+        Rmpi::mpi.bcast.cmd(cmd = .set_glovar, x = x, value = SFSW2_glovars[[x]])
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
 
 
 
@@ -284,7 +324,9 @@ init_SFSW2_cluster <- function() {
 
 #' Set-up a parallel cluster to be used for a rSFSW2 simulation project
 #' @export
-setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
+setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
+  print.debug = FALSE) {
+
   if (!SFSW2_glovars[["p_has"]]) {
     init_SFSW2_cluster()
   }
@@ -365,7 +407,17 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
     SFSW2_glovars[["p_has"]] <- !is.null(SFSW2_glovars[["p_cl"]]) &&
       SFSW2_glovars[["p_workersN"]] > 1
+
+    if (print.debug) {
+      temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
+        function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
+      temp <- paste(temp, collapse = "; ")
+
+      print(paste("Workers set up with:", temp))
+    }
   }
+
+  export_parallel_glovars(verbose = print.debug)
 
   invisible(TRUE)
 }

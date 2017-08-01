@@ -108,8 +108,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   set_RNG_stream(seed = rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]])
 
   if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
-    temp <- paste(sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE), function(x)
-      paste(shQuote(x), "=", SFSW2_glovars[[x]])), collapse = " / ")
+    temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
+      function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
+    temp <- paste(temp, collapse = "; ")
+
     print(paste0(tag_funid, ": worker ID is 0 with global variables: ", temp))
   }
 
@@ -4713,7 +4715,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
   } else {
-    print(paste(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
+    print(paste0(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
       units(delta.do_OneSite), " with status of tasks = "))
     print(unlist(sapply(tasks, table)))
   }
