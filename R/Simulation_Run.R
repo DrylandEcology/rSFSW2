@@ -4773,29 +4773,26 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       junk <- 0L
       closed_workers <- 0L
       runs.completed <- 1L
-      #sTag <- c("Ready for task", "Done with Task", "Exiting")
 
       while (closed_workers < SFSW2_glovars[["p_workersN"]]) {
 
       tryCatch({
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(), ": master is waiting for workers to communicate"))
+          print(paste(Sys.time(), ": MPI-master is waiting for workers to communicate"))
         }
 
         complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
         complete_info <- Rmpi::mpi.get.sourcetag()
         worker_id <- complete_info[1]
-        tag <- complete_info[2]
+        tag_from_worker <- complete_info[2] # see ?mpi_work for interpretation of tags
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(),
-                      ": master has received communication from worker", worker_id,
-                      "with tag", tag,
-                      "and message", paste(complete, collapse = ", ")))
+          print(paste(Sys.time(), ": MPI-master has received communication from worker",
+            worker_id, "with tag", tag_from_worker))
         }
 
-        if (tag == 1L) {
+        if (tag_from_worker == 1L) {
           has_time_to_simulate <- (difftime(Sys.time(), MoreArgs[["t_job_start"]], units = "secs") +
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) <
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
@@ -4821,42 +4818,57 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               SimParams = MoreArgs)
 
             if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-              print(paste("Worker:", worker_id,
-                          "Run:", MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
-                          "started at", Sys.time()))
+              print(paste(Sys.time(), ": MPI-master is sending worker", worker_id, "task",
+                MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]))
             }
-            Rmpi::mpi.send.Robj(dataForRun, worker_id, 1)
+
+            # Tell worker that this communication contains a task
+            Rmpi::mpi.send.Robj(dataForRun, dest = worker_id, tag = 1L)
             runs.completed <- runs.completed + 1L
 
           } else {
-            Rmpi::mpi.send.Robj(junk, worker_id, 2)
+            # Tell worker to shut down because all work completed or run out of walltime
+            Rmpi::mpi.send.Robj(junk, dest = worker_id, tag = 2L)
           }
 
-        } else if (tag == 2L) {
-          # TODO: The message contains results: store result in a data structure
-          temp <- complete$r
+        } else if (tag_from_worker == 2L) {
+          # Worker has sent results back to master
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste("Run:", complete, "at", Sys.time()))
+            print(paste(Sys.time(), ": MPI-master received results from worker", worker_id,
+              paste(complete, collapse = ", ")))
           }
 
-        } else if (tag == 3L) {
+        } else if (tag_from_worker == 3L) {
           # A worker has closed down.
           closed_workers <- closed_workers + 1L
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste("Worker:", worker_id, "closed at", Sys.time()))
+            print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+              "shut down."))
           }
 
-        } else if (tag == 4L) {
-          #The worker had a problem with Soilwat record
-          print(paste("Problem with run:", complete, "on worker:", worker_id, "at", Sys.time()))
-          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]], "ProblemRuns.csv")
-          if (!file.exists(ftemp))
-            cat("Worker, Run", file = ftemp, sep = "\n")
-          cat(paste(worker_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
+        } else if (tag_from_worker == 4L) {
+          #The worker had a problem
+          print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+            "failed with task:", paste(complete, collapse = ", "), "-- storing info",
+            "in file 'MPI_ProblemRuns.tab'."))
+
+          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]],
+            "MPI_ProblemRuns.tab")
+          if (!file.exists(ftemp)) {
+            cat("Worker, Run, Error", file = ftemp, sep = "\n")
+          }
+          cat(paste(worker_id, complete$i, complete$r, sep = "\t"), file = ftemp,
+            append = TRUE, sep = "\n")
+
+        } else {
+          # We'll just ignore any unknown message from worker
+          print(paste(Sys.time(), ": MPI-master received tag =", tag_from_worker,
+            "from worker", worker_id, "but doesn't know what this means."))
         }
 
       }, interrupt = function(interrupt) {
-        print("Ctrl-C caught bringing work to an end.")
+        print(paste(Sys.time(), ": MPI-master received user interruption 'ctrl-c' and",
+          "is shutting down workers -- this may take a short while."))
         print(interrupt)
       })
       }
