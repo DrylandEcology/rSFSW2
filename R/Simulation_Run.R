@@ -4834,7 +4834,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
         } else if (tag_from_worker == 2L) {
           # Worker has sent results back to master
-          temp <- complete$r
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
             print(paste(Sys.time(), ": MPI-master received results from worker", worker_id,
               paste(complete, collapse = ", ")))
@@ -4859,6 +4858,11 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           }
           cat(paste(worker_id, complete, sep = ","), file = ftemp, append = TRUE,
             sep = "\n")
+
+        } else {
+          # We'll just ignore any unknown message from worker
+          print(paste(Sys.time(), ": MPI-master received tag =", tag_from_worker,
+            "from worker", worker_id, "but doesn't know what this means."))
         }
 
       }, interrupt = function(interrupt) {
