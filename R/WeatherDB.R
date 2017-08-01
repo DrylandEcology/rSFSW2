@@ -174,7 +174,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       length(ids_Livneh_extraction) > 0) {
       #--- Set up parallelization
       setup_SFSW2_cluster(opt_parallel,
-        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose)
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]], verbose = verbose)
       on.exit(exit_SFSW2_cluster(verbose), add = TRUE)
 
       on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
