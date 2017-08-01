@@ -2574,8 +2574,8 @@ is_NEX <- function(x, ignore.case = TRUE) {
 
 #access climate change data
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
-  iDS_runIDs_sites, include_YN_climscen, climDB_meta,
-  dbW_compression_type, resume, verbose = FALSE, print.debug = FALSE) {
+  iDS_runIDs_sites, climDB_meta, dbW_compression_type, resume, verbose = FALSE,
+  print.debug = FALSE) {
 
   if (verbose)
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
@@ -2845,7 +2845,6 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
         length(ids_AllToDo), "downscaling requests"))
 
     ils_done <- unique((ids_Done - 1) %/% length(reqGCMs) + 1)
-    include_YN_climscen[iDS_runIDs_sites][ils_done] <- 1
 
     ids_ToDo <- ids_AllToDo[-ids_Done]
   } else {
@@ -2859,9 +2858,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
     ils_notdone <- unique((ids_ToDo - 1) %/% length(reqGCMs) + 1)
     failedLocations_DB <- locations[ils_notdone, ]
 
-    include_YN_updateFailed <- include_YN_climscen
-    include_YN_updateFailed[iDS_runIDs_sites][ils_notdone] <- 0
-    save(failedLocations_DB, include_YN_updateFailed,
+    save(failedLocations_DB, ids_ToDo, ils_notdone, reqGCMs, locations, ids_AllToDo,
       file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
       paste0("ClimDB_failedLocations_", clim_source, ".RData")))
   }
@@ -2869,14 +2866,14 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   if (verbose)
     print(paste("Finished '", clim_source, "' at", Sys.time()))
 
-  include_YN_climscen
+  invisible(TRUE)
 }
 
 
 #' Extract climate scenarios
 #' @export
 ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-  todos, opt_parallel, resume, verbose = FALSE, print.debug = FALSE) {
+  todos, opt_parallel, opt_chunks, resume, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -2918,7 +2915,6 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]])
 
   # keep track of successful/unsuccessful climate scenarios
-  include_YN_climscen <- rep(0, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
   todos_siteIDs <- which(todos)
 
   # loop through data sources
@@ -2928,20 +2924,32 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == ics]
 
     if (length(iDS_runIDs_sites) > 0) {
-      include_YN_climscen <- get_climatechange_data(clim_source = ics,
+      get_climatechange_data(clim_source = ics,
         SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta,
-        iDS_runIDs_sites = iDS_runIDs_sites, include_YN_climscen = include_YN_climscen,
-        climDB_meta = climDB_metas[[ics]],
+        iDS_runIDs_sites = iDS_runIDs_sites, climDB_meta = climDB_metas[[ics]],
         dbW_compression_type = dbW_compression_type, resume = resume, verbose = verbose,
         print.debug = print.debug)
     }
   }
+
+  # Prepare 'include_YN_climscen'
+  include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+
+  temp <- dbW_sites_with_missingClimScens(
+    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+    site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+    scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+    chunk_size = opt_chunks[["ensembleCollectSize"]],
+    verbose = verbose)
+  include_YN_climscen[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- ifelse(temp, 0L, 1L)
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
   utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
     file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
   unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
+
+  # Prepare return
   oe <- sys.on.exit()
   oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
   on.exit(eval(oe), add = FALSE)
@@ -3101,7 +3109,6 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   which_ClimateWizard <- grepl("ClimateWizardEnsembles",
     SFSW2_prj_meta[["sim_scens"]][["sources"]])
 
-  todos <- SFSW2_prj_inputs[["include_YN"]]
   if (resume) {
     temp <- dbW_sites_with_missingClimScens(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
@@ -3109,6 +3116,8 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
       chunk_size = opt_chunks[["ensembleCollectSize"]],
       verbose = opt_verbosity[["verbose"]])
+
+    todos <- SFSW2_prj_inputs[["include_YN"]]
     todos[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- temp
 
   } else {
@@ -3121,8 +3130,8 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   if (any(todos)) {
     if (any(which_NEX) || any(which_CF)) {
       temp <- ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-        todos, opt_parallel, resume = resume, verbose = opt_verbosity[["verbose"]],
-        print.debug = opt_verbosity[["print.debug"]])
+        todos, opt_parallel, opt_chunks, resume = resume,
+        verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
 
         SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
         SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
@@ -3133,6 +3142,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
         SFSW2_prj_inputs, todos, verbose = opt_verbosity[["verbose"]])
     }
   }
+
 
   list(SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta)
 }
