@@ -39,7 +39,7 @@ vignette: >
 <a name="MissingSoils"/></a>
 
 ## How does rSFSW2/SOILWAT2 handle missing soil data?
-[rSOILWAT2][rSOILWAT2] will fail if soil data are missing.
+[SOILWAT2][SOILWAT2] will fail if soil data are missing.
 [rSFSW2][rSFSW2] distinguishes three cases:
 
 1) The topmost/first soil layer has missing data: [rSFSW2][rSFSW2] marks the 'create'
@@ -101,6 +101,43 @@ in the master input file. The field 'Label' takes character values and can be us
 provide human readable site names.
 
 
+<a name="SWA"/></a>
+
+## How can I calculate available soil water?
+[SOILWAT2][SOILWAT2] does not calculate available soil water content because it
+cannot do it properly. The variable 'swcBulk' that you see in the structure
+'SW_SOILWAT_OUTPUTS' (defined in SW_SoilWater.h) is a stub that is left over
+from old versions of SoilWat. It and the associated code could be removed
+without harm.
+
+Available soil water content (SWA) is defined as the soil water content (SWC)
+which can be extracted, i.e., it is calculated as SWC - SWC[crit]. Where
+SWC[crit] is the soil water content at a critical soil water potential
+(SWP[crit]) which is the lower pressure limit an extraction agent can suck up
+water. The relationship between SWP and SWC can be described by so called
+'pedotransfer' functions and is dependent on the soil texture. For agronomical
+application with well-watered crops, it was historically assumed that SWC[crit]
+at SWP[crit] = -1.5 MPa. However, we are working in arid and semiarid systems
+where most/all plant species can extract water well below -1.5 MPa. Hence,
+SWC[crit] is species-specific - or at least plant-group specific; thus, the
+simple interpretation of the concept of SWA is tenuous or useless in vegetation
+that is composed of species with differing SWC[crit].
+
+Historically, [SOILWAT2][SOILWAT2] was treating vegetation as one type of green
+slime which had one value for SWC[crit] and thus could provide one output of
+SWA. More recently, [SOILWAT2][SOILWAT2] represents vegetation as composed of
+four functional plant types (grasses, shrubs, forbs, and trees). These groups
+are known to vary considerably in their values of SWP[crit]. Thus,
+[SOILWAT2][SOILWAT2] cannot calculate one SWA that is valid for the simulated
+vegetation and it stopped providing SWA output. This is to prevent the need to
+output a separate SWA for each functional group and because calculating SWA is
+simple and based on the provided output of SWC and separate information on
+SWC[crit] for a specific plant species/objective.
+
+However, [rSFSW2][rSFSW2] calculates SWA for each user-requested SWP value.
+
+
 [rSFSW2]: https://github.com/Burke-Lauenroth-Lab/rSFSW2
 [rSOILWAT2]: https://github.com/Burke-Lauenroth-Lab/rSOILWAT2
+[SOILWAT2]: https://github.com/Burke-Lauenroth-Lab/SOILWAT2
 
