@@ -1,0 +1,106 @@
+---
+title: "FAQs about rSFSW2"
+author: "Daniel R Schlaepfer"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    collapsed: false
+    smooth_scroll: false
+    theme: united
+    highlight: tango
+    smart: false
+vignette: >
+  %\VignetteIndexEntry{rSFSW2_FAQs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Frequently asked questions and answers
+
+
+<a name="SetupProject"/></a>
+
+## How do I set up a new simulation project?
+
+1) Install and attach [rSFSW2][rSFSW2] if not already done so (Note: required
+  version of [rSOILWAT2][rSOILWAT2] must already be installed on your computer).
+2) Create a skeleton project by calling the function
+  `setup_rSFSW2_project_infrastructure(dir_prj = "path/to/project_folder")`. This
+  function will copy a default version of input data to '1_Data_SWInput' and three
+  demo R files to your directory.
+3) Work your way through the file 'SFSW2_project_code.R', i.e., define paths and actions,
+  and provide simulation project description in 'SFSW2_project_descriptions.R' and run
+  settings in 'SFSW2_project_settings.R'
+
+
+<a name="MissingSoils"/></a>
+
+## How does rSFSW2/SOILWAT2 handle missing soil data?
+[rSOILWAT2][rSOILWAT2] will fail if soil data are missing.
+[rSFSW2][rSFSW2] distinguishes three cases:
+
+1) The topmost/first soil layer has missing data: [rSFSW2][rSFSW2] marks the 'create'
+  section of this run as failed.
+2) A continuous number of bottommost/deepest soil layer(s) have missing data: If
+  opt_sim[["fix_depth_to_layers"]] is TRUE, then the simulated soil depth is reduced to
+  the maximal depth for which soil data are available; if opt_sim[["fix_depth_to_layers"]]
+  is FALSE (default), then simulated soil depth is the maximal value of 'depth_LX'
+  which is <= 'SoilDepth_cm' and missing soil data are imputed with the LOCF method
+  'last-observation-carried-forward' (from shallow to deep layers).
+3) Soil layer(s) within the soil profile have missing data: [rSFSW2][rSFSW2] imputes
+  soil data with the LOCF method.
+
+
+<a name="SimulatedSoilDepth"/></a>
+
+## Is the simulated soil depth the value entered in file 'SWRuns_InputData_SoilLayers_v9.csv'?
+The columns 'SoilDepth_cm' and 'depth_LX', with X = 1, 2, 3, ... the soil layer
+numbers, in the file 'SWRuns_InputData_SoilLayers_v9.csv', whether or not the
+corresponding columns (density, sand, clay, etc.) in the file
+'SWRuns_InputData_soils_v12.csv' have appropriate values (e.g., not NA), and the
+value of the flag opt_sim[["fix_depth_to_layers"]] as read in from the file
+'SFSW2_project_descriptions.R' determine together the simulated soil depth at a
+site. If every 'depth_LX' <= 'SoilDepth_cm' is not NA and every corresponding
+soil data column from 'SWRuns_InputData_soils_v12' is not NA, then simulated
+soil depth is the maximal value of 'depth_LX' which is <= 'SoilDepth_cm'. See also
+[point 2 in the missing soil FAQ](#MissingSoils) in case of missing data.
+
+
+<a name="PercolationAtSoilDepth"/></a>
+
+## Does percolation stop or become impeded at the simulated soil depth?
+SOILWAT2 percolates soil moisture to the bottom of the deepest soil layer from
+where further percolation is considered 'deep drainage', i.e., water leaves the
+simulated system and is no longer potentially accessible by plant roots. If you
+set impermeability of the deepest soil layer to a value > 0, then you could
+simulate impeded percolation. However, impermeability is set by default to 0.
+
+
+<a name="SoilDepthEffects"/></a>
+
+## How does soil depth affect soil water?
+Soil depth determines total available soil moisture. For example, let's say
+we have two identical soils where volumetric water content at field capacity is
+0.3 and VWC at the limit of moisture extraction for a vegetation is 0.15, but
+one soil profile is 1 m deep and the other is 2 m deep. Soil depth causes the
+first soil to have a total of 15 cm of available water whereas the second,
+deeper soil has 30 cm of available water. That is an important difference for
+vegetation. Please, consider that soil layers will not affect the simulation outcome
+(besides for deep drainage rates) unless you include plant roots in those layers in
+the simulation.
+
+
+<a name="Labels_vs_SiteID"/></a>
+
+## What is the difference between 'Label' and 'site_id' in the file 'SWRuns_InputMaster_YOURPROJECT_v11.csv'?
+The field 'site_id' is a consecutive running integer serving as index for all the rows
+in the master input file. The field 'Label' takes character values and can be used to
+provide human readable site names.
+
+
+[rSFSW2]: https://github.com/Burke-Lauenroth-Lab/rSFSW2
+[rSOILWAT2]: https://github.com/Burke-Lauenroth-Lab/rSOILWAT2
+
