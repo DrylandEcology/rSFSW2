@@ -148,6 +148,11 @@ test_that("dbWork: access and manipulation functions", {
   temp <- dbWork_check(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE,
     TRUE, "a", -1, runsN_total + 1))
   expect_dbWork_check(temp, 0L, 0L)
+  
+  # Testing 'dbWork_clean'
+  expect_identical(dbWork_todos(dbpath), runIDs)
+  expect_true(dbWork_clean(dbpath))
+  expect_identical(dbWork_todos(dbpath), runIDs)
 })
 
 #--- Clean up
