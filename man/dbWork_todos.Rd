@@ -7,6 +7,9 @@
 \usage{
 dbWork_todos(path)
 }
+\arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+}
 \value{
 An integer vector of \code{runIDs}.
 }
