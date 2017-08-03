@@ -2,26 +2,45 @@ context("Time in the simulation world")
 
 #--- INPUTS
 input_sim_time <- list(
-  simstartyr = 1979,
-  startyr = startyr <- 1980,
-  endyr = endyr <- 2010,
-  DScur_startyr = startyr,
-  DScur_endyr = endyr,
-  future_yrs = list(
-    c(d <- 40, startyr + d, endyr + d),
-    c(d <- 90, startyr + d, endyr + d - 1)
+  # test object 1: startyr is leap year
+  startyr_leapyear = list(
+    simstartyr = 1979,
+    startyr = startyr <- 1980, 
+    endyr = endyr <- 2010,
+    DScur_startyr = startyr,
+    DScur_endyr = endyr,
+    future_yrs = list(
+      c(d <- 40, startyr + d, endyr + d),
+      c(d <- 90, startyr + d, endyr + d - 1)
+    )
+  ),
+  # test object 2: startyr is not leap year
+  startyr_noleapyear = list(
+    simstartyr = 1969,
+    startyr = startyr <- 1970, 
+    endyr = endyr <- 2000,
+    DScur_startyr = startyr,
+    DScur_endyr = endyr,
+    future_yrs = list(
+      c(d <- 40, startyr + d, endyr + d),
+      c(d <- 90, startyr + d, endyr + d - 1)
+    )
   )
 )
+
 
 expected_sim_time_elements <- c("simstartyr", "startyr", "endyr", "DScur_startyr", "DScur_endyr", 
 "future_yrs", "spinup_N", "future_N", "useyrs", "no.useyr", "no.usemo", 
 "no.usedy", "index.useyr", "index.usemo", "index.usedy")
 
-input_sim_time2 <- input_sim_time
-input_sim_time2[["future_yrs"]] <- list(
+# Corrupted input: will produce error
+input_sim_timeE <- input_sim_time[[1]]
+input_sim_timeE[["future_yrs"]] <- list(
     c(d <- 40, startyr + d, endyr + d),
     c(d <- 90, startyr + d)
   )
+
+
 
 #--- TESTS
 test_that("Obtain time information", {
@@ -45,27 +64,40 @@ test_that("Obtain time information", {
 
 
   # Setup simulation time
-  expect_silent(sim_time <- setup_simulation_time(input_sim_time, 
-    add_st2 = TRUE, adjust_NS = TRUE))
-  expect_error(setup_simulation_time(input_sim_time2),
+  expect_error(setup_simulation_time(input_sim_timeE),
     regexp = "incorrect format of 'future_yrs'")
-  expect_equal(sim_time[["useyrs"]], sim_time[["startyr"]]:sim_time[["endyr"]])
-  expect_true(all(expected_sim_time_elements %in% names(sim_time)))
-
-  # Simulation time aggregation lists
-  expect_silent(sim_time2_North <- simTiming_ForEachUsedTimeUnit(sim_time, latitude = 90))
-  expect_silent(sim_time2_South <- simTiming_ForEachUsedTimeUnit(sim_time, latitude = -90))
-  n_days <- sim_time[["no.usedy"]]
-  for (k in grep("ForEachUsedDay", names(sim_time2_North), value = TRUE)) {
-    info <- paste("For k =", shQuote(k))
-    expect_equal(length(sim_time2_North[[k]]), n_days, info = info)
-    expect_equal(length(sim_time2_South[[k]]), n_days, info = info)
+  sim_time <- list()
+  for (k in seq_along(input_sim_time)) {
+    info <- names(input_sim_time)[k]
+    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]], 
+      add_st2 = TRUE, adjust_NS = TRUE))
+    expect_equal(sim_time[[k]][["useyrs"]], 
+      sim_time[[k]][["startyr"]]:sim_time[[k]][["endyr"]], info = info)
+    expect_true(all(expected_sim_time_elements %in% names(sim_time[[k]])), info = info)
   }
-  n_months <- sim_time[["no.usemo"]]
-  for (k in grep("ForEachUsedMonth", names(sim_time2_North), value = TRUE)) {
-    info <- paste("For k =", shQuote(k))
-    expect_equal(length(sim_time2_North[[k]]), n_months, info = info)
-    expect_equal(length(sim_time2_South[[k]]), n_months, info = info)
+  
+  # Simulation time aggregation lists
+  st2 <- list(N = list(), S = list())
+  for (k in seq_along(sim_time)) {
+    expect_silent(st2[["N"]] <- simTiming_ForEachUsedTimeUnit(sim_time[[k]], 
+      latitude = 90))
+    expect_silent(st2[["S"]] <- simTiming_ForEachUsedTimeUnit(sim_time[[k]], 
+      latitude = -90))
+    n_days <- sim_time[[k]][["no.usedy"]]
+    n_months <- sim_time[[k]][["no.usemo"]]
+    
+    for (h in seq_along(st2)) {
+      for (d in grep("ForEachUsedDay", names(st2[["N"]]), value = TRUE)) {
+        info <- paste("For test =", names(input_sim_time)[k], "/ d =", shQuote(d), 
+          "/ hemisphere =", names(st2)[[h]])
+        expect_equal(length(st2[[h]][[d]]), n_days, info = info)
+      }
+      for (d in grep("ForEachUsedMonth", names(st2[["N"]]), value = TRUE)) {
+        info <- paste("For test =", names(input_sim_time)[k], "/ d =", shQuote(d), 
+          "/ hemisphere =", names(st2)[[h]])
+        expect_equal(length(st2[[h]][[d]]), n_months, info = info)
+      }
+    }
   }
 })
 

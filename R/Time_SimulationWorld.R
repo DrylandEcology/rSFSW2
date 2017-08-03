@@ -117,17 +117,30 @@ simTiming_ForEachUsedTimeUnit <- function(st,
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
 
     if (latitude < 0 && account_NorthSouth) {
-      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  #new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two with doy = 182
+      #- Shift doys
+      # New month either at end of year or in the middle because the two halfs (6+6
+      # months) of a year are of unequal length (182 (183 if leap year) and 183 days): I
+      # chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31
+      # Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two
+      # with doy = 182
+      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
-        temp <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
-        c(temp[-(1:dshift[x])], temp[1:dshift[x]])
+        temp1 <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
+        temp2 <- 1:dshift[x]
+        c(temp1[-temp2], temp1[temp2])
       }))
-      res$month_ForEachUsedDay_NSadj <- strptime(paste(res$year_ForEachUsedDay, res$doy_ForEachUsedDay_NSadj, sep = "-"), format = "%Y-%j")$mon + 1
-      temp <- length(res$year_ForEachUsedDay)
+      #- Shift months
+      temp <- paste(res$year_ForEachUsedDay, res$doy_ForEachUsedDay_NSadj, sep = "-")
+      res$month_ForEachUsedDay_NSadj <- strptime(temp, format = "%Y-%j")$mon + 1
+      #- Shift years
+      temp1 <- length(res$year_ForEachUsedDay)
       delta <- if (dshift[1] == 182) 2 else 3
+      temp2 <- dshift[1] + delta
       res$year_ForEachUsedDay_NSadj <- c(
-        rep(st$useyrs[1] - 1, times = dshift[1] + delta),
-        res$year_ForEachUsedDay[-((temp - dshift[1] - delta):temp)]
+        # add previous calendar year for shifted days of first simulation year
+        rep(st$useyrs[1] - 1, times = temp2), 
+        # remove a corresponding number of days at end of simulation period
+        res$year_ForEachUsedDay[-((temp1 - temp2 + 1):temp1)]
       )
     }
   }
