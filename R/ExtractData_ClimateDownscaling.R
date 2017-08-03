@@ -3112,7 +3112,8 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
     for (k in seq_along(clim_source)) {
       copy_tempdata_to_dbW(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         clim_source = clim_source[k],
-        dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], verbose)
+        dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        verbose = opt_verbosity[["verbose"]])
     }
 
     # Determine which climate scenario extractions and downscalings remain to be done
