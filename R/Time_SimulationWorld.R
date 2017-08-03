@@ -112,8 +112,8 @@ simTiming_ForEachUsedTimeUnit <- function(st,
                            to = ISOdate(max(st$useyrs), 12, 31, tz = "UTC"),
                            by = "1 day"))
 
-    res$doy_ForEachUsedDay <- res$doy_ForEachUsedDay_NSadj <- temp$yday + 1
-    res$month_ForEachUsedDay <- res$month_ForEachUsedDay_NSadj <- temp$mon + 1
+    res$doy_ForEachUsedDay <- temp$yday + 1
+    res$month_ForEachUsedDay <- temp$mon + 1
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
 
     if (latitude < 0 && account_NorthSouth) {
@@ -123,7 +123,7 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       # chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31
       # Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two
       # with doy = 182
-      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  
+      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
         temp1 <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
         temp2 <- 1:dshift[x]
@@ -138,10 +138,19 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       temp2 <- dshift[1] + delta
       res$year_ForEachUsedDay_NSadj <- c(
         # add previous calendar year for shifted days of first simulation year
-        rep(st$useyrs[1] - 1, times = temp2), 
+        rep(st$useyrs[1] - 1, times = temp2),
         # remove a corresponding number of days at end of simulation period
         res$year_ForEachUsedDay[-((temp1 - temp2 + 1):temp1)]
       )
+      res$useyr_NSadj <- unique(res$year_ForEachUsedDay_NSadj)
+      res$no.useyr_NSadj <- length(res$useyr_NSadj)
+
+    } else {
+      res$doy_ForEachUsedDay_NSadj <- res$doy_ForEachUsedDay
+      res$month_ForEachUsedDay_NSadj <- res$month_ForEachUsedDay
+      res$year_ForEachUsedDay_NSadj <- res$year_ForEachUsedDay
+      res$useyr_NSadj <- st$useyrs
+      res$no.useyr_NSadj <- st$no.useyrs
     }
   }
 
