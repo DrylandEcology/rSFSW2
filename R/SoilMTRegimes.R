@@ -139,7 +139,7 @@ SMR_logic <- function(ACS_COND1, ACS_COND2, ACS_COND3, MCS_COND0,
     anyNA(MCS_COND7), anyNA(MCS_COND8), anyNA(MCS_COND9), anyNA(MCS_COND10),
     anyNA(has_permafrost))) {
 
-    Sregime[-which("Anhydrous" == names(Sregime)] <- NA
+    Sregime[-which("Anhydrous" == names(Sregime))] <- NA
     return(Sregime)
   }
 
