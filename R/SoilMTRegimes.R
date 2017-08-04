@@ -47,8 +47,13 @@ SMRq_names <- function() {
 #' @export
 STR_logic <- function(MAST, MSST, SatSoilSummer_days, has_permafrost, has_Ohorizon) {
   temp <- STR_names()
-  Tregime <- rep(0, length(temp))
+  Tregime <- rep(0L, length(temp))
   names(Tregime) <- temp
+
+  if (anyNA(MAST) || anyNA(has_permafrost)) {
+    Tregime[] <- NA
+    return(Tregime)
+  }
 
   if (MAST >= 22) {
       Tregime["Hyperthermic"] <- 1L
@@ -58,6 +63,11 @@ STR_logic <- function(MAST, MSST, SatSoilSummer_days, has_permafrost, has_Ohoriz
       Tregime["Mesic"] <- 1L
 
   } else if (MAST > 0 && !has_permafrost) {
+    if (any(anyNA(SatSoilSummer_days), anyNA(has_Ohorizon), anyNA(MSST))) {
+      Tregime[c("Cryic", "Frigid")] <- NA
+      return(Tregime)
+    }
+
     # mineral soils
     if (SatSoilSummer_days > 0) {
       # "soil is saturated with water during some part of summer"
@@ -110,15 +120,28 @@ SMR_logic <- function(ACS_COND1, ACS_COND2, ACS_COND3, MCS_COND0,
   MCS_COND10, has_permafrost) {
 
   temp <- c(SMR_names(), SMRq_names())
-  Sregime <- rep(0, length(temp))
+  Sregime <- rep(0L, length(temp))
   names(Sregime) <- temp
 
   #Anhydrous condition: Soil Survey Staff 2010: p.16/Soil Survey Staff 2014: p.18
   #we ignore test for 'ice-cemented permafrost' and 'rupture-resistance class'
-  if (ACS_COND1 && ACS_COND2 && ACS_COND3)
+  if (any(anyNA(ACS_COND1), anyNA(ACS_COND2), anyNA(ACS_COND3))) {
+    Sregime["Anhydrous"] <- NA
+
+  } else if (ACS_COND1 && ACS_COND2 && ACS_COND3) {
     Sregime["Anhydrous"] <- 1L
+  }
 
   # We ignore 'Aquic' because we have no information on soil oxygen content
+  if (any(anyNA(MCS_COND0), anyNA(MCS_COND1), anyNA(MCS_COND2), anyNA(MCS_COND2_1),
+    anyNA(MCS_COND2_2), anyNA(MCS_COND2_3), anyNA(MCS_COND3), anyNA(MCS_COND3_1),
+    anyNA(MCS_COND4), anyNA(MCS_COND5), anyNA(MCS_COND6), anyNA(MCS_COND6_1),
+    anyNA(MCS_COND7), anyNA(MCS_COND8), anyNA(MCS_COND9), anyNA(MCS_COND10),
+    anyNA(has_permafrost))) {
+
+    Sregime[-which("Anhydrous" == names(Sregime)] <- NA
+    return(Sregime)
+  }
 
   if (MCS_COND0) {
     # Perudic soil moisture regime

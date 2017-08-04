@@ -2956,8 +2956,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   icol_new <- paste0("ACS_", icol)
                   ACS_CondsDF3 <- as.matrix(ACS_CondsDF_yrs[, icol, drop = FALSE])
                   if (opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == "conditions") {
-                    ACS_CondsDF3 <- matrix(colSums(ACS_CondsDF3), nrow = 1, ncol = length(icol),
-                      dimnames = list(NULL, icol_new)) >= crit_agree
+                    temp <- matrix(colSums(ACS_CondsDF3, na.rm = TRUE), nrow = 1, 
+                      ncol = length(icol), dimnames = list(NULL, icol_new))
+                    ACS_CondsDF3 <- temp >= crit_agree
                   } else {
                     dimnames(ACS_CondsDF3)[[2]] <- icol_new
                   }
@@ -3058,8 +3059,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   icol_new <- paste0("MCS_", icol)
                   MCS_CondsDF3 <- as.matrix(MCS_CondsDF_yrs[, icol, drop = FALSE])
                   if (opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == "conditions") {
-                    MCS_CondsDF3 <- matrix(colSums(MCS_CondsDF3), nrow = 1, ncol = length(icol),
-                      dimnames = list(NULL, icol_new)) >= crit_agree
+                    temp <- matrix(colSums(MCS_CondsDF3, na.rm = TRUE), 
+                      nrow = 1, ncol = length(icol), dimnames = list(NULL, icol_new))
+                    MCS_CondsDF3 <- temp >= crit_agree
                   } else {
                     dimnames(MCS_CondsDF3)[[2]] <- icol_new
                   }
@@ -3075,8 +3077,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                     stats::aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                       by = list(ACS_CondsDF_day$Years), mean)[, -1]))
 
-                  temp_annual[, 15:45] <- as.matrix(cbind(MCS_CondsDF_yrs
-                    [, c("COND0",
+                  dtemp <- stats::aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C", 
+                      "MCS_Moist_All", "COND1_Test", "COND2_Test")],
+                    by = list(MCS_CondsDF_day$Years), mean)[, -1]
+                  icols_conds <- c("COND0",
                       "DryDaysCumAbove5C", "SoilAbove5C", "COND1",
                       "MaxContDaysAnyMoistCumAbove8", "COND2", "COND2_1", "COND2_2", "COND2_3",
                       "DryDaysCumAny", "COND3", "COND3_1",
@@ -3086,10 +3090,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                       "MoistDaysCumAny", "COND7",
                       "MoistDaysConsecAny", "COND8",
                       "MoistDaysConsecWinter", "COND9",
-                      "AllDryDaysCumAny", "COND10")],
-                  stats::aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C", "MCS_Moist_All",
-                      "COND1_Test", "COND2_Test")],
-                    by = list(MCS_CondsDF_day$Years), mean)[, -1]))
+                      "AllDryDaysCumAny", "COND10")
+                  temp_annual[, 15:45] <- as.matrix(cbind(MCS_CondsDF_yrs[, icols_conds],
+                    dtemp))
 
                   regimes_done <- TRUE
 
