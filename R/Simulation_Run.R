@@ -3216,17 +3216,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) &&
             any(!is.na(Tregime)) && any(!is.na(Sregime))) {
             #---Table 1 in Chambers et al. 2014
-            rows_resilience <- c("ModeratelyHigh", "ModeratelyHigh", "Moderate", "Low", "Low")
+            rows_resilience <- c("ModeratelyHigh", "ModeratelyHigh", "Moderate", "Low",
+              "Low")
             rows_resistance <- c("High", "Moderate", "ModeratelyLow", "Moderate", "Low")
             #Ecological type
-            Table1_EcologicalType <- matrix(c("Cryic", "Xeric", "Frigid", "Xeric", "Mesic", "Xeric", "Frigid", "Aridic", "Mesic", "Aridic"), ncol = 2, byrow = TRUE)
-            Type <- as.logical(Tregime[Table1_EcologicalType[, 1]]) & as.logical(Sregime[Table1_EcologicalType[, 2]])
+            Table1_EcologicalType <- matrix(c("Cryic", "Xeric", "Frigid", "Xeric",
+              "Mesic", "Xeric", "Frigid", "Aridic", "Mesic", "Aridic"),
+              ncol = 2, byrow = TRUE)
+            Type <- as.logical(Tregime[Table1_EcologicalType[, 1]]) &
+              as.logical(Sregime[Table1_EcologicalType[, 2]])
             Type <- !is.na(Type) & Type
-            
+
             #Characteristics
             MAP <- mean(prcp.yr$ppt)
-            Table1_Characteristics_mm <- matrix(c(14, Inf, 12, 22, 12, 16, 6, 12, 8, 12), ncol = 2, byrow = TRUE) * 2.54 * 10
-            Characteristics <- MAP >= Table1_Characteristics_mm[, 1] & MAP <= Table1_Characteristics_mm[, 2]
+            Table1_Characteristics_mm <- matrix(c(14, Inf, 12, 22, 12, 16, 6, 12, 8, 12),
+              ncol = 2, byrow = TRUE) * 2.54 * 10
+            Characteristics <- MAP >= Table1_Characteristics_mm[, 1] &
+              MAP <= Table1_Characteristics_mm[, 2]
 
             #Resilience and Resistance
             RR <- which(Type & Characteristics)
@@ -3280,9 +3286,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               ncol = 3, byrow = TRUE)
 
             ltemp <- as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]])
-            ltemp <- !is.na(templ) & templ
+            ltemp <- !is.na(ltemp) & ltemp
             if (any(ltemp)) {
-              RR[Table1[templ, 3]] <- 1
+              RR[Table1[ltemp, 3]] <- 1
               RR[is.na(RR)] <- 0
             }
 
