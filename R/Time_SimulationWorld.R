@@ -142,15 +142,15 @@ simTiming_ForEachUsedTimeUnit <- function(st,
         # remove a corresponding number of days at end of simulation period
         res$year_ForEachUsedDay[-((temp1 - temp2 + 1):temp1)]
       )
-      res$useyr_NSadj <- unique(res$year_ForEachUsedDay_NSadj)
-      res$no.useyr_NSadj <- length(res$useyr_NSadj)
+      res$useyrs_NSadj <- unique(res$year_ForEachUsedDay_NSadj)
+      res$no.useyr_NSadj <- length(res$useyrs_NSadj)
 
     } else {
       res$doy_ForEachUsedDay_NSadj <- res$doy_ForEachUsedDay
       res$month_ForEachUsedDay_NSadj <- res$month_ForEachUsedDay
       res$year_ForEachUsedDay_NSadj <- res$year_ForEachUsedDay
-      res$useyr_NSadj <- st$useyrs
-      res$no.useyr_NSadj <- st$no.useyrs
+      res$useyrs_NSadj <- st$useyrs
+      res$no.useyr_NSadj <- st$no.useyr
     }
   }
 
