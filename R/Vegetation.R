@@ -415,7 +415,7 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
         temp <- apply(biom_std_C4[std.winter, ], 2, mean)
         biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
         temp <- apply(biom_std_annuals[std.winter, ], 2, mean)
-        biom_annuals[] <- matrix(, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
+        biom_annuals[] <- matrix(temp, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 

@@ -332,6 +332,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               "experimental table cannot have any NAs or name is not in tr_input table."))
 
             tasks$create <- 0L
+            break
 
           } else {
             tempdat <- try(get.LookupFromTable(
@@ -351,6 +352,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             } else {
               tasks$create <- 0L
+              break
             }
           }
         }
@@ -378,6 +380,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print(paste0(tag_simfid, ": ", do_vegs[["flag"]][k], " name(s) are not in ",
               "'tr_input_TranspCoeff' table column names"))
           tasks$create <- 0L
+          break
+
         } else {
           trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
@@ -398,6 +402,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print(paste0(tag_simfid, ": the function 'TranspCoeffByVegType' returned NA ",
               "or does not sum to greater than 0 for type", do_vegs[["adjustType"]][k]))
             tasks$create <- 0L
+            break
           }
         }
       }
@@ -817,7 +822,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
       tasks$create <- 0L
-      print(paste0(tag_simfid, ": i_sw_weatherList ERROR:", i_sw_weatherList))
+      print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
     }
 
     #copy and make climate scenarios from datafiles
@@ -1119,6 +1124,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         if (inherits(temp, "try-error")) {
           tasks$create <- 0L
+          break
+
         } else {
           grass.fraction <- temp$Composition[1]
           rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
@@ -1366,6 +1373,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[1:6, ])
         rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[1:6, ])
         rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[1:6, ])
+      }
+
+      # check that vegetation has no NAs
+      is_bad_veg <- any(anyNA(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])),
+        anyNA(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])),
+        anyNA(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])),
+        anyNA(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])))
+      if (is_bad_veg) {
+        print(paste0(tag_simpidfid, ": ERROR: vegetation values contain NA."))
+        tasks$create <- 0L
+        break
       }
 
       #--control transpiration regions for adjusted soil depth and rooting depth
@@ -2956,7 +2974,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   icol_new <- paste0("ACS_", icol)
                   ACS_CondsDF3 <- as.matrix(ACS_CondsDF_yrs[, icol, drop = FALSE])
                   if (opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == "conditions") {
-                    temp <- matrix(colSums(ACS_CondsDF3, na.rm = TRUE), nrow = 1, 
+                    temp <- matrix(colSums(ACS_CondsDF3, na.rm = TRUE), nrow = 1,
                       ncol = length(icol), dimnames = list(NULL, icol_new))
                     ACS_CondsDF3 <- temp >= crit_agree
                   } else {
@@ -3025,7 +3043,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
                   temp <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(172:293), ],
                     tapply(MCS_Dry_All, Years, max_duration))  #Consecutive days of dry soil after summer solsitice
-                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)), 
+                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)),
                     nomatch = 0)
                   MCS_CondsDF_yrs[ids > 0, "DryDaysConsecSummer"] <- temp[ids]
                   MCS_CondsDF_yrs$COND6 <- MCS_CondsDF_yrs$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days
@@ -3043,7 +3061,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   #COND9 - Moist in ALL parts MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
                   temp <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(355:365, 1:111), ],
                     tapply(MCS_Moist_All, Years, max_duration))#Consecutive days of moist soil after winter solsitice
-                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)), 
+                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)),
                     nomatch = 0)
                   MCS_CondsDF_yrs[ids > 0, "MoistDaysConsecWinter"] <- temp[ids]
                   MCS_CondsDF_yrs$COND9 <- MCS_CondsDF_yrs$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
@@ -3059,7 +3077,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   icol_new <- paste0("MCS_", icol)
                   MCS_CondsDF3 <- as.matrix(MCS_CondsDF_yrs[, icol, drop = FALSE])
                   if (opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == "conditions") {
-                    temp <- matrix(colSums(MCS_CondsDF3, na.rm = TRUE), 
+                    temp <- matrix(colSums(MCS_CondsDF3, na.rm = TRUE),
                       nrow = 1, ncol = length(icol), dimnames = list(NULL, icol_new))
                     MCS_CondsDF3 <- temp >= crit_agree
                   } else {
@@ -3077,7 +3095,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                     stats::aggregate(ACS_CondsDF_day[, c('T50_at0C', 'Lanh_Dry_Half', 'COND3_Test')],
                       by = list(ACS_CondsDF_day$Years), mean)[, -1]))
 
-                  dtemp <- stats::aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C", 
+                  dtemp <- stats::aggregate(MCS_CondsDF_day[, c("T50_at5C", "T50_at8C",
                       "MCS_Moist_All", "COND1_Test", "COND2_Test")],
                     by = list(MCS_CondsDF_day$Years), mean)[, -1]
                   icols_conds <- c("COND0",
