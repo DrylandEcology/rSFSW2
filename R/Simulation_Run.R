@@ -3022,8 +3022,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   MCS_CondsDF_yrs$COND5 <- MCS_CondsDF_yrs$AbsDiffSoilTemp_DJFvsJJA >= 6 #TRUE - Greater than 6, FALSE - Less than 6
 
                   #COND6 - Dry in ALL parts LESS than 45 CONSECUTIVE days in the 4 months following the summer solstice
-                  MCS_CondsDF_yrs$DryDaysConsecSummer <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(172:293), ],
+                  temp <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(172:293), ],
                     tapply(MCS_Dry_All, Years, max_duration))  #Consecutive days of dry soil after summer solsitice
+                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)), 
+                    nomatch = 0)
+                  MCS_CondsDF_yrs[ids > 0, "DryDaysConsecSummer"] <- temp[ids]
                   MCS_CondsDF_yrs$COND6 <- MCS_CondsDF_yrs$DryDaysConsecSummer < 45 # TRUE = dry less than 45 consecutive days
                   MCS_CondsDF_yrs$COND6_1 <- MCS_CondsDF_yrs$DryDaysConsecSummer > 90
 
@@ -3037,9 +3040,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   MCS_CondsDF_yrs$COND8 <- MCS_CondsDF_yrs$MoistDaysConsecAny > 90 # TRUE = Moist more than 90 Consecutive Days
 
                   #COND9 - Moist in ALL parts MORE than 45 CONSECUTIVE days in the 4 months following the winter solstice
-                  MCS_CondsDF_yrs$MoistDaysConsecWinter <-
-                    with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(355:365, 1:111), ],
+                  temp <- with(MCS_CondsDF_day[MCS_CondsDF_day$DOY %in% c(355:365, 1:111), ],
                     tapply(MCS_Moist_All, Years, max_duration))#Consecutive days of moist soil after winter solsitice
+                  ids <- match( MCS_CondsDF_yrs[, "Years"], as.integer(names(temp)), 
+                    nomatch = 0)
+                  MCS_CondsDF_yrs[ids > 0, "MoistDaysConsecWinter"] <- temp[ids]
                   MCS_CondsDF_yrs$COND9 <- MCS_CondsDF_yrs$MoistDaysConsecWinter > 45 # TRUE = moist more than 45 consecutive days
 
                   #COND10 - MCS is Dry in ALL layers for more or equal to 360 days
