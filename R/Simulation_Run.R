@@ -3225,7 +3225,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               ncol = 2, byrow = TRUE)
             Type <- as.logical(Tregime[Table1_EcologicalType[, 1]]) &
               as.logical(Sregime[Table1_EcologicalType[, 2]])
-            Type <- !is.na(Type) & Type
 
             #Characteristics
             MAP <- mean(prcp.yr$ppt)
@@ -3235,14 +3234,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               MAP <= Table1_Characteristics_mm[, 2]
 
             #Resilience and Resistance
-            RR <- which(Type & Characteristics)
-            for (ir in RR) {
+            is_RR <- which(!is.na(Type) & Type & Characteristics)
+            for (ir in is_RR) {
               resilience[rows_resilience[ir]] <- 1
               resistance[rows_resistance[ir]] <- 1
             }
+            is_notRR <- which(!is.na(Type) & !Type & Characteristics)
+            for (ir in is_notRR) {
+              resilience[rows_resilience[ir]] <- 0
+              resistance[rows_resistance[ir]] <- 0
+            }
 
             rm(rows_resilience, rows_resistance, Table1_EcologicalType, Type,
-              MAP, Table1_Characteristics_mm, Characteristics, RR)
+              MAP, Table1_Characteristics_mm, Characteristics, is_RR, is_notRR)
           } else {
             resilience <- resistance <- rep(NA, times = length(cats))
           }
@@ -3285,14 +3289,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 "Mesic", "Typic-Aridic", "Low"),
               ncol = 3, byrow = TRUE)
 
-            ltemp <- as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]])
-            ltemp <- !is.na(ltemp) & ltemp
-            if (any(ltemp)) {
-              RR[Table1[ltemp, 3]] <- 1
-              RR[is.na(RR)] <- 0
+            temp <- as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]])
+            is_RR <- !is.na(temp) & temp
+            if (any(is_RR)) {
+              RR[Table1[is_RR, 3]] <- 1
+            }
+            is_notRR <- !is.na(temp) & !temp
+            if (any(is_notRR)) {
+              RR[Table1[is_notRR, 3]] <- 0
             }
 
-            rm(Table1)
+            rm(Table1, is_RR, is_notRR)
           }
 
           nv_new <- nv + 3
