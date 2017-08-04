@@ -3221,7 +3221,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #Ecological type
             Table1_EcologicalType <- matrix(c("Cryic", "Xeric", "Frigid", "Xeric", "Mesic", "Xeric", "Frigid", "Aridic", "Mesic", "Aridic"), ncol = 2, byrow = TRUE)
             Type <- as.logical(Tregime[Table1_EcologicalType[, 1]]) & as.logical(Sregime[Table1_EcologicalType[, 2]])
-
+            Type <- !is.na(Type) & Type
+            
             #Characteristics
             MAP <- mean(prcp.yr$ppt)
             Table1_Characteristics_mm <- matrix(c(14, Inf, 12, 22, 12, 16, 6, 12, 8, 12), ncol = 2, byrow = TRUE) * 2.54 * 10
@@ -3278,9 +3279,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 "Mesic", "Typic-Aridic", "Low"),
               ncol = 3, byrow = TRUE)
 
-            temp <- Table1[as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]]), 3]
-            RR[!is.na(temp) & temp] <- 1
-            RR[!is.na(temp) & !temp] <- 0
+            ltemp <- as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]])
+            ltemp <- !is.na(templ) & templ
+            if (any(ltemp)) {
+              RR[Table1[templ, 3]] <- 1
+              RR[is.na(RR)] <- 0
+            }
 
             rm(Table1)
           }
