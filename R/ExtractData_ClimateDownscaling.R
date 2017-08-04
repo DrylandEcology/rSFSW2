@@ -2298,10 +2298,11 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       df_wdataOut[["weatherData"]][k] <- list(
         rSOILWAT2::dbW_weatherData_to_blob(scen.fut.daily, compression_type))
     }
+
+    saveRDS(df_wdataOut, file = file.path(project_paths[["dir_out_temp"]], tolower(gcm),
+      paste0(clim_source, "_", i_tag, ".rds")))
   }
 
-  saveRDS(df_wdataOut, file = file.path(project_paths[["dir_out_temp"]], tolower(gcm),
-    paste0(clim_source, "_", i_tag, ".rds")))
   on.exit()
 
   i
@@ -2488,6 +2489,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
 
     for (f in temp_files) {
       ok <- 0
+      fail <- FALSE
       ftemp <- file.path(dir_out_temp, f)
       df_wdataOut <- readRDS(file = ftemp)
 
@@ -2499,27 +2501,26 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
             StartYear = df_wdataOut[["StartYear"]][k],
             EndYear = df_wdataOut[["EndYear"]][k],
             weather_blob = df_wdataOut[["weatherData"]][k][[1]]))
+
           if (!inherits(res, "try-error")) {
             ok <- ok + 1
+          } else {
+            fail <- TRUE
           }
         }
 
         if (verbose) {
           print(paste0(Sys.time(), ": temporary scenario file ", shQuote(f),
-            if (ok > 0) {
-              paste(" successfully added n =", ok, "out of t =",
-                sum(df_wdataOut[["todo"]]), "records to weather database")
-            } else {
-              " failed"}
-            , "."))
+            " successfully added n = ", ok, " out of t = ", sum(df_wdataOut[["todo"]]),
+            " records to weather database", if (fail) " and some failed to add"))
         }
 
       } else {
-        print(paste("Temporary scenario file", shQuote(f), "cannot be read likely",
+        print(paste("Temporary scenario file", shQuote(f), "cannot be read, likely",
           " because it is corrupted or contains malformed data."))
       }
 
-      if (ok > 0) unlink(ftemp)
+      if (!fail) unlink(ftemp)
     }
   }
 
