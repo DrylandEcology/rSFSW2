@@ -6,6 +6,9 @@
 \usage{
 dbWork_redo(path, runIDs)
 }
+\arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+}
 \value{
 A logical vector indicating success.
 }

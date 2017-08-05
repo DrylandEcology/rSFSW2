@@ -8,6 +8,8 @@
 setup_dbWork(path, sim_size, include_YN, resume = FALSE)
 }
 \arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+
 \item{resume}{A logical value. If \code{TRUE} and \code{dbWork} exists,
 then function connects to the existing database. If \code{FALSE}, then a new database
 is created (possibly overwriting an existing one).}

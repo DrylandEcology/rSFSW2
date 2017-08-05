@@ -972,6 +972,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
       if (update_workDB) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
 
+        stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
         con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
           flags = RSQLite::SQLITE_RO)
         on.exit(DBI::dbDisconnect(con), add = TRUE)

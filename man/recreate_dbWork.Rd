@@ -7,6 +7,8 @@
 recreate_dbWork(path, dbOutput)
 }
 \arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+
 \item{dbOutput}{A character string. Full name to the output database.}
 }
 \value{

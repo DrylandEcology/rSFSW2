@@ -6,6 +6,9 @@
 \usage{
 dbWork_timing(path)
 }
+\arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+}
 \value{
 A numeric vector of execution time in seconds.
 }
