@@ -21,7 +21,7 @@ A list of length \code{N} containing the seed for each stream.
 }
 \description{
 The function \code{\link[parallel]{clusterSetRNGStream}} creates a stream for each
- worker/slave, and thus replicability can only be realized if each task is assigned to
+ worker/worker, and thus replicability can only be realized if each task is assigned to
  the same worker on repeated runs. This is usually not guaranteed with
  load-balancing parallel computations or when a long computation is being re-started
  from previous partially completed tasks/results.

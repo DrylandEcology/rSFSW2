@@ -2,7 +2,7 @@
 #------EXTRACT ELEVATION------
 
 prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size, field_sources,
-  how_determine_sources, scorp, elev_probs = c(0.025, 0.5, 0.975)) {
+  field_include, how_determine_sources, scorp, elev_probs = c(0.025, 0.5, 0.975)) {
 
   sites_elevation_source <- get_datasource_masterfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
@@ -12,8 +12,10 @@ prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size, field_sour
   dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]], ncol = 1 + length(probs),
     dimnames = list(NULL, c("ELEV_m", if (scorp == "cell") paste0("ELEV_m_q", probs))))
 
+  do_include <- get_datasource_includefield(SWRunInformation, field_include, sim_size)
+
   list(source = sites_elevation_source, data = dtemp, idone = vector(),
-    probs = probs, input = SWRunInformation)
+    probs = probs, input = SWRunInformation, do_include = do_include)
 }
 
 
@@ -49,14 +51,15 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NEDUSA1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
     MMC[["source"]] == "Elevation_NED_USA"
 
   if (resume) {
-    todos <- todos & has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "ELEV_m")
+    todos <- todos & has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "ELEV_m") &
+      MMC[["do_include"]]
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -103,26 +106,13 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
         "elevation data.")
     }
 
-    i_good <- stats::complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
-    MMC[["source"]][which(todos)[!i_good]] <- NA
-
-    if (any(i_good)) {
-      MMC[["idone"]]["NEDUSA1"] <- TRUE
-      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
-      i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
-      MMC[["source"]][i_Done] <- "Elevation_NED_USA"
-      if (verbose)
-        print(paste("'ExtractElevation_NED_USA' was extracted for n =", sum(i_good),
-          "out of", n_extract, "sites"))
-    }
-
-    # Save extracted data to disk
-    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
-    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == length(todos) == runsN_sites
+    # Determine successful extractions
+    MMC[["idone"]]["NEDUSA1"] <- TRUE
+    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
     MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["NEDUSA1"] <- TRUE
       MMC[["source"]][i_good] <- "Elevation_NED_USA"
       if (verbose)
         print(paste("'ExtractElevation_NED_USA' was extracted for n =",
@@ -149,14 +139,15 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["HWSD1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
     MMC[["source"]] == "Elevation_HWSD_Global"
 
   if (resume) {
-    todos <- todos & has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "ELEV_m")
+    todos <- todos & has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], "ELEV_m") &
+      MMC[["do_include"]]
   }
   names(todos) <- NULL
   n_extract <- sum(todos)
@@ -204,22 +195,13 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
         "extracting elevation data.")
     }
 
-    i_good <- stats::complete.cases(MMC[["data"]][todos, ]) #length(i_good) == sum(todos)
-    MMC[["source"]][which(todos)[!i_good]] <- NA
+    # Determine successful extractions
+    MMC[["idone"]]["HWSD1"] <- TRUE
+    i_good <- todos & !has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    i_notgood <- todos & has_incompletedata(MMC[["data"]]) #length(i_good) == sum(todos) == runsN_sites
+    MMC[["source"]][i_notgood] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["HWSD1"] <- TRUE
-      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
-      i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
-
-      MMC[["source"]][i_Done] <- "Elevation_HWSD_Global"
-      if (verbose)
-        print(paste("'Elevation_HWSD_Global' was extracted for n =", sum(i_good),
-          "out of", n_extract, "sites"))
-    }
-
-    if (any(i_good)) {
-      MMC[["idone"]]["HWSD1"] <- TRUE
       MMC[["source"]][i_good] <- "Elevation_HWSD_Global"
       if (verbose)
         print(paste("'ExtractElevation_HWSD_Global' was extracted for n =",
@@ -243,6 +225,7 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, resu
 
   MMC <- prepare_ExtractData_Elevation(SFSW2_prj_inputs[["SWRunInformation"]],
     sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
+    field_include = field_include,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     SFSW2_prj_meta[["sim_space"]][["scorp"]])
 

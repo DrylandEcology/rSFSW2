@@ -6,7 +6,10 @@
 are layers available.}
 \usage{
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, sim_size, sim_space,
-  dir_ex_soil, fnames_in, resume, verbose)
+  dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0)
+}
+\arguments{
+\item{default_TOC_GperKG}{A numeric value. The default value is 0 g TOC per kg soil.}
 }
 \description{
 CONUS-SOIL is a rasterized and controlled STATSGO data set; information for 11 soil

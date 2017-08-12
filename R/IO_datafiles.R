@@ -167,7 +167,6 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   dir.inmap <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)

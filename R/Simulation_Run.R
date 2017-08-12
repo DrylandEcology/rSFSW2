@@ -27,6 +27,12 @@ gather_args_do_OneSite <- function(meta, inputs) {
     parent = parent.frame(), global = globalenv()))
 }
 
+print_debug <- function(opt_verbosity, tag_id, tag_action, tag_section = NULL) {
+  if (opt_verbosity[["print.debug"]]) {
+    print(paste0(tag_id, ": ", tag_action,
+      if (!is.null(tag_section)) paste0(" ", shQuote(tag_section))))
+  }
+}
 
 #' The main simulation function which does all the heavy lifting
 #' @export
@@ -43,13 +49,26 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   t.do_OneSite <- Sys.time()
 
-  if (SimParams[["opt_verbosity"]][["verbose"]]) {
-    temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t.do_OneSite,
-      " for runID = ", i_sim))
+  # ID of worker
+  fid <- if (SFSW2_glovars[["p_has"]]) {
+      if (SFSW2_glovars[["p_type"]] == "mpi") {
+        Rmpi::mpi.comm.rank()
+      } else if (SFSW2_glovars[["p_type"]] == "socket") {
+        get(SFSW2_glovars[["p_wtag"]], envir = globalenv())
+      }
+    } else {
+      0L
+    }
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended prematurely ",
-      "for simulation = ", i_sim)); cat("\n")}, add = TRUE)
+  # Print/tag for function call
+  tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")
+  temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
+  tag_funid <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid)
+
+  if (SimParams[["opt_verbosity"]][["verbose"]]) {
+    print(paste0(tag_funid, ": started at ", t.do_OneSite))
+
+    on.exit({print(paste0(tag_funid, ": ended prematurely")); cat("\n")}, add = TRUE)
   }
 
   temp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
@@ -57,19 +76,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   has_time_to_simulate <- temp < SimParams[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
   if (!has_time_to_simulate)
-    stop("Not enough time to simulate ", i_sim)
+    stop(tag_funid, ": not enough time to simulate.")
 
   list2env(as.list(SimParams), envir = environment())
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
-    with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
   flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
     flag = "0")
 
   if (opt_verbosity[["debug.dump.objects"]]) {
-    print(paste0("'last.dump.do_OneSite_", i_sim, ".RData' will be produced if ",
-      "'do_OneSite' fails"))
+    print(paste0(tag_funid, ": 'last.dump.do_OneSite_", i_sim, ".RData' on error."))
 
     on.exit({
       op_prev <- options("warn")
@@ -89,6 +107,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
   set_RNG_stream(seed = rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]])
 
+  if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
+    temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
+      function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
+    temp <- paste(temp, collapse = "; ")
+
+    print(paste0(tag_funid, ": worker ID is 0 with global variables: ", temp))
+  }
 
 #-----------------------Check for experimentals
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
@@ -221,7 +246,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   if (tasks$create == 1L) {
-    if (opt_verbosity[["print.debug"]]) print("Start of section 'create'")
+    print_debug(opt_verbosity, tag_simfid, "section", "create simulation")
+
     EVCO_done <- TRCO_done <- FALSE  #to check whether we get information for evaporation and transpiration coefficients
     TRRG_done <- FALSE #to check whether we get information for transpiration regions
 
@@ -241,7 +267,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
-      print("SW treatment is not used because 'rSOILWAT2' package only uses one version of SOILWAT2. Sorry")
+      print(paste0(tag_simfid, ": SW treatment is not used because 'rSOILWAT2' package only uses one version of SOILWAT2. Sorry"))
     if (any(create_treatments == "filesin"))
       rSOILWAT2::set_swFiles(swRunScenariosData[[1]]) <- tr_files[[i_sw_input_treatments$filesin]]
     if (any(create_treatments == "prodin"))
@@ -260,7 +286,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::set_swCloud(swRunScenariosData[[1]]) <- tr_cloud[[i_sw_input_treatments$cloudin]]
 
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
-    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
+    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but could not for the experimental design because at that time information was unkown
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -301,7 +327,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
           if (anyNA(i_sw_input_treatments[[pc$flag]]) ||
              !all(unique(i_sw_input_treatments[[pc$flag]]) %in% rownames(pc$tr_input))) {
-            print(paste("ERROR:", shQuote(pc$flag), "column in expirementals cannot have any NAs or name is not in tr_input table."))
+
+            print(paste0(tag_simfid, ": ERROR: ", shQuote(pc$flag), " column in ",
+              "experimental table cannot have any NAs or name is not in tr_input table."))
+
             tasks$create <- 0L
 
           } else {
@@ -329,9 +358,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     #Treatment chunks
-    if (opt_verbosity[["print.debug"]])
-      print("Start of LookupTranspCoeff")
-
+    print_debug(opt_verbosity, tag_simfid, "creating", "LookupTranspCoeff")
     do_vegs <- list(
       veg = c("Grass", "Shrub", "Tree", "Forb"),
       flag = c("LookupTranspCoeffFromTable_Grass", "LookupTranspCoeffFromTable_Shrub",
@@ -339,17 +366,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       adjustType = c("positive", "inverse", "inverse", "inverse"))
 
     for (k in seq_along(do_vegs[["veg"]])) {
-      if (opt_verbosity[["print.debug"]])
-        print(paste0(".........", do_vegs[["veg"]][k]))
+      print_debug(opt_verbosity, tag_simfid, "creating", do_vegs[["veg"]][k])
 
       if (any(create_treatments == do_vegs[["flag"]][k])) {
         temp <- is.na(i_sw_input_treatments[1, do_vegs[["flag"]][k]])
         temp1 <- !all(i_sw_input_treatments[1, do_vegs[["flag"]][k]] %in% colnames(tr_input_TranspCoeff))
         if (temp || temp1) {
           if (temp)
-            print(paste(do_vegs[["flag"]][k], "for this run cannot be NA."))
+            print(paste0(tag_simfid, ": ", do_vegs[["flag"]][k], " cannot be NA"))
           if (temp1)
-            print(paste(do_vegs[["flag"]][k], "name for this run are not in tr_input_TranspCoeff table column names."))
+            print(paste0(tag_simfid, ": ", do_vegs[["flag"]][k], " name(s) are not in ",
+              "'tr_input_TranspCoeff' table column names"))
           tasks$create <- 0L
         } else {
           trco <- TranspCoeffByVegType(
@@ -368,7 +395,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #add data to sw_input_soils
             i_sw_input_soils[i.temp[seq_along(trco)]] <- trco
           } else {
-            print(paste("The function TranspCoeffByVegType returned NA or does not sum to greater than 0 for this run for type", do_vegs[["adjustType"]][k]))
+            print(paste0(tag_simfid, ": the function 'TranspCoeffByVegType' returned NA ",
+              "or does not sum to greater than 0 for type", do_vegs[["adjustType"]][k]))
             tasks$create <- 0L
           }
         }
@@ -401,7 +429,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #------4. Step: Information from datafiles are added if flagged 'use' to SOILWAT2 input files
     #add information from datafile to cloudin
-    if (opt_verbosity[["print.debug"]]) print("Start of cloudin")
+    print_debug(opt_verbosity, tag_simfid, "creating", "cloudin")
+
     wind <- with(i_sw_input_cloud, data.frame(wind_ms_1, wind_ms_2, wind_ms_3, wind_ms_4,
       wind_ms_5, wind_ms_6, wind_ms_7, wind_ms_8, wind_ms_9, wind_ms_10, wind_ms_11,
       wind_ms_12))
@@ -435,7 +464,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     #add vegetation information  from datafile to prodin
-    if (opt_verbosity[["print.debug"]]) print("Start of prodin")
+    print_debug(opt_verbosity, tag_simfid, "creating", "vegetation")
 
     if (any(sw_input_prod_use)) {
       #composition
@@ -489,7 +518,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Moved adjust to southern Hemi
 
     #add site information to siteparamin
-    if (opt_verbosity[["print.debug"]]) print("Start of siteparamin")
+    print_debug(opt_verbosity, tag_simfid, "creating", "site parameters")
+
     if (any(sw_input_site_use)) {
       flags <- c("SWC_min", "SWC_init", "SWC_wet")
       site_use <- sw_input_site_use[flags]
@@ -546,8 +576,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         as.numeric(i_SWRunInformation$ELEV_m)
 
     #add soil information to soilsin
-    if (opt_verbosity[["print.debug"]])
-      print("Start of soilsin")
+    print_debug(opt_verbosity, tag_simfid, "creating", "soils")
 
     # Use fixed column names
     soil_cols <- c("depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
@@ -653,13 +682,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (any(lbad)) {
           if (l > 1L) {
             soildat[l, icols[lbad]] <- soildat[l - 1L, icols[lbad]]
-            print(paste("Site", i_sim, shQuote(i_label), "Layer", l,
-                        ": data imputed from previous layer:",
-                        paste(names(lbad)[lbad], collapse = ", ")))
+            print(paste0(tag_simfid, ": layer ", l, " filled in with data imputed from ",
+              "previous layer: ", paste(names(lbad)[lbad], collapse = ", ")))
 
           } else {
-            print(paste("Site", i_sim, shQuote(i_label), ": data missing for 1st layer",
-                        "-> no data to impute: simulation will fail"))
+            print(paste0(tag_simfid, ": data missing for 1st layer -> no data to impute: ",
+              "simulation will fail"))
             print(soildat[l, icols])
             tasks$create <- 0L
             break
@@ -674,8 +702,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       check_soil <- check_soil_data(soil_swdat)
 
       if (!all(check_soil)) {
-        print(paste("Run:", i_sim, shQuote(i_label), ": soil data didn't pass quality checks for:",
-                    paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
+        print(paste0(tag_simfid, ": soil data didn't pass quality checks for:",
+          paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
         print(soil_swdat)
         tasks$create <- 0L
       }
@@ -689,7 +717,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
     #add transpiration regions information to siteparamin
-    if (opt_verbosity[["print.debug"]]) print("Start of transpregion")
+    print_debug(opt_verbosity, tag_simfid, "creating", "transpiration regions")
+
     if (sum(use_transpregion) > 0) {
       tr <- max(tr.layers <- stats::na.omit(as.numeric(i_sw_input_soils[paste0("TranspRegion_L", ld)]))) # max transpiration region
 
@@ -707,7 +736,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
       tr_rows <- rowSums(is.na(TranspirationRegions)) != 2 #used to get rid of NA rows
       if (sum(tr_rows) == 0) {
-        print("Transpiration Regions in Site can not be empty")
+        print(paste0(tag_simfid, ": 'transpiration regions' cannot be empty."))
       } else if (sum(tr_rows) == 1) {
         rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data = TranspirationRegions[tr_rows, ], nrow = 1, ncol = 2, byrow = T, dimnames = list(numeric(), c("ndx", "layer")))
         TRRG_done <- TRUE
@@ -730,7 +759,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     rSOILWAT2::swOUT_TimeStep(swRunScenariosData[[1]]) <- c(daily = 0, monthly = 2, yearly = 3)
 
     #############Get Weather Data################
-    if (opt_verbosity[["print.debug"]]) print("Start of daily weather")
+    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
     i_sw_weatherList <- list()
 
     if (!opt_sim[["use_dbW_current"]]) {
@@ -766,8 +795,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         fnames_out[["dbOutput"]]), silent = TRUE)
 
       if (is.na(weather_label_cur))
-        weather_label_cur <- try({function() stop("Output DB ", basename(fnames_out[["dbOutput"]]),
-          " has no information about weather data for run ", i_sim)}(), silent = TRUE)
+        weather_label_cur <- try({function() stop(tag_simfid, ": Output DB ",
+          basename(fnames_out[["dbOutput"]]), " has no information about weather data")}(),
+          silent = TRUE)
 
       if (inherits(weather_label_cur, "try-error")) {
         i_sw_weatherList <- weather_label_cur
@@ -779,24 +809,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
-            startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]], Scenario = scen)), silent = TRUE)
+            startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
+            Scenario = scen)), silent = TRUE)
       }
     }
 
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
       tasks$create <- 0L
-      if (opt_verbosity[["verbose"]])
-        print(paste(i_sim, i_label, "i_sw_weatherList ERROR:", i_sw_weatherList))
+      print(paste0(tag_simfid, ": i_sw_weatherList ERROR:", i_sw_weatherList))
     }
 
     #copy and make climate scenarios from datafiles
     if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
+      P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
+      tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
+
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
       } else {
         if (prj_todos[["need_cli_means"]]) {
-          if (opt_verbosity[["print.debug"]]) print("Start of get SiteClimate")
+          print_debug(opt_verbosity, tag_simpidfid, "creating", "climate")
+
           do.C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || prj_todos[["aon"]]$dailyC4_TempVar
           #redo SiteClimate_Ambient
           SiteClimate_Ambient <- calc_SiteClimate(weatherList = i_sw_weatherList[[1]],
@@ -1010,8 +1044,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #anything that depends on weather
       #------3. Step: Lookup or extract external information that needs to be executed for each run
-      if (opt_verbosity[["print.debug"]]) print("Start of set soil temperature")
-      #TODO get this working LOW PR
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "soil temperature")
+
+     #TODO get this working LOW PR
       if (prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
         soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
         soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1, 12)]))
@@ -1045,7 +1080,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #- Calculate relative composition based on equations
-      if (opt_verbosity[["print.debug"]]) print("Start of PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "potential vegetation")
+
       if (any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") && i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
         #Climate variables
         if (any(create_treatments == "PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate") && i_sw_input_treatments$PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate == "Reference") {
@@ -1090,8 +1126,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       }
 
-      if (opt_verbosity[["print.debug"]])
-        print("Start of biomass adjustments")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "potential vegetation")
 
       if (any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
         i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 &&
@@ -1113,8 +1148,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #adjust Root Profile - need composition fractions set above
-      if (opt_verbosity[["print.debug"]])
-        print("Start of AdjRootProfile")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "AdjRootProfile")
 
       if (any(create_treatments == "AdjRootProfile") &&
           i_sw_input_treatments$AdjRootProfile &&
@@ -1228,7 +1262,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         TRCO_done <- TRUE
       }
 
-      if (opt_verbosity[["print.debug"]]) print("Start of vegetation scaling")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "vegetation scaling")
+
       Grass_Scaling_use <- c("Grass_TotalBiomass_ScalingFactor", "Grass_LiveBiomass_ScalingFactor", "Grass_Litter_ScalingFactor")
       Shrub_Scaling_use <- c("Shrub_TotalBiomass_ScalingFactor", "Shrub_LiveBiomass_ScalingFactor", "Shrub_Litter_ScalingFactor")
       Tree_Scaling_use <- c("Tree_TotalBiomass_ScalingFactor", "Tree_LiveBiomass_ScalingFactor", "Tree_Litter_ScalingFactor")
@@ -1285,7 +1320,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
               rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <-rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
-              print("To Cold to do Vegetation Scaling Season for Growing")
+              print(paste0(tag_simfid, ": to Cold to do Vegetation Scaling Season for Growing"))
             }
           } else if (ScalingSeason == "Nongrowing") {# Nongrowing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT <= growseason_Tlimit_C
             temp <- SiteClimate_Scenario$meanMonthlyTempC <= opt_sim[["growseason_Tlimit_C"]]
@@ -1301,7 +1336,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
               rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
-              print("To Hot to do Vegetation Scaling Season for NonGrowing")
+              print(paste0(tag_simfid, ": to Hot to do Vegetation Scaling Season for NonGrowing"))
             }
           }
         } else {
@@ -1324,7 +1359,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #if southern hemisphere adjust if set, but not when already adjusted by, e.g., growing season
-      if (opt_verbosity[["print.debug"]]) print("Start of hemisphere adjustment")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "hemisphere adjustment")
+
       if (opt_sim[["adjust_veg_input_NS"]] && i_SWRunInformation$Y_WGS84 < 0 && !any(create_treatments == "AdjMonthlyBioMass_Temperature")) {
         rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[1:6, ])
         rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[1:6, ])
@@ -1333,7 +1369,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #--control transpiration regions for adjusted soil depth and rooting depth
-      if (opt_verbosity[["print.debug"]]) print("Start of control transpiration regions")
+      print_debug(opt_verbosity, tag_simpidfid, "creating", "control transpiration regions")
 
       tri.file <- matrix(NA, nrow = 4, ncol = 2, dimnames = list(NULL, c("Used_TF", "DeepestLayer")))
       for (tri in 1:4) {
@@ -1369,15 +1405,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (nrow(temp) > 0 && temp[1, 2] >= 1 ||
         max(temp[, 2]) <= max.tri.root) TRRG_done <- TRUE
 
-      if (opt_verbosity[["print.debug"]]) print(paste0(i_label, " created scenario ", sc, ": tasks = ", paste(tasks, collapse = ", "), ", evco = ", EVCO_done, ", trco = ", TRCO_done, ", trrg = ", TRRG_done))
+      print_debug(opt_verbosity, tag_simpidfid, "tasks =",
+        paste(paste(tasks, collapse = ", "), ", evco = ", EVCO_done, ", trco = ",
+        TRCO_done, ", trrg = ", TRRG_done))
     }#end do scenario creations
 
     if (!EVCO_done) {
-      print("Evaporation coefficients not set for this run.")
+      print(paste0(tag_simfid, ": evaporation coefficients not set for this run."))
     } else if (!TRCO_done) {
-      print("Transpiration coefficients not set for this run.")
+      print(paste0(tag_simfid, ": transpiration coefficients not set for this run."))
     } else if (!TRRG_done) {
-      print("Transpiration regions not set for this run.")
+      print(paste0(tag_simfid, ": transpiration regions not set for this run."))
     }
 
     if (tasks$create <= 0L || !EVCO_done || !TRCO_done || !TRRG_done) {
@@ -1491,16 +1529,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #prepare SQL result container
     SQL <- SQLcurrent <- character(0)
 
-    fid <- if (opt_parallel[["has_parallel"]]) {
-        if (opt_parallel[["parallel_backend"]] == "mpi") {
-          Rmpi::mpi.comm.rank()
-        } else if (opt_parallel[["parallel_backend"]] == "cluster") {
-          get(opt_parallel[["worker_tag"]], envir = globalenv())
-        }
-      } else {
-        0L
-      }
-
     dbTempFile <- file.path(project_paths[["dir_out_temp"]],
       paste0("SQL_Node_", fid, ".sql"))
     dbTempFileCurrent <- file.path(project_paths[["dir_out_temp"]],
@@ -1523,9 +1551,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   for (sc in sc1:sim_scens[["N"]]) {
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
+    tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
-    if (opt_verbosity[["print.debug"]])
-      print(paste("Start of SOILWAT2 execution for P_id =", P_id, "scenario =", sc))
+    print_debug(opt_verbosity, tag_simpidfid, "executing", "SOILWAT2")
 
     if (file.exists(f_sw_output[sc]) && ((tasks$execute[sc] == 1L && opt_behave[["resume"]]) ||
       (tasks$execute[sc] == -1L && any(tasks$aggregate == 1L)))) {
@@ -1537,66 +1565,65 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (tasks$execute[sc] == 1L) {
       runDataSC <- NULL
+      is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
       scw <- if (opt_sim[["use_dbW_future"]]) sc else 1L
       mDepth <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
 
       if (DeltaX[2] > 0) {
-        if (opt_verbosity[["print.debug"]])
-          print(paste("Using pre-determined DeltaX =", DeltaX[1]))
+        print_debug(opt_verbosity, tag_simpidfid, "using pre-determined DeltaX", DeltaX[1])
+
         if (DeltaX[2] == 2L)
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
+      }
 
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-      } else {
-        runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
+      # Testing for error in soil temperature module
+      is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
 
-        ## Testing for Error in Soil Layers and then repeating the SW run with a modified deltaX
-        is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
+      if (is_SOILTEMP_INSTABLE[sc]) {
+        ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
+        i_soil_rep <- 0
+        DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
 
-        if (is_SOILTEMP_INSTABLE) {
-          ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
-          i_soil_rep <- 0
-          DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
+        while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE[sc] &&
+          DeltaX[1] <= mDepth && i_soil_rep < 10) {
 
-          while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE && DeltaX[1] <= mDepth && i_soil_rep < 10) {
-            ## Make sure that the increment for the soil layers is a multiple of the MaxDepth, modulus of 0 means no remainder and thus a multiple of the MaxDepth
-            repeat {
-              DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
-              if (mDepth %% DeltaX[1] == 0) break
-            }
-
-            ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
-            rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
-            if (opt_verbosity[["print.debug"]]) print(paste("Site", i_sim, i_label, "SOILWAT2 called again with deltaX = ", rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], "cm because soil temperature stability criterion was not met."))
-
-            runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                       weatherList = i_sw_weatherList[[scw]],
-                  echo = FALSE, quiet = FALSE),
-                silent = TRUE)
-
-            ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
-            is_SOILTEMP_INSTABLE <- rSOILWAT2::has_soilTemp_failed()
-            i_soil_rep <- i_soil_rep + 1
+          ## Make sure that the increment for the soil layers is a multiple of the MaxDepth,
+          #   modulus of 0 means no remainder and thus a multiple of the MaxDepth
+          repeat {
+            DeltaX[1] <- DeltaX[1] + opt_sim[["increment_soiltemperature_deltaX_cm"]]
+            if (mDepth %% DeltaX[1] == 0) break
           }
 
-          DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE) 2L else -1L
+          ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
+          print_debug(opt_verbosity, tag_simpidfid, "SOILWAT2 called again with deltaX (cm) =",
+            rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
 
-          #TODO: change deltaX_Param for all [> sc] as well
-          if (opt_out_run[["saveRsoilwatInput"]])
-            save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-              ClimatePerturbationsVals, file = f_sw_input)
+          runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+                     weatherList = i_sw_weatherList[[scw]],
+                echo = FALSE, quiet = FALSE),
+              silent = TRUE)
 
-        } else {
-          DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
+          ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
+          is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
+          i_soil_rep <- i_soil_rep + 1
         }
+
+        DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE[sc]) 2L else -1L
+
+        #TODO: change deltaX_Param for all [> sc] as well
+        if (opt_out_run[["saveRsoilwatInput"]])
+          save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
+            ClimatePerturbationsVals, file = f_sw_input)
+
+      } else {
+        DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
       }
 
       if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
@@ -1604,7 +1631,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     if (opt_out_run[["saveRsoilwatOutput"]])
-      save(runDataSC, file = f_sw_output[sc])
+      save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
     }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
@@ -1614,18 +1641,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #------------------------AGGREGATE SOILWAT2 OUTPUT
     if (tasks$execute[sc] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
-      !inherits(runDataSC, "swOutput")) {
-      tasks$aggregate[sc] <- -1L
+      !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
+      tasks$aggregate[sc] <- -1L
     }
 
 
     if (tasks$aggregate[sc] == 1L) {
-      if (opt_verbosity[["print.debug"]])
-        print("Preparations for aggregation")
-
-      if (opt_verbosity[["print.debug"]])
-          print(paste("Start of overall aggregation for scenario:", sc))
+      print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
       #HEADER GENERATION REMOVED#
       #only exclude if
@@ -1708,7 +1731,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: SOILWAT2 inputs
       #0
         if (prj_todos[["aon"]]$input_SoilProfile) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of input_SoilProfile")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_SoilProfile")
 
           resAgg[nv:(nv+8), is_central] <- c(soilDepth_cm, soilLayers_N, unlist(texture),
             swRunScenariosData[[sc]]@site@SoilTemperatureConstants[9])
@@ -1716,7 +1739,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #1
         if (prj_todos[["aon"]]$input_FractionVegetationComposition) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of input_FractionVegetationComposition")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_FractionVegetationComposition")
 
           resAgg[nv:(nv+7), is_central] <- c(rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]),
             grasses.c3c4ann.fractions[[sc]])
@@ -1724,7 +1747,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #2
         if (prj_todos[["aon"]]$input_VegetationBiomassMonthly) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of input_VegetationBiomassMonthly")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
 
           temp <- lapply(c("swProd_MonProd_grass", "swProd_MonProd_shrub",
             "swProd_MonProd_tree", "swProd_MonProd_forb"),
@@ -1741,7 +1764,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #3
         if (prj_todos[["aon"]]$input_VegetationPeak) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of input_VegetationPeak")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationPeak")
+
           fracs <- rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1:4] #get the fractional Composition of grasses, shrubs, and trees
           tempdat <- matrix(data=NA, nrow=12, ncol=4)#matrix to hold biomass * percLive for grass,shrubs,trees
           colnames(tempdat) <- c("grass", "shrub", "tree", "forb")
@@ -1761,7 +1785,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #4
         if(prj_todos[["aon"]]$input_Phenology) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of input_Phenology")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_Phenology")
+
           if(!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
 
           monthly.temp <- tapply(temp.mo$mean, simTime2$month_ForEachUsedMonth, mean) #get mean monthly temp
@@ -1780,7 +1805,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #5
         if(prj_todos[["aon"]]$input_TranspirationCoeff){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of input_TranspirationCoeff")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_TranspirationCoeff")
+
           Tcoeff <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])[, 5:8, drop = FALSE]
           if(is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow=1)
 
@@ -1807,7 +1833,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #6
         if(prj_todos[["aon"]]$input_ClimatePerturbations) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of input_ClimatePerturbations")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_ClimatePerturbations")
           resAgg[nv:(nv+35), is_central] <- as.vector(as.numeric(ClimatePerturbationsVals[sc,]))
           nv <- nv+36
         }
@@ -1815,7 +1841,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: Climate and weather
       #7
         if(prj_todos[["aon"]]$yearlyTemp){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyTemp")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyTemp")
           if(!exists("temp.yr"))  temp.yr <- get_Temp_yr(runDataSC, isim_time)
 
           resAgg[nv, ] <- agg_fun(temp.yr$mean)
@@ -1823,7 +1849,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #8
         if(prj_todos[["aon"]]$yearlyPPT){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyPPT")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyPPT")
           if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
 
           resAgg[nv, ] <- agg_fun(prcp.yr$ppt)
@@ -1832,7 +1858,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #9
         if (prj_todos[["aon"]]$dailySnowpack) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailySnowpack")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySnowpack")
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
           if (!exists("prcp.dy")) prcp.dy <- get_PPT_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
@@ -1849,7 +1875,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #10
         if (prj_todos[["aon"]]$dailySnowpack)  {#daily snowpack: adjust_NorthSouth
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailySnowpack2")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySnowpack")
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
           if (sum(SWE.dy$val) > 0) {
@@ -1896,7 +1922,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #11
         if(prj_todos[["aon"]]$dailyFrostInSnowfreePeriod){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyFrostInSnowfreePeriod")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyFrostInSnowfreePeriod")
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
@@ -1912,7 +1938,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #12
         if(prj_todos[["aon"]]$dailyHotDays){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyHotDays")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyHotDays")
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
           nv_add <- length(opt_agg[["Tmax_crit_C"]])
@@ -1935,7 +1961,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #12b
         if(prj_todos[["aon"]]$dailyWarmDays){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyWarmDays")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyWarmDays")
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
           nv_add <- length(opt_agg[["Tmean_crit_C"]])
@@ -1959,7 +1985,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #13
         if(prj_todos[["aon"]]$dailyPrecipitationEventSizeDistribution){  #daily weather frequency distributions
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyPrecipitationEventSizeDistribution")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyPrecipitationEventSizeDistribution")
           if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(runDataSC, isim_time)
 
           #prcp-event sizes in bins
@@ -1976,7 +2002,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #15
         if(prj_todos[["aon"]]$yearlyPET){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyPET")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyPET")
           if(!exists("PET.yr")) PET.yr <- get_PET_yr(runDataSC, isim_time)
 
           resAgg[nv, ] <- agg_fun(PET.yr$val)
@@ -1985,7 +2011,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #16
         #correl monthly swp (top and bottom) vs. pet and ppt vs. temp, use product moment correlation coefficient {eqn. 11.6, \Sala, 1997 #45}
         if(prj_todos[["aon"]]$monthlySeasonalityIndices){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySeasonalityIndices")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySeasonalityIndices")
           if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
           if(!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
@@ -2011,7 +2037,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: Climatic dryness
       #17
         if(prj_todos[["aon"]]$yearlymonthlyTemperateDrylandIndices){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlymonthlyTemperateDrylandIndices")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlymonthlyTemperateDrylandIndices")
           if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
           if(!exists("PET.yr")) PET.yr <- get_PET_yr(runDataSC, isim_time)
           if(!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
@@ -2032,7 +2058,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #18
         if(prj_todos[["aon"]]$yearlyDryWetPeriods){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyDryWetPeriods")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyDryWetPeriods")
           if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
 
           temp <- rle(sign(prcp.yr$ppt - mean(prcp.yr$ppt)))
@@ -2049,7 +2075,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #19
         if (prj_todos[["aon"]]$dailyWeatherGeneratorCharacteristics) {#daily response to weather generator treatments
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailyWeatherGeneratorCharacteristics")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyWeatherGeneratorCharacteristics")
           if (!exists("prcp.dy")) prcp.dy <- get_PPT_dy(runDataSC, isim_time)
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
@@ -2073,7 +2099,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #20
         if(prj_todos[["aon"]]$dailyPrecipitationFreeEventDistribution){  #daily weather frequency distributions
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyPrecipitationFreeEventDistribution")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyPrecipitationFreeEventDistribution")
           if(!exists("prcp.dy")) prcp.dy <- get_PPT_dy(runDataSC, isim_time)
 
           #duration of prcp-free days in bins
@@ -2090,21 +2116,30 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #21
         if(prj_todos[["aon"]]$monthlySPEIEvents){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySPEIEvents")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySPEIEvents")
           #standardized precipitation-evapotranspiration index, SPEI: Vicente-Serrano, S.M., Beguer, S., Lorenzo-Lacruz, J., Camarero, J.s.J., Lopez-Moreno, J.I., Azorin-Molina, C., Revuelto, J.s., Morn-Tejeda, E. & Sanchez-Lorenzo, A. (2012) Performance of Drought Indices for Ecological, Agricultural, and Hydrological Applications. Earth Interactions, 16, 1-27.
           if(!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time)
           if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(runDataSC, isim_time)
 
           for (iscale in seq_along(opt_agg[["SPEI_tscales_months"]])) {
             if (opt_agg[["SPEI_tscales_months"]][iscale] < length(prcp.mo$ppt)) {
-              spei_m <- SPEI::spei(prcp.mo$ppt - PET.mo$val,
-                                  scale = opt_agg[["SPEI_tscales_months"]][iscale])
-              spei_m <- as.numeric(spei_m$fitted)
-              if (anyNA(spei_m)) {
-                print(paste("'monthlySPEIEvents' at scale of",
-                  opt_agg[["SPEI_tscales_months"]][iscale], "month(s) produced NAs;",
-                  "these are removed for further calculations"))
-                spei_m <- spei_m[!is.na(spei_m)]
+              if (requireNamespace("SPEI")) {
+                spei_m <- SPEI::spei(prcp.mo$ppt - PET.mo$val,
+                                    scale = opt_agg[["SPEI_tscales_months"]][iscale])
+                spei_m <- as.numeric(spei_m$fitted)
+                if (anyNA(spei_m)) {
+                  print(paste(tag_simpidfid, ": 'monthlySPEIEvents' at scale of",
+                    opt_agg[["SPEI_tscales_months"]][iscale], "month(s) produced NAs;",
+                    "these are removed for further calculations"))
+                  spei_m <- spei_m[!is.na(spei_m)]
+                }
+                
+              } else {
+                print(paste0(tag_simpidfid, ": package 'SPEI' missing",
+                  "or simulation period shorter than ", binSPEI_m[iscale], " months. ",
+                  "'monthlySPEIEvents' are not calculated."))
+
+                spei_m <- rep(NA, length(prcp.mo$ppt))
               }
               positive_spei <- spei_m >= 0
               runs <- rle(positive_spei)
@@ -2130,7 +2165,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: Climatic control
       #22
         if(prj_todos[["aon"]]$monthlyPlantGrowthControls){  #Nemani RR, Keeling CD, Hashimoto H et al. (2003) Climate-Driven Increases in Global Terrestrial Net Primary Production from 1982 to 1999. Science, 300, 1560-1563.
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyPlantGrowthControls")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyPlantGrowthControls")
           if(!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
           if(!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time)
           if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(runDataSC, isim_time)
@@ -2165,7 +2200,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #23
         if(prj_todos[["aon"]]$dailyC4_TempVar){#Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyC4_TempVar")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyC4_TempVar")
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
           temp <- sw_dailyC4_TempVar(dailyTempMin = temp.dy$min,
@@ -2176,7 +2211,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #24
         if(prj_todos[["aon"]]$dailyDegreeDays){  #Degree days based on daily temp
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyDegreeDays")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyDegreeDays")
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
           if (!exists("degday_dy"))
@@ -2193,7 +2228,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: Yearly water balance
       #27.0
         if(prj_todos[["aon"]]$yearlyAET){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyAET")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyAET")
           if(!exists("AET.yr")) AET.yr <- get_AET_yr(runDataSC, isim_time)
 
           resAgg[nv, ] <- agg_fun(AET.yr$val)
@@ -2202,7 +2237,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #27
         if(prj_todos[["aon"]]$yearlyWaterBalanceFluxes) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of yearlyWaterBalanceFluxes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyWaterBalanceFluxes")
           if(!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
           if(!exists("Esurface.yr")) Esurface.yr <- get_Esurface_yr(runDataSC, isim_time)
           if(!exists("intercept.yr")) intercept.yr <- get_Interception_yr(runDataSC, isim_time)
@@ -2221,38 +2256,38 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           evap.tot <- evap_soil.tot + Esurface.yr$sum + prcp.yr$snowloss
 
           temp1 <- 10 * slot(slot(runDataSC,swof["sw_percolation"]),"Year")
-          if(length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
-            drain.topTobottom <- temp1[isim_time$index.useyr, 1+DeepestTopLayer]
-          } else {
-            drain.topTobottom <- NA
-          }
+          drain.topTobottom <- if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
+              temp1[isim_time$index.useyr, 1+DeepestTopLayer]
+            } else NA
+
           temp1 <- 10 * slot(slot(runDataSC,swof["sw_hd"]),"Year")
-          if(length(topL) > 1) {
-            hydred.topTobottom <- apply(temp1[isim_time$index.useyr, 1+topL, drop=FALSE], 1, sum)
-          } else {
-            hydred.topTobottom <- temp1[isim_time$index.useyr,1+topL]
-          }
+          hydred.topTobottom <- if (length(topL) > 1) {
+              apply(temp1[isim_time$index.useyr, 1+topL], 1, sum)
+            } else {
+              temp1[isim_time$index.useyr, 1+topL]
+            }
 
           temp1 <- 10 * slot(slot(runDataSC,swof["sw_swcbulk"]),"Day")
-          if(isim_time$index.usedy[1] == 1){ #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
-            index.usedyPlusOne <- isim_time$index.usedy[-length(isim_time$index.usedy)]+1
-          } else {
-            index.usedyPlusOne <- isim_time$index.usedy
-          }
-          if(length(topL) > 1) {
-            swcdyflux <- apply(temp1[index.usedyPlusOne,2+ld], 1, sum) - apply(temp1[index.usedyPlusOne-1,2+ld], 1, sum)
-          } else {
-            swcdyflux <- temp1[index.usedyPlusOne,2+ld] - temp1[index.usedyPlusOne-1,2+ld]
-          }
+          index.usedyPlusOne <- if (isim_time$index.usedy[1] == 1) { #simstartyr == startyr, then (isim_time$index.usedy-1) misses first value
+              isim_time$index.usedy[-length(isim_time$index.usedy)]+1
+            } else {
+              isim_time$index.usedy
+            }
+          swcdyflux <- if (length(ld) > 1) {
+              apply(temp1[index.usedyPlusOne, 2+ld], 1, sum) -
+                apply(temp1[index.usedyPlusOne-1, 2+ld], 1, sum)
+            } else {
+              temp1[index.usedyPlusOne, 2+ld] - temp1[index.usedyPlusOne-1, 2+ld]
+            }
           swc.flux <- tapply(swcdyflux, temp1[index.usedyPlusOne, 1], sum)
 
-          # fluxes
           fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt,
             prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter,
             Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot,
             evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top,
             transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val,
             swc.flux)
+
 
           resAgg[nv:(nv+22), ] <- t(apply(fluxtemp, 2, agg_fun, na.rm = TRUE))
           if (any(transp.tot > 0))
@@ -2274,7 +2309,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #27.2
         if(prj_todos[["aon"]]$dailySoilWaterPulseVsStorage){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySoilWaterPulseVsStorage")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySoilWaterPulseVsStorage")
           if(!exists("inf.dy")) inf.dy <- get_Inf_dy(runDataSC, isim_time)
           if(!exists("transp.dy.all")) transp.dy.all <- get_Response_aggL(swof["sw_transp"], tscale = "dyAll", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(swof["sw_evsoil"], tscale = "dyAll", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -2384,7 +2419,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #---Aggregation: Daily extreme values
       #28
         if(prj_todos[["aon"]]$dailyTranspirationExtremes) {#mean and stats::sd of DOY and value of minimum/maximum
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyTranspirationExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyTranspirationExtremes")
           if(!exists("transp.dy")) transp.dy <- get_Response_aggL(swof["sw_transp"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- transp.dy$top + transp.dy$bottom
@@ -2403,7 +2438,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #29
         if(prj_todos[["aon"]]$dailyTotalEvaporationExtremes) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyTotalEvaporationExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyTotalEvaporationExtremes")
           if(!exists("Esoil.dy")) Esoil.dy <- get_Response_aggL(swof["sw_evsoil"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("Esurface.dy")) Esurface.dy <- get_Esurface_dy(runDataSC, isim_time)
 
@@ -2423,7 +2458,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #30
         if(prj_todos[["aon"]]$dailyDrainageExtremes) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyDrainageExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyDrainageExtremes")
           if(!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(runDataSC, isim_time)
 
           temp <- tapply(deepDrain.dy$val, simTime2$year_ForEachUsedDay, extreme_values_and_doys)
@@ -2441,7 +2476,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #31
         if(prj_todos[["aon"]]$dailyInfiltrationExtremes) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyInfiltrationExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyInfiltrationExtremes")
           if(!exists("inf.dy")) inf.dy <- get_Inf_dy(runDataSC, isim_time)
 
           temp <- tapply(inf.dy$inf, simTime2$year_ForEachUsedDay, extreme_values_and_doys)
@@ -2459,7 +2494,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #32
         if(prj_todos[["aon"]]$dailyAETExtremes) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyAETExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyAETExtremes")
           if(!exists("AET.dy")) AET.dy <- get_AET_dy(runDataSC, isim_time)
 
           temp <- tapply(AET.dy$val, simTime2$year_ForEachUsedDay, extreme_values_and_doys)
@@ -2477,7 +2512,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #33
         if(prj_todos[["aon"]]$dailySWPextremes){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySWPextremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPextremes")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
 
@@ -2501,7 +2536,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #34
         if (prj_todos[["aon"]]$dailyRechargeExtremes) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailyRechargeExtremes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRechargeExtremes")
           if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(swof["sw_swcbulk"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           recharge.dy <- NULL
@@ -2533,13 +2568,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #35a
         regimes_done <- FALSE
         if (prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes || prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailyNRCS_SoilMoistureTemperatureRegimes")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyNRCS_SoilMoistureTemperatureRegimes")
           #Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
           #Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural Resources Conservation Service, Washington, DC.
 
           stopifnot(any(opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == c("data", "conditions", "regime")))
 
           #Result containers
+          has_simulated_SoilTemp <- has_realistic_SoilTemp <- NA
           SMTR <- list()
           temp <- STR_names()
           SMTR[["STR"]] <- matrix(0, nrow = 1, ncol = length(temp), dimnames = list(NULL, temp))
@@ -2553,11 +2589,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             list(NULL, c("MATLanh", "MAT50", "T50jja", "T50djf", "CSPartSummer",
             "meanTair_Tsoil50_offset_C", paste0("V", 7:45))))
 
-          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]])) { #we need soil temperature
+          if (rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[sc]]) &&
+            isTRUE(!is_SOILTEMP_INSTABLE[sc])) { #we need soil temperature
+
+            has_simulated_SoilTemp <- 1
             if (!exists("soiltemp.dy.all")) soiltemp.dy.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
             if (!anyNA(soiltemp.dy.all$val) && all(soiltemp.dy.all$val[, -(1:2)] < 100)) {
               # 100 C as upper realistic limit from Garratt, J.R. (1992). Extreme maximum land surface temperatures. Journal of Applied Meteorology, 31, 1096-1105.
+              has_realistic_SoilTemp <- 1
               if (!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "yrAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("soiltemp.mo.all")) soiltemp.mo.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "moAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
               if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -2578,9 +2618,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 # Normal years for soil moisture regimes (Soil Survey Staff 2014: p.29)
                 # Should have a time period of 30 years to determine normal years
                 if (isim_time$no.useyr < 30)
-                  print(paste(i_label, "has only", isim_time$no.useyr, "years of data;",
-                    "determination of normal years for NRCS soil moisture regimes should",
-                    "be based on >= 30 years."))
+                  print(paste0(tag_simpidfid, ": has only", isim_time$no.useyr, "years ",
+                    "of data; determination of normal years for NRCS soil moisture ",
+                    "regimes should be based on >= 30 years."))
 
                 #   - Annual precipitation that is plus or minus one standard precipitation
                 #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
@@ -2711,7 +2751,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
               calc50 <- !(Fifty_depth == soildat[i_depth50, "depth_cm"])
               if (calc50) {
-                weights50 <- abs(Fifty_depth - soildat[i_depth50 + c(1, 0), "depth_cm"])
+                weights50 <- calc_weights_from_depths(i_depth50, Fifty_depth, soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_depth50, weights50))
                 i_depth50 <- findInterval(Fifty_depth, soildat[, "depth_cm"])
 
@@ -2725,7 +2765,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
               calcMCS <- !(MCS_depth == soildat[i_MCS, "depth_cm"])
               if (any(calcMCS)) for (k in which(calcMCS)) {
-                weightsMCS <- abs(MCS_depth[k] - soildat[i_MCS[k] + c(1, 0), "depth_cm"])
+                weightsMCS <- calc_weights_from_depths(i_MCS[k], MCS_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_MCS[k], weightsMCS))
                 i_MCS <- findInterval(MCS_depth, soildat[, "depth_cm"])
 
@@ -2739,7 +2779,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
               calcLanh <- !(Lanh_depth == soildat[i_Lanh, "depth_cm"])
               if (any(calcLanh)) for (k in which(calcLanh)) {
-                weightsLanh <- abs(Lanh_depth[k] - soildat[i_Lanh[k] + c(1, 0), "depth_cm"])
+                weightsLanh <- calc_weights_from_depths(i_Lanh[k], Lanh_depth[k], soildat[, "depth_cm"])
                 soildat <- t(add_layer_to_soil(t(soildat), i_Lanh[k], weightsLanh))
                 i_Lanh <- findInterval(Lanh_depth, soildat[, "depth_cm"])
 
@@ -2757,11 +2797,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 soilLayers_N_NRCS <- dim(soildat)[1]
 
                 if (opt_verbosity[["verbose"]])
-                  print(paste0(i_label, " interpolated soil layers for NRCS soil regimes",
-                      " because of insufficient soil layers: required would be {",
-                        paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))), collapse = ", "),
-                        "} and available are {",
-                        paste(layers_depth, collapse = ", "), "}"))
+                  print(paste0(tag_simpidfid, ": interpolated soil layers for NRCS soil ",
+                    "regimes because of insufficient soil layers: required would be {",
+                    paste(sort(unique(c(Fifty_depth, MCS_depth, Lanh_depth))),
+                    collapse = ", "), "} and available are {",
+                    paste(layers_depth, collapse = ", "), "}"))
               } else {
                 soilLayers_N_NRCS <- soilLayers_N
               }
@@ -3055,8 +3095,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   try(rm(list = to_del), silent = TRUE)
 
               } else {
-                if (opt_verbosity[["verbose"]])
-                  print(paste(i_label, "Number of normal years not long enough to calculate NRCS soil moisture regimes. Try increasing length of simulation"))
+                if (opt_verbosity[["verbose"]]) {
+                  print(paste0(tag_simpidfid, ": number of normal years not long enough ",
+                    "to calculate NRCS soil moisture regimes."))
+                }
 
                 SMTR[["SMR"]][] <- NA
               }
@@ -3070,20 +3112,27 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 try(rm(list = to_del), silent = TRUE)
 
             } else {
-              if (opt_verbosity[["verbose"]])
-                print(paste(i_label, "has unrealistic soil temperature values: NRCS soil moisture/temperature regimes not calculated."))
-                SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              if (opt_verbosity[["verbose"]]) {
+                print(paste0(tag_simpidfid, ": has unrealistic soil temperature values: ",
+                  "NRCS soil moisture/temperature regimes not calculated."))
+              }
+              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+              has_realistic_SoilTemp <- 0
             }
 
           } else {
-            if (opt_verbosity[["verbose"]])
-              print(paste(i_label, "soil temperature module turned off but required for NRCS Soil Moisture/Temperature Regimes."))
-              SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            if (opt_verbosity[["verbose"]]) {
+              print(paste0(tag_simpidfid, ": soil temperature module turned off but ",
+                "required for NRCS Soil Moisture/Temperature Regimes."))
+            }
+            SMTR[["STR"]][] <- SMTR[["SMR"]][] <- NA
+            has_simulated_SoilTemp <- 0
           }
 
           if (prj_todos[["aon"]]$dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates) {
-            nv_new <- nv + 8
-            resAgg[nv:(nv_new - 1), is_central] <- c(Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
+            nv_new <- nv + 10
+            resAgg[nv:(nv_new - 1), is_central] <- c(has_simulated_SoilTemp, has_realistic_SoilTemp,
+              Fifty_depth, MCS_depth[1:2], Lanh_depth[1:2],
               permafrost_yrs, SMR_normalyears_N, as.integer(has_Ohorizon))
             nv <- nv_new
             nv_new <- nv + dim(temp_annual)[2]
@@ -3116,7 +3165,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #35b
         if (prj_todos[["aon"]]$dailyNRCS_Chambers2014_ResilienceResistance) {
           #Based on Table 1 in Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailyNRCS_Chambers2014_ResilienceResistance")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyNRCS_Chambers2014_ResilienceResistance")
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
 
           #Result containers
@@ -3167,8 +3216,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         #35c
         if (prj_todos[["aon"]]$dailyNRCS_Maestas2016_ResilienceResistance) {  #Requires "dailyNRCS_SoilMoistureTemperatureRegimes"
           #Based on Maestas, J.D., Campbell, S.B., Chambers, J.C., Pellant, M. & Miller, R.F. (2016). Tapping Soil Survey Information for Rapid Assessment of Sagebrush Ecosystem Resilience and Resistance. Rangelands, 38, 120-128.
-          if (opt_verbosity[["print.debug"]])
-            print("Aggregation of dailyNRCS_Maestas2016_ResilienceResistance")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyNRCS_Maestas2016_ResilienceResistance")
 
           RR <- c(Low = 0, Moderate = 0, High = 0)
 
@@ -3214,7 +3262,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #35.2
         if (prj_todos[["aon"]]$dailyWetDegreeDays) { #Wet degree days on daily temp and swp
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyWetDegreeDays")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyWetDegreeDays")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
@@ -3262,7 +3310,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #35.3
         if(prj_todos[["aon"]]$dailyThermalDrynessStartEnd){
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of dailyThermalDrynessStartEnd")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalDrynessStartEnd")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
@@ -3303,7 +3351,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #35.4
         if(prj_todos[["aon"]]$dailyThermalSWPConditionCount){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyThermalSWPConditionCount")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalSWPConditionCount")
           if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3352,7 +3400,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #36
         if(prj_todos[["aon"]]$monthlySWPdryness){#dry periods based on monthly swp data: adjust_NorthSouth
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySWPdryness")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWPdryness")
           if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
 
@@ -3397,7 +3445,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #TODO(drs): progress state
       #37
         if(prj_todos[["aon"]]$dailySWPdrynessANDwetness){#Dry and wet periods based on daily swp: adjust_NorthSouth
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySWPdrynessANDwetness")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessANDwetness")
           if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
 
@@ -3522,7 +3570,7 @@ resMeans[1:(nv - 1)]
         }
       #38
         if(prj_todos[["aon"]]$dailySuitablePeriodsDuration){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySuitablePeriodsDuration")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySuitablePeriodsDuration")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
@@ -3553,7 +3601,7 @@ resMeans[1:(nv - 1)]
         }
       #39
         if(prj_todos[["aon"]]$dailySuitablePeriodsAvailableWater){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySuitablePeriodsAvailableWater")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySuitablePeriodsAvailableWater")
           if(!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(swof["sw_swcbulk"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
@@ -3582,7 +3630,7 @@ resMeans[1:(nv - 1)]
         }
       #40
         if(prj_todos[["aon"]]$dailySuitablePeriodsDrySpells){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySuitablePeriodsDrySpells")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySuitablePeriodsDrySpells")
           if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
           if(!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
@@ -3635,7 +3683,7 @@ resMeans[1:(nv - 1)]
         }
       #41
         if(prj_todos[["aon"]]$dailySWPdrynessDurationDistribution){#cummulative frequency distribution of durations of dry soils in each of the four seasons and for each of the SWP.crit
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySWPdrynessDurationDistribution")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessDurationDistribution")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
 
@@ -3672,7 +3720,7 @@ resMeans[1:(nv - 1)]
         }
       #42
         if(prj_todos[["aon"]]$dailySWPdrynessEventSizeDistribution){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySWPdrynessEventSizeDistribution")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessEventSizeDistribution")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
 
@@ -3727,7 +3775,7 @@ resMeans[1:(nv - 1)]
         }
       #43
         if(prj_todos[["aon"]]$dailySWPdrynessIntensity) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailySWPdrynessIntensity")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessIntensity")
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           SWCtop <- vwcmatric.dy$top * sum(layers_width[topL])*10
@@ -3762,7 +3810,7 @@ resMeans[1:(nv - 1)]
 
       #43.2
         if(prj_todos[["aon"]]$dailyThermalDrynessStress){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyThermalDrynessStress")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalDrynessStress")
           if(!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
           if(!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -3808,7 +3856,7 @@ resMeans[1:(nv - 1)]
         #---Aggregation: Mean monthly values
       #44
         if (prj_todos[["aon"]]$monthlyTemp) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of monthlyTemp")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyTemp")
           if (!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
 
           temp <- tapply(temp.mo$mean,
@@ -3819,7 +3867,7 @@ resMeans[1:(nv - 1)]
         }
       #45
         if(prj_todos[["aon"]]$monthlyPPT){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyPPT")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyPPT")
           if(!exists("prcp.mo")) prcp.mo <- get_PPT_mo(runDataSC, isim_time)
 
           temp <- tapply(prcp.mo$ppt,
@@ -3830,7 +3878,7 @@ resMeans[1:(nv - 1)]
         }
       #46
         if(prj_todos[["aon"]]$monthlySnowpack){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySnowpack")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySnowpack")
           if(!exists("SWE.mo")) SWE.mo <- get_SWE_mo(runDataSC, isim_time)
 
           temp <- tapply(SWE.mo$val,
@@ -3841,7 +3889,7 @@ resMeans[1:(nv - 1)]
         }
       #47
         if(prj_todos[["aon"]]$monthlySoilTemp) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySoilTemp")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySoilTemp")
           if(!exists("soiltemp.mo")) soiltemp.mo <- get_Response_aggL(swof["sw_soiltemp"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(soiltemp.mo[[x]],
@@ -3853,7 +3901,7 @@ resMeans[1:(nv - 1)]
         }
       #48
         if(prj_todos[["aon"]]$monthlyRunoff){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyRunoff")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyRunoff")
           if(!exists("runoff.mo")) runoff.mo <- get_Runoff_mo(runDataSC, isim_time)
 
           temp <- tapply(runoff.mo$val,
@@ -3864,7 +3912,7 @@ resMeans[1:(nv - 1)]
         }
       #49
         if(prj_todos[["aon"]]$monthlyHydraulicRedistribution){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyHydraulicRedistribution")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyHydraulicRedistribution")
           if(!exists("hydred.mo")) hydred.mo <- get_Response_aggL(swof["sw_hd"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(hydred.mo[[x]],
@@ -3876,7 +3924,7 @@ resMeans[1:(nv - 1)]
         }
       #50
         if(prj_todos[["aon"]]$monthlyInfiltration){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyInfiltration")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyInfiltration")
           if(!exists("inf.mo")) inf.mo <- get_Inf_mo(runDataSC, isim_time)
 
           temp <- tapply(inf.mo$inf,
@@ -3887,7 +3935,7 @@ resMeans[1:(nv - 1)]
         }
       #51
         if(prj_todos[["aon"]]$monthlyDeepDrainage){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyDeepDrainage")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyDeepDrainage")
           if(!exists("deepDrain.mo")) deepDrain.mo <- get_DeepDrain_mo(runDataSC, isim_time)
 
           temp <- tapply(deepDrain.mo$val,
@@ -3898,7 +3946,7 @@ resMeans[1:(nv - 1)]
         }
       #52
         if(prj_todos[["aon"]]$monthlySWPmatric){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySWPmatric")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWPmatric")
           if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
 
@@ -3909,7 +3957,7 @@ resMeans[1:(nv - 1)]
         }
       #53 a.)
         if(prj_todos[["aon"]]$monthlyVWCbulk){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyVWC")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyVWCbulk")
           if(!exists("vwcbulk.mo")) vwcbulk.mo <- get_Response_aggL(swof["sw_vwcbulk"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(vwcbulk.mo[[x]],
@@ -3921,7 +3969,7 @@ resMeans[1:(nv - 1)]
         }
       #53 b.)
         if(prj_todos[["aon"]]$monthlyVWCmatric){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyVWCmatric")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyVWCmatric")
           if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(vwcmatric.mo[[x]],
@@ -3933,7 +3981,7 @@ resMeans[1:(nv - 1)]
         }
       #54
         if(prj_todos[["aon"]]$monthlySWCbulk){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySWCbulk")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWCbulk")
           if(!exists("swcbulk.mo")) swcbulk.mo <- get_Response_aggL(swof["sw_swcbulk"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(swcbulk.mo[[x]],
@@ -3945,7 +3993,7 @@ resMeans[1:(nv - 1)]
         }
       #55
         if(prj_todos[["aon"]]$monthlySWAbulk){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySWA")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWAbulk")
           if(!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
 #TODO(drs): how to handle SWP with agg_fun???
@@ -3980,7 +4028,7 @@ resMeans[1:(nv - 1)]
         }
       #56
         if(prj_todos[["aon"]]$monthlyTranspiration){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyTranspiration")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyTranspiration")
           if(!exists("transp.mo")) transp.mo <- get_Response_aggL(swof["sw_transp"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- lapply(c("top", "bottom"), function(x) tapply(transp.mo[[x]],
@@ -3992,7 +4040,7 @@ resMeans[1:(nv - 1)]
         }
       #57
         if(prj_todos[["aon"]]$monthlySoilEvaporation){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlySoilEvaporation")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySoilEvaporation")
           if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(swof["sw_evsoil"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           temp <- Esoil.mo$top + Esoil.mo$bottom
@@ -4004,7 +4052,7 @@ resMeans[1:(nv - 1)]
         }
       #58
         if(prj_todos[["aon"]]$monthlyAET){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyAET")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyAET")
           if(!exists("AET.mo")) AET.mo <- get_AET_mo(runDataSC, isim_time)
 
           temp <- tapply(AET.mo$val,
@@ -4015,7 +4063,7 @@ resMeans[1:(nv - 1)]
         }
       #59
         if(prj_todos[["aon"]]$monthlyPET){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyPET")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyPET")
           if(!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time)
 
           temp <- tapply(PET.mo$val,
@@ -4026,7 +4074,7 @@ resMeans[1:(nv - 1)]
         }
       #59.2
         if (prj_todos[["aon"]]$monthlyVPD) {
-          if (opt_verbosity[["print.debug"]]) print("Aggregation of monthlyVPD")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyVPD")
           if (!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time)
           if (!exists("vpd.mo")) vpd.mo <- get_VPD_mo(sc, temp.mo, xin = swRunScenariosData, st2 = simTime2)
 
@@ -4038,7 +4086,7 @@ resMeans[1:(nv - 1)]
         }
       #60
         if(prj_todos[["aon"]]$monthlyAETratios){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyAETratios")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyAETratios")
           if(!exists("AET.mo")) AET.mo <- get_AET_mo(runDataSC, isim_time)
           if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(swof["sw_evsoil"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("transp.mo")) transp.mo <- get_Response_aggL(swof["sw_transp"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -4058,7 +4106,7 @@ resMeans[1:(nv - 1)]
         }
       #61
         if(prj_todos[["aon"]]$monthlyPETratios){
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of monthlyPETratios")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyPETratios")
           if(!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time)
           if(!exists("Esoil.mo")) Esoil.mo <- get_Response_aggL(swof["sw_evsoil"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if(!exists("transp.mo")) transp.mo <- get_Response_aggL(swof["sw_transp"], tscale = "mo", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
@@ -4081,7 +4129,7 @@ resMeans[1:(nv - 1)]
         #regeneration: adjust_NorthSouth
       #62
         if(prj_todos[["aon"]]$dailyRegeneration_bySWPSnow) {
-          if(opt_verbosity[["print.debug"]]) print("Aggregation of dailyRegeneration_bySWPSnow")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRegeneration_bySWPSnow")
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runDataSC,swof["sw_swp"]),"Day"))  #no vwcdy available!
           swp.surface <- swpmatric.dy.all$val[isim_time$index.usedy, 3]
           if(!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
@@ -4102,8 +4150,8 @@ resMeans[1:(nv - 1)]
           opt_agg[["GISSM_species_No"]] > 0) {
 
           # Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions. Ecol Model, 286, 66-77.
-          if (opt_verbosity[["print.debug"]])
-            print("Aggregation of dailyRegeneration_GISSM")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRegeneration_GISSM")
+
           #---Access daily data, which do not depend on specific species parameters, i.e., start of season
 
           if(!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val=-1/10*slot(slot(runDataSC,swof["sw_swp"]),"Day"))  #no vwcdy available!
@@ -4505,8 +4553,10 @@ resMeans[1:(nv - 1)]
           temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
           temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
 
+          print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
+
         } else {
-          print(paste0(i_sim, ": ", i_label, " aggregation unsuccessful:",
+          print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
             " incorrect number of aggregated variables: n = ", nv1,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
           tasks$aggregate[sc] <- 0L
@@ -4528,7 +4578,7 @@ resMeans[1:(nv - 1)]
         SQLc <- ""
         #aggregate for each response variable
         for (doi in seq_len(prj_todos[["adaily"]][["N"]])) {
-          if (opt_verbosity[["print.debug"]]) print(paste("Aggregation of mean daily outputs:", doi))
+          print_debug(opt_verbosity, tag_simpidfid, "daily aggregation", doi)
 
           if (!opt_behave[["resume"]] | (opt_behave[["resume"]] & !isdone.dailyAggs[doi, sc])) {
             #check to see if we are on SWA
@@ -4713,11 +4763,26 @@ resMeans[1:(nv - 1)]
   } #end loop through scenarios
 
   if (all(tasks$aggregate > 0L)) {
-    if (length(SQLcurrent) > 0)
-      cat(SQLcurrent, file = dbTempFileCurrent, append = TRUE, sep = "\n")
+    print_debug(opt_verbosity, tag_simfid, "writing", "temporary files")
 
-    if (length(SQL) > 0)
-      cat(SQL, file = dbTempFile, append = TRUE, sep = "\n")
+    if (length(SQLcurrent) > 0) {
+      temp <- try(cat(SQLcurrent, file = dbTempFileCurrent, append = TRUE, sep = "\n"))
+      if (inherits(temp, "try-error")) {
+        print(paste0(tag_simfid, ": writing to temporary file",
+          shQuote(dbTempFileCurrent)))
+      }
+    }
+
+    if (length(SQL) > 0) {
+      temp <- try(cat(SQL, file = dbTempFile, append = TRUE, sep = "\n"))
+      if (inherits(temp, "try-error")) {
+        print(paste0(tag_simfid, ": writing to temporary file", shQuote(dbTempFile)))
+      }
+    }
+
+  } else {
+    print(paste0(tag_simfid, ": not all aggregation results successful with",
+      paste(tasks$aggregate, collapse = "-")))
   }
 
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
@@ -4725,7 +4790,7 @@ resMeans[1:(nv - 1)]
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim,
     status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
-    with_filelock = opt_parallel[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
 
   if (status) {
     #ETA estimation
@@ -4733,12 +4798,13 @@ resMeans[1:(nv - 1)]
 
     if (opt_verbosity[["verbose"]]) {
       n <- length(times) - 1
-      temp <- paste0("rSFSW2's ", temp_call, ": runID = ", i_sim, " / ",
-        i_label, " completed in ", delta.do_OneSite, " ", units(delta.do_OneSite), ". ",
-        "Simulation project is ", round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
+
+      temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
+        delta.do_OneSite, " ", units(delta.do_OneSite), "; simulation project is ",
+        round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
 
       if (opt_verbosity[["print.eta"]]) {
-        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / opt_parallel[["workersN"]]) *
+        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / SFSW2_glovars[["p_workersN"]]) *
           sapply(list(mean, stats::sd), function(f) f(times, na.rm = TRUE)))
         pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) stats::qt(0.975, n) else NA}# 95% prediction interval
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
@@ -4756,9 +4822,8 @@ resMeans[1:(nv - 1)]
     }
 
   } else {
-    print(paste0("rSFSW2's ", temp_call, ": runID = ", i_sim, " / ",
-      i_label, " unsuccessful after ", delta.do_OneSite, " ", units(delta.do_OneSite),
-      " with status of tasks = "))
+    print(paste0(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
+      units(delta.do_OneSite), " with status of tasks = "))
     print(unlist(sapply(tasks, table)))
   }
 
@@ -4780,7 +4845,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " for ",
       MoreArgs[["sim_size"]][["runsN_todo"]], " out of ",
       MoreArgs[["sim_size"]][["runsN_job"]], " runs on ",
-      MoreArgs[["opt_parallel"]][["workersN"]], " cores"))
+      SFSW2_glovars[["p_workersN"]], " cores"))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
@@ -4791,61 +4856,55 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     MoreArgs[["sim_size"]][["runsN_master"]])
 
   #--- call the simulations depending on parallel backend
-  if (MoreArgs[["opt_parallel"]][["has_parallel"]]) {
-    unlink(MoreArgs[["opt_parallel"]][["lockfile"]], recursive = TRUE)
+  if (SFSW2_glovars[["p_has"]]) {
+    unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
 
 
-    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-#      temp <- export_objects_to_workers(obj2exp, "mpi")
-#      if (temp) { # Check success of export to MPI workers
-#        if (MoreArgs[["print.debug"]]) {
-#          Rmpi::mpi.bcast.cmd(print(paste("Worker", Rmpi::mpi.comm.rank(), "has",
-#            length(ls()), "objects")))
-#        }
-#
-#      } else {
-#        #Rmpi::mpi.close.Rslaves()
-#        Rmpi::mpi.exit()
-#        stop("Rmpi workers have insufficient data to execute jobs")
-#      }
-
-      Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection,
+      # We have to rename rSOILWAT2 functions locally (and export to workers):
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+      # is not the name of a function
+      dbW_setConnection <- function(...) rSOILWAT2::dbW_setConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(dbW_setConnection)
+      Rmpi::mpi.remote.exec(cmd = dbW_setConnection,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+      dbW_disconnectConnection <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+      Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection)
+      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection), add = TRUE)
+
       Rmpi::mpi.bcast.cmd(cmd = mpi_work,
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
 
       junk <- 0L
-      closed_slaves <- 0L
+      closed_workers <- 0L
       runs.completed <- 1L
-      #sTag <- c("Ready for task", "Done with Task", "Exiting")
 
-      while (closed_slaves < MoreArgs[["opt_parallel"]][["workersN"]]) {
+      while (closed_workers < SFSW2_glovars[["p_workersN"]]) {
 
       tryCatch({
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(), ": master is waiting for slaves to communicate"))
+          print(paste(Sys.time(), ": MPI-master is waiting for workers to communicate"))
         }
 
         complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
         complete_info <- Rmpi::mpi.get.sourcetag()
-        slave_id <- complete_info[1]
-        tag <- complete_info[2]
+        worker_id <- complete_info[1]
+        tag_from_worker <- complete_info[2] # see ?mpi_work for interpretation of tags
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(),
-                      ": master has received communication from slave", slave_id,
-                      "with tag", tag,
-                      "and message", paste(complete, collapse = ", ")))
+          print(paste(Sys.time(), ": MPI-master has received communication from worker",
+            worker_id, "with tag", tag_from_worker))
         }
 
-        if (tag == 1L) {
+        if (tag_from_worker == 1L) {
           has_time_to_simulate <- (difftime(Sys.time(), MoreArgs[["t_job_start"]], units = "secs") +
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]) <
             MoreArgs[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
-          # slave is ready for a task. Give it the next task, or tell it tasks
+          # worker is ready for a task. Give it the next task, or tell it tasks
           # are done if there are none.
           if ((runs.completed <= MoreArgs[["sim_size"]][["runsN_todo"]]) && has_time_to_simulate) {
             # Send a task, and then remove it from the task list
@@ -4866,57 +4925,70 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               SimParams = MoreArgs)
 
             if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-              print(paste("Slave:", slave_id,
-                          "Run:", MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
-                          "started at", Sys.time()))
+              print(paste(Sys.time(), ": MPI-master is sending worker", worker_id, "task",
+                MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]))
             }
-            Rmpi::mpi.send.Robj(dataForRun, slave_id, 1)
+
+            # Tell worker that this communication contains a task
+            Rmpi::mpi.send.Robj(dataForRun, dest = worker_id, tag = 1L)
             runs.completed <- runs.completed + 1L
 
           } else {
-            Rmpi::mpi.send.Robj(junk, slave_id, 2)
+            # Tell worker to shut down because all work completed or run out of walltime
+            Rmpi::mpi.send.Robj(junk, dest = worker_id, tag = 2L)
           }
 
-        } else if (tag == 2L) {
-          # TODO: The message contains results: store result in a data structure
-          temp <- complete$r
+        } else if (tag_from_worker == 2L) {
+          # Worker has sent results back to master
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste("Run:", complete, "at", Sys.time()))
+            print(paste(Sys.time(), ": MPI-master received results from worker", worker_id,
+              paste(complete, collapse = ", ")))
           }
 
-        } else if (tag == 3L) {
-          # A slave has closed down.
-          closed_slaves <- closed_slaves + 1L
+        } else if (tag_from_worker == 3L) {
+          # A worker has closed down.
+          closed_workers <- closed_workers + 1L
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste("Slave:", slave_id, "closed at", Sys.time()))
+            print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+              "shut down."))
           }
 
-        } else if (tag == 4L) {
-          #The slave had a problem with Soilwat record Slave number and the Run number.
-          print("Problem with run:", complete, "on slave:", slave_id, "at", Sys.time())
-          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]], "ProblemRuns.csv")
-          if (!file.exists(ftemp))
-            cat("Slave, Run", file = ftemp, sep = "\n")
-          cat(paste(slave_id, complete, sep = ","), file = ftemp, append = TRUE, sep = "\n")
+        } else if (tag_from_worker == 4L) {
+          #The worker had a problem
+          print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+            "failed with task:", paste(complete, collapse = ", "), "-- storing info",
+            "in file 'MPI_ProblemRuns.tab'."))
+
+          ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]],
+            "MPI_ProblemRuns.tab")
+          if (!file.exists(ftemp)) {
+            cat("Worker, Run, Error", file = ftemp, sep = "\n")
+          }
+          cat(paste(worker_id, complete$i, complete$r, sep = "\t"), file = ftemp,
+            append = TRUE, sep = "\n")
+
+        } else {
+          # We'll just ignore any unknown message from worker
+          print(paste(Sys.time(), ": MPI-master received tag =", tag_from_worker,
+            "from worker", worker_id, "but doesn't know what this means."))
         }
 
       }, interrupt = function(interrupt) {
-        print("Ctrl-C caught bringing work to an end.")
+        print(paste(Sys.time(), ": MPI-master received user interruption 'ctrl-c' and",
+          "is shutting down workers -- this may take a short while."))
         print(interrupt)
       })
       }
-
-      Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection())
-      Rmpi::mpi.bcast.cmd(rm(list = ls())) #do not remove 'ls(all = TRUE)' because there are important .XXX objects that are important for proper slave functioning!
-      Rmpi::mpi.bcast.cmd(gc())
     }
 
 
-    if (identical(MoreArgs[["opt_parallel"]][["parallel_backend"]], "cluster")) {
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      parallel::clusterCall(MoreArgs[["opt_parallel"]][["cl"]],
+      parallel::clusterCall(SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+      on.exit(parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
+        rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]],
@@ -4928,7 +5000,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       temp_ids <- cbind(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]], i_site = i_sites)
       temp_seqs <- seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]])
 
-      runs.completed <- parallel::clusterMap(MoreArgs[["opt_parallel"]][["cl"]],
+      runs.completed <- parallel::clusterMap(SFSW2_glovars[["p_cl"]],
         fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
         i_SWRunInformation = split(SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ], temp_seqs),
@@ -4945,16 +5017,15 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
 
       runs.completed <- sum(unlist(runs.completed))
-
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]],
-        rSOILWAT2::dbW_disconnectConnection())
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(MoreArgs[["opt_parallel"]][["cl"]], gc())
     }
+
+    clean_SFSW2_cluster()
+
 
   } else { #call the simulations in serial
 
-    rSOILWAT2::dbW_setConnection(dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
+    rSOILWAT2::dbW_setConnection(MoreArgs[["fnames_in"]][["fdbWeather"]])
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     runs.completed <- lapply(seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
       function(i_sim) {
@@ -4974,8 +5045,6 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       }
     )
     runs.completed <- sum(unlist(runs.completed))
-
-    rSOILWAT2::dbW_disconnectConnection()
   }
 
   runs.completed

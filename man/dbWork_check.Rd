@@ -6,6 +6,9 @@
 \usage{
 dbWork_check(path, runIDs)
 }
+\arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+}
 \value{
 A data.frame with three columns 'completed', 'failed', and 'inwork'
 }

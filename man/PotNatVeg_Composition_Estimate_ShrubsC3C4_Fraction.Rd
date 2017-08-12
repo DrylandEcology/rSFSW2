@@ -15,7 +15,7 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction(MAP_mm, MAT_C,
 \arguments{
 \item{MAP_mm}{A numeric value. Mean annual precipitation in millimeter of the location.}
 
-\item{MAT_C}{A numeric value. Mean annual temperature in degree Celcius.}
+\item{MAT_C}{A numeric value. Mean annual temperature in degree Celsius.}
 
 \item{mean_monthly_ppt_mm}{A numeric vector of length 12. Mean monthly precipitation
 in millimeter.}
@@ -24,7 +24,7 @@ in millimeter.}
   \item{\code{Month7th_NSadj_MinTemp_C}}{Mean minimum temperature of July on the
     northern hemisphere and January on the southern hemisphere}
   \item{\code{DegreeDaysAbove65F_NSadj_DaysC}}{Degree days above 65 F = 18.33 C in units
-    of days x degree Celcius}
+    of days x degree Celsius}
   \item{\code{LengthFreezeFreeGrowingPeriod_NSadj_Days}}{Mean annual number of days
     of the longest continuous period where minimum daily temperature remain above
     freezing}

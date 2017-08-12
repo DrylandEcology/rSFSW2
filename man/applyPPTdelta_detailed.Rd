@@ -32,7 +32,7 @@ from \code{daily} for the years simstartyr:endyr.}
 A list with two elements
  \describe{
    \item{data}{A copy of \code{data} with adjusted values.}
-   \item{PPT_to_remove}{The total amount of precipitation that couldn't be removed from \code{data} due to lack of precipitation.}
+   \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
  }
 }
 \description{

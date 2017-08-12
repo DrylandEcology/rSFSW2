@@ -15,7 +15,7 @@ check_weatherDB(dir_prj, fdbWeather, repeats = 2L,
 
 \item{repeats}{An integer value. The number of times each weather object is extracted}
 
-\item{do_preprocess_tempfiles}{A logial value. Set to TRUE, for instance, if a
+\item{do_preprocess_tempfiles}{A logical value. Set to TRUE, for instance, if a
 previous run was prematurely aborted.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect

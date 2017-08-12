@@ -1,13 +1,21 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
 language: R
+env:
+  - _R_CHECK_FORCE_SUGGESTS_=false # because of Rmpi, ncdf4, hydromat, and weathergen
 sudo: false
-cache: packages
-warnings_are_errors: false # this is only needed for rSOILWAT2
+cache:
+  - packages
+warnings_are_errors: false # turn this back on for more severe testing
+
 before_install:
+  # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install' and
+  #   thus dependencies are not installed and r_packages has not taken effect yet)
+  - Rscript -e 'utils::install.packages(c("blob", "DBI", "RSQLite"))'
+  # obtain source code of rSOILWAT2 from github
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
-  - cd /tmp/rSOILWAT2
-  - ./tools/TarAndInstall_31n.sh
+  # install rSOILWAT2
+  - R CMD INSTALL /tmp/rSOILWAT2
 
 after_success:
   - Rscript -e 'covr::codecov()'

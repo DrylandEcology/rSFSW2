@@ -28,7 +28,7 @@ integer codes of a factor whose levels are encoded by \code{code}.}
 
 \item{...}{\itemize{
   \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
-    that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
+    that are represented by a two-column matrix of xy coordinates. Ignored if \code{y}
     is inheriting from \linkS4class{SpatialPolygons}.
   \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
     system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from

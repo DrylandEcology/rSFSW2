@@ -76,12 +76,18 @@ if (FALSE) {
   #   * if !interactive: current working directory must be folder of test projects,
   #       * e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations
   if (interactive()) {
-    dir_prj <- normalizePath(file.path(".", "Test_projects", "Test4_AllOverallAggregations_snow"))
+    dir_prj <- normalizePath(file.path(".", "Test_projects", "SFSW2_default_project"))
     setwd(dir_prj)
   }
 
   dir_prj <- getwd()
 }
+
+writeLines(c("", "",
+  "##############################################################################",
+  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run started at",
+    t_job_start),
+  "##############################################################################", ""))
 
 fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
 fmetar <- file.path(dir_prj, "SFSW2_project_descriptions.R")
@@ -91,13 +97,17 @@ if (file.exists(fmeta)) {
   # Load pre-prepared project description if it was setup previously
   SFSW2_prj_meta <- readRDS(fmeta)
 
+  # Ensure that all necessary paths do exists
+  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
+
 } else {
 
   # 1a) Setup default project infrastructure
   setup_rSFSW2_project_infrastructure(dir_prj)
 
   # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
-  warning("Specify project description/metadata via file ", shQuote(basename(fmetar)),
+  warning("'SFSW2_project_code.R': Check/adjust project description/metadata in file ",
+    shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
     immediate. = TRUE)
 
   # 1c) Load and prepare project description
@@ -118,9 +128,6 @@ if (file.exists(fmeta)) {
 source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
 
-#--- Set up infrastructure for parallel framework runs
-opt_parallel <- init_SFSW2_cluster(opt_parallel)
-
 
 
 ##############################################################################
@@ -133,6 +140,10 @@ if (actions[["prep_inputs"]]) {
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
+    "and re-run project.", call. = FALSE, immediate. = TRUE)
 }
 
 
@@ -146,6 +157,10 @@ if (actions[["check_inputs"]]) {
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
+    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
 }
 
 
@@ -166,7 +181,7 @@ if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_d
 
 if (actions[["ensemble"]]) {
 
-  generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
+  rSFSW2:::generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
     verbose = opt_verbosity[["verbose"]])
 }
 
@@ -184,3 +199,14 @@ if (actions[["check_dbOut"]]) {
 
 
 ##############################################################################
+#------ 8) FINISH RUN CLEANLY
+
+#--- Terminate infrastructure for parallel framework runs
+exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
+
+#--- Goodbye message
+writeLines(c("",
+  "##############################################################################",
+  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run ended at",
+    Sys.time()),
+  "##############################################################################", ""))

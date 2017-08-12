@@ -4,10 +4,10 @@
 \alias{create_dbWork}
 \title{Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project}
 \usage{
-create_dbWork(dbWork, jobs)
+create_dbWork(path, jobs)
 }
 \arguments{
-\item{dbWork}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be created.}
 
 \item{jobs}{An integer matrix. Each row corresponds to one call of the simulation
 function \code{do_OneSite}, i.e., \code{runsN_master} x \code{expN}. The columns

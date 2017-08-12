@@ -19,7 +19,7 @@ opt_behave <- list(
   # Resumes/continues with unfinished part of simulation after abort if TRUE, i.e.,
   #  - It doesn't delete an existing weather database, if a new one is requested
   #  - It doesn't re-extract external information (soils, elevation, climate normals,
-  #     NCEPCFSR) if already extracted
+  #     climate scenarios) if already extracted
   #  - It doesn't lookup values from tables if already available in input datafiles, i.e.,
   #     'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and
   #     'LookupSnowDensityFromTable'
@@ -42,8 +42,8 @@ opt_parallel <- list(
   parallel_runs = !interactive(),
   # Number of cores/workers/slaves if job is run in parallel
   num_cores = 2,
-  # Parallel_backend: "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "cluster",
+  # Parallel_backend: "socket" = "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
+  parallel_backend = "socket",
 
   # Computation time requests: time limits are only enforced if parallel_backend == "mpi"
   opt_job_time = list(

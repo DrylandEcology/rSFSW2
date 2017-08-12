@@ -5,11 +5,11 @@
 \title{Organizes the calls (in parallel) which obtain specified scenario weather for the
  weather database from one of the available GCM sources}
 \usage{
-tryToGet_ClimDB(ids_ToDo, clim_source, is_netCDF, is_NEX, climDB_meta,
+tryToGet_ClimDB(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
-  getYears, assocYears, project_paths, fdbWeather, opt_parallel,
-  climate.ambient, dbW_iSiteTable, dbW_iScenarioTable, dbW_compression_type,
-  sim_time, seeds_DS, opt_DS, verbose, print.debug, seed = NA)
+  getYears, assocYears, project_paths, fdbWeather, climate.ambient,
+  dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
+  print.debug, seed = NA)
 }
 \arguments{
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
