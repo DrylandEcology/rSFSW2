@@ -2584,6 +2584,107 @@ is_NEX <- function(x, ignore.case = TRUE) {
   grepl("NEX", x, ignore.case = ignore.case)
 }
 
+#' Calculate historical and future simulation time slices
+#'
+#' @param sim_time A list with elements \code{future_N}, \code{future_yrs},
+#'  \code{DScur_startyr}, and \code{DScur_endyr}.
+#' @param tbox A data.frame or matrix with two rows \code{start} and \code{end} and two
+#'  columns \code{first} and \code{second} describing years including in a specific
+#'  climate data source.
+#'
+#' @return A data.frame with rows for each extraction run-slice and four columns 'Run',
+#'  'Slice', 'Time', and 'Year'.
+calc_timeSlices <- function(sim_time, tbox) {
+  # timing: time slices: data is organized into 'historical' runs 1950-2005 ( = "first")
+  # and future 'rcp' runs 2006-2099 ( = "second")
+  timeSlices <- data.frame(matrix(NA, nrow = 4 + 4 * sim_time[["future_N"]], ncol = 4,
+    dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))))
+  timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"),
+    c("historical", rownames(sim_time[["future_yrs"]])))[, 3:1]
+
+  #historic conditions for downscaling
+  timeSlices[1, 4] <- max(tbox["start", "first"], sim_time[["DScur_startyr"]])
+  timeSlices[2, 4] <- min(tbox["end", "first"], sim_time[["DScur_endyr"]])
+
+  if (sim_time[["DScur_endyr"]] > tbox["end", "first"]) {
+    timeSlices[3, 4] <- tbox["start", "second"]
+    timeSlices[4, 4] <- min(tbox["end", "second"], sim_time[["DScur_endyr"]])
+  }
+
+  #future conditions for downscaling
+  for (it in seq_len(sim_time[["future_N"]])) {
+    it4 <- 4L * it
+    timeSlices[3 + it4, 4] <- max(tbox["start", "second"],
+      sim_time[["future_yrs"]][it, "DSfut_startyr"])
+    timeSlices[4 + it4, 4] <- min(tbox["end", "second"],
+      sim_time[["future_yrs"]][it, "DSfut_endyr"])  #limits timeSlices to 2099
+
+    if (sim_time[["DScur_startyr"]] < 1950) {
+      # TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't
+      #   make sense to me
+      print("Note: adjustment to 'timeSlices' because 'DScur_startyr < 1950'")
+      timeSlices[4 + it4, 4] <- min(timeSlices[4 + it4, 4], timeSlices[4 + 3*it, 4] +
+        (timeSlices[4, 4]-timeSlices[1, 4]))
+    }
+    if (sim_time[["future_yrs"]][it, "DSfut_startyr"] < tbox["start", "second"]) {
+      timeSlices[1 + it4, 4] <- max(tbox["start", "first"],
+        sim_time[["future_yrs"]][it, "DSfut_startyr"])
+      timeSlices[2 + it4, 4] <- tbox["start", "second"]
+    }
+  }
+
+  timeSlices
+}
+
+calc_getYears <- function(timeSlices) {
+  # get unique time slices
+  temp1 <- unique_times(timeSlices, slice = "first")
+  temp2 <- unique_times(timeSlices, slice = "second")
+
+  x <- list(
+    n_first = nrow(temp1), first = temp1,
+    n_second = nrow(temp2), second = temp2)
+
+  #Monthly time-series
+  temp1 <- list(ISOdate(x[["first"]][, 1], 1, 1, tz = "UTC"),
+                ISOdate(x[["first"]][, 2], 12, 31, tz = "UTC"))
+  temp2 <- list(ISOdate(x[["second"]][, 1], 1, 1, tz = "UTC"),
+                ISOdate(x[["second"]][, 2], 12, 31, tz = "UTC"))
+
+  x[["first_dates"]] <- lapply(seq_len(x[["n_first"]]), function(it)
+    as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 month")))
+  x[["second_dates"]] <- lapply(seq_len(x[["n_second"]]), function(it)
+    as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 month")))
+  #Days per month
+  x[["first_dpm"]] <- lapply(seq_len(x[["n_first"]]), function(it) {
+      temp <- as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 day"))
+      rle(temp$mon)$lengths
+    })
+  x[["second_dpm"]] <- lapply(seq_len(x[["n_second"]]), function(it) {
+      temp <- as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 day"))
+      rle(temp$mon)$lengths
+    })
+
+  x
+}
+
+
+calc_assocYears <- function(sim_time, reqRCPs, getYears, timeSlices) {
+  x <- vector("list", length = 1 + length(reqRCPs) * sim_time[["future_N"]])
+  names_assocYears <- c("historical", paste0(rownames(sim_time[["future_yrs"]]), ".",
+    rep(reqRCPs, each = sim_time[["future_N"]])))
+
+  for (it in seq_along(x)) {
+    temp <- strsplit(names_assocYears[it], ".", fixed = TRUE)[[1]][[1]]
+    x[[it]] <- list(
+      first = useSlices(getYears, timeSlices, run = temp, slice = "first"),
+      second = useSlices(getYears, timeSlices, run = temp, slice = "second"))
+  }
+  names(x) <- names_assocYears
+
+  x
+}
+
 
 
 #access climate change data
@@ -2704,86 +2805,17 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   if (verbose)
     print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
-  # timing: time slices: data is organized into 'historical' runs 1950-2005 ( = "first")
-  # and future 'rcp' runs 2006-2099 ( = "second")
-  timeSlices <- data.frame(matrix(NA, ncol = 4,
-    nrow = 4 + 4 * SFSW2_prj_meta[["sim_time"]][["future_N"]],
-    dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))))
-  timeSlices[, 1:3] <- expand.grid(c("start", "end"), c("first", "second"),
-    c("historical", rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]])))[, 3:1]
+  # calculate time slices
+  timeSlices <- calc_timeSlices(sim_time = SFSW2_prj_meta[["sim_time"]],
+    tbox = climDB_meta[["tbox"]])
 
-  #historic conditions for downscaling
-  timeSlices[1, 4] <- max(climDB_meta[["tbox"]]["start", "first"],
-    SFSW2_prj_meta[["sim_time"]][["DScur_startyr"]])
-  timeSlices[2, 4] <- min(climDB_meta[["tbox"]]["end", "first"],
-    SFSW2_prj_meta[["sim_time"]][["DScur_endyr"]])
-
-  if (SFSW2_prj_meta[["sim_time"]][["DScur_endyr"]] > climDB_meta[["tbox"]]["end", "first"]) {
-    timeSlices[3, 4] <- climDB_meta[["tbox"]]["start", "second"]
-    timeSlices[4, 4] <- min(climDB_meta[["tbox"]]["end", "second"],
-      SFSW2_prj_meta[["sim_time"]][["DScur_endyr"]])
-  }
-  #future conditions for downscaling
-  for (it in seq_len(SFSW2_prj_meta[["sim_time"]][["future_N"]])) {
-    timeSlices[3 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "second"],
-      SFSW2_prj_meta[["sim_time"]][["future_yrs"]][it, "DSfut_startyr"])
-    timeSlices[4 + 4*it, 4] <- min(climDB_meta[["tbox"]]["end", "second"],
-      SFSW2_prj_meta[["sim_time"]][["future_yrs"]][it, "DSfut_endyr"])  #limits timeSlices to 2099
-
-    if (SFSW2_prj_meta[["sim_time"]][["DScur_startyr"]] < 1950) {
-      # TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't
-      #   make sense to me
-      print("Note: adjustment to 'timeSlices' because 'DScur_startyr < 1950'")
-      timeSlices[4 + 4*it, 4] <- min(timeSlices[4 + 4*it, 4], timeSlices[4 + 3*it, 4] +
-        (timeSlices[4, 4]-timeSlices[1, 4]))
-    }
-    if (SFSW2_prj_meta[["sim_time"]][["future_yrs"]][it, "DSfut_startyr"] < climDB_meta[["tbox"]]["start", "second"]) {
-      timeSlices[1 + 4*it, 4] <- max(climDB_meta[["tbox"]]["start", "first"],
-        SFSW2_prj_meta[["sim_time"]][["future_yrs"]][it, "DSfut_startyr"])
-      timeSlices[2 + 4*it, 4] <- climDB_meta[["tbox"]]["start", "second"]
-    }
-  }
-  #get unique time slices
-  temp1 <- unique_times(timeSlices, slice = "first")
-  temp2 <- unique_times(timeSlices, slice = "second")
-  getYears <- list(n_first = nrow(temp1), first = temp1, n_second = nrow(temp2),
-    second = temp2)
-
-  #Monthly time-series
-  temp1 <- list(ISOdate(getYears$first[, 1], 1, 1, tz = "UTC"),
-                ISOdate(getYears$first[, 2], 12, 31, tz = "UTC"))
-  temp2 <- list(ISOdate(getYears$second[, 1], 1, 1, tz = "UTC"),
-                ISOdate(getYears$second[, 2], 12, 31, tz = "UTC"))
-
-  getYears$first_dates <- lapply(seq_len(getYears$n_first), function(it)
-    as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 month")))
-  getYears$second_dates <- lapply(seq_len(getYears$n_second), function(it)
-    as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 month")))
-  #Days per month
-  getYears$first_dpm <- lapply(seq_len(getYears$n_first), function(it) {
-      temp <- as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 day"))
-      rle(temp$mon)$lengths
-    })
-  getYears$second_dpm <- lapply(seq_len(getYears$n_second), function(it) {
-      temp <- as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 day"))
-      rle(temp$mon)$lengths
-    })
-
+  # calculate 'getYears' object
+  getYears <- calc_getYears(timeSlices)
 
   #Logical on how to select from getYears
-  assocYears <- vector("list",
-    length = 1 + length(reqRCPs) * SFSW2_prj_meta[["sim_time"]][["future_N"]])
-  names_assocYears <- c("historical",
-    paste0(rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]]), ".", rep(reqRCPs,
-    each = SFSW2_prj_meta[["sim_time"]][["future_N"]])))
+  assocYears <- calc_assocYears(sim_time = SFSW2_prj_meta[["sim_time"]], reqRCPs,
+    getYears, timeSlices)
 
-  for (it in seq_along(assocYears)) {
-    temp <- strsplit(names_assocYears[it], ".", fixed = TRUE)[[1]][[1]]
-    assocYears[[it]] <- list(
-      first = useSlices(getYears, timeSlices, run = temp, slice = "first"),
-      second = useSlices(getYears, timeSlices, run = temp, slice = "second"))
-  }
-  names(assocYears) <- names_assocYears
 
   print(paste("Future scenario data will be extracted for a time period spanning",
     timeSlices[7, 4], "through",  max(stats::na.omit(timeSlices[, 4]))))

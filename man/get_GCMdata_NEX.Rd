@@ -4,7 +4,7 @@
 \alias{get_GCMdata_NEX}
 \title{Download downscaled GCM projections from NEX}
 \usage{
-get_GCMdata_NEX(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear,
+get_GCMdata_NEX(i_tag, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear,
   climDB_meta, ...)
 }
 \value{
