@@ -16,11 +16,11 @@
 #'  against reference databases is written to disk.
 #'
 #' @return A list with two elements: \describe{
-#'  \item{res}{A data.frame where each row represents the outcomes of a test project. The
-#'    The columns return elapsed time in seconds, four logical values \code{has_run},
-#'    \code{has_problems}, \code{made_new_refs}, \code{deleted_output}, and one character
-#'    string \code{referenceDB} of the reference database name against which this run of
-#'    the test project was compared.}
+#'  \item{res}{A data.frame where each row represents the outcomes of a test project.
+#'    The columns return elapsed time in seconds \code{elapsed_s}, four logical values
+#'    \code{has_run}, \code{has_problems}, \code{made_new_refs}, \code{deleted_output},
+#'    and one character string \code{referenceDB} of the reference database name against
+#'    which this run of the test project was compared.}
 #'  \item{report}{A character vector describing differences between test and reference
 #'    databases}
 #' }
@@ -333,16 +333,16 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 #' @param dir_test A character string. Path to test project folder.
 #' @param dir_ref A character string. Path to folder with reference database.
 #' @param tol A numeric value. Differences smaller than tolerance are not reported.
-#'  Passed to \link{\code{all.equal}}.
+#'  Passed to \code{\link{all.equal}}.
 #' @param comp_absolute A logical value. If \code{TRUE} then absolute comparisons will be
 #'  reported, otherwise relative differences.
-#'  See argument \code{scale} of function \link{\code{all.equal}}.
+#'  See argument \code{scale} of function \code{\link{all.equal}}.
 #' @param verbose A logical value. If \code{TRUE} then messages are printed.
 #'
 #' @return A (possibly empty) list of character vectors describing differences between
 #'  test and reference databases. A first entry is the file name of the reference database.
 #'
-#' @seealso \link{\code{all.equal}}
+#' @seealso \code{\link{all.equal}}
 #' @export
 compare_test_output <- function(dir_test, dir_ref = NULL, tol = 1e-3,
   comp_absolute = TRUE, verbose = FALSE) {
