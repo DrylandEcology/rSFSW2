@@ -37,9 +37,14 @@ opt_behave <- list(
 
 
 #------ Options for parallel framework
+do_skip <- c(
+  identical(tolower(Sys.getenv("NOT_CRAN")), "false"), # whereas skip_on_cran() skips if not "true", I believe it should skip only if "false" (i.e., not "" and not "true")
+  identical(tolower(Sys.getenv("TRAVIS")), "true"),   # skip_on_travis()
+  identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
+
 opt_parallel <- list(
   # Should job be run in parallel
-  parallel_runs = !interactive(),
+  parallel_runs = !any(do_skip), # tests in parallel do not work on CIs and cran
   # Number of cores/workers/slaves if job is run in parallel
   num_cores = 4,
   # Parallel_backend: "socket" = "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
