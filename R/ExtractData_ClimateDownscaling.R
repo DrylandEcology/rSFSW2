@@ -2949,14 +2949,15 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 
   # loop through data sources
   sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
+  clim_sources <- na.exclude(unique(sites_GCM_source))
 
-  for (ics in unique(sites_GCM_source)) {
-    iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == ics]
+  for (clim_source in clim_sources) {
+    iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == clim_source]
 
     if (length(iDS_runIDs_sites) > 0) {
-      get_climatechange_data(clim_source = ics,
+      get_climatechange_data(clim_source = clim_source,
         SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta,
-        iDS_runIDs_sites = iDS_runIDs_sites, climDB_meta = climDB_metas[[ics]],
+        iDS_runIDs_sites = iDS_runIDs_sites, climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type, resume = resume, verbose = verbose,
         print.debug = print.debug)
     }
@@ -3141,10 +3142,12 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
 
   if (resume) {
     # Process any temporary datafile from a potential previous run
-    clim_source <- unique(SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"])
-    for (k in seq_along(clim_source)) {
+    clim_sources <- unique(SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"])
+    clim_sources <- na.exclude(clim_sources)
+
+    for (k in seq_along(clim_sources)) {
       copy_tempdata_to_dbW(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        clim_source = clim_source[k],
+        clim_source = clim_sources[k],
         dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         verbose = opt_verbosity[["verbose"]])
     }
