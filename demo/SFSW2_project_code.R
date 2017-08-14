@@ -68,20 +68,17 @@ actions <- list(
 ##############################################################################
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
-dir_prj <- "SFSW2_default_project"
-
-if (FALSE) {
-  # If this is a test project:
-  #   * if interactive: current working directory must be rSFSW2_tools/
-  #   * if !interactive: current working directory must be folder of test projects,
-  #       * e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations
-  if (interactive()) {
-    dir_prj <- normalizePath(file.path(".", "Test_projects", "SFSW2_default_project"))
-    setwd(dir_prj)
+# If code is run non-interactively or if this is a test project:
+# then current working directory must be folder of test projects,
+# e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations_snow
+dir_prj <- if (interactive()) {
+    temp <- normalizePath(file.path(".", "SFSW2_default_project"))
+    setwd(temp)
+    temp
+  } else {
+    getwd()
   }
 
-  dir_prj <- getwd()
-}
 
 writeLines(c("", "",
   "##############################################################################",

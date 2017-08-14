@@ -67,7 +67,7 @@ opt_verbosity <- list(
 
   # Sets global option 'warn' for the duration of a simulation project
   #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
-  debug.warn.level = 2 * interactive(),
+  debug.warn.level = max(1, 2 * interactive()),
   # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
   debug.dump.objects = interactive()
 )

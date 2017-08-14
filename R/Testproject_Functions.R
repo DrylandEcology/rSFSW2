@@ -1,7 +1,8 @@
 #' Run test projects
 #'
-#' @param dir_test A character string. Path to overall test project folder.
 #' @param dir_tests A vector of character strings. Paths to individual test projects.
+#' @param dir_prj_tests A character string. Path to overall test projects folder.
+#' @param dir_ref A character string. Path to folder with reference database.
 #' @param dir_prev A character string. Paths to directory that should be set when function returns.
 #' @param which_tests_torun An integer vector. Indices of \code{dir_tests} which will be
 #'  carried out.
@@ -11,22 +12,64 @@
 #'  even if problems showed up.
 #' @param make_new_ref A logical value. If \code{TRUE} then output database will be saved
 #'  as new reference.
+#' @param write_report_to_disk A logical value. If \code{TRUE} then report of differences
+#'  against reference databases is written to disk.
 #'
-#' @return A data.frame where each row represents the outcomes of a test project. The
-#'  The columns return elapsed time in seconds, four logical values \code{has_run},
-#'  \code{has_problems}, \code{made_new_refs}, \code{deleted_output}, and one character
-#'  string \code{referenceDB} of the reference database name against which this run of
-#'  the test project was compared.
+#' @return A list with two elements: \describe{
+#'  \item{res}{A data.frame where each row represents the outcomes of a test project. The
+#'    The columns return elapsed time in seconds, four logical values \code{has_run},
+#'    \code{has_problems}, \code{made_new_refs}, \code{deleted_output}, and one character
+#'    string \code{referenceDB} of the reference database name against which this run of
+#'    the test project was compared.}
+#'  \item{report}{A character vector describing differences between test and reference
+#'    databases}
+#' }
 #' @export
-run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
-  which_tests_torun = seq_along(dir_tests), delete_output = FALSE,
-  force_delete_output = FALSE, make_new_ref = FALSE) {
+run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
+  dir_prev = NULL, which_tests_torun = seq_along(dir_tests), delete_output = FALSE,
+  force_delete_output = FALSE, make_new_ref = FALSE, write_report_to_disk = TRUE) {
 
-  if (is.null(dir_prev))
+  # Locate paths
+  if (is.null(dir_prev)) {
     dir_prev <- getwd()
+  }
+  dir_prev <- normalizePath(dir_prev)
 
-  on.exit(setwd(dir_prev))
+  if (is.null(dir_prj_tests)) {
+    # Is parent of first test project the overall test projects folder?
+    temp <- file.path(dir_tests[1], "..")
+    if (dir.exists(temp)) {
+      dir_prj_tests <- temp
+
+    } else {
+      # Is current working directory in a sub-folder of the overall test projects folder?
+      temp <- strsplit(getwd(), .Platform$file.sep, fixed = TRUE)[[1]]
+      temp <- do.call("file.path",
+        args = as.list(temp[seq_len(which(temp == basename(dir_tests[1])) - 1L)]))
+      if (dir.exists(temp)) {
+        dir_prj_tests <- temp
+
+      } else {
+        stop("Overall test projects folder not found.")
+      }
+    }
+  }
+  dir_prj_tests <- normalizePath(dir_prj_tests)
+
+  if (is.null(dir_ref)) {
+    temp <- file.path(dir_prj_tests, "0_ReferenceOutput")
+    if (dir.exists(temp)) {
+      dir_ref <- temp
+
+    } else {
+      stop("Reference database folder not found.")
+    }
+  }
+  dir_ref <- normalizePath(dir_ref)
+
+  # Initialize
   op_prev <- options(c("warn", "error"))
+  on.exit(setwd(dir_prev))
   on.exit(options(op_prev), add = TRUE)
 
   problems <- list()
@@ -38,9 +81,15 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
     dimnames = list(if (nruns > 0) paste0("Test", which_tests_torun), vars)),
     referenceDB = vector("character", nruns), stringsAsFactors = FALSE)
 
+  # Loop over test projects
   if (nruns > 0 && all(which_tests_torun > 0)) {
+    setwd(dir_prj_tests)
+    dir_tests[which_tests_torun] <- normalizePath(dir_tests[which_tests_torun])
+
     for (k in seq_len(nruns)) {
       it <- which_tests_torun[k]
+      setwd(dir_tests[it])
+
       print(paste0(Sys.time(), ": running test project '", basename(dir_tests[it]), "'"))
       files_to_delete <- NULL
 
@@ -48,10 +97,12 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
       problems2 <- list()
 
       if (length(test_code) == 1L) {
-        setwd(if (interactive()) file.path(dir_test, "..") else dir_tests[it])
-
-        if (exists("SFSW2_prj_meta")) rm("SFSW2_prj_meta", inherits = TRUE)
-        if (exists("fmeta")) rm("fmeta", inherits = TRUE)
+        if (exists("SFSW2_prj_meta")) {
+          rm("SFSW2_prj_meta", pos = find("SFSW2_prj_meta"))
+        }
+        if (exists("fmeta")) {
+          rm("fmeta", pos = find("fmeta"))
+        }
 
         ctime <- system.time(temp <- try(source(file.path(dir_tests[it], test_code),
           verbose = FALSE, chdir = FALSE)))
@@ -59,7 +110,7 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
         if (!inherits(temp, "try-error")) {
           res[k, "has_run"] <- TRUE
           res[k, "elapsed_s"] <- ctime["elapsed"]
-          comp <- compare_test_output(dir_tests[it])
+          comp <- compare_test_output(dir_test = dir_tests[it], dir_ref = dir_ref)
 
           if (length(comp) > 0) {
             res[k, "referenceDB"] <- comp[[1]]
@@ -144,18 +195,23 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
 
   # Write report of problems to disk file
   if (any(res[, "has_problems"])) {
-      if (delete_output && !force_delete_output)
-        print("Test output not be deleted because problems were detected.")
-      if (make_new_ref)
-        print("Test output not be used as future reference because problems were detected.")
+    if (delete_output && !force_delete_output)
+      print("Test output not be deleted because problems were detected.")
+    if (make_new_ref)
+      print("Test output not be used as future reference because problems were detected.")
 
+    report <- rep(names(problems), times = lengths(problems))
+    report <- paste0(report, ifelse(nchar(report) > 0, ": ", ""))
+    report <- paste0(report, unlist(problems))
+
+    if (write_report_to_disk) {
       fname_report <- paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_", fname_report)
       print(paste("See problem report in file", shQuote(fname_report)))
+      writeLines(report, con = file.path(dir_prj_tests, fname_report))
+    }
 
-      temp <- rep(names(problems), times = lengths(problems))
-      temp <- paste0(temp, ifelse(nchar(temp) > 0, ": ", ""))
-      temp <- paste0(temp, unlist(problems))
-      writeLines(temp, con = file.path(dir_test, fname_report))
+  } else {
+    report <- NULL
   }
 
   # Force delete if not already deleted (e.g., when delete all)
@@ -195,7 +251,7 @@ run_test_projects <- function(dir_test, dir_tests, dir_prev = NULL,
 
   }
 
-  res
+  list(res = res, report = report)
 }
 
 
@@ -217,10 +273,10 @@ make_test_output_reference <- function(dir_test, dir_ref = NULL, SFSW2_version =
     SFSW2_version <- packageVersion("rSFSW2")
   }
 
-	if (is.null(dir_ref))
-		dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
-	if (!file.exists(dir_ref))
-	  dir.create(dir_ref, recursive = TRUE, showWarnings = FALSE)
+  if (is.null(dir_ref))
+    dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
+  if (!file.exists(dir_ref))
+    dir.create(dir_ref, recursive = TRUE, showWarnings = FALSE)
 
   fdb <- file.path(dir_test, "4_Data_SWOutputAggregated", "dbTables.sqlite3")
   if (file.exists(fdb)) {
@@ -288,24 +344,24 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 #'
 #' @seealso \link{\code{all.equal}}
 #' @export
-compare_test_output <- function(dir_test, dir_ref = NULL,
-                                tol = 1e-3, comp_absolute = TRUE,
-                                verbose = FALSE) {
+compare_test_output <- function(dir_test, dir_ref = NULL, tol = 1e-3,
+  comp_absolute = TRUE, verbose = FALSE) {
+
   diff_msgs <- list()
   if (verbose)
     on.exit(print(diff_msgs[-1]))
 
-	if (is.null(dir_ref))
-		dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
+  if (is.null(dir_ref))
+    dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
 
-	#---Identify and connect to reference data base
-	fname_refDB <- list.files(dir_ref, pattern = basename(dir_test))
-	if (length(fname_refDB) == 0L) {
-		diff_msgs <- c(diff_msgs, "",
-		  paste(Sys.time(), "no reference database found for", shQuote(basename(dir_test))))
-		return(diff_msgs)
+  #---Identify and connect to reference data base
+  fname_refDB <- list.files(dir_ref, pattern = basename(dir_test))
+  if (length(fname_refDB) == 0L) {
+    diff_msgs <- c(diff_msgs, "",
+      paste(Sys.time(), "no reference database found for", shQuote(basename(dir_test))))
+    return(diff_msgs)
 
-	} else {
+  } else {
     if (length(fname_refDB) > 1) {
       # Identify latest version
       temp <- strsplit(fname_refDB, split = "_")
@@ -321,77 +377,77 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
       fname_refDB <- fname_refDB[v_latest]
     }
 
-		diff_msgs <- c(diff_msgs, fname_refDB)
-	}
-	refDB <- RSQLite::dbConnect(RSQLite::SQLite(), file.path(dir_ref, fname_refDB))
+    diff_msgs <- c(diff_msgs, fname_refDB)
+  }
+  refDB <- RSQLite::dbConnect(RSQLite::SQLite(), file.path(dir_ref, fname_refDB))
 
-	#---Identify and connect to test data base
-	ftemp_test <- file.path(dir_test, "4_Data_SWOutputAggregated", "dbTables.sqlite3")
-	if (!file.exists(ftemp_test)) {
-		diff_msgs <- c(diff_msgs,
-		  paste(Sys.time(), "no test database found for", shQuote(basename(dir_test))))
-		return(diff_msgs)
-	}
-	testDB <- RSQLite::dbConnect(RSQLite::SQLite(), ftemp_test)
+  #---Identify and connect to test data base
+  ftemp_test <- file.path(dir_test, "4_Data_SWOutputAggregated", "dbTables.sqlite3")
+  if (!file.exists(ftemp_test)) {
+    diff_msgs <- c(diff_msgs,
+      paste(Sys.time(), "no test database found for", shQuote(basename(dir_test))))
+    return(diff_msgs)
+  }
+  testDB <- RSQLite::dbConnect(RSQLite::SQLite(), ftemp_test)
 
-	#---Identify set of shared tables
-	refDB_tables <- RSQLite::dbListTables(refDB)
-	testDB_tables <- RSQLite::dbListTables(testDB)
-	tocomp_tables <- intersect(refDB_tables, testDB_tables)
-	if (length(tocomp_tables) == 0L) {
-		diff_msgs <- c(diff_msgs,
-		  paste(Sys.time(), "test and reference database contain no shared tables"))
-		return(diff_msgs)
-	}
+  #---Identify set of shared tables
+  refDB_tables <- RSQLite::dbListTables(refDB)
+  testDB_tables <- RSQLite::dbListTables(testDB)
+  tocomp_tables <- intersect(refDB_tables, testDB_tables)
+  if (length(tocomp_tables) == 0L) {
+    diff_msgs <- c(diff_msgs,
+      paste(Sys.time(), "test and reference database contain no shared tables"))
+    return(diff_msgs)
+  }
 
-	testDB_tables_comp <- testDB_tables %in% tocomp_tables
-	if (any(!testDB_tables_comp)) {
-		diff_msgs <- c(diff_msgs,
-	    paste("Test database contains tables without an analog in the reference database:",
-	          paste(shQuote(testDB_tables[!testDB_tables_comp]), collapse = ", ")))
-	}
-	refDB_tables_comp <- refDB_tables %in% tocomp_tables
-	if (any(!refDB_tables_comp)) {
-		diff_msgs <- c(diff_msgs,
-	    paste("Reference database contains tables without an analog in the test database:",
-	          paste(shQuote(refDB_tables[!refDB_tables_comp]), collapse = ", ")))
-	}
+  testDB_tables_comp <- testDB_tables %in% tocomp_tables
+  if (any(!testDB_tables_comp)) {
+    diff_msgs <- c(diff_msgs,
+      paste("Test database contains tables without an analog in the reference database:",
+            paste(shQuote(testDB_tables[!testDB_tables_comp]), collapse = ", ")))
+  }
+  refDB_tables_comp <- refDB_tables %in% tocomp_tables
+  if (any(!refDB_tables_comp)) {
+    diff_msgs <- c(diff_msgs,
+      paste("Reference database contains tables without an analog in the test database:",
+            paste(shQuote(refDB_tables[!refDB_tables_comp]), collapse = ", ")))
+  }
 
-	#---Confirm that 'design' of test agrees with reference
-	has_samedesign <- dbOutput_ListDesignTables() %in% tocomp_tables
-	diff_design <- NULL
+  #---Confirm that 'design' of test agrees with reference
+  has_samedesign <- dbOutput_ListDesignTables() %in% tocomp_tables
+  diff_design <- NULL
 
-	if (all(has_samedesign)) {
-		diff_design <- sapply(dbOutput_ListDesignTables(), function(desT) {
-			temp <- RSQLite::dbReadTable(refDB, desT)
-			x_ref <- temp[do.call("order", unname(temp)), ]
+  if (all(has_samedesign)) {
+    diff_design <- sapply(dbOutput_ListDesignTables(), function(desT) {
+      temp <- RSQLite::dbReadTable(refDB, desT)
+      x_ref <- temp[do.call("order", unname(temp)), ]
 
-			temp <- RSQLite::dbReadTable(testDB, desT)
-			x_test <- temp[do.call("order", unname(temp)), ]
+      temp <- RSQLite::dbReadTable(testDB, desT)
+      x_test <- temp[do.call("order", unname(temp)), ]
 
-			all.equal(x_ref, x_test)
-		})
+      all.equal(x_ref, x_test)
+    })
 
-		has_samedesign <- sapply(diff_design, function(x) is.logical(x) && isTRUE(x))
-	}
+    has_samedesign <- sapply(diff_design, function(x) is.logical(x) && isTRUE(x))
+  }
 
-	if (any(!has_samedesign)) {
-		diff_msgs <- c(diff_msgs,
-		  paste(Sys.time(), "reference and test database have a different design"),
-		  if (!is.null(diff_design)) diff_design[!has_samedesign] else NULL)
-	}
+  if (any(!has_samedesign)) {
+    diff_msgs <- c(diff_msgs,
+      paste(Sys.time(), "reference and test database have a different design"),
+      if (!is.null(diff_design)) diff_design[!has_samedesign] else NULL)
+  }
 
-	tocomp_tables <- tocomp_tables[!(tocomp_tables %in% dbOutput_ListDesignTables())]
+  tocomp_tables <- tocomp_tables[!(tocomp_tables %in% dbOutput_ListDesignTables())]
 
 
-	#---Loop over shared result tables and compare shared fields
-	for (k in seq_along(tocomp_tables)) {
+  #---Loop over shared result tables and compare shared fields
+  for (k in seq_along(tocomp_tables)) {
     #---Identify set of shared fields
     refDB_fields <- RSQLite::dbListFields(refDB, tocomp_tables[k])
     testDB_fields <- RSQLite::dbListFields(testDB, tocomp_tables[k])
     tocomp_fields <- intersect(refDB_fields, testDB_fields)
     if (length(tocomp_fields) == 0L) {
-		  diff_msgs <- c(diff_msgs,
+      diff_msgs <- c(diff_msgs,
         paste("Table", shQuote(tocomp_tables[k]),
               "contains no shared fields between the test and reference databases"))
       next
@@ -399,7 +455,7 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
 
     # Must have 'P_id' as first field
     if (!("P_id" %in% tocomp_fields)) {
-		  diff_msgs <- c(diff_msgs,
+      diff_msgs <- c(diff_msgs,
         paste("The unique identifier 'P_id' is not a shared field in table",
               shQuote(tocomp_tables[k]), "preventing any comparison"))
       next
@@ -410,7 +466,7 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
     ref_has_sl <- any("Soil_Layer" %in% refDB_fields)
     test_has_sl <- any("Soil_Layer" %in% testDB_fields)
     if (xor(ref_has_sl, test_has_sl)) {
-		  diff_msgs <- c(diff_msgs,
+      diff_msgs <- c(diff_msgs,
         paste("The soil layer identifier 'Soil_Layer' is not a shared field in table",
               shQuote(tocomp_tables[k]), "preventing any comparison"))
       next
@@ -424,38 +480,38 @@ compare_test_output <- function(dir_test, dir_ref = NULL,
     # Fields that are not shared
     testDB_fields_comp <- testDB_fields %in% tocomp_fields
     if (any(!testDB_fields_comp)) {
-		  diff_msgs <- c(diff_msgs,
+      diff_msgs <- c(diff_msgs,
         paste("Test database table", shQuote(tocomp_tables[k]),
               "contains fields without an analog in the reference database:",
               paste(shQuote(testDB_fields[!testDB_fields_comp]), collapse = ", ")))
     }
     refDB_fields_comp <- refDB_fields %in% tocomp_fields
     if (any(!refDB_fields_comp)) {
-		  diff_msgs <- c(diff_msgs,
+      diff_msgs <- c(diff_msgs,
         paste("Reference database table", shQuote(tocomp_tables[k]),
               "contains fields without an analog in the test database:",
               paste(shQuote(refDB_fields[!refDB_fields_comp]), collapse = ", ")))
     }
 
-	  #---Extract field data, sorted by 'P_id' (and 'Soil_Layer')
-	  sql <- paste0("SELECT ",
-	    paste0("\"", tocomp_fields, "\"", collapse = ", "),
-			" FROM ", tocomp_tables[k],
-			" ORDER BY P_id",
-			if (ref_has_sl && test_has_sl) ", Soil_Layer",
-			";")
+    #---Extract field data, sorted by 'P_id' (and 'Soil_Layer')
+    sql <- paste0("SELECT ",
+      paste0("\"", tocomp_fields, "\"", collapse = ", "),
+      " FROM ", tocomp_tables[k],
+      " ORDER BY P_id",
+      if (ref_has_sl && test_has_sl) ", Soil_Layer",
+      ";")
 
     x_ref <- RSQLite::dbGetQuery(refDB, sql)
     x_test <- RSQLite::dbGetQuery(testDB, sql)
 
-	  #---Compare field data and report if differences were found
-		ident <- all.equal(x_ref, x_test, tol = tol, scale = if (comp_absolute) 1 else NULL)
-		if (!isTRUE(ident)) {
-		  temp <- list(ident)
-		  names(temp) <- tocomp_tables[k]
-		  diff_msgs <- c(diff_msgs, temp)
-		}
-	}
+    #---Compare field data and report if differences were found
+    ident <- all.equal(x_ref, x_test, tol = tol, scale = if (comp_absolute) 1 else NULL)
+    if (!isTRUE(ident)) {
+      temp <- list(ident)
+      names(temp) <- tocomp_tables[k]
+      diff_msgs <- c(diff_msgs, temp)
+    }
+  }
 
-	diff_msgs
+  diff_msgs
 }
