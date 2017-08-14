@@ -698,9 +698,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
   t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
 
+  t1 <- Sys.time()
 
   if (opt_verbosity[["verbose"]]) {
-    t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
       " for project ", sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
