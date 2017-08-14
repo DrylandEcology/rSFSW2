@@ -3234,15 +3234,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               MAP <= Table1_Characteristics_mm[, 2]
 
             #Resilience and Resistance
-            is_RR <- which(!is.na(Type) & Type & Characteristics)
-            for (ir in is_RR) {
-              resilience[rows_resilience[ir]] <- 1
-              resistance[rows_resistance[ir]] <- 1
-            }
             is_notRR <- which(!is.na(Type) & !Type & Characteristics)
             for (ir in is_notRR) {
               resilience[rows_resilience[ir]] <- 0
               resistance[rows_resistance[ir]] <- 0
+            }
+            is_RR <- which(!is.na(Type) & Type & Characteristics)
+            for (ir in is_RR) {
+              resilience[rows_resilience[ir]] <- 1
+              resistance[rows_resistance[ir]] <- 1
             }
 
             rm(rows_resilience, rows_resistance, Table1_EcologicalType, Type,
@@ -3290,15 +3290,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               ncol = 3, byrow = TRUE)
 
             temp <- as.logical(Tregime[Table1[, 1]]) & as.logical(Sregime[Table1[, 2]])
-            is_RR <- !is.na(temp) & temp
-            if (any(is_RR)) {
-              RR[Table1[is_RR, 3]] <- 1
-            }
             is_notRR <- !is.na(temp) & !temp
             if (any(is_notRR)) {
               RR[Table1[is_notRR, 3]] <- 0
             }
-
+            is_RR <- !is.na(temp) & temp
+            if (any(is_RR)) {
+              RR[Table1[is_RR, 3]] <- 1
+            }
             rm(Table1, is_RR, is_notRR)
           }
 
