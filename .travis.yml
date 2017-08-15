@@ -8,6 +8,12 @@ cache:
   - packages
 warnings_are_errors: false # turn this back on for more severe testing
 
+addons:
+  apt:
+    packages:
+    - libgdal-dev
+    - libnetcdf-dev
+
 before_install:
   # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install' and
   #   thus dependencies are not installed and r_packages has not taken effect yet)
