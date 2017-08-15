@@ -70,6 +70,7 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 #' }
 #'
 #' @inheritParams SFSW2_read_csv
+#' @param header_rows An integer value. The row number which contains the header.
 #'
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}

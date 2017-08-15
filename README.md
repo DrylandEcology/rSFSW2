@@ -26,7 +26,7 @@ Some recent references
   disturbance. Ecosystems 17:590-605.
 * Palmquist, K.A., Schlaepfer, D.R., Bradford, J.B., and Lauenroth, W.K. 2016.
   Mid-latitude shrub steppe plant communities: climate change consequences for soil water
-  resources. Ecology 97:2342–2354.
+  resources. Ecology 97:2342-2354.
 * Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012. Ecohydrological niche of
   sagebrush ecosystems. Ecohydrology 5:453-466.
 

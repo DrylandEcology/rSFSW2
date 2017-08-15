@@ -150,7 +150,8 @@ if (actions[["prep_inputs"]]) {
 
 if (actions[["check_inputs"]]) {
 
-  temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_verbosity)
+  temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
+    opt_verbosity)
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]

@@ -548,7 +548,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
 #' Attempt to check input data of a rSFSW2 project for consistency
 #' @export
-check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_verbosity) {
+check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
+  opt_verbosity) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()

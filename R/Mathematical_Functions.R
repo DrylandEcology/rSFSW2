@@ -1,11 +1,18 @@
 #' Error function
-#' @references See among examples of ?Normal
+#' @seealso Code is from examples of \code{\link[stats]{pnorm}}.
+#' @param x A numeric vector.
+#' @return A numeric vector of the size of \code{x}.
 erf <- function(x) 2 * stats::pnorm(x * sqrt(2)) - 1
 
-#' Stretch the values
+#' Stretch values
 #'
 #' Values above the mean of \code{x} are made larger and
 #' values below the mean are made smaller - each by \code{lambda * dist(x, mean(x))}.
+#'
+#' @param x A numeric vector.
+#' @param lambda A numeric value. The stretching factor applied to \code{x}.
+#'
+#' @return A numeric vector of the size of \code{x}.
 stretch_values <- function(x, lambda = 0) {
   (1 + lambda) * x - lambda * mean(x)
 }

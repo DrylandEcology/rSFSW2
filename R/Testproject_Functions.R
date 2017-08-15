@@ -98,10 +98,10 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
 
       if (length(test_code) == 1L) {
         if (exists("SFSW2_prj_meta")) {
-          rm("SFSW2_prj_meta", pos = find("SFSW2_prj_meta"))
+          rm("SFSW2_prj_meta", pos = utils::find("SFSW2_prj_meta"))
         }
         if (exists("fmeta")) {
-          rm("fmeta", pos = find("fmeta"))
+          rm("fmeta", pos = utils::find("fmeta"))
         }
 
         ctime <- system.time(temp <- try(source(file.path(dir_tests[it], test_code),
@@ -270,7 +270,7 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
 make_test_output_reference <- function(dir_test, dir_ref = NULL, SFSW2_version = NULL) {
 
   if (is.null(SFSW2_version)) {
-    SFSW2_version <- packageVersion("rSFSW2")
+    SFSW2_version <- utils::packageVersion("rSFSW2")
   }
 
   if (is.null(dir_ref))

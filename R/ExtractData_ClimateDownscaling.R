@@ -1076,16 +1076,16 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #'  }
 #'  }
 #'
-#' @references Boé, J., L. Terray, F. Habets, and E. Martin. 2007.
+#' @references Boe, J., L. Terray, F. Habets, and E. Martin. 2007.
 #'  Statistical and dynamical downscaling of the Seine basin climate for
-#'  hydro-meteorological studies. International Journal of Climatology 27:1643–1655.
+#'  hydro-meteorological studies. International Journal of Climatology 27:1643-1655.
 #' @references Themessl, M. J., A. Gobiet, and G. Heinrich. 2011. Empirical-statistical
 #'  downscaling and error correction of regional climate models and its impact on the
-#'  climate change signal. Climatic Change 112:449–468.
+#'  climate change signal. Climatic Change 112:449-468.
 #' @references Gudmundsson, L., J. B. Bremnes, J. E. Haugen, and T. Engen-Skaugen. 2012.
 #'  Technical Note: Downscaling RCM precipitation to the station scale using statistical
 #'  transformations - a comparison of methods. Hydrology and Earth System Sciences
-#'  16:3383–3390.
+#'  16:3383-3390.
 #'
 #' @seealso Based on code from \code{\link[qmap]{doQmapQUANT}} v1.0.4 (Gudmundson et al.
 #'  2012), but with additional methods and more granual control. See details.
@@ -1128,7 +1128,7 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
   }
   out <- rep(NA, length.out = length(x))
 
-  if (var(fobj[["par"]]$modq[, 1]) < SFSW2_glovars[["tol"]]) {
+  if (stats::var(fobj[["par"]]$modq[, 1]) < SFSW2_glovars[["tol"]]) {
     # All values of 'fobj[["par"]]$modq[, 1]' are identical
     # ==> stats::approx() and stats::splinefun() [unless method = "fmm"] will fail
     # ==> use result from stats::splinefun(method = "fmm"), i.e., mean(y)
@@ -1197,15 +1197,15 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
 
 #' @rdname doQmapQUANT
 #' @inheritParams doQmapQUANT
-#' @param type A character vector. The type of interpolation, extrapolation, and spline
+#' @param type_map A character vector. The type of interpolation, extrapolation, and spline
 #'  passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include "linear_Boe",
 #'  "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC",
 #'  "tricub_natural", and "normal_anomalies". See details.
 #' @param monthly_obs_base A numeric vector. Base values used to calculate t-scores of
-#'  \code{x} which are only used if \code{type} is "normal_anomalies".
+#'  \code{x} which are only used if \code{type_map} is "normal_anomalies".
 #'
 #' @section Details: \itemize{
-#'  \item \code{type} with "normal_anomalies" represents a 'linear
+#'  \item \code{type_map} with "normal_anomalies" represents a 'linear
 #'  interpolation with extrapolation following Boe et al. 2007 and a correction using
 #'  standard anomalies (i.e. number of standard deviations from the mean) for values
 #'  outside the observed quantile map that is based on Tohver et al. 2014 (Appendix A)}
@@ -1215,13 +1215,13 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
 #'  America. Journal of the American Water Resources Association 50:1461-1476.
 #'
 #' @export
-doQmapQUANT_drs <- function(x, fobj, type = NULL, monthly_obs_base = NULL,
+doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
                     monthly_extremes = NULL, fix_spline = NULL, ...) {
 
   fix_spline <- match.arg(fix_spline, c(NA, "fail", "none", "attempt"))
-  type <- match.arg(type, c("NA_NA", "linear_Boe", "linear_Thermessl2012CC.QMv1b",
+  type_map <- match.arg(type_map, c("NA_NA", "linear_Boe", "linear_Thermessl2012CC.QMv1b",
     "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"))
-  temp <- strsplit(type, "_", fixed = TRUE)[[1]]
+  temp <- strsplit(type_map, "_", fixed = TRUE)[[1]]
   type <- temp[1]
   type_mod <- temp[2]
 
@@ -1364,14 +1364,14 @@ downscale.deltahybrid3mod <- function(
 
     # 2nd part: bias correcting historic data ("then using quantile mapping techniques to remove the systematic bias in the GCM simulations relative to the observed probability distributions")
     sbc.hist.monthly[, 2 + iv] <- doQmapQUANT_drs(x = scen.hist.monthly[, 2 + iv],
-      fobj = qm_fit, type = opt_DS[["extrapol_type"]],
+      fobj = qm_fit, type_map = opt_DS[["extrapol_type"]],
       montly_obs_base = obs.hist.monthly[, 2 + iv],
       monthly_extremes = monthly_extremes[[iv]],
       fix_spline = opt_DS[["fix_spline"]])
 
     # 3rd part: bias correcting future data ("the same quantile map between simulations and observations is used to transform the future simulations from the GCM")
     sbc.fut.monthly[, 2 + iv] <- doQmapQUANT_drs(x = scen.fut.monthly[, 2 + iv], fobj = qm_fit,
-      type = opt_DS[["extrapol_type"]],
+      type_map = opt_DS[["extrapol_type"]],
       montly_obs_base = obs.hist.monthly[, 2 + iv],
       monthly_extremes = monthly_extremes[[iv]],
       fix_spline = opt_DS[["fix_spline"]])
@@ -1391,7 +1391,7 @@ downscale.deltahybrid3mod <- function(
 
       hd.fut.monthly[id_sim_months, 2 + iv] <- doQmapQUANT_drs(
         x = obs.hist.monthly[id_sim_months, 2 + iv],
-        fobj = qm_fitm, type = opt_DS[["extrapol_type"]],
+        fobj = qm_fitm, type_map = opt_DS[["extrapol_type"]],
         montly_obs_base = obs.hist.monthly[, 2 + iv],
         monthly_extremes = monthly_extremes[[iv]],
         fix_spline = opt_DS[["fix_spline"]])
@@ -1813,7 +1813,7 @@ read_time_netCDF <- function(filename) {
 
       if (cdays > 360) {
         # calendar is one of 'noleap', '365_day', 'all_leap', and '366_day'
-        # format '%j' is base1: Day of year as decimal number (001–366)
+        # format '%j' is base1: Day of year as decimal number (001-366)
         temp12 <- lapply(1:2, function(k)
           strptime(paste(tbase_utc$year + 1900 + to_add_years[k],
             to_add_days[k], sep = "-"), format = "%Y-%j", tz = "UTC"))
@@ -1822,7 +1822,7 @@ read_time_netCDF <- function(filename) {
         # all years are 360 days divided into 30-day months
         to_add_months <- floor(to_add_days / 30)
 
-        # POSIXlt element 'mon' is base0: 0–11: months after the first of the year.
+        # POSIXlt element 'mon' is base0: 0-11: months after the first of the year.
         temp_yr <- tbase_utc$year + 1900 + to_add_years
         temp_mon <-  tbase_utc$mon + 1 + to_add_months
         mons_next_yr <- temp_mon - 12
@@ -2949,7 +2949,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 
   # loop through data sources
   sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
-  clim_sources <- na.exclude(unique(sites_GCM_source))
+  clim_sources <- stats::na.exclude(unique(sites_GCM_source))
 
   for (clim_source in clim_sources) {
     iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == clim_source]
@@ -3143,7 +3143,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
   if (resume) {
     # Process any temporary datafile from a potential previous run
     clim_sources <- unique(SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"])
-    clim_sources <- na.exclude(clim_sources)
+    clim_sources <- stats::na.exclude(clim_sources)
 
     for (k in seq_along(clim_sources)) {
       copy_tempdata_to_dbW(fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
