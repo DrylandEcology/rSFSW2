@@ -91,7 +91,8 @@ of older versions.
 
 # Use rSFSW2 for your simulation project
 
-Familiarize yourself with the demos and information at ```package?rSFSW2```
+Familiarize yourself with the demos and information at ```package?rSFSW2``` as well as
+FAQs with ```vignette("rSFSW2_FAQs", package = "rSFSW2")```.
 
 __Setup a new simulation project__:
 1) Install and attach 'rSFSW2' if not already done so (Note: required version of
