@@ -388,7 +388,7 @@ req_scens <- list(
     #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
     #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the western US prepared by Katie Renwick
     #     - "ESGF_Global": monthly time-series at varying resolution
-      dataset1 = "CMIP5_BCSD_SageSeer_USA"
+      dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)

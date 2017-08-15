@@ -35,6 +35,7 @@ do_import_objects <- function(obj_env) {
 
 #' Export objects to workers
 #'
+#' @param obj_env An environment containing R objects to export.
 #' @param parallel_backend A character vector, either 'mpi' or 'socket'
 #' @param cl A parallel (socket) cluster object
 #'
@@ -96,7 +97,11 @@ export_objects_to_workers <- function(obj_env,
   success
 }
 
-#' This is for workers
+#' Setting values of package-level global variables on workers
+#' @param x A character string. The name of a global variable.
+#' #param value A R object. The value to be assigned to the global variable identified by
+#'  \code{x}.
+#' @seealso \code{\link{assign}}
 set_glovar <- function(x, value) {
   # The environment 'SFSW2_glovars' is the one of the package copy on the workers!
   assign(x = x, value = value, envir = SFSW2_glovars)
@@ -231,7 +236,15 @@ mpi_work <- function(verbose = FALSE) {
 
 
 #' Properly end mpi workers before quitting R (e.g., at a crash)
-#' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+#' @section Notes: Code is based on
+#'  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+#' @section Details: \code{gv} will
+#'  usually be the package-level global variable environment \code{SFSW2_glovars}. This
+#'  is because this function is registered as finalizer to the object
+#'  \code{SFSW2_glovars}.
+#'
+#' @param gv A list with at least one named element \code{p_has}. \code{p_has} is a
+#'  logical value and indicates whether call is from a parallel run.
 mpi_last <- function(gv) {
   if (requireNamespace("Rmpi")) {
 
@@ -258,6 +271,8 @@ mpi_last <- function(gv) {
 
 
 #' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
+#'
+#' @param verbose A logical value.
 #' @export
 exit_SFSW2_cluster <- function(verbose = FALSE) {
   if (SFSW2_glovars[["p_has"]]) {

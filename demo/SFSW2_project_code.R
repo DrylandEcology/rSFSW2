@@ -68,20 +68,17 @@ actions <- list(
 ##############################################################################
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
-dir_prj <- "SFSW2_default_project"
-
-if (FALSE) {
-  # If this is a test project:
-  #   * if interactive: current working directory must be rSFSW2_tools/
-  #   * if !interactive: current working directory must be folder of test projects,
-  #       * e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations
-  if (interactive()) {
-    dir_prj <- normalizePath(file.path(".", "Test_projects", "SFSW2_default_project"))
-    setwd(dir_prj)
+# If code is run non-interactively or if this is a test project:
+# then current working directory must be folder of test projects,
+# e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations_snow
+dir_prj <- if (interactive()) {
+    temp <- normalizePath(file.path(".", "SFSW2_default_project"))
+    setwd(temp)
+    temp
+  } else {
+    getwd()
   }
 
-  dir_prj <- getwd()
-}
 
 writeLines(c("", "",
   "##############################################################################",
@@ -153,7 +150,8 @@ if (actions[["prep_inputs"]]) {
 
 if (actions[["check_inputs"]]) {
 
-  temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_verbosity)
+  temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
+    opt_verbosity)
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]

@@ -11,6 +11,8 @@
 #'  \item If \code{type == "cell"}, then y represents cells locations, see
 #'        \code{\link{extract_SFSW2_cells_from_raster}}.
 #'  }
+#' @param file_shp A character string. The filename of the shapefile.
+#' @param \dots Additional arguments passed to methods.
 #'
 #' @seealso \code{\link[raster]{extract}}
 #'
@@ -149,11 +151,11 @@ setMethod("extract_rSFSW2",
 #'  extracted.
 #' @param y graphics::points represented by an object inheriting from
 #'  \linkS4class{SpatialPoints}.
-#' @param file_shp A character string. The filename of the shapefile.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
-#' @param code A vector. If not \code{NULL}, then the extracted data are treated as
-#'  integer codes of a factor whose levels are encoded by \code{code}.
+#' @param code A character vector. If not \code{NULL}, then the extracted data are treated
+#'  as integer codes of a factor whose levels are encoded by \code{code}.
+#' @param \dots Ignored.
 #'
 #' @seealso \code{\link[sp]{over}}
 #'
@@ -209,7 +211,6 @@ setMethod("extract_rSFSW2",
 #'          matrix representing the rectangle extents in x- and y-coordinates.
 #'    \item If a matrix, then rows must match \code{coords}.
 #'  }
-#' @param file_shp A character string. The filename of the shapefile.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as

@@ -8,6 +8,9 @@ dbWork_check(path, runIDs)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
+
+\item{runIDs}{An integer vector. The identification numbers of queried runs,
+i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
 }
 \value{
 A data.frame with three columns 'completed', 'failed', and 'inwork'

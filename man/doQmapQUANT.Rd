@@ -9,7 +9,7 @@
 doQmapQUANT.default_drs(x, fobj, type = NULL, lin_extrapol = NULL,
   spline_method = NULL, monthly_extremes = NULL, fix_spline = NULL, ...)
 
-doQmapQUANT_drs(x, fobj, type = NULL, monthly_obs_base = NULL,
+doQmapQUANT_drs(x, fobj, type_map = NULL, monthly_obs_base = NULL,
   monthly_extremes = NULL, fix_spline = NULL, ...)
 }
 \arguments{
@@ -36,13 +36,13 @@ output.}
 
 \item{...}{Additional arguments are ignored.}
 
-\item{monthly_obs_base}{A numeric vector. Base values used to calculate t-scores of
-\code{x} which are only used if \code{type} is "normal_anomalies".}
-
-\item{type}{A character vector. The type of interpolation, extrapolation, and spline
+\item{type_map}{A character vector. The type of interpolation, extrapolation, and spline
 passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include "linear_Boe",
 "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC",
 "tricub_natural", and "normal_anomalies". See details.}
+
+\item{monthly_obs_base}{A numeric vector. Base values used to calculate t-scores of
+\code{x} which are only used if \code{type_map} is "normal_anomalies".}
 }
 \value{
 A numeric vector of the length of \code{x}. Return values differ among repeated
@@ -90,25 +90,25 @@ quantile mapping.
  }
 
  \itemize{
- \item \code{type} with "normal_anomalies" represents a 'linear
+ \item \code{type_map} with "normal_anomalies" represents a 'linear
  interpolation with extrapolation following Boe et al. 2007 and a correction using
  standard anomalies (i.e. number of standard deviations from the mean) for values
  outside the observed quantile map that is based on Tohver et al. 2014 (Appendix A)}
 }
 
 \references{
-Boé, J., L. Terray, F. Habets, and E. Martin. 2007.
+Boe, J., L. Terray, F. Habets, and E. Martin. 2007.
  Statistical and dynamical downscaling of the Seine basin climate for
- hydro-meteorological studies. International Journal of Climatology 27:1643–1655.
+ hydro-meteorological studies. International Journal of Climatology 27:1643-1655.
 
 Themessl, M. J., A. Gobiet, and G. Heinrich. 2011. Empirical-statistical
  downscaling and error correction of regional climate models and its impact on the
- climate change signal. Climatic Change 112:449–468.
+ climate change signal. Climatic Change 112:449-468.
 
 Gudmundsson, L., J. B. Bremnes, J. E. Haugen, and T. Engen-Skaugen. 2012.
  Technical Note: Downscaling RCM precipitation to the station scale using statistical
  transformations - a comparison of methods. Hydrology and Earth System Sciences
- 16:3383–3390.
+ 16:3383-3390.
 
 Tohver, I. M., A. F. Hamlet, and S.-Y. Lee. 2014. Impacts of 21st-Century
  Climate Change on Hydrologic Extremes in the Pacific Northwest Region of North
