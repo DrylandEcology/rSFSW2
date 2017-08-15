@@ -227,6 +227,8 @@ dbWork_timing <- function(path) {
 #'
 #' @inheritParams create_dbWork
 #' @inheritParams dbWork_update_job
+#' @param runIDs An integer vector. The identification numbers of queried runs,
+#'  i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.
 #' @return A logical vector indicating success.
 #' @export
 dbWork_redo <- function(path, runIDs) {
@@ -252,6 +254,7 @@ dbWork_redo <- function(path, runIDs) {
 #'
 #' @inheritParams create_dbWork
 #' @inheritParams dbWork_update_job
+#' @inheritParams dbWork_redo
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork'
 #' @export
 dbWork_check <- function(path, runIDs) {

@@ -28,37 +28,38 @@ test_that("Test applying a quantile map", {
     fitq <- qm[["par"]][["fitq"]]
     range_fitq <- c(min(fitq) - 1e-3, max(fitq) + 1e-3)
     has_novar <- as.vector(var(qm[["par"]][["modq"]]) < .Machine$double.eps)
-    
+
     for (k1 in seq_along(xs)) {
       x <- xs[[k1]]
       for (k2 in seq_len(dim(tests)[1])) {
         info <- paste("qm =", k0, "/ x =", k1, "/ t =", k2)
-        do_args <- list(x = x, fobj = qm, type = tests[k2, "type"], monthly_obs_base = x,
-            monthly_extremes = range(x), fix_spline = tests[k2, "fix_spline"])
-        
+        do_args <- list(x = x, fobj = qm, type_map = tests[k2, "type"],
+          monthly_obs_base = x, monthly_extremes = range(x),
+          fix_spline = tests[k2, "fix_spline"])
+
         if (has_novar) {
           expect_message(do.call("doQmapQUANT_drs", do_args), "values are identical",
             info = info)
           expect_equal(do.call("doQmapQUANT_drs", do_args), rep(mean(fitq), length(x)),
             info = info)
-          
+
         } else if (identical(tests[k2, "fix_spline"], "fail") && !(k0 == 3 && k1 == 1)) {
           expect_error(do.call("doQmapQUANT_drs", do_args), info = info)
-          
+
         } else {
           expect_silent(res <- do.call("doQmapQUANT_drs", do_args))
           expect_type(res, "double")
           expect_false(anyNA(res))
-          
+
           if (!(tests[k2, "type"] %in% c("tricub_fmm", "tricub_natural"))) {
-            if (identical(names(xs)[k1], "inter") || 
+            if (identical(names(xs)[k1], "inter") ||
                 identical(tests[k2, "type"], "linear_none")) {
-              # No extrapolation requested by 'x' or 
+              # No extrapolation requested by 'x' or
               # no extrapolation provided by 'type' as 'linear_none' and
               # not non-monotonic splines (which extrapolate)
               expect_gte(min(res), range_fitq[1])
               expect_lte(max(res), range_fitq[2])
-            
+
             } else if (identical(names(xs)[k1], "extra")) {
               # Extrapolation occurred at smallest and/or largest values
               expect_true(min(res) < range_fitq[1] || max(res) > range_fitq[2])

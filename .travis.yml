@@ -4,9 +4,16 @@ language: R
 env:
   - _R_CHECK_FORCE_SUGGESTS_=false # because of Rmpi, ncdf4, hydromat, and weathergen
 sudo: false
-cache:
-  - packages
+cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
+
+addons:
+  apt:
+    packages:
+    - libproj-dev
+    - libgeos-dev
+    - libgdal-dev
+    - libnetcdf-dev
 
 before_install:
   # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install' and
