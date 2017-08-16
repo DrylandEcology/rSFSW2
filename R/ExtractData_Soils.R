@@ -607,9 +607,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
         #call the simulations depending on parallel backend
         if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-          sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo,
-            FUN = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
-            sp_sites = run_sites_wise, att = rat_att)
+          sim_cells_SUIDs <- Rmpi::mpi.applyLB(is_ToDo, ISRICWISE_extract_SUIDs,
+            res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise,
+            att = rat_att)
 
         } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
           sim_cells_SUIDs <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = is_ToDo,
@@ -652,8 +652,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       #call the simulations depending on parallel backend
       if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-        ws <- Rmpi::mpi.applyLB(X = is_ToDo,
-          FUN = ISRICWISE_try_weightedMeanForSimulationCell,
+        ws <- Rmpi::mpi.applyLB(is_ToDo, ISRICWISE_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISE,

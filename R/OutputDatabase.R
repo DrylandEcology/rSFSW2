@@ -919,11 +919,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+      missing_Pids <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+        missing_Pids_current <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 

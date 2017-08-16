@@ -230,10 +230,9 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      ensembles.completed <- Rmpi::mpi.applyLB(X = Tables,
-        FUN = collect_EnsembleFromScenarios,
-        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]],
+      ensembles.completed <- Rmpi::mpi.applyLB(Tables, collect_EnsembleFromScenarios,
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+        t.overall = t_job_start, opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
@@ -242,8 +241,8 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
 
       ensembles.completed <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
         x = Tables, fun = collect_EnsembleFromScenarios,
-        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]],
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+        t.overall = t_job_start, opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
@@ -251,8 +250,8 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
 
   } else {
     ensembles.completed <- lapply(Tables, FUN = collect_EnsembleFromScenarios,
-        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]], t.overall = t_job_start,
-        opt_job_time = opt_parallel[["opt_job_time"]],
+        name.OutputDB = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+        t.overall = t_job_start, opt_job_time = opt_parallel[["opt_job_time"]],
         dir_out = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         sim_scens = SFSW2_prj_meta[["sim_scens"]],
         opt_chunks = opt_chunks)
