@@ -19,7 +19,7 @@ Imports:
     sp (>= 1.2.3),
     methods
 Suggests:
-    Rmpi (>= 0.6-6),
+    Rmpi (>= 0.6-3),
     parallel,
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
