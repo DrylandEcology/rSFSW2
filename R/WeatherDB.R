@@ -867,22 +867,22 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
       if (SFSW2_glovars[["p_has"]]) {
         if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
           if (daily) {
-            nDailyReads <- Rmpi::mpi.applyLB(X = seq_len(nrow(do_daily)),
-              FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
+            nDailyReads <- Rmpi::mpi.applyLB(seq_len(nrow(do_daily)),
+              gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
               latitudes = lats, longitudes = longs)
 
-            nDailyWrites <- Rmpi::mpi.applyLB(X = years, FUN = writeDailyWeatherData,
+            nDailyWrites <- Rmpi::mpi.applyLB(years, writeDailyWeatherData,
               nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
               siteDirsC = dtemp)
           }
           if (monthly) {
-            nMonthlyReads <- Rmpi::mpi.applyLB(X = 0L:(n_climvars - 1L),
-              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
-              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
+            nMonthlyReads <- Rmpi::mpi.applyLB(0L:(n_climvars - 1L), gribMonthlyClimate,
+              nSites = ntemp, latitudes = lats, longitudes = longs, siteDirsC = dtemp,
+              yearLow = yearLow, yearHigh = yearHigh)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
-            nMonthlyWrites <- Rmpi::mpi.applyLB(X = seq_len(n_sites_all),
-              FUN = writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
+            nMonthlyWrites <- Rmpi::mpi.applyLB(seq_len(n_sites_all),
+              writeMonthlyClimate, siteDirsC = dir_temp.sitesC)
           }
 
         } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {

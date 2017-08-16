@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.3.8
-Date: 2017-08-15
+Version: 2.3.9
+Date: 2017-08-16
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Zach", "Kramer", role = "ctb"),
@@ -19,7 +19,7 @@ Imports:
     sp (>= 1.2.3),
     methods
 Suggests:
-    Rmpi (>= 0.6-6),
+    Rmpi (>= 0.6-3),
     parallel,
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
