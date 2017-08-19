@@ -2388,8 +2388,8 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
 
     # extract the GCM data depending on parallel backend
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
-      Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
-      on.exit(Rmpi::mpi.bcast.cmd(rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
+      Rmpi::mpi.bcast.cmd(cmd = dbW_setConnection_local, dbFilePath = fdbWeather)
+      on.exit(Rmpi::mpi.bcast.cmd(dbW_disconnectConnection_local), add = TRUE)
 
       ids_Done <- Rmpi::mpi.applyLB(ids_ToDo, try.ScenarioWeather,
           clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,

@@ -4813,17 +4813,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      # We have to rename rSOILWAT2 functions locally (and export to workers):
-      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-      # is not the name of a function
-      dbW_setConnection <- function(...) rSOILWAT2::dbW_setConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(dbW_setConnection)
-      Rmpi::mpi.remote.exec(cmd = dbW_setConnection,
+      Rmpi::mpi.remote.exec(cmd = dbW_setConnection_local,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
-      dbW_disconnectConnection <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection)
-      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection), add = TRUE)
+      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection_local), add = TRUE)
 
       Rmpi::mpi.bcast.cmd(cmd = mpi_work,
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
