@@ -2313,12 +2313,11 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 #' A wrapper function for \code{calc.ScenarioWeather} with error control.
 #'
 #' @inheritParams calc.ScenarioWeather
-try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
-  climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, compression_type,
-  getYears, assocYears, sim_time, seeds_DS, opt_DS, project_paths, resume, verbose,
-  print.debug) {
-
+try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta, 
+  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, 
+  locations, compression_type, getYears, assocYears, sim_time, seeds_DS, opt_DS, 
+  project_paths, fdbWeather, resume, verbose, print.debug) {
+  
   # Identify index for site and scenario
   #   - loop over locations then loop over GCMs, i.e.,
   #     site[il] / GCM[ig], then site[il] / GCM[ig + 1], ...
@@ -2329,34 +2328,46 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
 
   i_tag <- paste0("SiteID", site_id, "-", gcm)
 
-  temp <- try(calc.ScenarioWeather(i = i,
-          ig = ig, il = il, gcm = gcm, site_id = site_id, i_tag = i_tag,
-          clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-          climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
-          reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-          climate.ambient = climate.ambient,
-          locations = locations,
-          compression_type = compression_type,
-          getYears = getYears, assocYears = assocYears,
-          sim_time = sim_time,
-          task_seed = seeds_DS[[i]],
-          opt_DS = opt_DS,
-          project_paths = project_paths,
-          resume = resume,
-          verbose = verbose, print.debug = print.debug))
+  # reconnect to weather database if connection is currently not valid
+  if (!rSOILWAT2::dbW_IsValid()) {
+    Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
+  }
 
-  if (inherits(temp, "try-error")) {
-    print(paste(Sys.time(), temp))
-    save(i, ig, il, gcm, site_id, i_tag, temp, clim_source, use_CF, use_NEX, climDB_meta,
-        climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
-        locations, compression_type, getYears, assocYears, sim_time, opt_DS,
-        project_paths, verbose,
-        file = file.path(project_paths[["dir_out_temp"]],
-        paste0("ClimScen_failed_", i_tag, "_l1.RData")))
-    res <- NULL
+  res <- NULL
+  if (!rSOILWAT2::dbW_IsValid()) {
+    print(paste("'calc.ScenarioWeather':", shQuote(i_tag), "failed because weather",
+      "database cannot be accessed."))
+  
   } else {
-    res <- i
+    
+    temp <- try(calc.ScenarioWeather(i = i,
+            ig = ig, il = il, gcm = gcm, site_id = site_id, i_tag = i_tag,
+            clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
+            climDB_meta = climDB_meta, climDB_files = climDB_files,
+            reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+            reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+            climate.ambient = climate.ambient,
+            locations = locations,
+            compression_type = compression_type,
+            getYears = getYears, assocYears = assocYears,
+            sim_time = sim_time,
+            task_seed = seeds_DS[[i]],
+            opt_DS = opt_DS,
+            project_paths = project_paths,
+            resume = resume,
+            verbose = verbose, print.debug = print.debug))
+  
+    if (inherits(temp, "try-error")) {
+      print(paste(Sys.time(), temp))
+      save(i, ig, il, gcm, site_id, i_tag, temp, clim_source, use_CF, use_NEX, climDB_meta,
+          climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
+          locations, compression_type, getYears, assocYears, sim_time, opt_DS,
+          project_paths, verbose,
+          file = file.path(project_paths[["dir_out_temp"]],
+          paste0("ClimScen_failed_", i_tag, "_l1.RData")))
+    } else {
+      res <- i
+    }
   }
 
   res
@@ -2403,7 +2414,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
-          project_paths = project_paths,
+          project_paths = project_paths, fdbWeather = fdbWeather,
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
@@ -2425,7 +2436,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
-          project_paths = project_paths,
+          project_paths = project_paths, fdbWeather = fdbWeather,
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
@@ -2451,7 +2462,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
       sim_time = sim_time,
       seeds_DS = seeds_DS,
       opt_DS = opt_DS,
-      project_paths = project_paths,
+      project_paths = project_paths, fdbWeather = fdbWeather,
       resume = resume,
       verbose = verbose, print.debug = print.debug)
     ids_Done <- do.call(c, ids_Done)
