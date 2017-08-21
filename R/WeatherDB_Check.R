@@ -10,6 +10,15 @@ dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
   siteID_by_dbW = NULL, scen_labels = NULL, scenID_by_dbW = NULL, chunk_size = 500L,
   verbose = FALSE) {
 
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
   # The pairs of arguments should be both NULL; if they both are not NULL, then they must
   # of identical length
   si_ltemp <- c(length(site_labels), length(siteID_by_dbW))
@@ -54,7 +63,7 @@ dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
     on.exit(RSQLite::dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
-      if (opt_verbosity[["print.debug"]]) {
+      if (verbose) {
         print(paste0("'dbW_sites_with_missingClimScens': ", Sys.time(), " is checking",
           " availability of climate scenarios in 'dbWeather': chunk ", k, " out of ",
           length(do_chunks), " chunks of 'sites'"))
