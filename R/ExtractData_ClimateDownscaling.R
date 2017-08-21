@@ -2313,11 +2313,11 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 #' A wrapper function for \code{calc.ScenarioWeather} with error control.
 #'
 #' @inheritParams calc.ScenarioWeather
-try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta, 
-  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, 
-  locations, compression_type, getYears, assocYears, sim_time, seeds_DS, opt_DS, 
+try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
+  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
+  locations, compression_type, getYears, assocYears, sim_time, seeds_DS, opt_DS,
   project_paths, fdbWeather, resume, verbose, print.debug) {
-  
+
   # Identify index for site and scenario
   #   - loop over locations then loop over GCMs, i.e.,
   #     site[il] / GCM[ig], then site[il] / GCM[ig + 1], ...
@@ -2337,9 +2337,9 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
   if (!rSOILWAT2::dbW_IsValid()) {
     print(paste("'calc.ScenarioWeather':", shQuote(i_tag), "failed because weather",
       "database cannot be accessed."))
-  
+
   } else {
-    
+
     temp <- try(calc.ScenarioWeather(i = i,
             ig = ig, il = il, gcm = gcm, site_id = site_id, i_tag = i_tag,
             clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
@@ -2356,7 +2356,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
             project_paths = project_paths,
             resume = resume,
             verbose = verbose, print.debug = print.debug))
-  
+
     if (inherits(temp, "try-error")) {
       print(paste(Sys.time(), temp))
       save(i, ig, il, gcm, site_id, i_tag, temp, clim_source, use_CF, use_NEX, climDB_meta,
@@ -3140,6 +3140,15 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 #' @export
 PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parallel,
   resume, opt_verbosity, opt_chunks) {
+
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
 
   climDB_metas <- climscen_metadata()
 
