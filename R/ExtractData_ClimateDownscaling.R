@@ -2024,7 +2024,7 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       climDB_files[grepl(paste0(climDB_meta[["sep_fname"]], gcm, climDB_meta[["sep_fname"]]),
                         climDB_files, ignore.case = TRUE)]
     } else NULL
-  
+
   if (verbose) {
     print(paste0(i_tag, " extraction: ", shQuote(clim_source), " at ", Sys.time(),
       " for ", gcm, " (", paste(reqRCPsPerGCM[[ig]], collapse = ", "), ") at ",
@@ -2065,7 +2065,7 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 
   if (length(ids_down) > 0) {
     rcps <- unique(df_wdataOut[["rcps"]][ids_down])
-    
+
     # check that netCDF-files are available
     n_tas <- length(grep("tas", climDB_meta[["var_desc"]][, "fileVarTags"]))
     expected_n <- if (n_tas >= 3) {
@@ -2075,10 +2075,10 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       }
     has_ncFiles <- sapply(rcps, function(x)
       length(grep(x, ncFiles_gcm, ignore.case = TRUE)) == expected_n)
-    
+
     if (any(!has_ncFiles)) {
-      stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm), 
-        " and scenario(s) ", paste(shQuote(rcps[!has_ncFiles]), collapse = "/"), 
+      stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm),
+        " and scenario(s) ", paste(shQuote(rcps[!has_ncFiles]), collapse = "/"),
         " not available.")
     }
 
@@ -2497,6 +2497,9 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
+  dir_failed <- file.path(dir_out_temp, "failed")
+  dir.create2(dir_failed, showWarnings = FALSE)
+
   temp_files <- list.files(path = dir_out_temp, pattern = clim_source, recursive = TRUE,
     include.dirs = FALSE, no.. = TRUE)
 
@@ -2518,21 +2521,25 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
       ok <- 0
       fail <- FALSE
       ftemp <- file.path(dir_out_temp, f)
-      df_wdataOut <- readRDS(file = ftemp)
+      df_wdataOut <- try(readRDS(file = ftemp))
 
-      if (all(req_wdata_fields %in% names(df_wdataOut))) {
-        for (k in which(df_wdataOut[["todo"]])) if (!is.na(df_wdataOut[["weatherData"]][k])) {
-          res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
-            Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
-            Scenario_id = df_wdataOut[["Scenario_id"]][k],
-            StartYear = df_wdataOut[["StartYear"]][k],
-            EndYear = df_wdataOut[["EndYear"]][k],
-            weather_blob = df_wdataOut[["weatherData"]][k][[1]]))
+      if (!inherits(df_wdataOut, "try-error") &&
+        all(req_wdata_fields %in% names(df_wdataOut))) {
 
-          if (!inherits(res, "try-error")) {
-            ok <- ok + 1
-          } else {
-            fail <- TRUE
+        for (k in which(df_wdataOut[["todo"]])) {
+          if (!is.na(df_wdataOut[["weatherData"]][k])) {
+            res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
+              Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
+              Scenario_id = df_wdataOut[["Scenario_id"]][k],
+              StartYear = df_wdataOut[["StartYear"]][k],
+              EndYear = df_wdataOut[["EndYear"]][k],
+              weather_blob = df_wdataOut[["weatherData"]][k][[1]]))
+
+            if (!inherits(res, "try-error")) {
+              ok <- ok + 1
+            } else {
+              fail <- TRUE
+            }
           }
         }
 
@@ -2545,9 +2552,14 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
       } else {
         print(paste("Temporary scenario file", shQuote(f), "cannot be read, likely",
           " because it is corrupted or contains malformed data."))
+        fail <- TRUE
       }
 
-      if (!fail) unlink(ftemp)
+      if (fail) {
+        file.rename(from = ftemp, to = file.path(dir_failed, f))
+      } else {
+        unlink(ftemp)
+      }
     }
   }
 
