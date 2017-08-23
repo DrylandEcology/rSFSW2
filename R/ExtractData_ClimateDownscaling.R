@@ -2024,7 +2024,7 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       climDB_files[grepl(paste0(climDB_meta[["sep_fname"]], gcm, climDB_meta[["sep_fname"]]),
                         climDB_files, ignore.case = TRUE)]
     } else NULL
-
+  
   if (verbose) {
     print(paste0(i_tag, " extraction: ", shQuote(clim_source), " at ", Sys.time(),
       " for ", gcm, " (", paste(reqRCPsPerGCM[[ig]], collapse = ", "), ") at ",
@@ -2065,6 +2065,22 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 
   if (length(ids_down) > 0) {
     rcps <- unique(df_wdataOut[["rcps"]][ids_down])
+    
+    # check that netCDF-files are available
+    n_tas <- length(grep("tas", climDB_meta[["var_desc"]][, "fileVarTags"]))
+    expected_n <- if (n_tas >= 3) {
+        length(climDB_meta[["var_desc"]][, "fileVarTags"]) - (n_tas - 2)
+      } else {
+        length(climDB_meta[["var_desc"]][, "fileVarTags"])
+      }
+    has_ncFiles <- sapply(rcps, function(x)
+      length(grep(x, ncFiles_gcm, ignore.case = TRUE)) == expected_n)
+    
+    if (any(!has_ncFiles)) {
+      stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm), 
+        " and scenario(s) ", paste(shQuote(rcps[!has_ncFiles]), collapse = "/"), 
+        " not available.")
+    }
 
     #Scenario monthly weather time-series: Get GCM data for each scenario and time slice
     scen.monthly <- matrix(vector("list", (getYears$n_first + getYears$n_second) * (1 +
@@ -2330,7 +2346,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
 
   # reconnect to weather database if connection is currently not valid
   if (!rSOILWAT2::dbW_IsValid()) {
-    Rmpi::mpi.bcast.cmd(cmd = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
+    rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
   }
 
   res <- NULL
