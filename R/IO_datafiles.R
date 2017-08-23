@@ -672,12 +672,15 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 #' manually.
 #'
 #' @inheritParams base::saveRDS
+#' @param tag_backup A character string. A tag that is appended at the end of the
+#'  \code{file} name to identify the backup.
+#'
 #' @seealso \code{\link{saveRDS}}
 #' @export
-save_to_rds_with_backup <- function(object, file, ...) {
+save_to_rds_with_backup <- function(object, file, tag_backup = "backup", ...) {
   if (file.exists(file)) {
     temp <- strsplit(basename(file), split = ".", fixed = TRUE)[[1]]
-    fbackup <- paste0(paste(temp[-length(temp)], collapse = ""), "_backup.",
+    fbackup <- paste0(paste(temp[-length(temp)], collapse = ""), "_", tag_backup, ".",
       temp[length(temp)])
 
     file.rename(from = file, to = file.path(dirname(file), fbackup))

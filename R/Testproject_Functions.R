@@ -302,6 +302,7 @@ make_test_output_reference <- function(dir_test, dir_ref = NULL, SFSW2_version =
 delete_test_output <- function(dir_test, delete_filepaths = NULL) {
   files_to_delete <- c(
     delete_filepaths,
+
     list.files(dir_test, pattern = "last.dump", recursive = TRUE, full.names = TRUE),
     list.files(dir_test, pattern = ".log", recursive = TRUE, full.names = TRUE),
     list.files(dir_test, pattern = ".Rapp.history", recursive = TRUE, full.names = TRUE),
@@ -310,9 +311,12 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
       full.names = TRUE),
     list.files(dir_test, pattern = "ClimDB_failedLocations_", recursive = TRUE,
       full.names = TRUE),
+    list.files(dir_test, pattern = "backup", recursive = TRUE, full.names = TRUE),
+
     file.path(dir_test, "SFSW2_project_descriptions.rds"),
     file.path(dir_test, "1_Data_SWInput", "dbWeatherData_test.sqlite3"),
-    file.path(dir_test, "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.rds"))
+    file.path(dir_test, "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.rds")
+  )
 
   dirs_to_delete <- c(
     file.path(dir_test, "3_Runs"),

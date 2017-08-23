@@ -182,11 +182,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "load_inputs", prepared = TRUE,
-      checked = !SFSW2_prj_inputs[["do_check_include"]],
-      clean_subsequent = SFSW2_prj_inputs[["do_check_include"]])
-
-    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
+      checked = !SFSW2_prj_inputs[["do_check_include"]])
   }
+
+  save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]],
+    tag_backup = paste0("backup-", format(Sys.time(), "%Y%m%d-%H%M")))
 
 
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&

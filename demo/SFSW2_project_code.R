@@ -31,13 +31,6 @@ library("rSFSW2")
 
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(
-  # Input preparation
-  #   - Create a new(!) weather database and populate with current weather data
-  #     (formerly 'createAndPopulateWeatherDatabase')
-  #   - "external": pulls data from 'external' data sources from 'dir_external' as
-  #     specified by 'req_data'
-  prep_inputs = TRUE,
-
   # Input checking
   check_inputs = TRUE,
 
@@ -69,15 +62,9 @@ actions <- list(
 #------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
 
 # If code is run non-interactively or if this is a test project:
-# then current working directory must be folder of test projects,
+# then current working directory must be folder of projects,
 # e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations_snow
-dir_prj <- if (interactive()) {
-    temp <- normalizePath(file.path(".", "SFSW2_default_project"))
-    setwd(temp)
-    temp
-  } else {
-    getwd()
-  }
+dir_prj <- getwd()
 
 
 writeLines(c("", "",
@@ -130,18 +117,15 @@ source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
 ##############################################################################
 #------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ----------
 
-if (actions[["prep_inputs"]]) {
+temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
+  opt_chunks, opt_out_run, opt_verbosity)
 
-  temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
-    opt_chunks, opt_out_run, opt_verbosity)
+SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
-
-  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-    "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
-    "and re-run project.", call. = FALSE, immediate. = TRUE)
-}
+warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+  "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
+  "and re-run project.", call. = FALSE, immediate. = TRUE)
 
 
 
@@ -205,6 +189,6 @@ exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
 #--- Goodbye message
 writeLines(c("",
   "##############################################################################",
-  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run ended at",
-    Sys.time()),
+  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run on",
+    SFSW2_prj_meta[["opt_platform"]][["host"]], "platform ended at", Sys.time()),
   "##############################################################################", ""))
