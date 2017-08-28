@@ -1761,7 +1761,7 @@ read_time_netCDF <- function(filename) {
   stopifnot(length(dim_time) > 0)
   utemp <- nc$dim[[dim_time]]$units
   tvals <- nc$dim[[dim_time]]$vals
-  calendar <- nc$dim[[dim_time]]$calendar
+  calendar <- tolower(nc$dim[[dim_time]]$calendar)
 
   N <- length(tvals)
   utemp <- strsplit(utemp, split = " ", fixed = TRUE)[[1]]
@@ -1786,16 +1786,25 @@ read_time_netCDF <- function(filename) {
     tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]]
     stopifnot(length(tbase) == 1)
 
-    # http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
+    #--- http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
+    # days per calendar year
     cdays <- switch(calendar,
       noleap = 365, `365_day` = 365, `all_leap` = 366, `366_day` = 366, `360_day` = 360,
-      -1)
+      julian = 365.25, gregorian = 365.2425, -1)
 
-    if (calendar == "proleptic_gregorian" || calendar == "gregorian" ||
-        calendar == "standard" || is.null(calendar)) {
+    if (identical(calendar, "proleptic_gregorian") || identical(calendar, "gregorian") ||
+        identical(calendar, "standard") || identical(calendar, "julian") ||
+        is.null(calendar)) {
+
+      # TODO: this doesn't seem to work perfectly well for Julian calendars, but should
+      # be ok-ish for a few hundred years around 'origin = tbase'
+      temp <- if (identical(calendar, "julian")) {
+           365.2425 / 365.25 # gregorian / julian days per year
+        } else 1
+      day_scaler <- 86400 * temp / tunit
 
       temp12 <- lapply(tvals[c(1, N)], function(x)
-        as.POSIXlt(tbase + x / tunit, tz = "UTC"))
+        as.POSIXlt(x * day_scaler, origin = tbase, tz = "UTC"))
 
     } else if (cdays > 0) {
       # all years are of a constant fixed duration
