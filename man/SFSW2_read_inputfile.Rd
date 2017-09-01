@@ -9,6 +9,8 @@ SFSW2_read_inputfile(file, header_rows = 1, use_iotools = TRUE, ...)
 \arguments{
 \item{file}{A character string. The path to the file which is to be read.}
 
+\item{header_rows}{An integer value. The row number which contains the header.}
+
 \item{use_iotools}{A logical value. If \code{TRUE} and if \pkg{iotools} available,
 then \code{\link[iotools]{read.csv.raw}} instead of \code{\link[utils]{read.csv}} is
 used to read the \code{file}.}

@@ -1,6 +1,20 @@
-[![Travis-CI Build Status](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master)](https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2)
-  [![Build status](https://ci.appveyor.com/api/projects/status/kpbf892lmb77x69i?svg=true)](https://ci.appveyor.com/project/dschlaep/rSFSW2)
-  [![Coverage Status](https://coveralls.io/repos/github/Burke-Lauenroth-Lab/rSFSW2/badge.svg?branch=master)](https://coveralls.io/github/Burke-Lauenroth-Lab/rSFSW2?branch=master)
+
+| Unix | Windows | Release | License | Coverage | Downloads |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+[ ![Travis build status][1]][2] | [![Appveyor build status][3]][4] | [ ![github release][5]][6] | [![license][7]][8] | [![codecov status][9]][10] | [![github downloads][11]][12] |
+
+[1]: https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2.svg?branch=master
+[2]: https://travis-ci.org/Burke-Lauenroth-Lab/rSFSW2
+[3]: https://ci.appveyor.com/api/projects/status/die00t8rjjhrb8i0/branch/master?svg=true
+[4]: https://ci.appveyor.com/project/dschlaep/rSFSW2/branch/master
+[5]: https://img.shields.io/github/release/Burke-Lauenroth-Lab/rSFSW2.svg?label=current+release
+[6]: https://github.com/Burke-Lauenroth-Lab/rSFSW2/releases
+[7]: https://img.shields.io/github/license/Burke-Lauenroth-Lab/rSFSW2.svg
+[8]: https://www.gnu.org/licenses/gpl.html
+[9]: https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2/branch/master/graph/badge.svg
+[10]: https://codecov.io/gh/Burke-Lauenroth-Lab/rSFSW2
+[11]: https://img.shields.io/github/downloads/Burke-Lauenroth-Lab/rSFSW2/total.svg
+[12]: https://github.com/Burke-Lauenroth-Lab/rSFSW2
 
 
 # rSFSW2: A R package to create soil water balance simulation experiment
@@ -12,7 +26,7 @@ Some recent references
   disturbance. Ecosystems 17:590-605.
 * Palmquist, K.A., Schlaepfer, D.R., Bradford, J.B., and Lauenroth, W.K. 2016.
   Mid-latitude shrub steppe plant communities: climate change consequences for soil water
-  resources. Ecology 97:2342–2354.
+  resources. Ecology 97:2342-2354.
 * Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012. Ecohydrological niche of
   sagebrush ecosystems. Ecohydrology 5:453-466.
 
@@ -61,16 +75,24 @@ system2(command = "git", args = "clone -b master --single-branch https://github.
 tools::Rcmd(args = paste("INSTALL rSFSW2"))
 ```
 
+### Binary package version
 If you want a binary version of the 'rSFSW2' package (e.g., to distribute to someone
 without development tools) for a platform to which you do not have access, then you may
 consider using one of the cloud services (no endorsements):
-- https://builder.r-hub.io offers different Linux, Windows, and mac OS flavors as targets
-- http://win-builder.r-project.org/ offers Windows OS as target
+- [r-hub](https://builder.r-hub.io) offers different Linux, Windows, and mac OS flavors as targets
+- [win-builder](http://win-builder.r-project.org/) offers Windows OS as target
 
+Alternatively, you may access the previous binary package version for Windows OS from our
+CI appveyor service if the build was successful and an artifact was generated for the
+binary package (this would be named 'rSWSF2_X.Y.Z.zip' with version number X.Y.Z) from
+[here](https://ci.appveyor.com/project/dschlaep/rSFSW2/build/artifacts). If the latest
+build should have failed, then you may want to check out the 'History' tab for binaries
+of older versions.
 
 # Use rSFSW2 for your simulation project
 
-Familiarize yourself with the demos and information at ```package?rSFSW2```
+Familiarize yourself with the demos and information at ```package?rSFSW2``` as well as
+FAQs with ```vignette("rSFSW2_FAQs", package = "rSFSW2")```.
 
 __Setup a new simulation project__:
 1) Install and attach 'rSFSW2' if not already done so (Note: required version of

@@ -379,14 +379,16 @@ req_scens <- list(
     # Priority of extraction: dataset1, dataset2, ... if multiple sources provide data
     #   for a location
     # Dataset = 'project_source' with
-    #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
+    #   - project = one string out of c("CMIP3", "CMIP5")
     #   - source = one string out of:
     #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
     #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
     #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
     #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
     #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
-      dataset1 = "CMIP5_BCSD_SageSeer_USA"
+    #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the western US prepared by Katie Renwick
+    #     - "ESGF_Global": monthly time-series at varying resolution
+      dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)

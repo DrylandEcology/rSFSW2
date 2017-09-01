@@ -235,6 +235,8 @@ predict_season <- function(biomass_Standard, std.season.padded, std.season.seq, 
 }
 
 #' Biomass equations
+#'
+#' @param MAP_mm A numeric vector. Mean annual precipitation in millimeters (mm).
 #' @references Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
 #' @name biomass
 NULL
@@ -415,7 +417,7 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
         temp <- apply(biom_std_C4[std.winter, ], 2, mean)
         biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
         temp <- apply(biom_std_annuals[std.winter, ], 2, mean)
-        biom_annuals[] <- matrix(, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
+        biom_annuals[] <- matrix(temp, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 

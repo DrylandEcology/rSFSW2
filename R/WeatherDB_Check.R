@@ -1,70 +1,87 @@
 #' Determine which site_ids in the weather database do not have weather data for every
 #' requested climate scenario
 #'
-#' @return A logical vector of length \code{SFSW2_prj_meta[["sim_size"]][["runsN_master"]]}.
-#'  The elements at location \code{SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]} are
-#'  \code{TRUE} indicating the site_id for which the weather database lacks all data. If
-#'  all data are in the weather database, then \code{FALSE}.
+#' @return A logical vector of length \code{site_labels} respectively \code{siteID_by_dbW}.
+#'  The \code{TRUE} elements indicate sites for which the weather database lacks some or
+#'  all data. If all data are in the weather database, then \code{FALSE}.
 #'
 #' @export
-dbW_has_missingClimScens <- function(fdbWeather, SFSW2_prj_inputs, req_scenN,
-  opt_verbosity, opt_chunks) {
-  # Init: set every included site as having missing climate scenario data. If a site_id
-  #   is found to have all climate scenario data, then set its todo element to FALSE
-  todos <- SFSW2_prj_inputs[["include_YN"]]
+dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
+  siteID_by_dbW = NULL, scen_labels = NULL, scenID_by_dbW = NULL, chunk_size = 500L,
+  verbose = FALSE) {
 
-  # Extract design information from dbWeather
-  rSOILWAT2::dbW_setConnection(fdbWeather)
-  dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
-  rSOILWAT2::dbW_disconnectConnection()
+  # The pairs of arguments should be both NULL; if they both are not NULL, then they must
+  # of identical length
+  si_ltemp <- c(length(site_labels), length(siteID_by_dbW))
+  si_ntemp <- c(is.null(site_labels), is.null(siteID_by_dbW))
+  sc_ltemp <- c(length(scen_labels), length(scenID_by_dbW))
+  sc_ntemp <- c(is.null(scen_labels), is.null(scenID_by_dbW))
 
-  # Determine 'site_id's for which the dbWeather should contain daily weather data for
-  # every climate scenario
-  req_siteIDs <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "site_id"]
+  stopifnot(!(si_ntemp[1] && si_ntemp[2]),
+    si_ntemp[1] || si_ntemp[2] || identical(si_ltemp[1], si_ltemp[2]))
+  stopifnot(!(sc_ntemp[1] && sc_ntemp[2]),
+    sc_ntemp[1] || sc_ntemp[2] || identical(sc_ltemp[1], sc_ltemp[2]))
 
-  # Check presence of records with climate scenario data in dbWeather
+  req_scenN <- max(sc_ltemp)
+  n_todos <- max(si_ltemp)
+  todos <- rep(TRUE, n_todos)
+
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fdbWeather, flags = RSQLite::SQLITE_RO)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
+  rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
   if (DBI::dbExistsTable(con, "WeatherData")) {
-    n_todos <- length(req_siteIDs)
-    do_chunks <- parallel::splitIndices(n_todos,
-      ceiling(n_todos / opt_chunks[["ensembleCollectSize"]]))
+    if (is.null(siteID_by_dbW)) {
+      siteID_by_dbW = rSOILWAT2::dbW_getSiteId(Labels = site_labels)
+    }
+    if (anyNA(siteID_by_dbW)) {
+      stop("Not all sites (labels) available in weather database.")
+    }
 
-    sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (?) ",
-      "ORDER BY Site_id, Scenario")
+    if (is.null(scenID_by_dbW)) {
+      scenID_by_dbW = rSOILWAT2::dbW_getScenarioId(Scenario = scen_labels)
+    }
+    if (anyNA(scenID_by_dbW)) {
+      stop("Not all sites (labels) available in weather database.")
+    }
+
+    do_chunks <- parallel::splitIndices(n_todos, ceiling(n_todos / chunk_size))
+
+    sql <- paste0("SELECT Site_id, Scenario FROM WeatherData WHERE Site_id IN (:x1) ",
+      "AND Scenario IN (:x2) ORDER BY Site_id, Scenario")
     rs <- DBI::dbSendStatement(con, sql)
+    on.exit(RSQLite::dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
       if (opt_verbosity[["print.debug"]]) {
-        print(paste0("has_missingClimScens': ", Sys.time(), " is checking availability",
-          " of climate scenarios in 'dbWeather': chunk ", k, " out of ", length(do_chunks),
-          " chunks of 'site_id's"))
+        print(paste0("'dbW_sites_with_missingClimScens': ", Sys.time(), " is checking",
+          " availability of climate scenarios in 'dbWeather': chunk ", k, " out of ",
+          length(do_chunks), " chunks of 'sites'"))
       }
 
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      RSQLite::dbBind(rs, list(req_siteIDs[do_chunks[[k]]]))
+      RSQLite::dbBind(rs, params = as.list(expand.grid(x1 = siteID_by_dbW[do_chunks[[k]]],
+        x2 = scenID_by_dbW, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)))
       res <- RSQLite::dbFetch(rs)
 
       if (dim(res)[1] > 0) {
-        temp <- tapply(res[, "Scenario"], res[, "Site_id"], max)
-        temp <- cbind(site_id = as.integer(names(temp)), scenN = temp)
+        temp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
+        temp <- cbind(Site_id = as.integer(names(temp)), scenN = temp)
 
         # Compare expected with what is available in dbWeather
-        # Good: sufficient scenarios are available: set their todos to FALSE
-        i_good <- temp[, "scenN"] >= req_scenN
+        # Good: all requested scenarios are available: set their todos to FALSE
+        i_good <- temp[, "scenN"] == req_scenN
 
         if (any(i_good)) {
-          ids_good <- SFSW2_prj_inputs[["SWRunInformation"]][, "site_id"] %in% temp[i_good, "site_id"]
-          todos[ids_good] <- FALSE
+          todos[siteID_by_dbW %in% temp[i_good, "Site_id"]] <- FALSE
         }
       }
     }
 
-    RSQLite::dbClearResult(rs)
-
   } else {
-    stop("'has_missingClimScens': table 'WeatherData' is missing from 'dbWeather'")
+    stop("'dbW_sites_with_missingClimScens': table 'WeatherData' is missing from ",
+      "'dbWeather'")
   }
 
   todos
@@ -137,6 +154,8 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   #---Connect to weather database
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
   fsite <- file.path(file.path(dir_out, "Sites.cvs"))
   if (!file.exists(fsite)) {
     dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
@@ -151,7 +170,6 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   } else {
     dbW_iScenarioTable <- utils::read.csv(fscen, header = TRUE)
   }
-  rSOILWAT2::dbW_disconnectConnection()
 
 
 
@@ -161,20 +179,20 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   sitesN <- sum(used_sites)
 
   climate <- as.data.frame(matrix(NA, nrow = nrow(dbW_iScenarioTable) * sitesN,
-                    ncol = 3 + length(vars),
-                    dimnames = list(NULL, c("Site_id", "Scenario_id", "Status", vars))))
-  climate[, "Site_id"] <- dbW_iSiteTable[used_sites, "Site_id"]
+    ncol = 3 + length(vars),
+    dimnames = list(NULL, c("Site_id_by_dbW", "Scenario_id", "Status", vars))))
+  climate[, "Site_id_by_dbW"] <- dbW_iSiteTable[used_sites, "Site_id"]
   climate[, "Scenario_id"] <- rep(dbW_iScenarioTable[, "id"], each = sitesN)
 
   ids_todo <- seq_len(nrow(climate))
 
 
   #---Check progress
-  make_ids <- compiler::cmpfun(function(data, id_vars = c("Site_id", "Scenario_id")) {
+  make_ids <- compiler::cmpfun(function(data, id_vars = c("Site_id_by_dbW", "Scenario_id")) {
     as.vector(apply(data[, id_vars, drop = FALSE], 1, paste0, collapse = "_"))
   })
 
-  revert_ids <- compiler::cmpfun(function(ids, id_vars = c("Site_id", "Scenario_id"), id_class = "integer") {
+  revert_ids <- compiler::cmpfun(function(ids, id_vars = c("Site_id_by_dbW", "Scenario_id"), id_class = "integer") {
     temp <- as.data.frame(t(simplify2array(strsplit(ids, split = "_", fixed = TRUE))), stringsAsFactors = FALSE)
     stopifnot(length(id_vars) == ncol(temp))
     colnames(temp) <- id_vars
@@ -208,7 +226,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       # Transfer to output
       if (nrow(climate_good) > 0) {
         temp <- copy_matches(out = climate, data = climate_good,
-                  match_vars = c("Site_id", "Scenario_id"),
+                  match_vars = c("Site_id_by_dbW", "Scenario_id"),
                   copy_vars = c("Status", vars),
                   ids_out = ids_todo)
         climate <- temp[["out"]]
@@ -240,10 +258,12 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
     if (i %% 1000 == 1) print(paste0(Sys.time(), ": checking ", i, "-th entry"))
 
     idss <- unlist(idss)
-    tr <- data[data[, "Site_id"] == idss["Site_id"] & data[, "Scenario_id"] == idss["Scenario_id"], ]
+    temp <- data[, "Site_id_by_dbW"] == idss["Site_id_by_dbW"] &
+      data[, "Scenario_id"] == idss["Scenario_id"]
+    tr <- data[temp, ]
 
     res <- unlist(c(seq_id = i, Dups_N = nrow(tr),
-          tr[1, c("Site_id", "Scenario_id")],
+          tr[1, c("Site_id_by_dbW", "Scenario_id")],
           Status = -1L))
 
     if (NROW(tr) >= repeats) {
@@ -266,7 +286,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
       climate_progress <- utils::read.csv(ftemp, header = TRUE)
 
       if (nrow(climate_progress) > 0) {
-        ids_progress <- as.vector(apply(climate_progress[, c("Site_id", "Scenario_id")],
+        ids_progress <- as.vector(apply(climate_progress[, c("Site_id_by_dbW", "Scenario_id")],
           1, paste0, collapse = "_"))
         ids_unique <- sort(unique(ids_progress))
         idus_ss <- revert_ids(ids_unique)
@@ -310,7 +330,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
           utils::write.table(climate_good, file = fout, append = TRUE, sep = ",", dec = ".",
             qmethod = "double", row.names = FALSE, col.names = FALSE)
           temp <- copy_matches(out = climate, data = climate_good,
-                    match_vars = c("Site_id", "Scenario_id"),
+                    match_vars = c("Site_id_by_dbW", "Scenario_id"),
                     copy_vars = c("Status", vars),
                     ids_out = ids_todo)
           climate <- temp[["out"]]
@@ -361,29 +381,25 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
     if (i %% 1000 == 1)
       print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ",
-        iclimate["Site_id"], "/", scen))
+        iclimate["Site_id_by_dbW"], "/", scen))
 
     # Access data from database
-    wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
-            startYear = startyear, endYear = endyear,
-            Scenario = scen),
-          silent = TRUE)
+    wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
+      startYear = startyear, endYear = endyear, Scenario = scen), silent = TRUE)
 
     if (inherits(wtemp, "try-error")) {
       # Maybe the connection to the database failed? Re-set connection and attempt extraction once more
       rSOILWAT2::dbW_disconnectConnection()
       rSOILWAT2::dbW_setConnection(dbFilePath = db_name, FALSE)
 
-      wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id"],
-              startYear = startyear, endYear = endyear,
-              Scenario = scen),
-            silent = TRUE)
+      wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = iclimate["Site_id_by_dbW"],
+        startYear = startyear, endYear = endyear, Scenario = scen), silent = TRUE)
     }
 
     if (inherits(wtemp, "try-error")) {
       iclimate["Status"] <- 0
       print(paste0(Sys.time(), ": run = ", i, ": site_id/scenario = ",
-        iclimate["Site_id"], "/", scen, " failed:", wtemp))
+        iclimate["Site_id_by_dbW"], "/", scen, " failed:", wtemp))
 
     } else {
       iclimate["Status"] <- 1
@@ -467,9 +483,9 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   identical(failed, iNAs)
   print(paste0("Unsuccessful extractions: n = ", sum(failed), "; f = ",
     signif(sum(failed) / length(failed), 2)))
-  with(climate[failed, ], plot(Site_id, Scenario_id))
+  with(climate[failed, ], plot(Site_id_by_dbW, Scenario_id))
 
-  failed_siteID <- climate[failed, "Site_id"]
+  failed_siteID <- climate[failed, "Site_id_by_dbW"]
   print(paste0("Sites with at least one unsuccessful extractions: n = ",
     length(unique(failed_siteID))))
   failed_siteID_freq <- tapply(rep(1, sum(failed)), failed_siteID, sum)
@@ -487,11 +503,11 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   # Variation among downscaled scenarios as difference to current
 
   dat <- climate[!failed & climate$Scenario_id > 1, ]
-  dat_cur <- climate[climate$Site_id %in% dat$Site_id & climate$Scenario_id == 1, ]
+  dat_cur <- climate[climate$Site_id_by_dbW %in% dat$Site_id_by_dbW & climate$Scenario_id == 1, ]
   dat <- dat[do.call(order, dat), ]
 
   dat_cur <- copy_matches(out = dat, data = dat_cur[do.call(order, dat_cur), ],
-          match_vars = c("Site_id"),
+          match_vars = c("Site_id_by_dbW"),
           copy_vars = vars)[["out"]]
 
   dat_diff <- dat
@@ -505,7 +521,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
 
   for (iv in vars) {
     print(paste0("Mean variation within sites among downscaled scenarios for variable ", iv))
-    temp <- stats::aggregate(dat_diff[, iv], by = list(dat_diff$Site_id), FUN = function(x) {
+    temp <- stats::aggregate(dat_diff[, iv], by = list(dat_diff$Site_id_by_dbW), FUN = function(x) {
       rx <- range(x)
       c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
     })

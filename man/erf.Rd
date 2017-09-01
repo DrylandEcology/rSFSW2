@@ -6,9 +6,15 @@
 \usage{
 erf(x)
 }
+\arguments{
+\item{x}{A numeric vector.}
+}
+\value{
+A numeric vector of the size of \code{x}.
+}
 \description{
 Error function
 }
-\references{
-See among examples of ?Normal
+\seealso{
+Code is from examples of \code{\link[stats]{pnorm}}.
 }

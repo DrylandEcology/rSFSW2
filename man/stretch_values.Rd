@@ -2,9 +2,17 @@
 % Please edit documentation in R/Mathematical_Functions.R
 \name{stretch_values}
 \alias{stretch_values}
-\title{Stretch the values}
+\title{Stretch values}
 \usage{
 stretch_values(x, lambda = 0)
+}
+\arguments{
+\item{x}{A numeric vector.}
+
+\item{lambda}{A numeric value. The stretching factor applied to \code{x}.}
+}
+\value{
+A numeric vector of the size of \code{x}.
 }
 \description{
 Values above the mean of \code{x} are made larger and

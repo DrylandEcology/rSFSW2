@@ -35,6 +35,7 @@ do_import_objects <- function(obj_env) {
 
 #' Export objects to workers
 #'
+#' @param obj_env An environment containing R objects to export.
 #' @param parallel_backend A character vector, either 'mpi' or 'socket'
 #' @param cl A parallel (socket) cluster object
 #'
@@ -96,6 +97,50 @@ export_objects_to_workers <- function(obj_env,
   success
 }
 
+#' Setting values of package-level global variables on workers
+#' @param x A character string. The name of a global variable.
+#' #param value A R object. The value to be assigned to the global variable identified by
+#'  \code{x}.
+#' @seealso \code{\link{assign}}
+set_glovar <- function(x, value) {
+  # The environment 'SFSW2_glovars' is the one of the package copy on the workers!
+  assign(x = x, value = value, envir = SFSW2_glovars)
+}
+
+export_parallel_glovars <- function(verbose = FALSE) {
+  if (SFSW2_glovars[["p_has"]]) {
+    if (verbose) {
+      t1 <- Sys.time()
+      temp_call <- shQuote(match.call()[1])
+      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+    }
+
+    p_varnames <- grep("p_", ls(envir = SFSW2_glovars), value = TRUE)
+
+    if (identical(SFSW2_glovars[["p_type"]], "socket")) {
+      for (x in p_varnames) {
+        parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = set_glovar, x = x,
+          value = SFSW2_glovars[[x]])
+      }
+
+    } else if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
+      # We have to rename functions locally (and export to workers):
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+      # is not the name of a function
+      .set_glovar <- function(x, value) set_glovar(x, value)
+      Rmpi::mpi.bcast.Robj2slave(.set_glovar)
+      for (x in p_varnames) {
+        Rmpi::mpi.bcast.cmd(cmd = .set_glovar, x = x, value = SFSW2_glovars[[x]])
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
 
 
 
@@ -106,57 +151,100 @@ export_objects_to_workers <- function(obj_env,
 #'
 #' @references
 #'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
-#' @section Note:
+#' @section Notes:
 #'  If an error occurs, then the worker will likely not report back to master because
 #'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
+#' @section Details:
+#' Message tags sent by this function from workers to master: \itemize{
+#'  \item 1 = worker is ready for master to send a task
+#'  \item 2 = worker is done with a task
+#'  \item 3 = worker is exiting
+#'  \item 4 = worker failed with task
+#' }
+#' Message tags from master which this function can receive and understand: \itemize{
+#'  \item 1 = this communication is a new task
+#'  \item 2 = tells worker to shut down because all tasks are completed
+#' }
+#'
 #' @export
 mpi_work <- function(verbose = FALSE) {
-  # Note the use of the tag for sent messages:
-  #     1 = ready_for_task, 2 = done_task, 3 = exiting
-  # Note the use of the tag for received messages:
-  #     1 = task, 2 = done_tasks
+
+  # Define tags
+  junk <- 0L
+  worker_is_done <- FALSE
+  master <- 0L
+  worker_id <- Rmpi::mpi.comm.rank()
 
   if (verbose) {
-    print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "starts working."))
+    print(paste(Sys.time(), "MPI-worker", worker_id, "starts working."))
   }
 
-  junk <- 0L
-  done <- 0L
-  while (done != 1L) {
-    # Signal being ready to receive a new task
-    Rmpi::mpi.send.Robj(junk, 0, 1)
+  #--- Loop until all work is completed
+  while (!worker_is_done) {
+    # Signal master that worker is ready to receive a new task
+    Rmpi::mpi.send.Robj(junk, dest = master, tag = 1L)
 
-    # Receive a task
+    # Worker is receiving a message from master
     dat <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
     task_info <- Rmpi::mpi.get.sourcetag()
-    tag <- task_info[2]
+    tag_from_master <- task_info[2]
 
-    if (tag == 1L) {
+    if (tag_from_master == 1L) {
+      # Worker received a new task
       if (dat$do_OneSite) {
-        if (verbose)
-          print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(), "works on:",
-            dat$i_sim, dat$i_labels))
+        if (verbose) {
+          print(paste(Sys.time(), "MPI-worker", worker_id, "works on task =",
+            dat$i_sim, shQuote(dat$i_SWRunInformation$Label)))
+        }
 
-        result <- do.call("do_OneSite", args = dat[-1])
+        result <- try(do.call("do_OneSite", args = dat[-1]))
 
-        # Send a result message back to the master
-        Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), 0, 2)
+        if (inherits(result, "try-error")) {
+          # Tell master that task failed
+          print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
+            dat$i_sim, "with error", shQuote(paste(result, collapse = " / "))))
+          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 4L)
+
+        } else {
+          # Send result back to the master and message that task has been completed
+          if (verbose) {
+            print(paste(Sys.time(), "MPI-worker", worker_id, "successfully completed",
+              "task =", dat$i_sim))
+          }
+          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
+        }
       }
 
-    } else if (tag == 2L) {
-      done <- 1L
-      if (verbose)
-        print(paste(Sys.time(), "MPI worker", Rmpi::mpi.comm.rank(),
-          "shuts down 'mpi_work()'"))
+    } else if (tag_from_master == 2L) {
+      # Worker is told to shut down
+      worker_is_done <- TRUE
+
+      if (verbose) {
+        print(paste(Sys.time(), "MPI-worker", worker_id, "shuts down 'mpi_work'"))
+      }
+
+    } else {
+      # We'll just ignore any unknown message from master
+      print(paste(Sys.time(), "MPI-worker", worker_id, "received tag =", tag_from_master,
+        "from master but doesn't know what this means."))
     }
-    # We'll just ignore any unknown messages
   }
-  Rmpi::mpi.send.Robj(junk, 0, 3)
+
+  # Worker is signaling to master that it is exiting
+  Rmpi::mpi.send.Robj(junk, dest = master, tag = 3L)
 }
 
 
 #' Properly end mpi workers before quitting R (e.g., at a crash)
-#' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+#' @section Notes: Code is based on
+#'  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+#' @section Details: \code{gv} will
+#'  usually be the package-level global variable environment \code{SFSW2_glovars}. This
+#'  is because this function is registered as finalizer to the object
+#'  \code{SFSW2_glovars}.
+#'
+#' @param gv A list with at least one named element \code{p_has}. \code{p_has} is a
+#'  logical value and indicates whether call is from a parallel run.
 mpi_last <- function(gv) {
   if (requireNamespace("Rmpi")) {
 
@@ -183,6 +271,8 @@ mpi_last <- function(gv) {
 
 
 #' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
+#'
+#' @param verbose A logical value.
 #' @export
 exit_SFSW2_cluster <- function(verbose = FALSE) {
   if (SFSW2_glovars[["p_has"]]) {
@@ -284,7 +374,9 @@ init_SFSW2_cluster <- function() {
 
 #' Set-up a parallel cluster to be used for a rSFSW2 simulation project
 #' @export
-setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
+setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
+  print.debug = FALSE) {
+
   if (!SFSW2_glovars[["p_has"]]) {
     init_SFSW2_cluster()
   }
@@ -365,7 +457,17 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE) {
 
     SFSW2_glovars[["p_has"]] <- !is.null(SFSW2_glovars[["p_cl"]]) &&
       SFSW2_glovars[["p_workersN"]] > 1
+
+    if (print.debug) {
+      temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
+        function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
+      temp <- paste(temp, collapse = "; ")
+
+      print(paste("Workers set up with:", temp))
+    }
   }
+
+  export_parallel_glovars(verbose = print.debug)
 
   invisible(TRUE)
 }

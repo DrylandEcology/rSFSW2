@@ -8,6 +8,8 @@ export_objects_to_workers(obj_env, parallel_backend = c("mpi", "socket"),
   cl = NULL)
 }
 \arguments{
+\item{obj_env}{An environment containing R objects to export.}
+
 \item{parallel_backend}{A character vector, either 'mpi' or 'socket'}
 
 \item{cl}{A parallel (socket) cluster object}

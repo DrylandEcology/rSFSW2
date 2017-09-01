@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // germination_wait_times
 IntegerVector germination_wait_times(const IntegerVector& time_to_germinate, const IntegerVector& duration_fave_cond);
-RcppExport SEXP rSFSW2_germination_wait_times(SEXP time_to_germinateSEXP, SEXP duration_fave_condSEXP) {
+RcppExport SEXP _rSFSW2_germination_wait_times(SEXP time_to_germinateSEXP, SEXP duration_fave_condSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -19,7 +19,7 @@ END_RCPP
 }
 // get_KilledBySoilLayers
 LogicalVector get_KilledBySoilLayers(const IntegerVector& relevantLayers, const LogicalMatrix& kill_conditions);
-RcppExport SEXP rSFSW2_get_KilledBySoilLayers(SEXP relevantLayersSEXP, SEXP kill_conditionsSEXP) {
+RcppExport SEXP _rSFSW2_get_KilledBySoilLayers(SEXP relevantLayersSEXP, SEXP kill_conditionsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -31,7 +31,7 @@ END_RCPP
 }
 // setFALSE_SeedlingSurvival_1stSeason
 LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s, const IntegerVector& ry_year_day, const IntegerVector& ry_useyrs, int y, int doy);
-RcppExport SEXP rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
+RcppExport SEXP _rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;

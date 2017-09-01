@@ -16,10 +16,10 @@ extracted.}
 \item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
 columns of the extracted object.}
 
-\item{code}{A vector. If not \code{NULL}, then the extracted data are treated as
-integer codes of a factor whose levels are encoded by \code{code}.}
+\item{code}{A character vector. If not \code{NULL}, then the extracted data are treated
+as integer codes of a factor whose levels are encoded by \code{code}.}
 
-\item{file_shp}{A character string. The filename of the shapefile.}
+\item{\dots}{Ignored.}
 }
 \value{
 A vector or matrix with length/rows corresponding to the elements of \code{y}

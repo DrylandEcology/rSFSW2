@@ -1,9 +1,13 @@
 # History files
 .Rapp.history
 .Rhistory
+
 # Mac OS X crap
 .DS_Store
 
 # Example code in package build process
 *-Ex.R
 inst/doc
+
+# Package check files
+..Rcheck

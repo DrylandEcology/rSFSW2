@@ -3,7 +3,8 @@
 
 #' Preparations for the extraction of external soil datasets
 prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
-  how_determine_sources, sw_input_soillayers, sw_input_soils_use, sw_input_soils) {
+  field_include, how_determine_sources, sw_input_soillayers, sw_input_soils_use,
+  sw_input_soils) {
 
   sites_soils_source <- get_datasource_masterfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
@@ -19,9 +20,11 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
                      intern = c("depth", lvars),
                      stringsAsFactors = FALSE)
 
+  do_include <- get_datasource_includefield(SWRunInformation, field_include, sim_size)
+
   list(source = sites_soils_source, data = dtemp, idone = vector(),
     use = sw_input_soils_use, input = sw_input_soils, input2 = sw_input_soillayers,
-    cn = coln, vars = vars, nvars = nvars)
+    cn = coln, vars = vars, nvars = nvars, do_include = do_include)
 }
 
 
@@ -66,7 +69,7 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
   for (k in 1 + seq_len(MMC[["nvars"]])) {
     temp <- temp | has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], MMC[["vars"]][k, "input"])
   }
-  todos <- todos & temp
+  todos <- todos & MMC[["do_include"]] & temp
 }
 
 
@@ -93,7 +96,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "CONUSSOILFromSTATSGO_USA"
@@ -226,11 +229,11 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
     MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
 
     # Determine successful extractions
+    MMC[["idone"]]["CONUSSOIL1"] <- TRUE
     i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (any(i_good)) {
-      MMC[["idone"]]["CONUSSOIL1"] <- TRUE
       i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
@@ -274,7 +277,6 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'    \item{fraction}{A numeric vector. The relative areas covered by \code{SUID}.}
 #'  }
 ISRICWISE_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites, att = NULL) {
-  stopifnot(requireNamespace("sp"))
 
   out <- try(reaggregate_raster(x = grid,
         coords = sp::coordinates(sp_sites[i, ]),
@@ -400,7 +402,7 @@ ISRICWISE_calc_weightedMeanForSimulationCell <- function(i, i_sim_cells_SUIDs,
     sim_soils["depth"] <- 0
 
     this_simCell <- c(as.list(i_sim_cells_SUIDs),
-      soils = list(t(sapply(i_sim_cells_SUIDs[["SUID"]], FUN = ISRICWISE_get_prids,
+      soils = list(t(sapply(i_sim_cells_SUIDs[["SUID"]], ISRICWISE_get_prids,
       dat_wise = dat_wise, layer_N = layer_N, colname_suid = var_tags[["suid"]]))))
 
     # loop through the suids within this simulation cell; each suid may be composed of
@@ -486,7 +488,7 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 #'   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,
 #'   61-68 (http://dx.doi.org/10.1016/j.geoderma.2016.01.034).
 #' @references Batjes N.H. 2015. World soil property estimates for broad-scale modelling
-#'   (WISE30sec, ver. 1.0). Report 2015/01, ISRIC—World Soil Information, Wageningen
+#'   (WISE30sec, ver. 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
 #'   [available at ISRIC Soil Data Hub](http://geonode.isric.org/search/?title__icontains=World%20soil%20property%20estimates%20for%20broad-scale%20modelling%20(WISE30sec)&limit=100&offset=0),
 #'   with addendum and corrigendum.
 #'
@@ -526,7 +528,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]][dataset] <- FALSE
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == paste0(dataset, "_Global")
@@ -590,9 +592,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       cell_res_wise <- NULL
       suids <- raster::extract(grid_wise, run_sites_wise)
       if (!is.null(rat_att)) {
-        suids <- raster::factorValues(grid_wise, temp, att = rat_att)
+        suids <- as.character(raster::factorValues(grid_wise, suids, att = rat_att)[[1]])
       }
-      sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1)
+      sim_cells_SUIDs <- data.frame(i = is_ToDo, SUIDs_N = 1, SUID = suids, fraction = 1,
+        stringsAsFactors = FALSE)
 
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_wise <- align_with_target_res(res_from = sim_space[["sim_res"]],
@@ -604,9 +607,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
         #call the simulations depending on parallel backend
         if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-          sim_cells_SUIDs <- Rmpi::mpi.applyLB(X = is_ToDo,
-            FUN = ISRICWISE_extract_SUIDs, res = cell_res_wise, grid = grid_wise,
-            sp_sites = run_sites_wise, att = rat_att)
+          sim_cells_SUIDs <- Rmpi::mpi.applyLB(is_ToDo, ISRICWISE_extract_SUIDs,
+            res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise,
+            att = rat_att)
 
         } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
           sim_cells_SUIDs <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = is_ToDo,
@@ -624,9 +627,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
           res = cell_res_wise, grid = grid_wise, sp_sites = run_sites_wise,
           att = rat_att)
       }
+
+      sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
     }
 
-    sim_cells_SUIDs <- do.call(rbind, sim_cells_SUIDs)
     if ("i" %in% dimnames(sim_cells_SUIDs)[[1]]) {
       sim_cells_SUIDs <- t(sim_cells_SUIDs)
     }
@@ -648,8 +652,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
       #call the simulations depending on parallel backend
       if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-        ws <- Rmpi::mpi.applyLB(X = is_ToDo,
-          FUN = ISRICWISE_try_weightedMeanForSimulationCell,
+        ws <- Rmpi::mpi.applyLB(is_ToDo, ISRICWISE_try_weightedMeanForSimulationCell,
           sim_cells_SUIDs = sim_cells_SUIDs,
           template_simulationSoils = template_simulationSoils,
           layer_N = layer_N, layer_Nsim = layer_Nsim, ldepth = ldepth_WISE,
@@ -690,6 +693,9 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     # 'bulk density' here is of the matric component, i.e., what we call matric density
     #matricd <- (ws[, grep("bulk", colnames(ws))] - 2.65 * ws[, grep("rock", colnames(ws))]) / (1 - ws[, grep("rock", colnames(ws))])
 
+    # Determine successful extractions
+    MMC[["idone"]][dataset] <- TRUE
+
     i_good <- rep(FALSE, n_extract)
     ids <- seq_len(2 + layer_Nsim * MMC[["nvars"]])
     i_good[ws[stats::complete.cases(ws[, ids]), "i"]] <- TRUE # i is index for todos
@@ -697,11 +703,10 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 
     if (verbose) {
       print(paste0("rSFSW2's ", temp_call, " for dataset ", shQuote(dataset),
-        ": soil data was extracted for n =", sum(i_good), "out of", n_extract, "sites"))
+        ": soil data was extracted for n = ", sum(i_good), " out of ", n_extract, " sites"))
     }
 
     if (any(i_good)) {
-      MMC[["idone"]][dataset] <- TRUE
       i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
       MMC[["data"]][todos, seq_len(dim(ws)[2])] <- ws
@@ -740,7 +745,8 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   #--- SET UP PARALLELIZATION
   setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
+    verbose = opt_verbosity[["verbose"]],
+    print.debug = opt_verbosity[["print.debug"]])
   on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
@@ -751,6 +757,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
 
   MMC <- prepare_ExtractData_Soils(SFSW2_prj_inputs[["SWRunInformation"]],
     sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
+    field_include = field_include,
     how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
     sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
     sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
