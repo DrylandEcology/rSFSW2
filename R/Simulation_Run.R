@@ -296,14 +296,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     else
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(0)
     
-    if (!is.na(i_sw_input_treatments$UseCO2StomatalMultiplier))
-      rSOILWAT2::swCarbon_Use_Sto(swRunScenariosData[[1]]) <- as.integer(1)
+    if (!is.na(i_sw_input_treatments$UseCO2WUEMultiplier))
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(1)
     else
-      rSOILWAT2::swCarbon_Use_Sto(swRunScenariosData[[1]]) <- as.integer(0)
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(0)
 
     if (!is.na(i_sw_input_treatments$CO2_Scenario))
       rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[1]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
-
+    
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&

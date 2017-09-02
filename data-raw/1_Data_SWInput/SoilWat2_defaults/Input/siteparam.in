@@ -63,12 +63,12 @@
 1			# flag, 1 to calculate soil_temperature, 0 to not calculate soil_temperature
 
 # ---- CO2 Settings ----
-# Use biomass
+# Use biomass multiplier
 1
-# Use stomatal
+# Use water-usage efficiency multiplier
 1
 # Scenario
-85
+RCP85
 
 # ---- Transpiration regions ----
 # ndx  : 1=shallow, 2=medium, 3=deep, 4=very deep
