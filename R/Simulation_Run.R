@@ -1626,7 +1626,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]],
+                     weatherList = i_sw_weatherList[[scw]], dir = project_paths[["dir_in_sw"]],
                 echo = FALSE, quiet = FALSE),
               silent = TRUE)
 
@@ -1654,7 +1654,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
 
           runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]],
+                     weatherList = i_sw_weatherList[[scw]], dir = project_paths[["dir_in_sw"]],
                 echo = FALSE, quiet = FALSE),
               silent = TRUE)
 
