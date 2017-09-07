@@ -296,7 +296,9 @@ dir.remove <- function(dir) {
 #' @export
 dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
   temp <- lapply(paths, function(path) {
-      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0)
+      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0 &&
+        !dir.exists(path))
+
         try(dir.create2(path, showWarnings = showWarnings, recursive = recursive,
           mode = mode), silent = TRUE)
     })
@@ -1284,3 +1286,59 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
   SWRunInformation
 }
+
+
+#' Check availability and version of a command-line tool
+#'
+#' The function throws an error if the command-line tool cannot be run and its version
+#' querried by a call to \code{\link{system2}}. Otherwise, the function compares the
+#' return version value with the argument \code{v_expected}. If it does not match and
+#' the argument \code{stop_on_mismatch} has a \code{TRUE} value, then an error is thrown
+#' with a suitable message; otherwise, a warning is issued.
+#'
+#' @param tool A character string. The name of the command-line tool.
+#' @param v_expected A character string that is or can be converted to represent the
+#'  expected version of the command-line tool.
+#' @param stop_on_mismatch A logical value.
+#' @seealso \code{\link{system2}}
+#'
+#' @return An invisible \code{TRUE}.
+#' @export
+check_cltool <- function(tool, v_expected, stop_on_mismatch = FALSE) {
+  v_expected <- numeric_version(v_expected)
+  fun_calling <- sys.call(sys.parent())[[1]]
+
+  temp <- try(system2(tool, args = "--version", stdout = TRUE, stderr = TRUE))
+
+  if (inherits(temp, "try-error")) {
+    stop(shQuote(fun_calling), ": tool ", shQuote(tool), " cannot be found.")
+
+  } else {
+    v_has <- numeric_version(gsub("[^([:digit:][:punct:])]", "", temp[2]))
+
+    txt <- if (v_has > v_expected) {
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
+          shQuote(v_expected), " but found version ", shQuote(v_has), "; this may work, ",
+          "but likely the code of ", shQuote(fun_calling), " must be updated to work ",
+          "with newer versions of ", shQuote(tool), " properly.")
+
+      } else if (v_has < v_expected) {
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
+          shQuote(v_expected), " but found an older version ", shQuote(v_has), "; this ",
+          "may work, but likely ", shQuote(tool), " must be updated to work with ",
+          shQuote(fun_calling), "properly.")
+      } else NULL
+
+    if (!is.null(txt)) {
+      if (stop_on_mismatch) {
+        stop(txt)
+      } else {
+        warning(txt)
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
+
+check_cltool <- memoise::memoise(check_cltool)
