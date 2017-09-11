@@ -185,7 +185,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
     if (length(ids_DayMet_extraction) > 0) {
       ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-        dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.daymet"]],
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir_daymet"]],
         site_ids = SWRunInformation$site_id[add_runIDs_sites[ids_DayMet_extraction]],
         site_ids_by_dbW = add_siteIDs_by_dbW[ids_DayMet_extraction],
         coords_WGS84 = SWRunInformation[add_runIDs_sites[ids_DayMet_extraction],
@@ -484,7 +484,8 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   # Get data
   get_from_ornl <- TRUE
   if (file.exists(ftemp)) {
-    dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE), silent = TRUE)
+    dm_temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE),
+      silent = TRUE)
     if (!inherits(dm_temp, "try-error")) get_from_ornl <- FALSE
   }
 
@@ -492,7 +493,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
     dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
-      lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
+      lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
 
     if (file.exists(flocal) && !identical(flocal, ftemp)) {
@@ -504,31 +505,51 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 
   # Convert to rSOILWAT2 format
   if (!inherits(dm_temp, "try-error")) {
-    if (exists(cellID, envir = globalenv())) {
-      temp <- get(cellID, envir = globalenv())$data
-    } else if (!get_from_ornl && inherits(dm_temp, "data.frame")) {
-      temp <- dm_temp
-    } else stop(paste("Daymet data not successful", cellID))
+    temp <- if (exists(cellID, envir = globalenv())) {
+        get(cellID, envir = globalenv())$data
+      } else if (!get_from_ornl && inherits(dm_temp, "data.frame")) {
+        dm_temp
+      } else {
+        # read from file
+        temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE),
+          silent = TRUE)
+        if (inherits(temp, "try-error") || !inherits(temp, "data.frame")) {
+          stop(paste("Daymet data not successful", shQuote(cellID)))
+        }
+        temp
+      }
 
-    data_all <- with(temp, data.frame(year, yday, tmax..deg.c., tmin..deg.c., prcp..mm.day./10))
+    req_cols <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
+    data_all <- with(temp, data.frame(Year = year, DOY = yday,
+      Tmax_C = tmax..deg.c., Tmin_C = tmin..deg.c., PPT_cm = prcp..mm.day./10))
     stopifnot(!anyNA(data_all), sum(data_all == -9999L) == 0)
-    template_sw <- data.frame(matrix(NA, nrow = 366, ncol = 4, dimnames = list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))))
+    template_sw <- data.frame(matrix(NA, nrow = 366, ncol = 4, dimnames = list(NULL,
+      req_cols)))
 
     years <- start_year:end_year
     weathDataList <- list()
+
     for (y in seq_along(years)) {
       data_sw <- template_sw
-      # All Daymet years, including leap years, have 1 - 365 days. For leap years, the Daymet database includes leap day. Values for December 31 are discarded from leap years to maintain a 365-day year.
-      data_sw[1:365, ] <- data_all[data_all$year == years[y], -1]
+      # All Daymet years, including leap years, have 1 - 365 days. For leap years,
+      # the Daymet database includes leap day. Values for December 31 are discarded
+      # from leap years to maintain a 365-day year.
+      data_sw[1:365, req_cols] <- data_all[data_all[ "Year"] == years[y], req_cols]
+
       if (isLeapYear(years[y])) {
+        doys <- 1:366
         data_sw[366, ] <- c(366, data_sw[365, -1])
+      } else {
+        doys <- 1:365
       }
+
       data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
-      weathDataList[[y]] <- methods::new("swWeatherData",
-                                year = years[y],
-                                data = data.matrix(data_sw[if (isLeapYear(years[y])) 1:366 else 1:365, ], rownames.force = FALSE)) #strip row.names, otherwise they consume about 60% of file size
+      weathDataList[[y]] <- methods::new("swWeatherData", year = years[y],
+         #strip row.names, otherwise they consume about 60% of file size
+        data = data.matrix(data_sw[doys, ], rownames.force = FALSE))
     }
     names(weathDataList) <- as.character(years)
+
   } else {
     weathDataList <- dm_temp
   }

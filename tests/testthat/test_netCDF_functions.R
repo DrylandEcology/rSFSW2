@@ -13,8 +13,9 @@ do_skip <- c(
   identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
 
 suppressWarnings(is_online <-
-  !inherits(try(close(open(url(getOption("repos")))), silent = TRUE),
+  !inherits(try(close(url(getOption("repos"), open = "r")), silent = TRUE),
   "try-error"))
+
 
 if (!any(do_skip) && is_online) {
 
