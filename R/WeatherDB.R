@@ -492,7 +492,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
     stopifnot(requireNamespace("daymetr"))
     flocal <- file.path(getwd(), basename(ftemp))
     dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
-      lon = Xdm_WGS84, start_yr = start_year, end_yr = end_year, internal = TRUE,
+      lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
 
     if (file.exists(flocal) && !identical(flocal, ftemp)) {
