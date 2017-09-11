@@ -185,7 +185,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
     if (length(ids_DayMet_extraction) > 0) {
       ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-        dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.daymet"]],
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir_daymet"]],
         site_ids = SWRunInformation$site_id[add_runIDs_sites[ids_DayMet_extraction]],
         site_ids_by_dbW = add_siteIDs_by_dbW[ids_DayMet_extraction],
         coords_WGS84 = SWRunInformation[add_runIDs_sites[ids_DayMet_extraction],
