@@ -491,15 +491,20 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 
   if (get_from_ornl) {
     stopifnot(requireNamespace("daymetr"))
-    flocal <- file.path(getwd(), basename(ftemp))
+
+    # 'daymetr::download_daymet' stores downloaded file in current working directory
+    wd_prev <- getwd()
+    setwd(dir_data)
+    on.exit(setwd(wd_prev), add = TRUE)
+    on.exit(if (exists(cellID, envir = globalenv())) {
+        rm(list = cellID, envir = globalenv())}, add = TRUE)
+
     dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
       lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
       quiet = TRUE), silent = TRUE)
 
-    if (file.exists(flocal) && !identical(flocal, ftemp)) {
-      # Move file, which was downloaded to current directory by 'daymetr::download_daymet',
-      # to data folder
-      file.rename(from = flocal, to = ftemp)
+    if (inherits(dm_temp, "try-error")) {
+      unlink(ftemp)
     }
   }
 
@@ -553,10 +558,6 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   } else {
     weathDataList <- dm_temp
   }
-
-  # Clean up
-  if (exists(cellID, envir = globalenv()))
-    rm(list = cellID, envir = globalenv())
 
   weathDataList
 }
@@ -630,7 +631,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
         start_year, end_year, dbW_digits)
 
       if (!is.null(weatherData) && length(weatherData) > 0 &&
-        !inherits(weatherData, "try-error")) {
+        !inherits(weatherData, "try-error") && inherits(weatherData[[1]], "swWeatherData")) {
 
         # Store site weather data in weather database
         data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData, type = dbW_compression_type)
