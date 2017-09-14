@@ -796,7 +796,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       } else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
         i_sw_weatherList[[1]] <- with(i_SWRunInformation,
           ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(
-            dir_data = dir.ex.daymet,
+            dir_data = dir_daymet,
             site_ids = NULL,
             coords_WGS84 = c(X_WGS84, Y_WGS84),
             start_year = isim_time[["simstartyr"]], end_year = isim_time[["endyr"]]))
@@ -1078,38 +1078,52 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #anything that depends on weather
       #------3. Step: Lookup or extract external information that needs to be executed for each run
+
+      #- Initial soil temperatures adjusted to climatic conditions
       print_debug(opt_verbosity, tag_simpidfid, "creating", "soil temperature")
 
-     #TODO get this working LOW PR
+      if (exists("soilTUpper"))
+        rm(soilTUpper)
+
       if (prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
-        soilTlower <- mean(SiteClimate_Scenario$meanMonthlyTempC)
+        rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["ConstMeanAirTemp"] <- mean(SiteClimate_Scenario$meanMonthlyTempC)
         soilTUpper <- max(-1, mean(SiteClimate_Scenario$meanMonthlyTempC[c(1, 12)]))
-        #temporaly save data
+        #TODO get this working LOW PR: save data
         #out.temp <- data.frame(i_sim, i_label, soilTUpper, soilTlower)
         #utils::write.csv(out.temp, file = file.path(project_paths[["dir_out_temp"]], flag.icounter, "_", "SoilTempC_atLowerBoundary.csv"), quote = FALSE, row.names = FALSE)
+
+      } else {
+        if (sw_input_site_use["SoilTempC_atUpperBoundary"]) {
+          soilTUpper <- i_sw_input_site$SoilTempC_atUpperBoundary
+        }
+
+        if (sw_input_site_use["SoilTempC_atLowerBoundary"]) {
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["ConstMeanAirTemp"] <- i_sw_input_site$SoilTempC_atLowerBoundary
+        }
       }
-      if (sw_input_site_use["SoilTempC_atUpperBoundary"]) {
-        soilTUpper <- if (exists("soilTUpper")) soilTUpper else i_sw_input_site$SoilTempC_atUpperBoundary
-      }
-      if (sw_input_site_use["SoilTempC_atLowerBoundary"]) {
-        soilTlower <- if (exists("soilTlower")) soilTlower else i_sw_input_site$SoilTempC_atLowerBoundary
-        rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])[8] <- soilTlower
-      }
+
       if (prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
-        init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(layers_depth = layers_depth, lower.Tdepth = as.numeric(swRunScenariosData[[sc]]@site@SoilTemperatureConstants[10]), soilTupper = soilTUpper, soilTlower = soilTlower)  #lower.Tdepth needs to be adjusted if it changes in soilparam.in
+        stopifnot(exists("soilTUpper"))
+
+        init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(
+          layers_depth = layers_depth,
+          lower.Tdepth = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]),
+          soilTupper = soilTUpper,
+          soilTlower = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["ConstMeanAirTemp"]))
         #temporaly save data #TODO get this working
         #out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times = SFSW2_glovars[["slyrs_maxN"]]-length(init.soilTprofile)))))
         #utils::write.csv(out.temp, file = file.path(project_paths[["dir_out_temp"]], .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv"), quote = FALSE, row.names = FALSE)
       }
 
-      #adjust init soil temperatures to climatic conditions
-      use_soil_temp <- sw_input_soils_use[paste0("SoilTemp_L", ld)]
+      stemp <- paste0("SoilTemp_L", ld)
+      use_soil_temp <- sw_input_soils_use[stemp]
       if (any(use_soil_temp)) {
-        temp <- seq_len(nrow(rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])))
         if (exists("init.soilTprofile")) {
-          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 12][use_soil_temp] <- init.soilTprofile
+          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[ld, 12] <-
+            init.soilTprofile
         } else {
-          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 12][use_soil_temp] <- as.numeric(i_sw_input_soils[paste0("SoilTemp_L", temp)])
+          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[use_soil_temp, 12] <-
+            as.numeric(i_sw_input_soils[stemp[use_soil_temp]])
         }
       }
 
