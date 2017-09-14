@@ -36,6 +36,26 @@ vignette: >
   settings in 'SFSW2_project_settings.R'
 
 
+<a name="Warnings"/></a>
+
+## Should I be concerned about the following warnings?
+
+> Warning: 'SFSW2_project_code.R': Modify/reset input tracker status
+> 'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) and
+> re-run project.
+
+This warning attempts to tell to you that everything is fine, but it gives information
+on how to modify/reset the 'input tracker' status if you needed to (e.g., because you
+changed one of the inputs), but it is usually easier for small projects like yours to
+simply delete the .rds files.
+
+> Warning message:
+> call dbDisconnect() when finished working with a connection
+
+This warning tells you that the rSFSW2 package code should be improved -- you don't need
+to care about this: it works fine, but it doesn't follow best community practices.
+
+
 <a name="Experimentals_vs_Treatments"/></a>
 
 ## How do I define experimental treatments?
