@@ -2085,99 +2085,6 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       lon, " / ", lat))
   }
 
-  if (use_NEX) {
-    rip <- "r1i1p1"
-
-  } else if (use_CF) {
-    #--- Select netCDF files for this 'gcm' and include only required scenarios and variables
-    fnc_gcmXscens <- climDB_files
-
-    tag <- paste0(climDB_meta[["sep_fname"]], gcm, climDB_meta[["sep_fname"]])
-    fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
-
-    tag <- paste0(climDB_meta[["sep_fname"]], c(scen_historical, reqRCPsPerGCM[[ig]]),
-      climDB_meta[["sep_fname"]])
-    tag <- paste0("(", tag, ")", collapse = "|")
-    fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
-
-    tag <- paste0("(", climDB_meta[["var_desc"]][["fileVarTags"]], ")", collapse = "|")
-    fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
-
-    fnc_parts <- strsplit(basename(fnc_gcmXscens), split = climDB_meta[["sep_fname"]],
-      fixed = TRUE)
-
-    #--- Determine most suitable 'ensemble member' rip that is available among fnc_gcmXscens
-    # and check that netCDF-files are available for requested variables
-    n_scens <- length(c(scen_historical, reqRCPsPerGCM[[ig]]))
-    n_tas <- length(grep("tas", climDB_meta[["var_desc"]][, "fileVarTags"]))
-    expected_n <- if (n_tas >= 3) {
-        length(climDB_meta[["var_desc"]][, "fileVarTags"]) - (n_tas - 2)
-      } else {
-        length(climDB_meta[["var_desc"]][, "fileVarTags"])
-      }
-
-    temp <- climDB_meta[["str_fname"]][c("id_scen", "id_var", "id_run")]
-    ptemp <- sapply(fnc_parts, function(x) x[temp])
-
-    # Number of netCDF files per scenario, variable, and rip
-    # 'pnc_count' should be
-    #   * = 1 if netCDF file is available per scen x var x rip combination
-    #   * > 1 if multiple time periods are available
-    #   * = 0 if files are missing (yet 'tas' is allowed to replace missing 'tasmax'+'tasmin')
-    pnc_count <- table(ptemp[1, ], ptemp[2, ], ptemp[3, ])
-    pnc_avail <- apply(pnc_count, 2:3, function(x) sum(x >= 1) >= n_scens)
-    temp <- apply(pnc_avail, 2, function(x) {
-        x[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
-          x[climDB_meta[["var_desc"]]["tmean", "tag"]] || (
-          x[climDB_meta[["var_desc"]]["tmax", "tag"]] &&
-          x[climDB_meta[["var_desc"]]["tmin", "tag"]]))
-      })
-    rips <- names(temp)
-    rip <- if (length(rips) > 1) sort(rips)[1] else rips
-
-    if (length(rip) == 0) {
-      stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm),
-        " and scenario(s) ", paste(shQuote(c(scen_historical, reqRCPsPerGCM[[ig]])),
-        collapse = "/"), " not available: ",
-        paste0(colnames(pnc_avail), ": ", apply(pnc_avail, 2, function(x)
-        paste(rownames(pnc_avail), "=", x, collapse = "/")), collapse = " - "))
-    }
-
-    # Double check what time period to choose (the one if the most overlap to requested
-    # years) if multiple netCDF files for selected combination of scen x var x rip are
-    # present
-    pnc_count_rip <- pnc_count[,, rip]
-    itemp <- which(pnc_count_rip > 1, arr.ind = TRUE)
-    fnc_parts2 <- fnc_parts
-    req_years <- c(seq.int(getYears[["first"]][1, 1], getYears[["first"]][1, 2]),
-      unlist(lapply(seq_len(nrow(getYears[["second"]])), function(k)
-        seq.int(getYears[["second"]][k, 1], getYears[["second"]][k, 2]))))
-
-    for (k in seq_len(nrow(itemp))) {
-      temp_var <- colnames(pnc_count_rip)[itemp[k, "col"]]
-      temp_scen <- rownames(pnc_count_rip)[itemp[k, "row"]]
-
-      itemp <- which(sapply(fnc_parts2, function(x)
-        any(x == rip) && any(x == temp_var) && any(x == temp_scen)))
-      temp_times <- lapply(fnc_parts2[itemp], function(x) {
-        temp <- x[climDB_meta[["str_fname"]]["id_time"]]
-        seq.int(as.integer(substr(temp, 1, 4)), as.integer(substr(temp, 8, 11)))})
-
-      temp_overlap <- sapply(temp_times, function(x) sum(x %in% req_years))
-      imax_overlap <- which.max(temp_overlap)
-      itemp_remove <- itemp[!(itemp == imax_overlap)]
-
-      fnc_gcmXscens <- fnc_gcmXscens[-itemp_remove]
-    }
-
-    # Subset files to selected rip
-    if (length(rip) > 0) {
-      tag <- paste0(climDB_meta[["sep_fname"]], rip, climDB_meta[["sep_fname"]])
-      fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
-    }
-  }
-
-
   #--- Output container for downscaled scenario weather data
   temp1 <- expand.grid(downscaling = reqDownscalingsPerGCM[[ig]],
     futures = rownames(sim_time[["future_yrs"]]),
@@ -2205,7 +2112,7 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
   temp <- list(todo = rep(TRUE, n), StartYear = temp, EndYear = temp, weatherData = temp)
   df_wdataOut <- c(temp, as.list(temp1))
 
-  # Determine if any are already downscaled and stored in weather database
+  #--- Determine if any are already downscaled and stored in weather database
   if (resume) {
     df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
       Site_ids = Site_id_by_dbW, Scenario_ids = df_wdataOut[["Scenario_id"]])[1, ]
@@ -2215,12 +2122,104 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
   if (length(ids_down) > 0) {
     # restrict to actually still required scenarios
     rcps <- unique(df_wdataOut[["rcps"]][ids_down])
+    all_scens <- c(scen_historical, rcps)
+    n_scens <- length(all_scens)
 
-    #Scenario monthly weather time-series: Get GCM data for each scenario and time slice
-    temp <- vector("list", (getYears$n_first + getYears$n_second) * (1 + length(rcps)))
+    if (use_NEX) {
+      rip <- "r1i1p1"
+
+    } else if (use_CF) {
+      #--- Select netCDF files for this 'gcm' and include only required scenarios and variables
+      fnc_gcmXscens <- climDB_files
+
+      tag <- paste0(climDB_meta[["sep_fname"]], gcm, climDB_meta[["sep_fname"]])
+      fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
+
+      tag <- paste0(climDB_meta[["sep_fname"]], all_scens, climDB_meta[["sep_fname"]])
+      tag <- paste0("(", tag, ")", collapse = "|")
+      fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
+
+      tag <- paste0("(", climDB_meta[["var_desc"]][["fileVarTags"]], ")", collapse = "|")
+      fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
+
+      fnc_parts <- strsplit(basename(fnc_gcmXscens), split = climDB_meta[["sep_fname"]],
+        fixed = TRUE)
+
+      #--- Determine most suitable 'ensemble member' rip that is available among fnc_gcmXscens
+      # and check that netCDF-files are available for requested variables
+      n_tas <- length(grep("tas", climDB_meta[["var_desc"]][, "fileVarTags"]))
+      expected_n <- if (n_tas >= 3) {
+          length(climDB_meta[["var_desc"]][, "fileVarTags"]) - (n_tas - 2)
+        } else {
+          length(climDB_meta[["var_desc"]][, "fileVarTags"])
+        }
+
+      temp <- climDB_meta[["str_fname"]][c("id_scen", "id_var", "id_run")]
+      ptemp <- sapply(fnc_parts, function(x) x[temp])
+
+      # Number of netCDF files per scenario, variable, and rip
+      # 'pnc_count' should be
+      #   * = 1 if netCDF file is available per scen x var x rip combination
+      #   * > 1 if multiple time periods are available
+      #   * = 0 if files are missing (yet 'tas' is allowed to replace missing 'tasmax'+'tasmin')
+      pnc_count <- table(ptemp[1, ], ptemp[2, ], ptemp[3, ])
+      pnc_avail <- apply(pnc_count, 2:3, function(x) sum(x >= 1) >= n_scens)
+      temp <- apply(pnc_avail, 2, function(x) {
+          x[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
+            x[climDB_meta[["var_desc"]]["tmean", "tag"]] || (
+            x[climDB_meta[["var_desc"]]["tmax", "tag"]] &&
+            x[climDB_meta[["var_desc"]]["tmin", "tag"]]))
+        })
+      rips <- names(temp)
+      rip <- if (length(rips) > 1) sort(rips)[1] else rips
+
+      if (length(rip) == 0) {
+        stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm),
+          " and scenario(s) ", paste(shQuote(all_scens), collapse = "/"),
+          " not available: ", paste0(colnames(pnc_avail), ": ", apply(pnc_avail, 2,
+          function(x) paste(rownames(pnc_avail), "=", x, collapse = "/")),
+          collapse = " - "))
+      }
+
+      # Double check what time period to choose (the one if the most overlap to requested
+      # years) if multiple netCDF files for selected combination of scen x var x rip are
+      # present
+      pnc_count_rip <- pnc_count[,, rip]
+      itemp <- which(pnc_count_rip > 1, arr.ind = TRUE)
+      fnc_parts2 <- fnc_parts
+      req_years <- c(seq.int(getYears[["first"]][1, 1], getYears[["first"]][1, 2]),
+        unlist(lapply(seq_len(nrow(getYears[["second"]])), function(k)
+          seq.int(getYears[["second"]][k, 1], getYears[["second"]][k, 2]))))
+
+      for (k in seq_len(nrow(itemp))) {
+        temp_var <- colnames(pnc_count_rip)[itemp[k, "col"]]
+        temp_scen <- rownames(pnc_count_rip)[itemp[k, "row"]]
+
+        itemp <- which(sapply(fnc_parts2, function(x)
+          any(x == rip) && any(x == temp_var) && any(x == temp_scen)))
+        temp_times <- lapply(fnc_parts2[itemp], function(x) {
+          temp <- x[climDB_meta[["str_fname"]]["id_time"]]
+          seq.int(as.integer(substr(temp, 1, 4)), as.integer(substr(temp, 8, 11)))})
+
+        temp_overlap <- sapply(temp_times, function(x) sum(x %in% req_years))
+        imax_overlap <- which.max(temp_overlap)
+        itemp_remove <- itemp[!(itemp == imax_overlap)]
+
+        fnc_gcmXscens <- fnc_gcmXscens[-itemp_remove]
+      }
+
+      # Subset files to selected rip
+      if (length(rip) > 0) {
+        tag <- paste0(climDB_meta[["sep_fname"]], rip, climDB_meta[["sep_fname"]])
+        fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
+      }
+    }
+
+    #---Scenario monthly weather time-series: Get GCM data for each scenario and time slice
+    temp <- vector("list", (getYears$n_first + getYears$n_second) * n_scens)
     scen.monthly <- matrix(temp, ncol = getYears$n_first+getYears$n_second,
-      dimnames = list(c(climate.ambient, rcps), c(paste0("first",
-      seq_len(getYears$n_first)), paste0("second", seq_len(getYears$n_second)))))
+      dimnames = list(all_scens, c(paste0("first", seq_len(getYears$n_first)),
+      paste0("second", seq_len(getYears$n_second)))))
 
     if (print.debug) {
       print(paste0(i_tag, " extraction: first slice ('historical'): ",
