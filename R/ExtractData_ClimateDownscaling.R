@@ -2017,7 +2017,7 @@ get_GCMdata_netCDF <- function(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, st
     }
 
   } else {
-    temp2 <- grepl(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], dots[["ncFiles"]],
+    temp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], dots[["ncFiles"]],
       ignore.case = TRUE, value = TRUE)
 
     if (length(temp2) == 1) {
