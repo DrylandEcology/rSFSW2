@@ -4,8 +4,8 @@
 \alias{get_GCMdata_netCDF}
 \title{Extract GCM projection from a netCDF file}
 \usage{
-get_GCMdata_netCDF(i_tag, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear,
-  climDB_meta, ...)
+get_GCMdata_netCDF(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, startyear,
+  endyear, climDB_meta, ...)
 }
 \value{
 A list of one data.frame object with 5 columns and names of
