@@ -2017,10 +2017,10 @@ get_GCMdata_netCDF <- function(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, st
     }
 
   } else {
-    temp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], dots[["ncFiles"]],
+    ftemp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], dots[["ncFiles"]],
       ignore.case = TRUE, value = TRUE)
 
-    if (length(temp2) == 1) {
+    if (length(ftemp2) == 1) {
       tmean <- extract_variable_netCDF(filepath = ftemp2,
         variable = climDB_meta[["var_desc"]]["tmean", "tag"],
         unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
