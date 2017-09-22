@@ -2868,7 +2868,7 @@ calc_assocYears <- function(sim_time, reqRCPs, getYears, timeSlices) {
 
 #access climate change data
 get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta,
-  iDS_runIDs_sites, climDB_meta, dbW_compression_type, resume, verbose = FALSE,
+  locations, climDB_meta, dbW_compression_type, resume, verbose = FALSE,
   print.debug = FALSE) {
 
   if (verbose)
@@ -2966,23 +2966,14 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
             any(grepl("historic", climDB_struct[["id_scen"]], ignore.case = TRUE)))
 
   #--- put requests together
-  # locations of simulation runs
-  icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
-  locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
-  locations[, "Site_id_by_dbW"] <- rSOILWAT2::dbW_getSiteId(
-    Labels = SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, "WeatherFolder"])
-  if (anyNA(locations[, "Site_id_by_dbW"])) {
-    stop("Not all sites (labels) available in weather database.")
-  }
+  requestN <- length(reqGCMs) * nrow(locations)
+  if (verbose)
+    print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
   if (any("wgen-package" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]))) {
     icols <- c("wgen_dry_spell_changes", "wgen_wet_spell_changes", "wgen_prcp_cv_changes")
     locations <- cbind(locations, SFSW2_prj_inputs[["sw_input_treatments"]][, icols])
   }
-
-  requestN <- length(reqGCMs) * nrow(locations)
-  if (verbose)
-    print(paste(shQuote(clim_source), "will run", requestN, "times"))
 
   # calculate time slices
   timeSlices <- calc_timeSlices(sim_time = SFSW2_prj_meta[["sim_time"]],
@@ -3002,7 +2993,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   #Repeat call to get climate data for all requests until complete
   repeatN <- 0
   # Indices 'ids_AllToDo' and 'ids_Done' are counters in 1:requestN and are thus dependent
-  # on 'iDS_runIDs_sites' and thus on which sites still need (additional) climate scenario
+  # on locations[, "site_id"] and thus on which sites still need (additional) climate scenario
   # data that wasn't extracted in a previous attempt to extract and downscale all data.
   # That is they shouldn't be used to identify work across runs, i.e., they should be used
   # locally, but not for files, logs, etc. across repeated calls -- for those, use instead
@@ -3021,7 +3012,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
     }
 
     ids_seeds <- as.vector(outer(seq_along(reqGCMs),
-      (iDS_runIDs_sites - 1) * length(reqGCMs), FUN = "+"))
+      (locations[, "site_id"] - 1) * length(reqGCMs), FUN = "+"))
 
     out <- tryToGet_ClimDB(ids_ToDo = ids_ToDo, clim_source = clim_source,
       use_CF = use_CF, use_NEX = use_NEX, climDB_meta = climDB_meta,
@@ -3079,6 +3070,11 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
 
 
 #' Extract climate scenarios
+#'
+#' @param todos A logical vector of length \code{runsN_master}. Element locations with
+#'  \code{TRUE} indicate to extract climate data for said 'run'. The \code{TRUE} elements
+#'  should be a subset of the \code{TRUE}s of \code{SFSW2_prj_inputs[["include_YN"]]}.
+#'
 #' @export
 ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
   todos, opt_parallel, opt_chunks, resume, verbose = FALSE, print.debug = FALSE) {
@@ -3129,14 +3125,27 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   # loop through data sources
   sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
   clim_sources <- stats::na.exclude(unique(sites_GCM_source))
+  icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
 
   for (clim_source in clim_sources) {
     iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == clim_source]
 
     if (length(iDS_runIDs_sites) > 0) {
+      # locations of simulation runs
+      locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
+      stopifnot(identical(iDS_runIDs_sites, locations[, "site_id"]))
+
+      temp <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% iDS_runIDs_sites
+      locations[, "Site_id_by_dbW"] <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][temp]
+
+      if (anyNA(locations[, "Site_id_by_dbW"])) {
+        stop("Not all sites (labels) available in weather database.")
+      }
+
+      # obtain climate data for these locations requiring data from this climate source
       get_climatechange_data(clim_source = clim_source,
         SFSW2_prj_inputs = SFSW2_prj_inputs, SFSW2_prj_meta = SFSW2_prj_meta,
-        iDS_runIDs_sites = iDS_runIDs_sites, climDB_meta = climDB_metas[[clim_source]],
+        locations = locations, climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type, resume = resume, verbose = verbose,
         print.debug = print.debug)
     }

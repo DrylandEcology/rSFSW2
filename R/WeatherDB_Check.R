@@ -42,6 +42,10 @@ dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
 
   if (DBI::dbExistsTable(con, "WeatherData")) {
     if (is.null(siteID_by_dbW)) {
+      if (verbose) {
+        print(paste0("rSFSW2's ", temp_call, ": is calling potentially time-consuming",
+          " function 'rSOILWAT2::dbW_getSiteId'"))
+      }
       siteID_by_dbW = rSOILWAT2::dbW_getSiteId(Labels = site_labels)
     }
     if (anyNA(siteID_by_dbW)) {

@@ -374,6 +374,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+
       make_dbW(SFSW2_prj_meta, SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
         opt_parallel, opt_chunks, opt_behave,
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
@@ -463,6 +468,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
 
       temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, resume = opt_behave[["resume"]], opt_verbosity, opt_chunks)

@@ -1,5 +1,35 @@
 #------------------------DAILY WEATHER
 
+#' Lookup IDs of sites as found in the weather database
+#'
+#' @param sim_size A list with at least one named element \code{runIDs_sites}.
+#' @param label_WeatherData A vector of character strings. The names of the weather data.
+#' @param fdbWeather A character string. The path to the weather database. This is only used if
+#'  there is no current valid connection.
+#'
+#' @return The list \code{sim_size} with an updated respectively newly added named element
+#'  \code{runIDs_sites_by_dbW}.
+update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData, fdbWeather = NULL) {
+  # Check if 'runIDs_sites_by_dbW' should be updated
+  do_get1 <- is.null(sim_size[["runIDs_sites_by_dbW"]])
+  do_get2 <- anyNA(sim_size[["runIDs_sites_by_dbW"]])
+  do_get3 <- !identical(length(sim_size[["runIDs_sites_by_dbW"]]),
+    length(sim_size[["runIDs_sites"]]))
+
+  if (do_get1 || do_get2 || do_get3) {
+    if (!rSOILWAT2::dbW_IsValid()) {
+      stopifnot(!is.null(fdbWeather))
+      rSOILWAT2::dbW_setConnection(fdbWeather)
+    }
+
+    sim_size[["runIDs_sites_by_dbW"]] <- rSOILWAT2::dbW_getSiteId(
+      Labels = label_WeatherData[sim_size[["runIDs_sites"]]])
+  }
+
+  sim_size
+}
+
+
 #' Create and populate a 'rSOILWAT2' daily weather SQLite database
 #' @export
 make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
@@ -40,11 +70,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       stopifnot(rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]]))
 
       #-- Check if requested sites are complete
-      siteID_by_dbW <- rSOILWAT2::dbW_getSiteId(
-        Labels = site_data[temp_runIDs_sites, "Label"])
-
       # - Site is not in weather database: add to database
-      i_new <- is.na(siteID_by_dbW)
+      i_new <- is.na(SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]])
       if (any(i_new)) {
         i_new <- temp_runIDs_sites[i_new]
         stopifnot(rSOILWAT2::dbW_addSites(site_data[i_new, ]))
@@ -57,7 +84,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       #   because a previous run was prematurely terminated)
       imiss <- dbW_sites_with_missingClimScens(
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        siteID_by_dbW = siteID_by_dbW,
+        siteID_by_dbW = SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
         chunk_size = opt_chunks[["ensembleCollectSize"]], verbose = verbose)
 
