@@ -2062,10 +2062,10 @@ get_GCMdata_netCDF <- function(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, st
 calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
   use_CF, use_NEX, climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM,
   reqDownscalingsPerGCM, climate.ambient, locations, compression_type,
-  getYears, assocYears, sim_time, task_seed, opt_DS, project_paths, resume,
+  getYears, assocYears, sim_time, task_seed, opt_DS, project_paths, dir_failed, resume,
   verbose, print.debug) {
 
-  on.exit({save(list = ls(), file = file.path(project_paths[["dir_out_temp"]],
+  on.exit({save(list = ls(), file = file.path(dir_failed,
     paste0("ClimScen_failed_", i_tag, "_l2.RData")))})
 
   # Set RNG seed for random number use by functions
@@ -2472,7 +2472,7 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
   locations, compression_type, getYears, assocYears, sim_time, seeds_DS, opt_DS,
-  project_paths, fdbWeather, resume, verbose, print.debug) {
+  project_paths, dir_failed, fdbWeather, resume, verbose, print.debug) {
 
   # Identify index for site and scenario
   #   - loop over locations then loop over GCMs, i.e.,
@@ -2509,7 +2509,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
             sim_time = sim_time,
             task_seed = seeds_DS[[i]],
             opt_DS = opt_DS,
-            project_paths = project_paths,
+            project_paths = project_paths, dir_failed = dir_failed,
             resume = resume,
             verbose = verbose, print.debug = print.debug))
 
@@ -2519,8 +2519,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
           climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
           locations, compression_type, getYears, assocYears, sim_time, opt_DS,
           project_paths, verbose,
-          file = file.path(project_paths[["dir_out_temp"]],
-          paste0("ClimScen_failed_", i_tag, "_l1.RData")))
+          file = file.path(dir_failed, paste0("ClimScen_failed_", i_tag, "_l1.RData")))
     } else {
       res <- i
     }
@@ -2540,7 +2539,7 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
 #'  are passed to \code{\link{set.seed}}.
 tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
-  assocYears, project_paths, fdbWeather, climate.ambient,
+  assocYears, project_paths, dir_failed, fdbWeather, climate.ambient,
   dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
   print.debug, seed = NA) {
 
@@ -2570,7 +2569,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
-          project_paths = project_paths, fdbWeather = fdbWeather,
+          project_paths = project_paths, dir_failed = dir_failed, fdbWeather = fdbWeather,
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
@@ -2592,7 +2591,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = opt_DS,
-          project_paths = project_paths, fdbWeather = fdbWeather,
+          project_paths = project_paths, dir_failed = dir_failed, fdbWeather = fdbWeather,
           resume = resume,
           verbose = verbose, print.debug = print.debug)
 
@@ -2618,7 +2617,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
       sim_time = sim_time,
       seeds_DS = seeds_DS,
       opt_DS = opt_DS,
-      project_paths = project_paths, fdbWeather = fdbWeather,
+      project_paths = project_paths, dir_failed = dir_failed, fdbWeather = fdbWeather,
       resume = resume,
       verbose = verbose, print.debug = print.debug)
     ids_Done <- do.call(c, ids_Done)
@@ -2637,7 +2636,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  dir_failed <- file.path(dir_out_temp, "failed")
+  dir_failed <- file.path(dir_out_temp, "failed_copy_tempdata_to_dbW")
   dir.create2(dir_failed, showWarnings = FALSE)
 
   temp_files <- list.files(path = dir_out_temp, pattern = clim_source, recursive = TRUE,
@@ -2879,6 +2878,9 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
   temp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
   dir.ex.dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]],
     "ClimateScenarios", temp[1], paste(temp[-1], collapse = "_"))
+  dir_failed <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    "failed_get_climatechange_data")
+  dir.create2(dir_failed, showWarnings = FALSE)
 
   use_CF <- is_ClimateForecastConvention(clim_source)
   use_NEX <- is_NEX(clim_source)
@@ -3019,7 +3021,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs, SFSW2_prj_meta
       climDB_files = climDB_files, reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
       reqDownscalingsPerGCM = SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]],
       locations = locations, getYears = getYears, assocYears = assocYears,
-      project_paths = SFSW2_prj_meta[["project_paths"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]], dir_failed = dir_failed,
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
       dbW_compression_type = dbW_compression_type,
