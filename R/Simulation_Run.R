@@ -289,20 +289,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
     # Check if CO2 multipliers are enabled
-    # Assign with as.integer(), because numbers are doubles by default and the S4 class requires an int
     if (i_sw_input_treatments$UseCO2BiomassMultiplier == 1)  # Here we can do lazy comparison
-      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(1)
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 1L
     else
-      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(0)
-    
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 0L
+
     if (i_sw_input_treatments$UseCO2WUEMultiplier == 1)
-      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(1)
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 1L
     else
-      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(0)
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 0L
 
     if (!is.na(i_sw_input_treatments$CO2_Scenario))
       rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[1]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
-    
+
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -848,18 +847,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
-        
+
         # Extract scenario data for CO2 effects
         scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
         if (!is.na(i_sw_input_treatments$CO2_Scenario))
           rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
         else if (!is.na(scenario))  # Don't overwrite user-defined scenario
           rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(scenario)
-        
+
         delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
         if (!is.na(delta_yr))
           rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
-        
+
       } else {
         if (prj_todos[["need_cli_means"]]) {
           print_debug(opt_verbosity, tag_simpidfid, "creating", "climate")
@@ -1610,7 +1609,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:sim_scens[["N"]]) {
-    
+
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
     tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
