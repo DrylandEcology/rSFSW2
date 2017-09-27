@@ -711,7 +711,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       any(temp %in% SFSW2_prj_inputs[["create_treatments"]])
 
     if (any(icheck)) {
-      stop("Calculation and/or adjustement of 'potential natural vegetation' is "
+      stop("Calculation and/or adjustement of 'potential natural vegetation' is ",
         "requested for some composition/biomass/root components: the column ",
         "'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' is the overall ",
         "gate-keeper for this suit of functionality and must thus be turned on as well ",
