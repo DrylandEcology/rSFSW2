@@ -288,15 +288,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
-    # CO2 is currently ALWAYS ON, and if disabled the multipliers are 1
-    # Values must be integer, not logical
-    # Additionally, as.integer() must be used 
-    if (!is.na(i_sw_input_treatments$UseCO2BiomassMultiplier))
+    # Check if CO2 multipliers are enabled
+    # Assign with as.integer(), because numbers are doubles by default and the S4 class requires an int
+    if (i_sw_input_treatments$UseCO2BiomassMultiplier == 1)  # Here we can do lazy comparison
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(1)
     else
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- as.integer(0)
     
-    if (!is.na(i_sw_input_treatments$UseCO2WUEMultiplier))
+    if (i_sw_input_treatments$UseCO2WUEMultiplier == 1)
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(1)
     else
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- as.integer(0)
