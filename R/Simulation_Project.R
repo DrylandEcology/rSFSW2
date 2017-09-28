@@ -687,6 +687,41 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
   }
 
 
+  #--- Check that todos/treatments are coherent
+  if (todo_intracker(SFSW2_prj_meta, "prj_todos", "checked")) {
+    # Check that overall 'pnv' is turned on if any of the specific ones are
+    pnv_temp <- c("PotentialNaturalVegetation_CompositionShrubs_Fraction",
+      "PotentialNaturalVegetation_CompositionC3_Fraction",
+      "PotentialNaturalVegetation_CompositionC4_Fraction",
+      "PotentialNaturalVegetation_CompositionAnnuals_Fraction",
+      "PotentialNaturalVegetation_CompositionForb_Fraction",
+      "PotentialNaturalVegetation_CompositionBareGround_Fraction",
+      "PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate",
+      "AdjMonthlyBioMass_Precipitation",
+      "AdjMonthlyBioMass_Temperature",
+      "AdjRootProfile",
+      "RootProfile_C3",
+      "RootProfile_C4",
+      "RootProfile_Annuals",
+      "RootProfile_Shrubs",
+      "RootProfile_Forb")
+
+    icheck2 <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996" %in%
+      SFSW2_prj_inputs[["create_treatments"]] &&
+      any(pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]])
+
+    if (any(!icheck)) {
+      stop("Calculation and/or adjustement of 'potential natural vegetation' is ",
+        "requested for some composition/biomass/root components: the column ",
+        "'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' is the overall ",
+        "gate-keeper for this suit of functionality and must thus be turned on as well ",
+        "but is currently not.")
+    }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "prj_todos", checked = icheck2)
+  }
+
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
