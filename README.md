@@ -114,6 +114,25 @@ You can contribute to this project in different ways:
 
 Please follow our [guidelines](https://github.com/Burke-Lauenroth-Lab/workflow_guidelines).
 
+__Tests, documentation, and code__ form a trinity
+- Code documentation
+  * Read the [section 'Object documentation' in Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
+  * Use [roxygen2](https://cran.r-project.org/web/packages/roxygen2/vignettes/formatting.html)
+    to write inline code documentation
+  * Update help pages and NAMESPACE with the command `devtools::document()`
+  * Ideally, add examples to function documentation and check these examples with the
+    command `devtools::run_examples()`
+- Code tests
+  * Read the [section 'Testing' in Wickham's book 'R packages'](http://r-pkgs.had.co.nz/tests.html)
+  * Use [testthat](https://github.com/hadley/testthat) to add unit tests to the existing
+    framework
+  * Run unit tests locally with the command `devtools::test()`
+  * These unit tests will also be run on the command-line with `R CMD check .`
+  * The command-line check will be run on the continuous integration frameworks 'travis'
+    and 'appveyor' when commits are pushed
+  * Development/feature branches can only be merged into master if they pass all checks
+  * Ideally, run test projects in repository [rSFSW2_tools](https://github.com/Burke-Lauenroth-Lab/rSFSW2_tools)
+    and add a new test project, if necessary due to new features.
 
 # Code of conduct
 Please note that this project is released with a
