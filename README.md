@@ -114,7 +114,7 @@ You can contribute to this project in different ways:
 
 Please follow our [guidelines](https://github.com/Burke-Lauenroth-Lab/workflow_guidelines).
 
-__Tests, documentation, and code__ form a trinity
+### __Tests, documentation, and code__ form a trinity
 - Code documentation
   * Read the [section 'Object documentation' in Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
   * Use [roxygen2](https://cran.r-project.org/web/packages/roxygen2/vignettes/formatting.html)
@@ -133,6 +133,19 @@ __Tests, documentation, and code__ form a trinity
   * Development/feature branches can only be merged into master if they pass all checks
   * Ideally, run test projects in repository [rSFSW2_tools](https://github.com/Burke-Lauenroth-Lab/rSFSW2_tools)
     and add a new test project, if necessary due to new features.
+
+### __Updates to demo code__
+If you change the 'demo code' in `demo/`, e.g., add a new input database option, then
+  * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.
+
+### __Updates to input files__
+If you change 'input files' in `data-raw/1_Data_SWInput`, e.g., add a new column to
+experimental/design treatment file, then
+  * update the `R/sysdata.rda` object by running the R script `data-raw/prepare_default_project_infrastructure.R`
+    (`R/sysdata.rda` is used to setup a new simulation project)
+  * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.
+
+
 
 # Code of conduct
 Please note that this project is released with a
