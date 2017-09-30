@@ -2195,15 +2195,15 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
         temp_var <- colnames(pnc_count_rip)[itemp[k, "col"]]
         temp_scen <- rownames(pnc_count_rip)[itemp[k, "row"]]
 
-        itemp <- which(sapply(fnc_parts2, function(x)
+        itemp2 <- which(sapply(fnc_parts2, function(x)
           any(x == rip) && any(x == temp_var) && any(x == temp_scen)))
-        temp_times <- lapply(fnc_parts2[itemp], function(x) {
+        temp_times <- lapply(fnc_parts2[itemp2], function(x) {
           temp <- x[climDB_meta[["str_fname"]]["id_time"]]
           seq.int(as.integer(substr(temp, 1, 4)), as.integer(substr(temp, 8, 11)))})
 
         temp_overlap <- sapply(temp_times, function(x) sum(x %in% req_years))
         imax_overlap <- which.max(temp_overlap)
-        itemp_remove <- itemp[!(itemp == imax_overlap)]
+        itemp_remove <- itemp2[!(itemp2 == imax_overlap)]
 
         fnc_gcmXscens <- fnc_gcmXscens[-itemp_remove]
       }
