@@ -28,6 +28,21 @@ check_soil_data <- function(data) {
     check_soil
 }
 
+#' Check that soil moisture extraction coefficients meet expectations
+#'
+#' Expectations are: \itemize{
+#'  \item Every coefficient must be equal or larger than 0,
+#'  \item Their sum is strictly larger than 0,
+#'  \item Their sum is equal or smaller than 1.
+#' }
+#'
+#' @param data A numeric vector. The coefficient of each soil layer.
+#'
+#' @return A logical value. \code{TRUE} if \code{data} meets expectations.
+check_soilco <- function(data) {
+    temp <- sum(data)
+    all(data >= 0, temp > 0, temp - 1 <= SFSW2_glovars[["tol"]])
+}
 
 
 #two, three, or four layer aggregation for average daily aggregation output

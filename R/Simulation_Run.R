@@ -715,9 +715,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     }
 
-    EVCO_done <- sum(soil_swdat[, "EvapBareSoil_frac"]) > 0
-    TRCO_done <- all(colSums(soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
-                                            "transpTree_frac", "transpForb_frac"), drop = FALSE]) > 0)
+    # Check evaporation- and transpiration coefficients
+    EVCO_done <- check_soilco(soil_swdat[, "EvapBareSoil_frac"])
+    temp_trco <- soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
+      "transpTree_frac", "transpForb_frac"), drop = FALSE]
+    TRCO_done <- all(apply(temp_trco, 2, check_soilco))
 
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
@@ -1662,8 +1664,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tasks$execute[sc] <- 0L
       }
 
-    if (opt_out_run[["saveRsoilwatOutput"]])
-      save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
+      if (opt_out_run[["saveRsoilwatOutput"]]) {
+        save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
+      }
     }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
