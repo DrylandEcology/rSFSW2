@@ -176,11 +176,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   #----Get preparations done
   if (all(unlist(tasks) %in% c(-1L, 1L))) {
     #------Learn about soil layer structure
+    soil_source <- NULL
+
     #determine number of soil layers = soilLayers_N and soildepth
     if (tasks$create == 1L && (!any(create_treatments == "soilsin") ||
         any(create_treatments == "soilsin") && (is.na(i_sw_input_treatments$soilsin) ||
             identical(i_sw_input_treatments$soilsin, "NA")))) {
 
+      soil_source <- "datafile"
       soildepth <- i_sw_input_soillayers$SoilDepth_cm
       itemp <- 2L + SFSW2_glovars[["slyrs_ids"]]
       layers_depth <- stats::na.omit(as.numeric(i_sw_input_soillayers[itemp]))
@@ -193,9 +196,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     } else {
-      # needs to be read from soilsin file
-      if (tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
-      layers_depth <- rSOILWAT2::swSoils_Layers(tr_soil[[i_sw_input_treatments$soilsin]])[, 1]
+      layers_depth <- if (any(create_treatments == "soilsin") &&
+        !is.na(i_sw_input_treatments$soilsin) &&
+        !identical(i_sw_input_treatments$soilsin, "NA")) {
+          soil_source <- "tr_soilsin"
+          slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
+        } else {
+          soil_source <- "default_run"
+          unname(rSOILWAT2::swSoils_Layers(swDataFromFiles)[, 1])
+        }
       soilLayers_N <- length(layers_depth)
       soildepth <- max(layers_depth)
     }
@@ -282,7 +291,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::set_swSite(swRunScenariosData[[1]]) <- tr_site[[i_sw_input_treatments$siteparamin]]
       TRRG_done <- TRUE
     }
-    if (any(create_treatments == "soilsin")) {
+    if (identical(soil_source, "tr_soilsin")) {
       rSOILWAT2::set_swSoils(swRunScenariosData[[1]]) <- tr_soil[[i_sw_input_treatments$soilsin]]
       EVCO_done <- TRCO_done <- TRUE
     }
@@ -603,7 +612,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     use_transpregion <- sw_input_soils_use[paste0("TranspRegion_L", ld)]
-    if (sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
+    if (!identical(soil_source, "tr_soilsin") &&
+      sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
 
       # Calculate soil layer structure, because any(create_treatments == "soilsin") and soilsin may have a different soil layer structure than the datafiles
       temp <- as.numeric(stats::na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", SFSW2_glovars[["slyrs_ids"]])])))
@@ -720,12 +730,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     }
-
-    # Check evaporation- and transpiration coefficients
-    EVCO_done <- check_soilco(soil_swdat[, "EvapBareSoil_frac"])
-    temp_trco <- soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
-      "transpTree_frac", "transpForb_frac"), drop = FALSE]
-    TRCO_done <- all(apply(temp_trco, 2, check_soilco))
 
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
@@ -1444,6 +1448,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       temp <- rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])
       if (nrow(temp) > 0 && temp[1, 2] >= 1 ||
         max(temp[, 2]) <= max.tri.root) TRRG_done <- TRUE
+
+      # Check evaporation- and transpiration coefficients
+      soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])
+      dimnames(soil_swdat)[[2]] <- soil_cols
+      EVCO_done <- check_soilco(soil_swdat[, "EvapBareSoil_frac"])
+      temp_trco <- soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
+        "transpTree_frac", "transpForb_frac"), drop = FALSE]
+      TRCO_done <- all(apply(temp_trco, 2, check_soilco))
+
 
       print_debug(opt_verbosity, tag_simpidfid, "tasks =",
         paste(paste(tasks, collapse = ", "), ", evco = ", EVCO_done, ", trco = ",
