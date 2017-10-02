@@ -2181,31 +2181,32 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
           collapse = " - "))
       }
 
-      # Double check what time period to choose (the one if the most overlap to requested
+      # Double check what time period to choose (the one with the most overlap to requested
       # years) if multiple netCDF files for selected combination of scen x var x rip are
       # present
       pnc_count_rip <- pnc_count[,, rip]
-      itemp <- which(pnc_count_rip > 1, arr.ind = TRUE)
-      fnc_parts2 <- fnc_parts
+      i_count_rip <- which(pnc_count_rip > 1, arr.ind = TRUE)
+      fnc_parts2 <- fnc_parts # information that is used to index/subset fnc_gcmXscens
       req_years <- c(seq.int(getYears[["first"]][1, 1], getYears[["first"]][1, 2]),
         unlist(lapply(seq_len(nrow(getYears[["second"]])), function(k)
           seq.int(getYears[["second"]][k, 1], getYears[["second"]][k, 2]))))
 
-      for (k in seq_len(nrow(itemp))) {
-        temp_var <- colnames(pnc_count_rip)[itemp[k, "col"]]
-        temp_scen <- rownames(pnc_count_rip)[itemp[k, "row"]]
+      for (k in seq_len(nrow(i_count_rip))) {
+        temp_var <- colnames(pnc_count_rip)[i_count_rip[k, "col"]]
+        temp_scen <- rownames(pnc_count_rip)[i_count_rip[k, "row"]]
 
-        itemp2 <- which(sapply(fnc_parts2, function(x)
+        ids_fnc <- which(sapply(fnc_parts2, function(x)
           any(x == rip) && any(x == temp_var) && any(x == temp_scen)))
-        temp_times <- lapply(fnc_parts2[itemp2], function(x) {
+        temp_times <- lapply(fnc_parts2[ids_fnc], function(x) {
           temp <- x[climDB_meta[["str_fname"]]["id_time"]]
           seq.int(as.integer(substr(temp, 1, 4)), as.integer(substr(temp, 8, 11)))})
 
         temp_overlap <- sapply(temp_times, function(x) sum(x %in% req_years))
-        imax_overlap <- which.max(temp_overlap)
-        itemp_remove <- itemp2[!(itemp2 == imax_overlap)]
+        imax_overlap <- which.max(temp_overlap) # the one to keep
+        itemp_remove <- ids_fnc[-imax_overlap]
 
         fnc_gcmXscens <- fnc_gcmXscens[-itemp_remove]
+        fnc_parts2 <- fnc_parts2[-itemp_remove]
       }
 
       # Subset files to selected rip
