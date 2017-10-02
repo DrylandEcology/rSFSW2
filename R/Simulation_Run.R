@@ -5011,9 +5011,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     runs.completed <- lapply(seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
-      function(i_sim) {
-        i_site <- i_sites[i_sim]
-        do_OneSite(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][i_sim],
+      function(i) {
+        i_site <- i_sites[i]
+        do_OneSite(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][i],
           i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
           i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
           i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],
