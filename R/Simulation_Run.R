@@ -166,7 +166,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
     (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
 
-    load(f_sw_input)  # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals
+    # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
+    #   ClimatePerturbationsVals, isim_time, simTime2
+    load(f_sw_input)
     tasks$create <- 2L
   }
 
@@ -1465,7 +1467,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (opt_out_run[["saveRsoilwatInput"]])
       save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-      ClimatePerturbationsVals, file = f_sw_input)
+      ClimatePerturbationsVals, isim_time, simTime2, file = f_sw_input)
   }#end if do create runs
 
   if (opt_out_run[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
