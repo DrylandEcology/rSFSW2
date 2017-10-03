@@ -2146,14 +2146,6 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
         fixed = TRUE)
 
       #--- Determine most suitable 'ensemble member' rip that is available among fnc_gcmXscens
-      # and check that netCDF-files are available for requested variables
-      n_tas <- length(grep("tas", climDB_meta[["var_desc"]][, "fileVarTags"]))
-      expected_n <- if (n_tas >= 3) {
-          length(climDB_meta[["var_desc"]][, "fileVarTags"]) - (n_tas - 2)
-        } else {
-          length(climDB_meta[["var_desc"]][, "fileVarTags"])
-        }
-
       temp <- climDB_meta[["str_fname"]][c("id_scen", "id_var", "id_run")]
       ptemp <- sapply(fnc_parts, function(x) x[temp])
 
@@ -2213,6 +2205,25 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       if (length(rip) > 0) {
         tag <- paste0(climDB_meta[["sep_fname"]], rip, climDB_meta[["sep_fname"]])
         fnc_gcmXscens <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)
+      }
+
+      # Check that selected netCDF-files are available for requested variables:
+      #   'prcp' and ('tmean' or ('tmax' and 'tmin'))
+      fnc_parts <- strsplit(basename(fnc_gcmXscens), split = climDB_meta[["sep_fname"]],
+        fixed = TRUE)
+      ptemp <- sapply(fnc_parts, function(x) x[climDB_meta[["str_fname"]][c("id_scen", "id_var")]])
+      pnc_count <- table(ptemp[1, ], ptemp[2, ])
+      pnc_temp <- apply(pnc_count, 2, function(x) sum(x == 1) >= n_scens)
+
+      pnc_avail <- pnc_temp[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
+        pnc_temp[climDB_meta[["var_desc"]]["tmean", "tag"]] ||
+        all(pnc_temp[climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"]]))
+
+      if (!pnc_avail) {
+        stop("'calc.ScenarioWeather': input file(s) for model ", shQuote(gcm),
+          " and scenario(s) ", paste(shQuote(all_scens), collapse = "/"),
+          " not available for required variables: ",
+          paste(shQuote(names(pnc_temp)[!pnc_temp]), collapse = "/"))
       }
     }
 
