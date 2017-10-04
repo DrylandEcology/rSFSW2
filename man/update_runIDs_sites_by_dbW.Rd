@@ -2,7 +2,7 @@
 % Please edit documentation in R/WeatherDB.R
 \name{update_runIDs_sites_by_dbW}
 \alias{update_runIDs_sites_by_dbW}
-\title{Lookup IDs of sites as found in the weather database}
+\title{Lookup IDs of sites as found in a weather database}
 \usage{
 update_runIDs_sites_by_dbW(sim_size, label_WeatherData, fdbWeather = NULL)
 }
@@ -16,8 +16,9 @@ there is no current valid connection.}
 }
 \value{
 The list \code{sim_size} with an updated respectively newly added named element
- \code{runIDs_sites_by_dbW}.
+ \code{runIDs_sites_by_dbW}. The element \code{runIDs_sites_by_dbW} is only added if
+ there is a current valid connection to a weather database or if one can be established.
 }
 \description{
-Lookup IDs of sites as found in the weather database
+Lookup IDs of sites as found in a weather database
 }

@@ -1,6 +1,6 @@
 #------------------------DAILY WEATHER
 
-#' Lookup IDs of sites as found in the weather database
+#' Lookup IDs of sites as found in a weather database
 #'
 #' @param sim_size A list with at least one named element \code{runIDs_sites}.
 #' @param label_WeatherData A vector of character strings. The names of the weather data.
@@ -8,22 +8,24 @@
 #'  there is no current valid connection.
 #'
 #' @return The list \code{sim_size} with an updated respectively newly added named element
-#'  \code{runIDs_sites_by_dbW}.
+#'  \code{runIDs_sites_by_dbW}. The element \code{runIDs_sites_by_dbW} is only added if
+#'  there is a current valid connection to a weather database or if one can be established.
 update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData, fdbWeather = NULL) {
-  # Check if 'runIDs_sites_by_dbW' should be updated
-  do_get1 <- is.null(sim_size[["runIDs_sites_by_dbW"]])
-  do_get2 <- anyNA(sim_size[["runIDs_sites_by_dbW"]])
-  do_get3 <- !identical(length(sim_size[["runIDs_sites_by_dbW"]]),
-    length(sim_size[["runIDs_sites"]]))
 
-  if (do_get1 || do_get2 || do_get3) {
-    if (!rSOILWAT2::dbW_IsValid()) {
-      stopifnot(!is.null(fdbWeather))
-      rSOILWAT2::dbW_setConnection(fdbWeather)
+  # Check if there is a weather database
+  do_get0 <- rSOILWAT2::dbW_IsValid() || rSOILWAT2::dbW_setConnection(fdbWeather)
+
+  if (do_get0) {
+    # Check if 'runIDs_sites_by_dbW' should be updated
+    do_get1 <- is.null(sim_size[["runIDs_sites_by_dbW"]])
+    do_get2 <- anyNA(sim_size[["runIDs_sites_by_dbW"]])
+    do_get3 <- !identical(length(sim_size[["runIDs_sites_by_dbW"]]),
+      length(sim_size[["runIDs_sites"]]))
+
+    if (do_get1 || do_get2 || do_get3) {
+      sim_size[["runIDs_sites_by_dbW"]] <- rSOILWAT2::dbW_getSiteId(
+        Labels = label_WeatherData[sim_size[["runIDs_sites"]]])
     }
-
-    sim_size[["runIDs_sites_by_dbW"]] <- rSOILWAT2::dbW_getSiteId(
-      Labels = label_WeatherData[sim_size[["runIDs_sites"]]])
   }
 
   sim_size
