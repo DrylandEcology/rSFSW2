@@ -12,7 +12,7 @@
 # NOTE: The values may be changed/adjusted from run to run a rSFSW2 simulation project. The
 #  values of the description of a project (file demo/SFSW2_project_description.R) cannot
 #  be changed once a rSFSW2 simulation project is set up.
-
+stopifnot(exists("SFSW2_prj_meta"), !is.null(SFSW2_prj_meta[["opt_platform"]]))
 
 
 opt_behave <- list(
@@ -37,18 +37,21 @@ opt_behave <- list(
 
 
 #------ Options for parallel framework
-do_skip <- c(
-  identical(tolower(Sys.getenv("NOT_CRAN")), "false"), # whereas skip_on_cran() skips if not "true", I believe it should skip only if "false" (i.e., not "" and not "true")
-  identical(tolower(Sys.getenv("TRAVIS")), "true"),   # skip_on_travis()
-  identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
-
 opt_parallel <- list(
   # Should job be run in parallel
-  parallel_runs = !any(do_skip), # tests in parallel do not work on CIs and cran
+  parallel_runs = !interactive() && !SFSW2_prj_meta[["opt_platform"]][["no_parallel"]],
   # Number of cores/workers/slaves if job is run in parallel
-  num_cores = 4,
+  num_cores = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")) {
+      4
+    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+      4
+    },
   # Parallel_backend: "socket" = "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "socket",
+  parallel_backend = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")) {
+      "socket"
+    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+      "mpi"
+    },
 
   # Computation time requests: time limits are only enforced if parallel_backend == "mpi"
   opt_job_time = list(
