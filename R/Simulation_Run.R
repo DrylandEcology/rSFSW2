@@ -162,40 +162,63 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     dir.create2(temp, showWarnings = FALSE)
   }
 
+  #--- Load previously created rSOILWAT2 run objets
+  if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
+    (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
+
+    # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
+    #   ClimatePerturbationsVals, isim_time, simTime2
+    load(f_sw_input)
+    tasks$create <- 2L
+  }
+
+
   #----Get preparations done
   if (all(unlist(tasks) %in% c(-1L, 1L))) {
     #------Learn about soil layer structure
-    #determine number of soil layers = d and soildepth
-    if (!any(create_treatments == "soilsin") && tasks$create == 1L) {
+    soil_source <- NULL
+
+    #determine number of soil layers = soilLayers_N and soildepth
+    if (tasks$create == 1L && (!any(create_treatments == "soilsin") ||
+        any(create_treatments == "soilsin") && (is.na(i_sw_input_treatments$soilsin) ||
+            identical(i_sw_input_treatments$soilsin, "NA")))) {
+
+      soil_source <- "datafile"
       soildepth <- i_sw_input_soillayers$SoilDepth_cm
       itemp <- 2L + SFSW2_glovars[["slyrs_ids"]]
       layers_depth <- stats::na.omit(as.numeric(i_sw_input_soillayers[itemp]))
-      d <- which(soildepth == layers_depth)
-      if (length(d) == 0) {
+      soilLayers_N <- which(soildepth == layers_depth)
+      if (length(soilLayers_N) == 0) {
         # soildepth is one of the lower layer boundaries
         # soildepth is not one of the lower layer boundaries, the next deeper layer
         #   boundary is used
-        d <- min(length(layers_depth), findInterval(soildepth, layers_depth) + 1)
+        soilLayers_N <- min(length(layers_depth), findInterval(soildepth, layers_depth) + 1)
       }
 
     } else {
-      # needs to be read from soilsin file
-      if (tasks$create == -1L) stop("This currently doesn't work") #TODO make it work low PR
-      layers_depth <- rSOILWAT2::swSoils_Layers(tr_soil[[i_sw_input_treatments$soilsin]])[, 1]
-      d <- length(layers_depth)
+      layers_depth <- if (any(create_treatments == "soilsin") &&
+        !is.na(i_sw_input_treatments$soilsin) &&
+        !identical(i_sw_input_treatments$soilsin, "NA")) {
+          soil_source <- "tr_soilsin"
+          slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
+        } else {
+          soil_source <- "default_run"
+          unname(rSOILWAT2::swSoils_Layers(swDataFromFiles)[, 1])
+        }
+      soilLayers_N <- length(layers_depth)
       soildepth <- max(layers_depth)
     }
 
     #functions to obtain soil layer structures
     #layer sequence
-    ld <- setLayerSequence(d)
-    layers_depth <- adjustLayersDepth(layers_depth, d)
+    ld <- setLayerSequence(soilLayers_N)
+    layers_depth <- adjustLayersDepth(layers_depth, soilLayers_N)
     layers_width <- getLayersWidth(layers_depth)
 
     #top and bottom layer aggregation
     DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
-    topL <- setTopLayer(d, DeepestTopLayer)
-    bottomL <- setBottomLayer(d, DeepestTopLayer)
+    topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
+    bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
 
     #------Learn about simulation time
@@ -237,14 +260,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------CREATE RUNS
-  # Load previously created rSOILWAT2 run objets
-  if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
-    (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
-
-    load(f_sw_input)  # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions, ClimatePerturbationsVals
-    tasks$create <- 2L
-  }
-
   if (tasks$create == 1L) {
     print_debug(opt_verbosity, tag_simfid, "section", "create simulation")
 
@@ -276,7 +291,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::set_swSite(swRunScenariosData[[1]]) <- tr_site[[i_sw_input_treatments$siteparamin]]
       TRRG_done <- TRUE
     }
-    if (any(create_treatments == "soilsin")) {
+    if (identical(soil_source, "tr_soilsin")) {
       rSOILWAT2::set_swSoils(swRunScenariosData[[1]]) <- tr_soil[[i_sw_input_treatments$soilsin]]
       EVCO_done <- TRCO_done <- TRUE
     }
@@ -400,7 +415,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         } else {
           trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = d,
+            soillayer_no = soilLayers_N,
             trco_type = i_sw_input_treatments[1, do_vegs[["flag"]][k]],
             layers_depth = layers_depth,
             adjustType = do_vegs[["adjustType"]][k])
@@ -612,7 +627,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     use_transpregion <- sw_input_soils_use[paste0("TranspRegion_L", ld)]
-    if (sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
+    if (!identical(soil_source, "tr_soilsin") &&
+      sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
 
       # Calculate soil layer structure, because any(create_treatments == "soilsin") and soilsin may have a different soil layer structure than the datafiles
       temp <- as.numeric(stats::na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", SFSW2_glovars[["slyrs_ids"]])])))
@@ -625,21 +641,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
         # different soil layer structure in soilsin and datafile AND since variables are
         # flagged in sw_input_soils_use => use only datafile values
-        d <- findInterval(i_sw_input_soillayers["SoilDepth_cm"] - SFSW2_glovars[["toln"]],
+        soilLayers_N <- findInterval(i_sw_input_soillayers["SoilDepth_cm"] - SFSW2_glovars[["toln"]],
           c(0, layers_depth.datafile))
-        d <- min(length(layers_depth.datafile), d, na.rm = TRUE)
-        d <- max(1, d, na.rm = TRUE)
-        layers_depth <- adjustLayersDepth(layers_depth.datafile, d)
+        soilLayers_N <- min(length(layers_depth.datafile), soilLayers_N, na.rm = TRUE)
+        soilLayers_N <- max(1, soilLayers_N, na.rm = TRUE)
+        layers_depth <- adjustLayersDepth(layers_depth.datafile, soilLayers_N)
         layers_width <- getLayersWidth(layers_depth)
-        ld <- setLayerSequence(d)
+        ld <- setLayerSequence(soilLayers_N)
 
         DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
-        topL <- setTopLayer(d, DeepestTopLayer)
-        bottomL <- setBottomLayer(d, DeepestTopLayer)
+        topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
+        bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
       }
 
       #compile soil information from both sources
-      soildat <- matrix(0, nrow = d, ncol = length(soil_cols),
+      soildat <- matrix(0, nrow = soilLayers_N, ncol = length(soil_cols),
                         dimnames = list(NULL, soil_cols))
       soildat[, "depth_cm"] <- layers_depth.datafile[ld]
       infile_cols <- names(sw_input_soils_use)
@@ -650,7 +666,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                     sw = soil_cols[-1])
       for (iv in seq_along(coefs[[1]])) {
         icol <- grep(coefs[["infile"]][iv], infile_cols, ignore.case = TRUE, value = TRUE)
-        if (length(icol) > d)
+        if (length(icol) > soilLayers_N)
           icol <- icol[ld]
 
         if (length(icol) > 0) {
@@ -673,20 +689,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       # Adjust deepest soil layer if there is no soil information
       if (opt_sim[["fix_depth_to_layers"]]) {
-        for (k in d:1) {
+        for (k in soilLayers_N:1) {
           temp <- soildat[k, c("matricd", "sand", "clay")]
           if (any(!is.na(temp)))
             break
         }
-        if (d != k) {
-          d <- k
-          layers_depth <- adjustLayersDepth(layers_depth, d)
+        if (soilLayers_N != k) {
+          soilLayers_N <- k
+          layers_depth <- adjustLayersDepth(layers_depth, soilLayers_N)
           layers_width <- getLayersWidth(layers_depth)
-          ld <- setLayerSequence(d)
+          ld <- setLayerSequence(soilLayers_N)
 
           DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
-          topL <- setTopLayer(d, DeepestTopLayer)
-          bottomL <- setBottomLayer(d, DeepestTopLayer)
+          topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
+          bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
           soildat <- soildat[ld, , drop = FALSE]
         }
@@ -730,10 +746,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     }
 
-    EVCO_done <- sum(soil_swdat[, "EvapBareSoil_frac"]) > 0
-    TRCO_done <- all(colSums(soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
-                                            "transpTree_frac", "transpForb_frac"), drop = FALSE]) > 0)
-
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
     #add transpiration regions information to siteparamin
@@ -749,9 +761,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       for (tri in 1:4) {
         ltreg <- ifelse(length(ind <- which(tr.layers == tri)) > 0, max(ind), -1)
         ltreg <- ifelse(ltreg>ltreg.last, ltreg, ltreg.last+1)
-        ltreg <- ifelse(ltreg>d & tri == 1, d, ltreg)
+        ltreg <- ifelse(ltreg>soilLayers_N & tri == 1, soilLayers_N, ltreg)
 
-        if (tri <= tr & tri <= d & ltreg <= d | tri == 1) TranspirationRegions[tri, ] <- as.integer(c(tri, ltreg))
+        if (tri <= tr & tri <= soilLayers_N & ltreg <= soilLayers_N | tri == 1) TranspirationRegions[tri, ] <- as.integer(c(tri, ltreg))
         ltreg.last <- ltreg
       }
       tr_rows <- rowSums(is.na(TranspirationRegions)) != 2 #used to get rid of NA rows
@@ -1249,7 +1261,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (grass.fraction == 0) { #if grass.fraction is 0 then Grass.trco will be 0
           Grass.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = d,
+            soillayer_no = soilLayers_N,
             trco_type = "FILL",
             layers_depth = layers_depth,
             adjustType = "positive")
@@ -1257,21 +1269,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         } else {
           C3.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = d,
+            soillayer_no = soilLayers_N,
             trco_type = trco_type_C3,
             layers_depth = layers_depth,
             adjustType = "positive")
 
           C4.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = d,
+            soillayer_no = soilLayers_N,
             trco_type = trco_type_C4,
             layers_depth = layers_depth,
             adjustType = "positive")
 
           Annuals.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = d,
+            soillayer_no = soilLayers_N,
             trco_type = trco_type_annuals,
             layers_depth = layers_depth,
             adjustType = "positive")
@@ -1281,23 +1293,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                         Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
         }
         if (is.na(sum(Grass.trco)))
-          Grass.trco <- rep(0, d)
+          Grass.trco <- rep(0, soilLayers_N)
 
         Shrub.trco <- TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
+          soillayer_no = soilLayers_N,
           trco_type = trco_type_shrubs,
           layers_depth = layers_depth,
           adjustType = "inverse")
         Tree.trco <- TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
+          soillayer_no = soilLayers_N,
           trco_type = tro_type_tree,
           layers_depth = layers_depth,
           adjustType = "inverse")
         Forb.trco <- TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = d,
+          soillayer_no = soilLayers_N,
           trco_type = tro_type_forb,
           layers_depth = layers_depth,
           adjustType = "inverse")
@@ -1464,6 +1476,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (nrow(temp) > 0 && temp[1, 2] >= 1 ||
         max(temp[, 2]) <= max.tri.root) TRRG_done <- TRUE
 
+      # Check evaporation- and transpiration coefficients
+      soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])
+      dimnames(soil_swdat)[[2]] <- soil_cols
+      EVCO_done <- check_soilco(soil_swdat[, "EvapBareSoil_frac"])
+      temp_trco <- soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
+        "transpTree_frac", "transpForb_frac"), drop = FALSE]
+      TRCO_done <- all(apply(temp_trco, 2, check_soilco))
+
+
       print_debug(opt_verbosity, tag_simpidfid, "tasks =",
         paste(paste(tasks, collapse = ", "), ", evco = ", EVCO_done, ", trco = ",
         TRCO_done, ", trrg = ", TRRG_done))
@@ -1486,7 +1507,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (opt_out_run[["saveRsoilwatInput"]])
       save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-      ClimatePerturbationsVals, file = f_sw_input)
+      ClimatePerturbationsVals, isim_time, simTime2, file = f_sw_input)
   }#end if do create runs
 
   if (opt_out_run[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
@@ -1544,6 +1565,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     layers_width <- getLayersWidth(layers_depth)
     soilDepth_cm <- max(stemp[, 1])
     soilLayers_N <- length(stemp[, 1])
+    ld <- setLayerSequence(soilLayers_N)
+    DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
+    topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
+    bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
     gravel <- stemp[, 3]
     sand <- stemp[, 9]
@@ -1690,8 +1715,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tasks$execute[sc] <- 0L
       }
 
-    if (opt_out_run[["saveRsoilwatOutput"]])
-      save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
+      if (opt_out_run[["saveRsoilwatOutput"]]) {
+        save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
+      }
     }
 
     if (tasks$execute[sc] > 0L && exists("runDataSC"))
@@ -2364,20 +2390,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("Esoil.dy.all")) Esoil.dy.all <- get_Response_aggL(swof["sw_evsoil"], tscale = "dyAll", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if (!exists("deepDrain.dy")) deepDrain.dy <- get_DeepDrain_dy(runDataSC, isim_time)
 
-          percolation <- if (d > 1) {
-              10 * slot(slot(runDataSC, swof["sw_percolation"]), "Day")[isim_time$index.usedy, 2 + ld[-d]]
+          percolation <- if (soilLayers_N > 1) {
+              10 * slot(slot(runDataSC, swof["sw_percolation"]), "Day")[isim_time$index.usedy, 2 + ld[-soilLayers_N]]
             } else {
               rep(0, isim_time$no.usedy)
             }
           hydred <- 10 * slot(slot(runDataSC, swof["sw_hd"]), "Day")[isim_time$index.usedy, 2 + ld]
 
           # Water balance
-          outputs_by_layer <- inputs_by_layer <- matrix(0, nrow = isim_time$no.usedy, ncol = d,
+          outputs_by_layer <- inputs_by_layer <- matrix(0, nrow = isim_time$no.usedy, ncol = soilLayers_N,
             dimnames = list(NULL, paste0("total_Lyr_", ld)))
           # Inputs: infiltration + received hydraulic redistribution + received percolation
           inputs_by_layer[, 1] <- inputs_by_layer[, 1] + inf.dy$inf
           inputs_by_layer <- inputs_by_layer + ifelse(hydred > 0, hydred, 0)
-          if (d > 1) {
+          if (soilLayers_N > 1) {
             inputs_by_layer[, -1] <- inputs_by_layer[, -1] + ifelse(percolation > 0, percolation, 0)
           }
 
@@ -2421,7 +2447,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 }
               }))
           if (!is.matrix(extraction_duration_days)) {
-            extraction_duration_days <- matrix(extraction_duration_days, nrow = d, ncol = isim_time$no.useyr)
+            extraction_duration_days <- matrix(extraction_duration_days, nrow = soilLayers_N, ncol = isim_time$no.useyr)
           }
 
           # median annual sum of all extracted water during extracting spells for each layer and each year
@@ -2448,7 +2474,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               }
             }))
           if (!is.matrix(extraction_summed_mm)) {
-            extraction_summed_mm <- matrix(extraction_summed_mm, nrow = d, ncol = isim_time$no.useyr)
+            extraction_summed_mm <- matrix(extraction_summed_mm, nrow = soilLayers_N, ncol = isim_time$no.useyr)
           }
 
           # aggregate across years for each soil layer
@@ -4855,17 +4881,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      # We have to rename rSOILWAT2 functions locally (and export to workers):
-      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-      # is not the name of a function
-      dbW_setConnection <- function(...) rSOILWAT2::dbW_setConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(dbW_setConnection)
-      Rmpi::mpi.remote.exec(cmd = dbW_setConnection,
+      Rmpi::mpi.remote.exec(cmd = dbW_setConnection_local,
         dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
-      dbW_disconnectConnection <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
-      Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection)
-      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection), add = TRUE)
+      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection_local), add = TRUE)
 
       Rmpi::mpi.bcast.cmd(cmd = mpi_work,
         verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
@@ -5021,9 +5039,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     runs.completed <- lapply(seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
-      function(i_sim) {
-        i_site <- i_sites[i_sim]
-        do_OneSite(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][i_sim],
+      function(i) {
+        i_site <- i_sites[i]
+        do_OneSite(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][i],
           i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
           i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
           i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],

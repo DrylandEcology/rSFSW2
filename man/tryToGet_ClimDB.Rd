@@ -7,7 +7,7 @@
 \usage{
 tryToGet_ClimDB(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
-  getYears, assocYears, project_paths, fdbWeather, climate.ambient,
+  getYears, assocYears, project_paths, dir_failed, fdbWeather, climate.ambient,
   dbW_compression_type, sim_time, seeds_DS, opt_DS, resume, verbose,
   print.debug, seed = NA)
 }

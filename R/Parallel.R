@@ -97,6 +97,14 @@ export_objects_to_workers <- function(obj_env,
   success
 }
 
+# We have to rename rSOILWAT2 functions locally (and export to workers):
+# 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+# handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+# is not the name of a function
+dbW_setConnection_local <- function(...) rSOILWAT2::dbW_setConnection(...)
+dbW_disconnectConnection_local <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+
+
 #' Setting values of package-level global variables on workers
 #' @param x A character string. The name of a global variable.
 #' #param value A R object. The value to be assigned to the global variable identified by
@@ -421,6 +429,13 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
           simplify = FALSE))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
+
+        # We have to rename rSOILWAT2 functions locally (and export to workers):
+        # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+        # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+        # is not the name of a function
+        Rmpi::mpi.bcast.Robj2slave(dbW_setConnection_local)
+        Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection_local)
 
       } else {
         print("MPI master/workers are already set up.")

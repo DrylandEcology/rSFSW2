@@ -248,3 +248,52 @@ intersect2 <- function(...) {
 
   res
 }
+
+
+#' Recursive comparisons which also works for nested lists
+#'
+#' @param x1 A R object
+#' @param x2 A R object
+#'
+#' @seealso \code{\link{all.equal}}
+#'
+#' @return \itemize{
+#'  \item If both \code{x1} and \code{x2} are lists, then \code{do_compare} is called
+#'        recursively on mutually shared names if names exists and on each element
+#'        otherwise, and the output is a list from the return value of each recursive call.
+#'  \item Otherwise, the function \code{\link{all.equal}} is called. If the result is
+#'        \code{TRUE}, then \code{NA} is returned. If the result is \code{FALSE}, then
+#'        a list with three elements is returned with \describe{
+#'    \item{eq}{the result of the call to \code{\link{all.equal}}}
+#'    \item{x1}{The object \code{x1}}
+#'    \item{x2}{The object \code{x2}}
+#'  }}
+#'
+#' @examples
+#'  do_compare(1L, 1L) ## expected result: NA
+#'  do_compare(1, 2)   ## expected result: list(eq = "Mean relative difference: 1", x1 = 1, x2 = 2)
+#'  do_compare(list(1, 2), list(1, 3)) ## expected result: first comparison returns NA; second shows a difference
+#'  do_compare(list(a = 1, b = 2), list(b = 2, c = 0, a = 1)) ## expected result: comparison for elements a and b return NA; comparison for element c shows a difference
+#' @export
+do_compare <- function(x1, x2) {
+  if (is.list(x1) && is.list(x2)) {
+    dims <- if (!is.null(names(x1)) && !is.null(names(x2))) {
+        unique(c(names(x1), names(x2)))
+      } else {
+        seq_len(min(length(x1), length(x2)))
+      }
+
+    res <- lapply(dims, function(k) do_compare(x1 = x1[[k]], x2 = x2[[k]])) # as of R v3.4.1 'Recall' doesn't work as argument to apply-type calls
+    names(res) <- dims
+    res
+
+  } else {
+    eq <- all.equal(x1, x2)
+
+    if (isTRUE(eq)) {
+      NA
+    } else {
+      list(eq = eq, x1 = x1, x2 = x2)
+    }
+  }
+}

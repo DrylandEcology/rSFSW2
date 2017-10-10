@@ -7,7 +7,7 @@ context("Test projects")
 test_that("Test projects", {
   skip_on_cran()
 
-  suppressMessages(
+  suppressWarnings(
     tp <- try(run_test_projects(
         dir_tests = file.path("..", "test_data", "Test4_AllOverallAggregations_snow"),
         dir_prj_tests = ".", dir_ref = file.path("..", "test_data", "0_ReferenceOutput"),

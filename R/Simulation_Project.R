@@ -182,9 +182,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "load_inputs", prepared = TRUE,
-      checked = !SFSW2_prj_inputs[["do_check_include"]],
-      clean_subsequent = SFSW2_prj_inputs[["do_check_include"]])
+      checked = !SFSW2_prj_inputs[["do_check_include"]])
   }
+
+  save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]],
+    tag_backup = paste0("backup-", format(Sys.time(), "%Y%m%d-%H%M")))
 
 
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
@@ -198,10 +200,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated, i.e.,
   #   save them to disk upon exiting function (by error to save intermediate state) or
   #   by final 'return'
-  on.exit(saveRDS(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]),
-    add = TRUE)
-  on.exit(saveRDS(SFSW2_prj_inputs, file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]),
-    add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
+   file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
 
   #--- Determine size of simulation runs
@@ -295,6 +297,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "rng_setup", prepared = TRUE)
+
+    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -354,6 +358,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "dbW_sources", prepared = TRUE, clean_subsequent = TRUE)
+
+    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -368,6 +374,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+
       make_dbW(SFSW2_prj_meta, SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
         opt_parallel, opt_chunks, opt_behave,
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
@@ -375,6 +386,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_current", prepared = TRUE, clean_subsequent = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
     } else {
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
@@ -397,6 +410,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "soil_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -417,6 +432,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "climnorm_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -437,6 +454,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "elev_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -449,6 +468,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
 
       temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, resume = opt_behave[["resume"]], opt_verbosity, opt_chunks)
@@ -458,6 +481,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_scenarios", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -483,6 +508,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "req_soillayers", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -500,6 +527,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "calc_bsevap", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -538,6 +567,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "table_lookup", prepared = TRUE)
+
+    #save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -570,10 +601,10 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
     return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
   }
 
-  on.exit(saveRDS(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]),
-    add = TRUE)
-  on.exit(saveRDS(SFSW2_prj_inputs, file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]),
-    add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
+    file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
 
   #--- Checking input 'SWRunInformation'

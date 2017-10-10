@@ -12,11 +12,24 @@
 # NOTE: The values cannot be changed once a rSFSW2 simulation project is set up. The
 #  values of settings (file demo/SFSW2_project_settings.R) may be changed from run to run.
 
+#----- Metainformation about computing platform
+opt_platform <- list(
+  host = c("local", "hpc")[1],
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
+)
+
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
-    temp <- "SFSW2_default_project" # "~/YOURPROJECT"
+    temp <- if (identical(opt_platform[["host"]], "local")) {
+        "SFSW2_default_project" # "~/YOURPROJECT"
+      } else if (identical(opt_platform[["host"]], "hpc")) {
+        getwd()
+      }
 
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
@@ -39,7 +52,11 @@ project_paths <- list(
   dir_in_gissm = file.path(dir_in, "regeneration"),
 
   # Path to where large outputs are saved to disk
-  dir_big = dir_big <- dir_prj,
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -52,7 +69,11 @@ project_paths <- list(
   dir_out_traces = file.path(dir_out, "Time_Traces"),
 
   # Path from where external data are extraced
-  dir_external = dir_ex <- file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"),
+  dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"),
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data"),
+    },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -95,7 +116,11 @@ fnames_in <- list(
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
-  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3"),
+  fdbWeather = if (identical(opt_platform[["host"]], "local")) {
+      file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
+    },
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
