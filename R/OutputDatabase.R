@@ -1086,7 +1086,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
         SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }

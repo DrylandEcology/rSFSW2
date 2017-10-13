@@ -37,6 +37,53 @@ seq_month_ofeach_day <- function(from = list(year = 1900, month = 1, day = 1),
 }
 
 
+#' Determine maximal span of simulation years across all experimental and design
+#' treatments
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param SFSW2_prj_inputs An object as returned from function
+#'  \code{\link{process_inputs}}.
+#' @return The object \code{st} augmented with two named elements \itemize{
+#'  \item \code{overall_simstartyr} which is the earliest year requested by any input
+#'  \item \code{overall_endyr} which is the last year requested by any input
+#' }
+determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
+
+  stopifnot(!is.null(st[["simstartyr"]]), !is.null(st[["endyr"]]))
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearStart")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearStart"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearStart"]
+      } else NA
+
+    st[["overall_simstartyr"]] <- min(st[["simstartyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_simstartyr"]] <- st[["simstartyr"]]
+  }
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearEnd")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearEnd"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearEnd"]
+      } else NA
+
+    st[["overall_endyr"]] <- max(st[["endyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_endyr"]] <- st[["endyr"]]
+  }
+
+  st
+}
+
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   adjust_NS = FALSE) {
 

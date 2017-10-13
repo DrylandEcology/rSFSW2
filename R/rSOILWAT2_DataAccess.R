@@ -1,7 +1,7 @@
 #' rSOILWAT2 data access functions
 #'
 #' @param x An object of class \code{\linkS4class{swOutput}}.
-#' @param st An object as returned from the function \code{setup_simulation_time}.
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
 #'
 #' @name swOutput_access
 NULL
