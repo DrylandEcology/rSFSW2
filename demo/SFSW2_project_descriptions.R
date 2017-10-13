@@ -151,20 +151,20 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res.; data expected at file.path(
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res.; data expected at file.path(
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res.; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950–2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res.; use with dbW; data expected at file.path(
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res.; data expected at file.path(
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
 
