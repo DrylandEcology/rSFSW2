@@ -70,9 +70,9 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"),
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
     } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data"),
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
     },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
