@@ -15,7 +15,7 @@ An invisible zero. A list of which each element represents one year of daily
    precipitation.
 }
 \description{
-Extract gridded daily weather from NR Canada for Canadian sites
+Data are available for years 1950-2013 at a 10-km resolution.
 }
 \references{
 Hopkinson, R. F., D. W. McKenney, E. J. Milewska, M. F. Hutchinson,

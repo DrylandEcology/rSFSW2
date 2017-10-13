@@ -220,3 +220,50 @@ simTiming_ForEachUsedTimeUnit <- function(st,
 
   res
 }
+
+
+#' Check requested years
+#'
+#' @param start_year An integer value. The requested first year to extract weather data.
+#' @param end_year An integer value. The requested last year to extract weather data.
+#' @param has_start_year An integer value. The available first year of the weather data.
+#' @param has_end_year An integer value. The available last year of the weather data.
+#' @param temp_call A character string. An identifier of the calling function used for
+#'  printing.
+#' @param verbose A logical value. If \code{TRUE} prints statements if first or last year
+#'  were updated.
+#'
+#' @return A list with two named elements \itemize{
+#'  \item \code{start_year} to updated first year no smaller than \code{has_start_year}
+#'  \item \code{end_year} to updated last year no larger than \code{has_end_year}
+#'  }
+update_requested_years <- function(start_year, end_year, has_start_year, has_end_year,
+  temp_call = NULL, verbose = FALSE) {
+
+  if (start_year < has_start_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested start year ", start_year, " was changed to ",
+        has_start_year, "."))
+    }
+    start_year <- as.integer(has_start_year)
+
+  } else {
+    start_year <- as.integer(start_year)
+  }
+
+  if (end_year > has_end_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested end year ", end_year, " was changed to ",
+        has_end_year, "."))
+    }
+    end_year <- as.integer(has_end_year)
+
+  } else {
+    end_year <- as.integer(end_year)
+  }
+
+
+  list(start_year = start_year, end_year = end_year)
+}

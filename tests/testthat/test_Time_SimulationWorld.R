@@ -112,3 +112,19 @@ test_that("Obtain time information", {
   }
 })
 
+
+test_that("Check years", {
+  expect_silent(x <- update_requested_years(2000, 2010, 1950, 2010, verbose = FALSE))
+  expect_equal(x[["start_year"]], 2000L)
+  expect_equal(x[["end_year"]], 2010L)
+
+  expect_output(x <- update_requested_years(1940, 2010, 1950, 2010, verbose = TRUE),
+    regexp = "requested start year")
+  expect_equal(x[["start_year"]], 1950L)
+  expect_equal(x[["end_year"]], 2010L)
+
+  expect_output(x <- update_requested_years(2000, 2020, 1950, 2010, verbose = TRUE),
+    regexp = "requested end year")
+  expect_equal(x[["start_year"]], 2000L)
+  expect_equal(x[["end_year"]], 2010L)
+})

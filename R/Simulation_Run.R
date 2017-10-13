@@ -785,8 +785,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   dir_data = project_paths[["dir_maurer2002"]],
                   cellname = with(i_SWRunInformation,
                     create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84)),
-                  startYear = isim_time[["simstartyr"]],
-                  endYear = isim_time[["endyr"]])
+                  start_year = isim_time[["simstartyr"]],
+                  end_year = isim_time[["endyr"]],
+                  verbose = opt_verbosity[["verbose"]])
 
       } else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
         i_sw_weatherList[[1]] <- with(i_SWRunInformation,
