@@ -1465,7 +1465,8 @@ dw_Maurer2002_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, si
 
   if (exinfo$GriddedDailyWeatherFromMaurer2002_NorthAmerica) {
     # Check which requested Maurer weather data are available
-    there <- sim_time[["simstartyr"]] >= 1949 && sim_time[["endyr"]] <= 2010
+    there <- sim_time[["overall_simstartyr"]] <= 2010 &&
+      sim_time[["overall_endyr"]] >= 1949
 
     if (any(there)) {
       Maurer <- with(site_dat,
@@ -1504,8 +1505,8 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
     #  - All Daymet years, including leap years, have 1 - 365 days. For leap years, the
     #   Daymet database includes leap day. Values for December 31 are discarded from leap
     #   years to maintain a 365-day year.
-    there <- sim_time[["simstartyr"]] >= 1980 &&
-      sim_time[["endyr"]] <= 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year - 1
+    there <- sim_time[["overall_simstartyr"]] <= 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year - 1 &&
+      sim_time[["overall_endyr"]] >= 1980
 
     if (any(there)) {
       there <- site_dat[, "X_WGS84"] >= -179 & site_dat[, "X_WGS84"] <= -5 &
@@ -1538,7 +1539,8 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat, sim_time
     #  - Grids domain: 141.00 to 52.00 W, 41.00 to 83.00 N
     #  - Grids datum: geographic NAD83
     #  - Columns: 1068, Rows: 510, Cells size: 0.083333333
-    there <- sim_time[["simstartyr"]] >= 1950 && sim_time[["endyr"]] <= 2013
+    there <- sim_time[["overall_simstartyr"]] <= 2013 &&
+      sim_time[["overall_endyr"]] >= 1950
     ftemp <- file.path(path, "1950", "max1950_1.asc")
 
     if (any(there) && file.exists(ftemp)) {
@@ -1575,7 +1577,8 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, si
 
   if (exinfo$GriddedDailyWeatherFromLivneh2013_NorthAmerica) {
     # Check which requested Livneh2013 weather data are available
-    there <- sim_time[["simstartyr"]] >= 1915 && sim_time[["endyr"]] <= 2011
+    there <- sim_time[["overall_simstartyr"]] <= 2011 &&
+      sim_time[["overall_endyr"]] >= 1915
     ftemp <- file.path(path, "Meteorology_Livneh_CONUSExt_v.1.2_2013.191501.nc")
 
     if (any(there) && file.exists(ftemp)) {
@@ -1607,7 +1610,8 @@ dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   if (exinfo$GriddedDailyWeatherFromNCEPCFSR_Global) {
     # Check which of the NCEPCFSR_Global weather data are available
     #  - Grids domain: 0E to 359.688E and 89.761N to 89.761S
-    there <- sim_time[["simstartyr"]] >= 1979 && sim_time[["endyr"]] <= 2010
+    there <- sim_time[["overall_simstartyr"]] <= 2010 &&
+      sim_time[["overall_endyr"]] >= 1979
 
     if (any(there)) {
       temp <- cbind(site_dat[, "X_WGS84"] >= -180, site_dat[, "X_WGS84"] <= 180,
