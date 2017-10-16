@@ -114,6 +114,9 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
+
+    rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
   }
 
   # Obtain siteIDs as seen by the weather database
@@ -128,9 +131,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   #--- Extract weather data and move to database based on inclusion-invariant 'site_id'
   if (do_add && length(add_runIDs_sites) > 0) {
-    rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
-    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
-
     # Extract weather data per site
     if (verbose)
       print(paste(Sys.time(), "started with moving single site weather data to database"))
@@ -282,7 +282,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         resume = opt_behave[["resume"]],
         dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
-        SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
         verbose = verbose)
     }
 
