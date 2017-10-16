@@ -84,6 +84,16 @@ determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
   st
 }
 
+#' Describe the time of a simulation project
+#'
+#' @param sim_time A list with at least values for three named elements: 'simstartyr' and
+#'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
+#' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
+#'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
+#' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
+#'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
+#'  \code{TRUE}.
+#' @param A named list, i.e., the updated version of \code{sim_time}.
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   adjust_NS = FALSE) {
 
@@ -148,6 +158,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   sim_time
 }
 
+
+#' Calculate indices along different time steps for simulation time
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
+#'  "weekly", "monthly", "yearly")}.
+#' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
+#'  adjustment is requested; however, the code extracts only the sign.
+#' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
+#'  corrected for locations on the southern vs. northern hemisphere.
+#' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
   sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
   account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
