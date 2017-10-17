@@ -64,13 +64,18 @@
 #include <math.h>
 #include <memory.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+// Required for 'fork' and 'waitpid'
+// see examples in http://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <sys/wait.h>
+
 
 /***************************************************
  * Basic definitions
@@ -421,21 +426,91 @@ double getWindSpeed(double u, double v) {
 
 // Used in R package rSFSW2
 // calls the system... will supress the output of the call if suppresswGrib2 is 1...
-void callSystem(char* call) {
+void callSystem(char* call, int printdebug) {
   #if defined(_WIN32) || defined(_WIN64)
-    printf("ERROR: multi-threading for function callSystem is not supported on Windows");
+    printf("ERROR: multi-threading for function callSystem is not supported on Windows\n");
     return;
 
   #else
-    int pid = fork();
-    if(pid == 0) { //child
-      if(suppresswGrib2 == 1) freopen("/dev/null", "w", stdout);
-      system(call);
-      return;
+    pid_t child_pid, wpid;
+    int status;
 
-    } else //parent
-        waitpid(0, NULL, 0);
+    if (printdebug > 0) {
+      printf("DEBUG: 'callSystem' is about to call 'fork'\n");
+    }
+    child_pid = fork();
+
+    if (child_pid == -1) {
+      printf("ERROR: fork failed\n");
+      // perror("fork");
+      // exit(EXIT_FAILURE);
+      return;
+    }
+
+    if (child_pid == 0) {
+      // This is on the child process: do some work
+      if (printdebug > 0) {
+        printf("DEBUG: 'callSystem' on child working on '%.100s[...]'\n", call);
+      }
+
+      if (suppresswGrib2 == 1) {
+        freopen("/dev/null", "w", stdout);
+      }
+
+      system(call);
+
+    } else {
+      //This is on the parent: wait for child process (pid) until exited or signalled
+      do {
+        if (printdebug > 0) {
+          printf("DEBUG: 'callSystem' on parent waiting for child pid=%d\n", child_pid);
+        }
+
+        // waitpid(0, NULL, 0);
+        wpid = waitpid(child_pid, &status, WUNTRACED
+          #ifdef WCONTINUED       /* Not all implementations support this */
+            | WCONTINUED
+          #endif
+          );
+
+        if (wpid == -1) {
+          printf("ERROR: waitpid failed for child pid = %d\n", child_pid);
+          return;
+          // perror("waitpid");
+          // exit(EXIT_FAILURE);
+        }
+
+        if (WIFEXITED(status)) {
+          if (printdebug > 0) {
+            printf("child pid=%d exited, status=%d\n", child_pid, WEXITSTATUS(status));
+          }
+
+        } else if (WIFSIGNALED(status)) {
+          if (printdebug > 0) {
+            printf("child pid=%d killed (signal %d)\n", child_pid, WTERMSIG(status));
+          }
+
+        } else if (WIFSTOPPED(status)) {
+          if (printdebug > 0) {
+            printf("child pid=%d stopped (signal %d)\n", child_pid, WSTOPSIG(status));
+          }
+
+        #ifdef WIFCONTINUED     /* Not all implementations support this */
+        } else if (WIFCONTINUED(status)) {
+          if (printdebug > 0) {
+            printf("child pid=%d continued\n", child_pid);
+          }
+        #endif
+
+        } else {    /* Non-standard case -- may never happen */
+          printf("Unexpected status (0x%x) of child pid=%d\n", status, child_pid);
+        }
+
+      } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
   #endif
+
+  return;
 }
 
 
@@ -481,6 +556,8 @@ void wgrib2(char *argv[]) {
 // calls wgrib2 to chop a daily grib file... changes the packing of the output grib file to complex3 also
 // type 0 is for tmax, type 1 is for tmin, and type 2 is for ppt
 void chopGribFile(char *inFileName, char *outFileName, char *tempFileName, char *tempFileName2, int type) {
+	int printdebug = 0;
+
 	if(type < 0 || type > 2) {
 		printf("Invalid chop type specified, exiting\n");
 		return;
@@ -490,7 +567,8 @@ void chopGribFile(char *inFileName, char *outFileName, char *tempFileName, char 
 
 	// chopping out unneeded variables... gets rid of the 1, 2, 3, 4, & 5 hourly variables that are not useful for our purposes
 	sprintf(systemCall, "./wgrib2 %s -if_n 6::6 -s -set_grib_type c3 -grib_out %s", inFileName, tempFileName);
-	callSystem(systemCall);
+	// callSystem(systemCall, printdebug);
+	system(systemCall);
 
 	//epic system call... rewrites the grib files, changing the 6 hourly values into daily values... for tmax it gets the max, for tmin it gets the min, for ppt it gets the accumulation...
 	if(type == 0)
@@ -499,11 +577,13 @@ void chopGribFile(char *inFileName, char *outFileName, char *tempFileName, char 
 		sprintf(systemCall, "./wgrib2 %s | grep \":d=$YYYYMMDD\" | ./wgrib2 -i %s -if '00:TMIN:' -rpn sto_1 -fi -if '06:TMIN:' -rpn sto_2 -fi -if '12:TMIN:' -rpn sto_3 -fi -if '18:TMIN:' -rpn sto_4 -fi -if_reg '1:2:3:4' -rpn 'rcl_1:rcl_2:rcl_3:rcl_4:min:min:min' -set_ave '4@6 hour max(0-6 hour max fcst),missing=0' -set_grib_type c3 -grib_out %s", tempFileName, tempFileName, tempFileName2);
 	else if(type == 2)
 		sprintf(systemCall, "./wgrib2 %s | grep \":d=$YYYYMMDD\" | ./wgrib2 -i %s -if '00:PRATE:' -rpn sto_1 -fi -if '06:PRATE:' -rpn sto_2 -fi -if '12:PRATE:' -rpn sto_3 -fi -if '18:PRATE:' -rpn sto_4 -fi -if_reg '1:2:3:4' -rpn 'rcl_1:rcl_2:rcl_3:rcl_4:+:+:+' -set_ave '4@6 hour max(0-6 hour max fcst),missing=0' -set_grib_type c3 -grib_out %s", tempFileName, tempFileName, tempFileName2);
-	callSystem(systemCall);
+	// callSystem(systemCall, printdebug);
+	system(systemCall);
 
 	// chops up the grib files even further, getting rid of more unnecessary values... leaving only what is truly necessary (ie 1 value for each day).
 	sprintf(systemCall, "./wgrib2 %s -if_n 1::4 -s -set_grib_type c3 -grib_out %s", tempFileName2, outFileName);
-	callSystem(systemCall);
+	// callSystem(systemCall, printdebug);
+	system(systemCall);
 
 	removeAFile(tempFileName);
 	removeAFile(tempFileName2);
@@ -583,7 +663,8 @@ void chopDailyGribFiles(char *directory) {
 // at the moment this call is only be used in R, this function and the dailyWeather2Write are an alternate way of doing the same thing as the other daily weather function...
 // nSites should be less then 900...
 // type 0 = tmax, 1 = tmin, 2 = ppt...
-void dailyWeather2(int nSites, double latitudes[], double longitudes[], int year, int month, int type) {
+void dailyWeather2(int nSites, double latitudes[], double longitudes[], int year,
+	int month, int type, int printdebug) {
 	// ./wgrib2 in.grb2 -lon 0 0 -lon 2 2 -lon 3 3 | grep -o ",val=[\-]*[0-9.0-9]\{1,\}"
 
 	char temp[chrBuf], tempMo[5], systemCall[32784]; //this is obscenely large and probably normally not recommended, but whatever...
@@ -610,12 +691,14 @@ void dailyWeather2(int nSites, double latitudes[], double longitudes[], int year
 	else if(type == 1) sprintf(systemCall, "%s > temporary_dy//tmin//tmin_%d%s.txt", systemCall, year, tempMo);
 	else if(type == 2) sprintf(systemCall, "%s > temporary_dy//ppt//ppt_%d%s.txt", systemCall, year, tempMo);
 
-	callSystem(systemCall);
+	// callSystem(systemCall, printdebug);
+	system(systemCall);
 }
 
 // Used in R package rSFSW2
-void C_dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int* year, int* month, int* type) {
-	dailyWeather2(*nSites, latitudes, longitudes, *year, *month, *type);
+void C_dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int* year,
+	int* month, int* type, int* printdebug) {
+	dailyWeather2(*nSites, latitudes, longitudes, *year, *month, *type, *printdebug);
 }
 
 // Used in R package rSFSW2
@@ -623,6 +706,7 @@ void C_dailyWeather2_R(int* nSites, double latitudes[], double longitudes[], int
 // this function takes the files output by dailyWeather2 and writes them into the weath.year file for each site... must be called for every year.
 // WARNING: this call opens & writes to lots of files, so there might be errors if your OS can't handle the amount of files it opens.
 void dailyWeather2Write(int nSites, char* siteNames[], char* siteDirs[], int year) {
+
 	char temp[chrBuf], tempMo[5];
 	double tmax, tmin, ppt;
 	FILE* siteFiles[nSites];
@@ -688,7 +772,9 @@ void C_dailyWeather2Write_R(int* nSites, char* siteNames[], char* siteDirs[], in
 // this function and writeMonthlyClimate2 do the same thing as writeMonthlyClimate, except in a different way...
 // this is only used in R at the moment... it outputs a file containing the values for the years specified for the type specified into a file in the siteDir for each site
 // type 0 = relative humidity, 1 = wind speed, 2 = cloud cover...
-void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* siteDirs[], int yearLow, int yearHigh, int type) {
+void monthlyClimate2(int nSites, double latitudes[], double longitudes[],
+	char* siteDirs[], int yearLow, int yearHigh, int type, int printdebug) {
+
 	char temp[chrBuf], inBuf[chrBuf], systemCall[32784]; //this is obscenely large and probably normally not recommended, but whatever...
 	int i, j, yr, mo, yrHigh=yearHigh, yrLow=yearLow;
 	double value;
@@ -710,7 +796,8 @@ void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* 
 	else if(type == 1) sprintf(systemCall, "%s > temporary_dy//ws.txt", systemCall);
 	else if(type == 2) sprintf(systemCall, "%s > temporary_dy//cc.txt", systemCall);
 
-	callSystem(systemCall);
+	// callSystem(systemCall, printdebug);
+	system(systemCall);
 
 	FILE* siteFiles[nSites];
 	for( i=0; i<nSites; i++) {
@@ -764,8 +851,11 @@ void monthlyClimate2(int nSites, double latitudes[], double longitudes[], char* 
 }
 
 // Used in R package rSFSW2
-void C_monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[], char* siteDirs[], int* yearLow, int* yearHigh, int* type) {
-	monthlyClimate2(*nSites, latitudes, longitudes, siteDirs, *yearLow, *yearHigh, *type);
+void C_monthlyClimate2_R(int* nSites, double latitudes[], double longitudes[],
+	char* siteDirs[], int* yearLow, int* yearHigh, int* type, int* printdebug) {
+
+	monthlyClimate2(*nSites, latitudes, longitudes, siteDirs, *yearLow, *yearHigh, *type,
+		*printdebug);
 }
 
 // Used in R package rSFSW2

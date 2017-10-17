@@ -35,7 +35,7 @@ update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData, fdbWeather =
 #' Create and populate a 'rSOILWAT2' daily weather SQLite database
 #' @export
 make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
-  opt_behave, deleteTmpSQLFiles, verbose = FALSE) {
+  opt_behave, deleteTmpSQLFiles, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -114,10 +114,11 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
-
-    rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
-    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
   }
+
+  rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
 
   # Obtain siteIDs as seen by the weather database
   if (length(add_runIDs_sites) > 0) {
@@ -283,7 +284,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         dbW_compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
         dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
-        verbose = verbose)
+        verbose = verbose, print.debug = print.debug)
     }
 
     oe <- sys.on.exit()
@@ -357,9 +358,14 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data, dir.cfsr.code = d
 
 
 # Wrapper functions for C code to access NCEP/CFSR data and write out to temporary files
-gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
-  if (id %% 36 == 1)
-    print(paste(Sys.time(), ": NCEP/CFSR extraction: year =", do_daily[id, "years"]))
+gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes,
+  print.debug = FALSE) {
+
+  if (print.debug) {
+    print(paste(Sys.time(), ": NCEP/CFSR daily extraction: year =",
+      do_daily[id, "years"], "month =", do_daily[id, "months"], "variable =",
+      do_daily[id, "types"]))
+  }
 
   gribData <- .C(C_dailyWeather2_R,
             nSites = as.integer(nSites),
@@ -367,11 +373,13 @@ gribDailyWeatherData <- function(id, do_daily, nSites, latitudes, longitudes) {
             longitudes = as.double(longitudes),
             year = as.integer(do_daily[id, "years"]),
             month = as.integer(do_daily[id, "months"]),
-            type = as.integer(do_daily[id, "types"]))
+            type = as.integer(do_daily[id, "types"]),
+            printdebug = if (print.debug) 1L else 0L)
   1L
 }
 
 writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
+
   dataWrite <- .C(C_dailyWeather2Write_R,
             nSites = as.integer(nSites),
             siteNames = as.character(siteNames),
@@ -380,7 +388,13 @@ writeDailyWeatherData <- function(year, nSites, siteNames, siteDirsC) {
   1L
 }
 
-gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, yearLow, yearHigh) {
+gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, yearLow,
+  yearHigh, print.debug = FALSE) {
+
+  if (print.debug) {
+    print(paste(Sys.time(), ": monthly NCEP/CFSR extraction."))
+  }
+
   gribData <- .C(C_monthlyClimate2_R,
             nSites = as.integer(nSites),
             latitudes = as.double(latitudes),
@@ -388,7 +402,8 @@ gribMonthlyClimate <- function(type, nSites, latitudes, longitudes, siteDirsC, y
             siteDirs = as.character(siteDirsC),
             yearLow = as.integer(yearLow),
             yearHigh = as.integer(yearHigh),
-            type = as.integer(type))
+            type = as.integer(type),
+            printdebug = if (print.debug) 1L else 0L)
   1L
 }
 
@@ -870,9 +885,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 
 #TODO(drs): get rid of setwd()
 get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_digits = 2,
-                yearLow, yearHigh, dir_ex_cfsr, dir_temp,
-                n_site_per_core = 100,
-                rm_mc_files = FALSE, resume = FALSE) {
+  yearLow, yearHigh, dir_ex_cfsr, dir_temp, n_site_per_core = 100, rm_mc_files = FALSE,
+  resume = FALSE, print.debug = FALSE) {
 
 #str(dat_sites): 'data.frame':  n_sites obs. of  3 variables:
 # $ WeatherFolder: chr  ...
@@ -932,8 +946,9 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
     do_sites <- parallel::splitIndices(n_sites, ceiling(n_sites / n_site_per_core))
     do_daily <- expand.grid(types = seq_len(n_dailyvars) - 1, months = SFSW2_glovars[["st_mo"]], years = years)
 
-    dtemp <- getwd()
+    dir_prev <- getwd()
     setwd(dir_ex_cfsr)
+    on.exit(setwd(dir_prev), add = TRUE)
 
     # set up parallel
     if (SFSW2_glovars[["p_has"]]) {
@@ -959,24 +974,27 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
       lats <- dat_sites_todo[irows, "Y_WGS84"]
       dtemp <- dir_temp.sitesC[irows]
 
-#      if (opt_verbosity[["print.debug"]])
-#        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files", system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
+      if (print.debug) {
+        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files",
+          system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
+      }
 
       if (SFSW2_glovars[["p_has"]]) {
         if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
           if (daily) {
             nDailyReads <- Rmpi::mpi.applyLB(seq_len(nrow(do_daily)),
               gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
-              latitudes = lats, longitudes = longs)
+              latitudes = lats, longitudes = longs, print.debug = print.debug)
 
             nDailyWrites <- Rmpi::mpi.applyLB(years, writeDailyWeatherData,
               nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
               siteDirsC = dtemp)
           }
+
           if (monthly) {
             nMonthlyReads <- Rmpi::mpi.applyLB(0L:(n_climvars - 1L), gribMonthlyClimate,
               nSites = ntemp, latitudes = lats, longitudes = longs, siteDirsC = dtemp,
-              yearLow = yearLow, yearHigh = yearHigh)
+              yearLow = yearLow, yearHigh = yearHigh, print.debug = print.debug)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
             nMonthlyWrites <- Rmpi::mpi.applyLB(seq_len(n_sites_all),
@@ -985,18 +1003,21 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 
         } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
           if (daily) {
-            nDailyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = seq_len(nrow(do_daily)),
-              fun = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
-              latitudes = lats, longitudes = longs)
+            nDailyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+              x = seq_len(nrow(do_daily)), fun = gribDailyWeatherData,
+              do_daily = do_daily, nSites = ntemp, latitudes = lats, longitudes = longs,
+              print.debug = print.debug)
 
-            nDailyWrites <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = years, fun = writeDailyWeatherData,
-              nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
-              siteDirsC = dtemp)
+            nDailyWrites <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+              x = years, fun = writeDailyWeatherData, nSites = ntemp,
+              siteNames = dat_sites_todo[irows, "WeatherFolder"], siteDirsC = dtemp)
           }
+
           if (monthly) {
-            nMonthlyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = 0L:(n_climvars - 1L),
-              fun = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
-              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
+            nMonthlyReads <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+              x = 0L:(n_climvars - 1L), fun = gribMonthlyClimate, nSites = ntemp,
+              latitudes = lats, longitudes = longs, siteDirsC = dtemp, yearLow = yearLow,
+              yearHigh = yearHigh, print.debug = print.debug)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
             nMonthlyWrites <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = seq_len(n_sites_all),
@@ -1010,16 +1031,17 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
           if (daily) {
             nDailyReads <- lapply(X = seq_len(nrow(do_daily)),
               FUN = gribDailyWeatherData, do_daily = do_daily, nSites = ntemp,
-              latitudes = lats, longitudes = longs)
+              latitudes = lats, longitudes = longs, print.debug = print.debug)
 
             nDailyWrites <- lapply(X = years, FUN = writeDailyWeatherData,
               nSites = ntemp, siteNames = dat_sites_todo[irows, "WeatherFolder"],
               siteDirsC = dtemp)
           }
+
           if (monthly) {
-            nMonthlyReads <- lapply(X = 0L:(n_climvars - 1L),
-              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
-              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow, yearHigh = yearHigh)
+            nMonthlyReads <- lapply(X = 0L:(n_climvars - 1L), FUN = gribMonthlyClimate,
+              nSites = ntemp, latitudes = lats, longitudes = longs, siteDirsC = dtemp,
+              yearLow = yearLow, yearHigh = yearHigh, print.debug = print.debug)
           }
           if (monthly && k == length(do_sites)) { # only do at the end
             nMonthlyWrites <- lapply(X = seq_len(n_sites_all),
@@ -1042,8 +1064,6 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
         stopifnot(nMonthlyWrites == n_sites)
       }
     }
-
-    setwd(dtemp)
   }
 
 
@@ -1101,7 +1121,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, dat_sites,
   tag_WeatherFolder, start_year, end_year, meta_cfsr, n_site_per_core = 100,
   rm_temp = TRUE, resume = FALSE, dir_temp = tempdir(), dbW_compression_type = "gzip",
-  dbW_digits, verbose = FALSE) {
+  dbW_digits, verbose = FALSE, print.debug = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1126,7 +1146,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, da
     dir_temp = dir_temp,
     n_site_per_core = n_site_per_core,
     rm_mc_files = TRUE,
-    resume = resume)
+    resume = resume,
+    print.debug = print.debug)
 
   # move the weather data into the database
   for (i in seq_along(site_ids)) {

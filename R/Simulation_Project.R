@@ -385,7 +385,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       make_dbW(SFSW2_prj_meta, SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
         opt_parallel, opt_chunks, opt_behave,
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
-        verbose = opt_verbosity[["verbose"]])
+        verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_current", prepared = TRUE, clean_subsequent = TRUE)
