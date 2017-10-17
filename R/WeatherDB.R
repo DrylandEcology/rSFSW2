@@ -1177,8 +1177,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, da
   }
 
   if (rm_temp) {
-    dir.remove(etemp$dir_temp_cfsr)
-    dir.remove(meta_cfsr$dir_ex_cfsr)
+    unlink(etemp$dir_temp_cfsr, recursive = TRUE)
+    unlink(meta_cfsr$dir_ex_cfsr, recursive = TRUE)
   }
 
   invisible(0)

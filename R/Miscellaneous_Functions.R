@@ -265,21 +265,6 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   }
   invisible(1)
 }
-#remove directory and content
-dir.remove <- function(dir) {
-  file.list <- try(list.files(dir, all.files = TRUE))
-  file.list <- file.list[-which(file.list %in% c(".", ".."))]
-  dir.list <- basename(list.dirs2(dir, full.names = FALSE, recursive = FALSE))
-  if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) dir.remove(dir = file.path(dir, x)))
-    file.list <- file.list[-match(dir.list, table = file.list, nomatch = 0)]
-  }
-  if (length(file.list) > 0) {
-    sapply(file.list, function(x) file.remove(file.path(dir, x)))
-  }
-  file.remove(dir)
-}
-
 
 #' Create the elements of paths
 #'
