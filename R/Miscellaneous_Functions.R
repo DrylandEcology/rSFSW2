@@ -253,7 +253,10 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   dir.list <- basename(list.dirs2(dir.from, full.names = FALSE, recursive = FALSE))
   file.list <- list.files(dir.from)
   if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) {Recall(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x), overwrite = overwrite)})
+    sapply(dir.list, function(x) {
+      dir.copy(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x),
+      overwrite = overwrite)
+    })
     #file.list <- file.list[-match(dir.list, table = file.list)] #this line gives an error when run in R v. 2.13
     file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
   }
@@ -268,11 +271,11 @@ dir.remove <- function(dir) {
   file.list <- file.list[-which(file.list %in% c(".", ".."))]
   dir.list <- basename(list.dirs2(dir, full.names = FALSE, recursive = FALSE))
   if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) Recall(dir = file.path(dir, x)))
-    file.list <- file.list[-match(dir.list, table = file.list)]
+    sapply(dir.list, function(x) dir.remove(dir = file.path(dir, x)))
+    file.list <- file.list[-match(dir.list, table = file.list, nomatch = 0)]
   }
   if (length(file.list) > 0) {
-    sapply(file.list, function(x) {file.remove(file.path(dir, x))})
+    sapply(file.list, function(x) file.remove(file.path(dir, x)))
   }
   file.remove(dir)
 }

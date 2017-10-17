@@ -1178,8 +1178,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, da
 
   if (rm_temp) {
     dir.remove(etemp$dir_temp_cfsr)
-    temp <- lapply(c("ppt", "tmax", "tmin"), function(x)
-      dir.remove(file.path(meta_cfsr$dir_ex_cfsr, "temporary_dy", x)))
+    dir.remove(meta_cfsr$dir_ex_cfsr)
   }
 
   invisible(0)
