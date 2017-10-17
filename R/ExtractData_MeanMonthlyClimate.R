@@ -288,7 +288,8 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
         "sites"))
 
     if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
-      inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error")) {
+      inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error") ||
+      !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])) {
 
       SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
         dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
@@ -309,7 +310,8 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
       dir_ex_cfsr = SFSW2_prj_meta[["prepd_CFSR"]]$dir_ex_cfsr,
       dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       n_site_per_core = opt_chunks[["ExtractSkyDataFromNCEPCFSR_Global"]],
-      rm_mc_files = TRUE, resume = resume))
+      rm_mc_files = TRUE, resume = resume,
+      print.debug = opt_verbosity[["print.debug"]]))
 
     if (inherits(temp, "try-error"))
       stop(temp)

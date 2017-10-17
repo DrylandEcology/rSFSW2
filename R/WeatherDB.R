@@ -262,7 +262,10 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     }
 
     if (length(ids_NCEPCFSR_extraction) > 0) {
-      if (is.null(SFSW2_prj_meta[["prepd_CFSR"]])) {
+      if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
+        inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error") ||
+        !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])) {
+
         SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
           dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
           dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
@@ -1064,6 +1067,8 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
         stopifnot(nMonthlyWrites == n_sites)
       }
     }
+
+    setwd(dir_prev)
   }
 
 
