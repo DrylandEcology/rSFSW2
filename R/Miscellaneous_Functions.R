@@ -868,7 +868,8 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
 get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
   if (field_include %in% names(SWRunInformation)) {
-    SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+    temp <- SWRunInformation[sim_size[["runIDs_sites"]], field_include]
+    is.na(temp) | temp > 0
   } else {
     rep(TRUE, sim_size[["runsN_sites"]])
   }
