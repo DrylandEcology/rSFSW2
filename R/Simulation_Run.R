@@ -1909,7 +1909,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           # Fraction of rain that falls on snow
           rainOnSnow <- ifelse(SWE.dy$val > 0, prcp.dy$rain, 0)
-          rainOnSnow <- tapply(rainOnSnow, simTime2$year_ForEachUsedDay, sum)
+          rainOnSnow <- as.matrix(tapply(rainOnSnow, simTime2$year_ForEachUsedDay, sum))
           rainOnSnow <- rainOnSnow / prcp.yr$ppt
 
           resMeans[nv] <- mean(rainOnSnow, na.rm = TRUE)
@@ -2301,14 +2301,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_percolation"]), "Year")
           drain.topTobottom <- if (length(topL) > 1 && length(bottomL) > 0 && !identical(bottomL, 0)) {
-              temp1[isim_time$index.useyr, 1+DeepestTopLayer]
+              temp1[isim_time$index.useyr, 1+DeepestTopLayer, drop = FALSE]
             } else NA
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_hd"]), "Year")
           hydred.topTobottom <- if (length(topL) > 1) {
-              apply(temp1[isim_time$index.useyr, 1+topL], 1, sum)
+              apply(temp1[isim_time$index.useyr, 1+topL, drop = FALSE], 1, sum)
             } else {
-              temp1[isim_time$index.useyr, 1+topL]
+              temp1[isim_time$index.useyr, 1+topL, drop = FALSE]
             }
 
           temp1 <- 10 * slot(slot(runDataSC, swof["sw_swcbulk"]), "Day")
@@ -4480,7 +4480,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             if (any(prj_todos[["otrace"]] == "dailyRegeneration_GISSM")) {
               #Table with data for every year
               res1.yr.doy <- t(simplify2array(by(dat_gissm1, INDICES = year_ForEachUsedRYDay,
-                FUN = function(x) get.DoyMostFrequentSuccesses(x, dat_gissm1))))[isim_time$index.useyr, ]
+                FUN = function(x) get.DoyMostFrequentSuccesses(x, dat_gissm1))))[isim_time$index.useyr, , drop = FALSE]
 
               res.yr <- data.frame(data.frame(res1.yr_v0, res2.yr_v0[, -1], res3.yr_v0)[index_RYuseyr, ], SeedlingMortality_CausesByYear, res1.yr.doy)
               temp.header2 <- c("DaysWith_GerminationSuccess", "DaysWith_SeedlingSurvival1stSeason",

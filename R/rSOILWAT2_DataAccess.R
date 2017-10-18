@@ -127,7 +127,7 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Temp_yr <- function(x, st) {
-  list(mean = slot(slot(x, "TEMP"), "Year")[st$index.useyr, 4])
+  list(mean = slot(slot(x, "TEMP"), "Year")[st$index.useyr, 4, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -165,9 +165,12 @@ get_VPD_dy <- function(sc, temp.dy, xin, st2) {
 }
 
 get_PPT_yr <- function(x, st) {
-  x <- 10 * slot(slot(x, "PRECIP"), "Year")[st$index.useyr, ]
-  list(ppt = x[, 2], rain = x[, 3],
-       snowfall = x[, 4], snowmelt = x[, 5], snowloss = x[, 6])
+  x <- 10 * slot(slot(x, "PRECIP"), "Year")[st$index.useyr, , drop = FALSE]
+  list(ppt = x[, 2, drop = FALSE],
+    rain = x[, 3, drop = FALSE],
+    snowfall = x[, 4, drop = FALSE],
+    snowmelt = x[, 5, drop = FALSE],
+    snowloss = x[, 6, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -189,7 +192,7 @@ get_PPT_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_PET_yr <- function(x, st) {
-  list(val = 10 * slot(slot(x, "PET"), "Year")[st$index.useyr, 2])
+  list(val = 10 * slot(slot(x, "PET"), "Year")[st$index.useyr, 2, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -201,7 +204,7 @@ get_PET_mo <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_AET_yr <- function(x, st) {
-  list(val = 10 * slot(slot(x, "AET"), "Year")[st$index.useyr, 2])
+  list(val = 10 * slot(slot(x, "AET"), "Year")[st$index.useyr, 2, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -231,7 +234,7 @@ get_SWE_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Inf_yr <- function(x, st) {
-  list(inf = 10 * slot(slot(x, "SOILINFILT"), "Year")[st$index.useyr, 2])
+  list(inf = 10 * slot(slot(x, "SOILINFILT"), "Year")[st$index.useyr, 2, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -249,11 +252,11 @@ get_Inf_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Esurface_yr <- function(x, st) {
-  x <- 10 * slot(slot(x, "EVAPSURFACE"), "Year")[st$index.useyr, ]
-  list(sum = x[, 2],
-       veg = rowSums(x[, 3:6]),
-       litter = x[, 7],
-       surfacewater = x[, 8])
+  x <- 10 * slot(slot(x, "EVAPSURFACE"), "Year")[st$index.useyr, , drop = FALSE]
+  list(sum = x[, 2, drop = FALSE],
+       veg = rowSums(x[, 3:6, drop = FALSE]),
+       litter = x[, 7, drop = FALSE],
+       surfacewater = x[, 8, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -261,7 +264,7 @@ get_Esurface_yr <- function(x, st) {
 get_Esurface_dy <- function(x, st) {
   x <- 10 * slot(slot(x, "EVAPSURFACE"), "Day")[st$index.usedy, ]
   list(sum = x[, 3],
-       veg = rowSums(x[, 4:7]),
+       veg = rowSums(x[, 4:7, drop = FALSE]),
        litter = x[, 8],
        surfacewater = x[, 9])
 }
@@ -269,10 +272,10 @@ get_Esurface_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Interception_yr <- function(x, st) {
-  x <- 10 * slot(slot(x, "INTERCEPTION"), "Year")[st$index.useyr, ]
-  list(sum = x[, 2],
-       veg = rowSums(x[, 3:6]),
-       litter = x[, 7])
+  x <- 10 * slot(slot(x, "INTERCEPTION"), "Year")[st$index.useyr, , drop = FALSE]
+  list(sum = x[, 2, drop = FALSE],
+       veg = rowSums(x[, 3:6, drop = FALSE]),
+       litter = x[, 7, drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -305,10 +308,10 @@ get_Runoff_mo <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Runoff_yr <- function(x, st) {
-  x <- 10 * slot(slot(x, "RUNOFF"), "Year")[st$index.useyr, ]
-  list(val = x[, 2],
-       ponded = x[, 3],
-       snowmelt = x[, 4])
+  x <- 10 * slot(slot(x, "RUNOFF"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 2, drop = FALSE],
+       ponded = x[, 3, drop = FALSE],
+       snowmelt = x[, 4, drop = FALSE])
 }
 
 # TODO: move to rSOILWAT2
