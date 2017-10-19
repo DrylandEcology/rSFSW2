@@ -74,7 +74,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
+#if !defined(_WIN32) & !defined(_WIN64)
+  // fork(), exec*(), and wait/waitpid() are POSIX and not Windows
+  #include <sys/wait.h>
+#endif
+
 
 
 /***************************************************

@@ -938,6 +938,10 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
   n_sites_all <- nrow(dat_sites)
 
   if (n_sites > 0) {
+    if (identical(.Platform$OS.type, "windows")) {
+      stop("'get_NCEPCFSR_data' is currently not supported in 'windows' platforms.")
+    }
+
     dat_sites_todo <- dat_sites[i_todo, ]
 
     dir.create(dir_temp_cfsr, showWarnings = FALSE)
