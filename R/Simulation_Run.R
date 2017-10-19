@@ -2112,7 +2112,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (prj_todos[["aon"]]$yearlyDryWetPeriods) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyDryWetPeriods")
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
-          temp.rle <- rle(sign(prcp.yr$ppt - mean(prcp.yr$ppt)))
+          temp.rle <- rle(as.vector(sign(prcp.yr$ppt - mean(prcp.yr$ppt))))
 
           resMeans[nv:(nv+1)] <- c(stats::quantile(temp.rle$lengths[temp.rle$values == -1], probs = 0.9, type = 7), stats::quantile(temp.rle$lengths[temp.rle$values == 1], probs = 0.9, type = 7))
           nv <- nv+2
@@ -2683,7 +2683,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 #   - Annual precipitation that is plus or minus one standard precipitation
                 #   - and Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months
                 MAP <- c(mean(prcp.yr$ppt), stats::sd(prcp.yr$ppt))
-                normal1 <- (prcp.yr$ppt >= MAP[1] - MAP[2]) & (prcp.yr$ppt <= MAP[1] + MAP[2])
+                normal1 <- as.vector((prcp.yr$ppt >= MAP[1] - MAP[2]) &
+                    (prcp.yr$ppt <= MAP[1] + MAP[2]))
                 MMP <- tapply(prcp.mo$ppt, simTime2$month_ForEachUsedMonth_NSadj,
                   function(x) c(mean(x), stats::sd(x)))
                 MMP <- matrix(unlist(MMP), nrow = 2, ncol = 12)
