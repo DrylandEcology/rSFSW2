@@ -42,7 +42,8 @@ opt_parallel <- list(
   parallel_runs = !interactive() && !SFSW2_prj_meta[["opt_platform"]][["no_parallel"]],
   # Number of cores/workers/slaves if job is run in parallel
   num_cores = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")) {
-      4
+      if (identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "false") ||
+          identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "")) 4 else 2
     } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
       4
     },

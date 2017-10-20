@@ -15,10 +15,7 @@
 #----- Metainformation about computing platform
 opt_platform <- list(
   host = c("local", "hpc")[1],
-  no_parallel = any(
-    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
-    identical(tolower(Sys.getenv("TRAVIS")), "true"),
-    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
+  no_parallel = identical(tolower(Sys.getenv("NOT_CRAN")), "false")
 )
 
 
