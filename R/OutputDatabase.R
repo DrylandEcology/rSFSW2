@@ -1086,7 +1086,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
         SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
@@ -1273,14 +1273,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (useTreatments) {
       use_start <- colnames(db_treatments) == "YearStart"
       use_end <- colnames(db_treatments) == "YearEnd"
-      i_use <- seq_len(ncol(db_treatments))
-      if (any(use_start))
-        i_use <- i_use[!use_start]
-      if (any(use_end))
-        i_use <- i_use[!use_end]
+      i_use <- rep(TRUE, ncol(db_treatments))
+      i_use[use_start] <- FALSE
+      i_use[use_end] <- FALSE
+
       temp <- db_treatments_column_types[, "table"] == 0
       temp <- db_treatments_column_types[temp, "column"]
       db_combined_exp_treatments[, temp] <- db_treatments[, i_use]
+
       #Handle StartYear and EndYear separately
       if (any(use_start) && !is.null(db_treatments_years) &&
         db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) {
@@ -1342,6 +1342,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"],
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
+    # Replace NAs with values from SFSW2_prj_meta[["sim_time"]]
+    if (anyNA(simulation_years[, "simulationStartYear"])) {
+      ids <- is.na(simulation_years[, "simulationStartYear"])
+      simulation_years[ids, "simulationStartYear"] <- SFSW2_prj_meta[["sim_time"]][["simstartyr"]]
+    }
+    if (anyNA(simulation_years[, "StartYear"])) {
+      ids <- is.na(simulation_years[, "StartYear"])
+      simulation_years[ids, "StartYear"] <- SFSW2_prj_meta[["sim_time"]][["startyr"]]
+    }
+    if (anyNA(simulation_years[, "EndYear"])) {
+      ids <- is.na(simulation_years[, "EndYear"])
+      simulation_years[ids, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
+    }
+
+    # Create unique table of simulation years
     unique_simulation_years <- unique(simulation_years)
     if (nrow(unique_simulation_years) == nrow(simulation_years)) {
       # each row is unique so add id to db_combined
@@ -1351,25 +1366,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       db_combined_exp_treatments[, "simulation_years_id"] <- unique_simulation_years[, "id"]
 
     } else {
-      #treatment table has a map to reduced rows in simulation_years
-      temp <- duplicated(simulation_years)
-      sim_years_unique_map <- rep(NA, nrow(simulation_years))
-      temp2 <- data.frame(t(simulation_years))
-      sim_years_unique_map[temp] <- match(data.frame(t(simulation_years[temp, ])), temp2)
-      sim_years_unique_map[!temp] <- match(data.frame(t(simulation_years[!temp, ])), temp2)
-      treatments_toYears_map <- unique(sim_years_unique_map)
-      sim_years_unique_map <- sapply(sim_years_unique_map, function(x)
-        which(treatments_toYears_map == x))
-      db_combined_exp_treatments[, "simulation_years_id"] <- sim_years_unique_map
+      # create map to unique rows in simulation_years
+      temp <- duplicated(simulation_years, fromLast = FALSE) |
+        duplicated(simulation_years, fromLast = TRUE)
+      ids_sy <- apply(simulation_years, 1, paste, collapse = "_")
+      db_combined_exp_treatments[, "simulation_years_id"] <- match(ids_sy, ids_sy)
     }
 
-    dtemp <- unique_simulation_years[, c("simulationStartYear", "StartYear", "EndYear")]
+    unique_simulation_years <- data.frame(unique_simulation_years[, c("simulationStartYear",
+      "StartYear", "EndYear")])
 
   } else {
     #Treatment option for simulation Years is turned off. Get the default one from settings.
     db_combined_exp_treatments$simulation_years_id <- 1
 
-    dtemp <- data.frame(
+    unique_simulation_years <- data.frame(
       simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
       StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]],
       EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
@@ -1378,7 +1389,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   # write to the database
   sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(dtemp))
+  DBI::dbBind(rs, param = as.list(unique_simulation_years))
   DBI::dbClearResult(rs)
 
   #Insert the data into the treatments table

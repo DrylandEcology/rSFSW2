@@ -37,6 +37,63 @@ seq_month_ofeach_day <- function(from = list(year = 1900, month = 1, day = 1),
 }
 
 
+#' Determine maximal span of simulation years across all experimental and design
+#' treatments
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param SFSW2_prj_inputs An object as returned from function
+#'  \code{\link{process_inputs}}.
+#' @return The object \code{st} augmented with two named elements \itemize{
+#'  \item \code{overall_simstartyr} which is the earliest year requested by any input
+#'  \item \code{overall_endyr} which is the last year requested by any input
+#' }
+determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
+
+  stopifnot(!is.null(st[["simstartyr"]]), !is.null(st[["endyr"]]))
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearStart")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearStart"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearStart"]
+      } else NA
+
+    st[["overall_simstartyr"]] <- min(st[["simstartyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_simstartyr"]] <- st[["simstartyr"]]
+  }
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearEnd")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearEnd"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearEnd"]
+      } else NA
+
+    st[["overall_endyr"]] <- max(st[["endyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_endyr"]] <- st[["endyr"]]
+  }
+
+  st
+}
+
+#' Describe the time of a simulation project
+#'
+#' @param sim_time A list with at least values for three named elements: 'simstartyr' and
+#'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
+#' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
+#'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
+#' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
+#'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
+#'  \code{TRUE}.
+#' @param A named list, i.e., the updated version of \code{sim_time}.
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   adjust_NS = FALSE) {
 
@@ -101,6 +158,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   sim_time
 }
 
+
+#' Calculate indices along different time steps for simulation time
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
+#'  "weekly", "monthly", "yearly")}.
+#' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
+#'  adjustment is requested; however, the code extracts only the sign.
+#' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
+#'  corrected for locations on the southern vs. northern hemisphere.
+#' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
   sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
   account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
@@ -172,4 +240,51 @@ simTiming_ForEachUsedTimeUnit <- function(st,
   }
 
   res
+}
+
+
+#' Check requested years
+#'
+#' @param start_year An integer value. The requested first year to extract weather data.
+#' @param end_year An integer value. The requested last year to extract weather data.
+#' @param has_start_year An integer value. The available first year of the weather data.
+#' @param has_end_year An integer value. The available last year of the weather data.
+#' @param temp_call A character string. An identifier of the calling function used for
+#'  printing.
+#' @param verbose A logical value. If \code{TRUE} prints statements if first or last year
+#'  were updated.
+#'
+#' @return A list with two named elements \itemize{
+#'  \item \code{start_year} to updated first year no smaller than \code{has_start_year}
+#'  \item \code{end_year} to updated last year no larger than \code{has_end_year}
+#'  }
+update_requested_years <- function(start_year, end_year, has_start_year, has_end_year,
+  temp_call = NULL, verbose = FALSE) {
+
+  if (start_year < has_start_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested start year ", start_year, " was changed to ",
+        has_start_year, "."))
+    }
+    start_year <- as.integer(has_start_year)
+
+  } else {
+    start_year <- as.integer(start_year)
+  }
+
+  if (end_year > has_end_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested end year ", end_year, " was changed to ",
+        has_end_year, "."))
+    }
+    end_year <- as.integer(has_end_year)
+
+  } else {
+    end_year <- as.integer(end_year)
+  }
+
+
+  list(start_year = start_year, end_year = end_year)
 }

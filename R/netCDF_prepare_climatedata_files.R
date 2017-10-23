@@ -220,7 +220,7 @@ time_agrees_with_ncfilename <- function(filename, ftime) {
 #' }
 #' @export
 prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
-dir_concatables, dir_delete, dir_scrutinize, dir_out, climDB_tag = NULL,
+  dir_concatables, dir_delete, dir_scrutinize, dir_out, climDB_tag = NULL,
   climDB_meta = NULL) {
 
   stopifnot(!(is.null(climDB_tag) && is.null(climDB_meta)))
@@ -366,7 +366,7 @@ dir_concatables, dir_delete, dir_scrutinize, dir_out, climDB_tag = NULL,
 
           # Check that time units are unique
           comp_time2 <- unname(sapply(seq_along(ffrom), function(k) {
-              temp <- get_nc_time_axis(ffrom[k], dim_time = f_attr_times[[k]][["dim_time"]])
+              temp <- get_nc_time_axis(ffrom[k], dim_time = f_attr_time[[k]][["dim_time"]])
               !anyNA(temp) && identical(anyDuplicated(format(temp, format = "%Y%m")), 0L)
             }))
 
@@ -484,7 +484,7 @@ dir_concatables, dir_delete, dir_scrutinize, dir_out, climDB_tag = NULL,
 
                 # concatenate cut output files
                 temp_fouts <- file.path("..", basename(dir_concatables),
-                  basename(na.exclude(temp_fouts)))
+                  basename(stats::na.exclude(temp_fouts)))
 
                 if (!identical(basename(temp_fouts), basename(fout_concat))) {
                   cmd_ncrcat <- paste0("ncrcat",
