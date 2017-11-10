@@ -113,7 +113,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     #locations of simulation runs
     sites_noaaca <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
-    noaaca <- rgdal::readOGR(dsn = dir_noaaca[["RH"]], layer = files_shp[["RH"]][1], verbose = FALSE)
+    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]), layer = files_shp[["RH"]][1], verbose = FALSE)
     crs_data <- raster::crs(noaaca)
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
       sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)  #transform graphics::points to grid-coords
@@ -177,7 +177,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
         args_chunk[["coords"]] <- args_chunk[["coords"]][do_chunks[[ic]], ]
 
       MMC[["data"]][iextr, iv, m] <- do.call("extract_rSFSW2", args = c(args_chunk,
-        x = list(dir_noaaca[[iv]]), file_shp = list(files_shp[[iv]][m]),
+        x = list(path.expand(dir_noaaca[[iv]])), file_shp = list(files_shp[[iv]][m]),
         fields = list("GRIDCODE"), code = list(var_codes[[iv]])))
 
       if (ic < n_chunks) {
