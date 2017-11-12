@@ -365,7 +365,7 @@ complete_with_defaultpaths <- function(project_paths, fnames_in) {
   }
 
   # full names of files located in 'dir_in_treat'
-  ftemp <- c("LookupClimatePPTScenarios", "LookupClimateTempScenarios",
+  ftemp <- c("LookupCarbonScenarios", "LookupClimatePPTScenarios", "LookupClimateTempScenarios",
     "LookupShiftedPPTScenarios", "LookupEvapCoeffFromTable", "LookupTranspCoeffFromTable",
     "LookupTranspRegionsFromTable", "LookupSnowDensityFromTable",
     "LookupVegetationComposition")
@@ -554,13 +554,16 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     tr_weather <- load_Rsw_treatment_templates(project_paths, create_treatments, "weathersetupin", "swWeather")
     tr_cloud <- load_Rsw_treatment_templates(project_paths, create_treatments, "cloudin", "swCloud")
 
-    tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- list()
+    tr_input_CarbonScenario <- tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- list()
     tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- list()
     tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
-
+    
     if (any(create_treatments == "LookupClimatePPTScenarios"))
       tr_input_climPPT <- SFSW2_read_csv(fnames_in[["LookupClimatePPTScenarios"]])
 
+    if (any(create_treatments == "LookupCarbonScenarios"))
+      tr_input_CarbonScenario <- SFSW2_read_csv(fnames_in[["LookupCarbonScenarios"]])
+    
     if (any(create_treatments == "LookupClimateTempScenarios"))
       tr_input_climTemp <- SFSW2_read_csv(fnames_in[["LookupClimateTempScenarios"]])
 
@@ -635,7 +638,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       sw_input_climscen_use = sw_input_climscen_use, sw_input_climscen = sw_input_climscen,
       sw_input_climscen_values_use = sw_input_climscen_values_use, sw_input_climscen_values = sw_input_climscen_values,
       tr_files = tr_files, tr_prod = tr_prod, tr_site = tr_site, tr_soil = tr_soil,
-      tr_weather = tr_weather, tr_cloud = tr_cloud, tr_input_climPPT = tr_input_climPPT,
+      tr_weather = tr_weather, tr_cloud = tr_cloud, tr_input_CarbonScenario = tr_input_CarbonScenario, tr_input_climPPT = tr_input_climPPT,
       tr_input_climTemp = tr_input_climTemp, tr_input_shiftedPPT = tr_input_shiftedPPT,
       tr_input_EvapCoeff = tr_input_EvapCoeff, tr_input_TranspCoeff_Code = tr_input_TranspCoeff_Code,
       tr_input_TranspCoeff = tr_input_TranspCoeff, tr_input_TranspRegions = tr_input_TranspRegions,

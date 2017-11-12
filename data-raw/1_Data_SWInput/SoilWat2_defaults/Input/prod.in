@@ -75,14 +75,11 @@
 
 
 # CO2 Coefficients: Coeff1 * ppm^Coeff2
-# Biomass
 # Grasses  Shrubs  Trees  Forbs
-  0.127    0.127   0.127  0.127  # Coeff1
-  0.3501   0.3501  0.3501 0.3501 # Coeff2
-# WUE
-# Grasses  Shrubs  Trees  Forbs
-  22.464   22.464  22.464 22.464 # Coeff1
-  -0.531   -0.531  -0.531 -0.531 # Coeff2
+  0.127    0.127   0.127  0.127  # Biomass Coeff1
+  0.3501   0.3501  0.3501 0.3501 # Biomass Coeff2
+  22.464   22.464  22.464 22.464 # WUE Coeff1
+  -0.531   -0.531  -0.531 -0.531 # WUE Coeff2
 
 
 # Grasslands component:

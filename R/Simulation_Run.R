@@ -12,7 +12,7 @@ global_args_do_OneSite <- function() {
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
     "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
-    "tr_files", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+    "tr_files", "tr_input_CarbonScenario", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
     "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
     "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
     "tr_VegetationComposition", "tr_weather")
@@ -303,8 +303,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
-    # Check if CO2 multipliers are enabled
-    if (i_sw_input_treatments$UseCO2BiomassMultiplier == 1)  # Here we can do lazy comparison
+    #----- Begin carbon effects
+    if (i_sw_input_treatments$UseCO2BiomassMultiplier == 1)
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 1L
     else
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 0L
@@ -313,10 +313,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 1L
     else
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 0L
-
-    if (!is.na(i_sw_input_treatments$CO2_Scenario))
-      rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[1]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
-
+    # End carbon effects -----
+    
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -856,21 +854,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
       P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
       tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
-
-      if (sc > 1) {
+      
+      if (sc > 1)
+      {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
-
-        # Extract scenario data for CO2 effects
-        scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
-        if (!is.na(i_sw_input_treatments$CO2_Scenario))
-          rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(i_sw_input_treatments$CO2_Scenario)
-        else if (!is.na(scenario))  # Don't overwrite user-defined scenario
-          rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- as.character(scenario)
-
+        
+        # How many years in the future is this simulation?
+        # The delta year was originaly designed to only be used by swCarbon to grab the correct ppm values,
+        # but has since been used to also display the correct years in runDataSC, so this information is
+        # extracted regardless of whether or not CO2 effects are being used
         delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
         if (!is.na(delta_yr))
           rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
-
+        
       } else {
         if (prj_todos[["need_cli_means"]]) {
           print_debug(opt_verbosity, tag_simpidfid, "creating", "climate")
@@ -882,6 +878,68 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             do.C4vars = do.C4vars, simTime2 = simTime2)
         }
       }
+      
+      #----- Begin CO2 effects
+      # CO2 effects rely on the information of the current scenario, so the extraction of its Lookup data
+      # doesn't occur until now
+      if (sw_input_experimentals_use["LookupCarbonScenarios"])
+      {
+        if (is.na(i_sw_input_treatments$LookupCarbonScenarios))
+        {
+          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCarbonScenarios"))
+          return(1)
+        }
+        
+        scenario <- "USE_PROTOTYPE"
+        
+        # Are we modelling a scenario?
+        if (sc > 1)
+        {
+          # Did the user request to use the built-in scenario information?
+          if (toupper(i_sw_input_treatments$LookupCarbonScenarios) == "FILL")
+            scenario <- sim_scens[["df"]][sc - 1, "ConcScen"]
+        }
+        
+        # Did the user override the scenario name?
+        if (toupper(i_sw_input_treatments$LookupCarbonScenarios) != "FILL")
+          scenario <- i_sw_input_treatments$LookupCarbonScenarios
+        
+        # Perform the ppm extraction based on the scenario information we collected
+        if (scenario != "USE_PROTOTYPE")
+        {
+          # Save the scenario to the input object just so that the user can see it
+          rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario
+          
+          scenarioIndex <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario))
+
+          # Was a scenario found?
+          if (length(scenarioIndex) == 0)
+          {
+            print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " was not found in LookupCarbonScenarios.csv"))
+            return(1)
+          }
+          
+          # Normally, we would also check for duplicate scenarios, but when the CSV is read in, duplicate column headers
+          # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
+          # headers: RCP85, RCP85.1
+          
+          # Are we missing any ppm data?
+          delta_yr <- rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]])
+          for (i in range(isim_time[["simstartyr"]] + delta_yr, isim_time[["endyr"]] + delta_yr))
+          {
+            if (tr_input_CarbonScenario[i + 1, scenarioIndex] < 0.1 && tr_input_CarbonScenario[i + 1, scenarioIndex] > -0.1)
+            {
+              print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " had no ppm data for year ", i + 1, " in LookupCarbonScenarios.csv"))
+              return(1)
+            }
+          }
+          
+          # Extract ppm into swCarbon; add two 0s to accurately display years in the input object, subtract one year in SOILWAT2 to access the correct year
+          rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- c(0, 0, tr_input_CarbonScenario[2:length(tr_input_CarbonScenario[, scenarioIndex]), scenarioIndex])
+        }
+      }
+      # End CO2 effects -----
+      
       if (!opt_sim[["use_dbW_future"]]) {
         #get climate change information
         cols_climscen_val <- lapply(c("PPTmm_m", "TempC_min_m", "TempC_max_m"), function(flag)
@@ -1663,7 +1721,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]], dir = project_paths[["dir_in_sw"]],
+                     weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = FALSE),
               silent = TRUE)
 
@@ -1691,7 +1749,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
 
           runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]], dir = project_paths[["dir_in_sw"]],
+                     weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = FALSE),
               silent = TRUE)
 
