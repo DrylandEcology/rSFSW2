@@ -890,7 +890,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           return(1)
         }
         
-        scenario <- "USE_PROTOTYPE"
+        scenario <- "Default"
         
         # Are we modelling a scenario?
         if (sc > 1)
@@ -904,39 +904,40 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (toupper(i_sw_input_treatments$LookupCarbonScenarios) != "FILL")
           scenario <- i_sw_input_treatments$LookupCarbonScenarios
         
-        # Perform the ppm extraction based on the scenario information we collected
-        if (scenario != "USE_PROTOTYPE")
-        {
-          # Save the scenario to the input object just so that the user can see it
-          rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario
-          
-          scenarioIndex <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario))
+        # Save the scenario to the input object just so that the user can see it
+        rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario
+        
+        scenario_index <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario))
 
-          # Was a scenario found?
-          if (length(scenarioIndex) == 0)
+        # Was a scenario found?
+        if (length(scenario_index) == 0)
+        {
+          print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " was not found in LookupCarbonScenarios.csv"))
+          return(1)
+        }
+        
+        # Normally, we would also check for duplicate scenarios, but when the CSV is read in, duplicate column headers
+        # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
+        # headers: RCP85, RCP85.1
+        
+        # Externally, the CSV row numbers are supposed to match with the years, but SFSW2_read_csv does not count the column header
+        # as a row, so add an empty value as a placeholder
+        scenario_ppm <- c(0, tr_input_CarbonScenario[, scenario_index])
+        
+        # Are we missing any ppm data?
+        delta_yr <- rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]])
+        for (i in (isim_time[["simstartyr"]] + delta_yr):(isim_time[["endyr"]] + delta_yr))
+        {
+          ppm_value <- scenario_ppm[i]
+          if (is.na(ppm_value) || (ppm_value < 0.1 && ppm_value > -0.1))
           {
-            print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " was not found in LookupCarbonScenarios.csv"))
+            print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " had no ppm data for year ", i, " in LookupCarbonScenarios.csv"))
             return(1)
           }
-          
-          # Normally, we would also check for duplicate scenarios, but when the CSV is read in, duplicate column headers
-          # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
-          # headers: RCP85, RCP85.1
-          
-          # Are we missing any ppm data?
-          delta_yr <- rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]])
-          for (i in range(isim_time[["simstartyr"]] + delta_yr, isim_time[["endyr"]] + delta_yr))
-          {
-            if (tr_input_CarbonScenario[i + 1, scenarioIndex] < 0.1 && tr_input_CarbonScenario[i + 1, scenarioIndex] > -0.1)
-            {
-              print(paste0(tag_simfid, ": ERROR: Scenario ", scenario, " had no ppm data for year ", i + 1, " in LookupCarbonScenarios.csv"))
-              return(1)
-            }
-          }
-          
-          # Extract ppm into swCarbon; add two 0s to accurately display years in the input object, subtract one year in SOILWAT2 to access the correct year
-          rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- c(0, 0, tr_input_CarbonScenario[2:length(tr_input_CarbonScenario[, scenarioIndex]), scenarioIndex])
         }
+        
+        # Extract ppm into swCarbon; subtract one year in SOILWAT2 to access the correct year due to R being 1-based
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- scenario_ppm
       }
       # End CO2 effects -----
       
