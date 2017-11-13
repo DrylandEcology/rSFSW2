@@ -110,6 +110,8 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
+
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
