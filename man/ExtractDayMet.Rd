@@ -22,7 +22,7 @@ An invisible zero. A list of which each element represents one year of daily
    precipitation.
 }
 \description{
-Extract gridded daily weather from DayMet for North American sites
+Data are available for years 1980-(last full calendar year) at a 1-km resolution.
 }
 \references{
 \href{https://daymet.ornl.gov/}{daymet website}

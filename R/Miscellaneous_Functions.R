@@ -253,7 +253,10 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   dir.list <- basename(list.dirs2(dir.from, full.names = FALSE, recursive = FALSE))
   file.list <- list.files(dir.from)
   if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) {Recall(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x), overwrite = overwrite)})
+    sapply(dir.list, function(x) {
+      dir.copy(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x),
+      overwrite = overwrite)
+    })
     #file.list <- file.list[-match(dir.list, table = file.list)] #this line gives an error when run in R v. 2.13
     file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
   }
@@ -262,21 +265,6 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   }
   invisible(1)
 }
-#remove directory and content
-dir.remove <- function(dir) {
-  file.list <- try(list.files(dir, all.files = TRUE))
-  file.list <- file.list[-which(file.list %in% c(".", ".."))]
-  dir.list <- basename(list.dirs2(dir, full.names = FALSE, recursive = FALSE))
-  if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) Recall(dir = file.path(dir, x)))
-    file.list <- file.list[-match(dir.list, table = file.list)]
-  }
-  if (length(file.list) > 0) {
-    sapply(file.list, function(x) {file.remove(file.path(dir, x))})
-  }
-  file.remove(dir)
-}
-
 
 #' Create the elements of paths
 #'
@@ -335,7 +323,38 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   res
 }
 
-#' Calculate several climate variables from daily weather
+#' Calculate climate variables from daily weather
+#'
+#' @param weatherList A list. Each element is an object of class
+#'   \linkS4class{swWeatherData} containing daily weather data of a specific year.
+#' @param year.start An integer value. The first year of the range of years for which
+#'   climate variables should be calculated.
+#' @param year.end An integer value. The last year of the range of years for which
+#'   climate variables should be calculated.
+#' @param do.C4vars A logical value. If \code{TRUE} then additional output is returned.
+#' @param simTime2 An object as returned from function
+#'   \code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if \code{isTRUE(do.C4vars)}.
+#'
+#' @return A list with named elements \itemize{
+#'   \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
+#'     temperature in degree Celsius.}
+#'   \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
+#'     temperature in degree Celsius.}
+#'   \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
+#'     temperature in degree Celsius.}
+#'   \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
+#'     centimeters.}
+#'   \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
+#'   \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
+#'   \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
+#'     daily air temperature in degree Celsius for each day of time period between
+#'     \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
+#'     \code{NA}.}
+#'   \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
+#'     mean daily air temperature.}
+#'   \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
+#'     containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+#' }
 #' @export
 calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE,
   simTime2 = NULL) {
@@ -361,9 +380,9 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
   tempPPT <- matrix(tapply(x[, "PPT_cm"], index, sum), nrow = 12)
 
   list(
-    meanMonthlyTempC = apply(temp[, , 1], 1, mean),
-    minMonthlyTempC = apply(temp[, , 2], 1, mean),
-    maxMonthlyTempC = apply(temp[, , 3], 1, mean),
+    meanMonthlyTempC = apply(temp[, , 1, drop = FALSE], 1, mean),
+    minMonthlyTempC = apply(temp[, , 2, drop = FALSE], 1, mean),
+    maxMonthlyTempC = apply(temp[, , 3, drop = FALSE], 1, mean),
     meanMonthlyPPTcm = apply(tempPPT, 1, mean),
 
     MAP_cm = sum(tempPPT) / length(years),
@@ -880,7 +899,8 @@ setup_aggregation_options <- function(opt_agg, ...) {
 
 get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
   if (field_include %in% names(SWRunInformation)) {
-    SWRunInformation[sim_size[["runIDs_sites"]], field_include] > 0
+    temp <- SWRunInformation[sim_size[["runIDs_sites"]], field_include]
+    is.na(temp) | temp > 0
   } else {
     rep(TRUE, sim_size[["runsN_sites"]])
   }

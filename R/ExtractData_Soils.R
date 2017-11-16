@@ -682,7 +682,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
     }
 
     ws <- do.call(rbind, ws)
-    ws <- ws[order(ws[, "i"]), ]
+    ws <- ws[order(ws[, "i"]), , drop = FALSE]
     # convert percent to fraction
     icol <- grepl("rock", colnames(ws)) |
       grepl("sand", colnames(ws)) | grepl("clay", colnames(ws))
@@ -698,7 +698,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 
     i_good <- rep(FALSE, n_extract)
     ids <- seq_len(2 + layer_Nsim * MMC[["nvars"]])
-    i_good[ws[stats::complete.cases(ws[, ids]), "i"]] <- TRUE # i is index for todos
+    i_good[ws[stats::complete.cases(ws[, ids, drop = FALSE]), "i"]] <- TRUE # i is index for todos
     MMC[["source"]][which(todos)[!i_good]] <- NA
 
     if (verbose) {
