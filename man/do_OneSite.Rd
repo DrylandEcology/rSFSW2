@@ -12,3 +12,16 @@ do_OneSite(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 \description{
 The main simulation function which does all the heavy lifting
 }
+\details{
+For contributors only: This function cannot return prematurely because
+ (i.e., don't use \code{return}); otherwise the management of simulation runs will
+ fail. If a condition is met that prevents proper continuation/execution of a
+ simulation, then the appropriate element in the variable \code{tasks} should be set
+ to 0. The variable \code{tasks} contains the elements \code{create}, \code{execute},
+ and \code{aggregate} with the values: \itemize{
+   \item -1 indicates "don't do" a task element
+   \item 0 indicates that the task element has/is "failed"
+   \item 1 indicates "to do" a task element
+   \item 2 indicates that a task element had "success" in executing relevant code
+ }
+}
