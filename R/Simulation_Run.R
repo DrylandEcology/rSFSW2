@@ -930,21 +930,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
         # headers: RCP85, RCP85.1
 
-        # Are we missing any ppm data?
+        # Extract CO2 concentration values in units of ppm into swCarbon
         ids_years <- match(isim_time[["useyrs"]] + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
           tr_input_CarbonScenario[, "Year"], nomatch = 0)
-        scenario_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
+        scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
+        colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
-        ids_bad <- is.na(scenario_ppm) | scenario_ppm <= SFSW2_glovars[["tol"]]
-        if (any(ids_bad)) {
-          tasks$create <- 0L
-          print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
-            " had no ppm data for year ", i, " in LookupCarbonScenarios.csv"))
-          break
-        }
-
-        # Extract ppm into swCarbon; subtract one year in SOILWAT2 to access the correct year due to R being 1-based
-        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- scenario_ppm
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- scenarioCO2_ppm
       }
       # End CO2 effects -----
 
