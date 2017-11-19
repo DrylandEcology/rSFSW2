@@ -1,0 +1,17 @@
+# Soil layer definitions
+# Location:
+#
+# depth = (cm) lower limit of layer; layers must be in order of depth.
+# matricd = (g/cm^3) bulk density of soil in this layer.
+# gravel_content = the percent volume of each layer composed of gravel (i.e., particles > 2mm)
+# evco = (frac) proportion of total baresoil evap from this layer.
+# trco = (frac) proportion of total transpiration from this layer for each vegetation type (tree, forb, shrub, grass)
+# %sand = (frac) proportion of sand in layer (0-1.0).
+# %clay = (frac) proportion of clay in layer (0-1.0).
+# imperm = (frac) proportion of 'impermeability' to water percolation(/infiltration/drainage) in layer (0-1.0)
+# soiltemp = the initial temperature of each soil layer (in celcius), from the day before the simulation starts
+# Note that the evco and trco columns must sum to 1.0 or they will
+# be normalized.
+#
+# depth    matricd    gravel_content    evco    trco_grass    trco_shrub    trco_tree    trco_forb    %sand    %clay    imperm    soiltemp
+  5.000      1.430      0.000          0.812         0.033         0.134        0.033        0.134    0.510    0.150     0.000       0.186

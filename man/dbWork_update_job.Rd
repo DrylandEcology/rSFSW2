@@ -8,6 +8,8 @@ dbWork_update_job(path, runID, status = c("completed", "failed", "inwork"),
   time_s = "NULL", with_filelock = NULL, verbose = FALSE)
 }
 \arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
+
 \item{runID}{An integer value. The identification number of the current run,
 i.e., a value out of \code{runIDs_total}, see \code{\link{indices}}.}
 

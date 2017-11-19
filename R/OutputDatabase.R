@@ -16,6 +16,7 @@ missing_Pids_outputDB <- function(Table, dbname) {
 
   if (file.exists(dbname)) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
 
     if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
       sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table, " ON (header.P_id=",
@@ -23,8 +24,6 @@ missing_Pids_outputDB <- function(Table, dbname) {
         "ORDER BY header.P_id")
       mP_ids <- DBI::dbGetQuery(con, sql)[, 1]
     }
-
-    DBI::dbDisconnect(con)
   }
 
   as.integer(mP_ids)
@@ -35,6 +34,7 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
 
   if (file.exists(dbname)) {
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
 
     if (DBI::dbExistsTable(con, "runs")) {
       sql <- "SELECT site_id, treatment_id FROM runs WHERE P_id IN (?) ORDER BY site_id"
@@ -43,8 +43,6 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
       res <- RSQLite::dbFetch(rs)
       RSQLite::dbClearResult(rs)
     }
-
-    DBI::dbDisconnect(con)
   }
 
   res
@@ -68,13 +66,11 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
       return(NULL)
     }
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
   }
 
   temp <- DBI::dbListTables(con)
   tables <- temp[!(temp %in% dbOutput_ListDesignTables())]
-
-  if (!use_con)
-    DBI::dbDisconnect(con)
 
   tables
 }
@@ -92,6 +88,7 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, dbname = 
       return(NULL)
     }
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
   }
 
   if (!is.null(tables))
@@ -102,9 +99,6 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, dbname = 
     any(temp == "Soil_Layer")
   })
   names(has_soillayers) <- tables
-
-  if (!use_con)
-    DBI::dbDisconnect(con)
 
   has_soillayers
 }
@@ -136,10 +130,10 @@ getSiteIds <- function(con, folderNames) {
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
-  temp <- DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
     it_Pid(i_sim, runN, 1, scN)))[1, 1]
-  DBI::dbDisconnect(con)
-  temp
 }
 
 
@@ -178,10 +172,9 @@ list.dbTables <- function(dbName) {
 #' @export
 list.dbVariables <- function(dbName, dbTable) {
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName, flags = RSQLite::SQLITE_RO)
-  res <- DBI::dbListFields(con, dbTable)
-  RSQLite::dbDisconnect(con)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  res
+  DBI::dbListFields(con, dbTable)
 }
 
 #' List tables and variables of a database
@@ -194,8 +187,8 @@ list.dbVariablesOfAllTables <- function(dbName) {
 addHeaderToWhereClause <- function(whereClause, headers = NULL, fdbrSFSW2 = NULL) {
   if (is.null(headers) && file.exists(fdbrSFSW2)) {
     con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
     headers <- DBI::dbListFields(con, name = "header")
-    RSQLite::dbDisconnect(con)
   }
 
   temp1 <- res <- strsplit(whereClause, split = " ", fixed = TRUE)[[1]]  #Locate all "Label = 'x'"
@@ -260,6 +253,8 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, MeanOr
 
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     iTable <- DBI::dbListTables(con)
     iTable <- grep(paste0("Overall_", MeanOrSD), iTable, ignore.case = TRUE,
       fixed = FALSE, value = TRUE)
@@ -291,8 +286,6 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, MeanOr
         dat <- RSQLite::dbGetQuery(con, sql)
       }
     }
-
-    RSQLite::dbDisconnect(con)
   }
 
   dat[, iColumns[["outOrder"]]]
@@ -308,6 +301,8 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
 
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite())
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     temp_fdbrSFSW2ens <- grep("Overall", fdbrSFSW2ens, ignore.case = TRUE, value = TRUE)
     DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
     DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
@@ -342,7 +337,6 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
         dat <- DBI::dbGetQuery(con, sql)
       }
     }
-    RSQLite::dbDisconnect(con)
   }
 
   dat[, iColumns[["outOrder"]]]
@@ -351,10 +345,10 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
 #' Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.SeveralOverallVariables <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
-  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL) {
+  MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
-    dat <- if (climCat[i_climCat, 1] == "Current") {
+    dat <- if (climCat[i_climCat, 1] == climate.ambient) {
           get.SeveralOverallVariables_Scenario(
             fdbrSFSW2 = fdbrSFSW2,
             responseName = responseName,
@@ -389,6 +383,8 @@ get.Table_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
   dat <- NULL
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     temp1 <- DBI::dbListTables(con)
     temp2 <- grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp1,
       ignore.case = TRUE, fixed = FALSE)
@@ -409,7 +405,6 @@ get.Table_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
 
       dat <- DBI::dbGetQuery(con, sql)
     }
-    RSQLite::dbDisconnect(con)
   }
 
   dat
@@ -423,6 +418,8 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
   dat <- NULL
   if (length(responseName) > 0) {
     con <- RSQLite::dbConnect(RSQLite::SQLite())
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
       x = fdbrSFSW2ens, ignore.case = TRUE)]
     DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
@@ -450,7 +447,6 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
         dat <- DBI::dbGetQuery(con, sql)
       }
     }
-    RSQLite::dbDisconnect(con)
   }
 
   dat
@@ -459,13 +455,15 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
 #' Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
 #' @export
 get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
-  i_climCat = 1, whereClause = NULL, addPid = FALSE) {
+  i_climCat = 1, whereClause = NULL, addPid = FALSE, climate.ambient = "Current") {
 
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     #print(paste(paste(responseName, collapse = ", "), MeanOrSD, i_climCat, whereClause, addPid))
-    if (climCat[i_climCat, 1] == "Current") {
+    if (climCat[i_climCat, 1] == climate.ambient) {
       scenario <- climCat[i_climCat, 1]
       con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2, flags = RSQLite::SQLITE_RO)
+      on.exit(DBI::dbDisconnect(con), add = TRUE)
+
       iTable <- (temp <- DBI::dbListTables(con))[grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp, ignore.case = TRUE, fixed = FALSE)]
       if (length(iTable) == 1) {
         fields <- DBI::dbListFields(con, iTable)
@@ -477,12 +475,13 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD =
         }
         dat <- DBI::dbGetQuery(con, sql)
       }
-      RSQLite::dbDisconnect(con)
 
     } else {
       fam <- climCat[i_climCat, 1]
       level <- climCat[i_climCat, 2]
       con <- RSQLite::dbConnect(RSQLite::SQLite())
+      on.exit(DBI::dbDisconnect(con), add = TRUE)
+
       temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
         x = fdbrSFSW2ens, ignore.case = TRUE)]
       DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
@@ -500,7 +499,6 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD =
           dat <- DBI::dbGetQuery(con, sql)
         }
       }
-      RSQLite::dbDisconnect(con)
     }
   } else {
     dat <- NULL
@@ -606,6 +604,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
   if (length(theFileList) > 0) {
     # Connect to the Database
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
     out_tables_aggr <- dbOutput_ListOutputTables(con)
 
     do_DBCurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
@@ -620,6 +620,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
     }
     if (do_DBCurrent) {
       con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+      on.exit(DBI::dbDisconnect(con2), add = TRUE)
+
       if (reset_DBCurrent) {
         # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
         DBI::dbExecute(con2, "DELETE FROM runs WHERE scenario_id != 1;")
@@ -809,9 +811,6 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
         print(paste("    ended at", Sys.time(), "after", tDB, "s"))
       }
     }
-
-    DBI::dbDisconnect(con)
-    if (do_DBCurrent) DBI::dbDisconnect(con2)
   }
 
   invisible(TRUE)
@@ -826,13 +825,13 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
       Sys.time()))
   #Get sql for tables and index
   resSQL <- DBI::dbSendStatement(con, "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-  sqlTables <- DBI::fetch(resSQL, n = -1)
+  sqlTables <- DBI::dbFetch(resSQL, n = -1)
   sqlTables <- unlist(sqlTables)
   sqlTables <- sqlTables[-grep(pattern = "sqlite_sequence", sqlTables)]
   DBI::dbClearResult(resSQL)
 
   resIndex <- DBI::dbSendStatement(con, "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name;")
-  sqlView <- DBI::fetch(resIndex, n = -1)
+  sqlView <- DBI::dbFetch(resIndex, n = -1)
   DBI::dbClearResult(resIndex)
 
   sqlView <- unlist(sqlView)
@@ -841,6 +840,8 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   Tables <- Tables[-grep(pattern = "sqlite_sequence", Tables)]
 
   con <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
   for (i in 1:length(sqlTables)) {#Create the tables
     res <- DBI::dbSendStatement(con, sqlTables[i])
     DBI::dbClearResult(res)
@@ -848,6 +849,8 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   DBI::dbExecute(con, sqlView)
 
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
   #Get Tables minus ones we do not want
   Tables <- dbOutput_ListOutputTables(con)
 
@@ -872,8 +875,6 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   unlink(paste0(Tables, ".sql"))
   unlink(c("dump.txt", "insert.txt"))
 
-  DBI::dbDisconnect(con)
-
   invisible(TRUE)
 }
 
@@ -893,10 +894,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   }
 
   #--- SET UP PARALLELIZATION
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    verbose = opt_verbosity[["verbose"]],
+    print.debug = opt_verbosity[["print.debug"]])
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -913,34 +915,30 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
     SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
-  if (opt_parallel[["has_parallel"]]) {
+  if (SFSW2_glovars[["p_has"]]) {
 
-    if (identical(opt_parallel[["parallel_backend"]], "mpi")) {
+    if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+      missing_Pids <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+        missing_Pids_current <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
-      Rmpi::mpi.bcast.cmd(rm(list = ls()))
-      Rmpi::mpi.bcast.cmd(gc())
+    } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-    } else if (identical(opt_parallel[["parallel_backend"]], "cluster")) {
-
-      missing_Pids <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables, fun = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- parallel::clusterApplyLB(opt_parallel[["cl"]], x = Tables,
+        missing_Pids_current <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables,
           fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
-
-      parallel::clusterEvalQ(opt_parallel[["cl"]], rm(list = ls()))
-      parallel::clusterEvalQ(opt_parallel[["cl"]], gc())
     }
+
+    clean_SFSW2_cluster()
 
   } else {
     missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -974,10 +972,12 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
       if (update_workDB) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
 
+        stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
         con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
           flags = RSQLite::SQLITE_RO)
+        on.exit(DBI::dbDisconnect(con), add = TRUE)
         scN <- DBI::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
-        RSQLite::dbDisconnect(con)
 
         missing_runIDs <- it_sim2(missing_Pids, scN)
         temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]], runIDs = missing_runIDs)
@@ -1000,6 +1000,9 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
    }
   }
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
 
   invisible(list(missing_Pids = missing_Pids, missing_Pids_current = missing_Pids_current,
     missing_runIDs = missing_runIDs))
@@ -1020,12 +1023,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- DBI::dbSendStatement(con_dbOut, sql)
       DBI::dbBind(rs, param = list(folder = temp))
-      res <- DBI::dbFetch(rs)
       DBI::dbClearResult(rs)
-
-      # Slightly slower alternative to RSQLite::dbGetPreparedQuery()
-#        RSQLite::dbWriteTable(con, "weatherfolders", append = TRUE,
-#          value = data.frame(id = rep(NA, length(temp)), folder = temp), row.names = FALSE)
 
     } else {
       stop("All WeatherFolder names in master input file are NAs.")
@@ -1073,7 +1071,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
     rs <- DBI::dbSendStatement(con_dbOut, sql)
     DBI::dbBind(rs, param = list(label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
-    res <- DBI::dbFetch(rs)
     DBI::dbClearResult(rs)
 
   }
@@ -1089,7 +1086,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
         SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
@@ -1124,7 +1121,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- DBI::dbSendStatement(con_dbOut, sql)
         DBI::dbBind(rs, param = as.list(LWF_index[temp, ]))
-        res <- DBI::dbFetch(rs)
         DBI::dbClearResult(rs)
       }
     }
@@ -1145,9 +1141,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (!ttemp) {
       print(SFSW2_prj_inputs[["create_experimentals"]])
       print("'db_experimentals':")
-      str(db_experimentals)
+      print(db_experimentals)
       print("'SFSW2_prj_inputs[[\"sw_input_experimentals\"]]':")
-      str(SFSW2_prj_inputs[["sw_input_experimentals"]])
+      print(SFSW2_prj_inputs[["sw_input_experimentals"]])
       stop("Each row of 'experimental-design' must be unique.")
     }
 
@@ -1277,14 +1273,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (useTreatments) {
       use_start <- colnames(db_treatments) == "YearStart"
       use_end <- colnames(db_treatments) == "YearEnd"
-      i_use <- seq_len(ncol(db_treatments))
-      if (any(use_start))
-        i_use <- i_use[!use_start]
-      if (any(use_end))
-        i_use <- i_use[!use_end]
+      i_use <- rep(TRUE, ncol(db_treatments))
+      i_use[use_start] <- FALSE
+      i_use[use_end] <- FALSE
+
       temp <- db_treatments_column_types[, "table"] == 0
       temp <- db_treatments_column_types[temp, "column"]
       db_combined_exp_treatments[, temp] <- db_treatments[, i_use]
+
       #Handle StartYear and EndYear separately
       if (any(use_start) && !is.null(db_treatments_years) &&
         db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) {
@@ -1346,6 +1342,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"],
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
+    # Replace NAs with values from SFSW2_prj_meta[["sim_time"]]
+    if (anyNA(simulation_years[, "simulationStartYear"])) {
+      ids <- is.na(simulation_years[, "simulationStartYear"])
+      simulation_years[ids, "simulationStartYear"] <- SFSW2_prj_meta[["sim_time"]][["simstartyr"]]
+    }
+    if (anyNA(simulation_years[, "StartYear"])) {
+      ids <- is.na(simulation_years[, "StartYear"])
+      simulation_years[ids, "StartYear"] <- SFSW2_prj_meta[["sim_time"]][["startyr"]]
+    }
+    if (anyNA(simulation_years[, "EndYear"])) {
+      ids <- is.na(simulation_years[, "EndYear"])
+      simulation_years[ids, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
+    }
+
+    # Create unique table of simulation years
     unique_simulation_years <- unique(simulation_years)
     if (nrow(unique_simulation_years) == nrow(simulation_years)) {
       # each row is unique so add id to db_combined
@@ -1355,25 +1366,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       db_combined_exp_treatments[, "simulation_years_id"] <- unique_simulation_years[, "id"]
 
     } else {
-      #treatment table has a map to reduced rows in simulation_years
-      temp <- duplicated(simulation_years)
-      sim_years_unique_map <- rep(NA, nrow(simulation_years))
-      temp2 <- data.frame(t(simulation_years))
-      sim_years_unique_map[temp] <- match(data.frame(t(simulation_years[temp, ])), temp2)
-      sim_years_unique_map[!temp] <- match(data.frame(t(simulation_years[!temp, ])), temp2)
-      treatments_toYears_map <- unique(sim_years_unique_map)
-      sim_years_unique_map <- sapply(sim_years_unique_map, function(x)
-        which(treatments_toYears_map == x))
-      db_combined_exp_treatments[, "simulation_years_id"] <- sim_years_unique_map
+      # create map to unique rows in simulation_years
+      temp <- duplicated(simulation_years, fromLast = FALSE) |
+        duplicated(simulation_years, fromLast = TRUE)
+      ids_sy <- apply(simulation_years, 1, paste, collapse = "_")
+      db_combined_exp_treatments[, "simulation_years_id"] <- match(ids_sy, ids_sy)
     }
 
-    dtemp <- unique_simulation_years[, c("simulationStartYear", "StartYear", "EndYear")]
+    unique_simulation_years <- data.frame(unique_simulation_years[, c("simulationStartYear",
+      "StartYear", "EndYear")])
 
   } else {
     #Treatment option for simulation Years is turned off. Get the default one from settings.
     db_combined_exp_treatments$simulation_years_id <- 1
 
-    dtemp <- data.frame(
+    unique_simulation_years <- data.frame(
       simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
       StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]],
       EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
@@ -1382,8 +1389,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   # write to the database
   sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(dtemp))
-  res <- DBI::dbFetch(rs)
+  DBI::dbBind(rs, param = as.list(unique_simulation_years))
   DBI::dbClearResult(rs)
 
   #Insert the data into the treatments table
@@ -1391,7 +1397,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     colnames(db_combined_exp_treatments), collapse = ", "), ")")
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = as.list(db_combined_exp_treatments))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
 
 
@@ -1402,7 +1407,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
 
   ##################################################
@@ -1424,7 +1428,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = list(label = temp))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
   ##################################################
 
@@ -1465,7 +1468,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   sql <- "INSERT INTO runs VALUES(:P_id, :label_id, :site_id, :treatment_id, :scenario_id)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
   DBI::dbBind(rs, param = as.list(db_runs))
-  res <- DBI::dbFetch(rs)
   DBI::dbClearResult(rs)
   ##################################################
 
@@ -1757,7 +1759,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       #     - consec = consecutive
       temp <- c(temp,
         paste0("NRCS_",
-          c(c("Depth50cmOrImpermeable_cm",
+          c(c("SoilTemp_simulated_TF", "SoilTemp_realistic_TF", "Depth50cmOrImpermeable_cm",
               "MCS_Upper_cm", "MCS_Lower_cm",
               "ACS_Upper_cm", "ACS_Lower_cm",
               "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),
@@ -2166,6 +2168,7 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
     }
 
     con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbEnsemblesFilePaths[i])
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
     set_PRAGMAs(con, PRAGMA_settings2())
 
     for (j in seq_along(sim_scens[["ensemble.families"]])) {
@@ -2220,7 +2223,6 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
           DBI::dbExecute(con, sql3)
       }
     }
-    RSQLite::dbDisconnect(con)
   }
 
   invisible(NULL)
@@ -2253,6 +2255,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   con_dbOut <- try(RSQLite::dbConnect(RSQLite::SQLite(),
     dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
+  on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
 
   if (inherits(con_dbOut, "try-error")) {
     unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -2286,8 +2289,6 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
       meanString = res_oa[["meanString"]], sdString = res_oa[["sdString"]],
       dailySQL = res_da[["dailySQL"]], dailyLayersSQL = res_da[["dailyLayersSQL"]])
   }
-
-  RSQLite::dbDisconnect(con_dbOut)
 
   res_oa[["ncol_dbOut_overall"]]
 }

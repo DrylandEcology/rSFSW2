@@ -2,10 +2,26 @@
 % Please edit documentation in R/Miscellaneous_Functions.R
 \name{convert_precipitation}
 \alias{convert_precipitation}
-\title{Converts precipitation data to values in cm / month}
+\title{Converts units of precipitation data}
 \usage{
-convert_precipitation(x, unit_conv, dpm)
+convert_precipitation(x, dpm, unit_from, unit_to = "cm month-1")
+}
+\arguments{
+\item{x}{A numeric vector. Precipitation data as monthly series in units of
+\code{unit_from}.}
+
+\item{dpm}{A numeric vector. Number of days per month in the time series \code{x}.}
+
+\item{unit_from}{A character string. Units of data in \code{x}. Currently, supported
+units include "mm/month", "mm month-1", "mm/d", "mm d-1", "kg/m2/s", "kg m-2 s-1",
+"mm/s", "mm s-1", "cm/month", "cm month-1".}
+
+\item{unit_to}{A character string. Units to which data are converted. Currently,
+supported unit is "cm month-1" respectively "cm/month".}
+}
+\value{
+A numeric vector of the same size as \code{x} in units of \code{unit_to}.
 }
 \description{
-Converts precipitation data to values in cm / month
+Converts units of precipitation data
 }

@@ -70,6 +70,7 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 #' }
 #'
 #' @inheritParams SFSW2_read_csv
+#' @param header_rows An integer value. The row number which contains the header.
 #'
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}
@@ -167,7 +168,6 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   dir.inmap <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "Input_maps")
   dir.create(dir.inmap, showWarnings = FALSE)
@@ -659,6 +659,44 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
   }
 
   inputs
+}
+
+
+#' Serialization Interface for Single Objects with backup
+#'
+#' Function to write a single object to file, but create a backup file first if an older
+#' version of the file exists. This backup is restored in case the writing to the file
+#' fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
+#' the running R process (e.g., HPC schedulers); those situations likely will not allow
+#' that the original file be restored from the backup -- this will have to be done
+#' manually.
+#'
+#' @inheritParams base::saveRDS
+#' @param tag_backup A character string. A tag that is appended at the end of the
+#'  \code{file} name to identify the backup.
+#'
+#' @seealso \code{\link{saveRDS}}
+#' @export
+save_to_rds_with_backup <- function(object, file, tag_backup = "backup", ...) {
+  if (file.exists(file)) {
+    temp <- strsplit(basename(file), split = ".", fixed = TRUE)[[1]]
+    fbackup <- paste0(paste(temp[-length(temp)], collapse = ""), "_", tag_backup, ".",
+      temp[length(temp)])
+
+    file.rename(from = file, to = file.path(dirname(file), fbackup))
+  }
+
+  temp <- try(saveRDS(object, file = file, ...))
+  res <- !inherits(temp, "try-error")
+
+  if (!res) {
+    print(paste("'save_to_rds_with_backup': saving object to", shQuote(basename(file)),
+      "has failed; restoring from backup if available..."))
+    file.rename(from = file.path(dirname(file), fbackup), to = file)
+    print(paste("'save_to_rds_with_backup': restoring from backup completed."))
+  }
+
+  invisible(res)
 }
 
 

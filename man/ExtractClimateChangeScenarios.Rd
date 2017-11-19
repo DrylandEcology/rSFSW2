@@ -5,7 +5,13 @@
 \title{Extract climate scenarios}
 \usage{
 ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_parallel, verbose = FALSE, print.debug = FALSE)
+  todos, opt_parallel, opt_chunks, resume, verbose = FALSE,
+  print.debug = FALSE)
+}
+\arguments{
+\item{todos}{A logical vector of length \code{runsN_master}. Element locations with
+\code{TRUE} indicate to extract climate data for said 'run'. The \code{TRUE} elements
+should be a subset of the \code{TRUE}s of \code{SFSW2_prj_inputs[["include_YN"]]}.}
 }
 \description{
 Extract climate scenarios

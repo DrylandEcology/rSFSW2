@@ -12,11 +12,24 @@
 # NOTE: The values cannot be changed once a rSFSW2 simulation project is set up. The
 #  values of settings (file demo/SFSW2_project_settings.R) may be changed from run to run.
 
+#----- Metainformation about computing platform
+opt_platform <- list(
+  host = c("local", "hpc")[1],
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
+)
+
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
-    temp <- "SFSW2_default_project" # "~/YOURPROJECT"
+    temp <- if (identical(opt_platform[["host"]], "local")) {
+        "SFSW2_default_project" # "~/YOURPROJECT"
+      } else if (identical(opt_platform[["host"]], "hpc")) {
+        getwd()
+      }
 
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
@@ -39,7 +52,11 @@ project_paths <- list(
   dir_in_gissm = file.path(dir_in, "regeneration"),
 
   # Path to where large outputs are saved to disk
-  dir_big = dir_big <- dir_prj,
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -52,7 +69,11 @@ project_paths <- list(
   dir_out_traces = file.path(dir_out, "Time_Traces"),
 
   # Path from where external data are extraced
-  dir_external = dir_ex <- file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"),
+  dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+    },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -100,7 +121,11 @@ fnames_in <- list(
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
-  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3"),
+  fdbWeather = if (identical(opt_platform[["host"]], "local")) {
+      file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
+    },
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
@@ -131,20 +156,20 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res.; data expected at file.path(
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res.; data expected at file.path(
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res.; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res.; use with dbW; data expected at file.path(
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res.; data expected at file.path(
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
 
@@ -175,13 +200,16 @@ opt_input <- list(
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-      #   - ISRIC-WISE v1.2: 1-km re-gridded; data expected
+      #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
       #   - Contains information about soil as collected by the National Cooperative Soil Survey.
       #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
       #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
-      "ExtractSoilDataFromSSURGO", 0
+      "ExtractSoilDataFromSSURGO", 0,
+      #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
+      #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
+      "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
   ),
 
   # Approach to determine prioprities of external data source extractions
@@ -189,9 +217,10 @@ opt_input <- list(
   #   - Elevation: 'ExtractElevation_NED_USA' has priority over
   #     'ExtractElevation_HWSD_Global' on a per site basis if both are requested and data
   #     is available for both
-  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has priority over
-  #     'ExtractSoilDataFromISRICWISEv12_Global' on a per site basis if both are requested
-  #     and data is available for both
+  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has first priority,
+  #     then 'ExtractSoilDataFromISRICWISE30secV1a_Global' has second priority, and
+  #     'ExtractSoilDataFromISRICWISEv12_Global' has third priority on a per site basis
+  #     if more than one are requested and data are available for multiple sources
   #   - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority over
   #     'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both are requested and
   #     data is available for both
@@ -297,6 +326,7 @@ opt_out_fix <- list(
 # - actions[["map_inputs"]]
 # - external extractions:
 #  - soils: "ExtractSoilDataFromISRICWISEv12_Global",
+#     "ExtractSoilDataFromISRICWISE30secV1a_Global",
 #     "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
 #  - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
 #  - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA"
@@ -383,14 +413,16 @@ req_scens <- list(
     # Priority of extraction: dataset1, dataset2, ... if multiple sources provide data
     #   for a location
     # Dataset = 'project_source' with
-    #   - project = one string out of c("CMIP3", "CMIP5", "GeoMIP")
+    #   - project = one string out of c("CMIP3", "CMIP5")
     #   - source = one string out of:
     #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km resolution for 2070-2099
     #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km resolution between 2070-2099 and 1971-2000
     #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree resolution
     #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree resolution
     #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
-      dataset1 = "CMIP5_BCSD_SageSeer_USA"
+    #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the western US prepared by Katie Renwick
+    #     - "ESGF_Global": monthly time-series at varying resolution
+      dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)

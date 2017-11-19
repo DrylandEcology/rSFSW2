@@ -2,20 +2,19 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_check}
 \alias{dbWork_check}
-\alias{dbWork_check}
 \title{Check run status}
 \usage{
 dbWork_check(path, runIDs)
+}
+\arguments{
+\item{path}{A character string. Path to the folder where the database will be created.}
 
-dbWork_check(path, runIDs)
+\item{runIDs}{An integer vector. The identification numbers of queried runs,
+i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
 }
 \value{
 A data.frame with three columns 'completed', 'failed', and 'inwork'
-
-A data.frame with three columns 'completed', 'failed', and 'inwork'
 }
 \description{
-Check run status
-
 Check run status
 }

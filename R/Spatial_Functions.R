@@ -11,6 +11,8 @@
 #'  \item If \code{type == "cell"}, then y represents cells locations, see
 #'        \code{\link{extract_SFSW2_cells_from_raster}}.
 #'  }
+#' @param file_shp A character string. The filename of the shapefile.
+#' @param \dots Additional arguments passed to methods.
 #'
 #' @seealso \code{\link[raster]{extract}}
 #'
@@ -29,7 +31,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #' Extract the weighted mean (and sample quantiles) for raster cells or rectangles.
 #'
 #' @param x A raster* object from which data are extracted
-#' @param y Either A RasterLayer OR raster resolution (of rectangles) as a numeric vector
+#' @param y Either A \code{RasterLayer} OR raster resolution (of rectangles) as a numeric vector
 #'    of length two or a matrix with two columns.
 #'    If a RasterLayer, then values of \code{data} are resampled and extracted for !NA
 #'    cells.
@@ -42,7 +44,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'      \code{reaggregate_raster}. Default is 'block' which is the fastest.
 #'    \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
 #'      represented by a two-column matrix of xy coordinates. If not provided, then
-#'      extracted from \code{y}.
+#'      \code{y} must be a \code{RasterLayer} and cell centers are extracted from \code{y}.
 #'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
@@ -51,7 +53,8 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #'   layers of \code{x}.
 #' @export
 extract_SFSW2_cells_from_raster <- function(x, y, ...) {
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+
+  stopifnot(inherits(x, "Raster"))
 
   dots <- list(...)
 
@@ -59,7 +62,12 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
     dots[["method"]] <- "block"
 
   if (!("coords" %in% names(dots))) {
+    if (!inherits(y, "Raster")) {
+      stop("'extract_SFSW2_cells_from_raster': 'y' must be a 'RasterLayer' if there is ",
+        "no argument 'coords'.")
+    }
     dots[["coords"]] <- raster::xyFromCell(y, cell = seq_len(raster::ncell(y)))
+
   } else {
     dots[["coords"]] <- sp::coordinates(dots[["coords"]])
   }
@@ -69,10 +77,10 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
-  if (inherits(x, "Raster")) {
+  if (inherits(y, "Raster")) {
     to_res <- raster::res(y)
   } else {
-    if (all(is.vector(y), length(x) == 2L, y > 0) ||  # y is x- and y-resolution
+    if (all(is.vector(y), length(y) == 2L, y > 0) ||  # y is x- and y-resolution
       all(is.matrix(y), ncol(y) == 2L, nrow(y) == nrow(dots[["coords"]]), y > 0)) {  # y are x- and y-resolution for each coord
       to_res <- y
     } else {
@@ -89,7 +97,6 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
 extract_SFSW2_default <- function(x, y, type, ...) {
   if (identical(type, "point")) {
-    stopifnot(requireNamespace("raster"))
     raster::extract(x = x, y = y, ...)
   } else if (identical(type, "cell")) {
     extract_SFSW2_cells_from_raster(x, y, ...)
@@ -111,7 +118,6 @@ setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "data.frame", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
-      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -122,7 +128,6 @@ setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
     if (identical(type, "point")) {
-      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -146,11 +151,11 @@ setMethod("extract_rSFSW2",
 #'  extracted.
 #' @param y graphics::points represented by an object inheriting from
 #'  \linkS4class{SpatialPoints}.
-#' @param file_shp A character string. The filename of the shapefile.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
-#' @param code A vector. If not \code{NULL}, then the extracted data are treated as
-#'  integer codes of a factor whose levels are encoded by \code{code}.
+#' @param code A character vector. If not \code{NULL}, then the extracted data are treated
+#'  as integer codes of a factor whose levels are encoded by \code{code}.
+#' @param \dots Ignored.
 #'
 #' @seealso \code{\link[sp]{over}}
 #'
@@ -159,8 +164,6 @@ setMethod("extract_rSFSW2",
 #'  then the encoded 'factor levels' are returned.
 #' @export
 extract_SFSW2_points_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
-  stopifnot(requireNamespace("sp"))
-
   val <- sp::over(x = y, y = x)
   if (!is.null(fields))
     val <- val[, colnames(val) %in% fields, drop = FALSE]
@@ -208,14 +211,13 @@ setMethod("extract_rSFSW2",
 #'          matrix representing the rectangle extents in x- and y-coordinates.
 #'    \item If a matrix, then rows must match \code{coords}.
 #'  }
-#' @param file_shp A character string. The filename of the shapefile.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as
 #'  integer codes of a factor whose levels are encoded by \code{code}.
 #' @param ... \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
-#'      that arerepresented by a two-column matrix of xy coordinates. Ignored if \code{y}
+#'      that are represented by a two-column matrix of xy coordinates. Ignored if \code{y}
 #'      is inheriting from \linkS4class{SpatialPolygons}.
 #'    \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
 #'      system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from
@@ -231,7 +233,6 @@ setMethod("extract_rSFSW2",
 #'  encoded 'factor levels' are returned.
 #' @export
 extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) {
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   dots <- list(...)
   if (!("probs" %in% names(dots)))
@@ -248,7 +249,6 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) 
 
 #' Convert resolution/rectangles into SpatialPolygons
 res_to_polygons <- function(x, y, ...) {
-  stopifnot(requireNamespace("sp"))
 
   dots <- list(...)
 
@@ -320,8 +320,6 @@ setMethod("extract_rSFSW2",
 
 add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
   if (length(cell_blocks[[i]]) > 0) {
-    stopifnot(requireNamespace("raster"))
-
     xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
     xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
           xy[, 2] - halfres[2], xy[, 2] + halfres[2])
@@ -353,7 +351,6 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
 #    contains the weights of the rows.
 #' @export
 extract_blocks <- function(x, y, weights = FALSE) {
-  stopifnot(requireNamespace("raster"))
 
   fun_match <- if (requireNamespace("fastmatch")) fastmatch::fmatch else match
   stopifnot(ncol(y) == 4L)
@@ -429,7 +426,7 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 1e-2) {
 
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+  stopifnot(inherits(x, "Raster"))
 
   if (is.null(dim(coords)) && length(coords) == 2L) {
     coords <- matrix(coords, ncol = 2)
@@ -578,7 +575,6 @@ weighted.agg <- function(reagg, probs = NA) {
 #'  and columns to layers of \code{data}.
 #' @export
 extract_from_external_raster_old <- function(x, data, ...) {
-  stopifnot(requireNamespace("raster"))
 
   dots <- list(...)  # coords, method
   if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
@@ -597,7 +593,7 @@ extract_from_external_raster_old <- function(x, data, ...) {
 #' Re-aggregation of spatial polygon data by spatial rectangles/polygons
 #'
 #' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
-#'  information and not the area-weigthed sum.
+#'  information and not the area-weighted sum.
 #'
 #' @param x A \linkS4class{SpatialPolygons} object from which data are extracted.
 #' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the
@@ -667,7 +663,7 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 #' @return A character string or \code{NA}.
 #' @export
 crs_units <- function(CRS) {
-  stopifnot(requireNamespace("raster"), requireNamespace("rgdal"))
+  stopifnot(requireNamespace("rgdal"))
 
   args_crs <- raster::crs(CRS, asText = TRUE)
   stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
@@ -698,7 +694,6 @@ crs_units <- function(CRS) {
 #' }
 #' @export
 align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
-  stopifnot(requireNamespace("raster"))
 
   if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
 
@@ -739,7 +734,6 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #'  matrix with two columns for the x- and y-resolutions per row for each point.
 #' @export
 align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
-  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
 
   if (identical(crs_units(crs_from), crs_units(crs_to))) {
     res_from
@@ -788,14 +782,16 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
-    stopifnot(requireNamespace("raster"), requireNamespace("sp"), requireNamespace("rgdal"))
+    stopifnot(requireNamespace("rgdal"))
 
     if (sim_space[["scorp"]] == "cell") {
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
-        sim_space[["sim_res"]] <- raster::res(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(SFSW2_prj_meta[["in_space"]][["sim_raster"]])
+        stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
+
+        sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]

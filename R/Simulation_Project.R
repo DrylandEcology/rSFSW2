@@ -9,6 +9,9 @@
 #' @export
 setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
 
+  masterinput_pattern <- "_InputMaster_"
+  masterinput_pattern_demo <- "_InputMaster_YOURPROJECT_"
+
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -41,6 +44,26 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
       fes <- c(fes, ftemp)
 
     } else {
+      if (grepl(masterinput_pattern, di[["fname"]])) {
+        # Simulation projects usually rename the input master file: check if present and
+        #   if any contain sufficient content
+        fim <- list.files(dtemp, pattern = masterinput_pattern)
+        fim <- grep(masterinput_pattern_demo, fim, value = TRUE, invert = TRUE)
+        fim_ok <- FALSE
+        for (kfim in fim) {
+          fim_fields <- utils::read.csv(file.path(dtemp, kfim), nrows = 1)
+          fim_ok <- fim_ok || all(sapply(required_colnames_SWRunInformation(),
+            function(x) x %in% names(fim_fields)))
+        }
+
+        if (fim_ok) {
+          print(paste("'setup_rSFSW2_project_infrastructure' does not replace the",
+            "existing input master file", paste(shQuote(fim), collapse = "/"),
+            "with default version of file."))
+          next
+        }
+      }
+
       writeLines(memDecompress(di[["data"]], type = "gzip", asChar = TRUE),
         con = file.path(dtemp, di[["fname"]]))
     }
@@ -159,9 +182,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "load_inputs", prepared = TRUE,
-      checked = !SFSW2_prj_inputs[["do_check_include"]],
-      clean_subsequent = SFSW2_prj_inputs[["do_check_include"]])
+      checked = !SFSW2_prj_inputs[["do_check_include"]])
   }
+
+  save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]],
+    tag_backup = paste0("backup-", format(Sys.time(), "%Y%m%d-%H%M")))
 
 
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
@@ -175,10 +200,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated, i.e.,
   #   save them to disk upon exiting function (by error to save intermediate state) or
   #   by final 'return'
-  on.exit(saveRDS(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]),
-    add = TRUE)
-  on.exit(saveRDS(SFSW2_prj_inputs, file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]),
-    add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
+   file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
 
   #--- Determine size of simulation runs
@@ -186,6 +211,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["sim_size"]] <- determine_simulation_size(
       SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["include_YN"]],
       SFSW2_prj_inputs[["sw_input_experimentals"]], SFSW2_prj_meta[["sim_scens"]])
+
+    SFSW2_prj_meta[["sim_time"]] <- determine_overall_simulation_time(
+      st = SFSW2_prj_meta[["sim_time"]], SFSW2_prj_inputs)
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "calc_size", prepared = TRUE, clean_subsequent = TRUE)
@@ -197,8 +225,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["use_sim_spatial"]] <-
       (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
+         SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromSSURGO"]] ||
         SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
-          SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromSSURGO"]])) ||
+        SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV1a_Global"]])) ||
       (todo_intracker(SFSW2_prj_meta, "elev_data", "prepared") &&
         (SFSW2_prj_meta[["exinfo"]][["ExtractElevation_NED_USA"]] ||
         SFSW2_prj_meta[["exinfo"]][["ExtractElevation_HWSD_Global"]])) ||
@@ -272,6 +301,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "rng_setup", prepared = TRUE)
+
+    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -331,6 +362,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "dbW_sources", prepared = TRUE, clean_subsequent = TRUE)
+
+    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -345,13 +378,20 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+
       make_dbW(SFSW2_prj_meta, SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
         opt_parallel, opt_chunks, opt_behave,
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
-        verbose = opt_verbosity[["verbose"]])
+        verbose = opt_verbosity[["verbose"]], print.debug = opt_verbosity[["print.debug"]])
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_current", prepared = TRUE, clean_subsequent = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
     } else {
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
@@ -364,7 +404,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   #--- Soil data
   if (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
     SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]] ||
-    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromSSURGO"]]) {
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromSSURGO"]] ||
+    SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISE30secV1a_Global"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "soil_data", "prepared")) {
 
@@ -374,6 +415,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "soil_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -394,6 +437,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "climnorm_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -414,6 +459,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "elev_data", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -426,15 +473,21 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
+      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        label_WeatherData = SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
 
       temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
-        opt_parallel, opt_verbosity)
+        opt_parallel, resume = opt_behave[["resume"]], opt_verbosity, opt_chunks)
 
       SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
       SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]] # update: random streams for downscaling
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "dbW_scenarios", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -460,6 +513,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "req_soillayers", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -471,12 +526,14 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
     if (todo_intracker(SFSW2_prj_meta, "calc_bsevap", "prepared")) {
 
-      SFSW2_prj_inputs <- calc_CalculateBareSoilEvaporationCoefficientsFromSoilTexture(
+      SFSW2_prj_inputs <- get_BareSoilEvaporationCoefficientsForSoilInputFile(
         SFSW2_prj_meta, SFSW2_prj_inputs, runIDs_adjust, resume = opt_behave[["resume"]],
         verbose = opt_verbosity[["verbose"]])
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
         tracker = "calc_bsevap", prepared = TRUE)
+
+      save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
     }
 
   } else {
@@ -515,6 +572,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "table_lookup", prepared = TRUE)
+
+    #save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -525,7 +584,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
 #' Attempt to check input data of a rSFSW2 project for consistency
 #' @export
-check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_verbosity) {
+check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
+  opt_verbosity) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -546,10 +606,10 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
     return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
   }
 
-  on.exit(saveRDS(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]),
-    add = TRUE)
-  on.exit(saveRDS(SFSW2_prj_inputs, file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]),
-    add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
+    file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
 
   #--- Checking input 'SWRunInformation'
@@ -561,22 +621,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       stop("There are sites without a specified daily weather data source. ",
         "Provide data for every requested run.")
     }
-
-    # Check that INCLUDE_YN* are inclusive
-    icheck2 <- check_requested_sites(
-      SFSW2_prj_inputs[["include_YN"]], SFSW2_prj_inputs[["SWRunInformation"]],
-      SFSW2_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
-
-    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
-
-    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
   }
 
 
   #--- Check daily weather
-  if (todo_intracker(SFSW2_prj_meta, "dbW_current", "checked") ||
-    todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
+  if (todo_intracker(SFSW2_prj_meta, "dbW_current", "checked")) {
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] ||
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_future"]]) {
@@ -599,11 +648,25 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "dbW_current", checked = icheck)
+  }
 
-    if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
-      SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-        tracker = "dbW_scenarios", checked = icheck)
+
+  #--- Check scenario weather
+  if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
+
+    icheck <- dbW_sites_with_missingClimScens(
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      chunk_size = opt_chunks[["ensembleCollectSize"]],
+      verbose = opt_verbosity[["verbose"]])
+
+    if (any(icheck)) {
+      stop("Daily scenario weather data are not available for n = ", sum(icheck), " sites.")
     }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbW_scenarios", checked = all(!icheck))
   }
 
 
@@ -647,6 +710,54 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
   }
 
 
+  #--- Check that INCLUDE_YN* are inclusive
+  if (todo_intracker(SFSW2_prj_meta, "load_inputs", "checked")) {
+    icheck2 <- check_requested_sites(
+      SFSW2_prj_inputs[["include_YN"]], SFSW2_prj_inputs[["SWRunInformation"]],
+      SFSW2_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
+
+    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
+  }
+
+
+  #--- Check that todos/treatments are coherent
+  if (todo_intracker(SFSW2_prj_meta, "prj_todos", "checked")) {
+    # Check that overall 'pnv' is turned on if any of the specific ones are
+    pnv_temp <- c("PotentialNaturalVegetation_CompositionShrubs_Fraction",
+      "PotentialNaturalVegetation_CompositionC3_Fraction",
+      "PotentialNaturalVegetation_CompositionC4_Fraction",
+      "PotentialNaturalVegetation_CompositionAnnuals_Fraction",
+      "PotentialNaturalVegetation_CompositionForb_Fraction",
+      "PotentialNaturalVegetation_CompositionBareGround_Fraction",
+      "PotentialNaturalVegetation_Composition_basedOnReferenceOrScenarioClimate",
+      "AdjMonthlyBioMass_Precipitation",
+      "AdjMonthlyBioMass_Temperature",
+      "AdjRootProfile",
+      "RootProfile_C3",
+      "RootProfile_C4",
+      "RootProfile_Annuals",
+      "RootProfile_Shrubs",
+      "RootProfile_Forb")
+
+    icheck2 <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996" %in%
+      SFSW2_prj_inputs[["create_treatments"]] &&
+      any(pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]])
+
+    if (any(!icheck)) {
+      stop("Calculation and/or adjustement of 'potential natural vegetation' is ",
+        "requested for some composition/biomass/root components: the column ",
+        "'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' is the overall ",
+        "gate-keeper for this suit of functionality and must thus be turned on as well ",
+        "but is currently not.")
+    }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "prj_todos", checked = icheck2)
+  }
+
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
@@ -659,9 +770,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
   t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
 
+  t1 <- Sys.time()
 
   if (opt_verbosity[["verbose"]]) {
-    t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
       " for project ", sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
@@ -678,10 +789,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   # used in:
   #   - loop calling do_OneSite
   #   - ensembles
-  opt_parallel <- setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
-  on.exit(clean_SFSW2_cluster(opt_parallel, verbose = opt_verbosity[["verbose"]]),
+    verbose = opt_verbosity[["verbose"]],
+    print.debug = opt_verbosity[["print.debug"]])
+  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
     add = TRUE)
   on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
     kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
@@ -712,6 +824,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
 
   #--- Determine which runs (still) need to be done for this round
+  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
   SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <- dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]) # elements of runIDs_total
   SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] <- length(SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]])
 
@@ -802,13 +915,17 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
 
 
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
+  on.exit(eval(oe), add = FALSE)
+
 
   #---------------------------------------------------------------------------------------#
   #------------------------OVERALL TIMING
   delta.overall <- difftime(Sys.time(), t1, units = "secs")
 
   compile_overall_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
-    SFSW2_prj_meta[["project_paths"]][["dir_out"]], opt_parallel[["workersN"]],
+    SFSW2_prj_meta[["project_paths"]][["dir_out"]], SFSW2_glovars[["p_workersN"]],
     runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
     0, 0)
 

@@ -2,11 +2,48 @@
 % Please edit documentation in R/Miscellaneous_Functions.R
 \name{calc_SiteClimate}
 \alias{calc_SiteClimate}
-\title{Calculate several climate variables from daily weather}
+\title{Calculate climate variables from daily weather}
 \usage{
 calc_SiteClimate(weatherList, year.start, year.end, do.C4vars = FALSE,
   simTime2 = NULL)
 }
+\arguments{
+\item{weatherList}{A list. Each element is an object of class
+\linkS4class{swWeatherData} containing daily weather data of a specific year.}
+
+\item{year.start}{An integer value. The first year of the range of years for which
+climate variables should be calculated.}
+
+\item{year.end}{An integer value. The last year of the range of years for which
+climate variables should be calculated.}
+
+\item{do.C4vars}{A logical value. If \code{TRUE} then additional output is returned.}
+
+\item{simTime2}{An object as returned from function
+\code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if \code{isTRUE(do.C4vars)}.}
+}
+\value{
+A list with named elements \itemize{
+  \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
+    temperature in degree Celsius.}
+  \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
+    temperature in degree Celsius.}
+  \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
+    temperature in degree Celsius.}
+  \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
+    centimeters.}
+  \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
+  \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
+  \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
+    daily air temperature in degree Celsius for each day of time period between
+    \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
+    \code{NA}.}
+  \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
+    mean daily air temperature.}
+  \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
+    containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+}
+}
 \description{
-Calculate several climate variables from daily weather
+Calculate climate variables from daily weather
 }

@@ -4,8 +4,8 @@
 \alias{get_GCMdata_NEX}
 \title{Download downscaled GCM projections from NEX}
 \usage{
-get_GCMdata_NEX(i, ts_mons, dpm, gcm, scen, lon, lat, startyear, endyear,
-  climDB_meta, ...)
+get_GCMdata_NEX(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, startyear,
+  endyear, climDB_meta, ...)
 }
 \value{
 A list of one data.frame object with 5 columns and names of

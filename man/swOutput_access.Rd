@@ -83,7 +83,7 @@ get_Runoff_yr(x, st)
 \arguments{
 \item{x}{An object of class \code{\linkS4class{swOutput}}.}
 
-\item{st}{An object as returned from the function \code{setup_simulation_time}.}
+\item{st}{An object as returned from the function \code{\link{setup_simulation_time}}.}
 }
 \description{
 rSOILWAT2 data access functions

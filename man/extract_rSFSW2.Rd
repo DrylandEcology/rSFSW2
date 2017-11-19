@@ -49,6 +49,10 @@
 \item If \code{type == "cell"}, then y represents cells locations, see
       \code{\link{extract_SFSW2_cells_from_raster}}.
 }}
+
+\item{\dots}{Additional arguments passed to methods.}
+
+\item{file_shp}{A character string. The filename of the shapefile.}
 }
 \description{
 Several methods defined for different use cases described below.

@@ -36,7 +36,7 @@ limit are here considered suitable for growth (growing season). Default value is
 \item{MAP_mm}{A numeric value. Mean annual precipitation in millimeter of the location.}
 
 \item{mean_monthly_temp_C}{A numeric vector of length 12. Mean monthly temperature
-in Celcius. The default inputs considered March-October as growing season.}
+in Celsius. The default inputs considered March-October as growing season.}
 }
 \value{
 A list with two elements \code{grass}, \code{shrub}. Each element is a matrix

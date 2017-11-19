@@ -1,12 +1,12 @@
 context("dbOutput: action: check")
 
 #--- Inputs
-library("RSQLite")
 test_table <- "test"
 
 init_testDB <- function(test_table. = test_table) {
   dbtest <- tempfile()
   con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   # A zero row data frame just creates a table definition
   temp <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL, c("P_id", "Include_YN")))
@@ -15,12 +15,13 @@ init_testDB <- function(test_table. = test_table) {
   temp <- matrix(NA, nrow = 0, ncol = 1, dimnames = list(NULL, c("P_id")))
   RSQLite::dbWriteTable(con, test_table., as.data.frame(temp))
 
-  DBI::dbDisconnect(con)
   dbtest
 }
 
 testDB_add_to_header <- function(dbtest, P_id, Include_YN) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
   dat <- data.frame(P_id = P_id, Include_YN = Include_YN)
 
   if ("header" %in% DBI::dbListTables(con)) {
@@ -41,11 +42,13 @@ testDB_add_to_header <- function(dbtest, P_id, Include_YN) {
   }
 
 
-  DBI::dbDisconnect(con)
+  invisible(temp)
 }
 
 testDB_add_to_testtable <- function(dbtest, P_id, test_table. = test_table) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
   dat <- data.frame(P_id = P_id)
 
   if (test_table. %in% DBI::dbListTables(con)) {
@@ -58,7 +61,7 @@ testDB_add_to_testtable <- function(dbtest, P_id, test_table. = test_table) {
     temp <- RSQLite::dbWriteTable(con, test_table., dat)
   }
 
-  DBI::dbDisconnect(con)
+  invisible(temp)
 }
 
 # Initialization

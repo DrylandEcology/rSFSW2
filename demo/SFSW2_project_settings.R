@@ -12,14 +12,14 @@
 # NOTE: The values may be changed/adjusted from run to run a rSFSW2 simulation project. The
 #  values of the description of a project (file demo/SFSW2_project_description.R) cannot
 #  be changed once a rSFSW2 simulation project is set up.
-
+stopifnot(exists("SFSW2_prj_meta"), !is.null(SFSW2_prj_meta[["opt_platform"]]))
 
 
 opt_behave <- list(
   # Resumes/continues with unfinished part of simulation after abort if TRUE, i.e.,
   #  - It doesn't delete an existing weather database, if a new one is requested
   #  - It doesn't re-extract external information (soils, elevation, climate normals,
-  #     NCEPCFSR) if already extracted
+  #     climate scenarios) if already extracted
   #  - It doesn't lookup values from tables if already available in input datafiles, i.e.,
   #     'LookupEvapCoeffFromTable', 'LookupTranspRegionsFromTable', and
   #     'LookupSnowDensityFromTable'
@@ -39,11 +39,19 @@ opt_behave <- list(
 #------ Options for parallel framework
 opt_parallel <- list(
   # Should job be run in parallel
-  parallel_runs = !interactive(),
+  parallel_runs = !interactive() && !SFSW2_prj_meta[["opt_platform"]][["no_parallel"]],
   # Number of cores/workers/slaves if job is run in parallel
-  num_cores = 2,
-  # Parallel_backend: "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
-  parallel_backend = "cluster",
+  num_cores = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")) {
+      2
+    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+      39
+    },
+  # Parallel_backend: "socket" = "cluster" (via package 'parallel') or "mpi" (via 'Rmpi')
+  parallel_backend = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")) {
+      "socket"
+    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+      "mpi"
+    },
 
   # Computation time requests: time limits are only enforced if parallel_backend == "mpi"
   opt_job_time = list(
@@ -67,7 +75,7 @@ opt_verbosity <- list(
 
   # Sets global option 'warn' for the duration of a simulation project
   #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
-  debug.warn.level = 2 * interactive(),
+  debug.warn.level = max(1, 2 * interactive()),
   # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
   debug.dump.objects = interactive()
 )

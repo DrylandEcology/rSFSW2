@@ -1,4 +1,29 @@
-
+#' Setting global 'warn' and 'error' options
+#'
+#' @param debug.warn.level An integer value. Sets the \code{warn} option.
+#' @param debug.dump.objects A logical value. Sets the \code{error} option.
+#'  See \code{details} section.
+#' @param dir_prj A character string. The path at which the RData file are saved if
+#'  \code{debug.dump.objects} is turned on.
+#' @param verbose A logical value.
+#'
+#' @return A list of length two with elements 'warn' and 'error' containing the status
+#'  of these two global options before resetting them by this function.
+#'
+#' @section Details: Accepted values of \code{debug.warn.level} are \itemize{
+#'  \item  warn < 0: warnings are ignored
+#'  \item  warn = 0: warnings are stored until the top-level function returns
+#'  \item  warn = 1: warnings are printed as they occur
+#'  \item  warn = 2: all warnings are turned into errors.
+#' }
+#'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
+#'  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
+#'  view the dumped frames first attach them with
+#'      `load(file.path(dir_prj, "last.dump.rda"))`
+#'  and then browse them with
+#'      `debugger(`path/to/file/last.dump.rda`)`
+#'
+#' @export
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".", verbose = FALSE) {
 
@@ -11,17 +36,9 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
   }
 
-  #    - warn < 0: warnings are ignored
-  #    - warn = 0: warnings are stored until the top–level function returns
-  #    - warn = 1: warnings are printed as they occur
-  #    - warn = 2: all warnings are turned into errors
   options(warn = debug.warn.level)
 
   if (debug.dump.objects) {
-    # dumps objects and frames to files, and (if not interactive) quits
-    # Note: view dumped frames with
-    # load(file.path(dir_prj, "last.dump.rda"))
-    # debugger(`path/to/file/last.dump.rda`)
     options(error = quote({
       dump_objs <- new.env()
 
@@ -56,10 +73,92 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 }
 
 
-getStartYear <- function(simstartyr, spinup_N = 1L) {
-  as.integer(simstartyr + spinup_N)
+
+#' Expression for dumping of objects from an evaluation stack
+#'
+#' Create an expression for functions 'f' to set on.exit() such that all objects from the
+#' evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+#'
+#' @param dir_out A character string. The path to where the 'RData' file is dumped.
+#' @param file_tag A character string. Will become final part of the 'RData' file name.
+#'
+#' @return Expression.
+#' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
+#'
+#' @examples
+#' \dontrun{
+#' f2 <- function(x, cause_error = FALSE) {
+#'   print(match.call())
+#'   print(environment())
+#'   # Enable debug dumping
+#'   on.exit(enable_debug_dump(file_tag = match.call()[[1]]), add = TRUE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit from", match.call()[[1]])), add = TRUE)
+#'
+#'   res <- x + 100
+#'   if (cause_error) stop("Create error and force debug dumping")
+#'
+#'   # Remove debug dumping but not other 'on.exit' expressions before returning without error
+#'   oe <- sys.on.exit()
+#'   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
+#'   on.exit(eval(oe), add = FALSE)
+#'   # Add to 'on.exit'
+#'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
+#'   res
+#' }
+#'
+#' f1 <- function(x, cause_error) {
+#'   print(paste(match.call()[[1]], x))
+#'   print(environment())
+#'   try(f2(x + 1, cause_error))
+#' }
+#'
+#' f1(0, cause_error = FALSE)
+#' f1(0, cause_error = TRUE)
+#' x <- new.env()
+#' load("last.dump.f2.RData", envir = x)
+#' ls.str(x)
+#'
+#' # Clean up
+#' unlink("last.dump.f2.RData")
+#' }
+#'
+#' @export
+enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
+  {
+    op_prev <- options("warn")
+    options(warn = 0)
+    env_tosave <- new.env()
+
+    # Loop through evaluation frame stack, with global environment and
+    # without 'enable_debug_dump', and collect objects
+    ids_frame <- sys.parents()[-1]
+    for (k in ids_frame) {
+      list2env(as.list(sys.frame(sys.parent(k))), envir = env_tosave)
+    }
+    list2env(as.list(globalenv()), envir = env_tosave)
+
+    save(list = ls(envir = env_tosave), envir = env_tosave,
+      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag), ".RData")))
+    options(op_prev)
+  }
 }
 
+#' Remove one of possibly several expressions recorded by \code{on.exit}
+#'
+#' @param sysonexit An expression. The returned value of a call to \code{sys.on.exit()}
+#'   from inside the calling function.
+#' @param tag A character string. An string identifying which of the recorded expressions
+#'   should be removed.
+#' @seealso \code{\link{enable_debug_dump}} for examples
+#' @export
+remove_from_onexit_expression <- function(sysonexit, tag) {
+  if (!is.null(sysonexit) && nchar(tag) > 0) {
+    sysonexit[regexpr(tag, sysonexit) < 0]
+  } else {
+    sysonexit
+  }
+}
 
 has_nodata <- function(data, tag = NULL, MARGIN = 1) {
   if (is.null(tag)) {
@@ -154,7 +253,10 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   dir.list <- basename(list.dirs2(dir.from, full.names = FALSE, recursive = FALSE))
   file.list <- list.files(dir.from)
   if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) {Recall(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x), overwrite = overwrite)})
+    sapply(dir.list, function(x) {
+      dir.copy(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x),
+      overwrite = overwrite)
+    })
     #file.list <- file.list[-match(dir.list, table = file.list)] #this line gives an error when run in R v. 2.13
     file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
   }
@@ -163,25 +265,28 @@ dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   }
   invisible(1)
 }
-#remove directory and content
-dir.remove <- function(dir) {
-  file.list <- try(list.files(dir, all.files = TRUE))
-  file.list <- file.list[-which(file.list %in% c(".", ".."))]
-  dir.list <- basename(list.dirs2(dir, full.names = FALSE, recursive = FALSE))
-  if (length(dir.list) > 0) {
-    sapply(dir.list, function(x) Recall(dir = file.path(dir, x)))
-    file.list <- file.list[-match(dir.list, table = file.list)]
-  }
-  if (length(file.list) > 0) {
-    sapply(file.list, function(x) {file.remove(file.path(dir, x))})
-  }
-  file.remove(dir)
-}
 
-
+#' Create the elements of paths
+#'
+#' This is a wrapper for the function \code{\link{dir.create}} using different default
+#' settings and allowing multiple path names as input. The function checks if the
+#' provided paths may be valid names and catches any other errors with \code{try}.
+#'
+#' @param paths A list or vector of strings. Path names to be created.
+#' @inheritParams base::dir.create
+#'
+#' @return An invisible list of length equal to the length of \code{paths}. The elements
+#'   are \code{NULL} for invalid elements of \code{paths}, a logical value for the
+#'   elements of \code{paths} with a successful calls to \code{\link{dir.create}}, or
+#'   an object of class \code{try-error} for a failed call to \code{\link{dir.create}}.
+#'
+#' @seealso \code{\link{dir.create}}
+#' @export
 dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
   temp <- lapply(paths, function(path) {
-      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0)
+      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0 &&
+        !dir.exists(path))
+
         try(dir.create2(path, showWarnings = showWarnings, recursive = recursive,
           mode = mode), silent = TRUE)
     })
@@ -190,161 +295,6 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode 
 }
 
 
-
-isLeapYear <- function(y) {
-  #from package: tis
-  y %% 4 == 0 & (y %% 100 != 0 | y %% 400 == 0)
-}
-
-#' The sequence of month numbers for each day in the period from - to
-#'
-#' @examples
-#'  month1 <- function() as.POSIXlt(seq(from = ISOdate(1980, 1, 1, tz = "UTC"),
-#'     to = ISOdate(2010, 12, 31, tz = "UTC"), by = "1 day"))$mon + 1
-#'  month2 <- function() seq_month_ofeach_day(list(1980, 1, 1),
-#'    list(2010, 12, 31), tz = "UTC")
-#'
-#' \dontrun{
-#'    if (requireNamespace("microbenchmark", quietly = TRUE))
-#'      microbenchmark::microbenchmark(month1(), month2())    # barely any difference
-#'  }
-seq_month_ofeach_day <- function(from = list(year = 1900, month = 1, day = 1),
-  to = list(year = 1900, month = 12, day = 31), tz = "UTC") {
-
-  x <- paste(from[[1]], from[[2]], from[[3]], 12, 0, 0, sep = "-")
-  from0 <- unclass(as.POSIXct.POSIXlt(strptime(x, "%Y-%m-%d-%H-%M-%OS", tz = tz)))
-  x <- paste(to[[1]], to[[2]], to[[3]], 12, 0, 0, sep = "-")
-  to0 <- unclass(as.POSIXct.POSIXlt(strptime(x, "%Y-%m-%d-%H-%M-%OS", tz = tz)))
-
-  res <- seq.int(0, to0 - from0, by = 86400) + from0
-  as.POSIXlt.POSIXct(.POSIXct(res, tz = tz))$mon + 1
-}
-
-
-setup_simulation_time <- function(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE) {
-
-  #simyrs <- simstartyr:endyr
-  #no.simyr <- endyr - simstartyr + 1
-  if (is.null(sim_time[["spinup_N"]])) {
-    sim_time[["spinup_N"]] <- sim_time[["startyr"]] - sim_time[["simstartyr"]]
-
-  } else {
-    sim_time[["startyr"]] <- getStartYear(sim_time[["simstartyr"]], sim_time[["spinup_N"]])
-  }
-
-  stopifnot(!is.null(sim_time[["spinup_N"]]), !is.null(sim_time[["simstartyr"]]),
-    !is.null(sim_time[["startyr"]]), !is.null(sim_time[["endyr"]]))
-
-  if (is.matrix(sim_time[["future_yrs"]])) {
-    stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)
-
-  } else if (is.list(sim_time[["future_yrs"]]) &&
-    all(lengths(sim_time[["future_yrs"]]) == 3)) {
-
-    ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
-    temp <- matrix(unlist(sim_time[["future_yrs"]]), ncol = length(ctemp), byrow = TRUE,
-      dimnames = list(NULL, ctemp))
-    rownames(temp) <- make.names(paste0("d", temp[, "delta"], "yrs"), unique = TRUE)
-    sim_time[["future_yrs"]] <- temp
-
-  } else {
-    stop("'setup_simulation_time': incorrect format of 'future_yrs'")
-  }
-
-  sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
-
-  temp <- ISOdate(sim_time[["startyr"]], 1, 1, tz = "UTC")
-  discarddy <- as.numeric(temp - ISOdate(sim_time[["simstartyr"]], 1, 1, tz = "UTC"))
-
-  sim_time[["useyrs"]] <- sim_time[["startyr"]]:sim_time[["endyr"]]
-
-  sim_time[["no.useyr"]] <- sim_time[["endyr"]] - sim_time[["startyr"]] + 1
-  sim_time[["no.usemo"]] <- sim_time[["no.useyr"]] * 12
-  sim_time[["no.usedy"]] <- as.numeric(ISOdate(sim_time[["endyr"]], 12, 31, tz = "UTC") - temp) + 1
-
-  sim_time[["index.useyr"]] <- sim_time[["spinup_N"]] + seq_len(sim_time[["no.useyr"]])
-  sim_time[["index.usemo"]] <- sim_time[["spinup_N"]] * 12 + seq_len(sim_time[["no.usemo"]])
-  sim_time[["index.usedy"]] <- discarddy + seq_len(sim_time[["no.usedy"]])
-
-  if (add_st2) {
-    sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-      sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS)
-
-    if (adjust_NS) {
-      sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-        sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
-        account_NorthSouth = TRUE)
-
-    } else {
-      sim_time[["sim_time2_South"]] <- sim_time[["sim_time2_North"]]
-    }
-  }
-
-  sim_time
-}
-
-simTiming_ForEachUsedTimeUnit <- function(st,
-  sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
-  account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
-
-  res <- list()
-
-  if (any(sim_tscales == "daily")) {
-    temp <- as.POSIXlt(seq(from = ISOdate(min(st$useyrs), 1, 1, tz = "UTC"),
-                           to = ISOdate(max(st$useyrs), 12, 31, tz = "UTC"),
-                           by = "1 day"))
-
-    res$doy_ForEachUsedDay <- res$doy_ForEachUsedDay_NSadj <- temp$yday + 1
-    res$month_ForEachUsedDay <- res$month_ForEachUsedDay_NSadj <- temp$mon + 1
-    res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
-
-    if (latitude < 0 && account_NorthSouth) {
-      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  #new month either at end of year or in the middle because the two halfs (6+6 months) of a year are of unequal length (182 (183 if leap year) and 183 days): I chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31 Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two with doy = 182
-      res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
-        temp <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
-        c(temp[-(1:dshift[x])], temp[1:dshift[x]])
-      }))
-      res$month_ForEachUsedDay_NSadj <- strptime(paste(res$year_ForEachUsedDay, res$doy_ForEachUsedDay_NSadj, sep = "-"), format = "%Y-%j")$mon + 1
-      temp <- length(res$year_ForEachUsedDay)
-      delta <- if (dshift[1] == 182) 2 else 3
-      res$year_ForEachUsedDay_NSadj <- c(
-        rep(st$useyrs[1] - 1, times = dshift[1] + delta),
-        res$year_ForEachUsedDay[-((temp - dshift[1] - delta):temp)]
-      )
-    }
-  }
-
-  if (any(sim_tscales == "weekly")) {
-
-  }
-
-  if (any(sim_tscales == "monthly")) {
-    res$yearno_ForEachUsedMonth <- res$yearno_ForEachUsedMonth_NSadj <- rep(seq_len(st$no.useyr), each = 12)
-    res$month_ForEachUsedMonth <- res$month_ForEachUsedMonth_NSadj <- rep(SFSW2_glovars[["st_mo"]], times = st$no.useyr)
-
-    if (latitude < 0 && account_NorthSouth) {
-      res$month_ForEachUsedMonth_NSadj <- (res$month_ForEachUsedMonth + 5) %% 12 + 1
-    }
-  }
-
-  if (any(sim_tscales == "yearly")) {
-
-  }
-
-  res
-}
-
-
-#------auxiliary functions
-
-adjustLayersDepth <- function(layers_depth, d) {
-  # The wrapper only handles 1-cm resolution of soil depths (maily because of the trco)
-  round(layers_depth[seq_len(d)])
-}
-getLayersWidth <- function(layers_depth) diff(c(0, layers_depth))
-setLayerSequence <- function(d) seq_len(d)
 
 sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
@@ -373,7 +323,38 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
   res
 }
 
-#' Calculate several climate variables from daily weather
+#' Calculate climate variables from daily weather
+#'
+#' @param weatherList A list. Each element is an object of class
+#'   \linkS4class{swWeatherData} containing daily weather data of a specific year.
+#' @param year.start An integer value. The first year of the range of years for which
+#'   climate variables should be calculated.
+#' @param year.end An integer value. The last year of the range of years for which
+#'   climate variables should be calculated.
+#' @param do.C4vars A logical value. If \code{TRUE} then additional output is returned.
+#' @param simTime2 An object as returned from function
+#'   \code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if \code{isTRUE(do.C4vars)}.
+#'
+#' @return A list with named elements \itemize{
+#'   \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
+#'     temperature in degree Celsius.}
+#'   \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
+#'     temperature in degree Celsius.}
+#'   \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
+#'     temperature in degree Celsius.}
+#'   \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
+#'     centimeters.}
+#'   \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
+#'   \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
+#'   \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
+#'     daily air temperature in degree Celsius for each day of time period between
+#'     \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
+#'     \code{NA}.}
+#'   \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
+#'     mean daily air temperature.}
+#'   \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
+#'     containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+#' }
 #' @export
 calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE,
   simTime2 = NULL) {
@@ -399,9 +380,9 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
   tempPPT <- matrix(tapply(x[, "PPT_cm"], index, sum), nrow = 12)
 
   list(
-    meanMonthlyTempC = apply(temp[, , 1], 1, mean),
-    minMonthlyTempC = apply(temp[, , 2], 1, mean),
-    maxMonthlyTempC = apply(temp[, , 3], 1, mean),
+    meanMonthlyTempC = apply(temp[, , 1, drop = FALSE], 1, mean),
+    minMonthlyTempC = apply(temp[, , 2, drop = FALSE], 1, mean),
+    maxMonthlyTempC = apply(temp[, , 3, drop = FALSE], 1, mean),
     meanMonthlyPPTcm = apply(tempPPT, 1, mean),
 
     MAP_cm = sum(tempPPT) / length(years),
@@ -416,23 +397,6 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
   )
 }
 
-
-check_soil_data <- function(data) {
-    check_soil <- is.finite(data)
-    check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] & data[, "depth_cm"] > 0 &
-      diff(c(0, data[, "depth_cm"])) > 0
-    check_soil[, "matricd"] <- check_soil[, "matricd"] & data[, "matricd"] > 0.3 &
-      data[, "matricd"] <= 2.65
-    check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
-      data[, "gravel_content"] >= 0 & data[, "gravel_content"] < 1
-    itemp <- c("sand", "clay")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] > 0 & data[, itemp] <= 1
-    itemp <- c("EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
-              "transpTree_frac", "transpForb_frac", "imperm")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 & data[, itemp] <= 1
-
-    check_soil
-}
 
 
 #functions wet and dry periods
@@ -578,52 +542,6 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
 
 
 
-#two, three, or four layer aggregation for average daily aggregation output
-setAggSoilLayerForAggDailyResponses <- function(layers_depth, daily_lyr_agg) {
-  d <- length(layers_depth)
-  vals <- list()
-  #first layer
-  DeepestFirstDailyAggLayer <- findInterval(daily_lyr_agg[["first_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
-  vals[[1]] <- seq_len(DeepestFirstDailyAggLayer)
-  #second layer
-  if (!is.null(daily_lyr_agg[["second_cm"]])) {
-    DeepestSecondDailyAggLayer <- findInterval(daily_lyr_agg[["second_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
-  } else {
-    DeepestSecondDailyAggLayer <- d
-  }
-  if (is.numeric(DeepestSecondDailyAggLayer) && is.numeric(DeepestFirstDailyAggLayer) && d > DeepestFirstDailyAggLayer) {
-    vals[[2]] <- (DeepestFirstDailyAggLayer+1):DeepestSecondDailyAggLayer
-  }
-  #third layer
-  if (!is.null(daily_lyr_agg[["third_cm"]])) {
-    if (!is.na(daily_lyr_agg[["third_cm"]])) {
-      DeepestThirdDailyAggLayer <- findInterval(daily_lyr_agg[["third_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
-    } else {
-      DeepestThirdDailyAggLayer <- NULL
-    }
-  } else {
-    DeepestThirdDailyAggLayer <- d
-  }
-  if (is.numeric(DeepestThirdDailyAggLayer) && is.numeric(DeepestSecondDailyAggLayer) && d > DeepestSecondDailyAggLayer) {
-    vals[[3]] <- (DeepestSecondDailyAggLayer+1):DeepestThirdDailyAggLayer
-  }
-  #fourth layer
-  if (!is.null(daily_lyr_agg[["fourth_cm"]])) {
-    if (!is.na(daily_lyr_agg[["fourth_cm"]])) {
-      DeepestFourthDailyAggLayer <- findInterval(daily_lyr_agg[["fourth_cm"]], c(0, layers_depth) + SFSW2_glovars[["tol"]], all.inside = TRUE)
-    } else {
-      DeepestFourthDailyAggLayer <- NULL
-    }
-  } else {
-    DeepestFourthDailyAggLayer <- d
-  }
-  if (is.numeric(DeepestFourthDailyAggLayer) && is.numeric(DeepestThirdDailyAggLayer) && d > DeepestThirdDailyAggLayer) {
-    vals[[4]] <- ((DeepestThirdDailyAggLayer+1):DeepestFourthDailyAggLayer)
-  }
-
-  vals
-}
-
 
 #' Function to extrapolate windspeeds measured at a height different from the SOILWAT2
 #'  required 2-m above ground
@@ -695,93 +613,6 @@ fill_empty <- function(data, pattern, fill) {
   data
 }
 
-#' Split soil layer in two layers
-#'
-#' @param x A numeric data.frame or matrix. Columns are soil layers.
-#' @param il An integer value. The column/soil layer number after which a new layer is added.
-#' @param w A numeric vector of length two. The weights used to calculate the values of the new layer.
-#' @param method A character string. See \code{Details}.
-#'
-#' @section Details: The method \code{interpolate} calculates the weighted mean of the
-#'  columns/layers \code{il} and \code{il + 1}.
-#'  The method \code{exhaust} distributes the value of \code{il + 1} according to the
-#'  weights.
-#'
-#' @return An object like x with one column more at position \code{il + 1}.
-add_layer_to_soil <- function(x, il, w, method = c("interpolate", "exhaust")) {
-  method <- match.arg(method)
-  if (!is.matrix(x))
-    x <- as.matrix(x)
-  ncols <- dim(x)[2]
-
-  if (ncols > il) {
-    x <- x[, c(seq_len(il), NA, (il + 1):ncols)]
-
-    if (method == "interpolate") {
-      x[, il + 1] <- if (il > 0) {
-        (x[, il] * w[1] + x[, il + 2] * w[2]) / sum(w)
-      } else {
-        x[, il + 2]
-      }
-
-    } else if (method == "exhaust") {
-      x[, il + 1] <- x[, il + 2] * w[1] / sum(w)
-      x[, il + 2] <- x[, il + 2] * w[2] / sum(w)
-    }
-
-  } else if (ncols == il) {
-    x <- x[, c(seq_len(ncols), NA)]
-
-    if (method == "interpolate") {
-      x[, il + 1] <- x[, il]
-
-    } else if (method == "exhaust") {
-      x[, il + 1] <- x[, il] * w[2] / sum(w)
-      x[, il] <- x[, il] * w[1] / sum(w)
-    }
-
-  } else {
-    stop("Object x has ", ncols, " columns; thus, a new ", il, "-th column cannot be created")
-  }
-
-  x
-}
-
-identify_soillayers <- function(depths, sdepth) {
-  it <- findInterval(depths, sdepth)
-  if (any(is.na(it))) {
-    as.integer(stats::na.exclude(it))
-  } else if (length(it) > 1 && diff(it) > 0) {
-    (1 + it[1]):(it[2])
-  } else {
-    it[1]
-  }
-}
-
-adjustLayer_byImp <- function(depths, imp_depth, sdepths) {
-  if (any(imp_depth < depths[1])) {
-    depths <- imp_depth
-    if (length(sdepths) >= 2) {
-      temp <- findInterval(imp_depth, sdepths)
-      if (temp > 1) {
-        depths <- c(sdepths[temp - 1], imp_depth)
-      } else {
-        depths <- c(imp_depth, sdepths[temp + 1])
-      }
-    }
-  } else if (any(imp_depth < depths[2])) {
-    depths <- c(depths[1], imp_depth)
-  }
-
-  depths
-}
-
-EstimateInitialSoilTemperatureForEachSoilLayer <- function(layers_depth, lower.Tdepth, soilTupper, soilTlower) {
-  sl <- c(0, lower.Tdepth)
-  st <- c(soilTupper, soilTlower)
-
-  stats::predict(stats::lm(st ~ sl), data.frame(sl = layers_depth))
-}
 
 #--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
 transferExpDesignToInput <- function(x, i_exp, df_exp, df_exp_use) {
@@ -792,22 +623,6 @@ transferExpDesignToInput <- function(x, i_exp, df_exp, df_exp_use) {
     x[ctemp] <- df_exp[i_exp, cexp]
   }
   x
-}
-
-setDeepestTopLayer <- function(layers_depth, Depth_TopLayers_cm) {
-  max(1, findInterval(Depth_TopLayers_cm, layers_depth))
-}
-
-setTopLayer <- function(d, DeepestTopLayer) {
-  seq_len(if (d < DeepestTopLayer) d else DeepestTopLayer)
-}
-
-setBottomLayer <- function(d, DeepestTopLayer) {
-  if (d <= DeepestTopLayer) {
-    NULL
-  } else {
-    (DeepestTopLayer + 1L):d
-  }
 }
 
 
@@ -881,12 +696,12 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
 
 
 
-
 benchmark_BLAS <- function(platform, seed = NA) {
   if (grepl("darwin", platform)) { # apparently this works only on Mac OS X
-    blas <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config BLAS_LIBS", stdout = TRUE)
+    dir_r <- file.path(Sys.getenv()[["R_HOME"]], "R")
+    blas <- system2(command = dir_r, args = "CMD config BLAS_LIBS", stdout = TRUE)
     blas <- sub("-L/", "/", strsplit(blas, split = " ")[[1]][1])
-    lapack <- system2(command = file.path(Sys.getenv()[["R_HOME"]], "R"), args = "CMD config LAPACK_LIBS", stdout = TRUE)
+    lapack <- system2(command = dir_r, args = "CMD config LAPACK_LIBS", stdout = TRUE)
     lapack <- sub("-L/", "/", strsplit(lapack, split = " ")[[1]][1])
     get_ls <- if (identical(blas, lapack)) list(blas) else list(blas, lapack)
     temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
@@ -919,159 +734,75 @@ benchmark_BLAS <- function(platform, seed = NA) {
 }
 
 
-#' Converts precipitation data to values in cm / month
-convert_precipitation <- function(x, unit_conv, dpm) {
-  if (unit_conv %in% c("mm/month", "mm month-1")) {
-    x <- x / 10
-
-  } else if (unit_conv %in% c("mm/d", "mm d-1")) {
-    x <- x * dpm / 10
-
-  } else if (unit_conv %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
-    x <- x * dpm * 8640
-
-  } else if (unit_conv %in% c("cm/month", "cm month-1")) {
-
-  } else stop("Unknown precipitation unit: ", unit_conv)
-
-  x
-}
-
-#' Converts temperature data to values in degree Celsius
-convert_temperature <- function(x, unit_conv) {
-  if (unit_conv == "K") {
-    x <- x - 273.15
-
-  } else if (unit_conv == "F") {
-    x <- (x - 32) * 0.5555556
-
-  } else if (unit_conv == "C") {
-
-  } else stop("Unknown temperature unit: ", unit_conv[1])
-
-  x
-}
-
-
-#' Merge two soil input datafiles
+#' Converts units of precipitation data
 #'
-#' Merge datafiles from two soil data sources (source 1 overrides source 2)
-#'  and choose some or none of the variables to come from one source only.
+#' @param x A numeric vector. Precipitation data as monthly series in units of
+#'   \code{unit_from}.
+#' @param dpm A numeric vector. Number of days per month in the time series \code{x}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "mm/month", "mm month-1", "mm/d", "mm d-1", "kg/m2/s", "kg m-2 s-1",
+#'   "mm/s", "mm s-1", "cm/month", "cm month-1".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "cm month-1" respectively "cm/month".
 #'
-#' @param fmaster A character string. Path to the target master file.
-#' @param fmaster1 A character string. Path to master file derived from extracting from
-#'  soil data source 1
-#' @param fmaster2 A character string. Path to master file derived from extracting from
-#'  soil data source 2
-#' @param fslayer A character string. Path to the target soil layer structure file.
-#' @param fslayer1 A character string. Path to soil layer file derived from data source 1
-#' @param fslayer2 A character string. Path to soil layer file derived from data source 2
-#' @param fstexture A character string. Path to the target soil texture input file.
-#' @param fstexture1 A character string. Path to soil texture file derived from data source 1
-#' @param fstexture2 A character string. Path to soil texture file derived from data source 2
-#' @param var_from2 A vector of character strings. Variables of the soil texture file,
-#'  which will be take values from source2 if available even if source1 is available
-#'
-#' @return A logical value. This function is called for its side effects, i.e., storing
-#'  updated/new files to \code{fmaster}, \code{fslayer}, and \code{fstexture}.
-merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer2,
-  fstexture, fstexture1, fstexture2, var_from2 = NULL) {
-
-  #------ MASTER FILES
-  master1 <- utils::read.csv(fmaster1)
-  master2 <- utils::read.csv(fmaster2)
-  master <- if (file.exists(fmaster)) utils::read.csv(fmaster) else master1
-
-  source1 <- as.character(unique(stats::na.exclude(master1$SoilTexture_source)))
-  source2 <- as.character(unique(stats::na.exclude(master2$SoilTexture_source)))
-
-  stopifnot(length(source1) == 1, length(source2) == 1)
-
-  print(paste("'merge_2soils': data from", shQuote(source1), "and", shQuote(source2),
-    "will be merged, and values from", shQuote(source1), "will be used for sites which",
-    "contain data from both sources.",
-    if (length(var_from2) > 0) paste("However, data from", shQuote(source2), "for",
-    "variables", paste(shQuote(var_from2), collapse = ", "), "will be",
-    "used for all sites if available")))
-
-  iuse_source <- ifelse(!is.na(master1$SoilTexture_source) &
-    !is.na(master1$Include_YN_SoilSources) & master1$Include_YN_SoilSources > 0, 1,
-    ifelse(!is.na(master2$SoilTexture_source) &
-    !is.na(master2$Include_YN_SoilSources) & master2$Include_YN_SoilSources > 0, 2, NA))
-
-  soiltally <- table(iuse_source, useNA = "ifany")
-  print(soiltally)
-
-  # Indices of soil datasets
-  id1 <- id1c <- !is.na(master1$SoilTexture_source) & master1$SoilTexture_source == source1
-  id2 <- !is.na(master2$SoilTexture_source) & master2$SoilTexture_source == source2
-  id2c <- id2 & !id1
-  id12 <- id1 & id2
-  idnot <- !id1c & !id2c
-
-  # Copy data
-  master[idnot, "SoilTexture_source"] <- NA
-  master[id1c, "SoilTexture_source"] <- source1
-  master[id2c, "SoilTexture_source"] <- source2
-  master[idnot, "Include_YN_SoilSources"] <- 0
-  master[!idnot, "Include_YN_SoilSources"] <- 1
-
-  # Save to disk
-  utils::write.csv(master, file = fmaster, row.names = FALSE)
-
-
-  #------SOIL LAYERS
-  sl1 <- utils::read.csv(fslayer1)
-  sl2 <- utils::read.csv(fslayer2)
-  sl <- if (file.exists(fslayer)) utils::read.csv(fslayer) else sl1
-
-  # Copy data
-  sl[idnot, -1] <- NA
-  sl[id1c, ] <- sl1[id1c, ]
-  sl[id2c, ] <- sl2[id2c, ]
-
-  # Save to disk
-  utils::write.csv(sl, file = fslayer, row.names = FALSE)
-
-
-  #------SOIL TEXTURE DATA
-  st1_use <- utils::read.csv(fstexture1, nrows = 1)
-  st1 <- utils::read.csv(fstexture1, skip = 1)
-  st2_use <- utils::read.csv(fstexture2, nrows = 1)
-  st2 <- utils::read.csv(fstexture2, skip = 1)
-  st_use <- ifelse(st1_use == 1 | st2_use == 1, 1, 0)
-
-  st <- if (file.exists(fstexture)) utils::read.csv(fstexture, skip = 1) else st1
-  names(st1) <- names(st2) <- names(st) <- names(st_use) <- names(st1_use)
-
-  # Copy data
-  st[idnot, -1] <- NA
-  st[id1c, ] <- st1[id1c, ]
-  st[id2c, ] <- st2[id2c, ]
-
-  # Replace content of variables 'var_from2' with values from source2
-  if (sum(id12) > 0 && length(var_from2) > 0) {
-    for (k in seq_along(var_from2)) {
-      icol2 <- grep(var_from2[k], names(st), ignore.case = TRUE)
-
-      if (length(icol2) > 0) {
-        st[id12, icol2] <- st2[id12, icol2]
-      } else {
-        print(paste("'merge_2soils': no columns found for", shQuote(var_from2[k])))
-      }
-    }
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
+  if (!(unit_to %in% c("cm/month", "cm month-1"))) {
+    stop("'convert_precipitation': only converts to units of 'cm month-1'")
   }
 
-  # Reset transpiration regions
-  st[, grep("TranspRegion", names(st))] <- NA
-  print(paste("'merge_2soils': NOTE: transpiration regions have been reset. They require",
-    "updated values before a simulation can be run successfully."))
+  if (unit_from %in% c("mm/month", "mm month-1")) {
+    x / 10
 
-  # Save to disk
-  utils::write.csv(rbind(st_use, st), file = fstexture, row.names = FALSE)
+  } else if (unit_from %in% c("mm/d", "mm d-1")) {
+    x * dpm / 10
 
-  TRUE
+  } else if (unit_from %in% c("cm/d", "cm d-1")) {
+    x * dpm
+
+  } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
+    x * dpm * 8640
+
+  } else if (unit_from %in% c("cm/month", "cm month-1")) {
+    x
+
+  } else {
+    stop("Unknown precipitation unit: ", unit_from)
+  }
 }
+
+#' Converts units of temperature data
+#'
+#' @param x A numeric vector. Temperature data as monthly series in units of
+#'   \code{unit_from}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
+#'   units include "K", "F", and "C".
+#' @param unit_to A character string. Units to which data are converted. Currently,
+#'   supported unit is "C".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @export
+convert_temperature <- function(x, unit_from, unit_to = "C") {
+  if (!identical(unit_to, "C")) {
+    stop("'convert_temperature': only converts to units of degree Celsius")
+  }
+
+  if (identical(unit_from, "K")) {
+    x - 273.15
+
+  } else if (identical(unit_from, "F")) {
+    (x - 32) * 0.5555556
+
+  } else if (identical(unit_from, "C")) {
+    x
+
+  } else {
+    stop("Unknown temperature unit: ", unit_from)
+  }
+}
+
+
 
 
 convert_to_todo_list <- function(x) {
@@ -1085,23 +816,53 @@ convert_to_todo_list <- function(x) {
 
 
 setup_scenarios <- function(sim_scens, future_yrs) {
+  #--- Create complete scenario names
   # make sure 'ambient' is not among models
-  sim_scens[["models"]] <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
+  temp <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
     invert = TRUE, value = TRUE)
 
-  if (length(sim_scens[["models"]]) > 0) {
+  if (length(temp) > 0) {
     # add (multiple) future_yrs
-    sim_scens[["models"]] <- paste0(rownames(future_yrs), ".", rep(sim_scens[["models"]],
-      each = nrow(future_yrs)))
+    temp <- paste0(rownames(future_yrs), ".", rep(temp, each = nrow(future_yrs)))
     # add (multiple) downscaling.method
-    sim_scens[["models"]] <- paste0(sim_scens[["method_DS"]], ".",
-      rep(sim_scens[["models"]], each = length(sim_scens[["method_DS"]])))
+    temp <- paste0(sim_scens[["method_DS"]], ".",
+      rep(temp, each = length(sim_scens[["method_DS"]])))
   }
 
   # make sure 'ambient' is first entry
-  temp <- c(sim_scens[["ambient"]], sim_scens[["models"]])
+  id <- c(sim_scens[["ambient"]], temp)
+  N <- length(id)
 
-  c(sim_scens, list(id = temp, N = length(temp)))
+  if (N > 1) {
+    #--- Create table with scenario name parts for each scenario
+    temp <- strsplit(id[-1], split = ".", fixed = TRUE)
+    if (!all(lengths(temp) == 4L))
+      stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
+        "concatenated by '.'")
+
+    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4, byrow = TRUE),
+      stringsAsFactors = FALSE)
+    # ConcScen = concentration scenarios, e.g., SRESs, RCPs
+    colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
+    # see 'setup_simulation_time' for how 'future_yrs' is created
+    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
+      nchar(climScen[, "DeltaStr_yrs"]) - 3))
+
+    #--- List unique sets of requested scenario name parts
+    reqMs <- unique(climScen[, "Model"])
+    reqCSs <- unique(climScen[, "ConcScen"])
+    reqCSsPerM <- lapply(reqMs, function(x)
+      unique(climScen[x == climScen[, "Model"], "ConcScen"]))
+    reqDSsPerM <- lapply(reqMs, function(x)
+      unique(climScen[x == climScen[, "Model"], "Downscaling"]))
+
+  } else {
+    # Only ambient scenario
+    climScen <- reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
+  }
+
+  c(sim_scens, list(id = id, N = N, df = climScen, reqMs = reqMs,
+    reqCSs = reqCSs, reqCSsPerM = reqCSsPerM, reqDSsPerM = reqDSsPerM))
 }
 
 setup_mean_daily_output_requests <- function(req_mean_daily, opt_agg) {
@@ -1135,6 +896,15 @@ setup_aggregation_options <- function(opt_agg, ...) {
   opt_agg
 }
 
+
+get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
+  if (field_include %in% names(SWRunInformation)) {
+    temp <- SWRunInformation[sim_size[["runIDs_sites"]], field_include]
+    is.na(temp) | temp > 0
+  } else {
+    rep(TRUE, sim_size[["runsN_sites"]])
+  }
+}
 
 
 get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
@@ -1174,7 +944,7 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
     if (any(notDone))
       print(paste0(shQuote(field_sources), ": no data available for n = ", sum(notDone),
-        "sites."))
+        " sites."))
 
   } else {
       print(paste0(shQuote(field_sources), ": no data extracted because already available"))
@@ -1184,3 +954,57 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 }
 
 
+#' Check availability and version of a command-line tool
+#'
+#' The function throws an error if the command-line tool cannot be run and its version
+#' querried by a call to \code{\link{system2}}. Otherwise, the function compares the
+#' return version value with the argument \code{v_expected}. If it does not match and
+#' the argument \code{stop_on_mismatch} has a \code{TRUE} value, then an error is thrown
+#' with a suitable message; otherwise, a warning is issued.
+#'
+#' @param tool A character string. The name of the command-line tool.
+#' @param v_expected A character string that is or can be converted to represent the
+#'  expected version of the command-line tool.
+#' @param stop_on_mismatch A logical value.
+#' @seealso \code{\link{system2}}
+#'
+#' @return An invisible \code{TRUE}.
+#' @export
+check_cltool <- function(tool, v_expected, stop_on_mismatch = FALSE) {
+  v_expected <- numeric_version(v_expected)
+  fun_calling <- sys.call(sys.parent())[[1]]
+
+  temp <- try(system2(tool, args = "--version", stdout = TRUE, stderr = TRUE))
+
+  if (inherits(temp, "try-error")) {
+    stop(shQuote(fun_calling), ": tool ", shQuote(tool), " cannot be found.")
+
+  } else {
+    v_has <- numeric_version(gsub("[^([:digit:][:punct:])]", "", temp[2]))
+
+    txt <- if (v_has > v_expected) {
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
+          shQuote(v_expected), " but found version ", shQuote(v_has), "; this may work, ",
+          "but likely the code of ", shQuote(fun_calling), " must be updated to work ",
+          "with newer versions of ", shQuote(tool), " properly.")
+
+      } else if (v_has < v_expected) {
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
+          shQuote(v_expected), " but found an older version ", shQuote(v_has), "; this ",
+          "may work, but likely ", shQuote(tool), " must be updated to work with ",
+          shQuote(fun_calling), "properly.")
+      } else NULL
+
+    if (!is.null(txt)) {
+      if (stop_on_mismatch) {
+        stop(txt)
+      } else {
+        warning(txt)
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
+
+check_cltool <- memoise::memoise(check_cltool)
