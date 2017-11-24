@@ -937,7 +937,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
         colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
-        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- scenarioCO2_ppm
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(scenarioCO2_ppm)
       }
       # End CO2 effects -----
 
