@@ -316,12 +316,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
     #----- Begin carbon effects
-    if (i_sw_input_treatments$UseCO2BiomassMultiplier == 1)
+    if (!is.na(i_sw_input_treatments$UseCO2BiomassMultiplier)
+        && i_sw_input_treatments$UseCO2BiomassMultiplier == 1)
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 1L
     else
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 0L
 
-    if (i_sw_input_treatments$UseCO2WUEMultiplier == 1)
+    if (!is.na(i_sw_input_treatments$UseCO2WUEMultiplier)
+        && i_sw_input_treatments$UseCO2WUEMultiplier == 1)
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 1L
     else
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 0L
