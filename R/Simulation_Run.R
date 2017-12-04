@@ -934,6 +934,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         # Extract CO2 concentration values in units of ppm into swCarbon
         ids_years <- match(isim_time$simstartyr:isim_time$endyr + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
           tr_input_CarbonScenario[, "Year"], nomatch = 0)
+        # Convert possible integers to numeric
+        tr_input_CarbonScenario[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CarbonScenario[ids_years, scenario_index]))
         scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
         colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
