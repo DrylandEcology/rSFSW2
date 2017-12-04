@@ -1,4 +1,4 @@
-# Output setup file for SOILWAT
+# Output setup file for SOILWAT2
 #
 # Notes:
 # Time periods available:  DY,WK,MO,YR
@@ -66,3 +66,4 @@ TIMESTEP dy yr
       DEEPSWC     SUM       MO       1     end      deep_drain      /* deep drainage into lowest layer (cm) */
      SOILTEMP     AVG       MO       1     end       temp_soil      /* soil temperature from each soil layer (in celsius) */
        ESTABL     OFF       YR       1     end          estabs      /* yearly establishment results */
+       CO2EFFECTS 		AVG 	DY 		1 		end 		co2_effects 		/* 4 columns (grasses, shrubs, trees, forbs) for each category described here: biomass (g/m^2), biolive (g/m^2), biomass multiplier (decimal percent), water-usage efficiency multiplier (decimal percent) */

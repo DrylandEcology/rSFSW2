@@ -82,6 +82,7 @@ fnames_in <- list(
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
   fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
 
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
   LookupClimatePPTScenarios = "climate.ppt.csv",
   LookupClimateTempScenarios = "climate.temp.csv",
   LookupShiftedPPTScenarios = "shifted.ppt.csv",
