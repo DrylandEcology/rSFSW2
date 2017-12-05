@@ -19,7 +19,7 @@ init:
 install:
   - ps: Bootstrap
   - travis-tool.sh install_r blob DBI RSQLite
-  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
+  - git clone -b Rsoilwat_co2_effects --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL C:/tmp/rSOILWAT2
 
 # Adapt as necessary starting from here
