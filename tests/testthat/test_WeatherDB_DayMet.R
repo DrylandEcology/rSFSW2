@@ -21,25 +21,26 @@ if (!any(do_skip) && is_online) {
   dm_path <- tempdir()
   exinfo <- list(GriddedDailyWeatherFromDayMet_NorthAmerica = TRUE)
 
-  N <- 2L
   coords_WGS84 <- data.frame(
-    X_WGS84 = c(-120, 0),
-    Y_WGS84 = c(40, 0))
+    X_WGS84 = c(-105.5906, -72.595),
+    Y_WGS84 = c(41.31139, 43.26278))
+  N <- nrow(coords_WGS84)
   site_dat <- cbind(Label = c(paste("DM_test", seq_len(N), sep = "_")), coords_WGS84)
   dw_source <- dw_names <- rep(NA, N)
 
+  avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
   sim_testtimes <- list(
-    t1 = c(simstartyr = 1980, endyr = 2016),
-    t2 = c(simstartyr = 1960, endyr = 2016),
-    t3 = c(simstartyr = 1980, endyr = 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year + 1)
+    t1 = c(overall_simstartyr = 1980, overall_endyr = 1985),
+    t2 = c(overall_simstartyr = 1980, overall_endyr = avail_end_year),
+    t3 = c(overall_simstartyr = avail_end_year - 1, overall_endyr = avail_end_year)
   )
 
   # Expected outputs
-  dw_source_exp <- list(t1 = c("DayMet_NorthAmerica", NA),
-    t2 = rep(NA, N), t3 = rep(NA, N))
-  dw_name_exp <- list(t1 = c("DM_test_1_DayMet-120.0000_40.0000", NA),
-    t2 = rep(NA, N), t3 = rep(NA, N))
-  dw_n_exp <- list(t1 = 1, t2 = 0, t3 = 0)
+  temp <- rep("DayMet_NorthAmerica", N)
+  dw_source_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+  temp <- c("DM_test_1_DayMet-105.5906_41.3114", "DM_test_2_DayMet-72.5950_43.2628")
+  dw_name_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+  dw_n_exp <- list(t1 = N, t2 = N, t3 = N)
 
   #--- Tests
   test_that("DayMet weather data:", {
@@ -61,11 +62,11 @@ if (!any(do_skip) && is_online) {
         if (identical(dw[["source"]][i], "DayMet_NorthAmerica")) {
           x <- get_DayMet_NorthAmerica(dir_data = dm_path, cellID = dm[["cellID"]][i],
             Xdm_WGS84 = dm$dm_WGS84[i, 1], Ydm_WGS84 = dm$dm_WGS84[i, 2],
-            start_year = sim_time[["simstartyr"]], end_year = sim_time[["endyr"]],
+            start_year = sim_time[["overall_simstartyr"]], end_year = sim_time[["overall_endyr"]],
             dbW_digits = 2L)
 
           expect_equal(unique(sapply(x, class)), "swWeatherData")
-          expect_equal(length(x), sim_time[["endyr"]] - sim_time[["simstartyr"]] + 1)
+          expect_equal(length(x), sim_time[["overall_endyr"]] - sim_time[["overall_simstartyr"]] + 1)
         }
       }
     }
