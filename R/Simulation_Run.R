@@ -553,7 +553,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         rSOILWAT2::swSite_ModelFlags(swRunScenariosData[[1]])[site_use] <-
           as.logical(i_sw_input_site[flags][site_use])
 
-      flags <- c("PET_multiplier", "RunoffPercent_fromPondedWater")
+      flags <- c("PET_multiplier", "RunoffPercent_fromPondedWater", "RunonPercent_fromPondedWater")
       site_use <- sw_input_site_use[flags]
       if (any(site_use))
         rSOILWAT2::swSite_ModelCoefficients(swRunScenariosData[[1]])[site_use] <-
@@ -1637,7 +1637,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = FALSE),
+                echo = FALSE, quiet = TRUE),
               silent = TRUE)
 
       # Testing for error in soil temperature module
@@ -1665,7 +1665,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = FALSE),
+                echo = FALSE, quiet = TRUE),
               silent = TRUE)
 
           ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
@@ -1759,7 +1759,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               "Esurface.yr", "Esurface.mo", "Esurface.dy",
               "hydred.yr", "hydred.mo", "hydred.dy",
               "inf.yr", "inf.mo", "inf.dy",
-              "runoff.yr", "runoff.mo", "runoff.dy",
+              "runonoff.yr", "runonoff.mo", "runonoff.dy",
               "intercept.yr", "intercept.mo", "intercept.dy",
               "deepDrain.yr", "deepDrain.mo", "deepDrain.dy")
         to_del <- to_del[to_del %in% ls()]
@@ -2286,7 +2286,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("Esurface.yr")) Esurface.yr <- get_Esurface_yr(runDataSC, isim_time)
           if (!exists("intercept.yr")) intercept.yr <- get_Interception_yr(runDataSC, isim_time)
           if (!exists("inf.yr")) inf.yr <- get_Inf_yr(runDataSC, isim_time)
-          if (!exists("runoff.yr")) runoff.yr <- get_Runoff_yr(runDataSC, isim_time)
+          if (!exists("runonoff.yr")) runonoff.yr <- get_RunOnOff_yr(runDataSC, isim_time)
           if (!exists("transp.yr")) transp.yr <- get_Response_aggL(swof["sw_transp"], tscale = "yr", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
           if (!exists("AET.yr")) AET.yr <- get_AET_yr(runDataSC, isim_time)
           if (!exists("PET.yr")) PET.yr <- get_PET_yr(runDataSC, isim_time)
@@ -2327,30 +2327,32 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt,
             prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter,
-            Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runoff.yr$val, evap.tot,
-            evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top,
-            transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val,
-            swc.flux)
+            Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runonoff.yr$total_runoff,
+            runonoff.yr$total_runon, evap.tot, evap_soil.tot, Esoil.yr$top,
+            Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom,
+            hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux)
+
+          nv1 <- nv + ncol(fluxtemp) - 1
 
           #mean fluxes
-          resMeans[nv:(nv+22)] <- apply(fluxtemp, 2, mean)
-          resMeans[nv+23] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
-          resMeans[nv+24] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
-          resMeans[nv+25] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
-          resMeans[nv+26] <- if (sum(PET.yr$val) > 0) mean(AET.yr$val/PET.yr$val) else 0
-          resMeans[nv+27] <- if (sum(PET.yr$val) > 0) mean(transp.tot/PET.yr$val) else 0
-          resMeans[nv+28] <- if (sum(PET.yr$val) > 0) mean(evap_soil.tot/PET.yr$val) else 0
+          resMeans[nv:nv1] <- apply(fluxtemp, 2, mean)
+          resMeans[nv1 + 1] <- if (sum(transp.tot) > 0) mean(transp.yr$bottom/transp.tot) else 0
+          resMeans[nv1 + 2] <- if (sum(AET.yr$val) > 0) mean(transp.tot/AET.yr$val) else 0
+          resMeans[nv1 + 3] <- if (sum(AET.yr$val) > 0) mean(evap_soil.tot/AET.yr$val) else 0
+          resMeans[nv1 + 4] <- if (sum(PET.yr$val) > 0) mean(AET.yr$val/PET.yr$val) else 0
+          resMeans[nv1 + 5] <- if (sum(PET.yr$val) > 0) mean(transp.tot/PET.yr$val) else 0
+          resMeans[nv1 + 6] <- if (sum(PET.yr$val) > 0) mean(evap_soil.tot/PET.yr$val) else 0
 
           #stats::sd of fluxes
-          resSDs[nv:(nv+22)] <- apply(fluxtemp, 2, stats::sd)
-          resSDs[nv+23] <- if (sum(transp.tot) > 0) stats::sd(transp.yr$bottom/transp.tot) else 0
-          resSDs[nv+24] <- if (sum(AET.yr$val) > 0) stats::sd(transp.tot/AET.yr$val) else 0
-          resSDs[nv+25] <- if (sum(AET.yr$val) > 0) stats::sd(evap_soil.tot/AET.yr$val) else 0
-          resSDs[nv+26] <- if (sum(PET.yr$val) > 0) stats::sd(AET.yr$val/PET.yr$val) else 0
-          resSDs[nv+27] <- if (sum(PET.yr$val) > 0) stats::sd(transp.tot/PET.yr$val) else 0
-          resSDs[nv+28] <- if (sum(PET.yr$val) > 0) stats::sd(evap_soil.tot/PET.yr$val) else 0
+          resSDs[nv:nv1] <- apply(fluxtemp, 2, stats::sd)
+          resSDs[nv1 + 1] <- if (sum(transp.tot) > 0) stats::sd(transp.yr$bottom/transp.tot) else 0
+          resSDs[nv1 + 2] <- if (sum(AET.yr$val) > 0) stats::sd(transp.tot/AET.yr$val) else 0
+          resSDs[nv1 + 3] <- if (sum(AET.yr$val) > 0) stats::sd(evap_soil.tot/AET.yr$val) else 0
+          resSDs[nv1 + 4] <- if (sum(PET.yr$val) > 0) stats::sd(AET.yr$val/PET.yr$val) else 0
+          resSDs[nv1 + 5] <- if (sum(PET.yr$val) > 0) stats::sd(transp.tot/PET.yr$val) else 0
+          resSDs[nv1 + 6] <- if (sum(PET.yr$val) > 0) stats::sd(evap_soil.tot/PET.yr$val) else 0
 
-          nv <- nv+29
+          nv <- nv1 + 7
 
           rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
         }
@@ -3872,10 +3874,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #48
         if (prj_todos[["aon"]]$monthlyRunoff) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyRunoff")
-          if (!exists("runoff.mo")) runoff.mo <- get_Runoff_mo(runDataSC, isim_time)
+          if (!exists("runonoff.mo")) runonoff.mo <- get_RunOnOff_mo(runDataSC, isim_time)
 
-          resMeans[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runoff.mo$val, simTime2$month_ForEachUsedMonth, mean)
-          resSDs[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runoff.mo$val, simTime2$month_ForEachUsedMonth, stats::sd)
+          resMeans[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runonoff.mo$total_runoff,
+            simTime2$month_ForEachUsedMonth, mean)
+          resSDs[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runonoff.mo$total_runoff,
+            simTime2$month_ForEachUsedMonth, stats::sd)
+          nv <- nv+12
+        }
+        if (prj_todos[["aon"]]$monthlyRunon) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlyRunon")
+          if (!exists("runonoff.mo")) runonoff.mo <- get_RunOnOff_mo(runDataSC, isim_time)
+
+          resMeans[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runonoff.mo$total_runon,
+            simTime2$month_ForEachUsedMonth, mean)
+          resSDs[nv+SFSW2_glovars[["st_mo"]]-1] <- tapply(runonoff.mo$total_runon,
+            simTime2$month_ForEachUsedMonth, stats::sd)
           nv <- nv+12
         }
       #49
@@ -4589,7 +4603,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2, SWAbulk = 2,
               Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
               Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-              TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+              TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+              Runon = 1)
             agg.no <- if (agg.analysis > 1) aggLs_no else 1L
 
             temp <- if (agg.analysis == 1) 1L else {
@@ -4632,7 +4647,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                     TemperatureMin = swof["sw_temp"],
                     TemperatureMax = swof["sw_temp"],
                     SoilTemperature = swof["sw_soiltemp"],
-                    Runoff = swof["sw_runoff"])
+                    Runoff = swof["sw_runoff"],
+                    Runon = swof["sw_runoff"])
                 temp1 <- slot(slot(runDataSC, agg.file), "Day")
               }
 
@@ -4659,22 +4675,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
               } else {
                 #no layers
-                if (any(!is.na(match(agg.resp, c("AET", "EvaporationSurface", "Snowpack", "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax", "Runoff"))))) {
-                  agg.column <- switch(EXPR = agg.resp, AET = 3, EvaporationSurface = 3, Snowpack = 3, Rain = 4, Snowfall = 5, Snowmelt = 6, SnowLoss = 7, Infiltration = 3, DeepDrainage = 3, PET = 3, TotalPrecipitation = 3, TemperatureMin = 4, TemperatureMax = 3, Runoff = 3)
-                  agg.dat[[1]] <- temp1[isim_time$index.usedy, agg.column]
+                if (agg.resp %in% c("AET", "EvaporationSoil", "EvaporationSurface", "Snowpack",
+                  "Rain", "Snowfall", "Snowmelt", "SnowLoss", "Infiltration", "DeepDrainage",
+                  "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax",
+                  "Runoff", "Runon")) {
+                  agg.column <- switch(EXPR = agg.resp, AET = 3,
+                    EvaporationSoil = if ((colN <- ncol(temp1)) > 3) 3:colN else 3,
+                    EvaporationSurface = 3, Snowpack = 3, Rain = 4, Snowfall = 5,
+                    Snowmelt = 6, SnowLoss = 7, Infiltration = 3, DeepDrainage = 3,
+                    PET = 3, TotalPrecipitation = 3, TemperatureMin = 4,
+                    TemperatureMax = 3, Runoff = 4:5, Runon = 6)
+
+                  agg.dat[[1]] <- if (length(agg.column) > 1) {
+                      apply(temp1[isim_time$index.usedy, agg.column], 1, sum)
+                    } else {
+                      temp1[isim_time$index.usedy, agg.column]
+                    }
                 }
                 if (agg.resp == "EvaporationTotal") {
                   if ((colN <- ncol(temp1)) > 3) {
                     agg.dat[[1]] <- apply(temp1[isim_time$index.usedy, 3:colN], 1, sum) + temp2[isim_time$index.usedy, 3]
                   } else {
                     agg.dat[[1]] <- temp1[isim_time$index.usedy, 3] + temp2[isim_time$index.usedy, 3]
-                  }
-                }
-                if (agg.resp == "EvaporationSoil") {
-                  if ((colN <- ncol(temp1)) > 3) {
-                    agg.dat[[1]] <- apply(temp1[isim_time$index.usedy, 3:colN], 1, sum)
-                  } else {
-                    agg.dat[[1]] <- temp1[isim_time$index.usedy, 3]
                   }
                 }
               }
