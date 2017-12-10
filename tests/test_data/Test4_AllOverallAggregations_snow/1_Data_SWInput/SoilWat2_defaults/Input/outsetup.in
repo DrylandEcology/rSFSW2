@@ -1,4 +1,4 @@
-# Output setup file for SOILWAT
+# Output setup file for SOILWAT2
 #
 # Notes:
 # Time periods available:  DY,WK,MO,YR
@@ -45,7 +45,7 @@ TIMESTEP dy yr
          TEMP     AVG       WK       1     end        temp_air      /* max., min, average temperature (C) */
        PRECIP     SUM       MO       1     end          precip      /* total precip = sum(rain, snow), rain, snow-fall, snowmelt, and snowloss (cm) */
    SOILINFILT     SUM       YR       1     end    infiltration      /* water to infiltrate in top soil layer (cm), runoff (cm); (not-intercepted rain)+(snowmelt-runoff) */
-       RUNOFF     SUM       WK       1     end          runoff      /* runoff (cm): total runoff, runoff from ponded water, runoff from snowmelt */
+       RUNOFF     SUM       WK       1     end          runoff      /* runoff/runon (cm): net runoff, runoff from ponded water, runoff from snowmelt, runon of surface water from hypothetical upslope neighbor */
       VWCBULK     AVG       MO       1     end        vwc_bulk      /* bulk volumetric soilwater (cm / layer) */
     VWCMATRIC     AVG       YR       1     end      vwc_matric      /* matric volumetric soilwater (cm / layer) */
       SWCBULK     AVG       DY       1     end        swc_bulk      /* bulk soilwater content (cm / cm layer); swc.l1(today) = swc.l1(yesterday)+inf_soil-lyrdrain.l1-transp.l1-evap_soil.l1; swc.li(today) = swc.li(yesterday)+lyrdrain.l(i-1)-lyrdrain.li-transp.li-evap_soil.li; swc.llast(today) = swc.llast(yesterday)+lyrdrain.l(last-1)-deepswc-transp.llast-evap_soil.llast */

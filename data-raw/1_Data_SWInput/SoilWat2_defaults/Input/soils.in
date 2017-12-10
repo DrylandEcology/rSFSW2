@@ -9,9 +9,9 @@
 # %sand = (frac) proportion of sand in layer (0-1.0).
 # %clay = (frac) proportion of clay in layer (0-1.0).
 # imperm = (frac) proportion of 'impermeability' to water percolation(/infiltration/drainage) in layer (0-1.0)
-# soiltemp = the initial temperature of each soil layer (in Celsius), from the day before the simulation starts
+# soiltemp = the initial temperature of each soil layer (in celcius), from the day before the simulation starts
 # Note that the evco and trco columns must sum to 1.0 or they will
 # be normalized.
 #
 # depth    matricd    gravel_content    evco    trco_grass    trco_shrub    trco_tree    trco_forb    %sand    %clay    imperm    soiltemp
-  5.000      1.430      0.000          0.812         0.033         0.134        0.033        0.134    0.510    0.150     0.000       0.186
+  5.000      1.430      0.100          0.812         0.033         0.134        0.033        0.134    0.510    0.150     0.000       1.000
