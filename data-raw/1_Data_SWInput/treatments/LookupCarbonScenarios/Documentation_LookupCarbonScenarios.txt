@@ -15,3 +15,8 @@ rSFSW2 will search this CSV for the scenario name, ensure the ppm data is valid,
 You can see the ppm values that were used in sw_input.RData under swRunScenariosData[[1 or scenario index]]@carbon@CO2ppm
 
 You can see the resulting multipliers in sw_output.RData under runDataSC@CO2effects
+
+
+Data for scenarios
+have been downloaded on Aug 22, 2016 from the website "RCP Concentration Calculations and Data: Final Version, background data, acknowledgements and further info" (http://www.pik-potsdam.de/~mmalte/rcps/). Description of the data sets:
+Meinshausen, M., S. J. Smith, K. V. Calvin, J. S. Daniel, M. L. T. Kainuma, J.-F. Lamarque, K. Matsumoto, S. A. Montzka, S. C. B. Raper, K. Riahi, A. M. Thomson, G. J. M. Velders and D. van Vuuren (2011). "The RCP Greenhouse Gas Concentrations and their Extension from 1765 to 2300." Climatic Change (Special Issue), DOI: 10.1007/s10584-011-0156-z
