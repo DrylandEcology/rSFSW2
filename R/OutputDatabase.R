@@ -1702,8 +1702,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #27
     if (aon$yearlyWaterBalanceFluxes) {
-      temp <- c(temp, paste0(c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm", "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm", "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm", "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm", "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
-                  "Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm", "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm", "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm", "DeepDrainage_mm", "SWC.StorageChange_mm", "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET", "AETtoPET", "TtoPET", "EStoPET"), "_mean"))
+      temp <- c(temp, paste0(c(paste0(c("Rain", "Rain.ReachingSoil", "Snowfall",
+        "Snowmelt", "Snowloss", "Interception.Total", "Interception.Vegetation",
+        "Interception.Litter", "Evaporation.InterceptedByVegetation",
+        "Evaporation.InterceptedByLitter", "Infiltration", "Runoff", "Runon",
+        "Evaporation.Total", "Evaporation.Soil.Total", "Evaporation.Soil.topLayers",
+        "Evaporation.Soil.bottomLayers", "Transpiration.Total", "Transpiration.topLayers",
+        "Transpiration.bottomLayers", "HydraulicRedistribution.TopToBottom",
+        "Percolation.TopToBottom", "DeepDrainage", "SWC.StorageChange"), "_mm"),
+        "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET",
+        "AETtoPET", "TtoPET", "EStoPET"), "_mean"))
     }
 
 
@@ -1963,6 +1971,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #48
     if (aon$monthlyRunoff) {
       temp <- c(temp, paste0("Runoff.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
+    }
+    if (aon$monthlyRunon) {
+      temp <- c(temp, paste0("Runon.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
     }
 
   #49
