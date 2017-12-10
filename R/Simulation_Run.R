@@ -1637,7 +1637,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = FALSE),
+                echo = FALSE, quiet = TRUE),
               silent = TRUE)
 
       # Testing for error in soil temperature module
@@ -1665,7 +1665,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = FALSE),
+                echo = FALSE, quiet = TRUE),
               silent = TRUE)
 
           ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
