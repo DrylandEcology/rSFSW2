@@ -112,7 +112,6 @@ fnames_in <- list(
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
   LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
-
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
@@ -565,6 +564,7 @@ req_out <- list(
     "monthlySnowpack", 1,
     "monthlySoilTemp", 1,
     "monthlyRunoff", 1,
+    "monthlyRunon", 1,
     "monthlyHydraulicRedistribution", 1,
     "monthlyInfiltration", 1,
     "monthlyDeepDrainage", 1,
@@ -589,7 +589,7 @@ req_out <- list(
   #  options: NULL or a selection of c("AET", "Transpiration", "EvaporationSoil",
   #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk",
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
-  #   "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
+  #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
   mean_daily = NULL,
   # Select variables to output as aggregated yearly time series

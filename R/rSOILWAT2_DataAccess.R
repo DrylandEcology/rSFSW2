@@ -298,20 +298,26 @@ get_DeepDrain_dy <- function(x, st) {
 
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
-get_Runoff_mo <- function(x, st) {
+get_RunOnOff_mo <- function(x, st) {
   x <- 10 * slot(slot(x, "RUNOFF"), "Month")[st$index.usemo, ]
-  list(val = x[, 3],
-       ponded = x[, 4],
-       snowmelt = x[, 5])
+  list(net = x[, 3],
+       total_runoff = x[, 4] + x[, 5],
+       ponded_runoff = x[, 4],
+       snowmelt_runoff = x[, 5],
+       total_runon = x[, 6],
+       ponded_runon = x[, 6])
 }
 
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
-get_Runoff_yr <- function(x, st) {
+get_RunOnOff_yr <- function(x, st) {
   x <- 10 * slot(slot(x, "RUNOFF"), "Year")[st$index.useyr, , drop = FALSE]
-  list(val = x[, 2, drop = FALSE],
-       ponded = x[, 3, drop = FALSE],
-       snowmelt = x[, 4, drop = FALSE])
+  list(net = x[, 2, drop = FALSE],
+       total_runoff = x[, 3, drop = FALSE] + x[, 4, drop = FALSE],
+       ponded_runoff = x[, 3, drop = FALSE],
+       snowmelt_runoff = x[, 4, drop = FALSE],
+       total_runon = x[, 5, drop = FALSE],
+       ponded_runon = x[, 5, drop = FALSE])
 }
 
 # TODO: move to rSOILWAT2

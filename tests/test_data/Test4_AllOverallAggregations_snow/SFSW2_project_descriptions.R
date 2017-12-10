@@ -49,10 +49,9 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "BookDuo_12TB", "BigData", "GIS", "Data")
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
     } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "fas", "lauenroth", "ds2483", "project", "BigData", "GIS",
-        "Data")
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
     },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
@@ -82,7 +81,6 @@ fnames_in <- list(
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
   fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
 
-  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
   LookupClimatePPTScenarios = "climate.ppt.csv",
   LookupClimateTempScenarios = "climate.temp.csv",
   LookupShiftedPPTScenarios = "shifted.ppt.csv",
@@ -91,6 +89,7 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
@@ -128,20 +127,20 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res.; data expected at file.path(
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res.; data expected at file.path(
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res.; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res.; use with dbW; data expected at file.path(
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res.; data expected at file.path(
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
 
@@ -519,6 +518,7 @@ req_out <- list(
     "monthlySnowpack", 1,
     "monthlySoilTemp", 1,
     "monthlyRunoff", 1,
+    "monthlyRunon", 1,
     "monthlyHydraulicRedistribution", 1,
     "monthlyInfiltration", 1,
     "monthlyDeepDrainage", 1,
@@ -543,7 +543,7 @@ req_out <- list(
   #  options: NULL or a selection of c("AET", "Transpiration", "EvaporationSoil",
   #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk",
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
-  #   "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
+  #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
   mean_daily = NULL,
   # Select variables to output as aggregated yearly time series

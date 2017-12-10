@@ -139,8 +139,11 @@ If you change the 'demo code' in `demo/`, e.g., add a new input database option,
   * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.
 
 ### __Updates to input files__
-If you change 'input files' in `data-raw/1_Data_SWInput`, e.g., add a new column to
-experimental/design treatment file, then
+- If `SOILWAT2` and `rSOILWAT2` update input files, then we have to propagate these changes
+to the default inputs of `rSFSW2` in `data-raw/1_Data_SWInput/SoilWat2_defaults/` by
+running the R script `data-raw/update_SoilWat2_defaults.R`.
+- If you change 'input files' in `data-raw/1_Data_SWInput` (e.g., updated `SoilWat2_defaults/`,
+added a new column to experimental/design treatment file) then
   * update the `R/sysdata.rda` object by running the R script `data-raw/prepare_default_project_infrastructure.R`
     (`R/sysdata.rda` is used to setup a new simulation project)
   * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.

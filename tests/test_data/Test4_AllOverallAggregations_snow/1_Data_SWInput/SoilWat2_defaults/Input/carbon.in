@@ -8,7 +8,7 @@
 # New scenarios are appended to this file. To do so, follow the existing pattern
 #    e.g. Scenario starts at year 0, then year/PPM combination begins after that
 
-# Note: If a rSOILWAT2 run cannot find a requested year here, the program will exit
+# Note: If a SOILWAT2 run cannot find a requested year here, the program will exit
 
 # Placeholder Scenario
 0             RCP85
