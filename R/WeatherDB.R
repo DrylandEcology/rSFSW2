@@ -560,16 +560,26 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   if (get_from_ornl) {
     stopifnot(requireNamespace("daymetr"))
 
-    # 'daymetr::download_daymet' stores downloaded file in current working directory
-    wd_prev <- getwd()
-    setwd(dir_data)
-    on.exit(setwd(wd_prev), add = TRUE)
-    on.exit(if (exists(cellID, envir = globalenv())) {
-        rm(list = cellID, envir = globalenv())}, add = TRUE)
+    if (packageVersion("daymetr") < "1.1") {
+      # 'daymetr::download_daymet' saves downloaded file on disk in current working directory
+      wd_prev <- getwd()
+      setwd(dir_data)
+      on.exit(setwd(wd_prev), add = TRUE)
+      on.exit(if (exists(cellID, envir = globalenv())) {
+          rm(list = cellID, envir = globalenv())}, add = TRUE)
 
-    dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
-      lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
-      quiet = TRUE), silent = TRUE)
+      dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
+        lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
+        quiet = TRUE), silent = TRUE)
+
+    } else {
+      # 'daymetr::download_daymet' saves downloaded file on disk at `path`
+      # daymetr returns either list with data.frame OR saves data on specifiable path, but not both
+      # --> we choose to save on disk because we want to store data for re-use by other projects
+      dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
+        lon = Xdm_WGS84, start = start_year, end = end_year, path = dir_data,
+        internal = FALSE, quiet = TRUE), silent = TRUE)
+    }
 
     if (inherits(dm_temp, "try-error")) {
       unlink(ftemp)
@@ -578,12 +588,20 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 
   # Convert to rSOILWAT2 format
   if (!inherits(dm_temp, "try-error")) {
-    temp <- if (exists(cellID, envir = globalenv())) {
+    temp <- if (inherits(dm_temp, "list") && inherits(dm_temp[["data"]], "data.frame")) {
+        # 'daymetr' >= v1.2 returns a list with a named element 'data' unless internal = FALSE
+        dm_temp[["data"]]
+
+      } else if (exists(cellID, envir = globalenv())) {
+        # 'daymetr' < v1.2 created a variable 'cellID' in the global environment
         get(cellID, envir = globalenv())$data
+
       } else if (!get_from_ornl && inherits(dm_temp, "data.frame")) {
+        # already read from file
         dm_temp
+
       } else {
-        # read from file
+        # not yet read from file
         temp <- try(utils::read.table(ftemp, sep = ",", skip = 6, header = TRUE),
           silent = TRUE)
         if (inherits(temp, "try-error") || !inherits(temp, "data.frame")) {
@@ -624,6 +642,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
     names(weathDataList) <- as.character(years)
 
   } else {
+    # Return error object
     weathDataList <- dm_temp
   }
 

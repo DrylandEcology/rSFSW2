@@ -18,7 +18,8 @@ suppressWarnings(is_online <-
 if (!any(do_skip) && is_online) {
 
   #--- Inputs
-  dm_path <- tempdir()
+  dm_path <- file.path(tempdir(), "daymet") # avoid https://github.com/khufkens/daymetr/issues/12
+  dir.create(dm_path, showWarnings = FALSE)
   exinfo <- list(GriddedDailyWeatherFromDayMet_NorthAmerica = TRUE)
 
   coords_WGS84 <- data.frame(
@@ -75,4 +76,5 @@ if (!any(do_skip) && is_online) {
 
   #--- Clean up
   unlink(list.files(dm_path, "daymet", full.names = TRUE))
+  unlink(dm_path)
 }
