@@ -7,4 +7,4 @@ Sys.setenv("R_TESTS" = "")
 library("testthat")
 library("rSFSW2")
 
-test_check("rSFSW2")
+test_check("rSFSW2", reporter = SummaryReporter)
