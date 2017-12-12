@@ -560,7 +560,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
   if (get_from_ornl) {
     stopifnot(requireNamespace("daymetr"))
 
-    if (packageVersion("daymetr") < "1.1") {
+    if (utils::packageVersion("daymetr") < "1.1") {
       # 'daymetr::download_daymet' saves downloaded file on disk in current working directory
       wd_prev <- getwd()
       setwd(dir_data)
