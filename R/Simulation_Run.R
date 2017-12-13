@@ -1852,7 +1852,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               "inf.yr", "inf.mo", "inf.dy",
               "runonoff.yr", "runonoff.mo", "runonoff.dy",
               "intercept.yr", "intercept.mo", "intercept.dy",
-              "deepDrain.yr", "deepDrain.mo", "deepDrain.dy")
+              "deepDrain.yr", "deepDrain.mo", "deepDrain.dy",
+              "veg.yr", "veg.mo", "veg.dy",
+              "co2effects.yr", "co2effects.mo", "co2effects.dy")
         to_del <- to_del[to_del %in% ls()]
         if (length(to_del) > 0) try(rm(list = to_del), silent = TRUE)
 
@@ -1896,6 +1898,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv + 12
           }
         }
+
+      if (prj_todos[["aon"]]$input_VegetationBiomassTrends) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
+
+          if (!exists("veg.yr")) veg.yr <- get_Vegetation_yr(runDataSC, isim_time)
+
+          nv_add <- ncol(veg.yr[["val"]])
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(veg.yr[["val"]], isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(veg.yr[["val"]], 2, stats::sd)
+          nv <- nv_new
+      }
+
       #3
         if (prj_todos[["aon"]]$input_VegetationPeak) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationPeak")
@@ -1967,6 +1982,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           resMeans[nv:(nv+35)] <- as.vector(as.numeric(ClimatePerturbationsVals[sc, ]))
           nv <- nv+36
         }
+
+      if (prj_todos[["aon"]]$input_CO2Effects) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_CO2Effects")
+
+          if (!exists("co2effects.yr")) co2effects.yr <- get_CO2effects_yr(runDataSC, isim_time)
+
+          nv_add <- ncol(co2effects.yr[["val"]])
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(co2effects.yr[["val"]], isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(co2effects.yr[["val"]], 2, stats::sd)
+          nv <- nv_new
+      }
 
         #---Aggregation: Climate and weather
       #7

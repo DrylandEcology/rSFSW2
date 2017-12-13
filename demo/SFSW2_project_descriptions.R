@@ -503,10 +503,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,

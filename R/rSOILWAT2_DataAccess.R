@@ -320,33 +320,22 @@ get_RunOnOff_yr <- function(x, st) {
        ponded_runon = x[, 5, drop = FALSE])
 }
 
-# TODO: move to rSOILWAT2
-sw_out_flags <- function() {
-  c(sw_aet = "AET",
-    sw_deepdrain = "DEEPSWC",
-    sw_estabs = "ESTABL",
-    sw_evsoil = "EVAPSOIL",
-    sw_evapsurface = "EVAPSURFACE",
-    sw_hd = "HYDRED",
-    sw_inf_soil = "SOILINFILT",
-    sw_interception = "INTERCEPTION",
-    sw_percolation = "LYRDRAIN",
-    sw_pet = "PET",
-    sw_precip = "PRECIP",
-    sw_runoff = "RUNOFF",
-    sw_snow = "SNOWPACK",
-    sw_soiltemp = "SOILTEMP",
-    sw_surfaceWater = "SURFACEWATER",
-    sw_swp = "SWPMATRIC",
-    sw_swabulk = "SWABULK",
-    sw_swcbulk = "SWCBULK",
-    sw_temp = "TEMP",
-    sw_transp = "TRANSP",
-    sw_vwcbulk = "VWCBULK",
-    sw_vwcmatric = "VWCMATRIC",
-    sw_wetdays = "WETDAY",
-    sw_logfile = "LOG")
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_Vegetation_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 1 + seq_len(2 * 5), drop = FALSE])
 }
+
+
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_CO2effects_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 11 + seq_len(2 * 4), drop = FALSE])
+}
+
+
 
 #' Assign requested values to rSOILWAT2 flags
 #'
