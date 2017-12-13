@@ -15,7 +15,10 @@
 #----- Metainformation about computing platform
 opt_platform <- list(
   host = c("local", "hpc")[1],
-  no_parallel = identical(tolower(Sys.getenv("NOT_CRAN")), "false")
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
 )
 
 
@@ -35,7 +38,11 @@ project_paths <- list(
   dir_in_gissm = file.path(dir_in, "regeneration"),
 
   # Path to where large outputs are saved to disk
-  dir_big = dir_big <- dir_prj,
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -457,10 +464,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
