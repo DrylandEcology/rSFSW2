@@ -465,6 +465,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation)
+    sw_input_soillayers[, -(1:2)] <- check_monotonic_increase(data.matrix(sw_input_soillayers[, -(1:2)]),
+      strictly = TRUE, fail = TRUE, na.rm = TRUE)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["ftreatDesign"]],
       nrowsClasses = nrowsClasses), error = print)
@@ -557,13 +559,13 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     tr_input_CarbonScenario <- tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- list()
     tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- list()
     tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
-    
+
     if (any(create_treatments == "LookupClimatePPTScenarios"))
       tr_input_climPPT <- SFSW2_read_csv(fnames_in[["LookupClimatePPTScenarios"]])
 
     if (any(create_treatments == "LookupCarbonScenarios"))
       tr_input_CarbonScenario <- SFSW2_read_csv(fnames_in[["LookupCarbonScenarios"]])
-    
+
     if (any(create_treatments == "LookupClimateTempScenarios"))
       tr_input_climTemp <- SFSW2_read_csv(fnames_in[["LookupClimateTempScenarios"]])
 
