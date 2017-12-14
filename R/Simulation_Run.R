@@ -1322,15 +1322,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "FILL"
           }
 
-        if (grass.fraction == 0) { #if grass.fraction is 0 then Grass.trco will be 0
-          Grass.trco <- TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = "FILL",
-            layers_depth = layers_depth,
-            adjustType = "positive")
-
-        } else {
+        if (rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1] > 0) {
           C3.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
@@ -1355,8 +1347,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] +
                         C4.trco * grasses.c3c4ann.fractions[[sc]][2] +
                         Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
+
+        } else {
+          Grass.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = soilLayers_N,
+            trco_type = "FILL",
+            layers_depth = layers_depth,
+            adjustType = "positive")
         }
-        if (is.na(sum(Grass.trco)))
+
+        if (anyNA(Grass.trco))
           Grass.trco <- rep(0, soilLayers_N)
 
         Shrub.trco <- TranspCoeffByVegType(
