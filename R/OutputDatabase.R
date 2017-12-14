@@ -2141,7 +2141,8 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
         EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,
         SWAbulk = 2, Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
         Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-        TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+        TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+        Runon = 1)
       tableName <- paste0("aggregation_doy_", req_aggs[["tag"]][doi])
 
       if (agg.analysis == 1) {
@@ -2214,7 +2215,8 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
             EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,
             SWAbulk = 2, Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
             Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+            Runon = 1)
 
           if (agg.analysis == 1) {
             sql1 <- paste0("CREATE TABLE \"", EnsembleFamilyLevelTables[1], "\" (",
