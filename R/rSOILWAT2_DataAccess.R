@@ -369,16 +369,28 @@ set_requested_rSOILWAT2_InputFlags <- function(tasks, swIn, tag, use, values, fu
       if (!identical(def_mode, mode(vals))) {
         vals <- as(vals, def_mode)
       }
-      itemp <- sapply(names(def), function(x) {
-        k <- grep(substr(x, 1, 4), val_names)
-        if (length(k) == 1) k else 0})
-      def[itemp > 0] <- vals[itemp]
 
-      if (reset) {
-        def[itemp == 0] <- default
+      # Check dimensional agreement
+      ndim_gt1_vals <- sum(dim(data.frame(vals)) > 1)
+      ndim_gt1_def <- sum(dim(data.frame(def)) > 1)
+      if (!(ndim_gt1_vals == 1 && ndim_gt1_def == 1)) {
+        print(paste("ERROR:", paste(shQuote(val_names), collapse = ", "),
+          "are not represented as 1-dimensional objects in class 'swInputData'."))
+        tasks$create <- 0L
+
+      } else {
+        # Transfer values
+        itemp <- sapply(names(def), function(x) {
+          k <- grep(substr(x, 1, 4), val_names)
+          if (length(k) == 1) k else 0})
+        def[itemp > 0] <- vals[itemp]
+
+        if (reset) {
+          def[itemp == 0] <- default
+        }
+
+        swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
       }
-
-      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
     }
   }
 

@@ -514,6 +514,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     print_debug(opt_verbosity, tag_simfid, "creating", "vegetation")
 
     if (any(sw_input_prod_use)) {
+      #constant canopy height
+      ids <- grepl("CanopyHeight_Constant", names(sw_input_prod_use))
+      use <- sw_input_prod_use[ids]
+      if (any(use)) {
+        def <- rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]])
+        temp <- colnames(def)
+        def_names <- substr(temp, 1, nchar(temp) - 2)
+        for (k in seq_along(def_names)) {
+          itemp <- grep(def_names[k], names(use))
+          if (length(itemp) == 1 && use[itemp]) {
+            def["height_cm", k] <- as.numeric(i_sw_input_prod[ids][itemp])
+          }
+        }
+        rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]]) <- def
+      }
+
       #composition
       temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
@@ -525,13 +541,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Albedo", reset = FALSE)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
-
-      #constant canopy height
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
-        tag = "CanopyHeight_Constant", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CanopyHeight", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
