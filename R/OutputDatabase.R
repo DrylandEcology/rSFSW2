@@ -1550,6 +1550,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (aon$input_VegetationBiomassMonthly) {
       temp <- c(temp, paste0(c(rep("Grass", 36), rep("Shrub", 36), rep("Tree", 36), rep("Forb", 36)), "_", c(rep("Litter", 12), rep("TotalBiomass", 12), rep("LiveBiomass", 12)), "_m", SFSW2_glovars[["st_mo"]], "_gPERm2"))
     }
+  #2b
+    if (aon$input_VegetationBiomassTrends) {
+      temp <- c(temp, paste0(rep(c("Grass", "Shrub", "Tree", "Forb", "Total"), 2), "_",
+        rep(c("Total", "Live"), each = 5), "Biomass_gPERm2_mean"))
+    }
   #3.
     if (aon$input_VegetationPeak) {
       temp <- c(temp, paste0("SWinput.PeakLiveBiomass_", c("month_mean", "months_duration")))
@@ -1592,6 +1597,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #6.
     if (aon$input_ClimatePerturbations) {
       temp <- c(temp, paste0(rep(paste0("SWinput.ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
+    }
+  #6b
+    if (aon$input_CO2Effects) {
+      temp <- c(temp, paste0(rep(c("Grass", "Shrub", "Tree", "Forb"), 2), "_",
+        rep(c("Biomass", "WUE"), each = 4), "_CO2multiplier_fraction_mean"))
     }
 
     ##############################################################---Aggregation: Climate and weather---##############################################################
@@ -2131,7 +2141,8 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
         EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,
         SWAbulk = 2, Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
         Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-        TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+        TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+        Runon = 1)
       tableName <- paste0("aggregation_doy_", req_aggs[["tag"]][doi])
 
       if (agg.analysis == 1) {
@@ -2204,7 +2215,8 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
             EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,
             SWAbulk = 2, Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
             Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+            Runon = 1)
 
           if (agg.analysis == 1) {
             sql1 <- paste0("CREATE TABLE \"", EnsembleFamilyLevelTables[1], "\" (",

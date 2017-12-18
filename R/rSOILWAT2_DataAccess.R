@@ -320,33 +320,22 @@ get_RunOnOff_yr <- function(x, st) {
        ponded_runon = x[, 5, drop = FALSE])
 }
 
-# TODO: move to rSOILWAT2
-sw_out_flags <- function() {
-  c(sw_aet = "AET",
-    sw_deepdrain = "DEEPSWC",
-    sw_estabs = "ESTABL",
-    sw_evsoil = "EVAPSOIL",
-    sw_evapsurface = "EVAPSURFACE",
-    sw_hd = "HYDRED",
-    sw_inf_soil = "SOILINFILT",
-    sw_interception = "INTERCEPTION",
-    sw_percolation = "LYRDRAIN",
-    sw_pet = "PET",
-    sw_precip = "PRECIP",
-    sw_runoff = "RUNOFF",
-    sw_snow = "SNOWPACK",
-    sw_soiltemp = "SOILTEMP",
-    sw_surfaceWater = "SURFACEWATER",
-    sw_swp = "SWPMATRIC",
-    sw_swabulk = "SWABULK",
-    sw_swcbulk = "SWCBULK",
-    sw_temp = "TEMP",
-    sw_transp = "TRANSP",
-    sw_vwcbulk = "VWCBULK",
-    sw_vwcmatric = "VWCMATRIC",
-    sw_wetdays = "WETDAY",
-    sw_logfile = "LOG")
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_Vegetation_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 1 + seq_len(2 * 5), drop = FALSE])
 }
+
+
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_CO2effects_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 11 + seq_len(2 * 4), drop = FALSE])
+}
+
+
 
 #' Assign requested values to rSOILWAT2 flags
 #'
@@ -380,16 +369,28 @@ set_requested_rSOILWAT2_InputFlags <- function(tasks, swIn, tag, use, values, fu
       if (!identical(def_mode, mode(vals))) {
         vals <- as(vals, def_mode)
       }
-      itemp <- sapply(names(def), function(x) {
-        k <- grep(substr(x, 1, 4), val_names)
-        if (length(k) == 1) k else 0})
-      def[itemp > 0] <- vals[itemp]
 
-      if (reset) {
-        def[itemp == 0] <- default
+      # Check dimensional agreement
+      ndim_gt1_vals <- sum(dim(data.frame(vals)) > 1)
+      ndim_gt1_def <- sum(dim(data.frame(def)) > 1)
+      if (!(ndim_gt1_vals == 1 && ndim_gt1_def == 1)) {
+        print(paste("ERROR:", paste(shQuote(val_names), collapse = ", "),
+          "are not represented as 1-dimensional objects in class 'swInputData'."))
+        tasks$create <- 0L
+
+      } else {
+        # Transfer values
+        itemp <- sapply(names(def), function(x) {
+          k <- grep(substr(x, 1, 4), val_names)
+          if (length(k) == 1) k else 0})
+        def[itemp > 0] <- vals[itemp]
+
+        if (reset) {
+          def[itemp == 0] <- default
+        }
+
+        swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
       }
-
-      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
     }
   }
 

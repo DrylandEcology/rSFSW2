@@ -91,8 +91,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v14.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v06.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v15.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v07.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
@@ -110,6 +110,7 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
@@ -502,10 +503,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,

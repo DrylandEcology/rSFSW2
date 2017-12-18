@@ -12,7 +12,7 @@ global_args_do_OneSite <- function() {
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
     "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
-    "tr_files", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+    "tr_files", "tr_input_CarbonScenario", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
     "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
     "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
     "tr_VegetationComposition", "tr_weather")
@@ -35,6 +35,18 @@ print_debug <- function(opt_verbosity, tag_id, tag_action, tag_section = NULL) {
 }
 
 #' The main simulation function which does all the heavy lifting
+#'
+#' @details For contributors only: This function cannot return prematurely because
+#'  (i.e., don't use \code{return}); otherwise the management of simulation runs will
+#'  fail. If a condition is met that prevents proper continuation/execution of a
+#'  simulation, then the appropriate element in the variable \code{tasks} should be set
+#'  to 0. The variable \code{tasks} contains the elements \code{create}, \code{execute},
+#'  and \code{aggregate} with the values: \itemize{
+#'    \item -1 indicates "don't do" a task element
+#'    \item 0 indicates that the task element has/is "failed"
+#'    \item 1 indicates "to do" a task element
+#'    \item 2 indicates that a task element had "success" in executing relevant code
+#'  }
 #' @export
 do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   i_sw_input_treatments, i_sw_input_cloud, i_sw_input_prod, i_sw_input_site,
@@ -301,7 +313,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       rSOILWAT2::set_swCloud(swRunScenariosData[[1]]) <- tr_cloud[[i_sw_input_treatments$cloudin]]
 
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
-    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but could not for the experimental design because at that time information was unkown
+    #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
+
+    #----- Begin carbon effects
+    if (!is.na(i_sw_input_treatments$UseCO2BiomassMultiplier)
+        && i_sw_input_treatments$UseCO2BiomassMultiplier == 1)
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 1L
+    else
+      rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 0L
+
+    if (!is.na(i_sw_input_treatments$UseCO2WUEMultiplier)
+        && i_sw_input_treatments$UseCO2WUEMultiplier == 1)
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 1L
+    else
+      rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 0L
+    # End carbon effects -----
+
     if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
                                      "LookupTranspRegionsFromTable",
                                      "LookupSnowDensityFromTable")]) &&
@@ -487,6 +514,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     print_debug(opt_verbosity, tag_simfid, "creating", "vegetation")
 
     if (any(sw_input_prod_use)) {
+      #constant canopy height
+      ids <- grepl("CanopyHeight_Constant", names(sw_input_prod_use))
+      use <- sw_input_prod_use[ids]
+      if (any(use)) {
+        def <- rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]])
+        temp <- colnames(def)
+        def_names <- substr(temp, 1, nchar(temp) - 2)
+        for (k in seq_along(def_names)) {
+          itemp <- grep(def_names[k], names(use))
+          if (length(itemp) == 1 && use[itemp]) {
+            def["height_cm", k] <- as.numeric(i_sw_input_prod[ids][itemp])
+          }
+        }
+        rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]]) <- def
+      }
+
       #composition
       temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
@@ -498,13 +541,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Albedo", reset = FALSE)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
-
-      #constant canopy height
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
-        tag = "CanopyHeight_Constant", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CanopyHeight", reset = FALSE)
       swRunScenariosData[[1]] <- temp[["swIn"]]
       tasks <- temp[["tasks"]]
 
@@ -845,6 +881,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
+
+        # How many years in the future is this simulation?
+        # The delta year was originaly designed to only be used by swCarbon to grab the correct ppm values,
+        # but has since been used to also display the correct years in runDataSC, so this information is
+        # extracted regardless of whether or not CO2 effects are being used
+        delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
+        if (!is.na(delta_yr))
+          rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
+
       } else {
         if (prj_todos[["need_cli_means"]]) {
           print_debug(opt_verbosity, tag_simpidfid, "creating", "climate")
@@ -856,6 +901,60 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             do.C4vars = do.C4vars, simTime2 = simTime2)
         }
       }
+
+      #----- Begin CO2 effects
+      # CO2 effects rely on the information of the current scenario, so the extraction of its Lookup data
+      # doesn't occur until now
+      if (sw_input_experimentals_use["LookupCarbonScenarios"]) {
+        if (is.na(i_sw_input_treatments$LookupCarbonScenarios)) {
+          tasks$create <- 0L
+          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCarbonScenarios"))
+          break
+        }
+
+        scenario_CO2 <- "Default"
+
+        # Are we modelling a scenario?
+        if (sc > 1) {
+          # Did the user request to use the built-in scenario information?
+          if (toupper(i_sw_input_treatments$LookupCarbonScenarios) == "FILL")
+            scenario_CO2 <- sim_scens[["df"]][sc - 1, "ConcScen"]
+        }
+
+        # Did the user override the scenario name?
+        if (toupper(i_sw_input_treatments$LookupCarbonScenarios) != "FILL")
+          scenario_CO2 <- i_sw_input_treatments$LookupCarbonScenarios
+
+        # Save the scenario to the input object just so that the user can see it
+        rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario_CO2
+
+        scenario_index <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario_CO2))
+
+        # Was a scenario found?
+        if (length(scenario_index) == 0) {
+          tasks$create <- 0L
+          print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
+            " was not found in LookupCarbonScenarios.csv"))
+          break
+        }
+
+        # Normally, we would also check for duplicate scenarios, but when the CSV is read in, duplicate column headers
+        # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
+        # headers: RCP85, RCP85.1
+
+        # Extract CO2 concentration values in units of ppm into swCarbon
+        ids_years <- match(isim_time$simstartyr:isim_time$endyr + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
+          tr_input_CarbonScenario[, "Year"], nomatch = 0)
+        # Convert possible integers to numeric
+        tr_input_CarbonScenario[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CarbonScenario[ids_years, scenario_index]))
+        scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
+        colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
+
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(scenarioCO2_ppm,
+          rownames.force = TRUE)
+      }
+      # End CO2 effects -----
+
       if (!opt_sim[["use_dbW_future"]]) {
         #get climate change information
         cols_climscen_val <- lapply(c("PPTmm_m", "TempC_min_m", "TempC_max_m"), function(flag)
@@ -1232,15 +1331,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "FILL"
           }
 
-        if (grass.fraction == 0) { #if grass.fraction is 0 then Grass.trco will be 0
-          Grass.trco <- TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = "FILL",
-            layers_depth = layers_depth,
-            adjustType = "positive")
-
-        } else {
+        if (rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1] > 0) {
           C3.trco <- TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
@@ -1265,8 +1356,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] +
                         C4.trco * grasses.c3c4ann.fractions[[sc]][2] +
                         Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
+
+        } else {
+          Grass.trco <- TranspCoeffByVegType(
+            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            soillayer_no = soilLayers_N,
+            trco_type = "FILL",
+            layers_depth = layers_depth,
+            adjustType = "positive")
         }
-        if (is.na(sum(Grass.trco)))
+
+        if (anyNA(Grass.trco))
           Grass.trco <- rep(0, soilLayers_N)
 
         Shrub.trco <- TranspCoeffByVegType(
@@ -1608,6 +1708,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   DeltaX <- c(NA, 0L)
 
   for (sc in sc1:sim_scens[["N"]]) {
+
     P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
     tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
@@ -1761,7 +1862,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               "inf.yr", "inf.mo", "inf.dy",
               "runonoff.yr", "runonoff.mo", "runonoff.dy",
               "intercept.yr", "intercept.mo", "intercept.dy",
-              "deepDrain.yr", "deepDrain.mo", "deepDrain.dy")
+              "deepDrain.yr", "deepDrain.mo", "deepDrain.dy",
+              "veg.yr", "veg.mo", "veg.dy",
+              "co2effects.yr", "co2effects.mo", "co2effects.dy")
         to_del <- to_del[to_del %in% ls()]
         if (length(to_del) > 0) try(rm(list = to_del), silent = TRUE)
 
@@ -1805,6 +1908,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv + 12
           }
         }
+
+      if (prj_todos[["aon"]]$input_VegetationBiomassTrends) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
+
+          if (!exists("veg.yr")) veg.yr <- get_Vegetation_yr(runDataSC, isim_time)
+
+          nv_add <- ncol(veg.yr[["val"]])
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(veg.yr[["val"]], isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(veg.yr[["val"]], 2, stats::sd)
+          nv <- nv_new
+      }
+
       #3
         if (prj_todos[["aon"]]$input_VegetationPeak) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationPeak")
@@ -1876,6 +1992,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           resMeans[nv:(nv+35)] <- as.vector(as.numeric(ClimatePerturbationsVals[sc, ]))
           nv <- nv+36
         }
+
+      if (prj_todos[["aon"]]$input_CO2Effects) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_CO2Effects")
+
+          if (!exists("co2effects.yr")) co2effects.yr <- get_CO2effects_yr(runDataSC, isim_time)
+
+          nv_add <- ncol(co2effects.yr[["val"]])
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(co2effects.yr[["val"]], isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(co2effects.yr[["val"]], 2, stats::sd)
+          nv <- nv_new
+      }
 
         #---Aggregation: Climate and weather
       #7
@@ -4140,7 +4268,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             } else {
               reg <- 0
             }
-            return (ifelse(reg>0, 1, 0))
+            return(ifelse(reg>0, 1, 0))
           }
 
           resMeans[nv] <- mean(temp <- c(by(data = data.frame(swp.surface, SWE.dy$val), INDICES = simTime2$year_ForEachUsedDay_NSadj, FUN = regenerationThisYear_YN)))

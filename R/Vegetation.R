@@ -104,14 +104,16 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
   TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm = TRUE)
 
   #Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
-  if (!isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
+  isna <- is.na(AnnC4C3ShrubForbBareGroundFraction)
+  isone <- isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance))
+  if (!isone && TotalFraction < 1 && sum(isna) == 0) {
     stop(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1") #throw an error
   }
 
-  if (isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) {
+  if (isone || TotalFraction > 1 || sum(isna) == 1) {
 
-    if (sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) { #if only one is NA, then this can be calculated
-      AnnC4C3ShrubForbBareGroundFraction[which(is.na(AnnC4C3ShrubForbBareGroundFraction))] <- cut0Inf(1 - TotalFraction)
+    if (sum(isna) == 1) { #if only one is NA, then this can be calculated
+      AnnC4C3ShrubForbBareGroundFraction[which(isna)] <- cut0Inf(1 - TotalFraction, val = 0)
     } else {
       AnnC4C3ShrubForbBareGroundFraction <- finite01(AnnC4C3ShrubForbBareGroundFraction) #the composition is >= 1, so set eventually remaining NA to 0
     }

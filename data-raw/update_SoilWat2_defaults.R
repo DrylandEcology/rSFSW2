@@ -35,6 +35,7 @@ unlink(file.path(dir_prj, "files_step_soilwat_grid.in"))
 unlink(file.path(dir_prj, "files_step_soilwat.in"))
 unlink(file.path(dir_prj, "Input", "estab_v32_grid.in"))
 unlink(file.path(dir_prj, "Input", "estab_v32.in"))
+unlink(file.path(dir_prj, "README.md"))
 unlink(file.path(dir_prj, "Output"), recursive = TRUE)
 
 

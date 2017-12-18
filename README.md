@@ -134,19 +134,18 @@ Please follow our [guidelines](https://github.com/Burke-Lauenroth-Lab/workflow_g
   * Ideally, run test projects in repository [rSFSW2_tools](https://github.com/Burke-Lauenroth-Lab/rSFSW2_tools)
     and add a new test project, if necessary due to new features.
 
-### __Updates to demo code__
-If you change the 'demo code' in `demo/`, e.g., add a new input database option, then
-  * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.
-
-### __Updates to input files__
+### __Updates to input files and/or demo code__
 - If `SOILWAT2` and `rSOILWAT2` update input files, then we have to propagate these changes
-to the default inputs of `rSFSW2` in `data-raw/1_Data_SWInput/SoilWat2_defaults/` by
-running the R script `data-raw/update_SoilWat2_defaults.R`.
+  to the default inputs of `rSFSW2` which are residing in the source package at
+  `data-raw/1_Data_SWInput/SoilWat2_defaults/` by running the Rscript from terminal
+  `data-raw/update_SoilWat2_defaults.R`.
 - If you change 'input files' in `data-raw/1_Data_SWInput` (e.g., updated `SoilWat2_defaults/`,
-added a new column to experimental/design treatment file) then
-  * update the `R/sysdata.rda` object by running the R script `data-raw/prepare_default_project_infrastructure.R`
-    (`R/sysdata.rda` is used to setup a new simulation project)
-  * update the unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` accordingly.
+  added a new column to experimental/design treatment file) then update the `R/sysdata.rda`
+  object by running the Rscript from terminal `./data-raw/prepare_default_project_infrastructure.R`.
+  The file `R/sysdata.rda` is used to setup a new simulation project.
+- Additionally, if 'input files' and/or 'demo code' in `demo/` changes, then update the
+  unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` by
+  running the Rscript from terminal `./data-raw/update_test_project_infrastructure.R`.
 
 
 
