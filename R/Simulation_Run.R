@@ -2190,18 +2190,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             matrix(rep.int(opt_agg[["Tmean_crit_C"]], length(temp.dy$surface)),
                    ncol = nv_add, byrow = TRUE)
           
-          dailyCoolDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
+          CoolDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
           for (k in seq_len(nv_add))
-            dailyCoolDays[, k] <- tapply(dailyExcess[, k],
+            CoolDays[, k] <- tapply(dailyExcess[, k],
                                     INDEX = simTime2$year_ForEachUsedDay,
                                     FUN = sum)
           
           nv_new <- nv + nv_add
-          resMeans[nv:(nv_new - 1)] <- .colMeans(dailyCoolDays, isim_time$no.useyr, nv_add)
-          resSDs[nv:(nv_new - 1)] <- apply(dailyCoolDays, 2, stats::sd)
+          resMeans[nv:(nv_new - 1)] <- .colMeans(CoolDays, isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(CoolDays, 2, stats::sd)
           nv <- nv_new
           
-          rm(dailyCoolDays, dailyExcess)
+          rm(CoolDays, dailyExcess)
         }
 
       #13
