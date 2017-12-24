@@ -145,7 +145,8 @@ get_Temp_dy <- function(x, st) {
   x <- slot(slot(x, "TEMP"), "Day")[st$index.usedy, ]
   list(min =  x[, 4],
        mean = x[, 5],
-       max =  x[, 3])
+       max =  x[, 3],
+       surface = x[, 6])
 }
 
 #' @inheritParams swOutput_access
