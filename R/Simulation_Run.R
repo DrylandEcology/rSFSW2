@@ -2137,7 +2137,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               # Numbers of days with min.temp < 0 and snow == 0
               # (Spring) For the second half of time between the last day of continuous snowpack and the first day
               period <- (firstDOY + 365 * syi - Y2):(firstDOY + 365 * syi)
-              ifelse(any(is.na(temp.dy$surface[indexes])), temps <- temp.dy$min, temps <- temp.dy$surface)
+              ifelse(any(is.na(temp.dy$surface[period])), temps <- temp.dy$min, temps <- temp.dy$surface)
               res.frost[syi, 4] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
             }
 
