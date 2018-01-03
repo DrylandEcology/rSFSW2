@@ -516,6 +516,8 @@ req_out <- list(
     "dailyFrostInSnowfreePeriod", 1,
     "dailyHotDays", 1,
     "dailyWarmDays", 1,
+    "dailyColdDays", 1,
+    "dailyCoolDays", 1,
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
