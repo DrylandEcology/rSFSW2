@@ -1623,7 +1623,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #10.
     if (aon$dailySnowpack) {
-      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean"))
+      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.FirstDay_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE", "SnowCover.FirstDay_doy", "SnowCover.LastDay_doy"), "_mean"))
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {

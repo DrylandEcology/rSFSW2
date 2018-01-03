@@ -2056,39 +2056,46 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
 
             if (length(unique(snowyears))-2 > 0) {
-              res.snow  <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 6, byrow = TRUE)
+              res.snow  <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 9, byrow = TRUE)
               res.snow[, 1]  <- unique(snowyears)[2:(length(unique(snowyears))-1)]  # 1. snowyear
               snowyear.trim <- !is.na(pmatch(snowyears, res.snow[, 1], duplicates.ok = TRUE))
               res.snow[, 2] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], which.max) - adjDays # 2. doy of peak snowpack water-equivalent (mm)
-              res.snow[, 5] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], function(s) sum(s > 0)) # 5. total number of days of snow cover
-              res.snow[, 6] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], max) # 6. peak snowpack water-equivalent (mm)
+              res.snow[, 6] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], function(s) sum(s > 0)) # 6. total number of days of snow cover
+              res.snow[, 7] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], max) # 7. peak snowpack water-equivalent (mm)
 
               syi <- 1
               for (sy in res.snow[, 1]) {
                 r <- rle(ifelse(SWE.dy$val[which(snowyears == sy)]>0, 1, 0))
-                res.snow[syi, 4] <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # 4. number of continous days of snow cover
-                ind <- which(r$lengths == res.snow[syi, 4])
-                res.snow[syi, 3] <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)] - adjDays # 3. last day of continous snow cover
+                res.snow[syi, 5] <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # 5. number of continous days of snow cover
+                ind <- which(r$lengths == res.snow[syi, 5])
+                res.snow[syi, 4] <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)] - adjDays # 4. last day of continous snow cover
+                res.snow[syi, 3] <- res.snow[syi, 4] - res.snow[syi, 5] # 3. first day of continuous snow cover
+                res.snow[syi, 8] <- ifelse(length(ind) > 0, cumsum(r$lengths)[min(which(r$values == 1))] - (r$lengths[min(which(r$values == 1))] - 1), ind) - adjDays # 8. first day of any snow cover
+                res.snow[syi, 9] <- ifelse(length(ind) > 0, cumsum(r$lengths)[max(which(r$values == 1))], ind) - adjDays # 9. last day of any snow cover
                 syi <- syi + 1
               }
+
               if (nrow(res.snow) > 1) {
-                resMeans[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ_mean, int = 365, na.rm = TRUE),
-                                         apply(res.snow[, -(1:3)], 2, mean, na.rm = TRUE))
-                resSDs[nv:(nv+4)] <- c(apply(res.snow[, 2:3], 2, circ_sd, int = 365, na.rm = TRUE),
-                                       apply(res.snow[, -(1:3)], 2, stats::sd, na.rm = TRUE))
+                resMeans[nv:(nv+7)] <- c(apply(res.snow[, 2:4], 2, circ_mean, int = 365, na.rm = TRUE),
+                                         apply(res.snow[, 5:7], 2, mean, na.rm = TRUE),
+                                         apply(res.snow[, 8:9], 2, circ_mean, int = 365, na.rm = TRUE))
+                resSDs[nv:(nv+7)] <- c(apply(res.snow[, 2:4], 2, circ_sd, int = 365, na.rm = TRUE),
+                                       apply(res.snow[, 5:7], 2, stats::sd, na.rm = TRUE),
+                                       apply(res.snow[, 8:9], 2, circ_sd, int = 365, na.rm = TRUE))
+
               } else {
-                resMeans[nv:(nv+4)] <- res.snow[1, -1]
-                resSDs[nv:(nv+4)] <- 0
+                resMeans[nv:(nv+7)] <- res.snow[1, -1]
+                resSDs[nv:(nv+7)] <- 0
               }
 
               rm(snowyears, snowyear.trim, res.snow, adjDays)
             } else {
-              resMeans[nv:(nv+4)] <- resSDs[nv:(nv+4)] <- 0
+              resMeans[nv:(nv+7)] <- resSDs[nv:(nv+7)] <- 0
             }
           } else {
-            resMeans[nv:(nv+4)] <- resSDs[nv:(nv+4)] <- 0
+            resMeans[nv:(nv+7)] <- resSDs[nv:(nv+7)] <- 0
           }
-          nv <- nv+5
+          nv <- nv+8
         }
       #11
         if (prj_todos[["aon"]]$dailyFrostInSnowfreePeriod) {
@@ -5232,4 +5239,3 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   runs.completed
 }
-
