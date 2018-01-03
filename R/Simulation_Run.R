@@ -2039,7 +2039,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rainOnSnow <- ifelse(SWE.dy$val > 0, prcp.dy$rain, 0)
           rainOnSnow <- as.matrix(tapply(rainOnSnow, simTime2$year_ForEachUsedDay, sum))
           rainOnSnow <- rainOnSnow / prcp.yr$ppt
-          
+
           resMeans[nv] <- mean(rainOnSnow, na.rm = TRUE)
           resSDs[nv] <- stats::sd(rainOnSnow, na.rm = TRUE)
           nv <- nv+1
@@ -2070,11 +2070,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 ind <- which(r$lengths == res.snow[syi, 5])
                 res.snow[syi, 4] <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)] - adjDays # 4. last day of continous snow cover
                 res.snow[syi, 3] <- res.snow[syi, 4] - res.snow[syi, 5] # 3. first day of continuous snow cover
-                res.snow[syi, 8] <- cumsum(r$lengths)[min(which(r$values == 1))] - r$lengths[min(which(r$values == 1))] - adjDays # 8. first day of any snow cover
-                res.snow[syi, 9] <- cumsum(r$lengths)[max(which(r$values == 1))] - adjDays # 9. last day of any snow cover
+                res.snow[syi, 8] <- ifelse(length(ind) > 0, cumsum(r$lengths)[min(which(r$values == 1))] - (r$lengths[min(which(r$values == 1))] - 1), ind) - adjDays # 8. first day of any snow cover
+                res.snow[syi, 9] <- ifelse(length(ind) > 0, cumsum(r$lengths)[max(which(r$values == 1))], ind) - adjDays # 9. last day of any snow cover
                 syi <- syi + 1
               }
-              
+
               if (nrow(res.snow) > 1) {
                 resMeans[nv:(nv+7)] <- c(apply(res.snow[, 2:4], 2, circ_mean, int = 365, na.rm = TRUE),
                                          apply(res.snow[, 5:7], 2, mean, na.rm = TRUE),
@@ -2082,7 +2082,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 resSDs[nv:(nv+7)] <- c(apply(res.snow[, 2:4], 2, circ_sd, int = 365, na.rm = TRUE),
                                        apply(res.snow[, 5:7], 2, stats::sd, na.rm = TRUE),
                                        apply(res.snow[, 8:9], 2, circ_sd, int = 365, na.rm = TRUE))
-                
+
               } else {
                 resMeans[nv:(nv+7)] <- res.snow[1, -1]
                 resSDs[nv:(nv+7)] <- 0
@@ -5191,4 +5191,3 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   runs.completed
 }
-
