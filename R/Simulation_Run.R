@@ -2155,6 +2155,54 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           rm(WarmDays, dailyExcess)
         }
+      #12c
+        if (prj_todos[["aon"]]$dailyColdDays) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDays")
+          if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
+          
+          nv_add <- length(opt_agg[["Tmin_crit_C"]])
+          
+          dailyExcess <- temp.dy$surface <
+            matrix(rep.int(opt_agg[["Tmin_crit_C"]], length(temp.dy$surface)),
+                   ncol = nv_add, byrow = TRUE)
+          
+          ColdDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
+          for (k in seq_len(nv_add))
+            ColdDays[, k] <- tapply(dailyExcess[, k],
+                                    INDEX = simTime2$year_ForEachUsedDay,
+                                    FUN = sum)
+          
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(ColdDays, isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(ColdDays, 2, stats::sd)
+          nv <- nv_new
+          
+          rm(ColdDays, dailyExcess)
+        }
+      #12d
+        if (prj_todos[["aon"]]$dailyCoolDays) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyCoolDays")
+          if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
+          
+          nv_add <- length(opt_agg[["Tmean_crit_C"]])
+          
+          dailyExcess <- temp.dy$surface <
+            matrix(rep.int(opt_agg[["Tmean_crit_C"]], length(temp.dy$surface)),
+                   ncol = nv_add, byrow = TRUE)
+          
+          CoolDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
+          for (k in seq_len(nv_add))
+            CoolDays[, k] <- tapply(dailyExcess[, k],
+                                    INDEX = simTime2$year_ForEachUsedDay,
+                                    FUN = sum)
+          
+          nv_new <- nv + nv_add
+          resMeans[nv:(nv_new - 1)] <- .colMeans(CoolDays, isim_time$no.useyr, nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(CoolDays, 2, stats::sd)
+          nv <- nv_new
+          
+          rm(CoolDays, dailyExcess)
+        }
 
       #13
         if (prj_todos[["aon"]]$dailyPrecipitationEventSizeDistribution) {  #daily weather frequency distributions

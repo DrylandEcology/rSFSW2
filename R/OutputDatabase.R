@@ -1637,6 +1637,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (aon$dailyWarmDays) {
       temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days_mean"))
     }
+  #12c
+    if (aon$dailyColdDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmin_crit_C, "_days_mean"))
+    }
+  #12d
+    if (aon$dailyCoolDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmean_crit_C, "_days_mean"))
+    }
   #13
     if (aon$dailyPrecipitationEventSizeDistribution) {
       bins.summary <- (0:6) * opt_agg[["bin_prcp_mm"]]
