@@ -2166,48 +2166,48 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (prj_todos[["aon"]]$dailyColdDays) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDays")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
-          
+
           nv_add <- length(opt_agg[["Tmin_crit_C"]])
-          
+
           dailyExcess <- temp.dy$surface <
             matrix(rep.int(opt_agg[["Tmin_crit_C"]], length(temp.dy$surface)),
                    ncol = nv_add, byrow = TRUE)
-          
+
           ColdDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
           for (k in seq_len(nv_add))
             ColdDays[, k] <- tapply(dailyExcess[, k],
                                     INDEX = simTime2$year_ForEachUsedDay,
                                     FUN = sum)
-          
+
           nv_new <- nv + nv_add
           resMeans[nv:(nv_new - 1)] <- .colMeans(ColdDays, isim_time$no.useyr, nv_add)
           resSDs[nv:(nv_new - 1)] <- apply(ColdDays, 2, stats::sd)
           nv <- nv_new
-          
+
           rm(ColdDays, dailyExcess)
         }
       #12d
         if (prj_todos[["aon"]]$dailyCoolDays) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyCoolDays")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
-          
+
           nv_add <- length(opt_agg[["Tmean_crit_C"]])
-          
+
           dailyExcess <- temp.dy$surface <
             matrix(rep.int(opt_agg[["Tmean_crit_C"]], length(temp.dy$surface)),
                    ncol = nv_add, byrow = TRUE)
-          
+
           CoolDays <- matrix(NA, nrow = isim_time$no.useyr, ncol = nv_add)
           for (k in seq_len(nv_add))
             CoolDays[, k] <- tapply(dailyExcess[, k],
                                     INDEX = simTime2$year_ForEachUsedDay,
                                     FUN = sum)
-          
+
           nv_new <- nv + nv_add
           resMeans[nv:(nv_new - 1)] <- .colMeans(CoolDays, isim_time$no.useyr, nv_add)
           resSDs[nv:(nv_new - 1)] <- apply(CoolDays, 2, stats::sd)
           nv <- nv_new
-          
+
           rm(CoolDays, dailyExcess)
         }
 
@@ -2450,6 +2450,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rm(degday)
         }
 
+        #25
+          if (prj_todos[["aon"]]$dailyColdDegreeDays) {  #Cold degree days based on base temperature
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDegreeDays")
+            if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
+            if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
+
+            # cold-degree day sum with base "Tbase_coldDD_C"
+            ids <- temp.dy$mean < opt_agg[["Tbase_coldDD_C"]]
+            coldDegDay <- ifelse(ids, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
+
+            #  Snow-free cold-degree day sum with base "Tbase_coldDD_C"
+            ids_snowfree <- ids & SWE.dy$val <= SFSW2_glovars[["tol"]]
+            colddegday_snowfree <- ifelse(ids_snowfree, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
+
+            temp <- data.frame(coldDegDay, colddegday_snowfree)
+            resMeans[nv:(nv+1)] <- apply(temp, 2, mean, na.rm = TRUE)
+            resSDs[nv:(nv+1)] <- apply(temp, 2, stats::sd, na.rm = TRUE)
+
+            nv <- nv+2
+
+            rm(ids, coldDegDay, ids_snowfree, colddegday_snowfree, temp)
+          }
 
         #---Aggregation: Yearly water balance
       #27.0

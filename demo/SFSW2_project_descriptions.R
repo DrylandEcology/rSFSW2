@@ -531,6 +531,7 @@ req_out <- list(
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
+    "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
@@ -641,8 +642,9 @@ opt_agg <- list(
   Tmax_crit_C = c(34, 40),
   Tmean_crit_C = c(5, 15, 25, 35),
 
-  # Base temperature (degree C) above which degree-days are accumulated
+  # Base temperature (degree C) above which degree-days and cold degree-days are accumulated
   Tbase_DD_C = 0,
+  Tbase_coldDD_C = 0,
 
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
