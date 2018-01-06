@@ -642,10 +642,12 @@ opt_agg <- list(
   Tmax_crit_C = c(34, 40),
   Tmean_crit_C = c(5, 15, 25, 35),
 
-  # Base temperature (degree C) above which degree-days and cold degree-days are accumulated
+  # Base temperature (degree C) above which degree-days are accumulated
   Tbase_DD_C = 0,
-  Tbase_coldDD_C = 0,
 
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+  
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

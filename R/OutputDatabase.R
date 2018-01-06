@@ -1713,8 +1713,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #25
     if (aon$dailyColdDegreeDays) {
-      temp <- c(temp, paste0("ColdDegreeDays.", c(paste0(opt_agg[["Tbase_coldDD_C"]],'C.dailyTmean_Cdays_mean'),
-       paste0("SnowFree_", opt_agg[["Tbase_coldDD_C"]], "C.dailyTmean_Cdays_mean"))))
+      temp <- c(temp, paste0(c("ColdDegreeDays", "ColdDegreeDays.SnowFree"), ".Base", opt_agg[["Tbase_coldDD_C"]], "C.dailyTMean_Cdays_mean"))
     }
 
     ##############################################################---Aggregation: Yearly water balance---##############################################################
