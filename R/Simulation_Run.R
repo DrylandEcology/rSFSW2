@@ -2451,7 +2451,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       #25
         if (prj_todos[["aon"]]$dailyColdDegreeDays) { # Cold-degree days based on temperature
-          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "coldDegreeDays")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDegreeDays")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
           
@@ -2463,7 +2463,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           ids_snowfree <- ids & SWE.dy$val <= SFSW2_glovars[["tol"]]
           colddegday_snowfree <- ifelse(ids_snowfree, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
           
-          # Sum of mean temperatures for snow/snow-free
+          # Sum of daily mean temperatures for snow/snow-free
           temp <- data.frame(tapply(colddegday, simTime2$year_ForEachUsedDay, sum),
                              tapply(colddegday_snowfree, simTime2$year_ForEachUsedDay, sum))
           
