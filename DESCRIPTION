@@ -1,6 +1,6 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.5.1
+Version: 2.5.2
 Date: 2017-12-15
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
