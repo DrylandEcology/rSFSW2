@@ -531,32 +531,44 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #composition
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Composition", reset = TRUE, default = 0)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
+        fun = "swProd_Composition", reset = TRUE, default = 0))
+      if (inherits(temp, "try-error")) {
+        tasks$create <- 0L
+      } else {
+        swRunScenariosData[[1]] <- temp
+      }
 
       #albedo
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Albedo", reset = FALSE)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
+        fun = "swProd_Albedo", reset = FALSE))
+      if (inherits(temp, "try-error")) {
+        tasks$create <- 0L
+      } else {
+        swRunScenariosData[[1]] <- temp
+      }
 
       #flag for hydraulic redistribution
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
         tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_HydrRedstro_use", reset = FALSE)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
+        fun = "swProd_HydrRedstro_use", reset = FALSE))
+      if (inherits(temp, "try-error")) {
+        tasks$create <- 0L
+      } else {
+        swRunScenariosData[[1]] <- temp
+      }
 
       #flag for transpiration-critical SWP (MPa)
-      temp <- set_requested_rSOILWAT2_InputFlags(tasks, swIn = swRunScenariosData[[1]],
+      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
         tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CritSoilWaterPotential", reset = FALSE)
-      swRunScenariosData[[1]] <- temp[["swIn"]]
-      tasks <- temp[["tasks"]]
+        fun = "swProd_CritSoilWaterPotential", reset = FALSE))
+      if (inherits(temp, "try-error")) {
+        tasks$create <- 0L
+      } else {
+        swRunScenariosData[[1]] <- temp
+      }
 
       rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
         fg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
@@ -2454,27 +2466,27 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDegreeDays")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
-          
+
           # Cold-degree daily mean temperatures (degree C) with snow
           ids <- temp.dy$mean < opt_agg[["Tbase_coldDD_C"]]
           colddegday <- ifelse(ids, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
-          
+
           # Cold-degree daily mean temperatures (degree C) without snow
           ids_snowfree <- ids & SWE.dy$val <= SFSW2_glovars[["tol"]]
           colddegday_snowfree <- ifelse(ids_snowfree, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
-          
+
           # Sum of daily mean temperatures for snow/snow-free
           temp <- data.frame(tapply(colddegday, simTime2$year_ForEachUsedDay, sum),
                              tapply(colddegday_snowfree, simTime2$year_ForEachUsedDay, sum))
-          
+
           resMeans[nv:(nv+1)] <- apply(temp, 2, mean, na.rm = TRUE)
           resSDs[nv:(nv+1)] <- apply(temp, 2, stats::sd, na.rm = TRUE)
           nv <- nv + 2
-          
+
           rm(colddegday, colddegday_snowfree, ids, ids_snowfree)
         }
-        
-        
+
+
         #---Aggregation: Yearly water balance
       #27.0
         if (prj_todos[["aon"]]$yearlyAET) {
