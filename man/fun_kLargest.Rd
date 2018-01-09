@@ -4,10 +4,15 @@
 \alias{fun_kLargest}
 \title{Find the k-largest values (and apply a function to these values)}
 \usage{
-fun_kLargest(x, fun = NULL, k = 10L, na.rm = FALSE, ...)
+fun_kLargest(x, sort = TRUE, decreasingOpt = TRUE, fun = NULL, k = 10L,
+  na.rm = FALSE, ...)
 }
 \arguments{
 \item{x}{A numeric vector}
+
+\item{sort}{A logical value indicating whether x\code{x} should be sorted or not.}
+
+\item{decreasingOpt}{A logical value indicating whether x\code{x} should be sorted by decreasing values or not.}
 
 \item{fun}{A function which requires one argument. \code{fun} will be applied to
 the k-largest values of \code{x}.}
