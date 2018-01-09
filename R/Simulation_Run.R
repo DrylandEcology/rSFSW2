@@ -2454,27 +2454,27 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyColdDegreeDays")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
-          
+
           # Cold-degree daily mean temperatures (degree C) with snow
           ids <- temp.dy$mean < opt_agg[["Tbase_coldDD_C"]]
           colddegday <- ifelse(ids, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
-          
+
           # Cold-degree daily mean temperatures (degree C) without snow
           ids_snowfree <- ids & SWE.dy$val <= SFSW2_glovars[["tol"]]
           colddegday_snowfree <- ifelse(ids_snowfree, temp.dy$mean - opt_agg[["Tbase_coldDD_C"]], 0)
-          
+
           # Sum of daily mean temperatures for snow/snow-free
           temp <- data.frame(tapply(colddegday, simTime2$year_ForEachUsedDay, sum),
                              tapply(colddegday_snowfree, simTime2$year_ForEachUsedDay, sum))
-          
+
           resMeans[nv:(nv+1)] <- apply(temp, 2, mean, na.rm = TRUE)
           resSDs[nv:(nv+1)] <- apply(temp, 2, stats::sd, na.rm = TRUE)
           nv <- nv + 2
-          
+
           rm(colddegday, colddegday_snowfree, ids, ids_snowfree)
         }
-        
-        
+
+
         #---Aggregation: Yearly water balance
       #27.0
         if (prj_todos[["aon"]]$yearlyAET) {
@@ -4021,12 +4021,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           for (d3 in seq_len(n_conds)) {
           temp <- ifelse(conds[[d3]], vpd.dy$mean, NA)
-            nv_add <- ncol(temp)
+          nv_add <- ncol(temp)
+
+          temp2 <- ifelse(conds[[d3]], temp.dy$mean, NA)
+          temp3 <- cbind(temp, temp2, simTime2$year_ForEachUsedDay)
+
           stress <- array(NA, dim = c(isim_time$no.useyr, nv_add))
+
           for (d2 in seq_len(nv_add)) {
+
+            temp3 <- temp3[order(temp3[,ncol(temp3)], -temp3[,(d2 + nv_add)], na.last = TRUE),] # sort based on temp & year
+
             stress[, d2] <- tapply(temp[, d2],
-              INDEX = simTime2$year_ForEachUsedDay,
-              FUN = fun_kLargest, fun = mean, k = 10L, na.rm = TRUE)
+              INDEX = temp3[,ncol(temp3)], #last column should be year index
+              FUN = fun_kLargest, sort = FALSE, fun = mean, k = 10L, na.rm = TRUE)
           }
           nv_new <- nv + nv_add
           resMeans[nv:(nv_new - 1)] <- apply(stress, 2, mean)
@@ -4035,7 +4043,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv + 2 * nv_add
           }
 
-          rm(dryness, conds, stress)
+          rm(dryness, conds, stress, temp2, temp3)
         }
 
 
