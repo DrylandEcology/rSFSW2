@@ -30,21 +30,38 @@ if (!any(do_skip) && is_online) {
   dw_source <- dw_names <- rep(NA, N)
 
   avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
-  sim_testtimes <- list(
-    t1 = c(overall_simstartyr = 1980, overall_endyr = 1985),
-    t2 = c(overall_simstartyr = 1980, overall_endyr = avail_end_year),
-    t3 = c(overall_simstartyr = avail_end_year - 1, overall_endyr = avail_end_year)
-  )
-
-  # Expected outputs
-  temp <- rep("DayMet_NorthAmerica", N)
-  dw_source_exp <- list(t1 = temp, t2 = temp, t3 = temp)
-  temp <- c("DM_test_1_DayMet-105.5906_41.3114", "DM_test_2_DayMet-72.5950_43.2628")
-  dw_name_exp <- list(t1 = temp, t2 = temp, t3 = temp)
-  dw_n_exp <- list(t1 = N, t2 = N, t3 = N)
 
   #--- Tests
   test_that("DayMet weather data:", {
+    repeat {
+      # Make sure that `avail_end_year` is indeed available (e.g., during first days of a new year)
+      testavail <- get_DayMet_NorthAmerica(dir_data = dm_path, cellID = "daymet_pixel_+002083_+000426",
+        Xdm_WGS84 = -105.5934, Ydm_WGS84 = 41.31557,
+        start_year = avail_end_year, end_year = avail_end_year,
+        dbW_digits = 2L)
+
+      if (inherits(testavail, "try-error") && avail_end_year > 1980) {
+        avail_end_year <- avail_end_year - 1L
+      } else {
+        break
+      }
+    }
+
+    skip_if(avail_end_year <= 1980, message = "DayMet data not accessible/available.")
+
+    sim_testtimes <- list(
+      t1 = c(overall_simstartyr = 1980, overall_endyr = 1985),
+      t2 = c(overall_simstartyr = 1980, overall_endyr = avail_end_year),
+      t3 = c(overall_simstartyr = avail_end_year - 1, overall_endyr = avail_end_year)
+    )
+
+    # Expected outputs
+    temp <- rep("DayMet_NorthAmerica", N)
+    dw_source_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+    temp <- c("DM_test_1_DayMet-105.5906_41.3114", "DM_test_2_DayMet-72.5950_43.2628")
+    dw_name_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+    dw_n_exp <- list(t1 = N, t2 = N, t3 = N)
+
     for (k in seq_along(sim_testtimes)) {
       sim_time <- sim_testtimes[[k]]
 
