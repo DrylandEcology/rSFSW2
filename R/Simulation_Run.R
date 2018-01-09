@@ -821,7 +821,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[1]]) <- isim_time[["simstartyr"]]
 
     # Set simulation_timescales fix to daily, monthly, and yearly
-    rSOILWAT2::swOUT_TimeStep(swRunScenariosData[[1]]) <- c(daily = 0, monthly = 2, yearly = 3)
+    rSOILWAT2::swOUT_TimeStepsForEveryKey(swRunScenariosData[[1]]) <- c(daily = 0, monthly = 2, yearly = 3)
 
     #############Get Weather Data################
     print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
@@ -2990,11 +2990,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               }
 
               #Required soil layers
-              soildat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand", "clay", "imperm"), drop = FALSE]
+              soildat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, c("depth_cm", "sand_frac", "clay_frac", "impermeability_frac"), drop = FALSE]
               #TODO: adjust this once TOC is incorporated into rSOILWAT2
               soildat <- cbind(soildat, soil_TOC)
               #50cm soil depth or impermeable layer (whichever is shallower; Soil Survey Staff 2014: p.31)
-              imp_depth <- which(soildat[, "imperm"] >= opt_agg[["NRCS_SMTRs"]][["impermeability"]])
+              imp_depth <- which(soildat[, "impermeability_frac"] >= opt_agg[["NRCS_SMTRs"]][["impermeability"]])
               imp_depth <- min(imp_depth, max(soildat[, "depth_cm"]))  #Interpret maximum soil depth as possible impermeable layer
               Fifty_depth <- min(50, imp_depth)
 
@@ -3090,7 +3090,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
                 swp_dy_nrsc <- if (swp_recalculate || opt_agg[["NRCS_SMTRs"]][["aggregate_at"]] == "data") {
                     get_SWPmatric_aggL(vwc_dy_nrsc, texture = texture,
-                      sand = soildat[, "sand"], clay = soildat[, "clay"])
+                      sand = soildat[, "sand_frac"], clay = soildat[, "clay_frac"])
                   } else {
                     swpmatric.dy.all
                   }
@@ -3151,8 +3151,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
                 is_mineral_layer <- (!somCOND0 & organic_carbon_wfraction < 0.2) |
                   (somCOND0 &
-                  (soildat[, "clay"] >= 0.6 & organic_carbon_wfraction < 0.18) |
-                  (organic_carbon_wfraction < 0.12 + 0.1 * soildat[, "clay"]))
+                  (soildat[, "clay_frac"] >= 0.6 & organic_carbon_wfraction < 0.18) |
+                  (organic_carbon_wfraction < 0.12 + 0.1 * soildat[, "clay_frac"]))
 
                 # determine presence of O horizon
                 # TODO: guess (critical levels 'crit_Oh' are made up and not based on data):
