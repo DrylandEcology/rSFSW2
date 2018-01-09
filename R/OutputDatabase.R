@@ -1961,14 +1961,15 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #43.2
     if (aon$dailyThermalDrynessStress) {
       temp <- c(temp,
-            paste0("Mean10HottestDays_VPD_kPa",
-              c("_mean", "_max",
-              paste0(paste0("_MoistureStress_",
-                  "SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
-                  rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]]), each = 2)
-                ),
-                rep(c("_mean", "_max"), each = opt_agg[["SWPcrit_N"]])))))
-
+        paste0(rep(c("Mean10HottestDays_VPD_kPa", "Mean10ColdestDays_Temp_C", "Mean10Coldest_SnowfreeDays_Temp_C"), times = 2),
+        c(rep("_mean",3) ,"_max", "_min", "_min")),
+          paste0(rep(rep(c("Mean10HottestDays_VPD_kPa", "Mean10ColdestDays_Temp_C", "Mean10Coldest_SnowfreeDays_Temp_C"),each = 4), times = 3),
+                 paste0(paste0("_MoistureStress_SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
+                          rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]] * 3), each = 2)),
+                          c(rep('_mean', times = opt_agg[["SWPcrit_N"]] * 3), rep('_max', times = opt_agg[["SWPcrit_N"]]),
+                                         rep('_min', times = opt_agg[["SWPcrit_N"]] * 2))
+                                                          ))
+         )
     }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################

@@ -4004,7 +4004,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("vpd.dy")) vpd.dy <- get_VPD_dy(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2)
 
-          # Moisture stress during hot and dry periods
+          # Set up soil moisture stress conditions
           nv_add <- opt_agg[["SWPcrit_N"]]
           dryness <- matrix(rep.int(opt_agg[["SWPcrit_MPa"]], length(vpd.dy$mean)),
               ncol = nv_add, byrow = TRUE)
@@ -4019,31 +4019,57 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               matrix(FALSE, nrow = length(vpd.dy$mean), ncol = nv_add)
             }
 
-          for (d3 in seq_len(n_conds)) {
-          temp <- ifelse(conds[[d3]], vpd.dy$mean, NA)
-          nv_add <- ncol(temp)
+          for (d3 in seq_len(n_conds)){
 
-          temp2 <- ifelse(conds[[d3]], temp.dy$mean, NA)
-          temp3 <- cbind(temp, temp2, simTime2$year_ForEachUsedDay)
-
+          # Moisture stress (vpd) during hot and dry periods
+          stressConditions1 <- ifelse(conds[[d3]], vpd.dy$mean, NA)
+          stressConditions2 <- ifelse(conds[[d3]], temp.dy$mean, NA)
+          stressConditions3 <- cbind(stressConditions1, stressConditions2, simTime2$year_ForEachUsedDay)
+          nv_add <- ncol(stressConditions1)
           stress <- array(NA, dim = c(isim_time$no.useyr, nv_add))
+
+          # Temp on 10 coldest days when there is snow
+          coldstressConditions <- ifelse(conds[[d3]], temp.dy$mean, NA)
+          coldstress <- array(NA, dim = c(isim_time$no.useyr, nv_add))
+
+          # Temp on 10 coldest days when there is not snow
+          coldstressSnowFreeConditions <- ifelse(conds[[d3]] & SWE.dy$val <= SFSW2_glovars[["tol"]],   temp.dy$mean, NA)
+          coldstressSnowfree <- array(NA, dim = c(isim_time$no.useyr, nv_add))
 
           for (d2 in seq_len(nv_add)) {
 
-            temp3 <- temp3[order(temp3[,ncol(temp3)], -temp3[,(d2 + nv_add)], na.last = TRUE),] # sort based on temp & year
+            stressConditions3 <- stressConditions3[order(stressConditions3[,ncol(stressConditions3)], -stressConditions3[,(d2 + nv_add)], na.last = TRUE),] # sort based on temp & year
 
-            stress[, d2] <- tapply(temp[, d2],
-              INDEX = temp3[,ncol(temp3)], #last column should be year index
-              FUN = fun_kLargest, sort = FALSE, fun = mean, k = 10L, na.rm = TRUE)
+            stress[, d2] <- tapply(stressConditions1[, d2],
+                             INDEX = stressConditions3[,ncol(stressConditions3)], #last column should be year index
+                             FUN = fun_kLargest, sort = FALSE,  decreasingOpt = TRUE, fun = mean, k = 10L, na.rm = TRUE) #pre-sorted, so sort = FALSE
+
+            coldstress[, d2] <- tapply(coldstressConditions[, d2],
+                                 INDEX = simTime2$year_ForEachUsedDay,
+                                 FUN = fun_kLargest, sort = TRUE, decreasingOpt = FALSE, fun = mean, k = 10L, na.rm = TRUE)
+
+            coldstressSnowfree[, d2] <- tapply(coldstressSnowFreeConditions[, d2],
+                                         INDEX = simTime2$year_ForEachUsedDay,
+                                         FUN = fun_kLargest, sort = TRUE,  decreasingOpt = FALSE, fun = mean, k = 10L, na.rm = TRUE)
+
           }
-          nv_new <- nv + nv_add
-          resMeans[nv:(nv_new - 1)] <- apply(stress, 2, mean)
-          resMeans[nv_new:(nv + 2 * nv_add - 1)] <- apply(stress, 2, max)
-          resSDs[nv:(nv_new - 1)] <- apply(stress, 2, stats::sd)
-            nv <- nv + 2 * nv_add
+          AllStress <- cbind(stress,coldstress,coldstressSnowfree)
+          nv_add2 <- ncol(AllStress)
+
+          nv_new <- nv + nv_add2
+
+          resMeans[nv:(nv_new - 1)] <- apply(AllStress, 2, mean)
+          resMeans[nv_new:(nv_new + (nv_add) - 1)] <- apply(stress, 2, max)
+          resMeans[(nv_new + nv_add):(nv_new + nv_add * 2 - 1)] <- apply(coldstress, 2, min)
+          resMeans[(nv_new + nv_add * 2):(nv_new + nv_add * 3 -1)] <- apply(coldstressSnowfree, 2, min)
+          resSDs[nv:(nv_new - 1)] <- apply(AllStress, 2, stats::sd)
+
+          nv <- nv + 2 * nv_add2
           }
 
-          rm(dryness, conds, stress, temp2, temp3)
+          rm(dryness, conds, stressConditions1 ,coldstressConditions, coldstressSnowFreeConditions,
+            stress, coldstress, coldstressSnowfree, AllStress, nv_add2)
+
         }
 
 

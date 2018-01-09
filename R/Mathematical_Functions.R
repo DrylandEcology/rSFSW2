@@ -133,6 +133,7 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 #'
 #' @param x A numeric vector
 #' @param sort A logical value indicating whether x\code{x} should be sorted or not.
+#' @param decreasingOpt A logical value indicating whether x\code{x} should be sorted by decreasing values or not.
 #' @param fun A function which requires one argument. \code{fun} will be applied to
 #'    the k-largest values of \code{x}.
 #' @param k An integer value. The k-largest value(s) of \code{x} will be used. The largest
@@ -143,11 +144,11 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 #'
 #' @return A vector with the k-largest values of \code{x} if \code{is.null(fun)},
 #'    otherwise the result of applying \code{fun} to the k-largest values.
-fun_kLargest <- function(x, sort = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...) {
+fun_kLargest <- function(x, sort = TRUE, decreasingOpt = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...) {
   if (na.rm)
     x <- stats::na.exclude(x)
   if(sort == TRUE)
-  x <- sort.int(x, decreasing = TRUE, na.last = !na.rm, method = if (getRversion() >= "3.3.0") "radix" else "quick")
+  x <- sort.int(x, decreasing = decreasingOpt, na.last = !na.rm, method = if (getRversion() >= "3.3.0") "radix" else "quick")
   x <- x[seq_len(max(1L, min(length(x), as.integer(k))))]
 
   if (is.null(fun)) x else fun(x, ...)
