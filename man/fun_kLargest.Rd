@@ -2,23 +2,20 @@
 % Please edit documentation in R/Mathematical_Functions.R
 \name{fun_kLargest}
 \alias{fun_kLargest}
-\title{Find the k-largest values (and apply a function to these values)}
+\title{Find the k-largest/smallest values (and apply a function to these values)}
 \usage{
-fun_kLargest(x, sort = TRUE, decreasingOpt = TRUE, fun = NULL, k = 10L,
-  na.rm = FALSE, ...)
+fun_kLargest(x, largest = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...)
 }
 \arguments{
 \item{x}{A numeric vector}
 
-\item{sort}{A logical value indicating whether x\code{x} should be sorted or not.}
-
-\item{decreasingOpt}{A logical value indicating whether x\code{x} should be sorted by decreasing values or not.}
+\item{largest}{A logical value. See return value.}
 
 \item{fun}{A function which requires one argument. \code{fun} will be applied to
-the k-largest values of \code{x}.}
+the k-largest/smallest values of \code{x}.}
 
-\item{k}{An integer value. The k-largest value(s) of \code{x} will be used. The largest
-value will be used if 0 or negative.}
+\item{k}{An integer value. The k-largest/smallest value(s) of \code{x} will be used.
+The largest/smallest value will be used if 0 or negative.}
 
 \item{na.rm}{A logical value indicating whether \code{NA} values should be stripped
 before the computation proceeds.}
@@ -26,9 +23,10 @@ before the computation proceeds.}
 \item{\dots}{Optional arguments to be passed to \code{fun}}
 }
 \value{
-A vector with the k-largest values of \code{x} if \code{is.null(fun)},
-   otherwise the result of applying \code{fun} to the k-largest values.
+A vector with the k-largest (if \code{largest = TRUE}) or k-smallest
+   (if \code{largest = FALSE}) values of \code{x} if \code{is.null(fun)},
+   otherwise the result of applying \code{fun} to the k-largest/smallest values.
 }
 \description{
-Find the k-largest values (and apply a function to these values)
+Find the k-largest/smallest values (and apply a function to these values)
 }
