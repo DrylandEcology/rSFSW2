@@ -1960,16 +1960,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #43.2
     if (aon$dailyThermalDrynessStress) {
+      extremes <- c("Hottest", "Coldest")
+      resp <- c("Days_VPD_kPa", "Days_Temp_C", "SnowfreeDays_Temp_C")
+      aggs <- c(rep("mean", length(resp)), "max", "min", "min")
+      Naggs <- 2
+      soils <- c("allLayers", "topLayer", "bottomLayer")
+      Nout <- length(resp) * Naggs * opt_agg[["SWPcrit_N"]]
+
       temp <- c(temp,
-        paste0(rep(c("Mean10HottestDays_VPD_kPa", "Mean10ColdestDays_Temp_C", "Mean10Coldest_SnowfreeDays_Temp_C"), times = 2),
-        c(rep("_mean",3) ,"_max", "_min", "_min")),
-          paste0(rep(rep(c("Mean10HottestDays_VPD_kPa", "Mean10ColdestDays_Temp_C", "Mean10Coldest_SnowfreeDays_Temp_C"),each = 4), times = 3),
-                 paste0(paste0("_MoistureStress_SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
-                          rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]] * 3), each = 2)),
-                          c(rep('_mean', times = opt_agg[["SWPcrit_N"]] * 3), rep('_max', times = opt_agg[["SWPcrit_N"]]),
-                                         rep('_min', times = opt_agg[["SWPcrit_N"]] * 2))
-                                                          ))
-         )
+        paste0("Mean10", rep(extremes, each = length(resp) * Naggs), resp, "_", aggs),
+
+        paste0("Mean10", rep(extremes, each = Nout),
+          rep(resp, each = opt_agg[["SWPcrit_N"]]),
+          "_MoistureStress_SWPcrit", fieldtag_SWPcrit_MPa, "_",
+          rep(soils, each = Nout * length(extremes)), "_",
+          rep(aggs, each = opt_agg[["SWPcrit_N"]])))
     }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################
