@@ -4064,20 +4064,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               nv_add <- ncol(out_during_Stress)
               nv_new <- nv + nv_add
 
-print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "mean"))
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "mean"))
               resMeans[nv:(nv_new - 1)] <- .colMeans(out_during_Stress,
                 isim_time$no.useyr, nv_add)
               resSDs[nv:(nv_new - 1)] <- apply(out_during_Stress, 2, stats::sd)
               nv <- nv_new
 
               nv_new <- nv + N
-print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "max"))
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "max"))
               resMeans[nv:(nv_new - 1)] <-
                 apply(out_during_Stress[, Ns, drop = FALSE], 2, max)
               nv <- nv_new
 
               nv_new <- nv + 2 * N
-print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "min"))
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "min"))
               resMeans[nv:(nv_new - 1)] <-
                 apply(out_during_Stress[, c(N + Ns, 2 * N + Ns), drop = FALSE], 2, min)
               nv <- nv_new
