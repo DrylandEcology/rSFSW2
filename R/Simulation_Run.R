@@ -4016,38 +4016,88 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("vpd.dy")) vpd.dy <- get_VPD_dy(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2)
 
-          # Moisture stress during hot and dry periods
-          nv_add <- opt_agg[["SWPcrit_N"]]
-          dryness <- matrix(rep.int(opt_agg[["SWPcrit_MPa"]], length(vpd.dy$mean)),
-              ncol = nv_add, byrow = TRUE)
+          # Aggregate for hottest and for coldest conditions
+          extreme <- c(hottest = TRUE, coldest = FALSE)
+
+          # Set up soil moisture stress conditions
+          dryness <- matrix(rep.int(opt_agg[["SWPcrit_MPa"]], isim_time$no.usedy),
+              ncol = opt_agg[["SWPcrit_N"]], byrow = TRUE)
+          snowfree <- SWE.dy$val <= SFSW2_glovars[["tol"]]
+
           n_conds <- 4L
           conds <- list() # max length(conds) == n_conds
-          conds[["Always"]] <- matrix(TRUE, nrow = length(vpd.dy$mean), ncol = 1)
-          conds[["DryAll"]] <- apply(swpmatric.dy.all$val[isim_time$index.usedy, -(1:2), drop = FALSE], 1, max) < dryness
+          conds[["Always"]] <- matrix(TRUE, nrow = isim_time$no.usedy, ncol = 1)
+          temp <- swpmatric.dy.all$val[isim_time$index.usedy, -(1:2), drop = FALSE]
+          conds[["DryAll"]] <- apply(temp, 1, max) < dryness
           conds[["DryTop"]] <- swpmatric.dy$top < dryness
           conds[["DryBottom"]] <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
               swpmatric.dy$bottom < dryness
             } else{
-              matrix(FALSE, nrow = length(vpd.dy$mean), ncol = nv_add)
+              matrix(FALSE, nrow = isim_time$no.usedy, ncol = opt_agg[["SWPcrit_N"]])
             }
 
           for (d3 in seq_len(n_conds)) {
-          temp <- ifelse(conds[[d3]], vpd.dy$mean, NA)
-            nv_add <- ncol(temp)
-          stress <- array(NA, dim = c(isim_time$no.useyr, nv_add))
-          for (d2 in seq_len(nv_add)) {
-            stress[, d2] <- tapply(temp[, d2],
-              INDEX = simTime2$year_ForEachUsedDay,
-              FUN = fun_kLargest, fun = mean, k = 10L, na.rm = TRUE)
-          }
-          nv_new <- nv + nv_add
-          resMeans[nv:(nv_new - 1)] <- apply(stress, 2, mean)
-          resMeans[nv_new:(nv + 2 * nv_add - 1)] <- apply(stress, 2, max)
-          resSDs[nv:(nv_new - 1)] <- apply(stress, 2, stats::sd)
-            nv <- nv + 2 * nv_add
+            #--- Moisture/temperature stress during hot/cold and soil-dry periods
+            N <- ncol(conds[[d3]]) # either 1 or opt_agg[["SWPcrit_N"]]
+            Ns <- seq_len(N)
+
+            # Daily VPD on soil-dry days (for 1 column or for each opt_agg[["SWPcrit_N"]])
+            VPD_during_Stress <- ifelse(conds[[d3]], vpd.dy$mean, NA)
+            # Daily air temperature on soil-dry days
+            Temp_during_Stress1 <- ifelse(conds[[d3]], temp.dy$mean, NA)
+            # Daily air temperature on snowfree, soil-dry days
+            Temp_during_Stress2 <- ifelse(conds[[d3]] & snowfree, temp.dy$mean, NA)
+
+            # Output container for VPD and Temp on 10 hottest/coldest, soil-dry days
+            # and for Temp on 10 hottest/coldest, snowfree, soil-dry days
+            out_during_Stress <- array(NA, dim = c(isim_time$no.useyr, 3 * N))
+
+            for (ihot in seq_along(extreme)) {
+              for (d2 in Ns) {
+                # indices (=doy) of k-largest/smallest temperature values per year given soil is dry
+                ids_hotcold <- tapply(Temp_during_Stress1[, d2],
+                  INDEX = simTime2$year_ForEachUsedDay, FUN = fun_kLargest,
+                  largest = extreme[ihot], fun = "index", k = 10L, na.rm = TRUE)
+
+                # values of mean VPD and of mean temperature during k-indices per year
+                out_during_Stress[, c(d2, N + d2)] <- t(sapply(seq_len(simTime2$no.useyr_NSadj),
+                  function(j) {
+                    ids <- simTime2$doy_ForEachUsedDay %in% ids_hotcold[[j]] &
+                      simTime2$year_ForEachUsedDay == simTime2$useyrs_NSadj[j]
+                    c(mean(VPD_during_Stress[ids, d2]), mean(Temp_during_Stress1[ids, d2]))
+                  }))
+
+                # mean temperature during 10 hottest/coldest, snowfree, soil-dry days
+                out_during_Stress[, 2 * N + d2] <- tapply(Temp_during_Stress2[, d2],
+                  INDEX = simTime2$year_ForEachUsedDay, FUN = fun_kLargest,
+                  largest = extreme[ihot], fun = mean, k = 10L, na.rm = TRUE)
+              }
+
+              nv_add <- ncol(out_during_Stress)
+              nv_new <- nv + nv_add
+
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "mean"))
+              resMeans[nv:(nv_new - 1)] <- .colMeans(out_during_Stress,
+                isim_time$no.useyr, nv_add)
+              resSDs[nv:(nv_new - 1)] <- apply(out_during_Stress, 2, stats::sd)
+              nv <- nv_new
+
+              nv_new <- nv + N
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "max"))
+              resMeans[nv:(nv_new - 1)] <-
+                apply(out_during_Stress[, Ns, drop = FALSE], 2, max)
+              nv <- nv_new
+
+              nv_new <- nv + 2 * N
+#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "min"))
+              resMeans[nv:(nv_new - 1)] <-
+                apply(out_during_Stress[, c(N + Ns, 2 * N + Ns), drop = FALSE], 2, min)
+              nv <- nv_new
+            }
           }
 
-          rm(dryness, conds, stress)
+          rm(dryness, conds, VPD_during_Stress, Temp_during_Stress1,
+            Temp_during_Stress2, out_during_Stress)
         }
 
 
