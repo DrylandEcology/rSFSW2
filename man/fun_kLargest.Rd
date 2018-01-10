@@ -2,7 +2,7 @@
 % Please edit documentation in R/Mathematical_Functions.R
 \name{fun_kLargest}
 \alias{fun_kLargest}
-\title{Find the k-largest/smallest values (and apply a function to these values)}
+\title{Find the \code{k}-largest/smallest values (and apply a function to these values)}
 \usage{
 fun_kLargest(x, largest = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...)
 }
@@ -11,11 +11,11 @@ fun_kLargest(x, largest = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...)
 
 \item{largest}{A logical value. See return value.}
 
-\item{fun}{A function which requires one argument. \code{fun} will be applied to
-the k-largest/smallest values of \code{x}.}
+\item{fun}{A function which requires one argument or \code{"index"}. \code{fun} will
+be applied to the \code{k}-largest/smallest values of \code{x}.}
 
-\item{k}{An integer value. The k-largest/smallest value(s) of \code{x} will be used.
-The largest/smallest value will be used if 0 or negative.}
+\item{k}{An integer value. The \code{k}-largest/smallest value(s) of \code{x} will be
+used. The largest/smallest value will be used if 0 or negative.}
 
 \item{na.rm}{A logical value indicating whether \code{NA} values should be stripped
 before the computation proceeds.}
@@ -23,10 +23,16 @@ before the computation proceeds.}
 \item{\dots}{Optional arguments to be passed to \code{fun}}
 }
 \value{
-A vector with the k-largest (if \code{largest = TRUE}) or k-smallest
-   (if \code{largest = FALSE}) values of \code{x} if \code{is.null(fun)},
-   otherwise the result of applying \code{fun} to the k-largest/smallest values.
+A vector of length \code{k}, \itemize{
+  \item if \code{is.null(fun)}, then a vector with the \code{k}-largest
+    (if \code{largest = TRUE}) or \code{k}-smallest (if \code{largest = FALSE}) values
+    of \code{x};
+  \item if \code{fun = "index"}, then a vector with indices of the
+    \code{k}-largest/smallest values (NOTE: this is truncated to the \code{k}-first
+    indices!).
+ }
+ Otherwise, the result of applying \code{fun} to the \code{k}-largest/smallest values.
 }
 \description{
-Find the k-largest/smallest values (and apply a function to these values)
+Find the \code{k}-largest/smallest values (and apply a function to these values)
 }
