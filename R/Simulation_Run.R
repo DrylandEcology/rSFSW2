@@ -2126,8 +2126,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           if(opt_agg[["use_daily_range"]]){
 
-            dailyrange <- ifelse(unlist(tapply(simTime2$year_ForEachUsedDay, simTime2$year_ForEachUsedDay,seq_along))
-                    %in% c(min(opt_agg[["daily_range_values"]]):max(opt_agg[["daily_range_values"]])), TRUE, FALSE)
+            dailyrange <- ifelse(simTime2$doy_ForEachUsedDay %in%
+              c(min(opt_agg[["daily_range_values"]]):max(opt_agg[["daily_range_values"]])), TRUE, FALSE)
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {
               frostWithoutSnowDailyRange <- SWE.dy$val == 0 & temp.dy$min < iTmin & dailyrange
