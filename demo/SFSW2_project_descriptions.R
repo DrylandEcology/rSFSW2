@@ -647,7 +647,11 @@ opt_agg <- list(
 
   # Base temperature (degree C) below which cold-degree-days are accumulated
   Tbase_coldDD_C = 0,
-  
+
+  # Options for calculating daily aggregation options over a specific range of days
+  use_daily_range = FALSE,
+  daily_range_values = c(1, 250), #Min and Max of desired daily range of values
+
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

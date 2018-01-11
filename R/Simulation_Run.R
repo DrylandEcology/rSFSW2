@@ -2124,8 +2124,24 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv+1
           }
 
-          rm(frostWithoutSnow)
+          if(opt_agg[["use_daily_range"]]){
+
+            dailyrange <- ifelse(unlist(tapply(simTime2$year_ForEachUsedDay, simTime2$year_ForEachUsedDay,seq_along))
+                    %in% c(min(opt_agg[["daily_range_values"]]):max(opt_agg[["daily_range_values"]])), TRUE, FALSE)
+
+            for (iTmin in opt_agg[["Tmin_crit_C"]]) {
+              frostWithoutSnowDailyRange <- SWE.dy$val == 0 & temp.dy$min < iTmin & dailyrange
+              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange, simTime2$year_ForEachUsedDay, sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
+
+              resMeans[nv] <- mean(frostWithoutSnow, na.rm = TRUE)
+              resSDs[nv] <- stats::sd(frostWithoutSnow, na.rm = TRUE)
+              nv <- nv+1
+            }
+          }
+
+          rm(frostWithoutSnow, frostWithoutSnowDailyRange, dailyrange)
         }
+
       #12
         if (prj_todos[["aon"]]$dailyHotDays) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyHotDays")
