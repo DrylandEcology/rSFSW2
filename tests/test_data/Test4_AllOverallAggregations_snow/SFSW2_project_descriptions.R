@@ -477,6 +477,8 @@ req_out <- list(
     "dailyFrostInSnowfreePeriod", 1,
     "dailyHotDays", 1,
     "dailyWarmDays", 1,
+    "dailyColdDays", 1,
+    "dailyCoolDays", 1,
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
@@ -490,6 +492,7 @@ req_out <- list(
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
+    "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
@@ -603,6 +606,9 @@ opt_agg <- list(
   # Base temperature (degree C) above which degree-days are accumulated
   Tbase_DD_C = 0,
 
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+  
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

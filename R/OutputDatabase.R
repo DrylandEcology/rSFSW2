@@ -1623,7 +1623,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #10.
     if (aon$dailySnowpack) {
-      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE"), "_mean"))
+      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.FirstDay_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE", "SnowCover.FirstDay_doy", "SnowCover.LastDay_doy"), "_mean"))
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
@@ -1636,6 +1636,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #12b
     if (aon$dailyWarmDays) {
       temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days_mean"))
+    }
+  #12c
+    if (aon$dailyColdDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmin_crit_C, "_days_mean"))
+    }
+  #12d
+    if (aon$dailyCoolDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmean_crit_C, "_days_mean"))
     }
   #13
     if (aon$dailyPrecipitationEventSizeDistribution) {
@@ -1701,6 +1709,13 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #24
     if (aon$dailyDegreeDays) {
       temp <- c(temp, paste0("DegreeDays.Base", opt_agg[["Tbase_DD_C"]], "C.dailyTmean_Cdays_mean"))
+    }
+
+  #25
+    if (aon$dailyColdDegreeDays) {
+      temp <- c(temp, paste0(c("ColdDegreeDays", "ColdDegreeDays.SnowFree"), ".Base.",
+       ifelse(opt_agg[["Tbase_coldDD_C"]] < 0, "Neg", ifelse(opt_agg[["Tbase_coldDD_C"]] > 0, "Pos", "")),
+       abs(opt_agg[["Tbase_coldDD_C"]]), "C.dailyTMean_Cdays_mean"))
     }
 
     ##############################################################---Aggregation: Yearly water balance---##############################################################
@@ -1945,15 +1960,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #43.2
     if (aon$dailyThermalDrynessStress) {
-      temp <- c(temp,
-            paste0("Mean10HottestDays_VPD_kPa",
-              c("_mean", "_max",
-              paste0(paste0("_MoistureStress_",
-                  "SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
-                  rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]]), each = 2)
-                ),
-                rep(c("_mean", "_max"), each = opt_agg[["SWPcrit_N"]])))))
+      extremes <- c("Hottest", "Coldest")
+      resp <- c("Days_VPD_kPa", "Days_Temp_C", "SnowfreeDays_Temp_C")
+      aggs <- c(rep("mean", length(resp)), "max", "min", "min")
+      Naggs <- 2
+      soils <- c("allLayers", "topLayer", "bottomLayer")
+      Nout <- length(resp) * Naggs * opt_agg[["SWPcrit_N"]]
 
+      temp <- c(temp,
+        paste0("Mean10", rep(extremes, each = length(resp) * Naggs), resp, "_", aggs),
+
+        paste0("Mean10", rep(extremes, each = Nout),
+          rep(resp, each = opt_agg[["SWPcrit_N"]]),
+          "_MoistureStress_SWPcrit", fieldtag_SWPcrit_MPa, "_",
+          rep(soils, each = Nout * length(extremes)), "_",
+          rep(aggs, each = opt_agg[["SWPcrit_N"]])))
     }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################
