@@ -2112,65 +2112,74 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #11
         if (prj_todos[["aon"]]$dailyFrostInSnowfreePeriod) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyFrostInSnowfreePeriod")
-          if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
-          if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
+          if (!exists("temp.dy")) temp.dy <<- get_Temp_dy(runDataSC, isim_time)
+          if (!exists("SWE.dy")) SWE.dy <<- get_SWE_dy(runDataSC, isim_time)
 
-          # TODO: Confirm that water year should be used because we are dealing with snowpack
-          snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
-          adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+          snowyears <<- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
+          adjDays <<- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
           res.frost <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 4, byrow = TRUE)
           res.frost[, 1] <- unique(snowyears)[2:(length(unique(snowyears))-1)]  # 1. snowyear
-          snowyear.trim <- !is.na(pmatch(snowyears, res.frost[, 1], duplicates.ok = TRUE))
+          snowyear.trim <<- !is.na(pmatch(snowyears, res.frost[, 1], duplicates.ok = TRUE))
+          
+          SWE.dy <<- SWE.dy
 
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-            ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[snowyear.trim], temps <- temp.dy$surface[snowyear.trim])
-            frostWithoutSnow <- SWE.dy$val[snowyear.trim] == 0 & temps < iTmin
+            
+            iTmin <<- iTmin
+            
+            ifelse(any(is.na(temp.dy$surface)), temps <<- temp.dy$min[snowyear.trim], temps <<- temp.dy$surface[snowyear.trim])
+            frostWithoutSnow <<- SWE.dy$val[snowyear.trim] == 0 & temps < iTmin
             res.frost[, 2] <- tapply(frostWithoutSnow, snowyears[snowyear.trim], sum) # Numbers of days with min.temp < 0 and snow == 0
             
-            for (syi in 2:length(res.frost[, 1]))
+            # Find the last day of continuous snow pack for the non-snow-year, so that we can calculate
+            # Spring/Fall periods for the first snow year
+            daysOfPreviousYear <<- which(snowyears == min(snowyears))
+            r1 <<- rle(ifelse(SWE.dy$val[daysOfPreviousYear] > 0, 1, 0))
+            x1 <<- r1$lengths[which(r1$values == 1)][order(r1$lengths[which(r1$values == 1)], decreasing = TRUE)[1]] # Number of days in LAST largest continuous snowpack period
+            ind1 <<- which(r1$lengths == x1)
+            lastSnowPeriodEndDay <<- cumsum(r1$lengths)[ifelse(length(ind1)>1, ind1[which.max(r1$values[ind1])], ind1)]
+            
+            for (syi in 1:length(res.frost[, 1]))
             {
-              # We must debug what exactly is wrong about the indexing
-              # e.g. should we be using adjDays? Even so, the results do not make sense,
+              syi <<- syi
               
-              # Ultimately I am failing to understand the implementation details surrounding the snow year indexing
-              
-              # Find relative day information about the longest continuous snowpack period (modified from #10)
-              # TODO: Figure out if adjDays should be used (currently it is not)
-              r1 <<- rle(ifelse(SWE.dy$val[which(snowyears == res.frost[syi - 1, 1])] > 0, 1, 0))
-              x1 <<- r1$lengths[which(r1$values == 1)][order(r1$lengths[which(r1$values == 1)], decreasing = TRUE)[1]] # Number of days in LAST largest continuous snowpack period
-              ind1 <<- which(r1$lengths == x1)
-              
-              r2 <<- rle(ifelse(SWE.dy$val[which(snowyears == res.frost[syi, 1])] > 0, 1, 0))
-              x2 <<- r2$lengths[which(r2$values == 1)][order(r2$lengths[which(r2$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snowpack period
-              ind2 <<- which(r2$lengths == x2)
-              
-              previousPeriodLastDOY <<- cumsum(r1$lengths)[ifelse(length(ind1)>1, ind[which.max(r1$values[ind1])], ind1)] #- adjDays # Last DOY of the last largest continuous snowpack period
-              
-              # To calculate the firstDOY just repeat the last DOY calculation for this period and subtract the length of the period
-              # This needs to be simplified before the aggregation is finalized
-              thisPeriodLastDOY <<- cumsum(r2$lengths)[ifelse(length(ind2)>1, ind2[which.max(r2$values[ind2])], ind2)] #- adjDays
-              thisPeriodfirstDOY <<- thisPeriodLastDOY - x2 # First DOY of the NEXT largest continuous snowpack period
+              # Currently there is an issue with x not being updated
+              # e.g. In my project: when this run is stopped in syi == 11, x is 284. 
+              #      However, if I re-run the line where x is calculated, it calculates correctly to 224.
+              # Other than this, the logic seems to be working
+              daysOfThisYear <<- which(snowyears == res.frost[syi, 1])
+              r <<- rle(ifelse(SWE.dy$val[daysOfThisYear] > 0, 1, 0))
+              x <<- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snowpack period
+              ind <<- which(r$lengths == x)
+              thisSnowPeriodEndDay <<- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
+              thisSnowPeriodStartDay <<- thisSnowPeriodEndDay - x # First DOY of the NEXT largest continuous snowpack period
               
               # Where Y is half of the days between end and start of longest continuous snowpack
               # so that there is no double counting of frost events
-              Y <- (thisPeriodfirstDOY + (365 - thisPeriodLastDOY)) / 2
-              Y1 <<- floor(Y)
-              Y2 <<- ceiling(Y)
-              
+              Y <<- floor((thisSnowPeriodStartDay + length(daysOfPreviousYear) - lastSnowPeriodEndDay) / 2)
 
-              ### The variable "period" is what I believe is incorrect ###
-              
               # Numbers of days with min.temp < 0 and snow == 0
               # (Fall) For the first half of time between the last day of last continuous snowpack and the first day of this snowpack
-              period <<- (previousPeriodLastDOY + 365 * (syi - 1)):(previousPeriodLastDOY + 365 * (syi - 1) + Y1)
-              ifelse(any(is.na(temp.dy$surface[period])), temps <<- temp.dy$min, temps <- temp.dy$surface)
-              res.frost[syi, 3] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
+              startDay1 <<- min(daysOfPreviousYear)
+              period1 <<- (lastSnowPeriodEndDay + startDay1):(lastSnowPeriodEndDay + startDay1 + Y)
+              ifelse(any(is.na(temp.dy$surface[period1])), temps <<- temp.dy$min, temps <<- temp.dy$surface)
+              res.frost[syi, 3] <- sum(SWE.dy$val[period1] == 0 & temps[period1] < iTmin)
 
               # Numbers of days with min.temp < 0 and snow == 0
               # (Spring) For the second half of time between the last day of the last continuous snowpack and the first day of this snowpack
-              period <<- (thisPeriodfirstDOY + 365 * syi - Y2):(thisPeriodfirstDOY + 365 * syi)
-              ifelse(any(is.na(temp.dy$surface[period])), temps <<- temp.dy$min, temps <- temp.dy$surface)
-              res.frost[syi, 4] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
+              startDay2 <<- min(daysOfThisYear)
+              period2 <<- (thisSnowPeriodStartDay + startDay2 - Y + 1):(thisSnowPeriodStartDay + startDay2)
+              ifelse(any(is.na(temp.dy$surface[period2])), temps <<- temp.dy$min, temps <<- temp.dy$surface)
+              res.frost[syi, 4] <- sum(SWE.dy$val[period2] == 0 & temps[period2] < iTmin)
+              
+              if (syi == 11) {
+                stop(1)
+              }
+              
+              lastSnowPeriodEndDay <<- thisSnowPeriodEndDay
+              daysOfPreviousYear <<- daysOfThisYear
+              
+
             }
 
             resMeans[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, mean, na.rm = TRUE)
@@ -2178,8 +2187,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv+3
           }
           
-          res.frost.debug <<- res.frost
-
+          res.frost <<- res.frost
+          stop(1)
+          
           rm(res.frost, snowyears, snowyear.trim, frostWithoutSnow)
         }
       #12
