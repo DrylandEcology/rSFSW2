@@ -2115,16 +2115,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
-          # Calculate snow year information
+          # 1. Calculate snow year information
           snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
-          adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
           res.frost <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 4, byrow = TRUE)
-          res.frost[, 1] <- unique(snowyears)[2:(length(unique(snowyears))-1)]  # 1. snowyear
+          res.frost[, 1] <- unique(snowyears)[2:(length(unique(snowyears))-1)]
           snowyear.trim <- !is.na(pmatch(snowyears, res.frost[, 1], duplicates.ok = TRUE))
           
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
             
-            # Number of days with min. temp < 0 and snow == 0 for the trimmed snow years
+            # 2. Number of days with min. temp < 0 and snow == 0 for the trimmed snow years
             ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[snowyear.trim], temps <- temp.dy$surface[snowyear.trim])
             frostWithoutSnow <- SWE.dy$val[snowyear.trim] == 0 & temps < iTmin
             res.frost[, 2] <- tapply(frostWithoutSnow, snowyears[snowyear.trim], sum)
@@ -2133,7 +2132,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             # Spring/Fall periods for the first snow year
             daysOfPreviousYear <- which(snowyears == min(snowyears))
             r <- rle(ifelse(SWE.dy$val[daysOfPreviousYear] > 0, 1, 0))
-            x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in LAST largest continuous snowpack period
+            x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snow period
             ind <- which(r$lengths == x)
             # If there is no snow, the best we can do is mark the beginning of the non-snow-year as the end of the continuous snow period
             lastSnowPeriodEndDay <- ifelse(length(ind) == 0, cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)], 1)
@@ -2148,7 +2147,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               # Find the beginning and end of continuous snow pack for this snow year
               daysOfThisYear <- which(snowyears == res.frost[syi, 1])
               r <- rle(ifelse(SWE.dy$val[daysOfThisYear] > 0, 1, 0))
-              x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snowpack period
+              x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]]
               ind <- which(r$lengths == x)
               
               # If a year has no snow, just keep track of its days and it will become a part of the period between snow packs
@@ -2176,13 +2175,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               # so that there is no double counting of frost events.
               Y <- floor((thisSnowPeriodStartDay + length(daysOfPreviousYear) - lastSnowPeriodEndDay) / 2)
 
-              # (Fall)
+              # 3. Fall - number of days with min. temp < 0 and snow == 0
               startDayOfLastYear <- daysOfPreviousYear[1]  # e.g. the second snow year starts on day ~639
               period <- (lastSnowPeriodEndDay + startDayOfLastYear):(lastSnowPeriodEndDay + startDayOfLastYear + Y)
               ifelse(any(is.na(temp.dy$surface[period])), temps <- temp.dy$min, temps <- temp.dy$surface)
               res.frost[syi, 3] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
 
-              # (Spring)
+              # 4. Spring - number of days with min. temp < 0 and snow == 0
               startDayOfThisYear <- daysOfThisYear[1]
               period <- (period[length(period)] + 1):(thisSnowPeriodStartDay + startDayOfThisYear)
               ifelse(any(is.na(temp.dy$surface[period])), temps <- temp.dy$min, temps <- temp.dy$surface)
@@ -2197,7 +2196,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             resSDs[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, stats::sd, na.rm = TRUE)
             nv <- nv+3
           }
-          
+
           rm(res.frost, snowyears, snowyear.trim, frostWithoutSnow)
         }
       #12
