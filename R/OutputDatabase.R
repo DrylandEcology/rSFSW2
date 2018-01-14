@@ -1627,7 +1627,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
-      temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, c("withoutSnowpack", "withoutSpringSnowpack", "withoutFallSnowpack"), "_days_mean"))
+      for (Tmin in fieldtag_Tmin_crit_C)
+        temp <- c(temp, paste0("TminBelow", Tmin, c("withoutSnow", "withoutFallSnow", "withoutSpringSnow"), "_days_mean"))
     }
   #12
     if (aon$dailyHotDays) {
