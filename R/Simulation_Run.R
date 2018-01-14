@@ -2135,7 +2135,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             r <- rle(ifelse(SWE.dy$val[daysOfPreviousYear] > 0, 1, 0))
             x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in LAST largest continuous snowpack period
             ind <- which(r$lengths == x)
-            lastSnowPeriodEndDay <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
+            # If there is no snow, the best we can do is mark the beginning of the non-snow-year as the end of the continuous snow period
+            lastSnowPeriodEndDay <- ifelse(length(ind) == 0, cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)], 1)
             
             # Now go through each snow year and calculate the number of days with
             # min. temp < 0 and snow == 0 between the end of the previous year's largest 
@@ -2149,21 +2150,40 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               r <- rle(ifelse(SWE.dy$val[daysOfThisYear] > 0, 1, 0))
               x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snowpack period
               ind <- which(r$lengths == x)
-              thisSnowPeriodEndDay <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
-              thisSnowPeriodStartDay <- thisSnowPeriodEndDay - x
+              
+              # If a year has no snow, just keep track of its days and it will become a part of the period between snow packs
+              if (length(ind) == 0)
+              {
+                # If it is the last year, we must mark the last day of the year as the beginning of the next continuous
+                # snow pack, so that we can analyze the data that we have
+                if (syi == length(res.frost[, 1]))
+                {
+                  thisSnowPeriodStartDay <- length(daysOfThisYear)
+                }
+                else
+                {
+                  daysOfPreviousYear <- c(daysOfPreviousYear, daysOfThisYear)
+                  next
+                }
+              }
+              else
+              {
+                thisSnowPeriodEndDay <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
+                thisSnowPeriodStartDay <- thisSnowPeriodEndDay - x
+              }
               
               # Calculate the half-way point - half of the days between end and start of longest continuous snowpack -
               # so that there is no double counting of frost events.
               Y <- floor((thisSnowPeriodStartDay + length(daysOfPreviousYear) - lastSnowPeriodEndDay) / 2)
 
               # (Fall)
-              startDayOfLastYear <- min(daysOfPreviousYear)  # e.g. the second snow year starts on day ~639
+              startDayOfLastYear <- daysOfPreviousYear[1]  # e.g. the second snow year starts on day ~639
               period <- (lastSnowPeriodEndDay + startDayOfLastYear):(lastSnowPeriodEndDay + startDayOfLastYear + Y)
               ifelse(any(is.na(temp.dy$surface[period])), temps <- temp.dy$min, temps <- temp.dy$surface)
               res.frost[syi, 3] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
 
               # (Spring)
-              startDayOfThisYear <- min(daysOfThisYear)
+              startDayOfThisYear <- daysOfThisYear[1]
               period <- (period[length(period)] + 1):(thisSnowPeriodStartDay + startDayOfThisYear)
               ifelse(any(is.na(temp.dy$surface[period])), temps <- temp.dy$min, temps <- temp.dy$surface)
               res.frost[syi, 4] <- sum(SWE.dy$val[period] == 0 & temps[period] < iTmin)
