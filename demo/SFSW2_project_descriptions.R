@@ -649,8 +649,11 @@ opt_agg <- list(
   Tbase_coldDD_C = 0,
 
   # Options for calculating daily aggregation options over a specific range of days
-  use_daily_range = FALSE,
-  daily_range_values = c(1, 250), #Min and Max of desired daily range of values
+  use_doy_range = TRUE,
+  doy_ranges = list(
+    dailyFrostinSnowPeriod = c(1, 250),
+    default = c(1, 250),
+    defaultWateryear = c(300, 30)),
 
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes

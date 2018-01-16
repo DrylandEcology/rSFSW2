@@ -220,6 +220,37 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       res$useyrs_NSadj <- st$useyrs
       res$no.useyr_NSadj <- st$no.useyr
     }
+
+    #water-year: N-hemisphere: October 1st = 1 day of water year; S-hemisphere: April 1st = 1 day of water year
+    #Water year starting Oct 1
+    res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 273, 1, 0)
+    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+
+    if(use_doy_range){
+      for(dr in seq_along(doy_ranges)){
+        # Should the range years be adjusted for water years? If the aggregation uses
+        # water year logic in its calculation, then yes.
+        if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear")){
+         doy_range_values <- doy_ranges[[dr]] + adjDays
+       }else{
+         doy_range_values <- doy_ranges[[dr]]
+       }
+
+       if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
+       #check that value doy_range_values[1] is now less than value [doy_range_values[2]
+       if(doy_range_values[1] >= doy_range_values[2]){
+         print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
+                     The second value must exceed the first after water years adjustement. Current value are:',
+                     doy_range_values[1], 'and', doy_range_values[2]))
+         break
+       }
+
+       # Create daily logical vector indicating whether that doy is within range or not
+        res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
+          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
+
+        }
+      }
   }
 
   if (any(sim_tscales == "weekly")) {
