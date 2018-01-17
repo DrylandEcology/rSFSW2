@@ -142,12 +142,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 
   if (add_st2) {
     sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-      sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS)
+      sim_tscales = c("daily", "monthly", "yearly"),
+      use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+      doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]],
+      latitude = 90, account_NorthSouth = adjust_NS)
 
     if (adjust_NS) {
       sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-        sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
+        sim_tscales = c("daily", "monthly", "yearly"),
+        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]],
+        latitude = -90,
         account_NorthSouth = TRUE)
 
     } else {
@@ -164,14 +169,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
 #' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
 #'  "weekly", "monthly", "yearly")}.
+#' @param use_doy_range Logical option to calculate daily logical vectors for specific doy_ranges.
+#' @param doy_ranges list of aggregation output specific begin and end doy values
 #' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
 #'  adjustment is requested; however, the code extracts only the sign.
 #' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
 #'  corrected for locations on the southern vs. northern hemisphere.
 #' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
-  sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
-  account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+  sim_tscales = c("daily", "weekly", "monthly", "yearly"), use_doy_range = FALSE,
+  doy_ranges = list(),
+  latitude = 90, account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
 
   res <- list()
 
@@ -228,15 +236,16 @@ simTiming_ForEachUsedTimeUnit <- function(st,
 
     if(use_doy_range){
       for(dr in seq_along(doy_ranges)){
+        if(!is.null(doy_ranges[[dr]])){
         # Should the range years be adjusted for water years? If the aggregation uses
         # water year logic in its calculation, then yes.
-        if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear")){
-         doy_range_values <- doy_ranges[[dr]] + adjDays
-       }else{
-         doy_range_values <- doy_ranges[[dr]]
+          if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear")){
+            doy_range_values <- doy_ranges[[dr]] + adjDays
+          }else{
+            doy_range_values <- doy_ranges[[dr]]
        }
 
-       if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
+        if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
        #check that value doy_range_values[1] is now less than value [doy_range_values[2]
        if(doy_range_values[1] >= doy_range_values[2]){
          print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
@@ -248,10 +257,12 @@ simTiming_ForEachUsedTimeUnit <- function(st,
        # Create daily logical vector indicating whether that doy is within range or not
         res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
-
         }
       }
+      }
   }
+
+
 
   if (any(sim_tscales == "weekly")) {
 

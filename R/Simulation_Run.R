@@ -2115,30 +2115,35 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
+            wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
+            wateryear.trim <- !is.na(pmatch(wateryears, unique(wateryears)[2:(length(unique(wateryears))-1)], duplicates.ok = TRUE))
+
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-            frostWithoutSnow <- SWE.dy$val == 0 & temp.dy$min < iTmin
-            frostWithoutSnow <- tapply(frostWithoutSnow, simTime2$year_ForEachUsedDay, sum)  #Numbers of days with min.temp < 0 and snow == 0
+            frostWithoutSnow <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin
+            frostWithoutSnow <- tapply(frostWithoutSnow, wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 for each wateryear
 
             resMeans[nv] <- mean(frostWithoutSnow, na.rm = TRUE)
             resSDs[nv] <- stats::sd(frostWithoutSnow, na.rm = TRUE)
             nv <- nv+1
           }
 
-          if(opt_agg[["use_daily_range"]]){
+          if(opt_agg[["use_doy_range"]]){
 
-            dailyrange <- ifelse(simTime2$doy_ForEachUsedDay %in%
-              c(min(opt_agg[["daily_range_values"]]):max(opt_agg[["daily_range_values"]])), TRUE, FALSE)
+            dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
+              simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
+            }else{
+              simTime2$doy_NSadj_defaultWateryear_doyRange
+            }
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-              frostWithoutSnowDailyRange <- SWE.dy$val == 0 & temp.dy$min < iTmin & dailyrange
-              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange, simTime2$year_ForEachUsedDay, sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
+              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
+              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
 
-              resMeans[nv] <- mean(frostWithoutSnow, na.rm = TRUE)
-              resSDs[nv] <- stats::sd(frostWithoutSnow, na.rm = TRUE)
+              resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
+              resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
               nv <- nv+1
             }
           }
-
           rm(frostWithoutSnow, frostWithoutSnowDailyRange, dailyrange)
         }
 
