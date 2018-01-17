@@ -255,7 +255,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
-        account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
+        account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
+        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]])
 
     } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
@@ -2132,7 +2134,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
               simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
             }else{
-              simTime2$doy_NSadj_defaultWateryear_doyRange
+              simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
+
             }
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {

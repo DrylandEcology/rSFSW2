@@ -97,6 +97,9 @@ sim_time <- list(
     c(d <- 90, startyr + d, endyr + d - 1)
   )
 )
+SFSW2_prj_meta <- list()
+SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]] <- FALSE
+
 sim_time <- setup_simulation_time(sim_time, add_st2 = TRUE, adjust_NS = TRUE)
 names_sim_time <- c("Run", "Slice", "Time", "Year")
 names_getYears <- c("n_first", "first", "n_second", "second", "first_dates",
@@ -165,4 +168,3 @@ test_that("Check convenction of requested climate data'", {
   expect_true(is_ClimateForecastConvention("CMIP5_ESGF_Global"))
   expect_false(is_NEX("CMIP5_ESGF_Global"))
 })
-

@@ -30,6 +30,12 @@ input_sim_time <- list(
   )
 )
 
+SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]] <-  list(
+  dailyFrostinSnowPeriod = c(1,250),
+  default = c(1, 250),
+  defaultWateryear = c(300, 30))
+SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]] <- FALSE
+
 
 expected_sim_time_elements <- c("simstartyr", "startyr", "endyr", "DScur_startyr", "DScur_endyr",
 "future_yrs", "spinup_N", "future_N", "useyrs", "no.useyr", "no.usemo",
@@ -110,6 +116,7 @@ test_that("Obtain time information", {
       }
     }
   }
+  
 })
 
 

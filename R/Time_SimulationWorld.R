@@ -169,8 +169,11 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
 #' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
 #'  "weekly", "monthly", "yearly")}.
-#' @param use_doy_range Logical option to calculate daily logical vectors for specific doy_ranges.
-#' @param doy_ranges list of aggregation output specific begin and end doy values
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A list. Aggregation output variables and the daily \code{c(min, max)
+#' of days you wish to calculate the aggregation over.
 #' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
 #'  adjustment is requested; however, the code extracts only the sign.
 #' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
@@ -235,11 +238,17 @@ simTiming_ForEachUsedTimeUnit <- function(st,
     adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
 
     if(use_doy_range){
+      #North or Southern hemisphere? eliminate unnecessary water years values
+            if(latitude > 0 && account_NorthSouth){
+              doy_ranges[["defaultWateryear_S"]] <- NULL
+            }else{
+              doy_ranges[["defaultWateryear_N"]] <- NULL
+            }
       for(dr in seq_along(doy_ranges)){
         if(!is.null(doy_ranges[[dr]])){
         # Should the range years be adjusted for water years? If the aggregation uses
         # water year logic in its calculation, then yes.
-          if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear")){
+          if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear_N", "defaultWateryear_S")){
             doy_range_values <- doy_ranges[[dr]] + adjDays
           }else{
             doy_range_values <- doy_ranges[[dr]]
@@ -249,7 +258,7 @@ simTiming_ForEachUsedTimeUnit <- function(st,
        #check that value doy_range_values[1] is now less than value [doy_range_values[2]
        if(doy_range_values[1] >= doy_range_values[2]){
          print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
-                     The second value must exceed the first after water years adjustement. Current value are:',
+                     The second value must exceed the first after water years adjustment. Current values are:',
                      doy_range_values[1], 'and', doy_range_values[2]))
          break
        }

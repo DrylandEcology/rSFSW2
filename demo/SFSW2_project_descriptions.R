@@ -651,9 +651,11 @@ opt_agg <- list(
   # Options for calculating daily aggregation options over a specific range of days
   use_doy_range = TRUE,
   doy_ranges = list(
-    dailyFrostinSnowPeriod = c(1, 250),
+    dailyFrostinSnowPeriod = c(1,250),
     default = c(1, 250),
-    defaultWateryear = c(300, 30)),
+    defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+  ),
 
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
