@@ -90,12 +90,17 @@ determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
 #'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
 #' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
 #'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
+#' of days you wish to calculate the aggregation over.
 #' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
 #'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
 #'  \code{TRUE}.
 #' @param A named list, i.e., the updated version of \code{sim_time}.
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE) {
+  adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list()) {
 
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
@@ -143,15 +148,15 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   if (add_st2) {
     sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
       sim_tscales = c("daily", "monthly", "yearly"),
-      use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
-      doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]],
+      use_doy_range = use_doy_range,
+      doy_ranges =  doy_ranges,
       latitude = 90, account_NorthSouth = adjust_NS)
 
     if (adjust_NS) {
       sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
         sim_tscales = c("daily", "monthly", "yearly"),
-        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
-        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]],
+        use_doy_range = use_doy_range,
+        doy_ranges = doy_ranges,
         latitude = -90,
         account_NorthSouth = TRUE)
 
@@ -172,7 +177,7 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #' @param use_doy_range A logical value. If \code{TRUE}, then the result is
 #' additional daily indices indicating whether the DOY is within the days indicated
 #' in the \code{doy_ranges}.
-#' @param doy_ranges A list. Aggregation output variables and the daily \code{c(min, max)
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
 #' of days you wish to calculate the aggregation over.
 #' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
 #'  adjustment is requested; however, the code extracts only the sign.

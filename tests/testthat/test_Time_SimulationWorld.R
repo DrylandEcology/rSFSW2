@@ -30,12 +30,12 @@ input_sim_time <- list(
   )
 )
 
-SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]] <-  list(
+doy_ranges = list(
   dailyFrostinSnowPeriod = c(1,250),
   default = c(1, 250),
-  defaultWateryear = c(300, 30))
-SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]] <- FALSE
-
+  defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
+  defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+)
 
 expected_sim_time_elements <- c("simstartyr", "startyr", "endyr", "DScur_startyr", "DScur_endyr",
 "future_yrs", "spinup_N", "future_N", "useyrs", "no.useyr", "no.usemo",
@@ -80,8 +80,8 @@ test_that("Obtain time information", {
   sim_time <- list()
   for (k in seq_along(input_sim_time)) {
     info <- names(input_sim_time)[k]
-    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]],
-      add_st2 = TRUE, adjust_NS = TRUE))
+    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]], use_doy_range = TRUE,
+      doy_ranges = doy_ranges, add_st2 = TRUE, adjust_NS = TRUE))
     expect_equal(sim_time[[k]][["useyrs"]],
       sim_time[[k]][["startyr"]]:sim_time[[k]][["endyr"]], info = info)
     expect_true(all(expected_sim_time_elements %in% names(sim_time[[k]])), info = info)
@@ -116,7 +116,7 @@ test_that("Obtain time information", {
       }
     }
   }
-  
+
 })
 
 
