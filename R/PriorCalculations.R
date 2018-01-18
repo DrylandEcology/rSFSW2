@@ -1,39 +1,23 @@
-#' Add soil layers to data.frame (by interpolation) if layers are not already present
-#'
-#' Workhorse function for \code{\link{calc_ExtendSoilDatafileToRequestedSoilLayers}}.
-#'
-#' @param df_soils A data frame with soil data. Column names should match with values of
-#'  \code{sl_vars_mean} and \code{sl_vars_sub}.
-#' @param df_soils_use A named logical vector. Names should correspond to column names of
-#'  \code{df_soils}. A value of \code{TRUE} indicates that the corresponding variable of
-#'  \code{df_soils} is in use/active and will thus be interpolated/exhausted.
-#' @param df_soildepths A data frame with soil layer depth data. Names of columns with
-#'  soil depth information should be constructed as \code{depth_L} where \code{L} is the
-#'  layer number. The layer number in turn is used to identify the columns for
-#'  \code{df_soils}.
-#' @param requested_soil_layers A numeric vector of the soil depths for the final set of
-#'  soil layers.
-#' @param verbose A logical value.
-#' @param sl_vars_mean A vector of strings representing tags that are identifying those
-#'  columns of \code{df_soils} by name for which values will be interpolated. See
-#'  \code{method} argument of function \code{\link{add_layer_to_soil}}.
-#' @param sl_vars_sub A vector of strings representing tags that are identifying those
-#'  columns of \code{df_soils} by name for which values will be exhausted. See
-#'  \code{method} argument of function \code{\link{add_layer_to_soil}}.
-#'
-#' @return A list with with five elements: \describe{
-#'    \item{df_soils}{Updated copy of the input.}
-#'    \item{df_soils_use}{Updated copy of the input.}
-#'    \item{df_soildepths}{Updated copy of the input.}
-#'    \item{requested_soil_layers}{Updated copy of the input.}
-#'    \item{has_changed}{A logical value. \code{TRUE} indicates that the inputs have changed.}
-#'  }
-#'
+
+#' Add soil layers (by interpolation) if not already present
 #' @export
-calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
-  requested_soil_layers, verbose = FALSE,
-  sl_vars_mean = c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp"),
-  sl_vars_sub = c("EvapCoeff", "TranspCoeff", "Imperm")) {
+calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
+  runIDs_adjust, verbose = FALSE) {
+
+  requested_soil_layers <- SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]]
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  # How to add different soil variables
+  sl_vars_mean <- c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp") # values will be interpolated
+  sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm") # values will be exhausted
 
   # Requested layers
   requested_soil_layers <- as.integer(round(requested_soil_layers))
@@ -41,19 +25,13 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
   req_sl_ids <- paste0(requested_soil_layers, collapse = "x")
 
   # Available layers
-  df_soils_names <- names(df_soils)
-  stopifnot(df_soils_names, names(df_soils_use))
-  ids_depth <- strsplit(df_soils_names[df_soils_use], "_", fixed = TRUE)
+  ids_depth <- strsplit(names(SFSW2_prj_inputs[["sw_input_soils_use"]])[SFSW2_prj_inputs[["sw_input_soils_use"]]], "_", fixed = TRUE)
   stopifnot(length(ids_depth) > 0)
-
-  var_layers <- unique(sapply(ids_depth, function(x)
-    paste0(x[-length(x)], collapse = "_")))
+  var_layers <- unique(sapply(ids_depth, function(x) paste0(x[-length(x)], collapse = "_")))
   ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
   use_layers <- paste0("depth_", ids_depth2)
-  layers_depth <- round(as.matrix(df_soildepths[, use_layers, drop = FALSE]))
 
-  # Available data
-  runIDs_adjust <- seq_len(dim(df_soils)[1])
+  layers_depth <- round(as.matrix(SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, use_layers, drop = FALSE]))
   i_nodata <- apply(is.na(layers_depth), 1, all)
   if (any(i_nodata)) {
     layers_depth <- layers_depth[!i_nodata, ]
@@ -69,11 +47,11 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
 
   # Loop through runs with same layer profile and adjust
   layer_sets <- unique(avail_sl_ids)
-
-  has_changed <- FALSE
   if (length(layer_sets) > 0) {
+    has_changed <- FALSE
     sw_input_soils_data <- lapply(var_layers, function(x)
-      as.matrix(df_soils[runIDs_adjust_ws, grep(x, df_soils_names)[ids_layers]]))
+      as.matrix(SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust_ws,
+      grep(x, names(SFSW2_prj_inputs[["sw_input_soils"]]))[ids_layers]]))
     sw_input_soils_data2 <- NULL
 
     for (ils in seq_along(layer_sets)) {
@@ -101,67 +79,18 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
       # Update soil datafiles
       lyrs <- seq_along(ldset)
       for (iv in seq_along(var_layers)) {
-        i.temp <- grep(var_layers[iv], df_soils_names)[lyrs]
-        dtemp <- if (var_layers[iv] %in% sl_vars_sub) 4L else 2L
-        df_soils[runIDs_adjust_ws[il_set], i.temp] <-
-          round(sw_input_soils_data2[[iv]][, lyrs], dtemp)
-        df_soils_use[i.temp] <- TRUE
+        i.temp <- grep(var_layers[iv], names(SFSW2_prj_inputs[["sw_input_soils_use"]]))[lyrs]
+        SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust_ws[il_set], i.temp] <-
+          round(sw_input_soils_data2[[iv]][, lyrs], if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
+        SFSW2_prj_inputs[["sw_input_soils_use"]][i.temp] <- TRUE
       }
 
-      df_soildepths[runIDs_adjust_ws[il_set],
-        grep("depth_", names(df_soildepths))[lyrs]] <- matrix(ldset, nrow = sum(il_set),
-        ncol = length(ldset), byrow = TRUE)
+      SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust_ws[il_set],
+        grep("depth_", names(SFSW2_prj_inputs[["sw_input_soillayers"]]))[lyrs]] <- matrix(ldset,
+        nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
       has_changed <- TRUE
     }
-  }
 
-<<<<<<< HEAD
-  list(df_soils = df_soils, df_soils_use = df_soils_use, df_soildepths = df_soildepths,
-    has_changed = has_changed, requested_soil_layers = requested_soil_layers)
-}
-
-
-
-#' Add soil layers to soil datafile (by interpolation) if layers are not already present
-#'
-#' @seealso \code{\link{calc_AddRequestedSoilLayers}}
-#' @export
-calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  runIDs_adjust, verbose = FALSE) {
-
-  requested_soil_layers <- SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]]
-
-  if (verbose) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
-  }
-
-  res <- calc_AddRequestedSoilLayers(
-    df_soils = SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, , drop = FALSE],
-    df_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
-    df_soildepths = SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, , drop = FALSE],
-    requested_soil_layers = SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]],
-    verbose = verbose)
-
-  if (res[["has_changed"]]) {
-    # update data objects
-    SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]] <- res[["requested_soil_layers"]]
-    SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, ] <- res[["df_soildepths"]]
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, ] <- res[["sw_input_soils"]]
-    SFSW2_prj_inputs[["sw_input_soils_use"]] <- res[["df_soils_use"]]
-
-    # write data to disk
-    utils::write.csv(SFSW2_prj_inputs[["sw_input_soillayers"]],
-      file = SFSW2_prj_meta[["fnames_in"]][["fslayers"]], row.names = FALSE)
-    utils::write.csv(reconstitute_inputfile(SFSW2_prj_inputs[["sw_input_soils_use"]],
-      SFSW2_prj_inputs[["sw_input_soils"]]),
-      file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]], row.names = FALSE)
-    unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
-=======
     if (has_changed) {
       #write data to disk
       utils::write.csv(SFSW2_prj_inputs[["sw_input_soillayers"]],
@@ -174,10 +103,8 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
       print(paste("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
         "adjust lookup tables with per-layer values if applicable for this project"))
     }
->>>>>>> master
 
-    print(paste0("'InterpolateSoilDatafileToRequestedSoilLayers': don't forget to",
-      "adjust lookup tables with per-layer values if applicable for this project"))
+   SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]] <- requested_soil_layers
   }
 
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
