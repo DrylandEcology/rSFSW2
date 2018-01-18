@@ -145,7 +145,8 @@ get_Temp_dy <- function(x, st) {
   x <- slot(slot(x, "TEMP"), "Day")[st$index.usedy, ]
   list(min =  x[, 4],
        mean = x[, 5],
-       max =  x[, 3])
+       max =  x[, 3],
+       surface = x[, 6])
 }
 
 #' @inheritParams swOutput_access
@@ -298,95 +299,43 @@ get_DeepDrain_dy <- function(x, st) {
 
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
-get_Runoff_mo <- function(x, st) {
+get_RunOnOff_mo <- function(x, st) {
   x <- 10 * slot(slot(x, "RUNOFF"), "Month")[st$index.usemo, ]
-  list(val = x[, 3],
-       ponded = x[, 4],
-       snowmelt = x[, 5])
+  list(net = x[, 3],
+       total_runoff = x[, 4] + x[, 5],
+       ponded_runoff = x[, 4],
+       snowmelt_runoff = x[, 5],
+       total_runon = x[, 6],
+       ponded_runon = x[, 6])
 }
 
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
-get_Runoff_yr <- function(x, st) {
+get_RunOnOff_yr <- function(x, st) {
   x <- 10 * slot(slot(x, "RUNOFF"), "Year")[st$index.useyr, , drop = FALSE]
-  list(val = x[, 2, drop = FALSE],
-       ponded = x[, 3, drop = FALSE],
-       snowmelt = x[, 4, drop = FALSE])
+  list(net = x[, 2, drop = FALSE],
+       total_runoff = x[, 3, drop = FALSE] + x[, 4, drop = FALSE],
+       ponded_runoff = x[, 3, drop = FALSE],
+       snowmelt_runoff = x[, 4, drop = FALSE],
+       total_runon = x[, 5, drop = FALSE],
+       ponded_runon = x[, 5, drop = FALSE])
 }
 
-# TODO: move to rSOILWAT2
-sw_out_flags <- function() {
-  c(sw_aet = "AET",
-    sw_deepdrain = "DEEPSWC",
-    sw_estabs = "ESTABL",
-    sw_evsoil = "EVAPSOIL",
-    sw_evapsurface = "EVAPSURFACE",
-    sw_hd = "HYDRED",
-    sw_inf_soil = "SOILINFILT",
-    sw_interception = "INTERCEPTION",
-    sw_percolation = "LYRDRAIN",
-    sw_pet = "PET",
-    sw_precip = "PRECIP",
-    sw_runoff = "RUNOFF",
-    sw_snow = "SNOWPACK",
-    sw_soiltemp = "SOILTEMP",
-    sw_surfaceWater = "SURFACEWATER",
-    sw_swp = "SWPMATRIC",
-    sw_swabulk = "SWABULK",
-    sw_swcbulk = "SWCBULK",
-    sw_temp = "TEMP",
-    sw_transp = "TRANSP",
-    sw_vwcbulk = "VWCBULK",
-    sw_vwcmatric = "VWCMATRIC",
-    sw_wetdays = "WETDAY",
-    sw_logfile = "LOG")
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_Vegetation_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 1 + seq_len(2 * 5), drop = FALSE])
 }
 
-#' Assign requested values to rSOILWAT2 flags
-#'
-#' @param reset A logical value. If \code{TRUE}, then reset flags identified by \code{tag}
-#'  and turned off as identified by \code{use} to \code{default}. If \code{FALSE}, then
-#'  set  flags identified by \code{tag} and turned on as identified by \code{use} to
-#'  corresponding elements of \code{values}; other flags are not changed.
-set_requested_rSOILWAT2_InputFlags <- function(tasks, swIn, tag, use, values, fun,
-  reset = TRUE, default = NA) {
 
-  val_names <- names(use)
-  i_flags <- grepl(tag, val_names)
-  i_fuse <- i_flags & use
-
-  if (any(i_fuse)) {
-    i_fuse <- which(i_fuse)
-    val_names <- val_names[i_fuse]
-    vals <- unlist(values[i_fuse])
-    temp_bad <- !is.finite(as.numeric(vals))
-
-    if (any(temp_bad)) {
-      print(paste("ERROR: column(s) of", tag,
-        paste(shQuote(val_names[temp_bad]), "=", vals[temp_bad], collapse = " / "),
-        "contain(s) unsuitable values"))
-      tasks$create <- 0L
-
-    } else {
-      def <- utils::getFromNamespace(fun, "rSOILWAT2")(swIn)
-
-      def_mode <- mode(def)
-      if (!identical(def_mode, mode(vals))) {
-        vals <- as(vals, def_mode)
-      }
-      itemp <- sapply(names(def), function(x) {
-        k <- grep(substr(x, 1, 4), val_names)
-        if (length(k) == 1) k else 0})
-      def[itemp > 0] <- vals[itemp]
-
-      if (reset) {
-        def[itemp == 0] <- default
-      }
-
-      swIn <- utils::getFromNamespace(paste0(fun, "<-"), "rSOILWAT2")(swIn, def)
-    }
-  }
-
-  list(swIn = swIn, tasks = tasks)
+#' @inheritParams swOutput_access
+#' @rdname swOutput_access
+get_CO2effects_yr <- function(x, st) {
+  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(val = x[, 11 + seq_len(2 * 4), drop = FALSE])
 }
+
+
+
 

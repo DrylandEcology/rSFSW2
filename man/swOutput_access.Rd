@@ -25,8 +25,10 @@
 \alias{get_DeepDrain_yr}
 \alias{get_DeepDrain_mo}
 \alias{get_DeepDrain_dy}
-\alias{get_Runoff_mo}
-\alias{get_Runoff_yr}
+\alias{get_RunOnOff_mo}
+\alias{get_RunOnOff_yr}
+\alias{get_Vegetation_yr}
+\alias{get_CO2effects_yr}
 \title{rSOILWAT2 data access functions}
 \usage{
 get_Response_aggL(response, tscale = c("dy", "dyAll", "mo", "moAll", "yr",
@@ -76,9 +78,13 @@ get_DeepDrain_mo(x, st)
 
 get_DeepDrain_dy(x, st)
 
-get_Runoff_mo(x, st)
+get_RunOnOff_mo(x, st)
 
-get_Runoff_yr(x, st)
+get_RunOnOff_yr(x, st)
+
+get_Vegetation_yr(x, st)
+
+get_CO2effects_yr(x, st)
 }
 \arguments{
 \item{x}{An object of class \code{\linkS4class{swOutput}}.}

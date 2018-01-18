@@ -96,8 +96,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v14.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v06.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v15.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v07.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
@@ -115,6 +115,7 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
@@ -511,10 +512,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
@@ -522,6 +525,8 @@ req_out <- list(
     "dailyFrostInSnowfreePeriod", 1,
     "dailyHotDays", 1,
     "dailyWarmDays", 1,
+    "dailyColdDays", 1,
+    "dailyCoolDays", 1,
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
@@ -535,6 +540,7 @@ req_out <- list(
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
+    "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 0,
@@ -572,6 +578,7 @@ req_out <- list(
     "monthlySnowpack", 1,
     "monthlySoilTemp", 1,
     "monthlyRunoff", 1,
+    "monthlyRunon", 1,
     "monthlyHydraulicRedistribution", 1,
     "monthlyInfiltration", 1,
     "monthlyDeepDrainage", 1,
@@ -596,7 +603,7 @@ req_out <- list(
   #  options: NULL or a selection of c("AET", "Transpiration", "EvaporationSoil",
   #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk",
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
-  #   "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
+  #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
   mean_daily = NULL,
   # Select variables to output as aggregated yearly time series
@@ -647,6 +654,9 @@ opt_agg <- list(
   # Base temperature (degree C) above which degree-days are accumulated
   Tbase_DD_C = 0,
 
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+  
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

@@ -18,31 +18,50 @@ suppressWarnings(is_online <-
 if (!any(do_skip) && is_online) {
 
   #--- Inputs
-  dm_path <- tempdir()
+  dm_path <- file.path(tempdir(), "daymet") # avoid https://github.com/khufkens/daymetr/issues/12
+  dir.create(dm_path, showWarnings = FALSE)
   exinfo <- list(GriddedDailyWeatherFromDayMet_NorthAmerica = TRUE)
 
-  N <- 2L
   coords_WGS84 <- data.frame(
-    X_WGS84 = c(-120, 0),
-    Y_WGS84 = c(40, 0))
+    X_WGS84 = c(-105.5906, -72.595),
+    Y_WGS84 = c(41.31139, 43.26278))
+  N <- nrow(coords_WGS84)
   site_dat <- cbind(Label = c(paste("DM_test", seq_len(N), sep = "_")), coords_WGS84)
   dw_source <- dw_names <- rep(NA, N)
 
-  sim_testtimes <- list(
-    t1 = c(simstartyr = 1980, endyr = 2016),
-    t2 = c(simstartyr = 1960, endyr = 2016),
-    t3 = c(simstartyr = 1980, endyr = 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year + 1)
-  )
-
-  # Expected outputs
-  dw_source_exp <- list(t1 = c("DayMet_NorthAmerica", NA),
-    t2 = rep(NA, N), t3 = rep(NA, N))
-  dw_name_exp <- list(t1 = c("DM_test_1_DayMet-120.0000_40.0000", NA),
-    t2 = rep(NA, N), t3 = rep(NA, N))
-  dw_n_exp <- list(t1 = 1, t2 = 0, t3 = 0)
+  avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
 
   #--- Tests
   test_that("DayMet weather data:", {
+    repeat {
+      # Make sure that `avail_end_year` is indeed available (e.g., during first days of a new year)
+      testavail <- get_DayMet_NorthAmerica(dir_data = dm_path, cellID = "daymet_pixel_+002083_+000426",
+        Xdm_WGS84 = -105.5934, Ydm_WGS84 = 41.31557,
+        start_year = avail_end_year, end_year = avail_end_year,
+        dbW_digits = 2L)
+
+      if (inherits(testavail, "try-error") && avail_end_year > 1980) {
+        avail_end_year <- avail_end_year - 1L
+      } else {
+        break
+      }
+    }
+
+    skip_if(avail_end_year <= 1980, message = "DayMet data not accessible/available.")
+
+    sim_testtimes <- list(
+      t1 = c(overall_simstartyr = 1980, overall_endyr = 1985),
+      t2 = c(overall_simstartyr = 1980, overall_endyr = avail_end_year),
+      t3 = c(overall_simstartyr = avail_end_year - 1, overall_endyr = avail_end_year)
+    )
+
+    # Expected outputs
+    temp <- rep("DayMet_NorthAmerica", N)
+    dw_source_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+    temp <- c("DM_test_1_DayMet-105.5906_41.3114", "DM_test_2_DayMet-72.5950_43.2628")
+    dw_name_exp <- list(t1 = temp, t2 = temp, t3 = temp)
+    dw_n_exp <- list(t1 = N, t2 = N, t3 = N)
+
     for (k in seq_along(sim_testtimes)) {
       sim_time <- sim_testtimes[[k]]
 
@@ -61,11 +80,11 @@ if (!any(do_skip) && is_online) {
         if (identical(dw[["source"]][i], "DayMet_NorthAmerica")) {
           x <- get_DayMet_NorthAmerica(dir_data = dm_path, cellID = dm[["cellID"]][i],
             Xdm_WGS84 = dm$dm_WGS84[i, 1], Ydm_WGS84 = dm$dm_WGS84[i, 2],
-            start_year = sim_time[["simstartyr"]], end_year = sim_time[["endyr"]],
+            start_year = sim_time[["overall_simstartyr"]], end_year = sim_time[["overall_endyr"]],
             dbW_digits = 2L)
 
           expect_equal(unique(sapply(x, class)), "swWeatherData")
-          expect_equal(length(x), sim_time[["endyr"]] - sim_time[["simstartyr"]] + 1)
+          expect_equal(length(x), sim_time[["overall_endyr"]] - sim_time[["overall_simstartyr"]] + 1)
         }
       }
     }
@@ -74,4 +93,5 @@ if (!any(do_skip) && is_online) {
 
   #--- Clean up
   unlink(list.files(dm_path, "daymet", full.names = TRUE))
+  unlink(dm_path)
 }

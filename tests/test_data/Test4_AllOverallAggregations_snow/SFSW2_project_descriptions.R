@@ -15,7 +15,10 @@
 #----- Metainformation about computing platform
 opt_platform <- list(
   host = c("local", "hpc")[1],
-  no_parallel = identical(tolower(Sys.getenv("NOT_CRAN")), "false")
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
 )
 
 
@@ -35,7 +38,11 @@ project_paths <- list(
   dir_in_gissm = file.path(dir_in, "regeneration"),
 
   # Path to where large outputs are saved to disk
-  dir_big = dir_big <- dir_prj,
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -49,10 +56,9 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "BookDuo_12TB", "BigData", "GIS", "Data")
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
     } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "fas", "lauenroth", "ds2483", "project", "BigData", "GIS",
-        "Data")
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
     },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
@@ -71,8 +77,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_Test_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v14.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v06.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v15.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v07.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
@@ -90,6 +96,7 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
@@ -127,20 +134,20 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res.; data expected at file.path(
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res.; data expected at file.path(
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res.; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res.; use with dbW; data expected at file.path(
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res.; data expected at file.path(
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
 
@@ -457,10 +464,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
@@ -468,6 +477,8 @@ req_out <- list(
     "dailyFrostInSnowfreePeriod", 1,
     "dailyHotDays", 1,
     "dailyWarmDays", 1,
+    "dailyColdDays", 1,
+    "dailyCoolDays", 1,
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
@@ -481,6 +492,7 @@ req_out <- list(
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
+    "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
@@ -518,6 +530,7 @@ req_out <- list(
     "monthlySnowpack", 1,
     "monthlySoilTemp", 1,
     "monthlyRunoff", 1,
+    "monthlyRunon", 1,
     "monthlyHydraulicRedistribution", 1,
     "monthlyInfiltration", 1,
     "monthlyDeepDrainage", 1,
@@ -542,7 +555,7 @@ req_out <- list(
   #  options: NULL or a selection of c("AET", "Transpiration", "EvaporationSoil",
   #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk",
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
-  #   "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
+  #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
   mean_daily = NULL,
   # Select variables to output as aggregated yearly time series
@@ -593,6 +606,9 @@ opt_agg <- list(
   # Base temperature (degree C) above which degree-days are accumulated
   Tbase_DD_C = 0,
 
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+  
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

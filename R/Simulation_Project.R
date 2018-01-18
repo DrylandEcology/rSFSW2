@@ -852,7 +852,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   if (SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
     SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
 
-    swof <- sw_out_flags()
+    swof <- rSOILWAT2::sw_out_flags()
     swDataFromFiles <- read_SOILWAT2_FileDefaults(SFSW2_prj_meta[["project_paths"]][["dir_in_sw"]])
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
