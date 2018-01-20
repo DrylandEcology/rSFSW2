@@ -763,25 +763,17 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     ############################################################################
     # Start by setting the directory and extracting site info from Input Master
     ############################################################################
-    # Load the FedData library
     library(FedData)
-    # Set directory
     old_wd <- getwd()
-    # Create new directory if it doesn't exist
     dir.create(dir_data_SSURGO, showWarnings = F, recursive = T)
-    # Set working directory
     setwd(dir_data_SSURGO)
-    # Iterate through each site
     for (i in which(todos)) {
-      # Extract settings
       coordinates <- SWRunInformation[i, c("X_WGS84", "Y_WGS84")]
-      # Get coordinates
-      lat   <- coordinates$Y_WGS84
-      lon   <- coordinates$X_WGS84
-      # Get site name
+      lat <- coordinates$Y_WGS84
+      lon <- coordinates$X_WGS84
       label <- SWRunInformation[i, "Label"]
       # Create a spatial polygon object to serve as an area to download
-      site  <- convert_coords_to_bounding_box(lat, lon)
+      site <- convert_coords_to_bounding_box(lat, lon)
 
       #########################################################################
       # Download this site and extract it into spatial and tabular data
@@ -789,7 +781,8 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       if (print.debug) cat(paste("Site", i))
       if (print.debug) cat("\n    > Downloading SSURGO data...")
       # Get the NRCS SSURGO data (USA ONLY)
-      downloaded_soil_data <- tryCatch({ suppressMessages(get_ssurgo(template = site, label = paste("SSURGO-", lat, "-", lon, sep="")))},  # Download to a folder: "SSURGO-[LAT]-[LON]"
+      # Download to a folder: "SSURGO-[LAT]-[LON]"
+      downloaded_soil_data <- tryCatch({ suppressMessages(get_ssurgo(template = site, label = paste0("SSURGO-", lat, "-", lon)))},
                             error   = function(e) { error_warning_msg(label, lat, lon, e) },
                             warning = function(w) { error_warning_msg(label, lat, lon, w) })
       # Check if FedData was able to download and extract the files
@@ -837,12 +830,10 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       # Update input file values (soil layers, soil texture, input master)
       ######################################################################
       if (print.debug) cat("\n    > Writing to MMC variable...")
-      # Update
       if (update_input_data(extracted_soil_data, label, keys, i)) {
-        # If any site completes an extraction, set idone to true
+        # If any site completes an extraction without errors, we consider SSURGO to have worked
         MMC[["idone"]]["SSURGO"] <<- TRUE
-        # Set this site's source to SSURGO
-        MMC[["source"]][i]       <<- "SSURGO"
+        MMC[["source"]][i] <<- "SSURGO"
         if (print.debug) cat("\n    > Done!\n\n")
       }
     }
@@ -903,7 +894,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   #' @note FedData cannot grab a single pair of coordinates
   #' @param lat Lattitude (float)
   #' @param lon Longitude (float)
-  #' @param s Size of the bounding box - default is .001
+  #' @param s Size of the bounding box (optional)
   #' @return A raster object that serves as a bounding box
   convert_coords_to_bounding_box <- function(lat, lon, s = .00000001)
     polygon_from_extent(raster::extent(lon, lon + s, lat, lat + s), proj4string = "+proj=longlat +datum=NAD83 +no_defs")
@@ -1078,11 +1069,8 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     silt         <- formatted_data$silttotal.r
     dbthirdbar   <- formatted_data$dbthirdbar.r
     hzdepb       <- formatted_data$hzdepb.r
-    brockdepmin  <- formatted_data$brockdepmin
     gravel       <- formatted_data$fragvol.r
     comppct      <- formatted_data$comppct.r
-    column_names <- data.frame(sand="Sand_L", clay="Clay_L", matrix="Matricd_L", depth="depth_L", gravel="GravelContent_L")
-    failures     <- 0
 
     ############################################################################
     # Initialize
@@ -1100,65 +1088,73 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     MMC[["input2"]][x2, "Comppct"] <<- comppct
 
     ############################################################################
-    # Create a dummy layer if the first layer is deeper than 15cm
+    # Check for missing data
     ############################################################################
-    dummy <- 0
-    if (hzdepb[1] > 15) {
-      if (is.na(sand[1]) || is.na(clay[1]) || is.na(silt[1]) || is.na(dbthirdbar[1])) {
-        if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
-        do_STATSGO <<- TRUE
-        return(0)
+    x <- 1:length(hzdepb)
+    y <- length(x)
+    
+    if (any(is.na(sand[x])) || any(is.na(clay[x])) || any(is.na(silt[x])) || any(is.na(dbthirdbar[x])))
+    {
+      if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+      do_STATSGO <<- TRUE
+      return(0)
+    }
+    
+    # If gravel content is missing, add a value of .01 so SOILWAT will not fail
+    for (i in 1:x)
+    {
+      if (any(is.na(gravel[i])) || any(gravel[i] == 0) || is.null(gravel))  # TODO: Check which ones need to be indexed
+      {
+        if (print.debug) cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
+        gravel[i] <- 0.01
       }
-      # We will duplicate the first layer's data into soil texture, set the first layer depth to 15, THEN insert this site
-      if (print.debug) cat("\n        > First layer exceeds 15cm; creating a dummy layer")
-      dummy <- 1
-      # Check for incomplete data in the first layer
-      # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-      if (is.na(gravel[1]) || gravel == 0) {
-        if (print.debug) cat("\n        > Gravel content is missing in the dummy layer; filling it with 0.01 (this also fills the first 'real' layer)")
-        gravel[1] <- 0.01
-      }
-
-      # Sand, clay, matrix, and gravel data
-      update_input_use(paste(column_names$sand, 1, sep = ""), sand[1])
-      update_input_use(paste(column_names$clay, 1, sep = ""), clay[1])
-      update_input_use(paste(column_names$matrix, 1, sep = ""), dbthirdbar[1])
-      update_input_use(paste(column_names$gravel, 1, sep = ""), gravel[1])
-      update_soil_texture(x, paste(column_names$sand, 1, sep=""), sand[1])
-      update_soil_texture(x, paste(column_names$clay, 1, sep=""), clay[1])
-      update_soil_texture(x, paste(column_names$matrix, 1, sep=""), dbthirdbar[1])
-      update_soil_texture(x, paste(column_names$gravel, 1, sep=""), gravel[1])
-      update_soil_layer(x2, paste(column_names$depth, 1, sep=""), 15)  # Set the depth for this layer
     }
 
     ############################################################################
+    # Interpolate soil layers
+    ############################################################################
+    column_names <- c(paste0("Sand_L", x), paste0("Clay_L", x), paste0("Matricd_L", x), paste0("GravelContent_L", x))
+    df_soils <- setNames(data.frame(matrix(ncol = 4 * y, nrow = 1)), column_names)
+    df_soils[grep("Sand", column_names)] <- sand[1:y]
+    df_soils[grep("Clay", column_names)] <- clay[1:y]
+    df_soils[grep("Matricd", column_names)] <- dbthirdbar[1:y]
+    df_soils[grep("Gravel", column_names)] <- gravel[1:y]
+    
+    # TODO: Determine which layers should be interpolated, if not all
+    df_soils_use <- setNames(data.frame(matrix(ncol = 4 * y, nrow = 1)), column_names)
+    df_soils_use[1:(4 * y)] <- TRUE
+    
+    df_soildepths <- setNames(data.frame(matrix(ncol = y, nrow = 1)), paste0("depth_L", x))
+    df_soildepths[, 1] <- hzdepb
+    
+    # TODO: Figure out why this function is failing
+    #       * Currently stopifnot(df_soils_names, names(df_soils_use)) fails
+    #           > I don't see what this is expecting, as a data.frame with proper column names fails this
+    #       * When providing 9 layer depths, the function only creates 7 and then
+    #         proceeds to act like it created 9, which causes an index error
+    new_soil_layers <- calc_AddRequestedSoilLayers(df_soils, df_soils_use, df_soildepths,
+                                                   c(5, 10, 20, 30, 40, 60, 80, 100, 150), verbose = TRUE, # Reminder: set to FALSE when finished
+                                                   sl_vars_mean = column_names)
+    
+    # TODO: use merge instead of for loop
+    #merge(new_soil_layers, soil_texture)
+    #merge(new_soil_layers, input_use)
+    
+    
+    ############################################################################
     # Insert incremented fields
     ############################################################################
+    # TODO: Remove once merge is implemented
     for (j in 1:length(hzdepb)) {
-      # If a dummy layer was created, we want use the CURRENT layer's data but insert it into the NEXT layer
-      k <- j + dummy
-      # Skip this site if it lacks sand, clay, silt, matric, or gravel data
-      #   > This usually occurs when there is a depth recorded, but no texture data
-      if (is.na(sand[j]) || is.na(clay[j]) || is.na(silt[j]) || is.na(dbthirdbar[j])) {
-        if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
-        do_STATSGO <<- TRUE
-        return(0)
-      }
-      # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-      if (is.na(gravel[j]) || gravel == 0 || is.null(gravel)) {
-        if (print.debug) cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
-        gravel[j] <- 0.01
-      }
-      # Sand, clay, matrix, and gravel data
-      update_input_use(paste(column_names$sand, k, sep = ""), sand[j])
-      update_input_use(paste(column_names$clay, k, sep = ""), clay[j])
-      update_input_use(paste(column_names$matrix, k, sep = ""), dbthirdbar[j])
-      update_input_use(paste(column_names$gravel, k, sep = ""), gravel[j])
-      update_soil_texture(x, paste(column_names$sand, k, sep=""), sand[j])
-      update_soil_texture(x, paste(column_names$clay, k, sep=""), clay[j])
-      update_soil_texture(x, paste(column_names$matrix, k, sep=""), dbthirdbar[j])
-      update_soil_texture(x, paste(column_names$gravel, k, sep=""), gravel[j])
-      update_soil_layer(x2, paste(column_names$depth, k, sep=""), hzdepb[j])  # Set the depth for this layer
+      update_input_use(paste0("Sand_L", j), sand[j])
+      update_input_use(paste0("Clay_L", j), clay[j])
+      update_input_use(paste0("Matricd_L", j), dbthirdbar[j])
+      update_input_use(paste0("GravelContent_L", j), gravel[j])
+      update_soil_texture(x, paste0("Sand_L", j), sand[j])
+      update_soil_texture(x, paste0("Clay_L", j), clay[j])
+      update_soil_texture(x, paste0("Matricd_L", j), dbthirdbar[j])
+      update_soil_texture(x, paste0("GravelContent_L", j), gravel[j])
+      update_soil_layer(x2, paste0("depth_L", j), hzdepb[j])  # Set the depth for this layer
     }
 
     return(1)
@@ -1211,10 +1207,10 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   stopifnot(requireNamespace("FedData"))
 
   # Initialize settings
-  do_STATSGO               <- FALSE  # Indicates that STATSGO should be extracted to fill in missing data
+  do_STATSGO <- FALSE  # Indicates that STATSGO should be extracted to fill in missing data
   MMC[["idone"]]["SSURGO"] <- FALSE  # Meaning before the run, SSURGO has not finished
   # Determine which sites to extract for
-  todos        <- is.na(MMC[["source"]]) | MMC[["source"]] == "SSURGO"
+  todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "SSURGO"
   names(todos) <- NULL
   # Determine the number of sites to extract for
   n_extract <- sum(todos)
@@ -1315,4 +1311,3 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
 
 #------END OF SOIL CHARACTERISTICS------
 #----------------------------------------------------------------------------------------#
-
