@@ -881,7 +881,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     # Print the summarized error
     if (print.debug) {
       cat("\n        > Summarized error:")
-      cat(paste("\n             > Coordinates (", lat, ", ", lon, ") failed.", sep=""))
+      cat(paste0("\n             > Coordinates (", lat, ", ", lon, ") failed."))
       cat(paste("\n             > Please check whether or not SSURGO supports the coordinates."))
       cat(paste("\n             > STATSGO data will be extracted for this site once the other sites are finished.\n\n"))
     }
@@ -907,44 +907,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   #'                  (2) "tabular": A named list of data.frame's with the SSURGO tabular data}
   #' @return list consisting of the mukey, cokey, and chkey(s)
   choose_keys <- function(soil_data) {
-
-    ############################################################################
-    # Return the mukey with the largest total component percent
-    #     > Could be replaced with an apply statement
-    ############################################################################
-    get_mukey <- function(DATA) {
-      mukey       <- DATA$mukey[1]
-      largest_sum <- 0
-      s           <- 0
-      for (i in 1:nrow(DATA)) {
-        if (DATA$mukey[i] != mukey || i == nrow(DATA)) {  # Change of mukey or end of the last mukey
-          if (s > largest_sum) {                          # This mukey has a larger total component percent
-            largest_sum   <- s                            # Update the largest sum
-            largest_mukey <- mukey                        # Update the largest mukey
-          }
-          mukey <- DATA$mukey[i]                          # Next mukey
-          s     <- 0                                      # Reset sum
-        }
-        s <- s + DATA$comppct.r[i]
-      }
-      largest_mukey
-    }
-
-    ############################################################################
-    # Return the cokey with the largest individual component percent
-    #     > Could be replaced with an apply statement
-    ############################################################################
-    get_cokey <- function(DATA, mukey) {
-      largest_pct <- 0
-      cokey       <- FALSE
-      for (i in 1:nrow(DATA))
-        if (DATA$mukey[i] == mukey)               # Only search within our chosen mukey
-          if (DATA$comppct.r[i] > largest_pct) {  # New highest component percent
-            largest_pct <- DATA$comppct.r[i]
-            cokey       <- DATA$cokey[i]          # Save cokey
-          }
-      cokey
-    }
 
     #' @title Extract needed fields
     #' @description
@@ -976,27 +938,29 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       chfrags_data   <- chfrags[, ][, fields]
       # Create a master table containing all of the above fields, joined by cokey and chkey
       intermediate   <- merge(component_data, chorizon_data)  # Join by cokey
-      DATA           <- merge(intermediate, chfrags_data)     # Join by chkey
+      x              <- merge(intermediate, chfrags_data)     # Join by chkey
     }
 
     ############################################################################
     # Main
     ############################################################################
+    
     # Create data frame with needed data
-    DATA <- grab_data(soil_data)
-    if (length(DATA$mukey) == 0) {
+    x <- grab_data(soil_data)
+    if (length(x$mukey) == 0) {
       if (print.debug) cat("\n        > Error")
       if (print.debug) cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
       return(NULL)
     }
-    # Grab the mukey and cokey
-    mukey <- get_mukey(DATA)
-    cokey <- get_cokey(DATA, mukey)
-    # Grab all chkeys
-    chkeys <- c()
-    for (i in 1:nrow(DATA))
-      if (DATA$cokey[i] == cokey)
-        chkeys <- c(chkeys, DATA$chkey[i])
+    
+    # Grab the mukey with the largest summed component percent
+    mukey <- x$mukey[which.max(tapply(x$comppct.r, x$mukey, sum))]
+    # Grab the cokey with the largest individual component percent within the above mukey
+    mukey_indices <- which(x$mukey == mukey)
+    cokey <- x$cokey[mukey_indices[which.max(x$comppct.r[mukey_indices])]]
+    # Grab all chkeys within the above cokey
+    chkeys <- x$chkey[which(x$cokey == cokey)]
+    
     c(mukey, cokey, chkeys)
   }
 
@@ -1105,7 +1069,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     {
       if (any(is.na(gravel[i])) || any(gravel[i] == 0) || is.null(gravel))  # TODO: Check which ones need to be indexed
       {
-        if (print.debug) cat(paste("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01", sep = ""))
+        if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01"))
         gravel[i] <- 0.01
       }
     }
