@@ -185,8 +185,8 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #'  corrected for locations on the southern vs. northern hemisphere.
 #' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
-  sim_tscales = c("daily", "weekly", "monthly", "yearly"), use_doy_range = FALSE,
-  doy_ranges = list(),
+  sim_tscales = c("daily", "weekly", "monthly", "yearly"),
+  use_doy_range = FALSE,  doy_ranges = list(),
   latitude = 90, account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
 
   res <- list()
@@ -237,18 +237,24 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       res$no.useyr_NSadj <- st$no.useyr
     }
 
-    #water-year: N-hemisphere: October 1st = 1 day of water year; S-hemisphere: April 1st = 1 day of water year
-    #Water year starting Oct 1
-    res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 273, 1, 0)
-    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+    #Adjust for Years To Account For Water-yea
+    if(latitude > 0){
+      #Water year starting Oct 1
+      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 273, 1, 0)
+    }else{
+      #Water year starting April 1
+      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 91, 1, 0)
+    }
+    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
 
     if(use_doy_range){
       #North or Southern hemisphere? eliminate unnecessary water years values
-            if(latitude > 0 && account_NorthSouth){
+            if(latitude > 0){
               doy_ranges[["defaultWateryear_S"]] <- NULL
             }else{
               doy_ranges[["defaultWateryear_N"]] <- NULL
             }
+
       for(dr in seq_along(doy_ranges)){
         if(!is.null(doy_ranges[[dr]])){
         # Should the range years be adjusted for water years? If the aggregation uses
@@ -260,6 +266,7 @@ simTiming_ForEachUsedTimeUnit <- function(st,
        }
 
         if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
+
        #check that value doy_range_values[1] is now less than value [doy_range_values[2]
        if(doy_range_values[1] >= doy_range_values[2]){
          print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
