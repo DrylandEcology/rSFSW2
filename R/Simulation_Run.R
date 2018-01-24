@@ -255,7 +255,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
-        account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
+        account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
+        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]])
 
     } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
@@ -2065,7 +2067,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           if (sum(SWE.dy$val) > 0) {
             snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
-            adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+            adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
 
             if (length(unique(snowyears))-2 > 0) {
               res.snow  <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 9, byrow = TRUE)
@@ -2115,20 +2117,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
-          # 1. Calculate snow year information
-          #    (snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year)
-          snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)
+          wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
+          wateryear.trim <- !is.na(pmatch(wateryears, unique(wateryears)[2:(length(unique(wateryears))-1)], duplicates.ok = TRUE))
+
           res.frost <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 4, byrow = TRUE)
           res.frost[, 1] <- unique(snowyears)[2:(length(unique(snowyears))-1)]
-          snowyear.trim <- !is.na(pmatch(snowyears, res.frost[, 1], duplicates.ok = TRUE))
-          
+
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
 
             # 2. Number of days with min. temp < 0 and snow == 0 for the trimmed snow years
             ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[snowyear.trim], temps <- temp.dy$surface[snowyear.trim])
             frostWithoutSnow <- SWE.dy$val[snowyear.trim] == 0 & temps < iTmin
             res.frost[, 2] <- tapply(frostWithoutSnow, snowyears[snowyear.trim], sum)
-            
+
             # Find the last day of continuous snow pack for the non-snow-year, so that we can calculate
             # Spring/Fall periods for the first snow year
             daysOfPreviousYear <- which(snowyears == min(snowyears))
@@ -2137,10 +2138,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             ind <- which(r$lengths == x)
             # If there is no snow, the best we can do is mark the beginning of the non-snow-year as the end of the continuous snow period
             lastSnowPeriodEndDay <- ifelse(length(ind) == 0, cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)], 1)
-            
+
             # Now go through each snow year and calculate the number of days with
-            # min. temp < 0 and snow == 0 between the end of the previous year's largest 
-            # continuous snow pack and the beginning of this year's largest continuous snow pack 
+            # min. temp < 0 and snow == 0 between the end of the previous year's largest
+            # continuous snow pack and the beginning of this year's largest continuous snow pack
             # Additionally, split these results into the first half of the period (Fall) and the
             # second half (Spring)
             for (syi in 1:length(res.frost[, 1]))
@@ -2150,7 +2151,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               r <- rle(ifelse(SWE.dy$val[daysOfThisYear] > 0, 1, 0))
               x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]]
               ind <- which(r$lengths == x)
-              
+
               # If a year has no snow, just keep track of its days and it will become a part of the period between snow packs
               if (length(ind) == 0)
               {
@@ -2172,7 +2173,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 thisSnowPeriodEndDay <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
                 thisSnowPeriodStartDay <- thisSnowPeriodEndDay - x
               }
-              
+
               # Calculate the half-way point - half of the days between end and start of longest continuous snowpack -
               # so that there is no double counting of frost events.
               Y <- floor((thisSnowPeriodStartDay + length(daysOfPreviousYear) - lastSnowPeriodEndDay) / 2)
@@ -2186,7 +2187,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               spring <- (fall[length(fall)] + 1):(thisSnowPeriodStartDay + daysOfThisYear[1])
               ifelse(any(is.na(temp.dy$surface[spring])), temps <- temp.dy$min[spring], temps <- temp.dy$surface[spring])
               res.frost[syi, 4] <- sum(SWE.dy$val[spring] == 0 & temps < iTmin)
-              
+
               # Keep track of this year's data so that we do not have to re-calculate the previous year
               lastSnowPeriodEndDay <- thisSnowPeriodEndDay
               daysOfPreviousYear <- daysOfThisYear
@@ -2196,9 +2197,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             resSDs[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, stats::sd, na.rm = TRUE)
             nv <- nv+3
           }
+          
+          if(opt_agg[["use_doy_range"]]){
 
-          rm(res.frost, snowyears, snowyear.trim, frostWithoutSnow)
+            dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
+              simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
+            }else{
+              simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
+
+            }
+
+            for (iTmin in opt_agg[["Tmin_crit_C"]]) {
+              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
+              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
+
+              resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
+              resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
+              nv <- nv+1
+            }
+          }
+          rm(frostWithoutSnow)
         }
+
       #12
         if (prj_todos[["aon"]]$dailyHotDays) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyHotDays")
@@ -4133,10 +4153,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   largest = extreme[ihot], fun = "index", k = 10L, na.rm = TRUE)
 
                 # values of mean VPD and of mean temperature during k-indices per year
-                out_during_Stress[, c(d2, N + d2)] <- t(sapply(seq_len(simTime2$no.useyr_NSadj),
+                out_during_Stress[, c(d2, N + d2)] <- t(sapply(seq_len(isim_time$no.useyr),
                   function(j) {
                     ids <- simTime2$doy_ForEachUsedDay %in% ids_hotcold[[j]] &
-                      simTime2$year_ForEachUsedDay == simTime2$useyrs_NSadj[j]
+                      simTime2$year_ForEachUsedDay == isim_time$useyrs[j]
                     c(mean(VPD_during_Stress[ids, d2]), mean(Temp_during_Stress1[ids, d2]))
                   }))
 
@@ -4149,20 +4169,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               nv_add <- ncol(out_during_Stress)
               nv_new <- nv + nv_add
 
-#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "mean"))
               resMeans[nv:(nv_new - 1)] <- .colMeans(out_during_Stress,
                 isim_time$no.useyr, nv_add)
               resSDs[nv:(nv_new - 1)] <- apply(out_during_Stress, 2, stats::sd)
               nv <- nv_new
 
               nv_new <- nv + N
-#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "max"))
               resMeans[nv:(nv_new - 1)] <-
                 apply(out_during_Stress[, Ns, drop = FALSE], 2, max)
               nv <- nv_new
 
               nv_new <- nv + 2 * N
-#print(paste("nv=", nv, names(conds)[d3], names(extreme)[ihot], "N=", N, "nv_new=", nv_new, "d=", nv_new - nv, "min"))
               resMeans[nv:(nv_new - 1)] <-
                 apply(out_during_Stress[, c(N + Ns, 2 * N + Ns), drop = FALSE], 2, min)
               nv <- nv_new

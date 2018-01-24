@@ -97,7 +97,15 @@ sim_time <- list(
     c(d <- 90, startyr + d, endyr + d - 1)
   )
 )
-sim_time <- setup_simulation_time(sim_time, add_st2 = TRUE, adjust_NS = TRUE)
+doy_ranges = list(
+  dailyFrostinSnowPeriod = c(1,250),
+  default = c(1, 250),
+  defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
+  defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+)
+
+sim_time <- setup_simulation_time(sim_time, add_st2 = TRUE, adjust_NS = TRUE, use_doy_range = TRUE,
+doy_ranges = doy_ranges)
 names_sim_time <- c("Run", "Slice", "Time", "Year")
 names_getYears <- c("n_first", "first", "n_second", "second", "first_dates",
   "second_dates", "first_dpm", "second_dpm")
@@ -165,4 +173,3 @@ test_that("Check convenction of requested climate data'", {
   expect_true(is_ClimateForecastConvention("CMIP5_ESGF_Global"))
   expect_false(is_NEX("CMIP5_ESGF_Global"))
 })
-
