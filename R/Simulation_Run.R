@@ -255,7 +255,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
-        account_NorthSouth = opt_agg[["adjust_NorthSouth"]])
+        account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
+        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]])
 
     } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
@@ -2065,7 +2067,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           if (sum(SWE.dy$val) > 0) {
             snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
-            adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 273, -91)
+            adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
 
             if (length(unique(snowyears))-2 > 0) {
               res.snow  <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 9, byrow = TRUE)
@@ -2115,17 +2117,39 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
+            wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
+            wateryear.trim <- !is.na(pmatch(wateryears, unique(wateryears)[2:(length(unique(wateryears))-1)], duplicates.ok = TRUE))
+
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-            frostWithoutSnow <- SWE.dy$val == 0 & temp.dy$min < iTmin
-            frostWithoutSnow <- tapply(frostWithoutSnow, simTime2$year_ForEachUsedDay, sum)  #Numbers of days with min.temp < 0 and snow == 0
+            frostWithoutSnow <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin
+            frostWithoutSnow <- tapply(frostWithoutSnow, wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 for each wateryear
 
             resMeans[nv] <- mean(frostWithoutSnow, na.rm = TRUE)
             resSDs[nv] <- stats::sd(frostWithoutSnow, na.rm = TRUE)
             nv <- nv+1
           }
 
-          rm(frostWithoutSnow)
+          if(opt_agg[["use_doy_range"]]){
+
+            dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
+              simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
+            }else{
+              simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
+
+            }
+
+            for (iTmin in opt_agg[["Tmin_crit_C"]]) {
+              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
+              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
+
+              resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
+              resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
+              nv <- nv+1
+            }
+          }
+          rm(frostWithoutSnow, frostWithoutSnowDailyRange, dailyrange)
         }
+
       #12
         if (prj_todos[["aon"]]$dailyHotDays) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyHotDays")

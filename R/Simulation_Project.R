@@ -126,7 +126,10 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
 
   #--- Update simulation time
   SFSW2_prj_meta[["sim_time"]] <- setup_simulation_time(SFSW2_prj_meta[["sim_time"]],
-    add_st2 = TRUE, adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]])
+    add_st2 = TRUE, adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]],
+    use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+    doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]]
+  )
 
   #--- Determine scenario names
   SFSW2_prj_meta[["sim_scens"]] <- setup_scenarios(SFSW2_prj_meta[["req_scens"]],

@@ -647,7 +647,16 @@ opt_agg <- list(
 
   # Base temperature (degree C) below which cold-degree-days are accumulated
   Tbase_coldDD_C = 0,
-  
+
+  # Options for calculating daily aggregation options over a specific range of days
+  use_doy_range = TRUE,
+  doy_ranges = list(
+    dailyFrostinSnowPeriod = c(1,250), #water year
+    default = c(1, 250),
+    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
+    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+  ),
+
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,

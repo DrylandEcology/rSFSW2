@@ -30,6 +30,12 @@ input_sim_time <- list(
   )
 )
 
+doy_ranges = list(
+  dailyFrostinSnowPeriod = c(1,250),
+  default = c(1, 250),
+  defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
+  defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+)
 
 expected_sim_time_elements <- c("simstartyr", "startyr", "endyr", "DScur_startyr", "DScur_endyr",
 "future_yrs", "spinup_N", "future_N", "useyrs", "no.useyr", "no.usemo",
@@ -75,10 +81,28 @@ test_that("Obtain time information", {
   for (k in seq_along(input_sim_time)) {
     info <- names(input_sim_time)[k]
     expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]],
+      use_doy_range = TRUE, doy_ranges = doy_ranges,
       add_st2 = TRUE, adjust_NS = TRUE))
+
+    N_names <- names(doy_ranges)[!grepl("_S",names(doy_ranges))]
+    S_names <- names(doy_ranges)[!grepl("_N",names(doy_ranges))]
+
+    expect_true(length(N_names) == #test if doy_range names were created when use_doy_range = TRUE
+    length(names(sim_time[[k]]$sim_time2_North)[grep(paste(N_names, collapse='|'),names(sim_time[[k]]$sim_time2_North))]))#test if doy_range names were created when use_doy_range = TRUE
+
+    expect_true(length(S_names) == #test if doy_range names were created when use_doy_range = TRUE
+    length(names(sim_time[[k]]$sim_time2_North)[grep(paste(S_names, collapse='|'),names(sim_time[[k]]$sim_time2_South))]))
+
     expect_equal(sim_time[[k]][["useyrs"]],
       sim_time[[k]][["startyr"]]:sim_time[[k]][["endyr"]], info = info)
     expect_true(all(expected_sim_time_elements %in% names(sim_time[[k]])), info = info)
+
+    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]],
+      use_doy_range = FALSE, doy_ranges = doy_ranges,
+      add_st2 = TRUE, adjust_NS = TRUE))
+
+      expect_true(length(N_names) != #test if doy_range names were NOT created when use_doy_range = FALSE
+      length(names(sim_time[[k]]$sim_time2_North)[grep(paste(N_names, collapse='|'),names(sim_time[[k]]$sim_time2_North))]))#test if doy_range names were created when use_doy_range = TRUE
 
     # Overall span of simulation period
     expect_silent(sim_time[[k]] <- determine_overall_simulation_time(sim_time[[k]],
@@ -110,6 +134,7 @@ test_that("Obtain time information", {
       }
     }
   }
+
 })
 
 
