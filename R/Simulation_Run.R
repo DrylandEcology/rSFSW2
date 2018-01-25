@@ -2064,22 +2064,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (prj_todos[["aon"]]$dailySnowpack)  {#daily snowpack: adjust_NorthSouth
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySnowpack")
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
+          if (!exists("wateryears")) wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
 
           if (sum(SWE.dy$val) > 0) {
-            snowyears <- simTime2$year_ForEachUsedDay_NSadj + ifelse(simTime2$doy_ForEachUsedDay_NSadj > 273, 1, 0)  # 1. snow-year: N-hemisphere: October 1st = 1 day of snow year; S-hemisphere: April 1st = 1 day of snow year
             adjDays <- ifelse(simTime2$doy_ForEachUsedDay[1] == simTime2$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
 
-            if (length(unique(snowyears))-2 > 0) {
-              res.snow  <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 9, byrow = TRUE)
-              res.snow[, 1]  <- unique(snowyears)[2:(length(unique(snowyears))-1)]  # 1. snowyear
-              snowyear.trim <- !is.na(pmatch(snowyears, res.snow[, 1], duplicates.ok = TRUE))
-              res.snow[, 2] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], which.max) - adjDays # 2. doy of peak snowpack water-equivalent (mm)
-              res.snow[, 6] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], function(s) sum(s > 0)) # 6. total number of days of snow cover
-              res.snow[, 7] <- tapply(SWE.dy$val[snowyear.trim], snowyears[snowyear.trim], max) # 7. peak snowpack water-equivalent (mm)
+            if (length(unique(wateryears))-2 > 0) {
+              res.snow  <- matrix(data = 0, nrow = length(unique(wateryears))-2, ncol = 9, byrow = TRUE)
+              res.snow[, 1]  <- unique(wateryears)[2:(length(unique(wateryears))-1)]  # 1. wateryear
+              wateryear.trim <- !is.na(pmatch(wateryears, res.snow[, 1], duplicates.ok = TRUE))
+              res.snow[, 2] <- tapply(SWE.dy$val[wateryear.trim], wateryears[wateryear.trim], which.max) - adjDays # 2. doy of peak snowpack water-equivalent (mm)
+              res.snow[, 6] <- tapply(SWE.dy$val[wateryear.trim], wateryears[wateryear.trim], function(s) sum(s > 0)) # 6. total number of days of snow cover
+              res.snow[, 7] <- tapply(SWE.dy$val[wateryear.trim], wateryears[wateryear.trim], max) # 7. peak snowpack water-equivalent (mm)
 
               syi <- 1
               for (sy in res.snow[, 1]) {
-                r <- rle(ifelse(SWE.dy$val[which(snowyears == sy)]>0, 1, 0))
+                r <- rle(ifelse(SWE.dy$val[which(wateryears == sy)]>0, 1, 0))
                 res.snow[syi, 5] <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # 5. number of continous days of snow cover
                 ind <- which(r$lengths == res.snow[syi, 5])
                 res.snow[syi, 4] <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)] - adjDays # 4. last day of continous snow cover
@@ -2102,7 +2102,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 resSDs[nv:(nv+7)] <- 0
               }
 
-              rm(snowyears, snowyear.trim, res.snow, adjDays)
+              rm( res.snow, adjDays, wateryear.trim)
             } else {
               resMeans[nv:(nv+7)] <- resSDs[nv:(nv+7)] <- 0
             }
@@ -2111,28 +2111,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           }
           nv <- nv+8
         }
+
       #11
         if (prj_todos[["aon"]]$dailyFrostInSnowfreePeriod) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyFrostInSnowfreePeriod")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
+          if (!exists("wateryears")) wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
 
-          wateryears <- simTime2$year_ForEachUsedDay_NSadj_WaterYearAdj
           wateryear.trim <- !is.na(pmatch(wateryears, unique(wateryears)[2:(length(unique(wateryears))-1)], duplicates.ok = TRUE))
-
-          res.frost <- matrix(data = 0, nrow = length(unique(snowyears))-2, ncol = 4, byrow = TRUE)
-          res.frost[, 1] <- unique(snowyears)[2:(length(unique(snowyears))-1)]
+          res.frost <- matrix(data = 0, nrow = length(unique(wateryears))-2, ncol = 4, byrow = TRUE)
+          res.frost[, 1] <- unique(wateryears)[2:(length(unique(wateryears))-1)]
 
           for (iTmin in opt_agg[["Tmin_crit_C"]]) {
 
             # 2. Number of days with min. temp < 0 and snow == 0 for the trimmed snow years
-            ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[snowyear.trim], temps <- temp.dy$surface[snowyear.trim])
-            frostWithoutSnow <- SWE.dy$val[snowyear.trim] == 0 & temps < iTmin
-            res.frost[, 2] <- tapply(frostWithoutSnow, snowyears[snowyear.trim], sum)
+            ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[wateryear.trim], temps <- temp.dy$surface[wateryear.trim])
+            frostWithoutSnow <- SWE.dy$val[wateryear.trim] == 0 & temps < iTmin
+            res.frost[, 2] <- tapply(frostWithoutSnow, wateryears[wateryear.trim], sum)
 
             # Find the last day of continuous snow pack for the non-snow-year, so that we can calculate
             # Spring/Fall periods for the first snow year
-            daysOfPreviousYear <- which(snowyears == min(snowyears))
+            daysOfPreviousYear <- which(wateryears == min(wateryears))
             r <- rle(ifelse(SWE.dy$val[daysOfPreviousYear] > 0, 1, 0))
             x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]] # Number of days in largest continuous snow period
             ind <- which(r$lengths == x)
@@ -2147,7 +2147,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             for (syi in 1:length(res.frost[, 1]))
             {
               # Find the beginning and end of continuous snow pack for this snow year
-              daysOfThisYear <- which(snowyears == res.frost[syi, 1])
+              daysOfThisYear <- which(wateryears == res.frost[syi, 1])
               r <- rle(ifelse(SWE.dy$val[daysOfThisYear] > 0, 1, 0))
               x <- r$lengths[which(r$values == 1)][order(r$lengths[which(r$values == 1)], decreasing = TRUE)[1]]
               ind <- which(r$lengths == x)
@@ -2196,24 +2196,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             resMeans[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, mean, na.rm = TRUE)
             resSDs[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, stats::sd, na.rm = TRUE)
             nv <- nv+3
-          }
-          
+
           if(opt_agg[["use_doy_range"]]){
 
             dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
               simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
             }else{
               simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
-
             }
 
-            for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
-              frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
+            frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
+            frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
 
-              resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
-              resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
-              nv <- nv+1
+            resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
+            resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
+            nv <- nv+1
             }
           }
           rm(frostWithoutSnow)
