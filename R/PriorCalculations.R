@@ -42,7 +42,7 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
   
   # Available layers
   df_soils_names <- names(df_soils)
-  stopifnot(df_soils_names, names(df_soils_use))
+  stopifnot(df_soils_names == names(df_soils_use))
   ids_depth <- strsplit(df_soils_names[df_soils_use], "_", fixed = TRUE)
   stopifnot(length(ids_depth) > 0)
   
@@ -90,6 +90,10 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
       sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
         sw_input_soils_data[[iv]][il_set, ])
       
+      # When testing a site with the soil layers at 5cm and 33cm, there is an issue in that
+      # the last layer (33 cm) is not being assigned to sw_input_soils_data2.
+      # So, after this for loop, we have layers 5, 10, 20, and 30, but we should
+      # also have 33 appended to that. This function crashes due to indexing the 5th layer.
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
         il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
@@ -104,6 +108,7 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
       for (iv in seq_along(var_layers)) {
         i.temp <- grep(var_layers[iv], df_soils_names)[lyrs]
         dtemp <- if (var_layers[iv] %in% sl_vars_sub) 4L else 2L
+        # Final layer is not added, indexing crashes here
         df_soils[runIDs_adjust_ws[il_set], i.temp] <-
           round(sw_input_soils_data2[[iv]][, lyrs], dtemp)
         df_soils_use[i.temp] <- TRUE

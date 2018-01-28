@@ -755,7 +755,7 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 #' extract the respective data within the keys, and populate the soil layers and soil texture
 #' slots in the MMC variable with that data.
 #' @export
-do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, SWRunInformation, print.debug, sim_size, sim_space, dir_ex_soil, resume) {
+do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, SWRunInformation, print.debug = FALSE, sim_size, sim_space, dir_ex_soil, resume, interpolate) {
 
   # Begin main function (called at end)
   main <- function() {
@@ -845,6 +845,20 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       MMC <<- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC = MMC, sim_size = sim_size, sim_space = sim_space,
                                                             dir_ex_soil = dir_ex_soil,
                                                             fnames_in = fnames_in, resume = resume, verbose = verbose)
+    
+    ########################################################################
+    # Interpolation
+    ########################################################################
+    if (interpolate)
+    {
+      if (print.debug) cat("Interpolating SSURGO soil data...\n\n")
+      
+      # Match the same layer depths as the STATSGO extraction to have consistent depth increments
+      res <- calc_AddRequestedSoilLayers(MMC[["input"]], MMC[["use"]], MMC[["input2"]], c(5, 10, 20, 30, 40, 60, 80, 100, 150))
+      MMC[["input"]] <<- res[1]
+      MMC[["use"]] <<- res[2]
+      MMC[["input2"]] <<- res[3]
+    }
 
     ########################################################################
     # Write to the CSVs
@@ -1054,10 +1068,9 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     ############################################################################
     # Check for missing data
     ############################################################################
-    x <- 1:length(hzdepb)
-    y <- length(x)
-    
-    if (any(is.na(sand[x])) || any(is.na(clay[x])) || any(is.na(silt[x])) || any(is.na(dbthirdbar[x])))
+    iLyrs <- 1:length(hzdepb)
+
+    if (any(is.na(sand[iLyrs])) || any(is.na(clay[iLyrs])) || any(is.na(silt[iLyrs])) || any(is.na(dbthirdbar[iLyrs])))
     {
       if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
       do_STATSGO <<- TRUE
@@ -1065,50 +1078,19 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     }
     
     # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-    for (i in 1:x)
+    for (i in 1:iLyrs)
     {
       if (any(is.na(gravel[i])) || any(gravel[i] == 0) || is.null(gravel))  # TODO: Check which ones need to be indexed
       {
-        if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", k, "; filling it with 0.01"))
+        if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", i, "; filling it with 0.01"))
         gravel[i] <- 0.01
       }
     }
 
-    ############################################################################
-    # Interpolate soil layers
-    ############################################################################
-    column_names <- c(paste0("Sand_L", x), paste0("Clay_L", x), paste0("Matricd_L", x), paste0("GravelContent_L", x))
-    df_soils <- setNames(data.frame(matrix(ncol = 4 * y, nrow = 1)), column_names)
-    df_soils[grep("Sand", column_names)] <- sand[1:y]
-    df_soils[grep("Clay", column_names)] <- clay[1:y]
-    df_soils[grep("Matricd", column_names)] <- dbthirdbar[1:y]
-    df_soils[grep("Gravel", column_names)] <- gravel[1:y]
-    
-    # TODO: Determine which layers should be interpolated, if not all
-    df_soils_use <- setNames(data.frame(matrix(ncol = 4 * y, nrow = 1)), column_names)
-    df_soils_use[1:(4 * y)] <- TRUE
-    
-    df_soildepths <- setNames(data.frame(matrix(ncol = y, nrow = 1)), paste0("depth_L", x))
-    df_soildepths[, 1] <- hzdepb
-    
-    # TODO: Figure out why this function is failing
-    #       * Currently stopifnot(df_soils_names, names(df_soils_use)) fails
-    #           > I don't see what this is expecting, as a data.frame with proper column names fails this
-    #       * When providing 9 layer depths, the function only creates 7 and then
-    #         proceeds to act like it created 9, which causes an index error
-    new_soil_layers <- calc_AddRequestedSoilLayers(df_soils, df_soils_use, df_soildepths,
-                                                   c(5, 10, 20, 30, 40, 60, 80, 100, 150), verbose = TRUE, # Reminder: set to FALSE when finished
-                                                   sl_vars_mean = column_names)
-    
-    # TODO: use merge instead of for loop
-    #merge(new_soil_layers, soil_texture)
-    #merge(new_soil_layers, input_use)
-    
     
     ############################################################################
     # Insert incremented fields
     ############################################################################
-    # TODO: Remove once merge is implemented
     for (j in 1:length(hzdepb)) {
       update_input_use(paste0("Sand_L", j), sand[j])
       update_input_use(paste0("Clay_L", j), clay[j])
@@ -1230,7 +1212,8 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       sim_size         = SFSW2_prj_meta[["sim_size"]],
       sim_space        = SFSW2_prj_meta[["sim_space"]],
       dir_ex_soil      = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
-      resume           = resume
+      resume           = resume,
+      interpolate      = SFSW2_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]
     )
   }
 
