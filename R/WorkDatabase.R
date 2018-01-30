@@ -47,6 +47,13 @@ create_dbWork <- function(path, jobs) {
   RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
   add_dbWork_index(con)
 
+  # Set WAL-mode (http://www.sqlite.org/wal.html)
+  temp_jmode <- DBI::dbExecute(con, "PRAGMA journal_mode=WAL;")
+  if (!(temp_jmode == "wal")) {
+    print(paste("'create_dbWork': setting WAL mode for dbWork failed; journal mode is",
+      "instead", shQuote(temp_jmode)))
+  }
+
   invisible(TRUE)
 }
 
