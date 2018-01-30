@@ -1628,7 +1628,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
       for(Tmin in fieldtag_Tmin_crit_C){
-      temp <- c(temp, paste0("TminBelow", Tmin, c("withoutSnow", "withoutFallSnow", "withoutSpringSnow"), "_days_mean"))
+      temp <- c(temp, paste0("TminBelow", Tmin, c("withoutSnow", "withoutSpringSnow", "withoutFallSnow"), "_days_mean"))
       if(opt_agg[["use_doy_range"]]) {
           if(is.null(opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]])){
             temp <- c(temp, paste0("TminBelow", Tmin, "_withoutSnowpack_doyrange_",
