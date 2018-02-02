@@ -1040,7 +1040,7 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
   update_input_data <- function(formatted_data, label, keys, row_num) {
 
     ############################################################################
-    # Extract data
+    # Extract data for readability
     ############################################################################
     sand         <- formatted_data$sandtotal.r
     clay         <- formatted_data$claytotal.r
@@ -1069,7 +1069,6 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     # Check for missing data
     ############################################################################
     iLyrs <- 1:length(hzdepb)
-
     if (any(is.na(sand[iLyrs])) || any(is.na(clay[iLyrs])) || any(is.na(silt[iLyrs])) || any(is.na(dbthirdbar[iLyrs])))
     {
       if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
@@ -1077,17 +1076,14 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
       return(0)
     }
     
-    # If gravel content is missing, add a value of .01 so SOILWAT will not fail
-    for (i in 1:iLyrs)
+    # If gravel content is missing, add a value of .01 so SOILWAT2 will not fail
+    missingData <- which(is.na(gravel) | gravel == 0 | is.null(gravel))
+    if (length(missingData) > 0)
     {
-      if (any(is.na(gravel[i])) || any(gravel[i] == 0) || is.null(gravel))  # TODO: Check which ones need to be indexed
-      {
-        if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", i, "; filling it with 0.01"))
-        gravel[i] <- 0.01
-      }
+      gravel[missingData] <- 0.01
+      if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", missingData, "; replaced with 0.01"))
     }
 
-    
     ############################################################################
     # Insert incremented fields
     ############################################################################
