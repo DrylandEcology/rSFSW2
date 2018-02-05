@@ -555,7 +555,7 @@ update_biomass <- function(fg = c("Grass", "Shrub", "Tree", "Forb"), use,
     grep(paste0(fg, x), names(use)))
   veg_incl = lapply(veg_ids, function(x) use[x])
 
-  temp <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1]], fg)
+  temp <- rSOILWAT2::swProd_MonProd_veg(prod_default, fg)
   if (any(unlist(veg_incl))) {
     for (k in seq_along(comps)) if (any(veg_incl[[k]]))
       temp[veg_incl[[k]], k] <- as.numeric(prod_input[, veg_ids[[k]][veg_incl[[k]]]])
