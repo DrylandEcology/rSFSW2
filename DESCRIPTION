@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
 Version: 2.5.5
-Date: 2018-01-30
+Date: 2018-02-04
 Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
       person("Zach", "Kramer", role = "ctb"),
@@ -11,7 +11,7 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
 Depends:
     R (>= 3.3.0)
 Imports:
-    rSOILWAT2 (>= 2.0.0),
+    rSOILWAT2 (>= 2.1.2),
     RSQLite (>= 2.0),
     DBI (>= 0.7),
     Rcpp (>= 0.12.12),

@@ -340,7 +340,7 @@ read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
 
   # we don't need the example weather data; the code will get weather data separately
   if (length(swDataFromFiles@weatherHistory) > 0)
-    swDataFromFiles@weatherHistory <- list(rSOILWAT2::swClear(swDataFromFiles@weatherHistory[[1]]))
+    swDataFromFiles@weatherHistory <- list(new("swWeatherData"))
 
   swDataFromFiles
 }
@@ -389,7 +389,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
       full.names = TRUE)
 
     tr_list[basename(temp)] <- unlist(lapply(temp, function(x)
-      rSOILWAT2::swReadLines(rSOILWAT2::swClear(new(class)), x)))
+      rSOILWAT2::swReadLines(new(class), x)))
 
   }
   tr_list
