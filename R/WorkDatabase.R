@@ -47,6 +47,13 @@ create_dbWork <- function(path, jobs) {
   RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
   add_dbWork_index(con)
 
+  # Set WAL-mode (http://www.sqlite.org/wal.html)
+  temp_jmode <- DBI::dbGetQuery(con, "PRAGMA journal_mode=WAL;")
+  if (!(tolower(as.character(temp_jmode)) == "wal")) {
+    print(paste("'create_dbWork': setting WAL mode for dbWork failed; journal mode is",
+      "instead", shQuote(temp_jmode)))
+  }
+
   invisible(TRUE)
 }
 
@@ -418,7 +425,7 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
     on.exit(DBI::dbDisconnect(con), add = TRUE)
 
     if (inherits(con, "SQLiteConnection")) {
-      res <- DBI::dbWithTransaction(con, {
+      res <- try(DBI::dbWithTransaction(con, {
         if (verbose) {
           print(paste0("'dbWork_update_job': (", runID, "-", status,
             ") start transaction"))
@@ -463,18 +470,22 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
         }
 
         as.integer(temp)
-      })
+      }), silent = !verbose)
 
-      success <- lock$confirmed_access
-
-    } else if (verbose) {
-      print(paste0("'dbWork_update_job': (", runID, "-", status, ") 'dbWork' is locked"))
+      success <- if (inherits(res, "try-error")) FALSE else lock$confirmed_access
     }
 
-    if (success) break
+    if (success) {
+      break
+
+    } else {
+      if (verbose) {
+        print(paste0("'dbWork_update_job': (", runID, "-", status, ") 'dbWork' is locked"))
+      }
+    }
   }
 
-  !is.na(res) && res == 1L
+  identical(res, 1L)
 }
 
 

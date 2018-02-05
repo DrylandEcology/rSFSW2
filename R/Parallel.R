@@ -403,8 +403,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
     SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],
       mpi = "mpi", socket = "socket", cluster = "socket", NA_character_)
 
-    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
-      tmpdir = normalizePath(tempdir()))
+#    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
+#      tmpdir = normalizePath(tempdir()))
+    SFSW2_glovars[["lockfile"]] <- NULL
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       if (!requireNamespace("Rmpi", quietly = TRUE)) {

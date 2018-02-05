@@ -614,10 +614,10 @@ opt_agg <- list(
   doy_ranges = list(
     dailyFrostinSnowPeriod = c(1,250),
     default = c(1, 250),
-    defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
-    defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
+    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
   ),
-  
+
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,
