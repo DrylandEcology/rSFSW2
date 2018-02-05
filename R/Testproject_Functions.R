@@ -377,9 +377,8 @@ check_aggregated_output <- function(x) {
 
   # (4) E(total) = E(total bare-soil) + E(ponded water) + E(total litter-intercepted) +
   #            + E(total veg-intercepted) + E(snow sublimation)
-  Eponded <- 0 # pending issue #253
   temp <- with(x, all.equal(Evaporation_Total_mm_mean, Evaporation_Soil_Total_mm_mean +
-    Eponded + Evaporation_InterceptedByVegetation_mm_mean +
+    Evaporation_SurfaceWater_mm_mean + Evaporation_InterceptedByVegetation_mm_mean +
     Evaporation_InterceptedByLitter_mm_mean + Snowloss_mm_mean))
 
   if (!isTRUE(temp)) {

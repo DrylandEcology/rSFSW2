@@ -1740,12 +1740,13 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (aon$yearlyWaterBalanceFluxes) {
       temp <- c(temp, paste0(c(paste0(c("Rain", "Rain.ReachingSoil", "Snowfall",
         "Snowmelt", "Snowloss", "Interception.Total", "Interception.Vegetation",
-        "Interception.Litter", "Evaporation.InterceptedByVegetation",
-        "Evaporation.InterceptedByLitter", "Infiltration", "Runoff", "Runon",
-        "Evaporation.Total", "Evaporation.Soil.Total", "Evaporation.Soil.topLayers",
-        "Evaporation.Soil.bottomLayers", "Transpiration.Total", "Transpiration.topLayers",
-        "Transpiration.bottomLayers", "HydraulicRedistribution.TopToBottom",
-        "Percolation.TopToBottom", "DeepDrainage", "SWC.StorageChange"), "_mm"),
+        "Interception.Litter", "Infiltration", "Runoff", "Runon",
+        "Evaporation.Total", "Evaporation.SurfaceWater", "Evaporation.InterceptedByVegetation",
+        "Evaporation.InterceptedByLitter", "Evaporation.Soil.Total",
+        "Evaporation.Soil.topLayers", "Evaporation.Soil.bottomLayers",
+        "Transpiration.Total", "Transpiration.topLayers", "Transpiration.bottomLayers",
+        "HydraulicRedistribution.TopToBottom", "Percolation.TopToBottom", "DeepDrainage",
+        "SWC.StorageChange"), "_mm"),
         "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET",
         "AETtoPET", "TtoPET", "EStoPET"), "_mean"))
     }
