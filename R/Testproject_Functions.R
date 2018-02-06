@@ -329,6 +329,91 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 }
 
 
+#' Run checks on the values of the output database table \code{aggregation_overall_mean}
+#'
+#' The implemented water-balance checks correspond to unit tests of \itemize{
+#'  \item SOILWAT2/test/test_WaterBalance.cc
+#'  \item rSOILWAT2/tests/testthat/test_WaterBalance.R
+#' }
+#'
+#' @param x A data.frame. The content of the table \code{aggregation_overall_mean}.
+#'
+#' @return If all checks pass, then \code{TRUE}. If at least one check fails, then a
+#'  list of the failing checks where each element is the value of a call to
+#'  \code{\link[base]{all.equal}} and its name describes the check.
+#' @export
+check_aggregated_output <- function(x) {
+  checks_passed <- TRUE
+
+  #--- Water balance checks
+  # (1) AET <= PET
+  temp <- with(x, all(AET_mm_mean <= PET_mm_mean))
+
+  if (!isTRUE(temp)) {
+    temp <- list("(1) AET <= PET" = temp)
+    checks_passed <- if (is.list(checks_passed)) c(checks_passed, temp) else temp
+  }
+
+
+  # (2) AET == E(total) + T(total)
+  temp <- with(x, all.equal(AET_mm_mean, Transpiration_Total_mm_mean +
+    Evaporation_Total_mm_mean))
+
+  if (!isTRUE(temp)) {
+    temp <- list("AET == Ttotal + Etotal" = temp)
+    checks_passed <- if (is.list(checks_passed)) c(checks_passed, temp) else temp
+  }
+
+
+  # (3) T(total) = sum of T(veg-type i from soil layer j)
+  temp <- with(x, all.equal(Transpiration_Total_mm_mean, Transpiration_topLayers_mm_mean +
+    Transpiration_bottomLayers_mm_mean))
+
+  if (!isTRUE(temp)) {
+    temp <- list("Total == sum of T(veg-type i from soil layer j)" = temp)
+    checks_passed <- if (is.list(checks_passed)) c(checks_passed, temp) else temp
+  }
+
+
+  # (4) E(total) = E(total bare-soil) + E(ponded water) + E(total litter-intercepted) +
+  #            + E(total veg-intercepted) + E(snow sublimation)
+  temp <- with(x, all.equal(Evaporation_Total_mm_mean, Evaporation_Soil_Total_mm_mean +
+    Evaporation_SurfaceWater_mm_mean + Evaporation_InterceptedByVegetation_mm_mean +
+    Evaporation_InterceptedByLitter_mm_mean + Snowloss_mm_mean))
+
+  if (!isTRUE(temp)) {
+    temp <- list("Etotal == Esoil + Eponded + Eveg + Elitter + Esnow" = temp)
+    checks_passed <- if (is.list(checks_passed)) c(checks_passed, temp) else temp
+  }
+
+
+  # (6) infiltration = [rain + snowmelt + runon] - (runoff + intercepted + delta_surfaceWater + Eponded)
+
+  # ==> we currently cannot implement check (6) because we don't have output for
+  # delta_surfaceWater
+
+
+  # (7) E(soil) + Ttotal = infiltration - (deepDrainage + delta(swc))
+  temp <- with(x, all.equal(Evaporation_Soil_Total_mm_mean + Transpiration_Total_mm_mean,
+    Infiltration_mm_mean - (DeepDrainage_mm_mean + SWC_StorageChange_mm_mean)))
+
+  if (!isTRUE(temp)) {
+    temp <- list("Esoil + Ttotal == infiltration - (deepDrainage + delta(swc))" = temp)
+    checks_passed <- if (is.list(checks_passed)) c(checks_passed, temp) else temp
+  }
+
+
+  # (8) for every soil layer j: delta(swc) =
+  #   = infiltration/percolationIn + hydraulicRedistribution -
+  #     (percolationOut/deepDrainage + transpiration + evaporation)
+
+  # ==> we currently cannot implement check (8) because we don't have output delta(swc)
+  # separately for top and bottom layers
+
+  checks_passed
+}
+
+
 
 #' Compare test project output database with reference
 #'
@@ -514,6 +599,14 @@ compare_test_output <- function(dir_test, dir_ref = NULL, tol = 1e-3,
       temp <- list(ident)
       names(temp) <- tocomp_tables[k]
       diff_msgs <- c(diff_msgs, temp)
+    }
+
+    #---Run additional checks on aggregated output
+    if (tocomp_tables[k] == "aggregation_overall_mean") {
+      temp <- check_aggregated_output(x_test)
+      if (!isTRUE(temp)) {
+        diff_msgs <- c(diff_msgs, temp)
+      }
     }
   }
 
