@@ -20,6 +20,9 @@
 #' @param sl_vars_sub A vector of strings representing tags that are identifying those
 #'  columns of \code{df_soils} by name for which values will be exhausted. See
 #'  \code{method} argument of function \code{\link{add_layer_to_soil}}.
+#'  @param full_interpolation A logical value determing if layers not in 
+#'  \code{requested_soil_layers} should be discarded. If so, also interpolate to the
+#'  next greatest layer, if possible.
 #'
 #' @return A list with with five elements: \describe{
 #'    \item{df_soils}{Updated copy of the input.}
@@ -33,7 +36,8 @@
 calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
                                         requested_soil_layers, verbose = FALSE,
                                         sl_vars_mean = c("Matricd", "GravelContent", "Sand", "Clay", "SoilTemp"),
-                                        sl_vars_sub = c("EvapCoeff", "TranspCoeff", "Imperm")) {
+                                        sl_vars_sub = c("EvapCoeff", "TranspCoeff", "Imperm"),
+                                        full_interpolation = FALSE) {
   
   # Requested layers
   requested_soil_layers <- as.integer(round(requested_soil_layers))
@@ -90,10 +94,6 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
       sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
         sw_input_soils_data[[iv]][il_set, ])
       
-      # When testing a site with the soil layers at 5cm and 33cm, there is an issue in that
-      # the last layer (33 cm) is not being assigned to sw_input_soils_data2.
-      # So, after this for loop, we have layers 5, 10, 20, and 30, but we should
-      # also have 33 appended to that. This function crashes due to indexing the 5th layer.
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
         il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
@@ -103,28 +103,67 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
         ldset <- sort(c(ldset, lnew))
       }
       
-      # Update soil datafiles
-      lyrs <- seq_along(ldset)
-      for (iv in seq_along(var_layers)) {
-        i.temp <- grep(var_layers[iv], df_soils_names)[lyrs]
-        dtemp <- if (var_layers[iv] %in% sl_vars_sub) 4L else 2L
-        # Final layer is not added, indexing crashes here
-        df_soils[runIDs_adjust_ws[il_set], i.temp] <-
-          round(sw_input_soils_data2[[iv]][, lyrs], dtemp)
-        df_soils_use[i.temp] <- TRUE
+      # Interpolate to the next greatest layer and remove non-interpolated depths
+      if (full_interpolation) {
+        non_diff_layers <- requested_soil_layers < max(ldset)
+        if (any(non_diff_layers == FALSE)) { # First ensure that there is a next greatest layer 
+          non_diff_layers[max(which(non_diff_layers)) + 1] <- TRUE
+          if (!(requested_soil_layers[max(which(non_diff_layers))] %in% ldset)) { # Then ensure that this layer does not already exist
+            lnew <- requested_soil_layers[max(which(non_diff_layers))]
+            ilnew <- findInterval(lnew, ldset)
+            il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
+            # Add new column because add_layer_to_soil does not
+            for (i in seq_along(var_layers)) sw_input_soils_data2[[i]] <- cbind(sw_input_soils_data2[[i]], NA)
+            sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
+              add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
+                                method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
+            ldset <- sort(c(ldset, lnew))
+          }
+        }
+        
+        # Format and copy data to return variables
+        only_requested_layers <- which(ldset %in% requested_soil_layers)
+        for (i in seq_along(var_layers)) {
+          # Discard unwanted layers
+          sw_input_soils_data2[[i]] <- sw_input_soils_data2[[i]][, only_requested_layers]
+          # Generate new column names
+          cols <- paste0(var_layers[i], "_L", seq(1:ncol(sw_input_soils_data2[[i]])))
+          colnames(sw_input_soils_data2[[i]]) <- cols
+          # Assign column names and values to return variables
+          i.temp <- grep(var_layers[i], df_soils_names)[1:length(only_requested_layers)]
+          df_soils[runIDs_adjust_ws[il_set], i.temp] <- sw_input_soils_data2[[i]]
+          df_soils_use[i.temp] <- TRUE
+        }
+        i.temp <- grep("depth", colnames(df_soildepths))[seq(1:length(only_requested_layers))]
+        for (i in 1:(max(runIDs_adjust_ws) - 1)) {
+          df_soildepths[i, i.temp] <- requested_soil_layers[non_diff_layers]
+          df_soildepths[i, "SoilDepth_cm"] <- requested_soil_layers[max(which(non_diff_layers))]
+        }
+      } else {
+        # Update soil datafiles
+        lyrs <- seq_along(ldset)
+        for (iv in seq_along(var_layers)) {
+          i.temp <- grep(var_layers[iv], df_soils_names)[lyrs]
+          dtemp <- if (var_layers[iv] %in% sl_vars_sub) 4L else 2L
+          # Final layer is not added, indexing crashes here
+          df_soils[runIDs_adjust_ws[il_set], i.temp] <-
+            round(sw_input_soils_data2[[iv]][, lyrs], dtemp)
+          df_soils_use[i.temp] <- TRUE
+        }
+        
+        df_soildepths[runIDs_adjust_ws[il_set],
+                      grep("depth_", names(df_soildepths))[lyrs]] <- matrix(ldset, nrow = sum(il_set),
+                                                                            ncol = length(ldset), byrow = TRUE)
       }
-      
-      df_soildepths[runIDs_adjust_ws[il_set],
-                    grep("depth_", names(df_soildepths))[lyrs]] <- matrix(ldset, nrow = sum(il_set),
-                                                                          ncol = length(ldset), byrow = TRUE)
+
       has_changed <- TRUE
+      
     }
   }
   
   list(df_soils = df_soils, df_soils_use = df_soils_use, df_soildepths = df_soildepths,
        has_changed = has_changed, requested_soil_layers = requested_soil_layers)
 }
-
 
 
 #' Add soil layers to soil datafile (by interpolation) if layers are not already present

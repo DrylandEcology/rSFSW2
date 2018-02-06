@@ -851,13 +851,15 @@ do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbos
     ########################################################################
     if (interpolate)
     {
-      if (print.debug) cat("Interpolating SSURGO soil data...\n\n")
+      if (print.debug) cat("Interpolating SSURGO soil data...\n")
       
       # Match the same layer depths as the STATSGO extraction to have consistent depth increments
-      res <- calc_AddRequestedSoilLayers(MMC[["input"]], MMC[["use"]], MMC[["input2"]], c(5, 10, 20, 30, 40, 60, 80, 100, 150))
-      MMC[["input"]] <<- res[1]
-      MMC[["use"]] <<- res[2]
-      MMC[["input2"]] <<- res[3]
+      res <- calc_AddRequestedSoilLayers(MMC[["input"]], MMC[["use"]], MMC[["input2"]], c(5, 10, 20, 30, 40, 60, 80, 100, 150), full_interpolation = TRUE)
+      MMC[["input"]] <<- res[1]$df_soils
+      MMC[["use"]] <<- res[2]$df_soils_use
+      MMC[["input2"]] <<- res[3]$df_soildepths
+      
+      if (print.debug) cat("Done!\n\n")
     }
 
     ########################################################################
