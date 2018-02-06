@@ -71,6 +71,11 @@ test_that("dbWork: mock simulation in parallel", {
   # fail on CIs and on CRAN
   #  - travis  on July 21, 2017: "Error in .check_ncores(length(names)) : 10 simultaneous
   #    processes spawned"
+
+  skip_on_cran()
+  skip_on_travis()
+  skip_on_appveyor()
+
   dont_parallel <- identical(tolower(Sys.getenv("NOT_CRAN")), "false") ||
     identical(tolower(Sys.getenv("TRAVIS")), "true") ||
     identical(tolower(Sys.getenv("APPVEYOR")), "true")
