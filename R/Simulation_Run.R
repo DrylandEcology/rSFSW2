@@ -572,20 +572,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         swRunScenariosData[[1]] <- temp
       }
 
-      rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[1]]) <- update_biomass(
-        fg = "Grass", use = sw_input_prod_use, prod_input = i_sw_input_prod,
+      for (k in c("Grass", "Shrub", "Tree", "Forb")) {
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1]], k) <- update_biomass(
+        fg = k, use = sw_input_prod_use, prod_input = i_sw_input_prod,
         prod_default = swRunScenariosData[[1]]@prod)
-      rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[1]]) <- update_biomass(
-        fg = "Shrub", use = sw_input_prod_use, prod_input = i_sw_input_prod,
-        prod_default = swRunScenariosData[[1]]@prod)
-      rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[1]]) <- update_biomass(
-        fg = "Tree", use = sw_input_prod_use, prod_input = i_sw_input_prod,
-        prod_default = swRunScenariosData[[1]]@prod)
-      rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[1]]) <- update_biomass(
-        fg = "Forb", use = sw_input_prod_use, prod_input = i_sw_input_prod,
-        prod_default = swRunScenariosData[[1]]@prod)
+      }
     }
-    #Moved adjust to southern Hemi
 
     #add site information to siteparamin
     print_debug(opt_verbosity, tag_simfid, "creating", "site parameters")
@@ -2639,10 +2631,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           fluxtemp <- cbind(prcp.yr$rain, rain_toSoil, prcp.yr$snowfall, prcp.yr$snowmelt,
             prcp.yr$snowloss, intercept.yr$sum, intercept.yr$veg, intercept.yr$litter,
-            Esurface.yr$veg, Esurface.yr$litter, inf.yr$inf, runonoff.yr$total_runoff,
-            runonoff.yr$total_runon, evap.tot, evap_soil.tot, Esoil.yr$top,
-            Esoil.yr$bottom, transp.tot, transp.yr$top, transp.yr$bottom,
-            hydred.topTobottom, drain.topTobottom, deepDrain.yr$val, swc.flux)
+            inf.yr$inf, runonoff.yr$total_runoff, runonoff.yr$total_runon,
+            evap.tot, Esurface.yr$surfacewater, Esurface.yr$veg, Esurface.yr$litter,
+            evap_soil.tot, Esoil.yr$top, Esoil.yr$bottom, transp.tot, transp.yr$top,
+            transp.yr$bottom, hydred.topTobottom, drain.topTobottom, deepDrain.yr$val,
+            swc.flux)
 
           nv1 <- nv + ncol(fluxtemp) - 1
 
