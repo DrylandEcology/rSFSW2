@@ -2121,11 +2121,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nv <- nv+1
           }
 
-          if(opt_agg[["use_doy_range"]]){
+          rm(frostWithoutSnow)
+
+          if (opt_agg[["use_doy_range"]]) {
 
             dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
               simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
-            }else{
+            } else {
               simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
 
             }
@@ -2138,8 +2140,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               resSDs[nv] <- stats::sd(frostWithoutSnowDailyRange, na.rm = TRUE)
               nv <- nv+1
             }
+
+            rm(frostWithoutSnowDailyRange, dailyrange)
           }
-          rm(frostWithoutSnow, frostWithoutSnowDailyRange, dailyrange)
         }
 
       #12
