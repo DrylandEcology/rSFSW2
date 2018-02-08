@@ -713,14 +713,14 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
   #--- Check that INCLUDE_YN* are inclusive
   if (todo_intracker(SFSW2_prj_meta, "load_inputs", "checked")) {
-    icheck2 <- check_requested_sites(
+    icheck <- check_requested_sites(
       SFSW2_prj_inputs[["include_YN"]], SFSW2_prj_inputs[["SWRunInformation"]],
       SFSW2_prj_meta[["fnames_in"]], verbose = opt_verbosity[["verbose"]])
 
-    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck2[["SWRunInformation"]]
+    SFSW2_prj_inputs[["SWRunInformation"]] <- icheck[["SWRunInformation"]]
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "load_inputs", checked = icheck1 && icheck2[["check"]])
+      tracker = "load_inputs", checked = icheck[["check"]])
   }
 
 
@@ -743,7 +743,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       "RootProfile_Shrubs",
       "RootProfile_Forb")
 
-    icheck2 <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996" %in%
+    icheck <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996" %in%
       SFSW2_prj_inputs[["create_treatments"]] &&
       any(pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]])
 
@@ -756,7 +756,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
     }
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "prj_todos", checked = icheck2)
+      tracker = "prj_todos", checked = icheck)
   }
 
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
