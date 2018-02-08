@@ -1751,6 +1751,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
         "AETtoPET", "TtoPET", "EStoPET"), "_mean"))
     }
 
+  #27.1
+    if (isTRUE(aon$yearlyTranspirationBySoilLayer)) {
+      vegtypes <- c("total", "tree", "shrub", "forb", "grass")
+
+      temp <- c(temp, paste0("Transpiration_",
+        rep(vegtypes, each = SFSW2_glovars[["slyrs_maxN"]]),
+        "_L", SFSW2_glovars[["slyrs_ids"]], "_mm_mean"))
+    }
 
   #27.2
     if (aon$dailySoilWaterPulseVsStorage) {
