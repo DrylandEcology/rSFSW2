@@ -2596,6 +2596,24 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rm(rain_toSoil, transp.tot, evap_soil.tot, drain.topTobottom, hydred.topTobottom, index.usedyPlusOne, swcdyflux, swc.flux)
         }
 
+      #27.1
+        if (isTRUE(prj_todos[["aon"]]$yearlyTranspirationBySoilLayer)) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyTranspirationBySoilLayer")
+          if (!exists("transp.yr.all")) transp.yr.all <- get_Response_aggL(swof["sw_transp"], tscale = "yrAll", scaler = 10, FUN = sum, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
+
+          # aggregate across years for each soil layer and vegetation type
+          vegtypes <- c("total", "tree", "shrub", "forb", "grass")
+          coln <- colnames(transp.yr.all[["val"]])
+
+          for (k in vegtypes) {
+            temp <- transp.yr.all[["val"]][, grep(k, coln)[ld]]
+            nv1 <- nv + soilLayers_N - 1
+            resMeans[nv:nv1] <- colMeans(temp)
+            resSDs[nv:nv1] <- apply(temp, 2, stats::sd)
+            nv <- nv + SFSW2_glovars[["slyrs_maxN"]]
+          }
+        }
+
       #27.2
         if (prj_todos[["aon"]]$dailySoilWaterPulseVsStorage) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySoilWaterPulseVsStorage")
