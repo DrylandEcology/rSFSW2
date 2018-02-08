@@ -10,6 +10,9 @@ Shrub_ANPP(MAP_mm)
 
 Grass_ANPP(MAP_mm)
 }
+\arguments{
+\item{MAP_mm}{A numeric vector. Mean annual precipitation in millimeters (mm).}
+}
 \description{
 Biomass equations
 

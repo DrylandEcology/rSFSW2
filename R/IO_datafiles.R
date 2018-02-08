@@ -70,6 +70,7 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 #' }
 #'
 #' @inheritParams SFSW2_read_csv
+#' @param header_rows An integer value. The row number which contains the header.
 #'
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}
@@ -339,7 +340,7 @@ read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
 
   # we don't need the example weather data; the code will get weather data separately
   if (length(swDataFromFiles@weatherHistory) > 0)
-    swDataFromFiles@weatherHistory <- list(rSOILWAT2::swClear(swDataFromFiles@weatherHistory[[1]]))
+    swDataFromFiles@weatherHistory <- list(new("swWeatherData"))
 
   swDataFromFiles
 }
@@ -364,7 +365,7 @@ complete_with_defaultpaths <- function(project_paths, fnames_in) {
   }
 
   # full names of files located in 'dir_in_treat'
-  ftemp <- c("LookupClimatePPTScenarios", "LookupClimateTempScenarios",
+  ftemp <- c("LookupCarbonScenarios", "LookupClimatePPTScenarios", "LookupClimateTempScenarios",
     "LookupShiftedPPTScenarios", "LookupEvapCoeffFromTable", "LookupTranspCoeffFromTable",
     "LookupTranspRegionsFromTable", "LookupSnowDensityFromTable",
     "LookupVegetationComposition")
@@ -388,7 +389,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
       full.names = TRUE)
 
     tr_list[basename(temp)] <- unlist(lapply(temp, function(x)
-      rSOILWAT2::swReadLines(rSOILWAT2::swClear(new(class)), x)))
+      rSOILWAT2::swReadLines(new(class), x)))
 
   }
   tr_list
@@ -464,6 +465,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation)
+    sw_input_soillayers[, -(1:2)] <- check_monotonic_increase(data.matrix(sw_input_soillayers[, -(1:2)]),
+      strictly = TRUE, fail = TRUE, na.rm = TRUE)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["ftreatDesign"]],
       nrowsClasses = nrowsClasses), error = print)
@@ -553,12 +556,15 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
     tr_weather <- load_Rsw_treatment_templates(project_paths, create_treatments, "weathersetupin", "swWeather")
     tr_cloud <- load_Rsw_treatment_templates(project_paths, create_treatments, "cloudin", "swCloud")
 
-    tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- list()
+    tr_input_CarbonScenario <- tr_input_climPPT <- tr_input_climTemp <- tr_input_shiftedPPT <- list()
     tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- tr_input_TranspCoeff <- list()
     tr_input_TranspRegions <- tr_input_SnowD <- tr_VegetationComposition <- list()
 
     if (any(create_treatments == "LookupClimatePPTScenarios"))
       tr_input_climPPT <- SFSW2_read_csv(fnames_in[["LookupClimatePPTScenarios"]])
+
+    if (any(create_treatments == "LookupCarbonScenarios"))
+      tr_input_CarbonScenario <- SFSW2_read_csv(fnames_in[["LookupCarbonScenarios"]])
 
     if (any(create_treatments == "LookupClimateTempScenarios"))
       tr_input_climTemp <- SFSW2_read_csv(fnames_in[["LookupClimateTempScenarios"]])
@@ -634,7 +640,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       sw_input_climscen_use = sw_input_climscen_use, sw_input_climscen = sw_input_climscen,
       sw_input_climscen_values_use = sw_input_climscen_values_use, sw_input_climscen_values = sw_input_climscen_values,
       tr_files = tr_files, tr_prod = tr_prod, tr_site = tr_site, tr_soil = tr_soil,
-      tr_weather = tr_weather, tr_cloud = tr_cloud, tr_input_climPPT = tr_input_climPPT,
+      tr_weather = tr_weather, tr_cloud = tr_cloud, tr_input_CarbonScenario = tr_input_CarbonScenario, tr_input_climPPT = tr_input_climPPT,
       tr_input_climTemp = tr_input_climTemp, tr_input_shiftedPPT = tr_input_shiftedPPT,
       tr_input_EvapCoeff = tr_input_EvapCoeff, tr_input_TranspCoeff_Code = tr_input_TranspCoeff_Code,
       tr_input_TranspCoeff = tr_input_TranspCoeff, tr_input_TranspRegions = tr_input_TranspRegions,
@@ -658,6 +664,44 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
   }
 
   inputs
+}
+
+
+#' Serialization Interface for Single Objects with backup
+#'
+#' Function to write a single object to file, but create a backup file first if an older
+#' version of the file exists. This backup is restored in case the writing to the file
+#' fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
+#' the running R process (e.g., HPC schedulers); those situations likely will not allow
+#' that the original file be restored from the backup -- this will have to be done
+#' manually.
+#'
+#' @inheritParams base::saveRDS
+#' @param tag_backup A character string. A tag that is appended at the end of the
+#'  \code{file} name to identify the backup.
+#'
+#' @seealso \code{\link{saveRDS}}
+#' @export
+save_to_rds_with_backup <- function(object, file, tag_backup = "backup", ...) {
+  if (file.exists(file)) {
+    temp <- strsplit(basename(file), split = ".", fixed = TRUE)[[1]]
+    fbackup <- paste0(paste(temp[-length(temp)], collapse = ""), "_", tag_backup, ".",
+      temp[length(temp)])
+
+    file.rename(from = file, to = file.path(dirname(file), fbackup))
+  }
+
+  temp <- try(saveRDS(object, file = file, ...))
+  res <- !inherits(temp, "try-error")
+
+  if (!res) {
+    print(paste("'save_to_rds_with_backup': saving object to", shQuote(basename(file)),
+      "has failed; restoring from backup if available..."))
+    file.rename(from = file.path(dirname(file), fbackup), to = file)
+    print(paste("'save_to_rds_with_backup': restoring from backup completed."))
+  }
+
+  invisible(res)
 }
 
 

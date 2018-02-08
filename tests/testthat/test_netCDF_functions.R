@@ -12,7 +12,12 @@ do_skip <- c(
   identical(tolower(Sys.getenv("TRAVIS")), "true"),   # skip_on_travis()
   identical(tolower(Sys.getenv("APPVEYOR")), "true")) # skip_on_appveyor()
 
-if (!any(do_skip)) {
+suppressWarnings(is_online <-
+  !inherits(try(close(url(getOption("repos"), open = "r")), silent = TRUE),
+  "try-error"))
+
+
+if (!any(do_skip) && is_online) {
 
   #--- Inputs
   dir_temp <- tempdir()

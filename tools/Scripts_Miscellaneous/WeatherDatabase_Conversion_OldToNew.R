@@ -1,4 +1,4 @@
-library(rSOILWAT2)
+requireNamespace(rSOILWAT2)
 drv <- dbDriver("SQLite")
 
 # Get Some data from the old database

@@ -6,10 +6,22 @@
 \usage{
 mpi_last(gv)
 }
+\arguments{
+\item{gv}{A list with at least one named element \code{p_has}. \code{p_has} is a
+logical value and indicates whether call is from a parallel run.}
+}
 \description{
 Properly end mpi workers before quitting R (e.g., at a crash)
 }
 \section{Notes}{
- code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+ Code is based on
+ \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+}
+
+\section{Details}{
+ \code{gv} will
+ usually be the package-level global variable environment \code{SFSW2_glovars}. This
+ is because this function is registered as finalizer to the object
+ \code{SFSW2_glovars}.
 }
 

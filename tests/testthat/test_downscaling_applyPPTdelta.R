@@ -14,7 +14,7 @@ iadd6 <- iadd
   iadd6[month <= 6] <- FALSE
 
 # setwd("./tests/testthat")
-daily <- readRDS("dailySW.rds")
+daily <- readRDS(file.path("..", "test_data", "dailySW.rds"))
 monthly <- rSOILWAT2::dbW_weatherData_to_monthly(dailySW = daily)
 data0 <- daily[[as.character(this_year)]]@data[, "PPT_cm"]
 
@@ -85,7 +85,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta0,
     add_days = inotadd, mult_days = !inotadd, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_01.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_01.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 
@@ -93,7 +94,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta0,
     add_days = iadd, mult_days = !iadd, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_02.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_02.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 
@@ -101,7 +103,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta1,
     add_days = iadd, mult_days = !iadd, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_03.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_03.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 
@@ -110,7 +113,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta2,
     add_days = iadd, mult_days = !iadd, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_04.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_04.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 
@@ -118,7 +122,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta3,
     add_days = iadd, mult_days = !iadd, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_05.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_05.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 
@@ -126,7 +131,8 @@ test_that("applyPPTdelta_detailed", {
   set.seed(seed)
   temp <- applyPPTdelta_detailed(m = month, data = data0, ydelta = ydelta3,
     add_days = iadd6, mult_days = !iadd6, daily, monthly)
-  expect_equal_to_reference(temp, "test_reference_applyPPTdelta_detailed_06.rds")
+  expect_equal_to_reference(temp,
+    file.path("..", "test_data", "test_reference_applyPPTdelta_detailed_06.rds"))
   expect_gte(min(temp$data), 0)
   expect_equal(temp$PPT_to_remove, 0)
 })

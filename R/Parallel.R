@@ -35,6 +35,7 @@ do_import_objects <- function(obj_env) {
 
 #' Export objects to workers
 #'
+#' @param obj_env An environment containing R objects to export.
 #' @param parallel_backend A character vector, either 'mpi' or 'socket'
 #' @param cl A parallel (socket) cluster object
 #'
@@ -96,7 +97,19 @@ export_objects_to_workers <- function(obj_env,
   success
 }
 
-#' This is for workers
+# We have to rename rSOILWAT2 functions locally (and export to workers):
+# 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+# handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+# is not the name of a function
+dbW_setConnection_local <- function(...) rSOILWAT2::dbW_setConnection(...)
+dbW_disconnectConnection_local <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+
+
+#' Setting values of package-level global variables on workers
+#' @param x A character string. The name of a global variable.
+#' #param value A R object. The value to be assigned to the global variable identified by
+#'  \code{x}.
+#' @seealso \code{\link{assign}}
 set_glovar <- function(x, value) {
   # The environment 'SFSW2_glovars' is the one of the package copy on the workers!
   assign(x = x, value = value, envir = SFSW2_glovars)
@@ -231,7 +244,15 @@ mpi_work <- function(verbose = FALSE) {
 
 
 #' Properly end mpi workers before quitting R (e.g., at a crash)
-#' @section Notes: code is based on http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt
+#' @section Notes: Code is based on
+#'  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+#' @section Details: \code{gv} will
+#'  usually be the package-level global variable environment \code{SFSW2_glovars}. This
+#'  is because this function is registered as finalizer to the object
+#'  \code{SFSW2_glovars}.
+#'
+#' @param gv A list with at least one named element \code{p_has}. \code{p_has} is a
+#'  logical value and indicates whether call is from a parallel run.
 mpi_last <- function(gv) {
   if (requireNamespace("Rmpi")) {
 
@@ -258,6 +279,8 @@ mpi_last <- function(gv) {
 
 
 #' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
+#'
+#' @param verbose A logical value.
 #' @export
 exit_SFSW2_cluster <- function(verbose = FALSE) {
   if (SFSW2_glovars[["p_has"]]) {
@@ -380,8 +403,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
     SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],
       mpi = "mpi", socket = "socket", cluster = "socket", NA_character_)
 
-    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
-      tmpdir = normalizePath(tempdir()))
+#    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
+#      tmpdir = normalizePath(tempdir()))
+    SFSW2_glovars[["lockfile"]] <- NULL
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
@@ -406,6 +430,13 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
           simplify = FALSE))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
+
+        # We have to rename rSOILWAT2 functions locally (and export to workers):
+        # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
+        # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
+        # is not the name of a function
+        Rmpi::mpi.bcast.Robj2slave(dbW_setConnection_local)
+        Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection_local)
 
       } else {
         print("MPI master/workers are already set up.")

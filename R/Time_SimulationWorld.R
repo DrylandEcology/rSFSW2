@@ -37,8 +37,70 @@ seq_month_ofeach_day <- function(from = list(year = 1900, month = 1, day = 1),
 }
 
 
+#' Determine maximal span of simulation years across all experimental and design
+#' treatments
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param SFSW2_prj_inputs An object as returned from function
+#'  \code{\link{process_inputs}}.
+#' @return The object \code{st} augmented with two named elements \itemize{
+#'  \item \code{overall_simstartyr} which is the earliest year requested by any input
+#'  \item \code{overall_endyr} which is the last year requested by any input
+#' }
+determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
+
+  stopifnot(!is.null(st[["simstartyr"]]), !is.null(st[["endyr"]]))
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearStart")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearStart"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearStart"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearStart"]
+      } else NA
+
+    st[["overall_simstartyr"]] <- min(st[["simstartyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_simstartyr"]] <- st[["simstartyr"]]
+  }
+
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == "YearEnd")) {
+    temp_tr <- if (SFSW2_prj_inputs[["sw_input_treatments_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_treatments"]][, "YearEnd"]
+      } else NA
+
+    temp_exp <- if (SFSW2_prj_inputs[["sw_input_experimentals_use"]]["YearEnd"]) {
+        SFSW2_prj_inputs[["sw_input_experimentals"]][, "YearEnd"]
+      } else NA
+
+    st[["overall_endyr"]] <- max(st[["endyr"]], temp_tr, temp_exp, na.rm = TRUE)
+
+  } else {
+    st[["overall_endyr"]] <- st[["endyr"]]
+  }
+
+  st
+}
+
+#' Describe the time of a simulation project
+#'
+#' @param sim_time A list with at least values for three named elements: 'simstartyr' and
+#'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
+#' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
+#'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
+#' of days you wish to calculate the aggregation over.
+#' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
+#'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
+#'  \code{TRUE}.
+#' @param A named list, i.e., the updated version of \code{sim_time}.
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE) {
+  adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list()) {
 
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
@@ -85,12 +147,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 
   if (add_st2) {
     sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-      sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS)
+      sim_tscales = c("daily", "monthly", "yearly"),
+      use_doy_range = use_doy_range,
+      doy_ranges =  doy_ranges,
+      latitude = 90, account_NorthSouth = adjust_NS)
 
     if (adjust_NS) {
       sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-        sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
+        sim_tscales = c("daily", "monthly", "yearly"),
+        use_doy_range = use_doy_range,
+        doy_ranges = doy_ranges,
+        latitude = -90,
         account_NorthSouth = TRUE)
 
     } else {
@@ -101,9 +168,26 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
   sim_time
 }
 
+
+#' Calculate indices along different time steps for simulation time
+#'
+#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
+#'  "weekly", "monthly", "yearly")}.
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
+#' of days you wish to calculate the aggregation over.
+#' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
+#'  adjustment is requested; however, the code extracts only the sign.
+#' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
+#'  corrected for locations on the southern vs. northern hemisphere.
+#' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
-  sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
-  account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+  sim_tscales = c("daily", "weekly", "monthly", "yearly"),
+  use_doy_range = FALSE,  doy_ranges = list(),
+  latitude = 90, account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
 
   res <- list()
 
@@ -112,8 +196,8 @@ simTiming_ForEachUsedTimeUnit <- function(st,
                            to = ISOdate(max(st$useyrs), 12, 31, tz = "UTC"),
                            by = "1 day"))
 
-    res$doy_ForEachUsedDay <- res$doy_ForEachUsedDay_NSadj <- temp$yday + 1
-    res$month_ForEachUsedDay <- res$month_ForEachUsedDay_NSadj <- temp$mon + 1
+    res$doy_ForEachUsedDay <- temp$yday + 1
+    res$month_ForEachUsedDay <- temp$mon + 1
     res$year_ForEachUsedDay <- res$year_ForEachUsedDay_NSadj <- temp$year + 1900
 
     if (latitude < 0 && account_NorthSouth) {
@@ -123,7 +207,7 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       # chose to have a new month at end of year (i.e., 1 July -> 1 Jan & 30 June -> 31
       # Dec; but, 1 Jan -> July 3/4): and instead of a day with doy = 366, there are two
       # with doy = 182
-      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1  
+      dshift <- as.POSIXlt(ISOdate(st$useyrs, 6, 30, tz = "UTC"))$yday + 1
       res$doy_ForEachUsedDay_NSadj <- unlist(lapply(seq_along(st$useyrs), function(x) {
         temp1 <- res$doy_ForEachUsedDay[st$useyrs[x] == res$year_ForEachUsedDay]
         temp2 <- 1:dshift[x]
@@ -138,12 +222,68 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       temp2 <- dshift[1] + delta
       res$year_ForEachUsedDay_NSadj <- c(
         # add previous calendar year for shifted days of first simulation year
-        rep(st$useyrs[1] - 1, times = temp2), 
+        rep(st$useyrs[1] - 1, times = temp2),
         # remove a corresponding number of days at end of simulation period
         res$year_ForEachUsedDay[-((temp1 - temp2 + 1):temp1)]
       )
+      res$useyrs_NSadj <- unique(res$year_ForEachUsedDay_NSadj)
+      res$no.useyr_NSadj <- length(res$useyrs_NSadj)
+
+    } else {
+      res$doy_ForEachUsedDay_NSadj <- res$doy_ForEachUsedDay
+      res$month_ForEachUsedDay_NSadj <- res$month_ForEachUsedDay
+      res$year_ForEachUsedDay_NSadj <- res$year_ForEachUsedDay
+      res$useyrs_NSadj <- st$useyrs
+      res$no.useyr_NSadj <- st$no.useyr
     }
+
+    #Adjust for Years To Account For Water-yea
+    if(latitude > 0){
+      #Water year starting Oct 1
+      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 273, 1, 0)
+    }else{
+      #Water year starting April 1
+      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 91, 1, 0)
+    }
+    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
+
+    if(use_doy_range){
+      #North or Southern hemisphere? eliminate unnecessary water years values
+            if(latitude > 0){
+              doy_ranges[["defaultWateryear_S"]] <- NULL
+            }else{
+              doy_ranges[["defaultWateryear_N"]] <- NULL
+            }
+
+      for(dr in seq_along(doy_ranges)){
+        if(!is.null(doy_ranges[[dr]])){
+        # Should the range years be adjusted for water years? If the aggregation uses
+        # water year logic in its calculation, then yes.
+          if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear_N", "defaultWateryear_S")){
+            doy_range_values <- doy_ranges[[dr]] + adjDays
+          }else{
+            doy_range_values <- doy_ranges[[dr]]
+       }
+
+        if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
+
+       #check that value doy_range_values[1] is now less than value [doy_range_values[2]
+       if(doy_range_values[1] >= doy_range_values[2]){
+         print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
+                     The second value must exceed the first after water years adjustment. Current values are:',
+                     doy_range_values[1], 'and', doy_range_values[2]))
+         break
+       }
+
+       # Create daily logical vector indicating whether that doy is within range or not
+        res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
+          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
+        }
+      }
+      }
   }
+
+
 
   if (any(sim_tscales == "weekly")) {
 
@@ -163,4 +303,51 @@ simTiming_ForEachUsedTimeUnit <- function(st,
   }
 
   res
+}
+
+
+#' Check requested years
+#'
+#' @param start_year An integer value. The requested first year to extract weather data.
+#' @param end_year An integer value. The requested last year to extract weather data.
+#' @param has_start_year An integer value. The available first year of the weather data.
+#' @param has_end_year An integer value. The available last year of the weather data.
+#' @param temp_call A character string. An identifier of the calling function used for
+#'  printing.
+#' @param verbose A logical value. If \code{TRUE} prints statements if first or last year
+#'  were updated.
+#'
+#' @return A list with two named elements \itemize{
+#'  \item \code{start_year} to updated first year no smaller than \code{has_start_year}
+#'  \item \code{end_year} to updated last year no larger than \code{has_end_year}
+#'  }
+update_requested_years <- function(start_year, end_year, has_start_year, has_end_year,
+  temp_call = NULL, verbose = FALSE) {
+
+  if (start_year < has_start_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested start year ", start_year, " was changed to ",
+        has_start_year, "."))
+    }
+    start_year <- as.integer(has_start_year)
+
+  } else {
+    start_year <- as.integer(start_year)
+  }
+
+  if (end_year > has_end_year) {
+    if (verbose) {
+      print(paste0(shQuote(temp_call), ": covers years ", has_start_year, "-",
+        has_end_year, "; requested end year ", end_year, " was changed to ",
+        has_end_year, "."))
+    }
+    end_year <- as.integer(has_end_year)
+
+  } else {
+    end_year <- as.integer(end_year)
+  }
+
+
+  list(start_year = start_year, end_year = end_year)
 }

@@ -2,10 +2,18 @@
 % Please edit documentation in R/Parallel.R
 \name{set_glovar}
 \alias{set_glovar}
-\title{This is for workers}
+\title{Setting values of package-level global variables on workers}
 \usage{
 set_glovar(x, value)
 }
+\arguments{
+\item{x}{A character string. The name of a global variable.
+#param value A R object. The value to be assigned to the global variable identified by
+ \code{x}.}
+}
 \description{
-This is for workers
+Setting values of package-level global variables on workers
+}
+\seealso{
+\code{\link{assign}}
 }

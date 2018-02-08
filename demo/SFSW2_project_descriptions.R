@@ -12,11 +12,24 @@
 # NOTE: The values cannot be changed once a rSFSW2 simulation project is set up. The
 #  values of settings (file demo/SFSW2_project_settings.R) may be changed from run to run.
 
+#----- Metainformation about computing platform
+opt_platform <- list(
+  host = c("local", "hpc")[1],
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
+)
+
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
-    temp <- "SFSW2_default_project" # "~/YOURPROJECT"
+    temp <- if (identical(opt_platform[["host"]], "local")) {
+        "SFSW2_default_project" # "~/YOURPROJECT"
+      } else if (identical(opt_platform[["host"]], "hpc")) {
+        getwd()
+      }
 
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
@@ -39,7 +52,11 @@ project_paths <- list(
   dir_in_gissm = file.path(dir_in, "regeneration"),
 
   # Path to where large outputs are saved to disk
-  dir_big = dir_big <- dir_prj,
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -52,7 +69,11 @@ project_paths <- list(
   dir_out_traces = file.path(dir_out, "Time_Traces"),
 
   # Path from where external data are extraced
-  dir_external = dir_ex <- file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data"),
+  dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+    },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -70,8 +91,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v14.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v06.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v15.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v07.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
@@ -89,13 +110,18 @@ fnames_in <- list(
   LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
   LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
   LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
+  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
 
   # Pre-processed input: storage file of input data for repeated access (faster) instead
   #   of re-reading from (slower) csv files if flag 'use_preprocin' is TRUE
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
-  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3"),
+  fdbWeather = if (identical(opt_platform[["host"]], "local")) {
+      file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
+    },
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
@@ -126,20 +152,20 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res.; data expected at file.path(
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res.; data expected at file.path(
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res.; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res.; use with dbW; data expected at file.path(
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res.; data expected at file.path(
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
 
@@ -402,7 +428,7 @@ req_scens <- list(
     #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution; requires live internet access
     #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the western US prepared by Katie Renwick
     #     - "ESGF_Global": monthly time-series at varying resolution
-      dataset1 = "CMIP5_BCSD_SageSeer_USA"
+      dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)
@@ -505,10 +531,12 @@ req_out <- list(
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
+    "input_VegetationBiomassTrends", 1,
     "input_VegetationPeak", 1,
     "input_Phenology", 1,
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
+    "input_CO2Effects", 1,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
@@ -516,6 +544,8 @@ req_out <- list(
     "dailyFrostInSnowfreePeriod", 1,
     "dailyHotDays", 1,
     "dailyWarmDays", 1,
+    "dailyColdDays", 1,
+    "dailyCoolDays", 1,
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
@@ -529,6 +559,7 @@ req_out <- list(
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
+    "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
@@ -566,6 +597,7 @@ req_out <- list(
     "monthlySnowpack", 1,
     "monthlySoilTemp", 1,
     "monthlyRunoff", 1,
+    "monthlyRunon", 1,
     "monthlyHydraulicRedistribution", 1,
     "monthlyInfiltration", 1,
     "monthlyDeepDrainage", 1,
@@ -590,7 +622,7 @@ req_out <- list(
   #  options: NULL or a selection of c("AET", "Transpiration", "EvaporationSoil",
   #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric", "SWCbulk",
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
-  #   "Runoff", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
+  #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
   mean_daily = NULL,
   # Select variables to output as aggregated yearly time series
@@ -645,8 +677,20 @@ opt_agg <- list(
   # Base temperature (degree C) above which degree-days are accumulated
   Tbase_DD_C = 0,
 
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+  
   # Calculation of the Standardized Precipitation-Evapotranspiration Index (SPEI)
   SPEI_tscales_months = c(1, 12, 24, 48), # time scales for SPEI::spei in units of months
+
+  # Options for calculating daily aggregation options over a specific range of days
+  use_doy_range = FALSE,
+  doy_ranges = list(
+    dailyFrostinSnowPeriod = c(1, 250), #water year
+    default = c(1, 250),
+    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
+    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+  ),
 
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes

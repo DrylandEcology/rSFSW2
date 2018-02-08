@@ -104,14 +104,16 @@ PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction <- function(MAP_mm, MAT_C,
   TotalFraction <- sum(AnnC4C3ShrubForbBareGroundFraction, na.rm = TRUE)
 
   #Decide if all fractions are sufficiently defined or if they need to be calculated based on climate variables
-  if (!isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) && TotalFraction < 1 && sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 0) {
+  isna <- is.na(AnnC4C3ShrubForbBareGroundFraction)
+  isone <- isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance))
+  if (!isone && TotalFraction < 1 && sum(isna) == 0) {
     stop(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, but less than 1") #throw an error
   }
 
-  if (isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance)) || TotalFraction > 1 || sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) {
+  if (isone || TotalFraction > 1 || sum(isna) == 1) {
 
-    if (sum(is.na(AnnC4C3ShrubForbBareGroundFraction)) == 1) { #if only one is NA, then this can be calculated
-      AnnC4C3ShrubForbBareGroundFraction[which(is.na(AnnC4C3ShrubForbBareGroundFraction))] <- cut0Inf(1 - TotalFraction)
+    if (sum(isna) == 1) { #if only one is NA, then this can be calculated
+      AnnC4C3ShrubForbBareGroundFraction[which(isna)] <- cut0Inf(1 - TotalFraction, val = 0)
     } else {
       AnnC4C3ShrubForbBareGroundFraction <- finite01(AnnC4C3ShrubForbBareGroundFraction) #the composition is >= 1, so set eventually remaining NA to 0
     }
@@ -235,6 +237,8 @@ predict_season <- function(biomass_Standard, std.season.padded, std.season.seq, 
 }
 
 #' Biomass equations
+#'
+#' @param MAP_mm A numeric vector. Mean annual precipitation in millimeters (mm).
 #' @references Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
 #' @name biomass
 NULL
@@ -415,7 +419,7 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
         temp <- apply(biom_std_C4[std.winter, ], 2, mean)
         biom_C4[] <- matrix(temp, nrow = 12, ncol = ncol(biom_C4), byrow = TRUE)
         temp <- apply(biom_std_annuals[std.winter, ], 2, mean)
-        biom_annuals[] <- matrix(, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
+        biom_annuals[] <- matrix(temp, nrow = 12, ncol = ncol(biom_annuals), byrow = TRUE)
       }
     }
 
@@ -551,7 +555,7 @@ update_biomass <- function(fg = c("Grass", "Shrub", "Tree", "Forb"), use,
     grep(paste0(fg, x), names(use)))
   veg_incl = lapply(veg_ids, function(x) use[x])
 
-  temp <- slot(prod_default, paste0("MonthlyProductionValues_", tolower(fg)))
+  temp <- rSOILWAT2::swProd_MonProd_veg(prod_default, fg)
   if (any(unlist(veg_incl))) {
     for (k in seq_along(comps)) if (any(veg_incl[[k]]))
       temp[veg_incl[[k]], k] <- as.numeric(prod_input[, veg_ids[[k]][veg_incl[[k]]]])

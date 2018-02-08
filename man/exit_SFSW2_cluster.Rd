@@ -6,6 +6,9 @@
 \usage{
 exit_SFSW2_cluster(verbose = FALSE)
 }
+\arguments{
+\item{verbose}{A logical value.}
+}
 \description{
 Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
 }

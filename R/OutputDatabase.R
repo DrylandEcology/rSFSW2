@@ -919,11 +919,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      missing_Pids <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+      missing_Pids <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- Rmpi::mpi.applyLB(X = Tables, FUN = missing_Pids_outputDB,
+        missing_Pids_current <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
           dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
 
@@ -1100,7 +1100,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments_use"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
         SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
     }
@@ -1287,14 +1287,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (useTreatments) {
       use_start <- colnames(db_treatments) == "YearStart"
       use_end <- colnames(db_treatments) == "YearEnd"
-      i_use <- seq_len(ncol(db_treatments))
-      if (any(use_start))
-        i_use <- i_use[!use_start]
-      if (any(use_end))
-        i_use <- i_use[!use_end]
+      i_use <- rep(TRUE, ncol(db_treatments))
+      i_use[use_start] <- FALSE
+      i_use[use_end] <- FALSE
+
       temp <- db_treatments_column_types[, "table"] == 0
       temp <- db_treatments_column_types[temp, "column"]
       db_combined_exp_treatments[, temp] <- db_treatments[, i_use]
+
       #Handle StartYear and EndYear separately
       if (any(use_start) && !is.null(db_treatments_years) &&
         db_treatments_years[db_treatments_years$column == "YearStart", "table"] == 0) {
@@ -1356,6 +1356,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     simulation_years[, "StartYear"] <- getStartYear(simulation_years[, "simulationStartYear"],
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
+    # Replace NAs with values from SFSW2_prj_meta[["sim_time"]]
+    if (anyNA(simulation_years[, "simulationStartYear"])) {
+      ids <- is.na(simulation_years[, "simulationStartYear"])
+      simulation_years[ids, "simulationStartYear"] <- SFSW2_prj_meta[["sim_time"]][["simstartyr"]]
+    }
+    if (anyNA(simulation_years[, "StartYear"])) {
+      ids <- is.na(simulation_years[, "StartYear"])
+      simulation_years[ids, "StartYear"] <- SFSW2_prj_meta[["sim_time"]][["startyr"]]
+    }
+    if (anyNA(simulation_years[, "EndYear"])) {
+      ids <- is.na(simulation_years[, "EndYear"])
+      simulation_years[ids, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
+    }
+
+    # Create unique table of simulation years
     unique_simulation_years <- unique(simulation_years)
     if (nrow(unique_simulation_years) == nrow(simulation_years)) {
       # each row is unique so add id to db_combined
@@ -1365,25 +1380,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       db_combined_exp_treatments[, "simulation_years_id"] <- unique_simulation_years[, "id"]
 
     } else {
-      #treatment table has a map to reduced rows in simulation_years
-      temp <- duplicated(simulation_years)
-      sim_years_unique_map <- rep(NA, nrow(simulation_years))
-      temp2 <- data.frame(t(simulation_years))
-      sim_years_unique_map[temp] <- match(data.frame(t(simulation_years[temp, ])), temp2)
-      sim_years_unique_map[!temp] <- match(data.frame(t(simulation_years[!temp, ])), temp2)
-      treatments_toYears_map <- unique(sim_years_unique_map)
-      sim_years_unique_map <- sapply(sim_years_unique_map, function(x)
-        which(treatments_toYears_map == x))
-      db_combined_exp_treatments[, "simulation_years_id"] <- sim_years_unique_map
+      # create map to unique rows in simulation_years
+      temp <- duplicated(simulation_years, fromLast = FALSE) |
+        duplicated(simulation_years, fromLast = TRUE)
+      ids_sy <- apply(simulation_years, 1, paste, collapse = "_")
+      db_combined_exp_treatments[, "simulation_years_id"] <- match(ids_sy, ids_sy)
     }
 
-    dtemp <- unique_simulation_years[, c("simulationStartYear", "StartYear", "EndYear")]
+    unique_simulation_years <- data.frame(unique_simulation_years[, c("simulationStartYear",
+      "StartYear", "EndYear")])
 
   } else {
     #Treatment option for simulation Years is turned off. Get the default one from settings.
     db_combined_exp_treatments$simulation_years_id <- 1
 
-    dtemp <- data.frame(
+    unique_simulation_years <- data.frame(
       simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
       StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]],
       EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
@@ -1392,7 +1403,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   # write to the database
   sql <- "INSERT INTO simulation_years VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
   rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(dtemp))
+  DBI::dbBind(rs, param = as.list(unique_simulation_years))
   DBI::dbClearResult(rs)
 
   #Insert the data into the treatments table
@@ -1600,6 +1611,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
                             c(rep("Litter", 12), rep("TotalBiomass", 12), rep("LiveBiomass", 12)),
                             "_m", st_mo, "_gPERm2"))
     }
+  #2b
+    if (aon$input_VegetationBiomassTrends) {
+      temp <- c(temp, paste0(rep(c("Grass", "Shrub", "Tree", "Forb", "Total"), 2), "_",
+        rep(c("Total", "Live"), each = 5), "Biomass_gPERm2_mean"))
+    }
   #3.
     if (aon$input_VegetationPeak) {
       temp <- c(temp, paste0("SWinput.PeakLiveBiomass_",
@@ -1660,6 +1676,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
                             rep(c("_none", "_C", "_C"), each = 12),
                             "_const"))
     }
+  #6b
+    if (aon$input_CO2Effects) {
+      temp <- c(temp, paste0(rep(c("Grass", "Shrub", "Tree", "Forb"), 2), "_",
+        rep(c("Biomass", "WUE"), each = 4), "_CO2multiplier_fraction_mean"))
+    }
 
     ##############################################################---Aggregation: Climate and weather---##############################################################
 
@@ -1681,13 +1702,24 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #10.
     if (aon$dailySnowpack) {
       temp <- c(temp, paste0("Snowcover.NSadj.",
-                            c("Peak_doy", "LongestContinuous.LastDay_doy",
-                              "LongestContinuous.Duration_days", "Total_days",
-                              "Peak_mmSWE")))
+        c("Peak_doy", "LongestContinuous.FirstDay_doy", "LongestContinuous.LastDay_doy",
+        "LongestContinuous.Duration_days", "Total_days",
+        "Peak_mmSWE", "SnowCover.FirstDay_doy", "SnowCover.LastDay_doy")))
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
-      temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnowpack_days"))
+      temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_days_mean"))
+      if(opt_agg[["use_doy_range"]]) {
+          if(is.null(opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]])){
+            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
+            opt_agg[["doy_ranges"]][["defaultWateryear"]][1],"to",
+            opt_agg[["doy_ranges"]][["defaultWateryear"]][2], "_mean"))
+          } else {
+            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
+            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][1],"to",
+            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][2], "_mean"))
+          }
+      }
     }
   #12
     if (aon$dailyHotDays) {
@@ -1696,6 +1728,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #12b
     if (aon$dailyWarmDays) {
       temp <- c(temp, paste0("TmeanAbove", fieldtag_Tmean_crit_C, "_days"))
+    }
+  #12c
+    if (aon$dailyColdDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmin_crit_C, "_days_mean"))
+    }
+  #12d
+    if (aon$dailyCoolDays) {
+      temp <- c(temp, paste0("TminSurfaceBelow", fieldtag_Tmean_crit_C, "_days_mean"))
     }
   #13
     if (aon$dailyPrecipitationEventSizeDistribution) {
@@ -1784,6 +1824,13 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       temp <- c(temp, paste0("DegreeDays.Base", opt_agg[["Tbase_DD_C"]], "C.dailyTmean_Cdays"))
     }
 
+  #25
+    if (aon$dailyColdDegreeDays) {
+      temp <- c(temp, paste0(c("ColdDegreeDays", "ColdDegreeDays.SnowFree"), ".Base.",
+       ifelse(opt_agg[["Tbase_coldDD_C"]] < 0, "Neg", ifelse(opt_agg[["Tbase_coldDD_C"]] > 0, "Pos", "")),
+       abs(opt_agg[["Tbase_coldDD_C"]]), "C.dailyTMean_Cdays_mean"))
+    }
+
     ##############################################################---Aggregation: Yearly water balance---##############################################################
 
   #27.0
@@ -1793,18 +1840,17 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #27
     if (aon$yearlyWaterBalanceFluxes) {
-      temp <- c(temp,
-        c("Rain_mm", "Rain.ReachingSoil_mm", "Snowfall_mm", "Snowmelt_mm", "Snowloss_mm",
-          "Interception.Total_mm", "Interception.Vegetation_mm", "Interception.Litter_mm",
-          "Evaporation.InterceptedByVegetation_mm", "Evaporation.InterceptedByLitter_mm",
-          "Infiltration_mm", "Runoff_mm", "Evaporation.Total_mm",
-          "Evaporation.Soil.Total_mm", "Evaporation.Soil.topLayers_mm",
-          "Evaporation.Soil.bottomLayers_mm", "Transpiration.Total_mm",
-          "Transpiration.topLayers_mm", "Transpiration.bottomLayers_mm",
-          "HydraulicRedistribution.TopToBottom_mm", "Percolation.TopToBottom_mm",
-          "DeepDrainage_mm", "SWC.StorageChange_mm",
-          "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET",
-          "AETtoPET", "TtoPET", "EStoPET"))
+      temp <- c(temp, c(paste0(c("Rain", "Rain.ReachingSoil", "Snowfall",
+        "Snowmelt", "Snowloss", "Interception.Total", "Interception.Vegetation",
+        "Interception.Litter", "Infiltration", "Runoff", "Runon",
+        "Evaporation.Total", "Evaporation.SurfaceWater", "Evaporation.InterceptedByVegetation",
+        "Evaporation.InterceptedByLitter", "Evaporation.Soil.Total",
+        "Evaporation.Soil.topLayers", "Evaporation.Soil.bottomLayers",
+        "Transpiration.Total", "Transpiration.topLayers", "Transpiration.bottomLayers",
+        "HydraulicRedistribution.TopToBottom", "Percolation.TopToBottom", "DeepDrainage",
+        "SWC.StorageChange"), "_mm"),
+        "TranspirationBottomToTranspirationTotal_fraction", "TtoAET", "EStoAET",
+        "AETtoPET", "TtoPET", "EStoPET"))
     }
 
 
@@ -1955,7 +2001,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     }
 
   #35.3
-    if(aon$dailyThermalDrynessStartEnd){
+    if (aon$dailyThermalDrynessStartEnd) {
       temp <- c(temp, paste0("ThermalDrySoilPeriods_SWPcrit",
                             rep(fieldtag_SWPcrit_MPa, each = 2),
                             "_NSadj_",
@@ -2075,15 +2121,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #43.2
     if (aon$dailyThermalDrynessStress) {
-      temp <- c(temp,
-            paste0("Mean10HottestDays_VPD_kPa",
-              c("_mean", "_max",
-              paste0(paste0("_MoistureStress_",
-                  "SWPcrit", rep(fieldtag_SWPcrit_MPa, times = 3), "_",
-                  rep(rep(c("allLayers", "topLayer", "bottomLayer"), each = opt_agg[["SWPcrit_N"]]), each = 2)
-                ),
-                rep(c("_mean", "_max"), each = opt_agg[["SWPcrit_N"]])))))
+      extremes <- c("Hottest", "Coldest")
+      resp <- c("Days_VPD_kPa", "Days_Temp_C", "SnowfreeDays_Temp_C")
+      aggs <- c(rep("mean", length(resp)), "max", "min", "min")
+      Naggs <- 2
+      soils <- c("allLayers", "topLayer", "bottomLayer")
+      Nout <- length(resp) * Naggs * opt_agg[["SWPcrit_N"]]
 
+      temp <- c(temp,
+        paste0("Mean10", rep(extremes, each = length(resp) * Naggs), resp, "_", aggs),
+
+        paste0("Mean10", rep(extremes, each = Nout),
+          rep(resp, each = opt_agg[["SWPcrit_N"]]),
+          "_MoistureStress_SWPcrit", fieldtag_SWPcrit_MPa, "_",
+          rep(soils, each = Nout * length(extremes)), "_",
+          rep(aggs, each = opt_agg[["SWPcrit_N"]])))
     }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################
@@ -2113,6 +2165,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   #48
     if (aon$monthlyRunoff) {
       temp <- c(temp, paste0("Runoff.Total.m", SFSW2_glovars[["st_mo"]], "_mm"))
+    }
+    if (aon$monthlyRunon) {
+      temp <- c(temp, paste0("Runon.Total.m", SFSW2_glovars[["st_mo"]], "_mm_mean"))
     }
 
   #49
@@ -2343,7 +2398,8 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
             EvaporationTotal = 1, VWCbulk = 2, VWCmatric = 2, SWCbulk = 2, SWPmatric = 2,
             SWAbulk = 2, Snowpack = 1, Rain = 1, Snowfall = 1, Snowmelt = 1, SnowLoss = 1,
             Infiltration = 1, DeepDrainage = 1, PET = 1, TotalPrecipitation = 1,
-            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1)
+            TemperatureMin = 1, TemperatureMax = 1, SoilTemperature = 2, Runoff = 1,
+            Runon = 1)
 
           if (agg.analysis == 1) {
             sql1 <- paste0("CREATE TABLE \"", EnsembleFamilyLevelTables[1], "\" (",
