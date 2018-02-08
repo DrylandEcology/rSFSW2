@@ -1525,7 +1525,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   invisible(NULL)
 }
 
-  dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
+dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
     ## Note: All '.' will be translated to "_" because of sqlite field name constraints
     temp <- character(0)
 
