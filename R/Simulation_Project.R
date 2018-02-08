@@ -151,32 +151,14 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
 }
 
 
+gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose = FALSE) {
 
-#' Populate rSFSW2 project with input data
-#' @export
-populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_parallel,
-  opt_chunks, opt_out_run, opt_verbosity) {
-
-  if (opt_verbosity[["verbose"]]) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-    on.exit({
-      print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
-        "status:"))
-      print(SFSW2_prj_meta[["input_status"]])}, add = TRUE)
-  }
-
-  #------ PROJECT INPUTS
   #--- Import data
   if (!exists("SFSW2_prj_inputs") || is.null(SFSW2_prj_inputs) ||
     todo_intracker(SFSW2_prj_meta, "load_inputs", "prepared")) {
 
     SFSW2_prj_inputs <- process_inputs(SFSW2_prj_meta[["project_paths"]],
-      SFSW2_prj_meta[["fnames_in"]], use_preprocin = opt_behave[["use_preprocin"]],
-      verbose = opt_verbosity[["verbose"]])
+      SFSW2_prj_meta[["fnames_in"]], use_preprocin, verbose)
 
     #--- Update output aggregation options
     SFSW2_prj_meta[["opt_agg"]] <- setup_aggregation_options(SFSW2_prj_meta[["opt_agg"]],
@@ -186,11 +168,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "load_inputs", prepared = TRUE,
       checked = !SFSW2_prj_inputs[["do_check_include"]])
+
+    save_to_rds_with_backup(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
-
-  save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]],
-    tag_backup = paste0("backup-", format(Sys.time(), "%Y%m%d-%H%M")))
-
 
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
     exists("SFSW2_prj_inputs")) {
@@ -199,14 +179,6 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
     return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
   }
-
-  # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated, i.e.,
-  #   save them to disk upon exiting function (by error to save intermediate state) or
-  #   by final 'return'
-  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
-    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
-  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
-   file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
 
   #--- Determine size of simulation runs
@@ -289,6 +261,67 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       tracker = "prj_todos", prepared = TRUE)
   }
 
+  list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
+}
+
+
+#' Populate rSFSW2 project with input data
+#' @export
+populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_parallel,
+  opt_chunks, opt_out_run, opt_verbosity) {
+
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s with input tracker ",
+        "status:"))
+      print(SFSW2_prj_meta[["input_status"]])}, add = TRUE)
+  }
+
+
+  #------ PROJECT INPUTS
+  temp <- gather_project_inputs(SFSW2_prj_meta,
+    use_preprocin = opt_behave[["use_preprocin"]], verbose = opt_verbosity[["verbose"]])
+  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+
+  if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
+    exists("SFSW2_prj_inputs")) {
+    # Return if all is prepared (from a previous run) and input object exists and haven't
+    # been changed since last time ('do_check_include' is FALSE)
+
+    return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
+  }
+
+  # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated, i.e.,
+  #   save them to disk upon exiting function (by error to save intermediate state) or
+  #   by final 'return'
+  on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
+  on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
+   file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
+
+
+
+  #--- Setup/connect to dbWork
+  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
+    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      sim_size = SFSW2_prj_meta[["sim_size"]], include_YN = SFSW2_prj_inputs[["include_YN"]],
+      resume = opt_behave[["resume"]])
+
+    if (!temp)
+      stop("Work database failed to setup or an existing one is from a different",
+        "simulation design")
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbWork", prepared = TRUE)
+  }
+
 
   #--- Setup random number generator streams for each runsN_master
   # Note: runsN_master: each site = row of master and not for runsN_total because
@@ -305,22 +338,6 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       tracker = "rng_setup", prepared = TRUE)
 
     save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
-  }
-
-
-
-  #--- Setup/connect to dbWork
-  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
-    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      sim_size = SFSW2_prj_meta[["sim_size"]], include_YN = SFSW2_prj_inputs[["include_YN"]],
-      resume = opt_behave[["resume"]])
-
-    if (!temp)
-      stop("Work database failed to setup or an existing one is from a different",
-        "simulation design")
-
-    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "dbWork", prepared = TRUE)
   }
 
 
@@ -764,6 +781,56 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
 
 
+#' Update todos for simulation project
+update_todos <- function(SFSW2_prj_meta, actions, wipe_dbOutput) {
+  SFSW2_prj_meta[["prj_todos"]][["actions"]] <- actions
+  SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(actions[c("sim_create",
+    "sim_execute", "sim_aggregate")]))
+  SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <- SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
+    SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
+  SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- wipe_dbOutput &&
+    !(sum(actions) == 1 && actions[["ensemble"]])
+  SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <- SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
+    SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
+
+  SFSW2_prj_meta
+}
+
+
+#' Prepare output database without running proper steps of `SFSW2_project_code.R`
+#'
+#' The need may arise if all/some of input data of your simulation project is located
+#' on a remote server and you want to create the output database and work database locally.
+#' This function can be called before executing step 3 (\code{populate_rSFSW2_project_with_data})
+#' in the demo code "SFSW2_project_code.R".
+#'
+#' @param path A character string. The path at which the databases will be created --
+#'  ignoring the path information from \code{SFSW2_prj_meta} used otherwise.
+#'
+#' @return Invisibly the number of output fields in the overall aggregation table. Side
+#'   effect: creation of \code{dbOutput} and \code{dbWork}.
+#' @export
+quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose = FALSE) {
+
+  # Prepare arguments
+  temp <- gather_project_inputs(SFSW2_prj_meta, use_preprocin = TRUE, verbose = verbose)
+  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
+  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions, wipe_dbOutput = FALSE)
+
+  # Create dbWork
+  setup_dbWork(path = path, sim_size = SFSW2_prj_meta[["sim_size"]],
+    include_YN = SFSW2_prj_inputs[["include_YN"]], resume = FALSE)
+
+  # Create dbOutput
+  SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path, "dbTables.sqlite3")
+  ncol_dbOut_overall <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+    verbose = verbose)
+
+  invisible(ncol_dbOut_overall)
+}
+
 
 
 #' Carry out a rSFSW2 simulation experiment
@@ -814,15 +881,8 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
 
   #--- Update todos for simulation project
-  SFSW2_prj_meta[["prj_todos"]][["actions"]] <- actions
-  SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(actions[c("sim_create",
-    "sim_execute", "sim_aggregate")]))
-  SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <- SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
-    SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
-  SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- opt_out_run[["wipe_dbOutput"]] &&
-    !(sum(actions) == 1 && actions[["ensemble"]])
-  SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <- SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
-    SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
+  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions,
+    wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
 
   #--- Determine which runs (still) need to be done for this round
   stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
