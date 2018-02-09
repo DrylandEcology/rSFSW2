@@ -2025,6 +2025,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (prj_todos[["aon"]]$yearlyPPT) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyPPT")
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time)
+          if (!exists("prcp.dy")) prcp.dy <- get_PPT_dy(runDataSC, isim_time)
 
           resMeans[nv] <- mean(prcp.yr$ppt)
           resSDs[nv] <- stats::sd(prcp.yr$ppt)
@@ -2033,7 +2034,29 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           rm(snowofppt)
+
+          if (opt_agg[["use_doy_range"]]) {
+
+            dailyrange <- if(length(idx <- grep("yearlyPPT", names(simTime2))) > 1) {
+              simTime2[[idx]]
+            } else {
+              simTime2[[pmatch("doy_NSadj_default_", names(simTime2))]]
+            }
+
+            yearlyPPT_doyRange <- tapply(prcp.dy$ppt[dailyrange], simTime2$year_ForEachUsedDay_NSadj[dailyrange], sum)
+            snowofppt_doyRange<- prcp.dy$snowfall[dailyrange]/prcp.dy$ppt[dailyrange]
+            snowofppt_doyRange <- tapply(snowofppt_doyRange, simTime2$year_ForEachUsedDay_NSadj[dailyrange], mean, na.rm=TRUE)
+
+            resMeans[nv] <- mean(yearlyPPT_doyRange)
+            resSDs[nv] <- stats::sd(yearlyPPT_doyRange)
+            resMeans[nv+1] <- mean(snowofppt_doyRange, na.rm = TRUE)
+            resSDs[nv+1] <- stats::sd(snowofppt_doyRange, na.rm = TRUE)
+            nv <- nv+2
+
+            rm(dailyrange, yearlyPPT_doyRange, snowofppt_doyRange)
+          }
         }
+
       #9
         if (prj_todos[["aon"]]$dailySnowpack) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySnowpack")
@@ -2125,10 +2148,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           if (opt_agg[["use_doy_range"]]) {
 
-            dailyrange <- if(length(simTime2[pmatch("doy_NSadj_dailyFrostinSnowPeriod", names(simTime2))]) > 1) {
-              unlist(simTime2[pmatch("doy_NSadj_dailyFrostinSnowPeriod", names(simTime2))])
+            dailyrange <- if(length(idx <- grep("doy_NSadj_dailyFrostinSnowPeriod", names(simTime2))) > 1) {
+              simTime2[[idx]]
             } else {
-              unlist(simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))])
+              simTime2[[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]]
             }
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {

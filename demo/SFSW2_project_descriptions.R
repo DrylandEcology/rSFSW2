@@ -655,6 +655,7 @@ opt_agg <- list(
   ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
   use_doy_range = FALSE,
   doy_ranges = list(
+    yearlyPPT = NULL,
     default = c(1, 250), #default doy_range aggregation period
     #water-years calcs - N & S option for each
     dailyFrostinSnowPeriod_N = NULL, # Calculated in water-years
