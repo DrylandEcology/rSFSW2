@@ -2125,11 +2125,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           if (opt_agg[["use_doy_range"]]) {
 
-            dailyrange <- if(length(simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange) > 1) {
-              simTime2$doy_NSadj_dailyFrostinSnowPeriod_doyRange
+            dailyrange <- if(length(simTime2[pmatch("doy_NSadj_dailyFrostinSnowPeriod", names(simTime2))]) > 1) {
+              unlist(simTime2[pmatch("doy_NSadj_dailyFrostinSnowPeriod", names(simTime2))])
             } else {
-              simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))]
-
+              unlist(simTime2[pmatch("doy_NSadj_defaultWateryear", names(simTime2))])
             }
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {

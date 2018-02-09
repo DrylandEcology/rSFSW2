@@ -1629,15 +1629,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     if (aon$dailyFrostInSnowfreePeriod) {
       temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_days_mean"))
       if(opt_agg[["use_doy_range"]]) {
-          if(is.null(opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]])){
-            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
-            opt_agg[["doy_ranges"]][["defaultWateryear"]][1],"to",
-            opt_agg[["doy_ranges"]][["defaultWateryear"]][2], "_mean"))
-          } else {
-            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
-            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][1],"to",
-            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][2], "_mean"))
-          }
+          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_mean"))
       }
     }
   #12

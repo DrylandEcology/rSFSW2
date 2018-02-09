@@ -31,11 +31,14 @@ input_sim_time <- list(
 )
 
 doy_ranges = list(
-  dailyFrostinSnowPeriod = c(1,250),
-  default = c(1, 250),
-  defaultWateryear_N = c(300, 30), # default water year aggregation in the N. Hemisphere
-  defaultWateryear_S = c(92, 180) # default water year aggregation in the S. Hemisphere
+  default = c(1, 250), #default doy_range aggregation period
+  #water-years calcs - N & S option for each
+  dailyFrostinSnowPeriod_N = c(1, 250), # Calculated in water-years
+  dailyFrostinSnowPeriod_S = c(200, 350), # Calculated in water-years
+  defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+  defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
 )
+
 
 expected_sim_time_elements <- c("simstartyr", "startyr", "endyr", "DScur_startyr", "DScur_endyr",
 "future_yrs", "spinup_N", "future_N", "useyrs", "no.useyr", "no.usemo",
@@ -50,8 +53,6 @@ input_sim_timeE[["future_yrs"]] <- list(
     c(d <- 40, startyr + d, endyr + d),
     c(d <- 90, startyr + d)
   )
-
-
 
 #--- TESTS
 test_that("Obtain time information", {
