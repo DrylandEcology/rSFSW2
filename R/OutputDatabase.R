@@ -1633,11 +1633,12 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
-      temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_days_mean"))
-      if(opt_agg[["use_doy_range"]]) {#because of current implementation, can't determine DOYs for WaterYears at this point
-          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_mean"))
+      temp <- c(temp, paste0("TminBelow", rep(fieldtag_Tmin_crit_C, each =3),
+      c("withoutSnow", "withoutSpringSnow", "withoutFallSnow"), "_days_mean"))
+       if(opt_agg[["use_doy_range"]]) {#because of current implementation, can't determine DOYs for WaterYears at this point
+          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnow_doyrange_mean"))
       }
-    }
+  }
   #12
     if (aon$dailyHotDays) {
       temp <- c(temp, paste0("TmaxAbove", fieldtag_Tmax_crit_C, "_days_mean"))
