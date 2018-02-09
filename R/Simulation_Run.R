@@ -2212,6 +2212,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             rm(frostWithoutSnowDailyRange, dailyrange)
           }
         }
+      }
 
       #12
         if (prj_todos[["aon"]]$dailyHotDays) {
