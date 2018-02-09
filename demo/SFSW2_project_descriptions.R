@@ -535,6 +535,7 @@ req_out <- list(
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
+    "yearlyTranspirationBySoilLayer", 1,
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
