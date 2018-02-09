@@ -650,12 +650,19 @@ opt_agg <- list(
   Tbase_coldDD_C = 0,
 
   # Options for calculating daily aggregation options over a specific range of days
+  ## Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S), will be used if no values are specified for the other specific value (i.e. NULL)
+  ## Variables that are calculated within water-years (Begin Oct 1st in N, DOY 275, April 1st in S, DOY 92),
+  ### as opposed to typical years (Begin Jan 1st, DOY 1), the doy specific values need to be set within the bounds
+  ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
   use_doy_range = FALSE,
   doy_ranges = list(
-    dailyFrostinSnowPeriod = c(1, 250), #water year
-    default = c(1, 250),
-    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
-    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+    yearlyPPT = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailyFrostinSnowPeriod_N = NULL, # Calculated in water-years
+    dailyFrostinSnowPeriod_S = NULL, # Calculated in water-years
+    defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
   ),
 
   # Daily weather frequency distributions
