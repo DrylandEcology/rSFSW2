@@ -2160,8 +2160,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             # Calculate the number of days with min. temp < 0 and snow == 0 between the end of
             # this year's longest continuous snow pack and the beginning of next year's largest continuous snow pack.
             # Additionally, split these results into the first half of the period (Spring) and the second half (Fall).
-            for (syi in 1:(length(res.frost[, 1]) - 1))
-            {
+            for (syi in 1:(length(res.frost[, 1]) - 1)) {
               # Find the beginning and end of continuous snow pack for the next water year
               daysOfNextYear <- which(wateryears == (res.frost[syi, 1] + 1))
               r <- rle(ifelse(SWE.dy$val[daysOfNextYear] > 0, 1, 0))
@@ -2169,23 +2168,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               ind <- which(r$lengths == x)
 
               # If next year has no snow, just keep track of its days and it will become a part of the period between snow packs
-              if (length(ind) == 0)
-              {
+              if (length(ind) == 0) {
                 # If it is the last year, we must mark the last day of the year as the beginning of the next continuous
                 # snow pack, so that we can analyze the data that we have
-                if (syi == length(res.frost[, 1]))
-                {
+                if (syi == length(res.frost[, 1])) {
                   nextSnowPeriodStartDay <- length(daysOfNextYear)
-                }
-                else
-                {
+                } else {
                   daysOfThisYear <- c(daysOfThisYear, daysOfNextYear)
                   next
                 }
               }
               # If next year has snow, calculate the start and end of its longest continuous snow pack
-              else
-              {
+              else {
                 nextSnowPeriodEndDay <- cumsum(r$lengths)[ifelse(length(ind)>1, ind[which.max(r$values[ind])], ind)]
                 nextSnowPeriodStartDay <- nextSnowPeriodEndDay - x
               }
@@ -2209,9 +2203,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               daysOfThisYear <- daysOfNextYear
             }
 
-          resMeans[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, mean, na.rm = TRUE)
-          resSDs[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, stats::sd, na.rm = TRUE)
-          nv <- nv+3
+              resMeans[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, mean, na.rm = TRUE)
+              resSDs[nv:(nv+2)] <- apply(res.frost[, 2:4], 2, stats::sd, na.rm = TRUE)
+              nv <- nv+3
+            }
 
           rm(frostWithoutSnow)
 
@@ -2224,7 +2219,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                         }
 
             for (iTmin in opt_agg[["Tmin_crit_C"]]) {
-              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temp.dy$min[wateryear.trim] < iTmin & dailyrange[wateryear.trim]
+              
+              ifelse(any(is.na(temp.dy$surface)), temps <- temp.dy$min[wateryear.trim], temps <- temp.dy$surface[wateryear.trim])
+              frostWithoutSnowDailyRange <- SWE.dy$val[wateryear.trim] == 0 & temps < iTmin & dailyrange[wateryear.trim]
               frostWithoutSnowDailyRange <- tapply(frostWithoutSnowDailyRange,  wateryears[wateryear.trim], sum)  #Numbers of days with min.temp < 0 and snow == 0 within daily range
 
               resMeans[nv] <- mean(frostWithoutSnowDailyRange, na.rm = TRUE)
@@ -2234,7 +2231,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             rm(frostWithoutSnowDailyRange, dailyrange)
           }
-        }
       }
 
       #12
