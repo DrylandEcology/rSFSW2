@@ -1,25 +1,24 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.6.1
-Date: 2018-02-08
-Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu", role = c("aut", "cre")),
+Version: 2.0.0-9029-generalized_agg_funs
+Date: 2017-06-06
+Authors@R: c(person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@unibas.ch", role = c("aut", "cre")),
       person("Caitlin", "Andrews", role = "ctb"),
-      person("Zach", "Kramer", role = "ctb"),
       person("Ryan", "Murphy", role = "ctb"))
 Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
 Depends:
     R (>= 3.3.0)
 Imports:
-    rSOILWAT2 (>= 2.2.0),
-    RSQLite (>= 2.0),
-    DBI (>= 0.7),
-    Rcpp (>= 0.12.12),
+    rSOILWAT2 (>= 1.2.6),
+    RSQLite (>= 1.1),
+    DBI (>= 0.5),
+    Rcpp (>= 0.12.7),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
     methods
 Suggests:
-    Rmpi (>= 0.6-3),
+    Rmpi (>= 0.6-6),
     parallel,
     rgdal (>= 1.1.10),
     rgeos (>= 0.3.19),
@@ -39,8 +38,10 @@ Suggests:
     knitr,
     rmarkdown,
     testthat,
-    covr,
-    lintr
+    covr
+Remotes:
+    github::khufkens/daymetr,
+    github::dschlaep/weathergen
 LinkingTo:
     Rcpp
 LazyData: true

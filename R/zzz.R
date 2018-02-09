@@ -22,6 +22,8 @@
   #--- Define package level variables that should be hidden from package user and should
   # not be changed
   assign("minVersion_dbWeather", numeric_version("3.1.0"), envir = SFSW2_glovars)
+  assign("v_dbOutput", numeric_version("2.0.0"), envir = SFSW2_glovars)
+  assign("minVersion_dbOutput", numeric_version("2.0.0"), envir = SFSW2_glovars)
 
   assign("slyrs_maxN", 20L, envir = SFSW2_glovars) # number of implemented soil layers
   assign("slyrs_ids", seq_len(SFSW2_glovars[["slyrs_maxN"]]), envir = SFSW2_glovars)

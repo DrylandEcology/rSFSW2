@@ -296,7 +296,51 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode 
 
 
 
-sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
+  # Add future time windows for aggregation of simulation output
+  sim_time[["agg_years"]] <- c(agg_years,
+    future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  )
+
+  # Time windows of current and future simulation periods
+  sim_time[["sim_windows"]] <- c(
+    current = list(sim_time[["simstartyr"]]:sim_time[["endyr"]]),
+    future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  )
+
+
+degree_days <- function(temp_C, base_C = 0) {
+  res <- temp_C - base_C
+  res[res < 0] <- 0
+
+  res
+}
+
+soil_status <- function(..., swp_crit, time_N, is_dry = TRUE) {
+  swp <- list(...)
+  if (is.null(names(swp)))
+    names(swp) <- paste0("V", seq_along(swp))
+
+  out <- list()
+  mat_crits <- list()
+  ncols <- vapply(swp, function(x) dim(x)[2], FUN.VALUE = NA_real_)
+
+print("'soil_status' needs fixing")
+#TODO(drs)
+#  for (k in seq_along(swp)) {
+#    if (k > 1 &&
+#    mat_crit <- array(swp_crit, dim = c(length(swp_crit), time_N))
+#
+#
+#  mat_crit1 <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
+
+  if (is_dry) {
+    lapply(swp, function(x) x < mat_crit)
+  } else {
+    lapply(swp, function(x) x >= mat_crit)
+  }
+}
+
+sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2, return_yearly = FALSE) {
   #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
@@ -306,19 +350,37 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
       temp <- rle(x > 0)
       if (any(temp$values)) max(temp$lengths[temp$values], na.rm = TRUE) else 0
     })
-  temp_base65F <- dailyTempMean - 18.333  # 18.333 C = 65 F with (65 - 32) * 5 / 9
-  temp_base65F[temp_base65F < 0] <- 0
+
+  temp_base65F <- degree_days(dailyTempMean - 18.333, 0) # 18.333 C = 65 F with (65 - 32) * 5 / 9
   DegreeDaysAbove65F_DaysC <- tapply(temp_base65F, simTime2$year_ForEachUsedDay_NSadj, sum)
 
   nyrs <- seq_along(Month7th_MinTemp_C) #if southern Hemisphere, then 7th month of last year is not included
-  temp <- cbind(Month7th_MinTemp_C[nyrs],
+  ydat <- cbind(Month7th_MinTemp_C[nyrs],
                 LengthFreezeFreeGrowingPeriod_Days[nyrs],
                 DegreeDaysAbove65F_DaysC[nyrs])
-  res <- c(apply(temp, 2, mean), apply(temp, 2, stats::sd))
-  temp <- c("Month7th_NSadj_MinTemp_C",
-            "LengthFreezeFreeGrowingPeriod_NSadj_Days",
-            "DegreeDaysAbove65F_NSadj_DaysC")
-  names(res) <- c(temp, paste0(temp, ".sd"))
+  dimnames(ydat) <- list(NULL,
+                        c("Month7th_NSadj_MinTemp_C",
+                          "LengthFreezeFreeGrowingPeriod_NSadj_Days",
+                          "DegreeDaysAbove65F_NSadj_DaysC")
+                        )
+
+  if (return_yearly) {
+    yrs_have <- as.integer(names(Month7th_MinTemp_C[nyrs]))
+
+    if (all(yrs_have == simTime$useyrs)) {
+      res <- cbind(Years = yrs_have, ydat)
+
+    } else {
+      res <- matrix(NA, nrow = simTime$no.useyr, ncol = 4,
+                    dimnames = list(NULL, c("Years", colnames(ydat))))
+      res[, "Years"] <- simTime$useyrs
+      res[, -1] <- ydat[match(simTime$useyrs, yrs_have), ]
+    }
+
+  } else {
+    res <- c(apply(ydat, 2, mean), apply(ydat, 2, sd))
+    names(res) <- c(colnames(ydat), paste0(colnames(ydat), ".sd"))
+  }
 
   res
 }
@@ -499,6 +561,65 @@ endDoyAfterDuration <- function(x, duration = 10) {
       return(cumsum(r$lengths)[ind])
     }
   }
+}
+
+dailyRegeneration_bySWPSnow_ThisYear_YN <- function(x, opts) {
+  # calculate season doys
+  snowcover <- ifelse(x[,2] > 0, 1, 0)
+  r <- rle(snowcover)
+  rseries <- ifelse(r$values==0, 1:length(r$values), 0)
+  then <- which(rseries==rseries[rseries>0][which.max(r$lengths[rseries>0])])
+
+  sstart <- if (inherits(opts[["season.start"]], "character")) {
+      # calculate last day of the longest snowpack
+      if (then == 1) 1 else cumsum(r$lengths)[then - 1]
+    } else {
+      opts[["season.start"]]
+    }
+  send <- if (inherits(opts[["season.end"]], "character")) {
+      # calculate first day of the longest snowpack
+      min(c(cumsum(r$lengths)[then]+1, length(snowcover)))
+    } else {
+      opts[["season.end"]]
+    }
+
+  i_season <- sstart:send
+  if(length(i_season) > 0){
+    swp.season <- x[i_season,1]
+    gs <- rle(ifelse(swp.season >= opts[["germination.swp.surface"]], 1, 0))
+    es <- rle(ifelse(swp.season >= opts[["establishment.swp.surface"]] , 1, 0))
+
+    reg <- 0
+    # get vector of establishment starts and ends
+    establishment.start.dos <- establishment.end.dos <- NULL
+    for(esi in 1:length(es$lengths)){
+      if(es$lengths[esi] >= opts[["establishment.duration"]] & es$values[esi] > 0){
+        establishment.start.dos <- c(establishment.start.dos, ifelse(esi == 1, 1, cumsum(es$lengths)[esi-1]+1))
+        establishment.end.dos <- c(establishment.end.dos, cumsum(es$lengths)[esi])
+      }
+    }
+
+    # check if any germination period matches up with an establishment period
+    if(length(establishment.end.dos) > 0){
+      for(gsi in 1:length(gs$lengths)){
+        if(gs$lengths[gsi] >= opts[["germination.duration"]] & gs$values[gsi] > 0){
+          germination.start.dos <- ifelse(gsi == 1, 1, cumsum(gs$lengths)[gsi-1]+1)
+          germination.end.dos <- cumsum(gs$lengths)[gsi]
+          if( any( ((germination.start.dos + opts[["germination.duration"]] >= establishment.start.dos) &
+                    (germination.start.dos + opts[["germination.duration"]] + opts[["establishment.duration"]] <= establishment.end.dos)) |
+                  ((germination.end.dos + opts[["establishment.swp.surface"]]  >= establishment.start.dos) &
+                    (germination.end.dos + opts[["establishment.swp.surface"]]  + opts[["establishment.duration"]] <= establishment.end.dos)) ) ){
+            reg <- reg + 1
+          }
+        }
+      }
+    }
+
+  } else {
+    reg <- 0
+  }
+
+  reg > 0
 }
 
 
@@ -951,6 +1072,16 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
   }
 
   SWRunInformation
+}
+
+season_diff_NS <- function(simTime2, t_unit = "day") {
+  switch(t_unit,
+    day = ,
+    days = simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1],
+    month = ,
+    months = simTime2$month_ForEachUsedMonth_NSadj[1] - simTime2$month_ForEachUsedMonth[1],
+
+    stop("'season_diff_NS': unknown time unit"))
 }
 
 

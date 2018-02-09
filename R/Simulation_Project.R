@@ -147,6 +147,9 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
   #--- Matrix to track progress with input preparations
   SFSW2_prj_meta[["input_status"]] <- init_intracker()
 
+  #--- Functionality to aggregate simulation output
+  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
+
   SFSW2_prj_meta
 }
 
