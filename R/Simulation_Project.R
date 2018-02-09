@@ -892,7 +892,6 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   #--------------------------------------------------------------------------------------#
   #------------ORGANIZE DATABASES FOR SIMULATION OUTPUT
-
   SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- make_dbOutput(SFSW2_prj_meta,
     SFSW2_prj_inputs, verbose = opt_verbosity[["verbose"]])
 

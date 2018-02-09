@@ -1614,6 +1614,12 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
   #8.
     if (aon$yearlyPPT) {
       temp <- c(temp, c("MAP_mm_mean", "SnowOfPPT_fraction_mean"))
+      if(opt_agg[["use_doy_range"]]) {
+        ranges <- if(is.null(opt_agg$doy_ranges$yearlyPPT)) c(opt_agg$doy_ranges$default) else c(opt_agg$doy_ranges$default)
+          temp <- c(temp,
+            paste0("MAP_mm_doyRange",ranges[1],"to", ranges[2],"_mean"),
+            paste0("SnowOfPPT_fraction_doyRange",ranges[1],"to", ranges[2],"_mean"))
+      }
     }
 
   #9.
@@ -1628,16 +1634,8 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
       temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_days_mean"))
-      if(opt_agg[["use_doy_range"]]) {
-          if(is.null(opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]])){
-            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
-            opt_agg[["doy_ranges"]][["defaultWateryear"]][1],"to",
-            opt_agg[["doy_ranges"]][["defaultWateryear"]][2], "_mean"))
-          } else {
-            temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_",
-            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][1],"to",
-            opt_agg[["doy_ranges"]][["dailyFrostinSnowPeriod"]][2], "_mean"))
-          }
+      if(opt_agg[["use_doy_range"]]) {#because of current implementation, can't determine DOYs for WaterYears at this point
+          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "_withoutSnowpack_doyrange_mean"))
       }
     }
   #12
