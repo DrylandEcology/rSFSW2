@@ -31,7 +31,7 @@ input_sim_time <- list(
 )
 
 doy_ranges = list(
-  yearlyPPT = NULL,
+  yearlyPPT = c(1,249),
   default = c(1, 250), #default doy_range aggregation period
   #water-years calcs - N & S option for each
   dailyFrostinSnowPeriod_N = c(1, 250), # Calculated in water-years
