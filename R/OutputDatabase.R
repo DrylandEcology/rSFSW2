@@ -2003,14 +2003,14 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
     }
 
     #43.3
-    if(aon$periodicVWCmatric){
+    if(aon$periodicVWCmatricFirstLayer){
       if(opt_agg$use_doy_range) {
       ranges <- if(is.null(opt_agg$doy_ranges$periodicVWCmatric)) c(opt_agg$doy_ranges$default) else c(opt_agg$doy_ranges$periodicVWCmatric)
-    }
       temp <- c(temp,
       paste0("periodicVWCmatricMean_FirstLayer_doyRange",ranges[1],"to",ranges[2],"_mean"),
       paste0("periodicVWCmatricSum_FirstLayer_doyRange",ranges[1],"to",ranges[2],"_mean"))
     }
+  }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################
 
