@@ -620,10 +620,13 @@ opt_agg <- list(
     yearlyPPT = NULL,
     default = c(1, 250), #default doy_range aggregation period
     #water-years calcs - N & S option for each
-    dailyFrostinSnowPeriod_N = NULL, # Calculated in water-years
-    dailyFrostinSnowPeriod_S = NULL, # Calculated in water-years
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
     defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
     defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
+
   ),
 
   # Daily weather frequency distributions

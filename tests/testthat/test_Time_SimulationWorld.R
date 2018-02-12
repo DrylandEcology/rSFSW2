@@ -34,8 +34,10 @@ doy_ranges = list(
   yearlyPPT = c(1,249),
   default = c(1, 250), #default doy_range aggregation period
   #water-years calcs - N & S option for each
-  dailyFrostinSnowPeriod_N = c(1, 250), # Calculated in water-years
-  dailyFrostinSnowPeriod_S = c(200, 350), # Calculated in water-years
+  dailySnowpack_N = c(1, 250),
+  dailySnowpack_S = c(200, 350),
+  dailyFrostinSnowPeriod_N = c(1, 250),
+  dailyFrostinSnowPeriod_S = c(200, 350), 
   defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
   defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
 )

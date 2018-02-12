@@ -1629,14 +1629,20 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
 
   #10.
     if (aon$dailySnowpack) {
-      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.FirstDay_doy", "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE", "SnowCover.FirstDay_doy", "SnowCover.LastDay_doy"), "_mean"))
+      temp <- c(temp, paste0("Snowcover.NSadj.", c("Peak_doy", "LongestContinuous.FirstDay_doy",
+      "LongestContinuous.LastDay_doy", "LongestContinuous.Duration_days", "Total_days", "Peak_mmSWE",
+      "SnowCover.FirstDay_doy", "SnowCover.LastDay_doy"), "_mean"))
+      if(opt_agg[["use_doy_range"]]) {#because of current implementation, can't determine DOYs for WaterYears at this point
+         temp <- c(temp, paste0("Snowcover.NSadj.",
+         c("Peak_doy", "Total_days", "Peak_mmSWE"), "_doyRange_mean"))
+     }
     }
   #11
     if (aon$dailyFrostInSnowfreePeriod) {
       temp <- c(temp, paste0("TminBelow", rep(fieldtag_Tmin_crit_C, each =3),
       c("withoutSnow", "withoutSpringSnow", "withoutFallSnow"), "_days_mean"))
        if(opt_agg[["use_doy_range"]]) {#because of current implementation, can't determine DOYs for WaterYears at this point
-          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnow_doyrange_mean"))
+          temp <- c(temp, paste0("TminBelow", fieldtag_Tmin_crit_C, "withoutSnow_doyRange_mean"))
       }
   }
   #12
