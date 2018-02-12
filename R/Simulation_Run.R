@@ -4249,7 +4249,39 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rm(dryness, conds, VPD_during_Stress, Temp_during_Stress1,
             Temp_during_Stress2, out_during_Stress)
         }
+      #43.3
+      if (prj_todos[["aon"]]$periodicVWCmatric) {
+        if(opt_agg$use_doy_range) {
 
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "periodicVWCmatric")
+          if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
+
+          doy.trim <- if(!is.null(opt_agg[["doy_ranges"]][["periodicVWCmatric"]])){
+            c(opt_agg[["doy_ranges"]][["periodicVWCmatric"]][1]:opt_agg[["doy_ranges"]][["periodicVWCmatric"]][2])
+          }else{
+            c(opt_agg[["doy_ranges"]][["default"]][1]:opt_agg[["doy_ranges"]][["default"]][2])
+          }
+
+          years <- unique(vwcmatric.dy.all$val[,1])
+          year.trim <- years[2:length(years)]
+
+          vwclayervals <- vwcmatric.dy.all$val[vwcmatric.dy.all$val[,1] %in% year.trim,]
+          vwclayervals <-vwclayervals[vwclayervals[,2] %in% doy.trim,]
+
+          periodicVWCmeans <- tapply(vwclayervals[,3], vwclayervals[,1], mean)
+          periodicVWCsums <- tapply(vwclayervals[,3], vwclayervals[,1], sum)
+
+          resMeans[nv:(nv+1)] <- mean(periodicVWCmeans, na.rm = TRUE)
+          resSDs[nv:(nv+1)] <- sd(periodicVWCmeans, na.rm = TRUE)
+          nv <- nv + 1
+
+          resMeans[nv:(nv+1)] <- mean(periodicVWCsums, na.rm = TRUE)
+          resSDs[nv:(nv+1)] <- sd(periodicVWCsums, na.rm = TRUE)
+          nv <- nv + 1
+
+          rm(vwclayervals, doy.trim, year.trim, periodicVWCmeans, periodicVWCsums)
+        }
+      }
 
         #---Aggregation: Mean monthly values
       #44

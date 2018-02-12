@@ -525,6 +525,7 @@ req_out <- list(
     "dailySWPdrynessEventSizeDistribution", 1,
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
+    "periodicVWCmatricFirstLayer", 1,
   #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
@@ -618,6 +619,7 @@ opt_agg <- list(
   use_doy_range = TRUE,
   doy_ranges = list(
     yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
     default = c(1, 250), #default doy_range aggregation period
     #water-years calcs - N & S option for each
     dailySnowpack_N = NULL,
@@ -626,7 +628,6 @@ opt_agg <- list(
     dailyFrostinSnowPeriod_S = NULL,
     defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
     defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
-
   ),
 
   # Daily weather frequency distributions

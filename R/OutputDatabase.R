@@ -1615,7 +1615,7 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
     if (aon$yearlyPPT) {
       temp <- c(temp, c("MAP_mm_mean", "SnowOfPPT_fraction_mean"))
       if(opt_agg[["use_doy_range"]]) {
-        ranges <- if(is.null(opt_agg$doy_ranges$yearlyPPT)) c(opt_agg$doy_ranges$default) else c(opt_agg$doy_ranges$default)
+        ranges <- if(is.null(opt_agg$doy_ranges$yearlyPPT)) c(opt_agg$doy_ranges$default) else c(opt_agg$doy_ranges$yearlyPPT)
           temp <- c(temp,
             paste0("MAP_mm_doyRange",ranges[1],"to", ranges[2],"_mean"),
             paste0("SnowOfPPT_fraction_doyRange",ranges[1],"to", ranges[2],"_mean"))
@@ -2000,6 +2000,16 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
           "_MoistureStress_SWPcrit", fieldtag_SWPcrit_MPa, "_",
           rep(soils, each = Nout * length(extremes)), "_",
           rep(aggs, each = opt_agg[["SWPcrit_N"]])))
+    }
+
+    #43.3
+    if(aon$periodicVWCmatric){
+      if(opt_agg$use_doy_range) {
+      ranges <- if(is.null(opt_agg$doy_ranges$periodicVWCmatric)) c(opt_agg$doy_ranges$default) else c(opt_agg$doy_ranges$periodicVWCmatric)
+    }
+      temp <- c(temp,
+      paste0("periodicVWCmatricMean_FirstLayer_doyRange",ranges[1],"to",ranges[2],"_mean"),
+      paste0("periodicVWCmatricSum_FirstLayer_doyRange",ranges[1],"to",ranges[2],"_mean"))
     }
 
     ##############################################################---Aggregation: Mean monthly values---##############################################################
