@@ -242,7 +242,6 @@ simTiming_ForEachUsedTimeUnit <- function(st,
     #In South, Water year starting April 1 - Using DOY 92, which is April 1st in Leap Years, but April 2nd in typical years
 
     FirstDOY_WaterYear <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 274, 92)
-    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 92, 274)
     res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > FirstDOY_WaterYear, 1, 0)
 
     if(use_doy_range){
@@ -257,34 +256,19 @@ simTiming_ForEachUsedTimeUnit <- function(st,
 
       for(dr in seq_along(doy_ranges)){
         if(!is.null(doy_ranges[[dr]])){ #for all non-NULL doy_range values
-        # Should the range years be adjusted for water years? If the aggregation uses
-        # water year logic in its calculation, then yes.
-          if(dr %in% grep("_N|_S",names(doy_ranges))){
-            doy_range_values <- doy_ranges[[dr]] + adjDays #adjust
-            doy_range_values <- ifelse(doy_range_values > 365, abs(doy_range_values - 365), doy_range_values) #fix adjust
-          }else{
-            doy_range_values <- doy_ranges[[dr]]
-       }
-
-       #check that (1) value doy_range_values[1] is now less than value [doy_range_values[2]
-       # And that values are (2) within 1 - 365
-              if(doy_range_values[1] >= doy_range_values[2] ||
-                any(!doy_range_values %in% c(1:365))){
-                    print(paste('The calculated doy_range_values for ', names(doy_ranges)[dr],
-                    'are out of range. Values must be between 1 & 365 AND the first values must be
-                    less than the second, after conversion. Current values are:',
-                    doy_range_values[1], 'and', doy_range_values[2]))
-                    stopifnot()
-
-       }
+          doy_range_values <- doy_ranges[[dr]]
 
        # Create daily logical vector indicating whether that doy is within range or not
         res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
+        if(doy_range_values[1] > doy_range_values[2]){
+          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:366,1:doy_range_values[2]), TRUE, FALSE)
+          }else{
           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
         }
       }
-      }
+    }
   }
+}
 
 
 
