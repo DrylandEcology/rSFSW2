@@ -776,6 +776,24 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       tracker = "prj_todos", checked = icheck)
   }
 
+  #--- Check table lookups prior to simulation runs
+  if (todo_intracker(SFSW2_prj_meta, "table_lookup", "checked")) {
+
+    icheck <- length(SFSW2_prj_inputs[["done_prior"]]) == 0
+
+    if (any(icheck)) {
+      stop("Table lookups prior to simulation runs was not carried out: reset tracker with:\n",
+        "\t`SFSW2_prj_meta[['input_status']] <- update_intracker(SFSW2_prj_meta[['input_status']], ",
+            "tracker = 'table_lookup', prepared = FALSE, checked = FALSE)`\n",
+        "and repeat call to function `populate_rSFSW2_project_with_data`")
+    }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "table_lookup", checked = all(!icheck))
+  }
+
+
+
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
