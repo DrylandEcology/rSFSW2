@@ -993,7 +993,7 @@ move_output_to_dbOutput <- function(actions, SFSW2_prj_meta, t_job_start, opt_pa
   t.outputDB <- Sys.time()
   runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-  stopifnot(runsN_todo > 0 && is.null(dir_out_temp))
+  stopifnot(runsN_todo > 0 && !is.null(dir_out_temp))
 
   has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +
     opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
