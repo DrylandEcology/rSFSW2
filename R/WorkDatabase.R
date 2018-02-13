@@ -311,12 +311,12 @@ recreate_dbWork <- function(path, dbOutput) {
     # Infer design of simulation experiment
     infer_expN <- max(table_runs[, "treatment_id"])
     infer_scN <- max(table_runs[, "scenario_id"])
-    infer_runIDs <- it_sim2(table_runs[, "P_id"], infer_scN)
+    infer_runIDs <- unique(it_sim2(table_runs[, "P_id"], infer_scN))
     infer_runsN_total <- max(infer_runIDs)
 
     infer_runsN_master <- dim(table_sites)[1]
     infer_include_YN <- as.logical(table_sites[, "Include_YN"])
-    infer_runsN_sites <- sum(infer_include_YN)
+    infer_runIDmax_sites <- max(table_sites[, "site_id"])
 
     do_new_dbWork <- TRUE
 
@@ -329,9 +329,10 @@ recreate_dbWork <- function(path, dbOutput) {
         has_work <- DBI::dbReadTable(con2, "work")
 
         if (all(c("runID_total", "runID_sites") %in% names(has_work))) {
+          # Create new dbWork if number of total runs or number of sites does not match
           do_new_dbWork <- !(max(has_work[, "runID_total"]) == dim(has_work)[1] &&
             max(has_work[, "runID_total"]) == infer_runsN_total &&
-            max(has_work[, "runID_sites"]) == infer_runsN_sites)
+            max(has_work[, "runID_sites"]) == infer_runIDmax_sites)
         }
       }
     }
@@ -343,32 +344,35 @@ recreate_dbWork <- function(path, dbOutput) {
       setup_dbWork(path, infer_sim_size, include_YN = infer_include_YN)
 
     } else {
-      if (!identical(as.logical(has_work[, "include_YN"]), infer_include_YN)) {
-        # Update include_YN
+      # Check whether include_YN should be updated
+      infer_include_YN2 <- rep(as.integer(infer_include_YN), times = infer_expN)
+      if (!identical(has_work[, "include_YN"], infer_include_YN2)) {
         con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
         on.exit(DBI::dbDisconnect(con2), add = TRUE)
 
         rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET include_YN = :x1",
           "WHERE runID_total = :x2"))
-        DBI::dbBind(rs, param = list(x1 = infer_include_YN, x2 = infer_runIDs))
+        DBI::dbBind(rs, param = list(x1 = infer_include_YN2, x2 = infer_runIDs))
         DBI::dbClearResult(rs)
       }
     }
 
-    # Update completed
+    #--- Update completed runs
     con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
     on.exit(DBI::dbDisconnect(con), add = TRUE)
 
+    #- Update completed runs based on dbOutput
     tables <- dbOutput_ListOutputTables(con)
     # get Pids for which simulation output is in the outputDB
     has_pids <- lapply(tables, function(x) DBI::dbGetQuery(con,
       paste0("SELECT P_id FROM \"", x, "\""))[, 1])
     has_complete_pids <- intersect2(has_pids)
-    has_complete_runIDs <- unique(it_sim2(has_complete_pids, infer_scN))
 
     if (length(has_complete_pids) > 0) {
       con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
       on.exit(DBI::dbDisconnect(con2), add = TRUE)
+
+      has_complete_runIDs <- unique(it_sim2(has_complete_pids, infer_scN))
 
       rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET completed = 1, failed = 0,",
       "inwork = 0, time_s = 0 WHERE runID_total = :x"))
