@@ -123,16 +123,17 @@ temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parall
 SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
 SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-  "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
-  "and re-run project.", call. = FALSE, immediate. = TRUE)
-
+if (isTRUE(opt_verbosity[["verbose"]])) {
+  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
+    "and re-run project.", call. = FALSE, immediate. = TRUE)
+}
 
 
 ##############################################################################
 #------ 4) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
 
-if (actions[["check_inputs"]]) {
+if (isTRUE(actions[["check_inputs"]])) {
 
   temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
     opt_verbosity)
@@ -140,9 +141,11 @@ if (actions[["check_inputs"]]) {
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
-    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
+  if (isTRUE(opt_verbosity[["verbose"]])) {
+    warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+      "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
+      "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
+  }
 }
 
 
@@ -167,7 +170,7 @@ if (isTRUE(actions[["concat_dbOut"]])) {
 ##############################################################################
 #------ 6) ENSEMBLE GENERATION -----------------------------------------------
 
-if (actions[["ensemble"]]) {
+if (isTRUE(actions[["ensemble"]])) {
 
   rSFSW2:::generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
     verbose = opt_verbosity[["verbose"]])
@@ -178,7 +181,7 @@ if (actions[["ensemble"]]) {
 ##############################################################################
 #------ 7) CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION --------------
 
-if (actions[["check_dbOut"]]) {
+if (isTRUE(actions[["check_dbOut"]])) {
 
   check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
     opt_out_run, verbose = opt_verbosity[["verbose"]])
