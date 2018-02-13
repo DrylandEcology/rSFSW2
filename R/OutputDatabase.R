@@ -566,6 +566,29 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
   OK_agree
 }
 
+#' Locate temporary output files
+get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFiles = TRUE,
+  resume = TRUE) {
+
+  theFileList <- list.files(path = dir_out_temp, pattern = "SQL", full.names = FALSE,
+    recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+
+  # remove any already inserted files from list
+  if (!deleteTmpSQLFiles && resume) {
+    completedFiles <- if (file.exists(concatFile)) {
+        basename(readLines(concatFile))
+      } else {
+        character(0)
+      }
+    temp <- theFileList %in% completedFiles
+    if (any(temp)) {
+      theFileList <- theFileList[!temp]
+    }
+  }
+
+  theFileList
+}
+
 
 move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_verbosity, dir_out_temp = NULL) {
@@ -585,25 +608,13 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
   }
 
   #concatenate file keeps track of sql files inserted into data
-  concatFile <- "sqlFilesInserted.txt"
+  concatFile <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    "sqlFilesInserted.txt")
 
-  # Locate temporary SQL files
-  theFileList <- list.files(path = dir_out_temp, pattern = "SQL", full.names = FALSE,
-    recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
-
-  # remove any already inserted files from list
-  if (!opt_out_run[["deleteTmpSQLFiles"]] && opt_behave[["resume"]]) {
-    temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile)
-    completedFiles <- if (file.exists(temp)) {
-        basename(readLines(temp))
-      } else {
-        character(0)
-      }
-    temp <- theFileList %in% completedFiles
-    if (any(temp)) {
-      theFileList <- theFileList[!temp]
-    }
-  }
+  # get list of all temporary output files not yet moved to dbOutput
+  theFileList <- get_fnames_temporaryOutput(dir_out_temp, concatFile,
+    deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
+    resume = opt_behave[["resume"]])
 
   if (length(theFileList) > 0) {
     # Connect to the Database
@@ -806,9 +817,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
       # Clean up and report
       if (OK_tempfile || !is.null(notOK_lines)) {
-        cat(file.path(dir_out_temp, theFileList[j]),
-          file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile),
-          append = TRUE, sep = "\n")
+        cat(file.path(dir_out_temp, theFileList[j]), file = concatFile, append = TRUE,
+          sep = "\n")
 
         if (opt_out_run[["deleteTmpSQLFiles"]])
           try(file.remove(file.path(dir_out_temp, theFileList[j])), silent = TRUE)
@@ -899,6 +909,23 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  #--- CHECK THAT ALL SIMULATION RUNS ARE COMPLETE AND DATA HAVE BEEN MOVED TO dbOutput
+  runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+  tempN_todo <- length(get_fnames_temporaryOutput(
+    dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      "sqlFilesInserted.txt"),
+    deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
+    resume = opt_behave[["resume"]]))
+
+  if (runsN_todo > 0 || tempN_todo > 0) {
+    stop(temp_call, " can only process `dbOutput` after all simulation runs have completed",
+      " and once all temporary output files have been moved to the database: \n",
+      "Currently, n(unfinished runs) = ", runsN_todo,
+      " and n(unfinished temporary files) = ", tempN_todo)
   }
 
   #--- SET UP PARALLELIZATION
