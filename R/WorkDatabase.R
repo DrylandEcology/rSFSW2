@@ -291,9 +291,42 @@ dbWork_check <- function(path, runIDs) {
 #'
 #' @inheritParams create_dbWork
 #' @param dbOutput A character string. Full name to the output database.
+#' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path} and \code{dbOutput} may
+#'  be missing. If not \code{NULL}, then code checks that no temporary output files remain
+#'  unprocessed.
+#'
 #' @return A logical vector indicating success.
+#'
 #' @export
-recreate_dbWork <- function(path, dbOutput) {
+recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
+  if (missing(path)) {
+    path <- if (!is.null(SFSW2_prj_meta)) {
+        SFSW2_prj_meta[["project_paths"]][["dir_out"]]
+      } else stop("'recreate_dbWork': argument 'path' is missing.")
+  }
+
+  if (missing(dbOutput)) {
+    dbOutput <- if (!is.null(SFSW2_prj_meta)) {
+        SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]
+      } else stop("'recreate_dbWork': argument 'dbOutput' is missing.")
+  }
+
+  if (!is.null(SFSW2_prj_meta)) {
+    # check that no temporary output files remain unprocessed
+    tempN_todo <- length(get_fnames_temporaryOutput(
+      dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        "sqlFilesInserted.txt")))
+
+    if (tempN_todo > 0) {
+      stop("'recreate_dbWork' can only correctly re-create `dbWork` if",
+        " all temporary output files have been moved to the database: \n",
+        "Currently, n(unfinished temporary files) = ", tempN_todo, ".\n",
+        "Use first, for instance, function `move_output_to_dbOutput` before trying again.")
+    }
+  }
+
+
   if (file.exists(dbOutput)) {
     dbWork <- fname_dbWork(path)
 
