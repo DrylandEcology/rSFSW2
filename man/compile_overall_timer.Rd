@@ -5,8 +5,8 @@
 \title{Write timing information to the timing file}
 \usage{
 compile_overall_timer(timerfile2, dir_out, workersN = 0, runs.completed = 0,
-  scenario_No = 0, ensembles.completed = 0, delta.overall = 0,
-  delta.outputDB = 0, delta.check = 0, delta.ensembles = 0)
+  scenario_No = 0, ensembles.completed = 0, delta.overall = NA,
+  delta.outputDB = NA, delta.check = NA, delta.ensembles = NA)
 }
 \description{
 Write timing information to the timing file

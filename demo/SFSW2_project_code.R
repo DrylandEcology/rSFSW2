@@ -150,10 +150,16 @@ if (actions[["check_inputs"]]) {
 ##############################################################################
 #------ 5) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
-if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut")]))) {
+if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
 
   SFSW2_prj_meta <- simulate_SOILWAT2_experiment(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
-    t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+    opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+}
+
+if (isTRUE(actions[["concat_dbOut"]])) {
+
+  stopifnot(move_output_to_dbOutput(actions, SFSW2_prj_meta, t_job_start,
+    opt_parallel, opt_behave, opt_verbosity))
 }
 
 

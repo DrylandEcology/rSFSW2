@@ -854,7 +854,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 #' Carry out a rSFSW2 simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
-  t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
+  opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
 
   t1 <- Sys.time()
 
@@ -942,57 +942,6 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   }
 
 
-  #--------------------------------------------------------------------------------------#
-  # NOTE(drs): 'concatenation' may be much faster if temporary text files are not constructed
-  # around SQL insert statements, but instead as data.frames. Text files containing
-  # data.frames may be much faster with checks for duplicate P_id entries and could be
-  # inserted at once (instead of line by line) with the command
-  #   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
-
-  # NOTE: The variables 'pids_inserted' and 'pids2_inserted' become quickly very large and
-  #   may then be too large for available memory
-
-  t.outputDB <- Sys.time()
-
-  if (actions[["concat_dbOut"]]) {
-
-    has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +
-      opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
-      opt_parallel[["opt_job_time"]][["wall_time_s"]]
-
-    if (has_time_to_concat) {
-      move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-        opt_verbosity)
-
-    } else {
-      print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
-        "seconds to put SQL in output DB."))
-    }
-
-
-    if (SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] &&
-      !SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]) {
-
-      has_time_to_concat <- {difftime(Sys.time(), t_job_start, units = "secs") +
-        opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
-        opt_parallel[["opt_job_time"]][["wall_time_s"]]
-
-      if (has_time_to_concat) {
-        do_copyCurrentConditionsFromDatabase(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
-          SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]],
-          verbose = opt_verbosity[["verbose"]])
-
-      } else {
-        print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
-          "seconds to put SQL in output DB."))
-      }
-    }
-  }
-
-  #timing of outputDB
-  delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
-
-
   oe <- sys.on.exit()
   oe <- remove_from_onexit_expression(oe, "exit_SFSW2_cluster")
   on.exit(eval(oe), add = FALSE)
@@ -1004,9 +953,8 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   compile_overall_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
     SFSW2_prj_meta[["project_paths"]][["dir_out"]], SFSW2_glovars[["p_workersN"]],
-    runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, delta.outputDB,
+    runs.completed, SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, NA,
     0, 0)
-
 
   #---------------------------------------------------------------------------------------#
   if (opt_verbosity[["verbose"]])
@@ -1014,4 +962,76 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
 
   SFSW2_prj_meta
+}
+
+
+#--------------------------------------------------------------------------------------#
+#' Move temporary output data to output databases
+#'
+#' @param dir_out_temp A character string. The path to temporary output files.
+#'  If \code{NULL}, then temporary output files are assumed to be located at
+#'  \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]}. This cannot be \code{NULL}
+#'  unless all simulation runs have finished (to prevent overwriting of temporary output
+#'  files of a potential concurrent run).
+#'
+#' @section Notes: 'concatenation' may be much faster if temporary text files are not constructed
+#' around SQL insert statements, but instead as data.frames. Text files containing
+#' data.frames may be much faster with checks for duplicate P_id entries and could be
+#' inserted at once (instead of line by line) with the command
+#'   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
+#'
+#' @section Notes: The variables 'pids_inserted' and 'pids2_inserted' become quickly
+#'   very large and may then be too large for available memory
+#'
+#' @section Notes: It only makes sense to follow `opt_out` option `dbOutCurrent_from_dbOut`
+#   once all simulation runs are completed. The code checks for this.
+#'
+#' @export
+move_output_to_dbOutput <- function(actions, SFSW2_prj_meta, t_job_start, opt_parallel,
+  opt_behave, opt_verbosity, dir_out_temp = NULL) {
+
+  t.outputDB <- Sys.time()
+  runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+  stopifnot(runsN_todo > 0 && is.null(dir_out_temp))
+
+  has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +
+    opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
+    opt_parallel[["opt_job_time"]][["wall_time_s"]]
+
+  if (has_time_to_concat) {
+    move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
+      opt_verbosity, dir_out_temp = dir_out_temp)
+
+  } else {
+    print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
+      "seconds to put SQL in output DB."))
+  }
+
+
+  if (SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] &&
+    !SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] && runsN_todo == 0) {
+
+    has_time_to_concat <- {difftime(Sys.time(), t_job_start, units = "secs") +
+      opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
+      opt_parallel[["opt_job_time"]][["wall_time_s"]]
+
+    if (has_time_to_concat) {
+      do_copyCurrentConditionsFromDatabase(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+        SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]],
+        verbose = opt_verbosity[["verbose"]])
+
+    } else {
+      print(paste("Need at least", opt_parallel[["opt_job_time"]][["one_concat_s"]],
+        "seconds to put SQL in output DB."))
+    }
+  }
+
+  #timing of outputDB
+  delta.outputDB <- as.double(difftime(Sys.time(), t.outputDB, units = "secs"))
+
+  write_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]], "Time_OutputDB",
+    time_sec = delta.outputDB)
+
+  invisible(TRUE)
 }

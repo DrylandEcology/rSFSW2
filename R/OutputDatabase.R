@@ -568,7 +568,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 
 
 move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity) {
+  opt_behave, opt_verbosity, dir_out_temp = NULL) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -579,13 +579,17 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  if (is.null(dir_out_temp)) {
+    # Use default project location for temporary text files
+    dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+  }
+
   #concatenate file keeps track of sql files inserted into data
   concatFile <- "sqlFilesInserted.txt"
 
   # Locate temporary SQL files
-  theFileList <- list.files(path = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-    pattern = "SQL", full.names = FALSE, recursive = TRUE, include.dirs = FALSE,
-    ignore.case = FALSE)
+  theFileList <- list.files(path = dir_out_temp, pattern = "SQL", full.names = FALSE,
+    recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
 
   # remove any already inserted files from list
   if (!opt_out_run[["deleteTmpSQLFiles"]] && opt_behave[["resume"]]) {
@@ -603,7 +607,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
   if (length(theFileList) > 0) {
     # Connect to the Database
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    con <- DBI::dbConnect(RSQLite::SQLite(),
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
     on.exit(DBI::dbDisconnect(con), add = TRUE)
 
     out_tables_aggr <- dbOutput_ListOutputTables(con)
@@ -619,7 +624,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
       to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     }
     if (do_DBCurrent) {
-      con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+      con2 <- DBI::dbConnect(RSQLite::SQLite(),
+        dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       on.exit(DBI::dbDisconnect(con2), add = TRUE)
 
       if (reset_DBCurrent) {
@@ -649,7 +655,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
         break
 
       # Read SQL statements from temporary file
-      sql_cmds <- readLines(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]))
+      sql_cmds <- readLines(file.path(dir_out_temp, theFileList[j]))
       add_to_DBCurrent <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
 
       if (opt_verbosity[["verbose"]])
@@ -794,16 +800,18 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
         OK_tempfile <- FALSE
         # Write failed lines to new file
         writeLines(sql_cmds[notOK_lines],
-          con = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], sub(".", "_failed.", theFileList[j], fixed = TRUE)))
+          con = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+          sub(".", "_failed.", theFileList[j], fixed = TRUE)))
       }
 
       # Clean up and report
       if (OK_tempfile || !is.null(notOK_lines)) {
-        cat(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j]),
-            file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile), append = TRUE, sep = "\n")
+        cat(file.path(dir_out_temp, theFileList[j]),
+          file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], concatFile),
+          append = TRUE, sep = "\n")
 
         if (opt_out_run[["deleteTmpSQLFiles"]])
-          try(file.remove(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], theFileList[j])), silent = TRUE)
+          try(file.remove(file.path(dir_out_temp, theFileList[j])), silent = TRUE)
       }
 
       if (opt_verbosity[["print.debug"]]) {
