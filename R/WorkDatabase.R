@@ -452,9 +452,16 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
   success <- FALSE
   res <- 0L
 
+  if (verbose) {
+    t0 <- Sys.time()
+  }
+
   repeat {
-    if (verbose)
-      print(paste0("'dbWork_update_job': (", runID, "-", status, ") attempt to update"))
+    if (verbose) {
+      print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+        ") attempt to update after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
+        " s"))
+    }
 
     lock <- lock_access(lock, verbose, seed = NA)
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
@@ -464,8 +471,9 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
     if (inherits(con, "SQLiteConnection")) {
       res <- try(DBI::dbWithTransaction(con, {
         if (verbose) {
-          print(paste0("'dbWork_update_job': (", runID, "-", status,
-            ") start transaction"))
+          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+            ") start transaction after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
+            " s"))
         }
 
         temp <- if (status == "completed") {
@@ -495,15 +503,17 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
 
         if (!lock$confirmed_access) {
           if (verbose) {
-            print(paste0("'dbWork_update_job': (", runID, "-", status,
-              ") access confirmation failed"))
+            print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+              ") access confirmation failed after ",
+              round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
           }
           temp <- 0L
           DBI::dbBreak()
 
         } else if (verbose) {
-          print(paste0("'dbWork_update_job': (", runID, "-", status,
-            ") transaction confirmed"))
+          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+            ") transaction confirmed after ",
+            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
         }
 
         as.integer(temp)
@@ -517,7 +527,9 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
 
     } else {
       if (verbose) {
-        print(paste0("'dbWork_update_job': (", runID, "-", status, ") 'dbWork' is locked"))
+        print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+          ") 'dbWork' is locked after ",
+          round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
       }
     }
   }
