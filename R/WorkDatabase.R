@@ -408,7 +408,7 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
       has_complete_runIDs <- unique(it_sim2(has_complete_pids, infer_scN))
 
       rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET completed = 1, failed = 0,",
-      "inwork = 0, time_s = 0 WHERE runID_total = :x"))
+        "inwork = 0 WHERE runID_total = :x"))
       DBI::dbBind(rs, param = list(x = has_complete_runIDs))
       DBI::dbClearResult(rs)
     }
