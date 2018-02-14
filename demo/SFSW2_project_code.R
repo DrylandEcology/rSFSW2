@@ -59,7 +59,7 @@ actions <- list(
 
 
 ##############################################################################
-#------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
+#------ 1) CREATE A NEW / LOAD AN EXISTING SIMULATION PROJECT -------------------------
 
 # If code is run non-interactively or if this is a test project:
 # then current working directory must be folder of projects,
@@ -73,40 +73,13 @@ writeLines(c("", "",
     t_job_start),
   "##############################################################################", ""))
 
-fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
-fmetar <- file.path(dir_prj, "SFSW2_project_descriptions.R")
-
-if (file.exists(fmeta)) {
-
-  # Load pre-prepared project description if it was setup previously
-  SFSW2_prj_meta <- readRDS(fmeta)
-
-  # Ensure that all necessary paths do exists
-  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
-
-} else {
-
-  # 1a) Setup default project infrastructure
-  setup_rSFSW2_project_infrastructure(dir_prj)
-
-  # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
-  warning("'SFSW2_project_code.R': Check/adjust project description/metadata in file ",
-    shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
-    immediate. = TRUE)
-
-  # 1c) Load and prepare project description
-  SFSW2_prj_meta <- new.env(parent = baseenv())
-  sys.source(fmetar, envir = SFSW2_prj_meta, keep.source = FALSE)
-
-  SFSW2_prj_meta <- init_rSFSW2_project(SFSW2_prj_meta, fmeta)
-
-  saveRDS(SFSW2_prj_meta, file = fmeta)
-}
+SFSW2_prj_meta <- init_rSFSW2_project(
+  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE)
 
 
 
 ##############################################################################
-#------ 2) LOAD SETTINGS FOR THIS RUN ----------------------------------------
+#------ 2) LOAD THE SETTINGS FOR THIS RUN ----------------------------------------
 # Setting objects:
 #   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
 source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,

@@ -93,15 +93,63 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE) {
   invisible(dir_prj)
 }
 
+load_project_description <- function(fmetar) {
+  meta <- new.env(parent = baseenv())
+  sys.source(fmetar, envir = meta, keep.source = FALSE)
+
+  meta
+}
+
+update_project_paths <- function(SFSW2_prj_meta, fmetar) {
+  SFSW2_prj_meta2 <- load_project_description(fmetar)
+
+  #--- Update paths of 'project_paths'
+  xnames <- names(SFSW2_prj_meta[["project_paths"]])
+  names_shared <- intersect(xnames, names(SFSW2_prj_meta2[["project_paths"]]))
+
+  for (k in names_shared) {
+    SFSW2_prj_meta[["project_paths"]][[k]] <- SFSW2_prj_meta2[["project_paths"]][[k]]
+  }
+
+  #TODO: don't ignore added elements
+  # names_added <- xnames[!(xnames %in% names_shared)]
+
+  #--- Update paths of 'fnames_in'
+  xnames <- names(SFSW2_prj_meta[["fnames_in"]])
+  names_shared <- intersect(xnames, names(SFSW2_prj_meta2[["fnames_in"]]))
+
+  for (k in names_shared) {
+    SFSW2_prj_meta[["fnames_in"]][[k]] <- SFSW2_prj_meta2[["fnames_in"]][[k]]
+  }
+
+  #--- Update paths of 'fnames_out'
+  xnames <- names(SFSW2_prj_meta[["fnames_out"]])
+  names_shared <- intersect(xnames, names(SFSW2_prj_meta2[["fnames_out"]]))
+
+  for (k in names_shared) {
+    SFSW2_prj_meta[["fnames_out"]][[k]] <- SFSW2_prj_meta2[["fnames_out"]][[k]]
+  }
+
+  SFSW2_prj_meta
+}
+
 
 #' Initialize a rSFSW2 project (setup description file)
 #'
-#' @param SFSW2_prj_meta A list or environment as generated from a file comparable to
-#'  \code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}
-#' @return An updated version of \code{SFSW2_prj_meta}
+#' This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
+#' containing the descriptions/metadata for this simulation project. The file should be
+#' comparable to \code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}
+#'
+#' @param fmetar A character string. The path name to the project description file.
+#' @param update A logical value. If \code{TRUE}, the path names are re-scanned from
+#'  \code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.
+#' @param verbose A logical value.
+#'
+#' @return The object \code{SFSW2_prj_meta} of type environment.
 #'
 #' @export
-init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
+init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE) {
+
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -111,44 +159,89 @@ init_rSFSW2_project <- function(SFSW2_prj_meta, fmeta, verbose = TRUE) {
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  #--- Delete objects from 'SFSW2_prj_meta' which were used to create initial input
-  suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
-    "endyr", "scorp", "startyr", "temp"), envir = SFSW2_prj_meta))
+  if (endsWith(toupper(fmetar), ".R")) {
+    fmeta <- paste0(substr(fmetar, 1, nchar(fmetar) - 1), "rds")
 
-  #--- Update project paths and file names
-  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
+  } else {
+    stop("Argument 'fmetar' must represent the path to a file of type/extension 'R'")
+  }
 
-  SFSW2_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
-  SFSW2_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(SFSW2_prj_meta[["project_paths"]],
-    SFSW2_prj_meta[["fnames_in"]])
+  if (file.exists(fmeta)) {
+    #--- Load (and possible update) existing 'SFSW2_prj_meta'
 
-  init_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]])
+    # Load pre-prepared project description if it was setup previously
+    SFSW2_prj_meta <- readRDS(fmeta)
 
-  #--- Update simulation time
-  SFSW2_prj_meta[["sim_time"]] <- setup_simulation_time(SFSW2_prj_meta[["sim_time"]],
-    add_st2 = TRUE, adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]],
-    use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
-    doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]]
-  )
+    # Update
+    if (update) {
+      SFSW2_prj_meta <- update_project_paths(SFSW2_prj_meta, fmetar)
+      SFSW2_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
+      SFSW2_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(
+        SFSW2_prj_meta[["project_paths"]], SFSW2_prj_meta[["fnames_in"]])
+    }
 
-  #--- Determine scenario names
-  SFSW2_prj_meta[["sim_scens"]] <- setup_scenarios(SFSW2_prj_meta[["req_scens"]],
-    SFSW2_prj_meta[["sim_time"]][["future_yrs"]])
+    # Ensure that all necessary paths do exists
+    dir_safe_create(SFSW2_prj_meta[["project_paths"]])
 
-  #--- Determine requested ensembles across climate scenarios
-  SFSW2_prj_meta <- update_scenarios_with_ensembles(SFSW2_prj_meta)
 
-  #--- Prior calculations
-  SFSW2_prj_meta[["pcalcs"]] <- convert_to_todo_list(SFSW2_prj_meta[["opt_input"]][["prior_calculations"]])
+  } else {
+    #--- Create 'SFSW2_prj_meta'
 
-  #--- External data extraction
-  SFSW2_prj_meta[["exinfo"]] <- convert_to_todo_list(SFSW2_prj_meta[["opt_input"]][["req_data"]])
+    # 1a) Setup default project infrastructure
+    setup_rSFSW2_project_infrastructure(dir_prj)
 
-  #--- Matrix to track progress with input preparations
-  SFSW2_prj_meta[["input_status"]] <- init_intracker()
+    # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
+    warning("Check/adjust project description/metadata in file ",
+      shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
+      immediate. = TRUE)
+
+    # 1c) Load and prepare project description
+    SFSW2_prj_meta <- load_project_description(fmetar)
+
+
+    #--- Delete objects from 'SFSW2_prj_meta' which were used to create initial input
+    suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
+      "endyr", "scorp", "startyr", "temp"), envir = SFSW2_prj_meta))
+
+    #--- Update project paths and file names
+    dir_safe_create(SFSW2_prj_meta[["project_paths"]])
+
+    SFSW2_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
+    SFSW2_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(
+      SFSW2_prj_meta[["project_paths"]], SFSW2_prj_meta[["fnames_in"]])
+
+    init_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]])
+
+    #--- Update simulation time
+    SFSW2_prj_meta[["sim_time"]] <- setup_simulation_time(SFSW2_prj_meta[["sim_time"]],
+      add_st2 = TRUE, adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]],
+      use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
+      doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]]
+    )
+
+    #--- Determine scenario names
+    SFSW2_prj_meta[["sim_scens"]] <- setup_scenarios(SFSW2_prj_meta[["req_scens"]],
+      SFSW2_prj_meta[["sim_time"]][["future_yrs"]])
+
+    #--- Determine requested ensembles across climate scenarios
+    SFSW2_prj_meta <- update_scenarios_with_ensembles(SFSW2_prj_meta)
+
+    #--- Prior calculations
+    SFSW2_prj_meta[["pcalcs"]] <- convert_to_todo_list(SFSW2_prj_meta[["opt_input"]][["prior_calculations"]])
+
+    #--- External data extraction
+    SFSW2_prj_meta[["exinfo"]] <- convert_to_todo_list(SFSW2_prj_meta[["opt_input"]][["req_data"]])
+
+    #--- Matrix to track progress with input preparations
+    SFSW2_prj_meta[["input_status"]] <- init_intracker()
+  }
+
+  save_to_rds_with_backup(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
   SFSW2_prj_meta
 }
+
+
 
 
 gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose = FALSE) {
