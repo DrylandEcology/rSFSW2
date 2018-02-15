@@ -159,7 +159,7 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE) {
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  if (endsWith(toupper(fmetar), ".R")) {
+  if (is.character(fmetar) && endsWith(toupper(fmetar), ".R")) {
     fmeta <- paste0(substr(fmetar, 1, nchar(fmetar) - 1), "rds")
 
   } else {
