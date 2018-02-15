@@ -244,26 +244,26 @@ simTiming_ForEachUsedTimeUnit <- function(st,
     FirstDOY_WaterYear <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 274, 92)
     res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > FirstDOY_WaterYear, 1, 0)
 
-    if(use_doy_range){
+    if (isTRUE(use_doy_range)) {
       #North or Southern hemisphere? eliminate unnecessary water years values
-            if(latitude > 0){
-              Idx <- grep("_S",names(doy_ranges))
-              doy_ranges[Idx] <- NULL
-            }else{
-              Idx <- grep("_N",names(doy_ranges))
-              doy_ranges[Idx] <- NULL
-            }
+      if (latitude > 0) {
+        Idx <- grep("_S",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      } else {
+        Idx <- grep("_N",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      }
 
-      for(dr in seq_along(doy_ranges)){
-        if(!is.null(doy_ranges[[dr]])){ #for all non-NULL doy_range values
+      for (dr in seq_along(doy_ranges)) {
+        if (!is.null(doy_ranges[[dr]])) { #for all non-NULL doy_range values
           doy_range_values <- doy_ranges[[dr]]
 
        # Create daily logical vector indicating whether that doy is within range or not
         res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
-        if(doy_range_values[1] > doy_range_values[2]){
-          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:366,1:doy_range_values[2]), TRUE, FALSE)
-          }else{
-          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
+        if (doy_range_values[1] > doy_range_values[2]) {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:366, 1:doy_range_values[2]), TRUE, FALSE)
+          } else {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
         }
       }
     }
