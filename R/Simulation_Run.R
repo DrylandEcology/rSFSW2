@@ -4254,10 +4254,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             Temp_during_Stress2, out_during_Stress)
         }
       #43.3
-      if (isTRUE(prj_todos[["aon"]][["periodicVWCmatric"]])) {
+      if (isTRUE(prj_todos[["aon"]][["periodicVWCmatricFirstLayer"]])) {
         if (isTRUE(opt_agg$use_doy_range)) {
 
-          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "periodicVWCmatric")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "periodicVWCmatricFirstLayer")
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time, st2 = simTime2, topL = topL, bottomL = bottomL)
 
           doy.trim <- if (!is.null(opt_agg[["doy_ranges"]][["periodicVWCmatric"]])){
