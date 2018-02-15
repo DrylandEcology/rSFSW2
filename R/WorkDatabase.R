@@ -54,6 +54,16 @@ create_dbWork <- function(path, jobs) {
       "instead", shQuote(temp_jmode)))
   }
 
+  # Set synchronous mode to OFF=0 (https://www.sqlite.org/pragma.html#pragma_synchronous)
+  # Fast but data may be lost if power fails
+  # DBI::dbExecute(con, "PRAGMA synchronous=OFF;")
+  # no need to set this PRAGMA, because `RSQLite::dbConnect` does it by default
+
+  # Turn off busy timeout (https://www.sqlite.org/pragma.html#pragma_busy_timeout)
+  # temp_smode <- DBI::dbGetQuery(con, "PRAGMA busy_timeout=0;")
+  # no need to set this PRAGMA, because `RSQLite::dbConnect` does it by default
+
+
   invisible(TRUE)
 }
 
@@ -168,13 +178,23 @@ dbWork_clean <- function(path) {
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  # Is there a rollback journal present and we need to perform a vacuum operation?
-  frj <- paste0(dbWork, "-journal")
-  if (file.exists(frj)) {
-    DBI::dbExecute(con, "VACUUM")
+  temp_jmode <- tolower(as.character(DBI::dbGetQuery(con, "PRAGMA journal_mode;")))
+
+  if (temp_jmode == "wal") {
+    # Initiate a checkpoint operation in truncate-mode (https://www.sqlite.org/pragma.html#pragma_wal_checkpoint)
+    temp <- DBI::dbGetQuery(con, "PRAGMA wal_checkpoint(TRUNCATE);")
+    if (temp["busy"] > 0) {
+      stop("'dbWork_clean': failed to run wal-checkpoint ", shQuote(basename(dbWork)))
+    }
+
+  } else {
+    # Is there a rollback journal present and we need to perform a vacuum operation?
+    frj <- paste0(dbWork, "-journal")
     if (file.exists(frj)) {
-      stop("'dbWork_clean': failed to clean rollback-journal of ",
-        shQuote(basename(dbWork)))
+      DBI::dbExecute(con, "VACUUM")
+      if (file.exists(frj)) {
+        stop("'dbWork_clean': failed to vacuum ", shQuote(basename(dbWork)))
+      }
     }
   }
 
@@ -463,12 +483,16 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
         " s"))
     }
 
-    lock <- lock_access(lock, verbose, seed = NA)
+    if (!is.null(with_filelock)) {
+      lock <- lock_access(lock, verbose, seed = NA)
+    }
+
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
       flags = RSQLite::SQLITE_RW), silent = TRUE)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
 
     if (inherits(con, "SQLiteConnection")) {
+      on.exit(DBI::dbDisconnect(con), add = TRUE)
+
       res <- try(DBI::dbWithTransaction(con, {
         if (verbose) {
           print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
@@ -499,7 +523,9 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
             0L
           }
 
-        lock <- unlock_access(lock)
+        if (!is.null(with_filelock)) {
+          lock <- unlock_access(lock)
+        }
 
         if (!lock$confirmed_access) {
           if (verbose) {
@@ -531,6 +557,8 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
           ") 'dbWork' is locked after ",
           round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
       }
+
+      # Sys.sleep(stats::runif(1, 0.02, 0.1))
     }
   }
 
