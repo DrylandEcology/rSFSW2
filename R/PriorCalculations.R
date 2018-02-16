@@ -92,7 +92,7 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
       
       # Add identified layers
       sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-        sw_input_soils_data[[iv]][il_set, ])
+        sw_input_soils_data[[iv]][il_set, , drop=FALSE])
       
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
@@ -112,8 +112,6 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
             lnew <- requested_soil_layers[max(which(non_diff_layers))]
             ilnew <- findInterval(lnew, ldset)
             il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
-            # Add new column because add_layer_to_soil does not
-            for (i in seq_along(var_layers)) sw_input_soils_data2[[i]] <- cbind(sw_input_soils_data2[[i]], NA)
             sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
               add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew, w = il_weight,
                                 method = if (var_layers[iv] %in% sl_vars_sub) "exhaust" else "interpolate"))
@@ -125,7 +123,7 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
         only_requested_layers <- which(ldset %in% requested_soil_layers)
         for (i in seq_along(var_layers)) {
           # Discard unwanted layers
-          sw_input_soils_data2[[i]] <- sw_input_soils_data2[[i]][, only_requested_layers]
+          sw_input_soils_data2[[i]] <- sw_input_soils_data2[[i]][, only_requested_layers, drop=FALSE]
           # Generate new column names
           cols <- paste0(var_layers[i], "_L", seq(1:ncol(sw_input_soils_data2[[i]])))
           colnames(sw_input_soils_data2[[i]]) <- cols
