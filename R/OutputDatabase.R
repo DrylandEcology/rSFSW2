@@ -48,6 +48,21 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
   res
 }
 
+add_dbOutput_index <- function(con) {
+  prev_indices <- DBI::dbGetQuery(con, "SELECT * FROM sqlite_master WHERE type = 'index'")
+
+  if (NROW(prev_indices) == 0L || !("index_aomean_Pid" %in% prev_indices[, "name"])) {
+    DBI::dbExecute(con, paste("CREATE INDEX index_aomean_Pid ON",
+      "aggregation_overall_mean (P_id)"))
+  }
+
+  if (NROW(prev_indices) == 0L || !("index_aosd_Pid" %in% prev_indices[, "name"])) {
+    DBI::dbExecute(con, paste("CREATE INDEX index_aosd_Pid ON",
+      "aggregation_overall_sd (P_id)"))
+  }
+}
+
+
 #' List the design tables of dbOutput
 #' @export
 dbOutput_ListDesignTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
@@ -2389,6 +2404,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
   }
 
   set_PRAGMAs(con_dbOut, PRAGMA_settings2())
+  add_dbOutput_index(con_dbOut)
 
   tables <- RSQLite::dbListTables(con_dbOut)
   # dbOutput exists and has a suitable design
@@ -2418,3 +2434,95 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   res_oa[["ncol_dbOut_overall"]]
 }
+
+#' Add fields to an existing dbOutput
+#'
+#' You realize that you want additional output fields after starting a simulation project;
+#' or, the package is updated while you are working on a simulation, and produces now
+#' additional output fields for output options that are active in your simulation project.
+#' In either case, you don't want to discard data that is already in dbOutput.
+#'
+#' @param SFSW2_prj_meta See elsewhere
+#' @param col_ids An integer vector. If \code{NULL} then the code will match old and new
+#'   fields automatically. If not \code{NULL} and its length is equal to the number of
+#'   fields in the old table, then this information is used to transfer data. Possible use
+#'   case: field names have changed, but they represent the same output.
+#' @param chunksize An integer value. Chunks used to transfer data to the new table.
+#' @param verbose A logical value.
+#'
+#' @export
+dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, col_ids = NULL,
+  chunksize = 1000, verbose = FALSE) {
+
+  con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(),
+    dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+
+  tdata <- c("aggregation_overall_mean", "aggregation_overall_sd")
+  told <- c("ao_mean_old", "ao_sd_old")
+
+  # rename old tables (potentially) with data
+  for (k in seq_along(tdata)) {
+    DBI::dbExecute(con_dbOut, paste("ALTER TABLE", tdata[k], "RENAME TO", told[k]))
+  }
+
+  # create new tables
+  temp <- dbOutput_create_OverallAggregationTable(con_dbOut,
+    aon = SFSW2_prj_meta[["prj_todos"]][["aon"]], opt_agg = SFSW2_prj_meta[["opt_agg"]])
+
+  for (k in seq_along(overall_tables)) {
+    hasfields <- DBI::dbListFields(con_dbOut, told[k])
+    newfields <- DBI::dbListFields(con_dbOut, tdata[k])
+    col_ids_use <- if (length(col_ids) == length(hasfields)) {
+        col_ids
+      } else {
+        match(hasfields, newfields, nomatch = 0)
+      }
+
+    sql_hasfields <- paste(paste0("\"", hasfields[col_ids_use > 0], "\""), collapse = ", ")
+    sql_newfields <- paste(paste0("\"", newfields[col_ids_use], "\""), collapse = ", ")
+
+    P_ids <- DBI::dbGetQuery(con_dbOut, paste("SELECT P_id FROM", told[k]))[, 1]
+    recordsN <- length(P_ids)
+    if (recordsN > 0) {
+      seq_ids <- parallel::splitIndices(recordsN, ceiling(recordsN / chunksize))
+      seqN <- length(seq_ids)
+
+      # transfer data from old to new tables
+      for (chunk_ids in seq_len(seqN)) {
+        if (verbose) {
+          print(paste0("'dbOutput_update_OverallAggregationTable': ", Sys.time(),
+            " transfering data batch ", chunk_ids, "/", seqN, " to table ",
+            shQuote(tdata[k])))
+        }
+
+        DBI::dbWithTransaction(con_dbOut, {
+          DBI::dbExecute(con_dbOut, paste("INSERT INTO", tdata[k], "(", sql_newfields, ")",
+            "SELECT", sql_hasfields, "FROM", told[k], "WHERE P_id = :x"),
+            params = list(x = seq_ids[[chunk_ids]]))
+        })
+      }
+
+      # delete old table if new table contains same P_ids
+      P_ids_new <- DBI::dbGetQuery(con_dbOut, paste("SELECT P_id FROM", tdata[k]))[, 1]
+      if (identical(sort(P_ids), sort(P_ids_new))) {
+        DBI::dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
+      } else {
+        stop("Updated table", shQuote(tdata[k]), " is missing n= ",
+          length(setdiff(P_ids, P_ids_new)), " Pids")
+      }
+
+    } else {
+      # delete empty old table
+      DBI::dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
+    }
+  }
+
+  # Clean up database
+  DBI::dbExecute(con_dbOut, "VACUUM")
+  add_dbOutput_index(con_dbOut)
+
+  invisible(TRUE)
+}
+
+
