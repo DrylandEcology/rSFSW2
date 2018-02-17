@@ -936,10 +936,10 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path, "dbTables.sqlite3")
-  ncol_dbOut_overall <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
     verbose = verbose)
 
-  invisible(ncol_dbOut_overall)
+  invisible(temp[["ncol_dbOut_overall"]])
 }
 
 
@@ -1003,9 +1003,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   #--------------------------------------------------------------------------------------#
   #------------ORGANIZE DATABASES FOR SIMULATION OUTPUT
-  SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- make_dbOutput(SFSW2_prj_meta,
-    SFSW2_prj_inputs, verbose = opt_verbosity[["verbose"]])
+  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+    verbose = opt_verbosity[["verbose"]])
 
+  SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
+  SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
 
   #--------------------------------------------------------------------------------------#
   #------------------------RUN RSOILWAT
