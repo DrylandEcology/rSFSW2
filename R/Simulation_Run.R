@@ -4881,65 +4881,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRegeneration_bySWPSnow")
           if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- list(val = -1/10*slot(slot(runDataSC, swof["sw_swp"]), "Day"))  #no vwcdy available!
-          swp.surface <- swpmatric.dy.all$val[isim_time$index.usedy, 3]
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
-          regenerationThisYear_YN <- function(x) {
-            # calculate season doys
-            snowcover <- ifelse(x[, 2]>0, 1, 0)
-            r <- rle(snowcover)
-            rseries <- ifelse(r$values == 0, 1:length(r$values), 0)
-            then <- which(rseries == rseries[rseries>0][which.max(r$lengths[rseries>0])])
-            if (typeof(opt_agg[["dailyRegeneration_bySWPSnow"]][["season.start"]]) == "character") { #calculate last day of the longest snowpack
-              if (then == 1) {
-                opt_agg[["dailyRegeneration_bySWPSnow"]][["season.start"]] <- 1
-              } else {
-                opt_agg[["dailyRegeneration_bySWPSnow"]][["season.start"]] <- cumsum(r$lengths)[then-1]
-              }
-            }
-            if (typeof(opt_agg[["dailyRegeneration_bySWPSnow"]][["season.end"]]) == "character") { #calculate first day of the longest snowpack
-              opt_agg[["dailyRegeneration_bySWPSnow"]][["season.end"]] <- min(c(cumsum(r$lengths)[then]+1, length(snowcover)))
-            }
-            if (length(opt_agg[["dailyRegeneration_bySWPSnow"]][["season.start"]]:opt_agg[["dailyRegeneration_bySWPSnow"]][["season.end"]]) > 0) {
-              swp.season <- x[opt_agg[["dailyRegeneration_bySWPSnow"]][["season.start"]]:opt_agg[["dailyRegeneration_bySWPSnow"]][["season.end"]], 1]
-              gs <- rle(ifelse(swp.season >= opt_agg[["dailyRegeneration_bySWPSnow"]][["germination.swp.surface"]], 1, 0))
-              es <- rle(ifelse(swp.season >= opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.swp.surface"]], 1, 0))
+          swp.surface <- swpmatric.dy.all$val[isim_time$index.usedy, 3]
+          temp <- c(by(data = data.frame(swp.surface, SWE.dy$val),
+            INDICES = simTime2$year_ForEachUsedDay_NSadj, FUN = regenerationThisYear_YN,
+            params = opt_agg[["dailyRegeneration_bySWPSnow"]]))
 
-              reg <- 0
-              # get vector of establishment starts and ends
-              establishment.start.dos <- establishment.end.dos <- NULL
-              for (esi in 1:length(es$lengths)) {
-                if (es$lengths[esi] >= opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.duration"]] & es$values[esi] > 0) {
-                  establishment.start.dos <- c(establishment.start.dos, ifelse(esi == 1, 1, cumsum(es$lengths)[esi-1]+1))
-                  establishment.end.dos <- c(establishment.end.dos, cumsum(es$lengths)[esi])
-                }
-              }
-
-              # check if any germination period matches up with an establishment period
-              if (length(establishment.end.dos) > 0) {
-                for (gsi in 1:length(gs$lengths)) {
-                  if (gs$lengths[gsi] >= opt_agg[["dailyRegeneration_bySWPSnow"]][["germination.duration"]] & gs$values[gsi] > 0) {
-                    germination.start.dos <- ifelse(gsi == 1, 1, cumsum(gs$lengths)[gsi-1]+1)
-                    germination.end.dos <- cumsum(gs$lengths)[gsi]
-                    if (any(((germination.start.dos + opt_agg[["dailyRegeneration_bySWPSnow"]][["germination.duration"]] >= establishment.start.dos) &
-                              (germination.start.dos + opt_agg[["dailyRegeneration_bySWPSnow"]][["germination.duration"]] + opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.duration"]] <= establishment.end.dos)) |
-                            ((germination.end.dos + opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.delay"]] >= establishment.start.dos) &
-                              (germination.end.dos + opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.delay"]] + opt_agg[["dailyRegeneration_bySWPSnow"]][["establishment.duration"]] <= establishment.end.dos))) ) {
-                      reg <- reg + 1
-                    }
-                  }
-                }
-              }
-
-            } else {
-              reg <- 0
-            }
-            return(ifelse(reg>0, 1, 0))
-          }
-
-          resMeans[nv] <- mean(temp <- c(by(data = data.frame(swp.surface, SWE.dy$val), INDICES = simTime2$year_ForEachUsedDay_NSadj, FUN = regenerationThisYear_YN)))
+          resMeans[nv] <- mean(temp)
           resSDs[nv] <- stats::sd(temp)
-          nv <- nv+1
+          nv <- nv + 1
 
           rm(swp.surface)
 
