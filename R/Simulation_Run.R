@@ -5702,6 +5702,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               paste(complete, collapse = ", ")))
           }
 
+          # Invoke checkpoint on dbWork in an attempt to avoid checkpoint starvation
+          dbWork_checkpoint(path = MoreArgs[["project_paths"]][["dir_out"]],
+            mode = "PASSIVE", failure = "silent")
+
         } else if (tag_from_worker == 3L) {
           # A worker has closed down.
           closed_workers <- closed_workers + 1L

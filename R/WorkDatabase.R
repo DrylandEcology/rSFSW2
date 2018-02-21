@@ -2,6 +2,8 @@
 #------ dbWork functions
 
 add_dbWork_index <- function(con) {
+  stopifnot(DBI::dbIsValid(con))
+
   prev_indices <- DBI::dbGetQuery(con, "SELECT * FROM sqlite_master WHERE type = 'index'")
 
   if (NROW(prev_indices) == 0L || !("i_runIDs" %in% prev_indices[, "name"])) {
@@ -160,7 +162,47 @@ setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE) {
   success
 }
 
+#' Initiate a checkpoint operation on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
+#' @references https://www.sqlite.org/pragma.html#pragma_wal_checkpoint
+dbWork_checkpoint <- function(path = NULL, con = NULL,
+  mode = c("PASSIVE", "FULL", "RESTART", "TRUNCATE", ""),
+  failure = c("silent", "warning", "error")) {
 
+  mode <- match.arg(mode)
+  failure <- match.arg(failure)
+
+  if (is.null(con)) {
+    dbWork <- fname_dbWork(path)
+    stopifnot(file.exists(dbWork))
+
+    # need write privilege to run wal_checkpoint
+    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  } else {
+    stopifnot(DBI::dbIsValid(con))
+  }
+
+  sql <- if (nchar(mode) > 0) {
+      paste0("PRAGMA wal_checkpoint(", mode, ")")
+    } else {
+      "PRAGMA wal_checkpoint"
+    }
+
+  res <- try(DBI::dbGetQuery(con, sql), silent = TRUE)
+
+  if (!identical(failure, "silent") && (inherits(res, "try-error") || res["busy"] > 0)) {
+    msg <- paste("'dbWork_checkpoint': failed to run wal-checkpoint for",
+      shQuote(basename(dbWork)), "with", shQuote(paste(res, collapse = "/")))
+    if (identical(failure, "warning")) {
+      warning(msg)
+    } else {
+      stop(msg)
+    }
+  }
+
+  invisible(res)
+}
 
 #' Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
 #'
@@ -181,11 +223,7 @@ dbWork_clean <- function(path) {
   temp_jmode <- tolower(as.character(DBI::dbGetQuery(con, "PRAGMA journal_mode;")))
 
   if (temp_jmode == "wal") {
-    # Initiate a checkpoint operation in truncate-mode (https://www.sqlite.org/pragma.html#pragma_wal_checkpoint)
-    temp <- DBI::dbGetQuery(con, "PRAGMA wal_checkpoint(TRUNCATE);")
-    if (temp["busy"] > 0) {
-      stop("'dbWork_clean': failed to run wal-checkpoint ", shQuote(basename(dbWork)))
-    }
+    dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "stop")
 
   } else {
     # Is there a rollback journal present and we need to perform a vacuum operation?
