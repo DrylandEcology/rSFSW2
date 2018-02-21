@@ -1095,7 +1095,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 #   once all simulation runs are completed. The code checks for this.
 #'
 #' @export
-move_output_to_dbOutput <- function(actions, SFSW2_prj_meta, t_job_start, opt_parallel,
+move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_verbosity, dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
