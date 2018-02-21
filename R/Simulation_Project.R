@@ -130,6 +130,17 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
     SFSW2_prj_meta[["fnames_out"]][[k]] <- SFSW2_prj_meta2[["fnames_out"]][[k]]
   }
 
+
+  #--- Update platform
+  xnames <- names(SFSW2_prj_meta[["opt_platform"]])
+  names_shared <- intersect(xnames, names(SFSW2_prj_meta2[["opt_platform"]]))
+
+  for (k in names_shared) {
+    SFSW2_prj_meta[["opt_platform"]][[k]] <- SFSW2_prj_meta2[["opt_platform"]][[k]]
+  }
+
+
+
   SFSW2_prj_meta
 }
 
@@ -1031,7 +1042,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     swDataFromFiles <- read_SOILWAT2_FileDefaults(SFSW2_prj_meta[["project_paths"]][["dir_in_sw"]])
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
-    runs.completed <- run_simulation_experiment(SFSW2_prj_meta[["sim_size"]],
+    runs.completed <- run_simulation_experiment(sim_size = SFSW2_prj_meta[["sim_size"]],
       SFSW2_prj_inputs, MoreArgs = args_do_OneSite)
 
   } else {
