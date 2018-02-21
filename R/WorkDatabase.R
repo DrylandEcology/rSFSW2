@@ -223,7 +223,7 @@ dbWork_clean <- function(path) {
   temp_jmode <- tolower(as.character(DBI::dbGetQuery(con, "PRAGMA journal_mode;")))
 
   if (temp_jmode == "wal") {
-    dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "stop")
+    dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "error")
 
   } else {
     # Is there a rollback journal present and we need to perform a vacuum operation?
