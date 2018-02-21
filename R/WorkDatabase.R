@@ -501,12 +501,6 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  lock <- if (!is.null(with_filelock)) {
-      lock_init(with_filelock, runID)
-    } else {
-      list(confirmed_access = TRUE)
-    }
-
   success <- FALSE
   res <- 0L
 
@@ -521,17 +515,25 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
         " s"))
     }
 
-    if (!is.null(with_filelock)) {
-      lock <- lock_access(lock, verbose, seed = NA)
-    }
-
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-      flags = RSQLite::SQLITE_RW), silent = TRUE)
+      flags = RSQLite::SQLITE_RW), silent = !verbose)
 
     if (inherits(con, "SQLiteConnection")) {
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
+      on.exit(DBI::dbDisconnect(con), add = FALSE)
 
-      res <- try(DBI::dbWithTransaction(con, {
+      rs <- try(DBI::dbExecute(con, "BEGIN IMMEDIATE"), silent = !verbose)
+
+      if (inherits(res, "try-error")) {
+        if (verbose) {
+          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+            ") transaction begin failed after ",
+            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+        }
+
+        next
+      }
+
+      res <- try({
         if (verbose) {
           print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
             ") start transaction after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
@@ -561,43 +563,31 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
             0L
           }
 
-        if (!is.null(with_filelock)) {
-          lock <- unlock_access(lock)
-        }
+        as.integer(temp)
+      }, silent = !verbose)
 
-        if (!lock$confirmed_access) {
-          if (verbose) {
-            print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-              ") access confirmation failed after ",
-              round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
-          }
-          temp <- 0L
-          DBI::dbBreak()
-
-        } else if (verbose) {
+      if (inherits(res, "try-error")) {
+        if (verbose) {
           print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-            ") transaction confirmed after ",
+            ") transaction failed after ",
             round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
         }
 
-        as.integer(temp)
-      }), silent = !verbose)
+        try(DBI::dbExecute(con, "ROLLBACK"), silent = !verbose)
 
-      success <- if (inherits(res, "try-error")) FALSE else lock$confirmed_access
-    }
+      } else {
+        if (verbose) {
+          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+            ") transaction ended after ",
+            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+        }
 
-    if (success) {
-      break
-
-    } else {
-      if (verbose) {
-        print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-          ") 'dbWork' is locked after ",
-          round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+        try(DBI::dbExecute(con, "COMMIT"), silent = !verbose)
+        break
       }
-
-      # Sys.sleep(stats::runif(1, 0.02, 0.1))
     }
+
+    # Sys.sleep(stats::runif(1, 0.02, 0.1))
   }
 
   identical(res, 1L)
