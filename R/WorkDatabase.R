@@ -521,19 +521,7 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
     if (inherits(con, "SQLiteConnection")) {
       on.exit(DBI::dbDisconnect(con), add = FALSE)
 
-      rs <- try(DBI::dbExecute(con, "BEGIN IMMEDIATE"), silent = !verbose)
-
-      if (inherits(res, "try-error")) {
-        if (verbose) {
-          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-            ") transaction begin failed after ",
-            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
-        }
-
-        next
-      }
-
-      res <- try({
+      res <- try(DBI::dbWithTransaction(con, {
         if (verbose) {
           print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
             ") start transaction after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
@@ -564,30 +552,28 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
           }
 
         as.integer(temp)
-      }, silent = !verbose)
+      }), silent = !verbose)
 
-      if (inherits(res, "try-error")) {
-        if (verbose) {
-          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-            ") transaction failed after ",
-            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
-        }
-
-        try(DBI::dbExecute(con, "ROLLBACK"), silent = !verbose)
-
-      } else {
-        if (verbose) {
-          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-            ") transaction ended after ",
-            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
-        }
-
-        try(DBI::dbExecute(con, "COMMIT"), silent = !verbose)
-        break
-      }
+      success <- !inherits(res, "try-error")
     }
 
-    # Sys.sleep(stats::runif(1, 0.02, 0.1))
+    if (success) {
+      if (verbose) {
+        print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+          ") transaction confirmed after ",
+          round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+      }
+      break
+
+    } else {
+      if (verbose) {
+        print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+          ") 'dbWork' is locked after ",
+          round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+      }
+
+      # Sys.sleep(stats::runif(1, 0.02, 0.1))
+    }
   }
 
   identical(res, 1L)
