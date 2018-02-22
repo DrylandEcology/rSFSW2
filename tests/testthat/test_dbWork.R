@@ -16,19 +16,16 @@ time_set3 <- c(50, 75, 125)
 verbose <- FALSE
 
 test_update <- function(i, dbpath, flock = NULL, verbose) {
-  is_inwork <- dbWork_update_job(dbpath, i, "inwork", with_filelock = flock,
-    verbose = verbose)
+  is_inwork <- dbWork_update_job(dbpath, i, "inwork", verbose = verbose)
 
   if (is_inwork) {
     todos <- dbWork_todos(dbpath)
 
     if (any(i == todos)) {
-      dbWork_update_job(dbpath, i, "failed", with_filelock = flock,
-        verbose = verbose)
+      dbWork_update_job(dbpath, i, "failed", verbose = verbose)
 
     } else {
-      dbWork_update_job(dbpath, i, "completed", time_s = .node_id,
-        with_filelock = flock, verbose = verbose)
+      dbWork_update_job(dbpath, i, "completed", time_s = .node_id, verbose = verbose)
     }
 
   } else {

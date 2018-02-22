@@ -486,21 +486,14 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
 #' @param status A character string. One of "completed", "failed", "inwork".
 #' @param time_s A numeric value. The execution time in seconds; used if \code{status} is one of
 #'  "completed" and "failed".
-#' @param with_filelock A character string. The file path for locking access to
-#'  \code{dbWork} with a file lock, i.e., to provide
-#'  synchronization during parallel processing. If \code{NULL}, no file locking is used.
 #' @param verbose A logical value. If \code{TRUE}, status messages about file lock and
 #'  database access are printed
 #'
 #' @return A logical value whether the status was successfully updated.
 #' @export
-dbWork_update_job <- function(path, runID, status = c("completed", "failed", "inwork"),
-  time_s = "NULL", with_filelock = NULL, verbose = FALSE) {
+dbWork_update_job <- function(path, runID, status, time_s = "NULL", verbose = FALSE) {
 
-  status <- match.arg(status)
   dbWork <- fname_dbWork(path)
-  stopifnot(file.exists(dbWork))
-
   success <- FALSE
   res <- 0L
 
@@ -508,10 +501,11 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
     t0 <- Sys.time()
   }
 
+  # Connect to dbWork
   repeat {
     if (verbose) {
       print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-        ") attempt to update after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
+        ") attempt to connect after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
         " s"))
     }
 
@@ -520,42 +514,70 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
 
     if (inherits(con, "SQLiteConnection")) {
       on.exit(DBI::dbDisconnect(con), add = FALSE)
+      break
+    }
 
-      res <- try(DBI::dbWithTransaction(con, {
-        if (verbose) {
-          print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
-            ") start transaction after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
-            " s"))
-        }
+    Sys.sleep(stats::runif(1, 0.02, 0.1))
+  }
 
-        temp <- if (status == "completed") {
-            DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
-              "inwork = 0, time_s =", time_s, "WHERE runID_total =", runID))
 
-          } else if (status == "failed") {
-            DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
-              "inwork = 0, time_s =", time_s, "WHERE runID_total =", runID))
+  # Update job record
+  repeat {
+    if (verbose) {
+      print(paste0("'dbWork_update_job': ", Sys.time(), " (", runID, "-", status,
+        ") attempt to update after ", round(difftime(Sys.time(), t0, units = "secs"), 2),
+        " s"))
+    }
 
-          } else if (status == "inwork") {
-            prev_status <- DBI::dbGetQuery(con,
-              paste("SELECT inwork FROM work WHERE runID_total =", runID))$inwork
-            if (prev_status == 0) {
-              DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
-                "inwork = 1, time_s = 0 WHERE runID_total =", runID))
-            } else {
-              if (verbose)
-                print(paste("'dbWork_update_job':", runID, "is already in work"))
-              0L
-            }
+    if (status == "completed") {
+      res <- try(DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
+        "inwork = 0, time_s =", time_s, "WHERE runID_total =", runID)), silent = !verbose)
+
+    } else if (status == "failed") {
+      res <- try(DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
+        "inwork = 0, time_s =", time_s, "WHERE runID_total =", runID)), silent = !verbose)
+
+    } else if (status == "inwork") {
+      # https://sqlite.org/lang_transaction.html: "After a BEGIN IMMEDIATE, no other
+      # database connection will be able to write to the database or do a BEGIN IMMEDIATE
+      # or BEGIN EXCLUSIVE. Other processes can continue to read from the database,
+      # however."
+      res <- try(DBI::dbExecute(con, "BEGIN IMMEDIATE"), silent = !verbose)
+
+      if (!inherits(res, "try-error")) {
+        # Transaction with reserved lock established
+        prev_status <- DBI::dbGetQuery(con,
+          paste("SELECT inwork FROM work WHERE runID_total =", runID))$inwork
+
+        res <- if (prev_status == 0) {
+            try(DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
+              "inwork = 1, time_s = 0 WHERE runID_total =", runID)), silent = !verbose)
           } else {
             0L
           }
+      }
 
-        as.integer(temp)
-      }), silent = !verbose)
+      # End transaction
+      if (inherits(res, "try-error")) {
+        rs <- try(DBI::dbExecute(con, "ROLLBACK"), silent = !verbose)
+      } else {
+        rs <- try(DBI::dbExecute(con, "COMMIT"), silent = !verbose)
 
-      success <- !inherits(res, "try-error")
+        if (verbose && prev_status != 0) {
+          print(paste("'dbWork_update_job':", runID, "is already in work"))
+        }
+      }
+
+    } else {
+      if (verbose) {
+        print(paste("'dbWork_update_job': value", shQuote(status), "of argument 'status'",
+          "is not implemented."))
+      }
+
+      res <- 0L
     }
+
+    success <- !inherits(res, "try-error")
 
     if (success) {
       if (verbose) {
@@ -572,7 +594,7 @@ dbWork_update_job <- function(path, runID, status = c("completed", "failed", "in
           round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
       }
 
-      # Sys.sleep(stats::runif(1, 0.02, 0.1))
+      Sys.sleep(stats::runif(1, 0.02, 0.1))
     }
   }
 

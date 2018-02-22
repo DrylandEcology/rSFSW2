@@ -103,7 +103,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   list2env(as.list(SimParams), envir = environment())
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
-    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    verbose = opt_verbosity[["print.debug"]])
 
   flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
     flag = "0")
@@ -5555,7 +5555,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   dbWork_update_job(project_paths[["dir_out"]], i_sim,
     status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
-    with_filelock = SFSW2_glovars[["lockfile"]], verbose = opt_verbosity[["print.debug"]])
+    verbose = opt_verbosity[["print.debug"]])
 
   if (status) {
     #ETA estimation
