@@ -102,8 +102,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   list2env(as.list(SimParams), envir = environment())
 
-  dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
-    verbose = opt_verbosity[["print.debug"]])
+  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+    stopifnot(dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
+      verbose = opt_verbosity[["print.debug"]]))
+  }
 
   flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
     flag = "0")
@@ -5553,9 +5555,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
-  dbWork_update_job(project_paths[["dir_out"]], i_sim,
-    status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
-    verbose = opt_verbosity[["print.debug"]])
+  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+    temp <- dbWork_update_job(project_paths[["dir_out"]], i_sim,
+      status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
+      verbose = opt_verbosity[["print.debug"]])
+  }
 
   if (status) {
     #ETA estimation
@@ -5594,7 +5598,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   on.exit()
 
-  1L
+  as.integer(status)
 } #end do_OneSite()
 
 
@@ -5665,10 +5669,16 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           # are done if there are none.
           if ((runs.completed <= MoreArgs[["sim_size"]][["runsN_todo"]]) && has_time_to_simulate) {
             # Send a task, and then remove it from the task list
-            i_site <- i_sites[runs.completed]
+            t.do_OneSite <- Sys.time()
 
-            dataForRun <- list(do_OneSite = TRUE,
-              i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed],
+            i_sim <- MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]
+            success <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
+              runID = i_sim, status = "inwork",
+              verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+            # TODO: do something on failure of 'dbWork_update_job'
+
+            i_site <- i_sites[runs.completed]
+            dataForRun <- list(do_OneSite = TRUE, i_sim = i_sim,
               i_SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]][i_site, ],
               i_sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]][i_site, ],
               i_sw_input_treatments = SFSW2_prj_inputs[["sw_input_treatments"]][i_site, ],
@@ -5703,8 +5713,8 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           }
 
           # Invoke checkpoint on dbWork in an attempt to avoid checkpoint starvation
-          dbWork_checkpoint(path = MoreArgs[["project_paths"]][["dir_out"]],
-            mode = "PASSIVE", failure = "silent")
+          #dbWork_checkpoint(path = MoreArgs[["project_paths"]][["dir_out"]],
+          #  mode = "PASSIVE", failure = "silent")
 
         } else if (tag_from_worker == 3L) {
           # A worker has closed down.
@@ -5732,6 +5742,14 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           # We'll just ignore any unknown message from worker
           print(paste(Sys.time(), ": MPI-master received tag =", tag_from_worker,
             "from worker", worker_id, "but doesn't know what this means."))
+        }
+
+        if (tag_from_worker %in% c(2L, 4L)) {
+          temp <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
+            runID = complete[["i"]],
+            status = if (complete[["status"]]) "completed" else "failed",
+            time_s = complete[["time_s"]],
+            verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
         }
 
       }, interrupt = function(interrupt) {
@@ -5777,7 +5795,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         MoreArgs = list(SimParams = MoreArgs),
         RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
 
-      runs.completed <- sum(unlist(runs.completed))
+      runs.completed <- length(unlist(runs.completed))
     }
 
     clean_SFSW2_cluster()
@@ -5805,7 +5823,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           SimParams = MoreArgs)
       }
     )
-    runs.completed <- sum(unlist(runs.completed))
+    runs.completed <- length(unlist(runs.completed))
   }
 
   runs.completed
