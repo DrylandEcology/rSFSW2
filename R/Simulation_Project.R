@@ -847,7 +847,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
   #--- Check that todos/treatments are coherent
   if (todo_intracker(SFSW2_prj_meta, "prj_todos", "checked")) {
-    # Check that overall 'pnv' is turned on if any of the specific ones are
+    # Check that overall 'pnv0_temp' is turned on if any of the specific ones 'pnv_temp'
+    # are active or alternatively that none of the `PotentialNaturalVegetation_*` columns
+    # are turned on
+    pnv0_temp <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996"
+
     pnv_temp <- c("PotentialNaturalVegetation_CompositionShrubs_Fraction",
       "PotentialNaturalVegetation_CompositionC3_Fraction",
       "PotentialNaturalVegetation_CompositionC4_Fraction",
@@ -864,9 +868,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
       "RootProfile_Shrubs",
       "RootProfile_Forb")
 
-    icheck <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996" %in%
-      SFSW2_prj_inputs[["create_treatments"]] &&
-      any(pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]])
+    temp1 <- pnv0_temp %in% SFSW2_prj_inputs[["create_treatments"]]
+    temp2 <- pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]]
+    icheck <- (!temp1 && all(!temp2)) || (temp1 && any(temp2))
 
     if (any(!icheck)) {
       stop("Calculation and/or adjustement of 'potential natural vegetation' is ",
