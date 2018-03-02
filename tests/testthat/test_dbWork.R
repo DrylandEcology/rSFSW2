@@ -88,7 +88,7 @@ test_that("dbWork: mock simulation in parallel", {
     ncores <- if (is.finite(temp)) temp else 2L
     #cl <- parallel::makePSOCKcluster(ncores, outfile = fname_log)
     cl <- parallel::makePSOCKcluster(ncores)
-    parallel::clusterApply(cl, seq_len(ncores),
+    temp <- parallel::clusterApply(cl, seq_len(ncores),
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
     parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",
