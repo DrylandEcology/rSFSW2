@@ -5,7 +5,8 @@
 \title{Move temporary output data to output databases}
 \usage{
 move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-  opt_verbosity, dir_out_temp = NULL)
+  opt_verbosity, chunk_size = 1000L, check_if_Pid_present = FALSE,
+  dir_out_temp = NULL)
 }
 \arguments{
 \item{dir_out_temp}{A character string. The path to temporary output files.
@@ -24,8 +25,8 @@ data.frames may be much faster with checks for duplicate P_id entries and could 
 inserted at once (instead of line by line) with the command
   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
 
- The variables 'pids_inserted' and 'pids2_inserted' become quickly
-  very large and may then be too large for available memory
+ An alternative idea is to have each core write to its own dbOutput copy
+and combine those DBs at the end.
 
  It only makes sense to follow `opt_out` option `dbOutCurrent_from_dbOut`
 }

@@ -548,40 +548,50 @@ get_inserted_ids <- function(con, tables, tables_w_soillayers) {
 check_data_agreement <- function(con, table_name, id, sl = NULL,
   tmp_data, has_soillayer, filename = "") {
 
-  OK_agree <- FALSE
-  # check whether data agree
-  id_data_DB <- if (is.null(sl)) {
-      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
-        "\" WHERE P_id = ", id))
-    } else {
-      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name,
-        "\" WHERE P_id = ", id, " AND Soil_Layer = ", sl))
-    }
-
-  repeat {
-    nt <- nchar(tmp_data)
-    if (nt <= 1 || substr(tmp_data, nt, nt) == ")") break
-    tmp_data <- substr(tmp_data, 1, nt - 1)
+  if (is.character(tmp_data)) {
+    tmp_data <- get_DF_from_temptxt(tmp_data)
   }
-  if (nt > 1) {
-    tmp_data <- paste0("c(", tmp_data)
-    tmp_data <- gsub("NULL", "NA", tmp_data)
-    tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
 
-    res <- all.equal(as.numeric(id_data_DB), tmp_data, tolerance = 1e2 * SFSW2_glovars[["tol"]])
-    OK_agree <- isTRUE(res)
+  if (length(dim(tmp_data)) != 2) {
+    tmp_data <- matrix(tmp_data, nrow = 1, length(tmp_data))
+  }
 
-    if (!OK_agree)
-      print(paste("Data which are in output DB with P_id =", id,
-        if (!is.null(sl)) paste("and soil layer =", sl) else NULL, "of table",
-        shQuote(table_name), "differ from data of file", shQuote(filename), ":",
-        paste(res, collapse = "--")))
+  N <- length(id)
+  stopifnot(length(table_name) == N, is.null(sl) || length(sl) == N, nrow(tmp_data) == N)
+
+  tol <- 1e2 * SFSW2_glovars[["tol"]]
+
+  OK_agree <- rep(FALSE, N)
+
+  for (k in seq_len(N)) {
+    # check whether data agree
+    db_data <- if (is.null(sl)) {
+      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
+        "\" WHERE P_id = ", id[k]))
+    } else {
+      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
+        "\" WHERE P_id = ", id[k], " AND Soil_Layer = ", sl[k]))
+    }
+    db_data <- as.numeric(db_data)
+
+    res <- all.equal(db_data, as.numeric(tmp_data[k, ]), tolerance = tol)
+    OK_agree[k] <- isTRUE(res)
+
+    if (!OK_agree[k]) {
+      ndiffs <- sum(abs(db_data - tmp_data) > tol, na.rm = TRUE)
+
+      print(paste("dbOutput data with P_id =", id[k],
+        if (!is.null(sl)) paste("and soil layer =", sl[k]) else NULL, "of table",
+        shQuote(table_name[k]), "differ in n =", ndiffs, "fields from data of file",
+        shQuote(filename), ":", paste(res, collapse = "--")))
+    }
   }
 
   OK_agree
 }
 
-#' Locate temporary output files
+
+#' Locate file names of temporary output files
 get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFiles = TRUE,
   resume = TRUE) {
 
@@ -604,9 +614,171 @@ get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFil
   theFileList
 }
 
+#' Extract names of dbOutput tables from content of temporary output files
+#'
+#' Table names are expected to be wrapped by '\"',
+#' e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
+#' \code{table_name = 'aggregation_overall_sd'}
+get_tablename_from_temptxt <- function(str, k = -1, verbose = FALSE) {
+  # If there is a tablename in an element of str, then we expect it to be wrapped by '\"'
+  # id_table will be a matrix with two rows and ncol = length(str)
+  temp <- gregexpr('\"', str, fixed = TRUE)
+  id_table <- matrix(-1, ncol = length(str), nrow = 2)
+  ids <- lengths(temp) == 2L
+  id_table[, ids] <- unlist(temp[ids], recursive = FALSE, use.names = FALSE)
 
+  if (verbose) {
+    ids_bad <- id_table[1, ] < 1
+
+    if (any(ids_bad)) {
+      cat(paste("Name of table(s) not located in file on\n",
+        paste("\t* line", k + which(ids_bad), "str =", substr(str[ids_bad], 1, 100),
+        "...", collapse = " /\n")))
+    }
+  }
+
+  substr(str, 1 + id_table[1, ], -1 + id_table[2, ])
+}
+
+
+get_DF_from_temptxt <- function(str, k = -1) {
+  id_start <- regexpr(" VALUES (", str, fixed = TRUE)
+  id_start <- as.integer(attr(id_start, "match.length") + id_start)
+
+  id_end <- regexpr(")", str, fixed = TRUE)
+  id_end <- as.integer(id_end)
+
+  tmp_data <- substr(str, id_start, id_end)
+  tmp_data <- paste0("c(", tmp_data)
+  tmp_data <- gsub("NULL", "NA", tmp_data)
+  tmp_data <- paste0("list(", paste(tmp_data, collapse = ", "), ")")
+  tmp_data <- eval(parse(text = tmp_data, keep.source = FALSE))
+
+  do.call("rbind", tmp_data) # much faster than:
+    # matrix(unlist(tmp_data), nrow = length(str), ncol = length(tmp_data[[1]]), byrow = TRUE)
+}
+
+
+#' Extract P_id from content of temporary output files
+#'
+#' P_id values are expected to be at the first position of values,
+#' e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
+#' \code{P_id = 1139776}
+get_Pid_from_temptxt <- function(str, k = -1, verbose = FALSE) {
+  id_start <- regexpr(" VALUES (", str, fixed = TRUE)
+  id_start <- attr(id_start, "match.length") + id_start
+
+  id_end <- regexpr(",", str, fixed = TRUE)
+
+  ids <- id_end < 0
+  if (any(ids)) {
+    # In case the only value is the Pid
+    id_end[ids] <- regexpr(")", str[ids], fixed = TRUE)
+  }
+
+  ids_bad <- id_start < 1 | id_end <= id_start
+  id_end[ids_bad] <- -1L
+
+  if (verbose && any(ids_bad)) {
+    cat(paste("P_id(s) not located in file on\n",
+      paste("\t* line", k + which(ids_bad), "str =", substr(str[ids_bad], 1, 100),
+        "...", collapse = " /\n")))
+  }
+
+  as.integer(substr(str, id_start, -1 + id_end))
+}
+
+
+#' Extract soil layer ID from content of temporary output files
+#'
+#' Soil layer ID values are expected to be at the second position of values,
+#' e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
+#' \code{sl = NULL}
+get_SoilLayerID_from_temptxt <- function(str, k = -1) {
+  id_sl <- as.integer(gregexpr(",", str, fixed = TRUE)[[1]])
+  if (any(id_sl[1] < 1, id_sl[2] <= id_sl[1])) {
+    stop(paste0("ID of soil layer not located on line ", k, ": ", substr(str, 1, 100)))
+  }
+
+  as.integer(substr(str, 1 + id_sl[1], -1 + id_sl[2]))
+}
+
+
+has_Pid <- function(con, table, Pid) {
+  nPid <- length(Pid)
+  ntable <- length(table)
+  stopifnot(nPid == ntable || nPid == 1 || ntable == 1)
+
+  utable <- unique(table)
+  res <- rep(NA, max(ntable, nPid))
+
+  for (k in seq_along(utable)) {
+    ids <- table == utable[k]
+
+    if ((sum(ids) > 1 || ntable == 1) && nPid > 1) {
+      sql <- paste("SELECT P_id FROM", utable[k], "WHERE P_id IN (",
+        paste(if (ntable > 1) Pid[ids] else Pid, collapse = ","), ")")
+      temp <- DBI::dbGetQuery(con, sql)[, "P_id"]
+      res[ids] <- Pid[ids] %in% temp
+    } else {
+      sql <- paste("SELECT Count(*) FROM", utable[k], "WHERE P_id =",
+        if (nPid > 1) Pid[ids] else Pid)
+      res[ids] <- as.logical(DBI::dbGetQuery(con, sql))
+    }
+  }
+
+  res
+}
+
+has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
+  nPid <- length(Pid)
+  nsl <- length(sl)
+
+  idsl <- paste(Pid, sl, sep = "-")
+  nidsl <- length(idsl)
+  ntable <- length(table)
+  stopifnot(nidsl == ntable || nidsl == 1  || ntable == 1)
+
+  utable <- unique(table)
+  res <- rep(NA, max(ntable, nidsl))
+
+  for (k in seq_along(utable)) {
+    ids <- table == utable[k]
+
+    if ((sum(ids) > 1 || ntable == 1) && nidsl > 1) {
+      sql <- paste("SELECT P_id, Soil_Layer FROM", utable[k], "WHERE P_id IN (",
+        paste(if (ntable > 1) Pid[ids] else Pid, collapse = ","), ") AND Soil_Layer IN (",
+        paste(if (ntable > 1) sl[ids] else sl, collapse = ","), ")")
+      temp <- apply(DBI::dbGetQuery(con, sql)[, c("P_id", "Soil_Layer")], 1, paste,
+        collapse = "-")
+      res[ids] <- idsl[ids] %in% temp
+    } else {
+      sql <- paste("SELECT Count(*) FROM", utable[k], "WHERE P_id =",
+        if (nPid > 1) Pid[ids] else Pid, "AND Soil_Layer =",
+        if (nsl > 1) sl[ids] else sl)
+      res[ids] <- as.logical(DBI::dbGetQuery(con, sql))
+    }
+  }
+
+  res
+}
+
+
+#' Moves simulation output that was written to temporary text files to a SQL-database
+#'
+#' @section Details: \code{move_temporary_to_outputDB}: no checking of temporary text
+#'   files is done. Any line that fails to be added to
+#'   the database (for whatever reason including a record with identical P_id/SoilLayerID
+#'   is already present) is written to a new file \code{'SQL_tmptxt_failed.txt'}.
+#' @section Details: Initial tests suggest that performance degrades if \code{chunk_size}
+#'   was small (e.g., 10); values around 1000 have been successful; values of 10,000
+#'   work about as fast as those of 1000, but memory usage is a bit larger -- and the risk
+#'   that an entire transaction fails increases with \code{chunk_size}.
+#'
+#' @param chunk_size An integer value. The number of lines that are read at once from
+#'   the temporary text files and processed in one SQL-transaction.
 move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, dir_out_temp = NULL) {
+  opt_behave, opt_verbosity, chunk_size = 1000L, dir_out_temp = NULL) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -632,222 +804,415 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
     resume = opt_behave[["resume"]])
 
   if (length(theFileList) > 0) {
-    # Connect to the Database
-    con <- DBI::dbConnect(RSQLite::SQLite(),
-      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    # Track status
+    temp <- list(con = NULL, do = TRUE)
+    OKs <- list(all = temp, cur = temp)
+    targets <- names(OKs)
 
-    out_tables_aggr <- dbOutput_ListOutputTables(con)
+    OKs[["all"]][["jfname_failed"]] <- file.path(
+      SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], "SQL_tmptxt_failed.txt")
+    OKs[["cur"]][["jfname_failed"]] <- file.path(
+      SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]], "SQL_tmptxt_failedCurrent.txt")
+
+    # Connect to the Database
+    OKs[["all"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    on.exit(DBI::dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
 
     do_DBCurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
       !SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]]
 
     reset_DBCurrent <- do_DBCurrent && (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] ||
-      !file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
+        !file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
 
     if (reset_DBCurrent) {
       file.copy(from = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
-      to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+        to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     }
+
     if (do_DBCurrent) {
-      con2 <- DBI::dbConnect(RSQLite::SQLite(),
+      OKs[["cur"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
-      on.exit(DBI::dbDisconnect(con2), add = TRUE)
+      on.exit(DBI::dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
 
       if (reset_DBCurrent) {
         # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-        DBI::dbExecute(con2, "DELETE FROM runs WHERE scenario_id != 1;")
+        DBI::dbExecute(OKs[["cur"]][["con"]], "DELETE FROM runs WHERE scenario_id != 1;")
       }
     }
 
     # Prepare output databases
-    set_PRAGMAs(con, PRAGMA_settings1())
-    if (do_DBCurrent)
-      set_PRAGMAs(con2, PRAGMA_settings1())
-
-    # Check what has already been inserted in each tables
-    tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(out_tables_aggr, con)
-    ids_inserted <- get_inserted_ids(con, out_tables_aggr, tables_w_soillayers)
-    if (do_DBCurrent)
-      ids2_inserted <- get_inserted_ids(con2, out_tables_aggr, tables_w_soillayers)
+    set_PRAGMAs(OKs[["all"]][["con"]], PRAGMA_settings1())
+    if (do_DBCurrent) {
+      set_PRAGMAs(OKs[["cur"]][["con"]], PRAGMA_settings1())
+    }
 
     # Add data to SQL databases
     for (j in seq_along(theFileList)) {
+
       tDB1 <- Sys.time()
       temp <- difftime(tDB1, t_job_start, units = "secs") +
         opt_parallel[["opt_job_time"]][["one_concat_s"]]
       has_time_to_concat <- temp < opt_parallel[["opt_job_time"]][["wall_time_s"]]
-      if (!has_time_to_concat)
+      if (!has_time_to_concat) {
         break
+      }
 
-      # Read SQL statements from temporary file
-      sql_cmds <- readLines(file.path(dir_out_temp, theFileList[j]))
-      add_to_DBCurrent <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
+      if (opt_verbosity[["verbose"]]) {
+        print(paste("Adding", shQuote(theFileList[j]), "to output DB: started at", tDB1))
+      }
+      OKs[["cur"]][["do"]] <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
 
-      if (opt_verbosity[["verbose"]])
-        print(paste("Adding", shQuote(theFileList[j]), "with", length(sql_cmds), "lines",
-          "to output DB: started at ", tDB1))
+      for (tg in targets) if (OKs[[tg]][["do"]]) {
+        # Read sequentially SQL statements from temporary file
+        jfcon <- file(file.path(dir_out_temp, theFileList[j]), open = "rt")
 
-      #--- Send SQL statements to database
-      OK_tempfile <- TRUE
-      notOK_lines <- NULL
+        # Use transaction to send SQL statements from file to database
+        k <- 1L
 
-      for (k in seq_along(sql_cmds)) {
-        OK_line <- TRUE
+        repeat {
+          # Read next line
+          ksql_cmd <- readLines(jfcon, n = chunk_size)
 
-        # Determine table
-        id_table <- as.integer(gregexpr('\"', sql_cmds[k], fixed = TRUE)[[1]])
-
-        if (any(id_table[1] < 1, id_table[2] <= id_table[1])) {
-          print(paste0("Name of table not located in file ", shQuote(theFileList[j]),
-            " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
-          next
-        }
-
-        table_name <- substr(sql_cmds[k], 1 + id_table[1], -1 + id_table[2])
-        OK_line <- OK_line && any(table_name == out_tables_aggr)
-
-        # Determine P_id
-        id_start <- as.integer(regexpr(" VALUES (", sql_cmds[k], fixed = TRUE))
-        id_end <- as.integer(regexpr(",", sql_cmds[k], fixed = TRUE))
-        if (id_end < 0)
-          id_end <- as.integer(regexpr(")", sql_cmds[k], fixed = TRUE))
-
-        if (any(id_start < 1, id_end <= id_start)) {
-          print(paste0("P_id not located in file ", shQuote(theFileList[j]), " on line ",
-            k, ": ", substr(sql_cmds[k], 1, 100)))
-          next
-        }
-
-        id <- as.integer(substr(sql_cmds[k], 9 + id_start, -1 + id_end))
-        OK_line <- OK_line && is.finite(id)
-
-        # Check if P_id already in output DB
-        OK_check1 <- OK_line && (id %in% ids_inserted[[table_name]][["pids"]])
-        OK_check2 <- if (OK_line && add_to_DBCurrent) {
-            id %in% ids2_inserted[[table_name]][["pids"]]
-          } else FALSE
-
-        # If P_id already in output DB, then check whether table has soil layers
-        # and, if so, whether soil layer is in DB
-        if ((OK_check1 || OK_check2) && tables_w_soillayers[table_name]) {
-          # Determine soil layer
-          id_sl <- as.integer(gregexpr(",", sql_cmds[k], fixed = TRUE)[[1]])
-          if (any(id_sl[1] < 1, id_sl[2] <= id_sl[1])) {
-            print(paste0("ID of soil layer not located in file ", shQuote(theFileList[j]),
-              " on line ", k, ": ", substr(sql_cmds[k], 1, 100)))
-            next
+          nlineread <- length(ksql_cmd)
+          if (nlineread == 0) {
+            # end of file
+            break
           }
 
-          sl <- as.integer(substr(sql_cmds[k], 1 + id_sl[1], -1 + id_sl[2]))
-          OK_line <- OK_line && is.finite(sl)
-          id_sl <- paste0(id, "-", sl)
+          res <- try(DBI::dbWithTransaction(OKs[[tg]][["con"]], {
+            added <- vapply(ksql_cmd, function(str) {
+                !inherits(try(DBI::dbExecute(OKs[[tg]][["con"]], str),
+                  silent = !opt_verbosity[["print.debug"]]), "try-error")
+              }, FUN.VALUE = NA, USE.NAMES = FALSE)
+          }), silent = !opt_verbosity[["print.debug"]])
 
-          # Check if P_id already in output DB
-          OK_check1 <- OK_line && OK_check1 &&
-            (id_sl %in% ids_inserted[[table_name]][["sids"]])
-          OK_check2 <- if (OK_line && OK_check2 && add_to_DBCurrent) {
-              id_sl %in% ids2_inserted[[table_name]][["sids"]]
-            } else FALSE
-
-        } else {
-          sl <- NULL
-        }
-
-        OK_agree1 <- if (OK_check1) {
-            check_data_agreement(con, table_name, id, sl,
-              tmp_data = substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k])),
-              has_soillayer = tables_w_soillayers[table_name], filename = theFileList[j])
-          } else FALSE
-
-        OK_agree2 <- if (OK_check2) {
-            check_data_agreement(con2, table_name, id, sl,
-              tmp_data = substr(sql_cmds[k], 9 + id_start, nchar(sql_cmds[k])),
-              has_soillayer = tables_w_soillayers[table_name], filename = theFileList[j])
-          } else FALSE
-
-        # Insert data via temporary SQL statement
-        OK_add1 <- OK_line && !OK_agree1
-        OK_add2 <- if (add_to_DBCurrent) OK_line && !OK_agree2 else FALSE
-
-        if (OK_add1) {
-          res <- DBI::dbWithTransaction(con, {
-            res <- try(DBI::dbSendStatement(con, sql_cmds[k]))
-            temp <- !inherits(res, "try-error")
-            if (temp) {
-              ids_inserted[[table_name]][["pids"]] <- unique(
-                c(ids_inserted[[table_name]][["pids"]], id))
-              if (!is.null(sl))
-               ids_inserted[[table_name]][["sids"]] <- unique(
-                c(ids_inserted[[table_name]][["sids"]], id_sl))
-            }
-            temp && DBI::dbClearResult(res)
-          })
-          OK_add1 <- OK_add1 && res
-        }
-        if (OK_add2) {
-          res <- DBI::dbWithTransaction(con2, {
-            res <- try(DBI::dbSendStatement(con2, sql_cmds[k]))
-            temp <- !inherits(res, "try-error")
-            if (temp) {
-              ids2_inserted[[table_name]][["pids"]] <- unique(
-                c(ids2_inserted[[table_name]][["pids"]], id))
-              if (!is.null(sl))
-               ids2_inserted[[table_name]][["sids"]] <- unique(
-                c(ids2_inserted[[table_name]][["sids"]], id_sl))
-            }
-            temp && DBI::dbClearResult(res)
-          })
-          OK_add2 <- OK_add2 && res
-        }
-
-        # Add processed Pid to vector
-        if (OK_add1 &&
-          ((!OK_add2 && !add_to_DBCurrent) || (OK_add2 && add_to_DBCurrent))) {
-
-          if (opt_verbosity[["print.debug"]])
-            print(paste("Added to table", shQuote(table_name), "of output DB: P_id =", id,
-              if (!is.null(sl)) paste("and soil layer =", sl) else NULL,
-              "from row", k, "of", shQuote(theFileList[j])))
-
-        } else {
-          if (!OK_agree1 || (!OK_agree2 && add_to_DBCurrent)) {
-            notOK_lines <- c(notOK_lines, k)
-            print(paste("The output DB has problems with inserting P_id =", id,
-              if (!is.null(sl)) paste("and soil layer =", sl) else NULL, "to table",
-              shQuote(table_name), "when processing row =", k, "of file",
-              shQuote(theFileList[j])))
+          # Report on success
+          if (opt_verbosity[["print.debug"]] && !inherits(res, "try-error") && any(added)) {
+            print(paste("Added rows/chunk", sum(added), "/", chunk_size, "of file",
+              shQuote(theFileList[j]), "successfully to dbOutput for", shQuote(tg)))
           }
+
+          # Write failed to new file
+          failed <- !added
+          if (any(failed)) {
+            cat(ksql_cmd[failed], file = OKs[[tg]][["jfname_failed"]], sep = "\n",
+              append = TRUE)
+
+            if (opt_verbosity[["print.debug"]]) {
+              print(paste("The output DB has problems with inserting",
+                "rows/chunk", sum(failed), "/", chunk_size, "of file",
+                shQuote(theFileList[j]), "for", shQuote(tg)))
+            }
+          }
+
+          k <- k + nlineread
         }
+
+        # Clean up and report
+        close(jfcon)
       }
 
-      #- end transaction
-      if (!is.null(notOK_lines)) {
-        OK_tempfile <- FALSE
-        # Write failed lines to new file
-        writeLines(sql_cmds[notOK_lines],
-          con = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-          sub(".", "_failed.", theFileList[j], fixed = TRUE)))
+      cat(file.path(dir_out_temp, theFileList[j]), file = concatFile, append = TRUE,
+        sep = "\n")
+
+      if (opt_out_run[["deleteTmpSQLFiles"]]) {
+        try(file.remove(file.path(dir_out_temp, theFileList[j])), silent = TRUE)
       }
 
-      # Clean up and report
-      if (OK_tempfile || !is.null(notOK_lines)) {
-        cat(file.path(dir_out_temp, theFileList[j]), file = concatFile, append = TRUE,
-          sep = "\n")
-
-        if (opt_out_run[["deleteTmpSQLFiles"]])
-          try(file.remove(file.path(dir_out_temp, theFileList[j])), silent = TRUE)
-      }
-
-      if (opt_verbosity[["print.debug"]]) {
+      if (opt_verbosity[["verbose"]]) {
         tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
-        print(paste("    ended at", Sys.time(), "after", tDB, "s"))
+        print(paste("Processed file", shQuote(theFileList[j]), "with n =", k - 1,
+          "lines ended at", Sys.time(), "after", tDB, "s"))
       }
     }
   }
 
   invisible(TRUE)
 }
+
+
+#' @section Details: \code{move_temporary_to_outputDB_withChecks}: temporary text files
+#'   are checked for presence of table names and identification values (P_id and
+#'   soil layer ID). If argument \code{check_if_Pid_present} is true and the record ID
+#'   already exists in the database, then values are checked for agreement. The speed
+#'   penalty for running the checks vs. \code{\link{move_temporary_to_outputDB}} was
+#'   about 20% in a set of tests.
+#'   \itemize{
+#'    \item Lines that have insufficient information or that fail to be added to the
+#'        database are written to a new file \code{'SQL_tmptxt_failed.txt'}.
+#'    \item Lines with record identified by Pid (+sl) that are already in database and data
+#'        does agree (agreement information only available if \code{check_if_Pid_present})
+#'        are written to a new file \code{'SQL_tmptxt_duplicates.txt'}.
+#'    \item Lines with record identified by Pid (+sl) is already in database, but data
+#'        do not agree (agreement information only available if \code{check_if_Pid_present})
+#'        are written to a new file \code{'SQL_tmptxt_repeats.txt'}.
+#'    }
+#'
+#' @rdname move_temporary_to_outputDB
+move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
+  opt_behave, opt_verbosity, chunk_size = 1000L, check_if_Pid_present = TRUE,
+  dir_out_temp = NULL) {
+
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  if (is.null(dir_out_temp)) {
+    # Use default project location for temporary text files
+    dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+  }
+
+  #concatenate file keeps track of sql files inserted into data
+  concatFile <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    "sqlFilesInserted.txt")
+
+  # get list of all temporary output files not yet moved to dbOutput
+  theFileList <- get_fnames_temporaryOutput(dir_out_temp, concatFile,
+    deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
+    resume = opt_behave[["resume"]])
+
+  if (length(theFileList) > 0) {
+    # Track status
+    OK_ndefault <- rep(FALSE, chunk_size)
+    temp <- list(con = NULL, do = TRUE)
+    OKs <- list(all = temp, cur = temp)
+
+    targets <- names(OKs)
+    # elements of 'OKs' that don't get properly initialized/reset otherwise
+    resets <- c("hasPid", "hasSL", "agree", "added")
+
+    jfname_failed <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      "SQL_tmptxt_failed.txt")
+    jfname_duplicates <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      "SQL_tmptxt_duplicates.txt")
+    jfname_repeats <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      "SQL_tmptxt_repeats.txt")
+
+    # Connect to the Database
+    OKs[["all"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    on.exit(DBI::dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
+
+    out_tables_aggr <- dbOutput_ListOutputTables(OKs[["all"]][["con"]])
+
+    do_DBCurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
+      !SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]]
+
+    reset_DBCurrent <- do_DBCurrent && (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] ||
+        !file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
+
+    if (reset_DBCurrent) {
+      file.copy(from = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+        to = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+    }
+
+    if (do_DBCurrent) {
+      OKs[["cur"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+        dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+      on.exit(DBI::dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
+
+      if (reset_DBCurrent) {
+        # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
+        DBI::dbExecute(OKs[["cur"]][["con"]], "DELETE FROM runs WHERE scenario_id != 1;")
+      }
+    }
+
+    # Prepare output databases
+    set_PRAGMAs(OKs[["all"]][["con"]], PRAGMA_settings1())
+    if (do_DBCurrent) {
+      set_PRAGMAs(OKs[["cur"]][["con"]], PRAGMA_settings1())
+    }
+
+    # Check whether we have tables where rows correspond to Pid - Soil layer units
+    tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(out_tables_aggr,
+      con = OKs[["all"]][["con"]])
+
+    # Add data to SQL databases
+    for (j in seq_along(theFileList)) {
+
+      tDB1 <- Sys.time()
+      temp <- difftime(tDB1, t_job_start, units = "secs") +
+        opt_parallel[["opt_job_time"]][["one_concat_s"]]
+      has_time_to_concat <- temp < opt_parallel[["opt_job_time"]][["wall_time_s"]]
+      if (!has_time_to_concat) {
+        break
+      }
+
+      # Read sequentially SQL statements from temporary file
+      jfcon <- file(file.path(dir_out_temp, theFileList[j]), open = "rt")
+
+      OKs[["cur"]][["do"]] <- do_DBCurrent && grepl("SQL_Current", theFileList[j])
+
+      if (opt_verbosity[["verbose"]]) {
+        print(paste("Adding", shQuote(theFileList[j]), "to output DB: started at", tDB1))
+      }
+
+      #--- Send SQL statements to database
+      k <- 1
+
+      repeat {
+        # Read next chunk of lines
+        ksql_cmd <- readLines(jfcon, n = chunk_size)
+
+        nlineread <- length(ksql_cmd)
+        if (nlineread == 0) {
+          # end of file
+          break
+        }
+
+        # Track status
+        for (tg in targets) for (rs in resets) {
+          OKs[[tg]][[rs]] <- OK_ndefault[seq_len(nlineread)]
+        }
+
+        # Obtain data table
+        # Determine table
+        tablenames <- get_tablename_from_temptxt(ksql_cmd, k,
+          verbose = opt_verbosity[["print.debug"]])
+        OK_line <- tablenames %in% out_tables_aggr
+
+        # Determine P_id
+        Pids <- get_Pid_from_temptxt(ksql_cmd, k,
+          verbose = opt_verbosity[["print.debug"]])
+        OK_line <- OK_line & is.finite(Pids)
+
+        for (tg in targets) if (OKs[[tg]][["do"]]) {
+          # Check if P_id already in output DB
+          OKs[[tg]][["hasPid"]][OK_line] <- has_Pid(OKs[[tg]][["con"]],
+            tablenames[OK_line], Pids[OK_line])
+          ids <- OKs[[tg]][["hasPid"]]
+
+          OKs[[tg]][["hasSL"]][ids] <- tables_w_soillayers[tablenames[ids]]
+
+          # If P_id already in output DB, then check whether table has soil layers
+          # and, if so, whether soil layer is in DB
+          if (any(OKs[[tg]][["hasSL"]])) {
+            ids <- OKs[[tg]][["hasSL"]]
+            sl <- OK_ndefault
+            sl[ids] <- as.integer(dat[["val"]][, 2L])
+
+            OKs[[tg]][["hasSL"]][ids] <- OK_line[ids] & is.finite(sl[ids])
+            ids <- OKs[[tg]][["hasSL"]]
+
+            # Check if P_id already in output DB
+            OKs[[tg]][["hasPid"]][ids] <- has_Pid_SoilLayerID(OKs[[tg]][["con"]],
+              tablenames[ids], Pids[ids], sl[ids])
+
+          } else {
+            sl <- NULL
+          }
+
+          # Check if data in temporary file and DB agree
+          if (check_if_Pid_present && any(OKs[[tg]][["hasPid"]])) {
+            ids <- OKs[[tg]][["hasPid"]]
+            table_name <- tablenames[ids]
+
+            OKs[[tg]][["agree"]][ids] <- check_data_agreement(OKs[[tg]][["con"]],
+              table_name = table_name, id = Pids[ids], sl = sl[ids],
+              tmp_data = ksql_cmd[ids], has_soillayer = tables_w_soillayers[table_name],
+              filename = theFileList[j])
+          }
+
+          # Insert data via temporary SQL statement: if good data line and if not already in DB
+          OKs[[tg]][["add"]] <- OK_line & !OKs[[tg]][["hasPid"]]
+
+          if (any(OKs[[tg]][["add"]])) {
+            ids <- OKs[[tg]][["add"]]
+            utables <- unique(tablenames[ids])
+
+            for (tab in utables) {
+              ids2 <- which(ids & tablenames == tab)
+
+              DBI::dbWithTransaction(OKs[[tg]][["con"]], for (i in ids2) {
+                res <- try(DBI::dbExecute(OKs[[tg]][["con"]], ksql_cmd[i]),
+                  silent = !opt_verbosity[["verbose"]])
+
+                OKs[[tg]][["added"]][i] <- !inherits(res, "try-error")
+              })
+            }
+          }
+
+          # Report on success
+          if (opt_verbosity[["print.debug"]] && any(OKs[[tg]][["added"]])) {
+            ids <- OKs[[tg]][["added"]]
+
+            print(paste("Added to table(s)",
+              paste(shQuote(unique(tablenames)), collapse = " / "),
+              "of output DB: P_id =", paste(Pids[ids], collapse = " / "),
+              if (!is.null(sl)) {
+                paste("and soil layer =", paste(sd[ids], collapse = " / "))
+              } else NULL,
+              "from rows", k, "to", k + nlineread - 1, "of file",
+              shQuote(theFileList[j])))
+          }
+
+          # Write failed, repeated or duplicated lines to new files
+          if (any(!OKs[[tg]][["added"]])) {
+            # repeats: record identified by Pid (+sl) is already in database, but data
+            # do not agree (agreement information only available if check_if_Pid_present)
+            ids1 <- OKs[[tg]][["hasPid"]] & !OKs[[tg]][["agree"]]
+            if (any(ids1)) {
+              cat(ksql_cmd[ids1], file = jfname_repeats, sep = "\n", append = TRUE)
+            }
+
+            # duplicates: record identified by Pid (+sl) is already in database and data
+            # does agree (agreement information only available if check_if_Pid_present)
+            ids2 <- OKs[[tg]][["hasPid"]] & OKs[[tg]][["agree"]]
+            if (any(ids2)) {
+              cat(ksql_cmd[ids2], file = jfname_duplicates, sep = "\n", append = TRUE)
+            }
+
+            # failed: temporary text line doesn't have sufficient information or
+            # adding to database failed for other/unknown reasons
+            ids3 <- !OKs[[tg]][["hasPid"]] | (OKs[[tg]][["add"]] & !OKs[[tg]][["added"]])
+            if (any(ids3)) {
+              cat(ksql_cmd[ids3], file = jfname_failed, sep = "\n", append = TRUE)
+            }
+
+            ids <- ids1 | ids2 | ids3
+            if (opt_verbosity[["print.debug"]] && any(ids)) {
+              print(paste("The output DB has problems with inserting P_id =",
+                paste(Pids[ids], collapse = " / "),
+                if (!is.null(sl)) {
+                  paste("and soil layer =", paste(sd[ids], collapse = " / "))
+                } else NULL,
+                "from rows", k, "to", k + nlineread - 1, "of file",
+                shQuote(theFileList[j])))
+            }
+          }
+        }
+
+        k <- k + nlineread
+      }
+
+      # Clean up and report
+      close(jfcon)
+
+      cat(file.path(dir_out_temp, theFileList[j]), file = concatFile, append = TRUE,
+        sep = "\n")
+
+      if (opt_out_run[["deleteTmpSQLFiles"]]) {
+        try(file.remove(file.path(dir_out_temp, theFileList[j])), silent = TRUE)
+      }
+
+      if (opt_verbosity[["verbose"]]) {
+        tDB <- round(difftime(Sys.time(), tDB1, units = "secs"), 2)
+        print(paste("Processed file", shQuote(theFileList[j]), "with n =", k - 1,
+          "lines ended at", Sys.time(), "after", tDB, "s"))
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
+
+
 
 
 do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
