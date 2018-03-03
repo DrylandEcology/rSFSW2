@@ -506,7 +506,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     if (todo_intracker(SFSW2_prj_meta, "req_soillayers", "prepared")) {
 
       temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
-        runIDs_adjust, verbose = opt_verbosity[["verbose"]])
+        runIDs_adjust, verbose = opt_verbosity[["verbose"]], full_interpolation = SFSW2_prj_meta[["exinfo"]]$ExtractSoilDataFromSSURGO)
 
       SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
       SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]

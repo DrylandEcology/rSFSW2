@@ -169,7 +169,7 @@ calc_AddRequestedSoilLayers <- function(df_soils, df_soils_use, df_soildepths,
 #' @seealso \code{\link{calc_AddRequestedSoilLayers}}
 #' @export
 calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-                                                         runIDs_adjust, verbose = FALSE) {
+                                                         runIDs_adjust, verbose = FALSE, full_interpolation = FALSE) {
   
   requested_soil_layers <- SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]]
   
@@ -187,13 +187,13 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
     df_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
     df_soildepths = SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, , drop = FALSE],
     requested_soil_layers = SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]],
-    verbose = verbose)
+    verbose = verbose, full_interpolation = full_interpolation)
   
   if (res[["has_changed"]]) {
     # update data objects
     SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]] <- res[["requested_soil_layers"]]
     SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, ] <- res[["df_soildepths"]]
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, ] <- res[["sw_input_soils"]]
+    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, ] <- res[["df_soils"]]
     SFSW2_prj_inputs[["sw_input_soils_use"]] <- res[["df_soils_use"]]
     
     # write data to disk
