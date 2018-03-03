@@ -1486,15 +1486,33 @@ dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_ti
 
   if (any(lwf_cond1, lwf_cond2, lwf_cond3, lwf_cond4)) {
     # Check which requested lookup weather folders are available
-    if (lwf_cond1)
-      there <- there | sapply(MoreArgs[["it_lwf"]], function(ix)
+    if (lwf_cond1) {
+      # Use weather folder names from treatment-design file
+      temp <- sapply(MoreArgs[["it_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))
-    if (lwf_cond2)
-      there <- there | sapply(MoreArgs[["ri_lwf"]], function(ix)
+      there <- there | temp
+      ids <- temp & is.na(dw_names)
+      dw_names[ids] <- MoreArgs[["it_lwf"]][ids]
+    }
+
+    if (lwf_cond2) {
+      # Use weather folder names from master file
+      temp <- sapply(MoreArgs[["ri_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))
-    if (lwf_cond3)
+      there <- there | temp
+      ids <- temp & is.na(dw_names)
+      dw_names[ids] <- MoreArgs[["ri_lwf"]][ids]
+    }
+
+    if (lwf_cond3) {
+      # Use weather folder name from experimental input file
+      # TODO(drs): I don't believe that this currently works because rows are not correctly lined up
       there <- there | rep(any(sapply(MoreArgs[["ie_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))), times = n)
+      there <- there | temp
+      ids <- temp & is.na(dw_names)
+      dw_names[ids] <- MoreArgs[["ie_lwf"]][ids]
+    }
 
     if (any(there))
       dw_source[there] <- "LookupWeatherFolder"
