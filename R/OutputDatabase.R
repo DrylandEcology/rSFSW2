@@ -778,7 +778,7 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
 #' @param chunk_size An integer value. The number of lines that are read at once from
 #'   the temporary text files and processed in one SQL-transaction.
 move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, chunk_size = 1000L, dir_out_temp = NULL) {
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L, dir_out_temp = NULL) {
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -951,7 +951,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 #'
 #' @rdname move_temporary_to_outputDB
 move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, chunk_size = 1000L, check_if_Pid_present = TRUE,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L, check_if_Pid_present = TRUE,
   dir_out_temp = NULL) {
 
   if (opt_verbosity[["verbose"]]) {

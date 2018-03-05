@@ -5,8 +5,8 @@
 \title{Move temporary output data to output databases}
 \usage{
 move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-  opt_verbosity, chunk_size = 1000L, check_if_Pid_present = FALSE,
-  dir_out_temp = NULL)
+  opt_out_run, opt_verbosity, chunk_size = 1000L,
+  check_if_Pid_present = FALSE, dir_out_temp = NULL)
 }
 \arguments{
 \item{dir_out_temp}{A character string. The path to temporary output files.
@@ -19,15 +19,30 @@ files of a potential concurrent run).}
 Move temporary output data to output databases
 }
 \section{Notes}{
- 'concatenation' may be much faster if temporary text files are not constructed
-around SQL insert statements, but instead as data.frames. Text files containing
-data.frames may be much faster with checks for duplicate P_id entries and could be
-inserted at once (instead of line by line) with the command
+ 'concatenation' may be much faster if temporary text files are not
+constructed around SQL insert statements, but instead as data.frames. Text files
+containing data.frames may be much faster with checks for duplicate P_id entries and
+could be inserted at once (instead of line by line) with the command
   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
 
  An alternative idea is to have each core write to its own dbOutput copy
 and combine those DBs at the end.
+}
 
- It only makes sense to follow `opt_out` option `dbOutCurrent_from_dbOut`
+\section{Details}{
+ Expectations on how the function locates files on disk: \itemize{
+  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
+    \code{dbWork}
+  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
+    \code{concatFile} and \code{SQL_tmptxt_failed.txt}
+  \item \code{dir_out_temp} is the path to temporary output files
+  \item SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] is the full file name of
+    \code{dbOutput}
+  \item SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]] is the full file name of
+    \code{dbOutput_current}
+}
+
+ The code executes \code{opt_out} option
+\code{dbOutCurrent_from_dbOut} only, once all simulation runs are completed.
 }
 

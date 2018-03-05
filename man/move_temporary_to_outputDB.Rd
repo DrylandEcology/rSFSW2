@@ -6,10 +6,11 @@
 \title{Moves simulation output that was written to temporary text files to a SQL-database}
 \usage{
 move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, chunk_size = 1000L, dir_out_temp = NULL)
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
+  dir_out_temp = NULL)
 
 move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, chunk_size = 1000L,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
   check_if_Pid_present = TRUE, dir_out_temp = NULL)
 }
 \arguments{

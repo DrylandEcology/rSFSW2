@@ -1086,26 +1086,41 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 #'  unless all simulation runs have finished (to prevent overwriting of temporary output
 #'  files of a potential concurrent run).
 #'
-#' @section Notes: 'concatenation' may be much faster if temporary text files are not constructed
-#' around SQL insert statements, but instead as data.frames. Text files containing
-#' data.frames may be much faster with checks for duplicate P_id entries and could be
-#' inserted at once (instead of line by line) with the command
+#' @section Notes: 'concatenation' may be much faster if temporary text files are not
+#' constructed around SQL insert statements, but instead as data.frames. Text files
+#' containing data.frames may be much faster with checks for duplicate P_id entries and
+#' could be inserted at once (instead of line by line) with the command
 #'   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
 #' @section Notes: An alternative idea is to have each core write to its own dbOutput copy
 #' and combine those DBs at the end.
 #'
-#' @section Notes: It only makes sense to follow `opt_out` option `dbOutCurrent_from_dbOut`
-#   once all simulation runs are completed. The code checks for this.
+#' @section Details: Expectations on how the function locates files on disk: \itemize{
+#'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
+#'     \code{dbWork}
+#'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
+#'     \code{concatFile} and \code{SQL_tmptxt_failed.txt}
+#'   \item \code{dir_out_temp} is the path to temporary output files
+#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] is the full file name of
+#'     \code{dbOutput}
+#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]] is the full file name of
+#'     \code{dbOutput_current}
+#' }
+#'
+#' @section Details: The code executes \code{opt_out} option
+#' \code{dbOutCurrent_from_dbOut} only, once all simulation runs are completed.
 #'
 #' @export
 move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_verbosity, chunk_size = 1000L, check_if_Pid_present = FALSE,
-  dir_out_temp = NULL) {
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
+  check_if_Pid_present = FALSE, dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
   runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-  stopifnot(runsN_todo == 0 || (runsN_todo > 0 && !is.null(dir_out_temp)))
+  if (runsN_todo > 0 && is.null(dir_out_temp)) {
+    stop("'move_output_to_dbOutput': if 'dir_out_temp' is NULL, then all runs must have",
+      " completed; but runsN_todo = ", runsN_todo)
+  }
 
   has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +
     opt_parallel[["opt_job_time"]][["one_concat_s"]]} <
@@ -1114,12 +1129,12 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   if (has_time_to_concat) {
     if (check_if_Pid_present) {
       move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
-        opt_behave, opt_verbosity, chunk_size = chunk_size, check_if_Pid_present = TRUE,
-        dir_out_temp = dir_out_temp)
+        opt_behave, opt_out_run, opt_verbosity, chunk_size = chunk_size,
+        check_if_Pid_present = TRUE, dir_out_temp = dir_out_temp)
 
     } else {
       move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-        opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp)
+        opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp)
     }
 
   } else {
