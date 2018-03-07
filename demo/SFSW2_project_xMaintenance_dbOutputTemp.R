@@ -25,18 +25,28 @@
 
 
 ##############################################################################
+
+#--- USER INPUTS
+update <- FALSE ## Initialize simulation project folder?
+
+do_adjust_dir_out <- FALSE ## Adjust `dir_out` element of `project_paths` in local copy of metadata
+dir_temp <- "temp_i1" ## Relative location of temporary output files
+
+do_use_dbOutput_concat <- FALSE ## If TRUE, use `fname_dbOutput_concat` instead of metadata information
+fname_dbOutput_concat <- "dbTables_concating.sqlite3" ## Name of copy of dbOutput used for moving output data into
+
+check_if_Pid_present <- FALSE ## Check data for possible duplicates or deviation in values?
+
+
+
+#--- LOAD SIMULATION PROJECT META-DATA / DESCRIPTION FILE
 t_job_start <- Sys.time()
 library("rSFSW2")
 
 dir_prj <- getwd()
 fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
 
-update <- FALSE ## Initialize simulation project folder?
-do_adjust_dir_out <- FALSE ## Adjust `dir_out` element of `project_paths` in local copy of metadata
-check_if_Pid_present <- FALSE ## Check data for possible duplicates or deviation in values?
 
-
-# Load simulation project meta-data / description file
 SFSW2_prj_meta <- if (update || !file.exists(fmeta)) {
   init_rSFSW2_project(fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"),
     update = TRUE)
@@ -69,8 +79,13 @@ if (do_adjust_dir_out) {
     basename(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]))
 }
 
+if (do_use_dbOutput_concat) {
+  # Name of dbOutput used for moving data into
+  SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(
+    SFSW2_prj_meta[["project_paths"]][["dir_out"]], fname_dbOutput_concat)
+}
+
 # Location of temporary output files
-dir_temp <- "temp_i1"
 dir_out_temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], dir_temp)
 stopifnot(dir.exists(dir_out_temp))
 
