@@ -1526,16 +1526,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       # update its id in our lookuptable for weatherfolder
       if (any(is.na(LWF_index$id))) {
         #get max id from weatherfolders table
-        temp <- is.na(LWF_index$id)
-        weatherfolders_index <- as.numeric(DBI::dbGetQuery(con_dbOut,
-          "SELECT MAX(id) FROM weatherfolders;"))
-        LWF_index$id[temp] <- as.integer(seq.int(from = weatherfolders_index + 1L,
-          to = weatherfolders_index + sum(temp), by = 1L))
+        isna <- is.na(LWF_index$id)
+        maxid <- as.numeric(DBI::dbGetQuery(con_dbOut, "SELECT MAX(id) FROM weatherfolders;"))
+        weatherfolders_index <- if (is.na(maxid)) 0L else maxid
+        LWF_index$id[isna] <- as.integer(seq.int(from = weatherfolders_index + 1L,
+          to = weatherfolders_index + sum(isna), by = 1L))
 
         #Write those in
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- DBI::dbSendStatement(con_dbOut, sql)
-        DBI::dbBind(rs, param = as.list(LWF_index[temp, ]))
+        DBI::dbBind(rs, param = as.list(LWF_index[isna, ]))
         DBI::dbClearResult(rs)
       }
     }
