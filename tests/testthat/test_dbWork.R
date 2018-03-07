@@ -16,19 +16,16 @@ time_set3 <- c(50, 75, 125)
 verbose <- FALSE
 
 test_update <- function(i, dbpath, flock = NULL, verbose) {
-  is_inwork <- dbWork_update_job(dbpath, i, "inwork", with_filelock = flock,
-    verbose = verbose)
+  is_inwork <- dbWork_update_job(dbpath, i, "inwork", verbose = verbose)
 
   if (is_inwork) {
     todos <- dbWork_todos(dbpath)
 
     if (any(i == todos)) {
-      dbWork_update_job(dbpath, i, "failed", with_filelock = flock,
-        verbose = verbose)
+      dbWork_update_job(dbpath, i, "failed", verbose = verbose)
 
     } else {
-      dbWork_update_job(dbpath, i, "completed", time_s = .node_id,
-        with_filelock = flock, verbose = verbose)
+      dbWork_update_job(dbpath, i, "completed", time_s = .node_id, verbose = verbose)
     }
 
   } else {
@@ -91,7 +88,7 @@ test_that("dbWork: mock simulation in parallel", {
     ncores <- if (is.finite(temp)) temp else 2L
     #cl <- parallel::makePSOCKcluster(ncores, outfile = fname_log)
     cl <- parallel::makePSOCKcluster(ncores)
-    parallel::clusterApply(cl, seq_len(ncores),
+    temp <- parallel::clusterApply(cl, seq_len(ncores),
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
     parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",

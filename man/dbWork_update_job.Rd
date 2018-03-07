@@ -4,8 +4,7 @@
 \alias{dbWork_update_job}
 \title{Update run information of a rSFSW2 simulation project}
 \usage{
-dbWork_update_job(path, runID, status = c("completed", "failed", "inwork"),
-  time_s = "NULL", with_filelock = NULL, verbose = FALSE)
+dbWork_update_job(path, runID, status, time_s = "NULL", verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
@@ -17,10 +16,6 @@ i.e., a value out of \code{runIDs_total}, see \code{\link{indices}}.}
 
 \item{time_s}{A numeric value. The execution time in seconds; used if \code{status} is one of
 "completed" and "failed".}
-
-\item{with_filelock}{A character string. The file path for locking access to
-\code{dbWork} with a file lock, i.e., to provide
-synchronization during parallel processing. If \code{NULL}, no file locking is used.}
 
 \item{verbose}{A logical value. If \code{TRUE}, status messages about file lock and
 database access are printed}

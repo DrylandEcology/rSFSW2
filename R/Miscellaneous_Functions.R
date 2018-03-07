@@ -539,6 +539,77 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
 }
 
 
+regenerationThisYear_YN <- function(x, params) {
+  reg <- 0
+
+  # calculate season doys
+  snowcover <- ifelse(x[, 2] > 0, 1, 0)
+  r <- rle(snowcover)
+  rseries <- ifelse(r$values == 0, seq_along(r$values), 0)
+  temp <- rseries > 0
+
+  if (any(temp)) {
+    # check that at least some days without snow
+    then <- which(rseries == rseries[temp][which.max(r$lengths[temp])])
+
+    if (typeof(params[["season.start"]]) == "character") {
+      #calculate last day of the longest snowpack
+      params[["season.start"]] <- if (then == 1) {
+          1
+        } else {
+          cumsum(r$lengths)[then - 1]
+        }
+    }
+
+    if (typeof(params[["season.end"]]) == "character") {
+      #calculate first day of the longest snowpack
+      params[["season.end"]] <- min(c(cumsum(r$lengths)[then] + 1, length(snowcover)))
+    }
+
+    ids <- params[["season.start"]]:params[["season.end"]]
+
+    if (length(ids) > 0) {
+      swp.season <- x[ids, 1]
+      gs <- rle(as.integer(swp.season >= params[["germination.swp.surface"]]))
+      es <- rle(as.integer(swp.season >= params[["establishment.swp.surface"]]))
+
+      # get vector of establishment starts and ends
+      establishment.start.dos <- establishment.end.dos <- NULL
+      for (esi in seq_along(es$lengths)) {
+        if (es$lengths[esi] >= params[["establishment.duration"]] && es$values[esi] > 0) {
+          establishment.start.dos <- c(establishment.start.dos,
+            if (esi == 1) 1 else {cumsum(es$lengths)[esi - 1] + 1})
+          establishment.end.dos <- c(establishment.end.dos, cumsum(es$lengths)[esi])
+        }
+      }
+
+      # check if any germination period matches up with an establishment period
+      if (length(establishment.end.dos) > 0) {
+        for (gsi in seq_along(gs$lengths)) {
+          if (gs$lengths[gsi] >= params[["germination.duration"]] && gs$values[gsi] > 0) {
+            germination.start.dos <- if (gsi == 1) 1 else {cumsum(gs$lengths)[gsi - 1] + 1}
+            germination.end.dos <- cumsum(gs$lengths)[gsi]
+
+            temp0 <- germination.start.dos + params[["germination.duration"]]
+            temp1 <- germination.end.dos + params[["establishment.delay"]]
+            temp <- (temp0 >= establishment.start.dos &
+                temp0 + params[["establishment.duration"]] <= establishment.end.dos) |
+              (temp1 >= establishment.start.dos &
+                temp1 + params[["establishment.duration"]] <= establishment.end.dos)
+
+            if (any(temp)) {
+              reg <- reg + 1
+            }
+          }
+        }
+      }
+    }
+  }
+  # else all(!temp) => no snow-free days: no regeneration this year
+
+
+  if (reg > 0) 1 else 0
+}
 
 
 
