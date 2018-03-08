@@ -1426,11 +1426,14 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
 
 dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) {
 
+  fieldname_weatherf <- "LookupWeatherFolder"
+  fieldname_weatherid <- "LookupWeatherFolder_id"
+
   DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
     "weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT, folder TEXT UNIQUE NOT NULL)"))
 
-  if (!(all(any((SFSW2_prj_inputs[["SWRunInformation"]]$dailyweather_source[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] == "LookupWeatherFolder")),
-        any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")))) {
+  if (!(all(any((SFSW2_prj_inputs[["SWRunInformation"]]$dailyweather_source[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] == fieldname_weatherf)),
+        any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)))) {
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
 
       temp <- unique(stats::na.exclude(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
@@ -1494,20 +1497,20 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   # If LookupWeatherFolder is ON we need to make sure all of the weather folders are in
   # weatherfolders table
 #TODO: WeatherFolder update
-  if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)) {
     #which ones are not in SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
 
     #make a combined list of experimentals and treatments LookupWeatherFolder List
     #first add any from the experimentals table if its turned on
     #next add any from the treatments table if its turned on
     treatments_lookupweatherfolders <- character(0)
-    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == "LookupWeatherFolder")) {
+    if (any(names(SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_inputs[["sw_input_treatments_use"]]]) == fieldname_weatherf)) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
-        SFSW2_prj_inputs[["sw_input_treatments"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
+        SFSW2_prj_inputs[["sw_input_treatments"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], fieldname_weatherf])
     }
-    if (any(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
+    if (any(SFSW2_prj_inputs[["create_experimentals"]] == fieldname_weatherf)) {
       treatments_lookupweatherfolders <- c(treatments_lookupweatherfolders,
-        SFSW2_prj_inputs[["sw_input_experimentals"]]$LookupWeatherFolder[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]])
+        SFSW2_prj_inputs[["sw_input_experimentals"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], fieldname_weatherf])
     }
     #Remove NA because that defaults to sites default weatherFolder also make sure each folder is unique
     temp <- !is.na(treatments_lookupweatherfolders)
@@ -1526,16 +1529,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       # update its id in our lookuptable for weatherfolder
       if (any(is.na(LWF_index$id))) {
         #get max id from weatherfolders table
-        temp <- is.na(LWF_index$id)
-        weatherfolders_index <- as.numeric(DBI::dbGetQuery(con_dbOut,
-          "SELECT MAX(id) FROM weatherfolders;"))
-        LWF_index$id[temp] <- as.integer(seq.int(from = weatherfolders_index + 1L,
-          to = weatherfolders_index + sum(temp), by = 1L))
+        isna <- is.na(LWF_index$id)
+        maxid <- as.numeric(DBI::dbGetQuery(con_dbOut, "SELECT MAX(id) FROM weatherfolders;"))
+        weatherfolders_index <- if (is.na(maxid)) 0L else maxid
+        LWF_index$id[isna] <- as.integer(seq.int(from = weatherfolders_index + 1L,
+          to = weatherfolders_index + sum(isna), by = 1L))
 
         #Write those in
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- DBI::dbSendStatement(con_dbOut, sql)
-        DBI::dbBind(rs, param = as.list(LWF_index[temp, ]))
+        DBI::dbBind(rs, param = as.list(LWF_index[isna, ]))
         DBI::dbClearResult(rs)
       }
     }
@@ -1592,21 +1595,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   }
 
   #Replace the LookupWeatherFolder with the LookupWeatherFolder_id in either db_experimentals or db_treatments
-  if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
-    if (any(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")) {
+  if (any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)) {
+    if (any(SFSW2_prj_inputs[["create_experimentals"]] == fieldname_weatherf)) {
       #rename the column
-      temp <- which(SFSW2_prj_inputs[["create_experimentals"]] == "LookupWeatherFolder")
-      colnames(db_experimentals)[temp] <- "LookupWeatherFolder_id"
+      temp <- which(SFSW2_prj_inputs[["create_experimentals"]] == fieldname_weatherf)
+      colnames(db_experimentals)[temp] <- fieldname_weatherid
       #get the id numbers for those columns and replace text
-      db_experimentals$LookupWeatherFolder_id <- sapply(db_experimentals$LookupWeatherFolder_id,
+      db_experimentals[, fieldname_weatherid] <- sapply(db_experimentals[, fieldname_weatherid],
         function(x) LWF_index$id[LWF_index$folder == x])
 
     } else {
       #rename the column
-      temp <- which(colnames(db_treatments) == "LookupWeatherFolder")
-      colnames(db_treatments)[temp] <- "LookupWeatherFolder_id"
+      temp <- which(colnames(db_treatments) == fieldname_weatherf)
+      colnames(db_treatments)[temp] <- fieldname_weatherid
       #get the id numbers for those columns and replace text
-      db_treatments$LookupWeatherFolder_id <- sapply(db_treatments$LookupWeatherFolder_id,
+      db_treatments[, fieldname_weatherid] <- sapply(db_treatments[, fieldname_weatherid],
         function(x) LWF_index$id[LWF_index$folder == x])
     }
   }
@@ -1625,7 +1628,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
       stringsAsFactors = FALSE)
 
     #fill in the id column.
-    db_combined_exp_treatments$id <- seq_len(nrow(db_combined_exp_treatments))
+    db_combined_exp_treatments[, "id"] <- seq_len(nrow(db_combined_exp_treatments))
 
     #column types are listed in this data.frame along with what table it is from
     db_treatments_column_types <- data.frame(column = SFSW2_prj_inputs[["create_treatments"]],
@@ -1664,25 +1667,30 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
     }
 
     #rename weather folder column name and create the fk
-    fk_LookupWeatherFolder <- ""
-    if (any(SFSW2_prj_inputs[["create_treatments"]] == "LookupWeatherFolder")) {
+    fk_LookupWeatherFolder <- NA
+    if (any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)) {
       useTreatmentWeatherFolder <- TRUE
-      temp <- which(db_treatments_column_types[, "column"] == "LookupWeatherFolder")
-      db_treatments_column_types[temp, c("column", "type")] <- c("LookupWeatherFolder_id", "INTEGER")
-      colnames(db_combined_exp_treatments)["table"] <- db_treatments_column_types[, "column"]
-      fk_LookupWeatherFolder <- ", FOREIGN KEY(LookupWeatherFolder_id) REFERENCES weatherfolders(id)"
+      # Change name from 'LookupWeatherFolder' to 'LookupWeatherFolder_id'
+      temp <- which(db_treatments_column_types[, "column"] == fieldname_weatherf)
+      db_treatments_column_types[temp, c("column", "type")] <- c(fieldname_weatherid, "INTEGER")
+      temp <- colnames(db_combined_exp_treatments)
+      temp[which(temp == fieldname_weatherf)] <- fieldname_weatherid
+      colnames(db_combined_exp_treatments) <- temp
+      fk_LookupWeatherFolder <- paste0(", FOREIGN KEY(", fieldname_weatherid,
+        ") REFERENCES weatherfolders(id)")
     }
+
     #Create the table
     DBI::dbExecute(con_dbOut, paste0("CREATE TABLE treatments(id INTEGER PRIMARY KEY AUTOINCREMENT, ",
       if (useExperimentals) "experimental_id INTEGER, ",
       "simulation_years_id INTEGER, ",
       paste(db_treatments_column_types[, "column"],
         db_treatments_column_types[, "type"], collapse = ", "),
-      if (useExperimentals || fk_LookupWeatherFolder != "") ", ",
-      if (useExperimentals)
-        "FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)",
-      if (fk_LookupWeatherFolder != "")
-        ", ", fk_LookupWeatherFolder, ");"))
+      if (useExperimentals) {
+        ", FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)"
+      },
+      if (!is.na(fk_LookupWeatherFolder)) fk_LookupWeatherFolder,
+      ");"))
 
     #Lets put in the treatments into combined. This will repeat the reduced rows of treatments into combined
     if (useTreatments) {
