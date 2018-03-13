@@ -4,7 +4,8 @@
 \alias{setup_simulation_time}
 \title{Describe the time of a simulation project}
 \usage{
-setup_simulation_time(sim_time, add_st2 = FALSE, adjust_NS = FALSE)
+setup_simulation_time(sim_time, add_st2 = FALSE, adjust_NS = FALSE,
+  use_doy_range = FALSE, doy_ranges = list())
 }
 \arguments{
 \item{sim_time}{A list with at least values for three named elements: 'simstartyr' and
@@ -16,6 +17,13 @@ setup_simulation_time(sim_time, add_st2 = FALSE, adjust_NS = FALSE)
 \item{adjust_NS}{A logical value. If \code{TRUE}, then the result is corrected for
 locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
 \code{TRUE}.}
+
+\item{use_doy_range}{A logical value. If \code{TRUE}, then the result is
+additional daily indices indicating whether the DOY is within the days indicated
+in the \code{doy_ranges}.}
+
+\item{doy_ranges}{A named list. Aggregation output variables and the daily \code{c(min, max)}
+of days you wish to calculate the aggregation over.}
 
 \item{A}{named list, i.e., the updated version of \code{sim_time}.}
 }

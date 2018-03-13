@@ -12,13 +12,13 @@ write_timer <- function(timerfile2, label, time_sec = "", number = "") {
 #' Write timing information to the timing file
 #' @export
 compile_overall_timer <- function(timerfile2, dir_out, workersN = 0, runs.completed = 0,
-  scenario_No = 0, ensembles.completed = 0, delta.overall = 0, delta.outputDB = 0,
-  delta.check = 0, delta.ensembles = 0) {
+  scenario_No = 0, ensembles.completed = 0, delta.overall = NA, delta.outputDB = NA,
+  delta.check = NA, delta.ensembles = NA) {
 
-  write_timer(timerfile2, "Time_Total", time_sec = delta.overall)
-  write_timer(timerfile2, "Time_OutputDB", time_sec = delta.outputDB)
-  write_timer(timerfile2, "Time_Check", time_sec = delta.check)
-  write_timer(timerfile2, "Time_Ensembles", time_sec = delta.ensembles)
+  if (!is.na(delta.overall)) write_timer(timerfile2, "Time_Total", time_sec = delta.overall)
+  if (!is.na(delta.outputDB)) write_timer(timerfile2, "Time_OutputDB", time_sec = delta.outputDB)
+  if (!is.na(delta.check)) write_timer(timerfile2, "Time_Check", time_sec = delta.check)
+  if (!is.na(delta.ensembles)) write_timer(timerfile2, "Time_Ensembles", time_sec = delta.ensembles)
 
   times <- dbWork_timing(dir_out)
   if (length(times) > 0) {

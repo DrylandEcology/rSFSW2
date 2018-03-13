@@ -90,12 +90,17 @@ determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
 #'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
 #' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
 #'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
+#' of days you wish to calculate the aggregation over.
 #' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
 #'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
 #'  \code{TRUE}.
 #' @param A named list, i.e., the updated version of \code{sim_time}.
 setup_simulation_time <- function(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE) {
+  adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list()) {
 
   #simyrs <- simstartyr:endyr
   #no.simyr <- endyr - simstartyr + 1
@@ -142,12 +147,17 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 
   if (add_st2) {
     sim_time[["sim_time2_North"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-      sim_tscales = c("daily", "monthly", "yearly"), latitude = 90,
-      account_NorthSouth = adjust_NS)
+      sim_tscales = c("daily", "monthly", "yearly"),
+      use_doy_range = use_doy_range,
+      doy_ranges =  doy_ranges,
+      latitude = 90, account_NorthSouth = adjust_NS)
 
     if (adjust_NS) {
       sim_time[["sim_time2_South"]] <- simTiming_ForEachUsedTimeUnit(sim_time,
-        sim_tscales = c("daily", "monthly", "yearly"), latitude = -90,
+        sim_tscales = c("daily", "monthly", "yearly"),
+        use_doy_range = use_doy_range,
+        doy_ranges = doy_ranges,
+        latitude = -90,
         account_NorthSouth = TRUE)
 
     } else {
@@ -164,14 +174,20 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
 #' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
 #'  "weekly", "monthly", "yearly")}.
+#' @param use_doy_range A logical value. If \code{TRUE}, then the result is
+#' additional daily indices indicating whether the DOY is within the days indicated
+#' in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
+#' of days you wish to calculate the aggregation over.
 #' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
 #'  adjustment is requested; however, the code extracts only the sign.
 #' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
 #'  corrected for locations on the southern vs. northern hemisphere.
 #' @return A named list.
 simTiming_ForEachUsedTimeUnit <- function(st,
-  sim_tscales = c("daily", "weekly", "monthly", "yearly"), latitude = 90,
-  account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
+  sim_tscales = c("daily", "weekly", "monthly", "yearly"),
+  use_doy_range = FALSE,  doy_ranges = list(),
+  latitude = 90, account_NorthSouth = TRUE) { #positive latitudes -> northern hemisphere; negative latitudes -> southern hemisphere
 
   res <- list()
 
@@ -220,7 +236,41 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       res$useyrs_NSadj <- st$useyrs
       res$no.useyr_NSadj <- st$no.useyr
     }
+
+    #Adjust years to water-years
+    #In North, Water year starting Oct 1 - Using DOY 274, which is Oct 1st in Leap Years, but Oct 2nd in typical years
+    #In South, Water year starting April 1 - Using DOY 92, which is April 1st in Leap Years, but April 2nd in typical years
+
+    FirstDOY_WaterYear <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 274, 92)
+    res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > FirstDOY_WaterYear, 1, 0)
+
+    if (isTRUE(use_doy_range)) {
+      #North or Southern hemisphere? eliminate unnecessary water years values
+      if (latitude > 0) {
+        Idx <- grep("_S",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      } else {
+        Idx <- grep("_N",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      }
+
+      for (dr in seq_along(doy_ranges)) {
+        if (!is.null(doy_ranges[[dr]])) { #for all non-NULL doy_range values
+          doy_range_values <- doy_ranges[[dr]]
+
+       # Create daily logical vector indicating whether that doy is within range or not
+        res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
+        if (doy_range_values[1] > doy_range_values[2]) {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:366, 1:doy_range_values[2]), TRUE, FALSE)
+          } else {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
+        }
+      }
+    }
   }
+}
+
+
 
   if (any(sim_tscales == "weekly")) {
 

@@ -205,21 +205,30 @@ mpi_work <- function(verbose = FALSE) {
             dat$i_sim, shQuote(dat$i_SWRunInformation$Label)))
         }
 
+        t.do_OneSite <- Sys.time()
+
         result <- try(do.call("do_OneSite", args = dat[-1]))
 
-        if (inherits(result, "try-error")) {
-          # Tell master that task failed
-          print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
-            dat$i_sim, "with error", shQuote(paste(result, collapse = " / "))))
-          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 4L)
+        delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
+        status <- !inherits(result, "try-error")
+        dat <- list(i = dat$i_sim, r = result,
+          status = if (status) as.logical(result) else FALSE, time_s = delta.do_OneSite)
 
-        } else {
+        if (status) {
           # Send result back to the master and message that task has been completed
           if (verbose) {
             print(paste(Sys.time(), "MPI-worker", worker_id, "successfully completed",
               "task =", dat$i_sim))
           }
-          Rmpi::mpi.send.Robj(list(i = dat$i_sim, r = result), dest = master, tag = 2L)
+
+          Rmpi::mpi.send.Robj(dat, dest = master, tag = 2L)
+
+        } else {
+          # Tell master that task failed
+          print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
+            dat$i_sim, "with error", shQuote(paste(result, collapse = " / "))))
+
+          Rmpi::mpi.send.Robj(dat, dest = master, tag = 4L)
         }
       }
 
@@ -403,8 +412,9 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
     SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],
       mpi = "mpi", socket = "socket", cluster = "socket", NA_character_)
 
-    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
-      tmpdir = normalizePath(tempdir()))
+#    SFSW2_glovars[["lockfile"]] <- tempfile(pattern = "rSFSW2lock",
+#      tmpdir = normalizePath(tempdir()))
+    SFSW2_glovars[["lockfile"]] <- NULL
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       if (!requireNamespace("Rmpi", quietly = TRUE)) {

@@ -543,7 +543,14 @@ req_out <- list(
     "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
+<<<<<<< HEAD
     "yearlyWaterBalanceFluxes", 0,
+||||||| merged common ancestors
+    "yearlyWaterBalanceFluxes", 1,
+=======
+    "yearlyWaterBalanceFluxes", 1,
+    "yearlyTranspirationBySoilLayer", 1,
+>>>>>>> master
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
@@ -572,6 +579,7 @@ req_out <- list(
     "dailySWPdrynessEventSizeDistribution", 1,
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
+    "periodicVWCmatricFirstLayer", 1,
   #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
@@ -656,7 +664,26 @@ opt_agg <- list(
 
   # Base temperature (degree C) below which cold-degree-days are accumulated
   Tbase_coldDD_C = 0,
-  
+
+  # Options for calculating daily aggregation options over a specific range of days
+  ## Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S), will be used if no values are specified for the other specific value (i.e. NULL)
+  ## Variables that are calculated within water-years (Begin Oct 1st in N, DOY 275, April 1st in S, DOY 92),
+  ### as opposed to typical years (Begin Jan 1st, DOY 1), the doy specific values need to be set within the bounds
+  ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
+  use_doy_range = FALSE,
+  doy_ranges = list(
+    yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
+    defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
+  ),
+
   # Daily weather frequency distributions
   # Bins of x mm precipitation event sizes
   bin_prcp_mm = 5,
