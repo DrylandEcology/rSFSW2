@@ -82,6 +82,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       0L
     }
 
+  # temporary output database
+  dbTempFile <- DBI::dbConnect(RSQLite::SQLite(), dbname =
+    file.path(project_paths[["dir_out_temp"]], paste0("SQL_Node_", fid, ".sqlite3")))
+  on.exit(DBI::dbDisconnect(dbTempFile), add = TRUE)
+
   # Print/tag for function call
   tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")
   temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
@@ -1705,12 +1710,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     #prepare SQL result container
-    SQL <- SQLcurrent <- character(0)
-
-    dbTempFile <- file.path(project_paths[["dir_out_temp"]],
-      paste0("SQL_Node_", fid, ".sql"))
-    dbTempFileCurrent <- file.path(project_paths[["dir_out_temp"]],
-      paste0("SQL_Current_Node_", fid, ".sql"))
+    SQL <- character(0)
   }
 
   if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
@@ -1844,13 +1844,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         temp <- paste(c(P_id, if (sim_size[["ncol_dbOut_overall"]] > 0)
           paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
           collapse = ", ")
-        SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-        SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-        if (length(SQL) == 0) {
-          SQL <- paste(SQL1, SQL2, sep = "\n")
-        } else {
-          SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
-        }
+
+        SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
+        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+
+        SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
+        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
       } else {
         Exclude_ClimateAmbient <- FALSE
@@ -5320,14 +5319,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           tasks$aggregate[sc] <- 0L
           temp1 <- temp2 <- P_id
         }
-        SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
-        SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
 
-        if (length(SQL) == 0) {
-          SQL <- paste(SQL1, SQL2, sep = "\n")
-        } else {
-          SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
-        }
+        SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
+        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+
+        SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
+        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
       }
 
       #Daily Output
@@ -5488,27 +5485,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 
             if (agg.analysis > 1) {
-              SQL1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+              temp1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
                   ids <- seq_len(366) + (x - 1) * 366
                   paste0(P_id, ", ", x, ", ", paste0(res.dailyMean[ids], collapse = ","))
                 }), ")")
 
-              SQL2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+              temp2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
                   ids <- seq_len(366) + (x - 1) * 366
                   paste0(P_id, ", ", x, ", ", paste0(res.dailySD[ids], collapse = ","))
                 }), ")")
 
             } else { #no layers
-              SQL1 <- paste0("(", P_id, ", ", paste(res.dailyMean, collapse = ","), ")")
-              SQL2 <- paste0("(", P_id, ", ", paste(res.dailySD, collapse = ","), ")")
+              temp1 <- paste0("(", P_id, ", ", paste(res.dailyMean, collapse = ","), ")")
+              temp2 <- paste0("(", P_id, ", ", paste(res.dailySD, collapse = ","), ")")
             }
 
-            SQL1 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
-              "_Mean\" VALUES ", SQL1, ";")
+            SQL <- paste0("INSERT INTO \"aggregation_doy_",
+              prj_todos[["adaily"]][["tag"]][doi], "_Mean\" VALUES ", temp1, ";")
+            try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
-            SQL2 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
-              "_SD\" VALUES ", SQL2, ";")
-            SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
+            SQL <- paste0("INSERT INTO \"aggregation_doy_",
+              prj_todos[["adaily"]][["tag"]][doi], "_SD\" VALUES ", temp2, ";")
+            try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
           }#end if resume
         }#doi loop
@@ -5517,37 +5515,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       # Determine success of 'aggregate' section
       if (tasks$aggregate[sc] > 0L && length(SQL) > 0) {
         tasks$aggregate[sc] <- 2L
-
-        if (sc == 1) {
-          #Clear SQL
-          SQLcurrent <- SQL
-          SQL <- character(0)
-        }
       }
 
     } #end if do aggregate
 
   } #end loop through scenarios
 
-  if (all(tasks$aggregate > 0L)) {
-    print_debug(opt_verbosity, tag_simfid, "writing", "temporary files")
-
-    if (length(SQLcurrent) > 0) {
-      temp <- try(cat(SQLcurrent, file = dbTempFileCurrent, append = TRUE, sep = "\n"))
-      if (inherits(temp, "try-error")) {
-        print(paste0(tag_simfid, ": writing to temporary file",
-          shQuote(dbTempFileCurrent)))
-      }
-    }
-
-    if (length(SQL) > 0) {
-      temp <- try(cat(SQL, file = dbTempFile, append = TRUE, sep = "\n"))
-      if (inherits(temp, "try-error")) {
-        print(paste0(tag_simfid, ": writing to temporary file", shQuote(dbTempFile)))
-      }
-    }
-
-  } else {
+  if (any(tasks$aggregate == 0L)) {
     print(paste0(tag_simfid, ": not all aggregation results successful with",
       paste(tasks$aggregate, collapse = "-")))
   }
