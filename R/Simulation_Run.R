@@ -865,18 +865,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
             fnames_out[["dbOutput"]]), filebasename = opt_sim[["tag_WeatherFolder"]],
           startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]]),
-          silent = TRUE)
+          silent = !opt_verbosity[["verbose"]])
       }
 
     } else {
       #---Extract weather data
       weather_label_cur <- try(local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
-        fnames_out[["dbOutput"]]), silent = TRUE)
+        fnames_out[["dbOutput"]]), silent = !opt_verbosity[["verbose"]])
 
       if (is.na(weather_label_cur))
         weather_label_cur <- try({function() stop(tag_simfid, ": Output DB ",
           basename(fnames_out[["dbOutput"]]), " has no information about weather data")}(),
-          silent = TRUE)
+          silent = !opt_verbosity[["verbose"]])
 
       if (inherits(weather_label_cur, "try-error")) {
         i_sw_weatherList <- weather_label_cur
@@ -889,7 +889,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
             startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
-            Scenario = scen)), silent = TRUE)
+            Scenario = scen)), silent = !opt_verbosity[["verbose"]])
       }
     }
 
