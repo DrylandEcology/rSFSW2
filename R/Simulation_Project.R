@@ -1111,8 +1111,8 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 #'
 #' @export
 move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_out_run, opt_verbosity, chunk_size = 10000L, use_dbTempOut = TRUE,
-  check_if_Pid_present = FALSE, dir_out_temp = NULL) {
+  opt_behave, opt_out_run, opt_verbosity, check_if_Pid_present = FALSE,
+  dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
   runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
@@ -1127,22 +1127,40 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     opt_parallel[["opt_job_time"]][["wall_time_s"]]
 
   if (has_time_to_concat) {
-    if (use_dbTempOut) {
-      move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-        opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp,
-        check_if_Pid_present = check_if_Pid_present)
+    if (is.null(dir_out_temp)) {
+      # Use default project location for temporary text files
+      dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+    }
 
-    } else {
-      # old behavior with temporary text files
+    # check: old behavior used temporary text files; new code uses temporary database files
+    has_tempTXT <- length(get_fnames_temporaryOutput(dir_out_temp)) > 0L
+    has_tempDB <- length(get_fnames_dbTempOut(dir_out_temp)) > 0L
+
+    if (has_tempTXT) {
+      # old behavior used temporary text files; maintain calls as long as functions are
+      # deprecated and not yet defunct
       if (check_if_Pid_present) {
         move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
-          opt_behave, opt_out_run, opt_verbosity, chunk_size = chunk_size,
+          opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
           check_if_Pid_present = TRUE, dir_out_temp = dir_out_temp)
 
       } else {
         move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-          opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp)
+          opt_out_run, opt_verbosity, chunk_size = 1000L, dir_out_temp = dir_out_temp)
       }
+    }
+
+    if (has_tempDB) {
+      # new behavior
+      if (!SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] &&
+        SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]) {
+         warning("move_output_to_dbOutput: option 'dbOutCurrent_from_tempTXT' is ",
+           "currently not supported")
+      }
+
+      move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
+        opt_out_run, opt_verbosity, chunk_size = 10000L, dir_out_temp = dir_out_temp,
+        check_if_Pid_present = check_if_Pid_present)
     }
 
   } else {

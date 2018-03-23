@@ -374,7 +374,8 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
     tempN_todo <- length(get_fnames_temporaryOutput(
       dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-        "sqlFilesInserted.txt")))
+        "sqlFilesInserted.txt"))) +
+      length(get_fnames_dbTempOut(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]))
 
     if (tempN_todo > 0) {
       stop("'recreate_dbWork' can only correctly re-create `dbWork` if",
