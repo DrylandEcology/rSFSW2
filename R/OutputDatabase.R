@@ -597,12 +597,25 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 }
 
 
-#' Locate file names of temporary output files
+#' Locate file names of temporary output database files
+get_fnames_dbTempOut <- function(dir_out_temp, ...) {
+  list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sqlite3",
+    full.names = TRUE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+}
+
+
+#' Locate file names of temporary output text files
 get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFiles = TRUE,
   resume = TRUE) {
 
-  theFileList <- list.files(path = dir_out_temp, pattern = "SQL", full.names = FALSE,
-    recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+  theFileList <- c(
+    list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sql",
+      full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE),
+    list.files(path = dir_out_temp, pattern = "SQL_Current_Node_.\\.sql",
+      full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE))
+
+  # make sure that we don't include any database files
+  theFileList <- grep(".sqlite3", theFileList, value = TRUE, invert = TRUE)
 
   # remove any already inserted files from list
   if (!deleteTmpSQLFiles && resume) {
@@ -792,8 +805,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   }
 
   # get list of dbTempOut not yet moved to dbOutput
-  theFileList <- list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sqlite3",
-    full.names = TRUE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+  theFileList <- get_fnames_dbTempOut(dir_out_temp)
 
   if (length(theFileList) > 0) {
     # Connect to the final output database
@@ -843,11 +855,40 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
         # no Pid checks; discard/ignore non-unique records
 
         for (k2 in seq_along(tables)) {
-          sql <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
+          sql0 <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
             "dbTempOut.", tables[k2])
-          temp <- DBI::dbExecute(con_dbOut, sql)
 
-          ok <- ok && !inherits(temp, "try-error")
+          off <- 0L
+          repeat {
+            sql <- if (chunk_size > 0) {
+                paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
+              } else sql0
+
+            temp <- try(DBI::dbExecute(con_dbOut, sql),
+              silent = !opt_verbosity[["verbose"]])
+
+            if (inherits(temp, "try-error")) {
+              n <- 0L
+              ok <- FALSE
+            } else {
+              n <- temp
+              off <- off + temp
+            }
+
+            if (n == 0) break
+          }
+        }
+
+        if (!ok) {
+          # rename temporary DB to failed if anything didn't work
+          temp0 <- basename(theFileList[k1])
+          temp1 <- gregexpr(".", temp0, fixed = TRUE)
+          etemp <- temp1[[1]][length(temp1[[1]])] # position of file extension
+          ftemp <- paste0(substr(temp0, 1L, etemp - 1L), "_failed",
+            substr(temp0, etemp, nchar(temp0)))
+
+          try(file.rename(from = theFileList[k1],
+            to = file.path(dirname(theFileList[k1]), ftemp)), silent = TRUE)
         }
       }
 
@@ -855,7 +896,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       DBI::dbExecute(con_dbOut, "DETACH dbTempOut")
 
       # Delete temporary DB
-      if (ok && opt_out_run[["deleteTmpSQLFiles"]]) {
+      if (opt_out_run[["deleteTmpSQLFiles"]]) {
         try(unlink(theFileList[k1]), silent = TRUE)
       }
     }
@@ -882,6 +923,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 #'   the temporary text files and processed in one SQL-transaction.
 move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L, dir_out_temp = NULL) {
+
+  .Deprecated(new = "move_dbTempOut_to_dbOut")
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -1056,6 +1099,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L, check_if_Pid_present = TRUE,
   dir_out_temp = NULL) {
+
+  .Deprecated(new = "move_dbTempOut_to_dbOut")
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -1402,7 +1447,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       "sqlFilesInserted.txt"),
     deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
-    resume = opt_behave[["resume"]]))
+    resume = opt_behave[["resume"]])) +
+    length(get_fnames_dbTempOut(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]))
 
   if (runsN_todo > 0 || tempN_todo > 0) {
     stop(temp_call, " can only process `dbOutput` after all simulation runs have completed",
