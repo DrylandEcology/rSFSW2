@@ -65,9 +65,15 @@ add_dbOutput_index <- function(con) {
 
 #' List the design tables of dbOutput
 #' @export
-dbOutput_ListDesignTables <- function() c("runs", "sqlite_sequence", "header", "run_labels",
+dbOutput_ListDesignTables <- function() c("runs", "header", "run_labels",
   "scenario_labels", "sites", "experimental_labels", "treatments", "simulation_years",
   "weatherfolders")
+
+
+#' List the SQLite internal tables of dbOutput
+#' @export
+dbOutput_ListInternalTables <- function() c("sqlite_sequence", "sqlite_stat1",
+  "sqlite_stat4")
 
 
 #' List the available output tables of dbOutput
@@ -85,7 +91,7 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
   }
 
   temp <- DBI::dbListTables(con)
-  tables <- temp[!(temp %in% dbOutput_ListDesignTables())]
+  tables <- temp[!(temp %in% c(dbOutput_ListDesignTables(), dbOutput_ListInternalTables()))]
 
   tables
 }
@@ -763,6 +769,103 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
   res
 }
 
+
+#' Moves simulation output that was written to temporary SQL-databases to a final
+#' output SQL-database
+#'
+move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 10000L, dir_out_temp = NULL,
+  check_if_Pid_present = FALSE) {
+
+  if (opt_verbosity[["verbose"]]) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  if (is.null(dir_out_temp)) {
+    # Use default project location for temporary text files
+    dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+  }
+
+  # get list of dbTempOut not yet moved to dbOutput
+  theFileList <- list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sqlite3",
+    full.names = TRUE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
+
+  if (length(theFileList) > 0) {
+    # Connect to the final output database
+    con_dbOut <- DBI::dbConnect(RSQLite::SQLite(),
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+
+    if (check_if_Pid_present) {
+      # Connect to the failed output text file
+      jfname_failed <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        "SQL_tmptxt_failed.txt")
+    }
+
+    # Prepare output databases
+    set_PRAGMAs(con_dbOut, PRAGMA_settings1())
+
+    # Add data to SQL databases
+    for (k1 in seq_along(theFileList)) {
+      ok <- TRUE
+
+      tDB1 <- Sys.time()
+      temp <- difftime(tDB1, t_job_start, units = "secs") +
+        opt_parallel[["opt_job_time"]][["one_concat_s"]]
+      has_time_to_concat <- temp < opt_parallel[["opt_job_time"]][["wall_time_s"]]
+      if (!has_time_to_concat) {
+        break
+      }
+
+      if (opt_verbosity[["verbose"]]) {
+        print(paste("Adding", shQuote(theFileList[k1]), "to output DB: started at", tDB1))
+      }
+
+      # Attach temporary DB
+      sql <- paste("ATTACH", shQuote(theFileList[k1]), "AS dbTempOut")
+      DBI::dbExecute(con_dbOut, sql)
+
+      # Transfer records for each table from temporary to final output DB
+      tables <- unlist(DBI::dbGetQuery(con_dbOut,
+        "SELECT name FROM dbTempOut.sqlite_master WHERE type = 'table'"))
+
+      if (check_if_Pid_present) {
+        # obtain Pids/sl that are in dbTempOut but not yet in dbOut
+        ok <- FALSE
+        stop("option 'check_if_Pid_present' is not yet implemented")
+
+      } else {
+        # no Pid checks; discard/ignore non-unique records
+
+        for (k2 in seq_along(tables)) {
+          sql <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
+            "dbTempOut.", tables[k2])
+          temp <- DBI::dbExecute(con_dbOut, sql)
+
+          ok <- ok && !inherits(temp, "try-error")
+        }
+      }
+
+      # Detach temporary DB
+      DBI::dbExecute(con_dbOut, "DETACH dbTempOut")
+
+      # Delete temporary DB
+      if (ok && opt_out_run[["deleteTmpSQLFiles"]]) {
+        try(unlink(theFileList[k1]), silent = TRUE)
+      }
+    }
+  }
+
+  #--- run optimize on database
+  DBI::dbExecute(con_dbOut, "PRAGMA optimize")
+
+  invisible(TRUE)
+}
 
 #' Moves simulation output that was written to temporary text files to a SQL-database
 #'
@@ -1948,9 +2051,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
   invisible(NULL)
 }
 
-dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
-
-  fields <- generate_OverallAggregation_fields(aon, opt_agg)
+dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) {
 
   ncol_dbOut_overall <- sum(fields[, "N"])
 
@@ -1969,8 +2070,8 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, aon, opt_agg) {
   DBI::dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_sd\" (",
     sdString, ")"))
 
-  list(fields = fields, ncol_dbOut_overall = ncol_dbOut_overall,
-    meanString = meanString, sdString = sdString)
+  list(ncol_dbOut_overall = ncol_dbOut_overall, meanString = meanString,
+    sdString = sdString)
 }
 
 dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
@@ -2171,8 +2272,10 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
   # Add design and output tables
   dbOutput_create_Design(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs)
 
-  res_oa <- dbOutput_create_OverallAggregationTable(con_dbOut,
+  fields <- generate_OverallAggregation_fields(
     aon = SFSW2_prj_meta[["prj_todos"]][["aon"]], opt_agg = SFSW2_prj_meta[["opt_agg"]])
+
+  res_oa <- dbOutput_create_OverallAggregationTable(con_dbOut, fields)
   add_dbOutput_index(con_dbOut)
 
   res_da <- dbOutput_create_DailyAggregationTable(con_dbOut,
@@ -2186,8 +2289,74 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
       dailySQL = res_da[["dailySQL"]], dailyLayersSQL = res_da[["dailyLayersSQL"]])
   }
 
-  res_oa[c("fields", "ncol_dbOut_overall")]
+  #--- run optimize on database
+  DBI::dbExecute(con_dbOut, "PRAGMA optimize")
+
+  list(fields = fields, ncol_dbOut_overall = res_oa[["ncol_dbOut_overall"]])
 }
+
+
+make_temporary_dbOutputs <- function(dbOutput, dir_out_temp, fields, adaily,
+  verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+
+  # IDs of temporary dbOutputs
+  IDs <- if (SFSW2_glovars[["p_has"]]) seq_len(SFSW2_glovars[["p_workersN"]]) else 0L
+  fnames_dbTempOut <- file.path(dir_out_temp, paste0("SQL_Node_", IDs, ".sqlite3"))
+
+  # Tables for temporary dbOutputs
+  dbOut_tables <- dbOutput_ListOutputTables(dbname = dbOutput)
+
+  # Create temporary dbOutput
+  for (k in seq_along(IDs)) {
+    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = fnames_dbTempOut[k]),
+      silent = !verbose)
+
+    if (inherits(con, "try-error")) {
+      unlink(fnames_dbTempOut[k])
+      stop(paste("Creation of temporary output database failed:", con, collapse = ", "))
+    }
+
+    tables <- RSQLite::dbListTables(con)
+
+    #--- Check whether temporary dbOutput exists and has a suitable design
+    # Has suitable tables?
+    isgood <- length(tables) > 0 && all(dbOut_tables %in% tables) &&
+      "aggregation_overall_mean" %in% tables
+
+    if (isgood) {
+      # Has correct (number of) fields in table `aggregation_overall_mean`
+      temp <- RSQLite::dbListFields(con, "aggregation_overall_mean")
+      ncols <- length(temp) - 1L
+
+      isgood <- isgood && ncols == sum(fields[, "N"]) &&
+        identical(temp[-1], unlist(fields[, "fields"]))
+    }
+
+    if (!isgood) {
+      set_PRAGMAs(con, PRAGMA_settings2())
+
+      temp <- dbOutput_create_OverallAggregationTable(con, fields)
+      add_dbOutput_index(con)
+
+      temp <- dbOutput_create_DailyAggregationTable(con, adaily)
+    }
+
+    DBI::dbDisconnect(con)
+  }
+
+  invisible(fnames_dbTempOut)
+}
+
 
 #' Add fields to an existing dbOutput
 #'
@@ -2221,8 +2390,10 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, col_ids = NU
   }
 
   # create new tables
-  temp <- dbOutput_create_OverallAggregationTable(con_dbOut,
+  fields <- generate_OverallAggregation_fields(
     aon = SFSW2_prj_meta[["prj_todos"]][["aon"]], opt_agg = SFSW2_prj_meta[["opt_agg"]])
+
+  temp <- dbOutput_create_OverallAggregationTable(con_dbOut, fields)
 
   for (k in seq_along(overall_tables)) {
     hasfields <- DBI::dbListFields(con_dbOut, told[k])
