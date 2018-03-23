@@ -1111,7 +1111,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 #'
 #' @export
 move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = 10000L, use_dbTempOut = TRUE,
   check_if_Pid_present = FALSE, dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
@@ -1127,14 +1127,22 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     opt_parallel[["opt_job_time"]][["wall_time_s"]]
 
   if (has_time_to_concat) {
-    if (check_if_Pid_present) {
-      move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
-        opt_behave, opt_out_run, opt_verbosity, chunk_size = chunk_size,
-        check_if_Pid_present = TRUE, dir_out_temp = dir_out_temp)
+    if (use_dbTempOut) {
+      move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
+        opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp,
+        check_if_Pid_present = check_if_Pid_present)
 
     } else {
-      move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-        opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp)
+      # old behavior with temporary text files
+      if (check_if_Pid_present) {
+        move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
+          opt_behave, opt_out_run, opt_verbosity, chunk_size = chunk_size,
+          check_if_Pid_present = TRUE, dir_out_temp = dir_out_temp)
+
+      } else {
+        move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
+          opt_out_run, opt_verbosity, chunk_size = chunk_size, dir_out_temp = dir_out_temp)
+      }
     }
 
   } else {

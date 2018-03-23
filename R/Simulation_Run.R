@@ -84,7 +84,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   # temporary output database
   dbTempFile <- DBI::dbConnect(RSQLite::SQLite(), dbname =
-    file.path(project_paths[["dir_out_temp"]], paste0("SQL_Node_", fid, ".sqlite3")))
+    file.path(SimParams[["project_paths"]][["dir_out_temp"]],
+    paste0("SQL_Node_", fid, ".sqlite3")))
   on.exit(DBI::dbDisconnect(dbTempFile), add = TRUE)
 
   # Print/tag for function call
@@ -5597,6 +5598,14 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],
     MoreArgs[["sim_size"]][["runsN_master"]])
+
+
+  #--- prepare the temporary output databases
+  make_temporary_dbOutputs(dbOutput = MoreArgs[["fnames_out"]][["dbOutput"]],
+    dir_out_temp = MoreArgs[["project_paths"]][["dir_out_temp"]],
+    fields = MoreArgs[["prj_todos"]][["aon_fields"]],
+    adaily = MoreArgs[["prj_todos"]][["adaily"]],
+    verbose = MoreArgs[["opt_verbosity"]][["verbose"]])
 
   #--- call the simulations depending on parallel backend
   if (SFSW2_glovars[["p_has"]]) {
