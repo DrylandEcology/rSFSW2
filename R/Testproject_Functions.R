@@ -480,8 +480,8 @@ compare_test_output <- function(dir_test, dir_ref = NULL, tol = 1e-3,
   testDB <- RSQLite::dbConnect(RSQLite::SQLite(), ftemp_test)
 
   #---Identify set of shared tables
-  refDB_tables <- RSQLite::dbListTables(refDB)
-  testDB_tables <- RSQLite::dbListTables(testDB)
+  refDB_tables <- setdiff(RSQLite::dbListTables(refDB), dbOutput_ListInternalTables())
+  testDB_tables <- setdiff(RSQLite::dbListTables(testDB), dbOutput_ListInternalTables())
   tocomp_tables <- intersect(refDB_tables, testDB_tables)
   if (length(tocomp_tables) == 0L) {
     diff_msgs <- c(diff_msgs,
