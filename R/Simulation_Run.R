@@ -5334,11 +5334,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       #Daily Output
       if (prj_todos[["adaily"]][["N"]] > 0 && tasks$aggregate[sc] > 0L) {
-        dailyList <- list()
-        SQLc <- ""
+
         #aggregate for each response variable
         for (doi in seq_len(prj_todos[["adaily"]][["N"]])) {
-          nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "daily aggregation", doi)
 
           if (!opt_behave[["resume"]] | (opt_behave[["resume"]] & !isdone.dailyAggs[doi, sc])) {
