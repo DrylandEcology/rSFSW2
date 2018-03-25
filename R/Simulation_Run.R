@@ -1831,6 +1831,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (tasks$aggregate[sc] == 1L) {
       print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
+      do_overall_Pid <- any(!has_Pid(dbTempFile, table = c("aggregation_overall_mean",
+        "aggregation_overall_sd"), P_id))
+
       #HEADER GENERATION REMOVED#
       #only exclude if
       #   1.) Exclude_ClimateAmbient is true in treatments
@@ -1841,24 +1844,26 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         Exclude_ClimateAmbient <- TRUE
 
-        #ncol_dbOut_overall comes from database creation
-        temp <- paste(c(P_id, if (sim_size[["ncol_dbOut_overall"]] > 0)
-          paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
-          collapse = ", ")
+        if (do_overall_Pid) {
+          #ncol_dbOut_overall comes from database creation
+          temp <- paste(c(P_id, if (sim_size[["ncol_dbOut_overall"]] > 0)
+            paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
+            collapse = ", ")
 
-        SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
+          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
-        SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
+          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+        }
 
       } else {
         Exclude_ClimateAmbient <- FALSE
       }
 
       #overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
-      if (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
-        !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient) {
+      if (do_overall_Pid && (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+        !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient)) {
 
         # delete data so that they are read anew for each scenario; each variable is
         # checked that datafile is read in only once per scenario
@@ -5306,26 +5311,25 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           sim_size[["ncol_dbOut_overall"]] == nv1) ||
           sim_size[["ncol_dbOut_overall"]] == 0L) {
 
+          print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
+
           resMeans[!is.finite(resMeans)] <- "NULL"
           resSDs[!is.finite(resSDs)] <- "NULL"
           temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
           temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
 
-          print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
+          SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
+          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+
+          SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
+          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
         } else {
           print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
             " incorrect number of aggregated variables: n = ", nv1,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
           tasks$aggregate[sc] <- 0L
-          temp1 <- temp2 <- P_id
         }
-
-        SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
-        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
-
-        SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
-        try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
       }
 
       #Daily Output
@@ -5453,7 +5457,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
               #calculate mean/stats::sd daily values
-              for (al in 1:agg.no) {
+              for (al in seq_len(agg.no)) {
                 ir <- (al - 1) * 366 + 1:366
                 res.dailyMean[ir] <- stats::aggregate(scaler * agg.dat[[al]], by = list(simTime2$doy_ForEachUsedDay), FUN = mean)[, 2]
                 if (agg.resp == "SWPmatric") { ##post-aggregate calculation of SWP: convert VWC to SWP
@@ -5468,7 +5472,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               if (agg.resp == "SWAbulk") {
                 swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
 
-                for (al in 1:agg.no) {
+                for (al in seq_len(agg.no)) {
                   ir <- (al - 1) * 366 + 1:366
 
                   if (length(aggLs[[al]]) > 1) {
@@ -5501,13 +5505,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               temp2 <- paste0("(", P_id, ", ", paste(res.dailySD, collapse = ","), ")")
             }
 
-            SQL <- paste0("INSERT INTO \"aggregation_doy_",
+            SQL1 <- paste0("INSERT INTO \"aggregation_doy_",
               prj_todos[["adaily"]][["tag"]][doi], "_Mean\" VALUES ", temp1, ";")
-            try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
-
-            SQL <- paste0("INSERT INTO \"aggregation_doy_",
+            SQL2 <- paste0("INSERT INTO \"aggregation_doy_",
               prj_todos[["adaily"]][["tag"]][doi], "_SD\" VALUES ", temp2, ";")
-            try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+
+            for (al in seq_len(agg.no)) {
+              try(DBI::dbExecute(dbTempFile, SQL1[al]),
+                silent = !opt_verbosity[["verbose"]])
+              try(DBI::dbExecute(dbTempFile, SQL2[al]),
+                silent = !opt_verbosity[["verbose"]])
+            }
 
           }#end if resume
         }#doi loop
