@@ -2342,7 +2342,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 }
 
 
-make_temporary_dbOutputs <- function(dbOutput, dir_out_temp, fields, adaily,
+make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
   verbose = FALSE) {
 
   if (verbose) {
@@ -2368,7 +2368,6 @@ make_temporary_dbOutputs <- function(dbOutput, dir_out_temp, fields, adaily,
       silent = !verbose)
 
     if (inherits(con, "try-error")) {
-      unlink(fnames_dbTempOut[k])
       stop(paste("Creation of temporary output database failed:", con, collapse = ", "))
     }
 

@@ -5601,7 +5601,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
 
   #--- prepare the temporary output databases
-  make_temporary_dbOutputs(dbOutput = MoreArgs[["fnames_out"]][["dbOutput"]],
+  make_dbTempOut(dbOutput = MoreArgs[["fnames_out"]][["dbOutput"]],
     dir_out_temp = MoreArgs[["project_paths"]][["dir_out_temp"]],
     fields = MoreArgs[["prj_todos"]][["aon_fields"]],
     adaily = MoreArgs[["prj_todos"]][["adaily"]],
