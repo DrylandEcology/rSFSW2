@@ -29,7 +29,7 @@ gather_args_do_OneSite <- function(meta, inputs) {
 
 print_debug <- function(opt_verbosity, tag_id, tag_action, tag_section = NULL) {
   if (opt_verbosity[["print.debug"]]) {
-    print(paste0(tag_id, ": ", tag_action,
+    print(paste0(Sys.time(), " ", tag_id, ": ", tag_action,
       if (!is.null(tag_section)) paste0(" ", shQuote(tag_section))))
   }
 }
@@ -871,6 +871,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     } else {
       #---Extract weather data
+      print_debug(opt_verbosity, tag_simfid, "creating", "access dbOut for weatherDirName")
+
       weather_label_cur <- try(local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
         fnames_out[["dbOutput"]]), silent = !opt_verbosity[["verbose"]])
 
@@ -887,12 +889,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             seq_len(sim_scens[["N"]])
           } else 1L
 
+        print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
+
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
             startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
             Scenario = scen)), silent = !opt_verbosity[["verbose"]])
       }
     }
+
+    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
 
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
@@ -1831,8 +1837,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (tasks$aggregate[sc] == 1L) {
       print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
+      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbOut for Pid")
       do_overall_Pid <- any(!has_Pid(dbTempFile, table = c("aggregation_overall_mean",
         "aggregation_overall_sd"), P_id))
+      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbOut for Pid done")
 
       #HEADER GENERATION REMOVED#
       #only exclude if
@@ -5318,11 +5326,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
           temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
 
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
+
           SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
           try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
 
           SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
           try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
           print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
@@ -5508,12 +5520,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             SQL2 <- paste0("INSERT INTO \"aggregation_doy_",
               prj_todos[["adaily"]][["tag"]][doi], "_SD\" VALUES ", temp2, ";")
 
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: daily")
             for (al in seq_len(agg.no)) {
               try(DBI::dbExecute(dbTempFile, SQL1[al]),
                 silent = !opt_verbosity[["verbose"]])
               try(DBI::dbExecute(dbTempFile, SQL2[al]),
                 silent = !opt_verbosity[["verbose"]])
             }
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
           }#end if resume
         }#doi loop
