@@ -226,14 +226,7 @@ dbWork_clean <- function(path) {
     dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "error")
 
   } else {
-    # Is there a rollback journal present and we need to perform a vacuum operation?
-    frj <- paste0(dbWork, "-journal")
-    if (file.exists(frj)) {
-      DBI::dbExecute(con, "VACUUM")
-      if (file.exists(frj)) {
-        stop("'dbWork_clean': failed to vacuum ", shQuote(basename(dbWork)))
-      }
-    }
+    dbVacuumRollack(con, dbWork)
   }
 
   # Are there 'inwork' records?

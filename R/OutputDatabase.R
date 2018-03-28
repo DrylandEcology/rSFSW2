@@ -989,8 +989,11 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
     # Prepare output databases
     set_PRAGMAs(OKs[["all"]][["con"]], PRAGMA_settings1())
+    dbVacuumRollack(OKs[["all"]][["con"]], SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+
     if (do_DBCurrent) {
       set_PRAGMAs(OKs[["cur"]][["con"]], PRAGMA_settings1())
+      dbVacuumRollack(OKs[["cur"]][["con"]], SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     }
 
     # Add data to SQL databases
@@ -2388,11 +2391,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
     }
 
     if (isgood) {
-      # Is there a rollback journal present and we need to perform a vacuum operation?
-      frj <- paste0(fnames_dbTempOut[k], "-journal")
-      if (file.exists(frj)) {
-        DBI::dbExecute(con, "VACUUM")
-      }
+      dbVacuumRollack(con, fnames_dbTempOut[k])
 
     } else {
       set_PRAGMAs(con, PRAGMA_settings2())

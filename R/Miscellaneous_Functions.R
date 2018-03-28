@@ -1079,3 +1079,20 @@ check_cltool <- function(tool, v_expected, stop_on_mismatch = FALSE) {
 }
 
 check_cltool <- memoise::memoise(check_cltool)
+
+
+#' Perform a vacuum operation if there is a rollback journal present
+dbVacuumRollack <- function(con, dbname) {
+  frj <- paste0(dbname, "-journal")
+
+  if (file.exists(frj)) {
+    DBI::dbExecute(con, "VACUUM")
+
+    if (file.exists(frj)) {
+      stop("'dbVacuumRollack': failed to vacuum rollback journal of ",
+        shQuote(basename(dbname)))
+    }
+  }
+
+  invisible (TRUE)
+}
