@@ -2387,7 +2387,14 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
         identical(temp[-1], unlist(fields[, "fields"]))
     }
 
-    if (!isgood) {
+    if (isgood) {
+      # Is there a rollback journal present and we need to perform a vacuum operation?
+      frj <- paste0(fnames_dbTempOut[k], "-journal")
+      if (file.exists(frj)) {
+        DBI::dbExecute(con, "VACUUM")
+      }
+
+    } else {
       set_PRAGMAs(con, PRAGMA_settings2())
 
       temp <- dbOutput_create_OverallAggregationTable(con, fields)
