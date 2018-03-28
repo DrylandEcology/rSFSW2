@@ -599,7 +599,7 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
 
 #' Locate file names of temporary output database files
 get_fnames_dbTempOut <- function(dir_out_temp, ...) {
-  list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sqlite3",
+  list.files(path = dir_out_temp, pattern = "SQL_Node_[[:digit:]]+\\.sqlite3",
     full.names = TRUE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE)
 }
 
@@ -609,9 +609,9 @@ get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFil
   resume = TRUE) {
 
   theFileList <- c(
-    list.files(path = dir_out_temp, pattern = "SQL_Node_.\\.sql",
+    list.files(path = dir_out_temp, pattern = "SQL_Node_[[:digit:]]+\\.sql",
       full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE),
-    list.files(path = dir_out_temp, pattern = "SQL_Current_Node_.\\.sql",
+    list.files(path = dir_out_temp, pattern = "SQL_Current_Node_[[:digit:]]+\\.sql",
       full.names = FALSE, recursive = TRUE, include.dirs = FALSE, ignore.case = FALSE))
 
   # make sure that we don't include any database files
