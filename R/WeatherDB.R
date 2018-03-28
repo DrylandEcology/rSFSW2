@@ -570,7 +570,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 
       dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
         lon = Xdm_WGS84, start = start_year, end = end_year, internal = TRUE,
-        quiet = TRUE), silent = TRUE)
+        silent = TRUE), silent = TRUE)
 
     } else {
       # 'daymetr::download_daymet' saves downloaded file on disk at `path`
@@ -578,7 +578,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
       # --> we choose to save on disk because we want to store data for re-use by other projects
       dm_temp <- try(daymetr::download_daymet(site = cellID, lat = Ydm_WGS84,
         lon = Xdm_WGS84, start = start_year, end = end_year, path = dir_data,
-        internal = FALSE, quiet = TRUE), silent = TRUE)
+        internal = FALSE, silent = TRUE), silent = TRUE)
     }
 
     if (inherits(dm_temp, "try-error")) {
