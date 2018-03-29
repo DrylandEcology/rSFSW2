@@ -127,20 +127,39 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, dbname = 
 
 
 # PRAGMA, see http://www.sqlite.org/pragma.html
-PRAGMA_settings1 <- function() c("PRAGMA cache_size = 400000;",
-            "PRAGMA synchronous = 1;",
-            "PRAGMA locking_mode = EXCLUSIVE;",
-            "PRAGMA temp_store = MEMORY;",
-            "PRAGMA auto_vacuum = NONE;")
+PRAGMA_settings1 <- function() c(
+  "PRAGMA cache_size = 400000;",
+  "PRAGMA synchronous = FULL;", # ensures that an operating system crash or power failure will not corrupt the database
+  "PRAGMA locking_mode = NORMAL;",
+  "PRAGMA temp_store = MEMORY;",
+  "PRAGMA auto_vacuum = NONE;")
 PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
-            "PRAGMA page_size = 65536;", # no return value
-            "PRAGMA max_page_count = 2147483646;", # returns the maximum page count
-            "PRAGMA foreign_keys = ON;") #no return value
+  "PRAGMA page_size = 65536;", # no return value
+  "PRAGMA max_page_count = 2147483646;", # returns the maximum page count
+  "PRAGMA foreign_keys = ON;") #no return value
 
 set_PRAGMAs <- function(con, settings) {
   temp <- lapply(force(settings), function(x) DBI::dbExecute(con, x))
   invisible(0)
 }
+
+#' Perform a vacuum operation if there is a rollback journal present
+dbVacuumRollack <- function(con, dbname) {
+  frj <- paste0(dbname, "-journal")
+
+  if (file.exists(frj)) {
+    DBI::dbExecute(con, "VACUUM")
+
+    if (file.exists(frj)) {
+      stop("'dbVacuumRollack': failed to vacuum rollback journal of ",
+        shQuote(basename(dbname)))
+    }
+  }
+
+  invisible (TRUE)
+}
+
+
 
 getSiteIds <- function(con, folderNames) {
   wf_ids <- DBI::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
@@ -820,7 +839,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     }
 
     # Prepare output databases
-    set_PRAGMAs(con_dbOut, PRAGMA_settings1())
+    set_PRAGMAs(con_dbOut, PRAGMA_settings2())
 
     # Add data to SQL databases
     for (k1 in seq_along(theFileList)) {
@@ -989,11 +1008,9 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
     # Prepare output databases
     set_PRAGMAs(OKs[["all"]][["con"]], PRAGMA_settings1())
-    dbVacuumRollack(OKs[["all"]][["con"]], SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
     if (do_DBCurrent) {
       set_PRAGMAs(OKs[["cur"]][["con"]], PRAGMA_settings1())
-      dbVacuumRollack(OKs[["cur"]][["con"]], SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
     }
 
     # Add data to SQL databases
@@ -2374,6 +2391,8 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
       stop(paste("Creation of temporary output database failed:", con, collapse = ", "))
     }
 
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    set_PRAGMAs(con, PRAGMA_settings2())
     tables <- RSQLite::dbListTables(con)
 
     #--- Check whether temporary dbOutput exists and has a suitable design
@@ -2390,19 +2409,12 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
         identical(temp[-1], unlist(fields[, "fields"]))
     }
 
-    if (isgood) {
-      dbVacuumRollack(con, fnames_dbTempOut[k])
-
-    } else {
-      set_PRAGMAs(con, PRAGMA_settings2())
-
+    if (!isgood) {
       temp <- dbOutput_create_OverallAggregationTable(con, fields)
       add_dbOutput_index(con)
 
       temp <- dbOutput_create_DailyAggregationTable(con, adaily)
     }
-
-    DBI::dbDisconnect(con)
   }
 
   invisible(fnames_dbTempOut)
