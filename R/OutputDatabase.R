@@ -805,8 +805,11 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
 #' Moves simulation output that was written to temporary SQL-databases to a final
 #' output SQL-database
 #'
+#' Speed tests suggest that the chunking option slows the process down considerably;
+#' thus, the default for \code{chunk_size} turns the chunking off.
+#'
 move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_out_run, opt_verbosity, chunk_size = 10000L, dir_out_temp = NULL,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = NULL,
   check_if_Pid_present = FALSE) {
 
   if (opt_verbosity[["verbose"]]) {
@@ -877,24 +880,30 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
           sql0 <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
             "dbTempOut.", tables[k2])
 
-          off <- 0L
-          repeat {
-            sql <- if (chunk_size > 0) {
-                paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
-              } else sql0
+          if (chunk_size > 0) {
+            off <- 0L
+            repeat {
+              sql <- paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
+              temp <- try(DBI::dbExecute(con_dbOut, sql),
+                silent = !opt_verbosity[["verbose"]])
 
-            temp <- try(DBI::dbExecute(con_dbOut, sql),
-              silent = !opt_verbosity[["verbose"]])
+              if (inherits(temp, "try-error")) {
+                n <- 0L
+                ok <- FALSE
+              } else {
+                n <- temp
+                off <- off + temp
+              }
 
-            if (inherits(temp, "try-error")) {
-              n <- 0L
-              ok <- FALSE
-            } else {
-              n <- temp
-              off <- off + temp
+              if (n == 0) break
             }
 
-            if (n == 0) break
+          } else {
+            # no chunking
+            temp <- try(DBI::dbExecute(con_dbOut, sql0),
+              silent = !opt_verbosity[["verbose"]])
+
+            ok <- !inherits(temp, "try-error")
           }
         }
 

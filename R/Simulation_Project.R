@@ -1159,7 +1159,7 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       }
 
       move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-        opt_out_run, opt_verbosity, chunk_size = 10000L, dir_out_temp = dir_out_temp,
+        opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
         check_if_Pid_present = check_if_Pid_present)
     }
 
