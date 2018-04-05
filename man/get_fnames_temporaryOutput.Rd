@@ -2,11 +2,11 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{get_fnames_temporaryOutput}
 \alias{get_fnames_temporaryOutput}
-\title{Locate file names of temporary output files}
+\title{Locate file names of temporary output text files}
 \usage{
 get_fnames_temporaryOutput(dir_out_temp, concatFile, deleteTmpSQLFiles = TRUE,
   resume = TRUE)
 }
 \description{
-Locate file names of temporary output files
+Locate file names of temporary output text files
 }

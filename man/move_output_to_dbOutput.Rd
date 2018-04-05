@@ -5,8 +5,8 @@
 \title{Move temporary output data to output databases}
 \usage{
 move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-  opt_out_run, opt_verbosity, chunk_size = 1000L,
-  check_if_Pid_present = FALSE, dir_out_temp = NULL)
+  opt_out_run, opt_verbosity, check_if_Pid_present = FALSE,
+  dir_out_temp = NULL)
 }
 \arguments{
 \item{dir_out_temp}{A character string. The path to temporary output files.
