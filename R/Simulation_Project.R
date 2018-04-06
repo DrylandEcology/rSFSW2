@@ -314,7 +314,7 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
         SFSW2_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]))
 
     SFSW2_prj_meta <- setup_spatial_simulation(SFSW2_prj_meta, SFSW2_prj_inputs,
-      use_sim_spatial = SFSW2_prj_meta[["use_sim_spatial"]])
+      use_sim_spatial = SFSW2_prj_meta[["use_sim_spatial"]], verbose = verbose)
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "spatial_setup", prepared = TRUE, clean_subsequent = TRUE)
@@ -800,7 +800,8 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
   if (any(map_soils, map_elevs, map_climnorms) && !SFSW2_prj_meta[["use_sim_spatial"]]) {
     SFSW2_prj_meta[["use_sim_spatial"]] <- TRUE
     SFSW2_prj_meta <- setup_spatial_simulation(SFSW2_prj_meta, SFSW2_prj_inputs,
-      use_sim_spatial = SFSW2_prj_meta[["use_sim_spatial"]])
+      use_sim_spatial = SFSW2_prj_meta[["use_sim_spatial"]],
+      verbose = opt_verbosity[["verbose"]])
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "spatial_setup", prepared = TRUE)

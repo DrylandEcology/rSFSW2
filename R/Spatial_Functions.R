@@ -186,7 +186,7 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "character", y = "ANY", type = "character"),
   function(x, y, type, ...) {
-    if (!requireNamespace("rgdal"))
+    if (!requireNamespace("rgdal", quietly = TRUE))
       stop("'extract_rSFSW2' requires package 'rgdal' but it is not available")
 
     dots <- list(...)
@@ -663,10 +663,11 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 #' @return A character string or \code{NA}.
 #' @export
 crs_units <- function(CRS) {
-  stopifnot(requireNamespace("rgdal"))
-
   args_crs <- raster::crs(CRS, asText = TRUE)
-  stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
+  stopifnot(inherits(args_crs, "character"))
+  if (requireNamespace("rgdal", quietly = TRUE)) {
+    stopifnot(rgdal::checkCRSArgs(args_crs)[[1]])
+  }
 
   args2 <- strsplit(args_crs, split = "+", fixed = TRUE)[[1]]
   units <- trimws(args2[grep("units", args2)])
@@ -773,7 +774,7 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 #' Set-up information for a spatially aware simulation project
 #' @export
 setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  use_sim_spatial = FALSE) {
+  use_sim_spatial = FALSE, verbose = FALSE) {
 
   sim_space <- list(scorp = NA, run_sites = NA, sim_raster = NA, crs_sites = NA,
     sim_res = NA, sim_crs = NA)
@@ -782,8 +783,6 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
-    stopifnot(requireNamespace("rgdal"))
-
     if (sim_space[["scorp"]] == "cell") {
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
@@ -806,10 +805,20 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     if (is.na(sim_space[["sim_crs"]]) && is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])) {
       sim_space[["sim_crs"]] <- sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
     }
-    #   - package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
-    temp <- rgdal::checkCRSArgs(as.character(sim_space[["sim_crs"]]))
-    stopifnot(temp[[1]])
-    sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+
+    # package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
+    temp_crs <- as.character(sim_space[["sim_crs"]])
+    if (requireNamespace("rgdal", quietly = TRUE)) {
+      temp <- rgdal::checkCRSArgs(temp_crs)
+      stopifnot(temp[[1]])
+      sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+
+    } else {
+      if (verbose) {
+        print(paste("'setup_spatial_simulation': validity of 'sim_crs' is not checked",
+          "because package 'rgdal' is not available:", shQuote(temp_crs)))
+      }
+    }
 
     #--- SpatialPoints of simulation cell centers/sites in WGS84
     sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")  # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")

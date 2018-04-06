@@ -57,8 +57,6 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  stopifnot(requireNamespace("rgdal"))
-
   MMC[["idone"]]["NCDC1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
     MMC[["source"]] == "ClimateNormals_NCDC2005_USA"
@@ -113,8 +111,11 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     #locations of simulation runs
     sites_noaaca <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
-    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]), layer = files_shp[["RH"]][1], verbose = FALSE)
+    stopifnot(requireNamespace("rgdal"))
+    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]),
+      layer = files_shp[["RH"]][1], verbose = FALSE)
     crs_data <- raster::crs(noaaca)
+
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
       sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)  #transform graphics::points to grid-coords
     }
@@ -297,8 +298,6 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     }
 
     stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
-    stopifnot(requireNamespace("rgdal"))
-
 
     #locations of simulation runs
     locations <- SWRunInformation[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]
