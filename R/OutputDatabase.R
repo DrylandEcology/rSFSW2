@@ -2424,6 +2424,12 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
       temp <- dbOutput_create_DailyAggregationTable(con, adaily)
     }
+
+    # Close connection and remove call from on.exit
+    DBI::dbDisconnect(con)
+    oe <- sys.on.exit()
+    oe <- remove_from_onexit_expression(oe, "dbDisconnect")
+    on.exit(eval(oe), add = FALSE)
   }
 
   invisible(fnames_dbTempOut)
