@@ -4,7 +4,8 @@
 \alias{init_rSFSW2_project}
 \title{Initialize a rSFSW2 project (setup description file)}
 \usage{
-init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE)
+init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
+  print.debug = FALSE)
 }
 \arguments{
 \item{fmetar}{A character string. The path name to the project description file.}
@@ -13,6 +14,8 @@ init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE)
 \code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.}
 
 \item{verbose}{A logical value.}
+
+\item{print.debug}{A logical value.}
 }
 \value{
 The object \code{SFSW2_prj_meta} of type environment.

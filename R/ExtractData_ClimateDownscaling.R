@@ -3123,7 +3123,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 
   for (m in SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) {
     dir.create2(file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-      tolower(m)), showWarnings = FALSE, recursive = TRUE)
+      tolower(m)), showWarnings = opt_verbosity[["print.debug"]], recursive = TRUE)
   }
 
   # Generate seeds for climate change downscaling

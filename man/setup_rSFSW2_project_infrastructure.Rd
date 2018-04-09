@@ -4,13 +4,16 @@
 \alias{setup_rSFSW2_project_infrastructure}
 \title{Setup infrastructure (skeleton) for a new rSFSW2 simulation experiment}
 \usage{
-setup_rSFSW2_project_infrastructure(dir_prj, verbose = TRUE)
+setup_rSFSW2_project_infrastructure(dir_prj, verbose = TRUE,
+  print.debug = FALSE)
 }
 \arguments{
 \item{dir_prj}{A character string. The path to the new simulation project. Folders are
 recursively created if not already existing.}
 
 \item{verbose}{A logical value.}
+
+\item{print.debug}{A logical value.}
 }
 \value{
 Invisibly \code{dir_prj} on success

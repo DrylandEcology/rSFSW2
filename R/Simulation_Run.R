@@ -189,7 +189,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     ".RData"))
 
   if (opt_out_run[["saveRsoilwatInput"]] || opt_out_run[["saveRsoilwatOutput"]]) {
-    dir.create2(temp, showWarnings = FALSE)
+    dir.create2(temp, showWarnings = opt_verbosity[["print.debug"]])
   }
 
   #--- Load previously created rSOILWAT2 run objets

@@ -237,14 +237,16 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
       break
 
     k <- k + 1
+  }
 
+  if (showWarnings && k > 0) {
     # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
     # make the directories everytime... quite aggravating.
     print(paste0("rSFSW2's ", temp_call, ": failed to create ",
-      shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
+      shQuote(path), " during ", k, " attempt(s)"))
   }
 
-  return(temp)
+  temp
 }
 
 #copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))

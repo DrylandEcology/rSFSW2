@@ -395,7 +395,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
   tr_list
 }
 
-fix_rowlabels <- function(x, master) {
+fix_rowlabels <- function(x, master, verbose = TRUE) {
 
   ml <- as.character(master[, "Label"])
 
@@ -411,9 +411,11 @@ fix_rowlabels <- function(x, master) {
     argnames <- as.character(match.call()[2:3])
 
     if (dim(x)[1] == 0L) {
-      print(paste("Datafile", shQuote(argnames[1]), "contains zero rows. 'Label's of the",
-        "master input file", shQuote(argnames[2]), "are used to populate rows and",
-        "'Label's of the datafile."))
+      if (verbose) {
+        print(paste("Datafile", shQuote(argnames[1]), "contains zero rows. 'Label's of the",
+          "master input file", shQuote(argnames[2]), "are used to populate rows and",
+          "'Label's of the datafile."))
+      }
 
       x[seq_along(ml), "Label"] <- ml
 
@@ -464,7 +466,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
     sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
-    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation)
+    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation,
+      verbose = verbose)
     sw_input_soillayers[, -(1:2)] <- check_monotonic_increase(data.matrix(sw_input_soillayers[, -(1:2)]),
       strictly = TRUE, fail = TRUE, na.rm = TRUE)
 
@@ -472,7 +475,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       nrowsClasses = nrowsClasses), error = print)
     sw_input_treatments_use <- temp[["use"]]
     sw_input_treatments <- temp[["data"]]
-    sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation)
+    sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation,
+      verbose = verbose)
     stopifnot(
       !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)  # no space-characters in weather-data names
     )
@@ -490,43 +494,46 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       nrowsClasses = nrowsClasses), error = print)
     sw_input_cloud_use <- temp[["use"]]
     sw_input_cloud <- temp[["data"]]
-    sw_input_cloud <- fix_rowlabels(sw_input_cloud, SWRunInformation)
+    sw_input_cloud <- fix_rowlabels(sw_input_cloud, SWRunInformation, verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fvegetation"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_prod <- temp[["data"]]
-    sw_input_prod <- fix_rowlabels(sw_input_prod, SWRunInformation)
+    sw_input_prod <- fix_rowlabels(sw_input_prod, SWRunInformation, verbose = verbose)
     sw_input_prod_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsite"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_site <- temp[["data"]]
-    sw_input_site <- fix_rowlabels(sw_input_site, SWRunInformation)
+    sw_input_site <- fix_rowlabels(sw_input_site, SWRunInformation, verbose = verbose)
     sw_input_site_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
-    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation)
+    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation, verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_weather_use <- temp[["use"]]
     sw_input_weather <- temp[["data"]]
-    sw_input_weather <- fix_rowlabels(sw_input_weather, SWRunInformation)
+    sw_input_weather <- fix_rowlabels(sw_input_weather, SWRunInformation,
+      verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_delta"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_use <- temp[["use"]]
     sw_input_climscen <- temp[["data"]]
-    sw_input_climscen <- fix_rowlabels(sw_input_climscen, SWRunInformation)
+    sw_input_climscen <- fix_rowlabels(sw_input_climscen, SWRunInformation,
+      verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_values"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_values_use <- temp[["use"]]
     sw_input_climscen_values <- temp[["data"]]
-    sw_input_climscen_values <- fix_rowlabels(sw_input_climscen_values, SWRunInformation)
+    sw_input_climscen_values <- fix_rowlabels(sw_input_climscen_values, SWRunInformation,
+      verbose = verbose)
 
     # update treatment specifications based on experimental design
     create_treatments <- union(names(sw_input_treatments_use)[sw_input_treatments_use],
