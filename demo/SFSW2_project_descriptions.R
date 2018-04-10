@@ -26,16 +26,16 @@ opt_platform <- list(
 project_paths <- list(
   dir_prj = dir_prj <- {# path to simulation project
     temp <- if (identical(opt_platform[["host"]], "local")) {
-        "SFSW2_default_project" # "~/YOURPROJECT"
-      } else if (identical(opt_platform[["host"]], "hpc")) {
-        getwd()
-      }
-
+      "SFSW2_default_project" # "~/YOURPROJECT"
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      getwd()
+    }
+    
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
     } else {
       print(paste("'project_paths[['dir_prj']]' =", shQuote(temp), "does not exist. Code",
-        "uses", shQuote(getwd()), "instead."))
+                  "uses", shQuote(getwd()), "instead."))
     }
     getwd()
   },
@@ -70,10 +70,10 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-    },
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+  },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -122,6 +122,12 @@ fnames_in <- list(
     } else if (identical(opt_platform[["host"]], "hpc")) {
       file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
     },
+  
+  fdbWeatherDaily = if (identical(opt_platform[["host"]], "local")) {
+      file.path(project_paths[["dir_in"]], "dbWeatherDataDaily.sqlite3")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path(project_paths[["dir_prj"]], "..", "dbWeatherDataDaily.sqlite3")
+    },
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
@@ -167,7 +173,10 @@ opt_input <- list(
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
       #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
       #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
-      "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
+      "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 1,
+      
+      #   mean daily humidity and daily wind speed
+      "GriddedDailyWeatherFromUoIMetdata", 0,
 
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
       #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being

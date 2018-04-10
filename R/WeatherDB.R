@@ -260,6 +260,58 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
         verbose     = verbose)
     }
+    
+    if (ids_UoIMetdata_extraction) {
+      print("$$$$ in UoIMetdata $$$$")
+      # only create DBWeatherDataDaily if user runs UoIMetdata
+      ###### start of creating database ###########
+      rSOILWAT2::dbW_disconnectConnection() # disconnect from main weather database
+      print("disconnected main db")
+      
+      if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeatherDaily"]])) {
+        if (opt_behave[["resume"]]) {
+          return(invisible(TRUE))
+          
+        } else {
+          print("Removing old weather database")
+          unlink(SFSW2_prj_meta[["fnames_in"]][["fdbWeatherDaily"]])
+        }
+      }
+      rSOILWAT2::dbW_createDatabase(dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeatherDaily"]],
+                                    site_data = data.frame(Site_id = SWRunInformation$site_id,
+                                                           Latitude = SWRunInformation$Y_WGS84,
+                                                           Longitude = SWRunInformation$X_WGS84,
+                                                           Label = SWRunInformation$WeatherFolder,
+                                                           stringsAsFactors = FALSE),
+                                    site_subset = temp_runIDs_sites,
+                                    scenarios = data.frame(Scenario = SFSW2_prj_meta[["sim_scens"]][["id"]]),
+                                    compression_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]])
+      
+      #check_dbWeather_version(SFSW2_prj_meta[["fnames_in"]][["fdbWeatherDaily"]])
+      
+      ###### end of creating database ###########
+      print("start of actual extraction")
+      extract_data_from_UoIMetdata(
+        dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.UoIMetdata"]],
+        dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        site_ids     = SWRunInformation$site_id[ids_UoIMetdata_extraction],
+        coords       = SWRunInformation[ids_UoIMetdata_extraction,
+                                        c("X_WGS84", "Y_WGS84"), drop = FALSE],
+        start_year   = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
+        end_year     = SFSW2_prj_meta[["sim_time"]][["endyr"]],
+        f_check      = TRUE,
+        backup       = TRUE,
+        comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        opt_parallel = opt_parallel,
+        verbose     = verbose)
+      print("end of extraction")
+      
+      rSOILWAT2::dbW_disconnectConnection() # disconnect from daily weather database
+      print("disconnect from daily")
+      rSOILWAT2::dbW_setConnection(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]) # reconnect to main weather database for use in rest of extractions
+      print("connected to main")
+    }
 
     if (length(ids_NCEPCFSR_extraction) > 0) {
       if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
@@ -1322,7 +1374,8 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     if (verbose) {
       print("Refining coordinates to match database resolution.")
     }
-    xy_wgs84 <- apply(coords, 2, conv_res)
+    # xy_wgs84 <- apply(coords, 2, conv_res)
+    xy_wgs84               <- matrix(unlist(coords), ncol=2) # TODO: check why previous version was not working
 
     # Create coordinates as spatial points for extraction with raster layers
     prj_geographicWGS84   <- sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
@@ -1467,6 +1520,257 @@ if (!interactive()) {
 # End of Livneh extraction code
 ########################################################
 
+########################################################
+# UoIMetdata Gridded, Daily Humidity, Solar Radiation, and Wind Data Extraction
+#
+# Author - Brenden Bernal & Zachary Kramer
+# Date   - April, 13, 2017
+########################################################
+#' @title Extract Gridded Weather Data from UofI METDATA
+#'
+#' @description Extracts daily maximum humidity and minimum humidity, Solar Radiation, and Wind Speed: 
+#'                > a 1/16 degree gridded weather database that contains  # TODO: Update comment
+#'                  data for the years 1979:(current year - 1) with partial data from current year.
+#' @references  \href{http://metdata.northwestknowledge.net/}{UofI METDATA Website}
+#'
+#' @param    dir_data        directory containing UoImetdata data
+#' @param    dir_temp        the database directory
+#' @param    site_ids        the sites to gather data for
+#' @param    coords          the coordinates for each site in WGS84 format
+#' @param    start_year      the start year in the sequence of data to gather
+#' @param    end_year        the end year in the sequence of data to gather
+#' @param    f_check         flag to check for errors in file structure - TRUE
+#'                            for check else no integrity check
+#' @param    backup          flag to create a backup of the weather data prior
+#'                            to insertion in the database
+#'                            (can create large files) - TRUE for backup
+#'                            else no backup
+#' @param    optparallel    whether the extraction should be ran in parallel
+#'
+#' @author   Brenden Bernal    <beb258@nau.edu>
+#' @author   Zachary Kramer    <zbk3@nau.edu>
+#' @export
+
+extract_data_from_UoIMetdata <- function(dir_data, dir_temp, site_ids, coords,
+                                         start_year, end_year, f_check = TRUE, backup = TRUE, comp_type = "gzip", dbW_digits = 2,
+                                         opt_parallel = NULL, verbose = FALSE)
+{
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                          round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+  
+  cat('\n', "###########In UoIMetdata Function###########", '\n')
+  print(dir_data)
+  ########################################
+  # Ensure necessary packages are loaded
+  ########################################
+  library(ff) # TODO: get to work in requireNamespace, or are libraries called somewher else
+  library(raster)
+  stopifnot(requireNamespace("raster"), requireNamespace("plyr"),
+            #requireNamespace("ff"),
+            requireNamespace("ncdf4"))
+  
+  ####################################################
+  # Helper functions
+  ####################################################
+  # convert to raster brick and flip the coordinates
+  convert_to_brick_flip <- function(fileName, type) {
+    r <- raster::brick(fileName, varname=type)
+    r <- flip(t(r), direction = "x")
+  }
+  
+  ####################################################
+  # Get Coordinates for extraction
+  ####################################################
+  
+  if(start_year < 1979)
+  {
+    print("Cannot enter years before 1979")
+    # TODO: need to implement past humidity functionality for years < 1979
+  }
+  
+  xy_wgs84               <- matrix(unlist(coords), ncol=2)
+  
+  # Create coordinates as spatial points for extraction with raster layers
+  prj_geographicWGS84    <- sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")
+  sp_locs                <- sp::SpatialPoints(coords = xy_wgs84, proj4string = prj_geographicWGS84)
+  
+  
+  # Create necessary variables and containers for extraction
+  seq_years              <-  seq(start_year, end_year)
+  len_years              <-  length(seq_years)
+  site_length            <-  length(site_ids)
+  data_sw                <- array(NA, dim = c(site_length, 366, 3, len_years))
+  
+  # Backup RData in the event of an error with insertion
+  if (backup) {
+    on.exit({
+      if (verbose) {
+        print("Backing up data object.")
+      }
+      save(list = ls(environment()), envir = environment(),
+           file = file.path(dir_temp, "Data_UoIMetdata.RData")) # TODO: ensure proper naming convention
+      if (verbose) {
+        print("Data object has been backed-up.")
+      }
+    }, add = TRUE)
+  }
+  
+  if (verbose) {
+    print("Extracting data for supplied sequence of years.")
+  }
+  
+  #################################
+  # extract data
+  #################################
+  for (i in seq_len(len_years))
+  {
+    if (verbose) {
+      print(paste0("Extracting data for year ", seq_years[i]))
+    }
+    
+    # read in the ENVI file and convert to raster stack
+    Hum_Max_Read        <- raster::stack(paste0(dir_data, '/Humidity/HumRData/rmax_', seq_years[i], '.envi'))
+    Hum_Min_Read        <- raster::stack(paste0(dir_data, '/Humidity/HumRData/rmin_', seq_years[i], '.envi'))
+    Solar_Read          <- raster::stack(paste0(dir_data, '/SolarRadiation/SolRData/srad_', seq_years[i], '.envi'))
+    Wind_Read           <- raster::stack(paste0(dir_data, '/Wind_Speed_10m/WindRData/vs_', seq_years[i], '.envi'))
+    
+    # initialize the matrix with proper dimensions
+    store_MAX_VAL       <- ff(vmode="double", dim=c(ncell(Hum_Max_Read), nlayers(Hum_Max_Read)),
+                              filename=paste0(dir_data, "/Humidity/HumRData/rmax_", seq_years[i], ".ffdata"))
+    store_MIN_VAL       <- ff(vmode="double", dim=c(ncell(Hum_Min_Read), nlayers(Hum_Min_Read)),
+                              filename=paste0(dir_data, "/Humidity/HumRData/rmin_", seq_years[i], ".ffdata"))
+    store_SOL_VAL       <- ff(vmode="double", dim=c(ncell(Solar_Read), nlayers(Solar_Read)),
+                              filename=paste0(dir_data, "/SolarRadiation/SolRData/srad_", seq_years[i], ".ffdata"))
+    store_WIND_VAL      <- ff(vmode="double", dim=c(ncell(Wind_Read), nlayers(Wind_Read)),
+                              filename=paste0(dir_data, "/Wind_Speed_10m/WindRData/wind_", seq_years[i], ".ffdata"))
+    
+    
+    # store the values from the ENVI stack in the newly created matrix
+    store_MAX_VAL[,i]   <- Hum_Max_Read[[i]][]
+    store_MIN_VAL[,i]   <- Hum_Min_Read[[i]][]
+    store_SOL_VAL[,i]   <- Solar_Read[[i]][]
+    store_WIND_VAL[,i]  <- Wind_Read[[i]][]
+    
+    ######################
+    # HUMIDITY EXTRACTION
+    #####################
+    # put data in data frame
+    HUM_MAX_Raster            <- raster(Hum_Max_Read[[1]])
+    HUM_MAX_Raster[]          <- 1:ncell(Hum_Max_Read[[1]])
+    
+    HUM_MIN_Raster            <- raster(Hum_Min_Read[[1]])
+    HUM_MIN_Raster[]          <- 1:ncell(Hum_Min_Read[[1]])
+    
+    # extract at provided coordinates
+    HUM_EXTRACT_MAX           <-  extract(HUM_MAX_Raster,sp_locs, method="simple")
+    HUM_EXTRACT_MAX2          <- store_MAX_VAL[as.numeric(HUM_EXTRACT_MAX),]
+    
+    HUM_EXTRACT_MIN           <-  extract(HUM_MIN_Raster,sp_locs, method="simple")
+    HUM_EXTRACT_MIN2          <- store_MIN_VAL[as.numeric(HUM_EXTRACT_MIN),]
+    
+    # get the mean of the min and max values
+    HUM_EXTRACT_MEAN          <- apply(rbind(c(HUM_EXTRACT_MAX2[1:length(HUM_EXTRACT_MAX2)]), HUM_EXTRACT_MIN2[1:length(HUM_EXTRACT_MIN2)]),2,mean,na.rm = TRUE)
+    
+    # convert data to matrix
+    HUM_FRAME_DATA            <- matrix(HUM_EXTRACT_MEAN, nrow=site_length, ncol=365)
+    # is.num                    <- sapply(HUM_FRAME_DATA, is.numeric)
+    # HUM_FRAME_DATA[is.num]    <- lapply(HUM_FRAME_DATA[is.num], round, 1)
+    
+    ######################
+    # SOLAR EXTRACTION
+    #####################
+    SOLAR_Raster              <- raster(Solar_Read[[1]])
+    SOLAR_Raster[]            <- 1:ncell(Solar_Read[[1]])
+    
+    SOLAR_EXTRACT             <-  extract(SOLAR_Raster,sp_locs, method="simple")
+    SOLAR_EXTRACT2            <-  store_SOL_VAL[as.numeric(SOLAR_EXTRACT),]
+    
+    SOLAR_FRAME_DATA          <- matrix(SOLAR_EXTRACT2, nrow=site_length, ncol=365)
+    # is.num                    <- sapply(SOLAR_FRAME_DATA, is.numeric)
+    # SOLAR_FRAME_DATA[is.num]  <- lapply(SOLAR_FRAME_DATA[is.num], round, 1)
+    
+    
+    ######################
+    # WIND EXTRACTION
+    #####################
+    WIND_Raster               <- raster(Wind_Read[[1]])
+    WIND_Raster[]             <- 1:ncell(Wind_Read[[1]])
+    
+    WIND_EXTRACT              <-  extract(WIND_Raster,sp_locs, method="simple")
+    WIND_EXTRACT2             <- store_WIND_VAL[as.numeric(WIND_EXTRACT),]
+    
+    WIND_FRAME_DATA           <- matrix(WIND_EXTRACT2, nrow=site_length, ncol=365)
+    # is.num                    <- sapply(WIND_FRAME_DATA, is.numeric)
+    # WIND_FRAME_DATA[is.num]   <- lapply(WIND_FRAME_DATA[is.num], round, 1)
+    
+    
+    # enter data in array
+    ids <- 365 #if (isLeapYear(seq_years[i])) seq_len(366) else seq_len(365)
+    for(j in 1:ids){
+      #   hum_sw[, j, 1, i] <<- HUM_FRAME_DATA[,j]
+      data_sw[, j, 1, i] <- HUM_FRAME_DATA[, j]
+      data_sw[, j, 2, i] <- SOLAR_FRAME_DATA[, j]
+      data_sw[, j, 3, i] <- WIND_FRAME_DATA[, j]
+    }
+    
+  } # end of for loop and extraction
+  
+  if (verbose) {
+    print("Inserting data into weather database.")
+  }
+  
+  for (i in seq_len(site_length))
+  {
+    weather_data <- list()
+    for (k in seq_len(len_years)) {
+      doys <- if (isLeapYear(seq_years[k])) seq_len(366) else seq_len(365)
+      
+      # BELOW WORKS FOR INPUT INTO SWWEATHERDATA
+      # NEED TO CHECK AND SEE IF THE 2 NA COLUMNS RUIN ANYTHING
+      out  <- cbind(doys, data_sw[i, doys, , k])
+      colnames(out) <- c("DOY", "Humidity", "Solar Radiation", "Wind Speed")
+      #out <<- out[!is.na(out)] # omit NA from vector
+      
+      print("successfull colnames")
+      ##############################
+      weather_data[[k]] <- new("swWeatherData",
+                               year = seq_years[k],
+                               data = data.matrix(out, rownames.force = FALSE))
+      
+    }
+    print("weather_data done")
+    names(weather_data) <- as.character(seq_years)
+    print("names done, starting blob")
+    
+    data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weather_data, type = comp_type)
+    print("blob done, storing data")
+    
+    # Store site humidity data in weather database
+    rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id      = site_ids[i],
+                                          Scenario_id  = 1,
+                                          StartYear    = start_year,
+                                          EndYear      = end_year,
+                                          weather_blob = data_blob)
+  }
+  
+  # wtemp <- try(rSOILWAT2::dbW_getWeatherData(Site_id = site_ids[1],
+  #                                            startYear = start_year, endYear = end_year),
+  #              silent = TRUE)
+  # print(wtemp)
+  # stop()
+  
+}
+
+
+########################################################
+# end of UoIMetdata Extraction
+########################################################
 
 #---Functions to determine sources of daily weather
 dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
@@ -1665,6 +1969,36 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, si
   list(source = dw_source, name = dw_names, n = sum(there))
 }
 
+dw_UoIMetdata_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
+                                       path = NULL, MoreArgs = NULL) {
+  
+  stopifnot(requireNamespace("raster"), requireNamespace("sp"))
+  
+  if (!dir.exists(path))
+    stop("'dw_UoIMetdata_NorthAmerica': ", path, " does not exist.")
+  
+  there <- 0
+  if (exinfo$HumidityFromUoIMetdata_NorthAmerica) {
+    # Check which requested Livneh2013 weather data are available
+    there <- sim_time[["simstartyr"]] >= 1979 && sim_time[["endyr"]] <= 2017
+    ftemp <- file.path(path, "rmax_1979.envi")
+    
+    if (any(there) && file.exists(ftemp)) {
+      humidity_test <- raster::raster(ftemp, varname = "Hum")
+      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+                                   proj4string = sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+      there <- !is.na(raster::extract(humidity_test, y = sp_locs))
+      
+      if (any(there)) {
+        dw_source[there] <- "UoIMetdata_NorthAmerica"
+        dw_names[there] <- with(site_dat[there, ], paste0(Label, "_UoIMetdata_",
+                                                          formatC(X_WGS84, digits = 5, format = "f"), "_", formatC(Y_WGS84, digits = 5,
+                                                                                                                   format = "f")))
+      }
+    }
+  }
+  list(source = dw_source, name = dw_names, n = sum(there))
+}
 
 dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
@@ -1723,6 +2057,7 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources, SFSW2_prj_
     LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
     NCEPCFSR_Global = project_paths[["dir.ex.NCEPCFSR"]],
     Livneh2013_NorthAmerica = project_paths[["dir.ex.Livneh2013"]],
+    UoIMetdata_NorthAmerica = project_paths[["dir.ex.UoIMetdata"]],
     DayMet_NorthAmerica = project_paths[["dir_daymet"]])
 
   MoreArgs <- list(LookupWeatherFolder = list(
@@ -1786,6 +2121,9 @@ set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]] <- file.path(dir_dW,
     "Livneh_NA_2013", "MONTHLY_GRIDS")
+  
+  SFSW2_prj_meta[["project_paths"]][["dir.ex.UoIMetdata"]] <- file.path(dir_dW)#,
+  #"Humidity", "HumRData")
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
