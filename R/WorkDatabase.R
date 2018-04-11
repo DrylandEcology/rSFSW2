@@ -448,21 +448,28 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
 
     #- Update completed runs based on dbOutput
     tables <- dbOutput_ListOutputTables(con)
-    # get Pids for which simulation output is in the outputDB
+    # get Pids for which simulation output is in every table of the outputDB
     has_pids <- lapply(tables, function(x) DBI::dbGetQuery(con,
       paste0("SELECT P_id FROM \"", x, "\""))[, 1])
-    has_complete_pids <- intersect2(has_pids)
+    has_pids <- intersect2(has_pids)
 
-    if (length(has_complete_pids) > 0) {
-      con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
+    if (length(has_pids) > 0) {
+      con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
+        flags = RSQLite::SQLITE_RW)
       on.exit(DBI::dbDisconnect(con2), add = TRUE)
 
-      has_complete_runIDs <- unique(it_sim2(has_complete_pids, infer_scN))
+      # Get runID from Pid
+      temp_runIDs <- it_sim2(has_pids, infer_scN)
 
-      rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET completed = 1, failed = 0,",
-        "inwork = 0 WHERE runID_total = :x"))
-      DBI::dbBind(rs, param = list(x = has_complete_runIDs))
-      DBI::dbClearResult(rs)
+      # runID is complete if present and if count(runID) == number of scenarios
+      has_complete_runIDs <- which(tabulate(temp_runIDs) == infer_scN)
+
+      if (length(has_complete_runIDs) > 0) {
+        rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET completed = 1,",
+          "failed = 0, inwork = 0 WHERE runID_total = :x"))
+        DBI::dbBind(rs, param = list(x = has_complete_runIDs))
+        DBI::dbClearResult(rs)
+      }
     }
 
   } else {
