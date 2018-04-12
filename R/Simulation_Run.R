@@ -178,11 +178,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   #set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
   #   for now: ignoring to check time-series aggregations, i.e., assuming that if
   #   overallAggs is done, then time-series output was also completed
-  tasks <- list(
-    create = if (prj_todos[["actions"]][["sim_create"]]) 1L else -1L,
-    execute = rep(if (prj_todos[["actions"]][["sim_execute"]]) 1L else -1L, sim_scens[["N"]]),
-    aggregate = rep(if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L,
-      sim_scens[["N"]]))
+  tasks <- data.frame(matrix(NA, nrow = sim_scens[["N"]], ncol = 3,
+    dimnames = list(NULL, c("create", "execute", "aggregate"))))
+  tasks[["create"]][] <- if (prj_todos[["actions"]][["sim_create"]]) 1L else -1L
+  tasks[["execute"]][] <- if (prj_todos[["actions"]][["sim_execute"]]) 1L else -1L
+  tasks[["aggregate"]][] <- if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L
+
 
   #Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
   temp <- file.path(project_paths[["dir_out_sw"]], i_label)
@@ -195,23 +196,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   #--- Load previously created rSOILWAT2 run objets
-  if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
-    (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
+  if (file.exists(f_sw_input) && ((any(tasks$create == 1L) && opt_behave[["resume"]]) ||
+    (all(tasks$create == -1L) && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
 
     # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
     #   ClimatePerturbationsVals, isim_time, simTime2
     load(f_sw_input)
-    tasks$create <- 2L
+    tasks$create[] <- 2L
   }
 
 
   #----Get preparations done
-  if (all(unlist(tasks) %in% c(-1L, 1L))) {
+  if (any(unlist(tasks) == 1L)) {
     #------Learn about soil layer structure
     soil_source <- NULL
 
     #determine number of soil layers = soilLayers_N and soildepth
-    if (tasks$create == 1L && (!any(create_treatments == "soilsin") ||
+    if (any(tasks$create == 1L) && (!any(create_treatments == "soilsin") ||
         any(create_treatments == "soilsin") && (is.na(i_sw_input_treatments$soilsin) ||
             identical(i_sw_input_treatments$soilsin, "NA")))) {
 
@@ -294,7 +295,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------CREATE RUNS
-  if (tasks$create == 1L) {
+  if (any(tasks$create == 1L)) {
     print_debug(opt_verbosity, tag_simfid, "section", "create simulation")
 
     EVCO_done <- TRCO_done <- FALSE  #to check whether we get information for evaporation and transpiration coefficients
@@ -397,7 +398,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print(paste0(tag_simfid, ": ERROR: ", shQuote(pc$flag), " column in ",
               "experimental table cannot have any NAs or name is not in tr_input table."))
 
-            tasks$create <- 0L
+            tasks$create[] <- 0L
             break
 
           } else {
@@ -417,7 +418,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               assign(pc$sw_input, tempdat$sw_input)
 
             } else {
-              tasks$create <- 0L
+              tasks$create[] <- 0L
               break
             }
           }
@@ -445,7 +446,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (temp1)
             print(paste0(tag_simfid, ": ", do_vegs[["flag"]][k], " name(s) are not in ",
               "'tr_input_TranspCoeff' table column names"))
-          tasks$create <- 0L
+          tasks$create[] <- 0L
           break
 
         } else {
@@ -467,7 +468,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else {
             print(paste0(tag_simfid, ": the function 'TranspCoeffByVegType' returned NA ",
               "or does not sum to greater than 0 for type", do_vegs[["adjustType"]][k]))
-            tasks$create <- 0L
+            tasks$create[] <- 0L
             break
           }
         }
@@ -559,7 +560,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Composition", reset = TRUE, default = 0))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks$create[] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -569,7 +570,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Albedo", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks$create[] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -579,7 +580,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_HydrRedstro_use", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks$create[] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -589,7 +590,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_CritSoilWaterPotential", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks$create[] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -774,7 +775,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print(paste0(tag_simfid, ": data missing for 1st layer -> no data to impute: ",
               "simulation will fail"))
             print(soildat[l, icols])
-            tasks$create <- 0L
+            tasks$create[] <- 0L
             break
           }
         }
@@ -790,7 +791,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         print(paste0(tag_simfid, ": soil data didn't pass quality checks for:",
           paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
         print(soil_swdat)
-        tasks$create <- 0L
+        tasks$create[] <- 0L
       }
 
     }
@@ -904,12 +905,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-      tasks$create <- 0L
+      tasks$create[] <- 0L
       print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
     }
 
     #copy and make climate scenarios from datafiles
-    if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
+    if (any(tasks$create > 0L)) for (sc in seq_len(sim_scens[["N"]])) {
       P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
       tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
 
@@ -941,7 +942,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       # doesn't occur until now
       if (sw_input_experimentals_use["LookupCarbonScenarios"]) {
         if (is.na(i_sw_input_treatments$LookupCarbonScenarios)) {
-          tasks$create <- 0L
+          tasks$create[sc] <- 0L
           print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCarbonScenarios"))
           break
         }
@@ -966,7 +967,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         # Was a scenario found?
         if (length(scenario_index) == 0) {
-          tasks$create <- 0L
+          tasks$create[sc] <- 0L
           print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
             " was not found in LookupCarbonScenarios.csv"))
           break
@@ -1283,7 +1284,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction))
 
         if (inherits(temp, "try-error")) {
-          tasks$create <- 0L
+          tasks$create[sc] <- 0L
           break
 
         } else {
@@ -1543,7 +1544,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         anyNA(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])))
       if (is_bad_veg) {
         print(paste0(tag_simpidfid, ": ERROR: vegetation values contain NA."))
-        tasks$create <- 0L
+        tasks$create[sc] <- 0L
         break
       }
 
@@ -1606,12 +1607,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       print(paste0(tag_simfid, ": transpiration regions not set for this run."))
     }
 
-    if (tasks$create <= 0L || !EVCO_done || !TRCO_done || !TRRG_done) {
-      tasks$create <- 0L
-      tasks$execute[] <- tasks$aggregate[] <- -1L
-    } else {
-      tasks$create <- 2L
+    if (!EVCO_done || !TRCO_done || !TRRG_done) {
+      tasks$create[] <- 0L
     }
+
+    has_failed <- tasks$create == 0L
+    if (any(has_failed)) {
+      tasks$execute[has_failed] <- tasks$aggregate[has_failed] <- -1L
+    }
+
+    tasks$create[!has_failed] <- 2L
+
 
     if (opt_out_run[["saveRsoilwatInput"]])
       save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
@@ -1868,7 +1874,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
             seed = i_seed)
 
-          if (!res1 || !res2) tasks$aggregate[sc] <- -2L
+          if (!res1 || !res2) tasks$aggregate[sc] <- 0L
         }
 
       } else {
@@ -5343,7 +5349,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
             seed = i_seed)
 
-          if (!res1 || !res2) tasks$aggregate[sc] <- -2L
+          if (!res1 || !res2) tasks$aggregate[sc] <- 0L
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
@@ -5537,7 +5543,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               res2 <- dbExecute2(dbTempFile, SQL2[al],
                 verbose = opt_verbosity[["verbose"]], seed = i_seed)
 
-              if (!res1 || !res2) tasks$aggregate[sc] <- -2L
+              if (!res1 || !res2) tasks$aggregate[sc] <- 0L
             }
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
