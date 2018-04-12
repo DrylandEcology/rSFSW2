@@ -2529,3 +2529,30 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, col_ids = NU
 }
 
 
+dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, seed = NA) {
+  if (!anyNA(seed)) set.seed(seed)
+
+  k <- 1L
+  repeat {
+    temp <- try(DBI::dbExecute(con, SQL), silent = !verbose)
+    success <- !inherits(temp, "try-error")
+
+    if (success || k > repeats) {
+      break
+
+    } else {
+      k <- k + 1L
+
+      # sleep on average shape * scale; and hope that afterwards, the db will be available
+      temp <- stats::rgamma(1L, shape = sleep_s, scale = 1)
+      if (verbose) {
+        print(paste("'dbExecute2': sleeps for", temp, "sec before attempt", k))
+      }
+
+      Sys.sleep(temp)
+    }
+  }
+
+  invisible(success)
+}
+

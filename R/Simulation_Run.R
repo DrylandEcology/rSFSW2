@@ -135,7 +135,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   # Set RNG seed for random number use by functions
   #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
-  set_RNG_stream(seed = rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]])
+  #   - dbExecute2
+  i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]]
+  set_RNG_stream(seed = i_seed)
 
   if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
     temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
@@ -1837,10 +1839,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (tasks$aggregate[sc] == 1L) {
       print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
-      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbOut for Pid")
+      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbTempOut for Pid")
       do_overall_Pid <- any(!has_Pid(dbTempFile, table = c("aggregation_overall_mean",
         "aggregation_overall_sd"), P_id))
-      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbOut for Pid done")
+      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbTempOut for Pid done")
 
       #HEADER GENERATION REMOVED#
       #only exclude if
@@ -1859,10 +1861,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             collapse = ", ")
 
           SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          res1 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
+            seed = i_seed)
 
           SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
+            seed = i_seed)
+
+          if (!res1 || !res2) tasks$aggregate[sc] <- -2L
         }
 
       } else {
@@ -5330,11 +5336,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
 
           SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
-          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          res1 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
+            seed = i_seed)
 
           SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
-          try(DBI::dbExecute(dbTempFile, SQL), silent = !opt_verbosity[["verbose"]])
+          res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
+            seed = i_seed)
 
+          if (!res1 || !res2) tasks$aggregate[sc] <- -2L
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
@@ -5523,10 +5532,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: daily")
             for (al in seq_len(agg.no)) {
-              try(DBI::dbExecute(dbTempFile, SQL1[al]),
-                silent = !opt_verbosity[["verbose"]])
-              try(DBI::dbExecute(dbTempFile, SQL2[al]),
-                silent = !opt_verbosity[["verbose"]])
+              res1 <- dbExecute2(dbTempFile, SQL1[al],
+                verbose = opt_verbosity[["verbose"]], seed = i_seed)
+              res2 <- dbExecute2(dbTempFile, SQL2[al],
+                verbose = opt_verbosity[["verbose"]], seed = i_seed)
+
+              if (!res1 || !res2) tasks$aggregate[sc] <- -2L
             }
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
@@ -5535,7 +5546,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }#end if daily output
 
       # Determine success of 'aggregate' section
-      if (tasks$aggregate[sc] > 0L && length(SQL) > 0) {
+      if (tasks$aggregate[sc] > 0L) {
         tasks$aggregate[sc] <- 2L
       }
 
