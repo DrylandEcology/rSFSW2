@@ -2534,22 +2534,39 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
 
   k <- 1L
   repeat {
-    temp <- try(DBI::dbExecute(con, SQL), silent = !verbose)
-    success <- !inherits(temp, "try-error")
+    temp_try <- try(DBI::dbExecute(con, SQL), silent = !verbose)
+    success <- !inherits(temp_try, "try-error")
 
-    if (success || k > repeats) {
-      break
+    do_repeat <- FALSE
 
-    } else {
+    if (!success) {
+      # Failed call; decide what to do about it
+      try_msg <- attr(temp_try, "condition")[["message"]]
+
+      if (grepl("database is locked", try_msg)) {
+        # Sleep and retry the call
+        do_repeat <- TRUE
+      } else if (grepl("UNIQUE constraint failed", try_msg)) {
+        # Ignore the error and pretend that all is fine
+        success <- TRUE
+      } else {
+        # Report any other problem as failure
+      }
+    }
+
+    if (do_repeat) {
       k <- k + 1L
 
       # sleep on average shape * scale; and hope that afterwards, the db will be available
-      temp <- stats::rgamma(1L, shape = sleep_s, scale = 1)
+      temp_sleep <- round(stats::rgamma(1L, shape = sleep_s, scale = 1), 1L)
       if (verbose) {
-        print(paste("'dbExecute2': sleeps for", temp, "sec before attempt", k))
+        print(paste("'dbExecute2': sleeps for", temp_sleep, "sec before attempt", k))
       }
 
-      Sys.sleep(temp)
+      Sys.sleep(temp_sleep)
+
+    } else {
+      break
     }
   }
 
