@@ -996,6 +996,20 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
+  #--------------------------------------------------------------------------------------#
+  #------------------------CONSOLIDATE (PARTIAL) OUTPUT DATA (FROM PREVIOUS RUN)
+  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+  dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+
+  if (length(get_fnames_dbTempOut(dir_out_temp)) > 0L) {
+    move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start = t1, opt_parallel, opt_behave,
+      opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
+      check_if_Pid_present = FALSE)
+
+    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+  }
+
 
   #--------------------------------------------------------------------------------------#
   #------------------------PREPARE SOILWAT2 SIMULATIONS
@@ -1032,7 +1046,6 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
     wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
 
   #--- Determine which runs (still) need to be done for this round
-  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
   SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <- dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]) # elements of runIDs_total
   SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] <- length(SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]])
 
@@ -1044,6 +1057,7 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
   SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
   SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+
 
   #--------------------------------------------------------------------------------------#
   #------------------------RUN RSOILWAT
