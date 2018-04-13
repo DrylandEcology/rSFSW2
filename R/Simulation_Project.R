@@ -403,6 +403,22 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
+  #--- Setup/connect to dbWork
+  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared") ||
+    !file.exists(fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))) {
+
+    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      sim_size = SFSW2_prj_meta[["sim_size"]], include_YN = SFSW2_prj_inputs[["include_YN"]],
+      resume = opt_behave[["resume"]])
+
+    if (!temp)
+      stop("Work database failed to setup or an existing one is from a different",
+        "simulation design")
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbWork", prepared = TRUE)
+  }
+
 
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
     exists("SFSW2_prj_inputs")) {
@@ -420,21 +436,6 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
    file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
 
-
-
-  #--- Setup/connect to dbWork
-  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
-    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      sim_size = SFSW2_prj_meta[["sim_size"]], include_YN = SFSW2_prj_inputs[["include_YN"]],
-      resume = opt_behave[["resume"]])
-
-    if (!temp)
-      stop("Work database failed to setup or an existing one is from a different",
-        "simulation design")
-
-    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "dbWork", prepared = TRUE)
-  }
 
 
   #--- Setup random number generator streams for each runsN_master
