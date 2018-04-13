@@ -166,23 +166,51 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------Preparations for simulation run
-  #Check what needs to be done
-  #TODO this currently doesn't work in the database setup
-  isdone.overallAggs <- rep(FALSE, sim_scens[["N"]])
-  if (prj_todos[["adaily"]][["N"]] > 0) {
-    isdone.dailyAggs <- matrix(FALSE, nrow = prj_todos[["adaily"]][["N"]], ncol = sim_scens[["N"]])
-  } else {
-    isdone.dailyAggs <- TRUE
+  # Determine sequence of scenarios
+  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
+    i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
+
+  sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") &&
+      i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
+
+  sim_seq_scens <- sc1:sim_scens[["N"]]
+
+  # Check which output needs to be generated
+  # TODO(drs): this is currently a stub, but should eventually be replaced with
+  # extracted data from a new dbWork table that offers granular information
+  temp <- c("Pid", "aggregation_overall", "aggregation_daily",
+    dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]]))
+
+  do_out <- data.frame(matrix(TRUE, nrow = sim_scens[["N"]], ncol = length(temp),
+    dimnames = list(NULL, temp)))
+  do_out[, "Pid"] <- it_Pid(i_sim, runN = sim_size[["runsN_master"]],
+    sc = seq_len(sim_scens[["N"]]), scN = sim_scens[["N"]])
+
+  if (sc1 > 1) {
+    do_out[-1L, -1L] <- FALSE # Exclude_ClimateAmbient
   }
 
-  #set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
+
+  # Set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
   #   for now: ignoring to check time-series aggregations, i.e., assuming that if
   #   overallAggs is done, then time-series output was also completed
-  tasks <- data.frame(matrix(NA, nrow = sim_scens[["N"]], ncol = 3,
+  tasks <- data.frame(matrix(-1L, nrow = sim_scens[["N"]], ncol = 3,
     dimnames = list(NULL, c("create", "execute", "aggregate"))))
-  tasks[["create"]][] <- if (prj_todos[["actions"]][["sim_create"]]) 1L else -1L
-  tasks[["execute"]][] <- if (prj_todos[["actions"]][["sim_execute"]]) 1L else -1L
-  tasks[["aggregate"]][] <- if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L
+
+  temp <- apply(do_out[, -1L, drop = FALSE], 1, any)
+  needs_out <- ifelse(temp, 1L, -1L)
+
+  if (prj_todos[["actions"]][["sim_aggregate"]]) {
+    tasks[, "aggregate"] <- needs_out
+  }
+  if (any(unlist(prj_todos[["actions"]][c("sim_execute", "sim_aggregate")]))) {
+    tasks[, "execute"] <- needs_out
+  }
+  if (any(unlist(prj_todos[["actions"]][c("sim_create", "sim_execute", "sim_aggregate")]))) {
+    temp <- needs_out
+    temp[1L] <- TRUE # 'create' code relies on 'ambient/current' scenario input data
+    tasks[, "create"] <- temp
+  }
 
 
   #Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
@@ -911,8 +939,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #copy and make climate scenarios from datafiles
     if (any(tasks$create > 0L)) for (sc in seq_len(sim_scens[["N"]])) {
-      P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-      tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
+      tag_simpidfid <- paste0("[run", i_sim, "/PID", do_out[sc, "Pid"], "/sc", sc,
+        "/work", fid, "]")
 
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -1728,12 +1756,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     SQL <- character(0)
   }
 
-  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
-    i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
-
-  sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") &&
-      i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
-
 #  #' Width of layer used to simulate soil temperature
 #  #'
 #  #' @param DeltaX An integer vector of length two.
@@ -1742,10 +1764,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #  #'    1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
   DeltaX <- c(NA, 0L)
 
-  for (sc in sc1:sim_scens[["N"]]) {
-
-    P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-    tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
+  for (sc in sim_seq_scens) {
+    tag_simpidfid <- paste0("[run", i_sim, "/PID", do_out[sc, "Pid"], "/sc", sc,
+      "/work", fid, "]")
 
     print_debug(opt_verbosity, tag_simpidfid, "executing", "SOILWAT2")
 
@@ -1843,47 +1864,30 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
     if (tasks$aggregate[sc] == 1L) {
-      print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
-      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbTempOut for Pid")
-      do_overall_Pid <- any(!has_Pid(dbTempFile, table = c("aggregation_overall_mean",
-        "aggregation_overall_sd"), P_id))
-      print_debug(opt_verbosity, tag_simpidfid, "aggregating", "access dbTempOut for Pid done")
-
-      #HEADER GENERATION REMOVED#
-      #only exclude if
+      # Exclude current scenario if
       #   1.) Exclude_ClimateAmbient is true in treatments
       #   2.) That Run is set to Exclude_ClimateAmbient
       #   3.) Our current Scenario is Current
-      if (any(create_treatments == "Exclude_ClimateAmbient") &&
-        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 && i_sim != 1) {
+      Exclude_ClimateAmbient <- any(create_treatments == "Exclude_ClimateAmbient") &&
+        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 && i_sim != 1
 
-        Exclude_ClimateAmbient <- TRUE
 
-        if (do_overall_Pid) {
-          #ncol_dbOut_overall comes from database creation
-          temp <- paste(c(P_id, if (sim_size[["ncol_dbOut_overall"]] > 0)
-            paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
-            collapse = ", ")
+      #--- Output tables: 'overall aggregation'
+      print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
-          SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-          res1 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
-            seed = i_seed)
+      if (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+        do_out[sc, "aggregation_overall"]) && sim_size[["ncol_dbOut_overall"]] > 0) {
 
-          SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-          res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
-            seed = i_seed)
 
-          if (!res1 || !res2) tasks$aggregate[sc] <- 0L
-        }
+      if (Exclude_ClimateAmbient || sim_size[["ncol_dbOut_overall"]] == 0L) {
+        temp <- paste(c(do_out[sc, "Pid"], if (sim_size[["ncol_dbOut_overall"]] > 0)
+          paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
+          collapse = ", ")
+        resMeans <- resSDs <- rep(NA, length = sim_size[["ncol_dbOut_overall"]])
+        nv <- 1L + sim_size[["ncol_dbOut_overall"]]
 
       } else {
-        Exclude_ClimateAmbient <- FALSE
-      }
-
-      #overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
-      if (do_overall_Pid && (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
-        !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient)) {
 
         # delete data so that they are read anew for each scenario; each variable is
         # checked that datafile is read in only once per scenario
@@ -5325,31 +5329,41 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
 
         #---Aggregation: done with options
+      }
 
-        #temporaly save aggregate data
+        #--- Write overall aggregation results to dbTempOut
         nv1 <- nv - 1
-        if ((sim_size[["ncol_dbOut_overall"]] > 0 &&
-          sim_size[["ncol_dbOut_overall"]] == nv1) ||
-          sim_size[["ncol_dbOut_overall"]] == 0L) {
-
-          print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
-
-          resMeans[!is.finite(resMeans)] <- "NULL"
-          resSDs[!is.finite(resSDs)] <- "NULL"
-          temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
-          temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
-
+        if (sim_size[["ncol_dbOut_overall"]] == nv1 && tasks$aggregate[sc] != 0L) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
 
-          SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
-          res1 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
-            seed = i_seed)
+          res <- TRUE
 
-          SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
-          res2 <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["verbose"]],
-            seed = i_seed)
+          if (do_out[sc, "aggregation_overall_mean"]) {
+            resMeans[!is.finite(resMeans)] <- "NULL"
+            temp <- paste0(c(do_out[sc, "Pid"], resMeans[seq_len(nv1)]), collapse = ",")
 
-          if (!res1 || !res2) tasks$aggregate[sc] <- 0L
+            SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
+            temp <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed)
+
+            res <- res && temp
+            do_out[sc, "aggregation_overall_mean"] <- !temp
+          }
+
+          if (do_out[sc, "aggregation_overall_sd"]) {
+            resSDs[!is.finite(resSDs)] <- "NULL"
+            temp <- paste0(c(do_out[sc, "Pid"], resSDs[seq_len(nv1)]), collapse = ",")
+
+            SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
+            temp <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed)
+
+            res <- res && temp
+            do_out[sc, "aggregation_overall_sd"] <- !temp
+          }
+
+          tasks$aggregate[sc] <- if (res) 2L else 0L
+
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
@@ -5358,16 +5372,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
           tasks$aggregate[sc] <- 0L
         }
-      }
 
-      #Daily Output
-      if (prj_todos[["adaily"]][["N"]] > 0 && tasks$aggregate[sc] > 0L) {
+        print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation done")
+      } # end of 'overall aggregation'
+
+
+      #--- Output tables: 'mean daily'
+      if (prj_todos[["adaily"]][["N"]] > 0 &&
+          (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+              do_out[sc, "aggregation_daily"]))) {
 
         #aggregate for each response variable
         for (doi in seq_len(prj_todos[["adaily"]][["N"]])) {
           print_debug(opt_verbosity, tag_simpidfid, "daily aggregation", doi)
 
-          if (!opt_behave[["resume"]] | (opt_behave[["resume"]] & !isdone.dailyAggs[doi, sc])) {
+          tag_table <- paste0("aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi])
+
+          if (any(unlist(do_out[sc, grep(tag_table, colnames(do_out))]))) {
             #check to see if we are on SWA
             if (regexpr("SWAbulk", prj_todos[["adaily"]][["tag"]][doi]) > 0) {
               agg.resp <- "SWAbulk"
@@ -5511,42 +5532,68 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               }
             }
 
-            #temporary save daily data
-            res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-            res.dailySD[!is.finite(res.dailySD)] <- "NULL"
-
-            if (agg.analysis > 1) {
-              temp1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
-                  ids <- seq_len(366) + (x - 1) * 366
-                  paste0(P_id, ", ", x, ", ", paste0(res.dailyMean[ids], collapse = ","))
-                }), ")")
-
-              temp2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
-                  ids <- seq_len(366) + (x - 1) * 366
-                  paste0(P_id, ", ", x, ", ", paste0(res.dailySD[ids], collapse = ","))
-                }), ")")
-
-            } else { #no layers
-              temp1 <- paste0("(", P_id, ", ", paste(res.dailyMean, collapse = ","), ")")
-              temp2 <- paste0("(", P_id, ", ", paste(res.dailySD, collapse = ","), ")")
-            }
-
-            SQL1 <- paste0("INSERT INTO \"aggregation_doy_",
-              prj_todos[["adaily"]][["tag"]][doi], "_Mean\" VALUES ", temp1, ";")
-            SQL2 <- paste0("INSERT INTO \"aggregation_doy_",
-              prj_todos[["adaily"]][["tag"]][doi], "_SD\" VALUES ", temp2, ";")
-
+            #--- Write mean daily aggregation results to dbTempOut
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: daily")
-            for (al in seq_len(agg.no)) {
-              res1 <- dbExecute2(dbTempFile, SQL1[al],
-                verbose = opt_verbosity[["verbose"]], seed = i_seed)
-              res2 <- dbExecute2(dbTempFile, SQL2[al],
-                verbose = opt_verbosity[["verbose"]], seed = i_seed)
 
-              if (!res1 || !res2) tasks$aggregate[sc] <- 0L
+            table_name1 <- paste0(tag_table, "_Mean")
+            res1 <- TRUE
+            if (do_out[sc, table_name1]) {
+              res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+
+              if (agg.analysis > 1) {
+                temp1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                  ids <- seq_len(366) + (x - 1) * 366
+                  paste0(do_out[sc, "Pid"], ", ", x, ", ",
+                    paste0(res.dailyMean[ids], collapse = ","))
+                }), ")")
+              } else { #no layers
+                temp1 <- paste0("(", do_out[sc, "Pid"], ", ",
+                  paste(res.dailyMean, collapse = ","), ")")
+              }
+
+              SQL1 <- paste0("INSERT INTO \"", table_name1, "\" VALUES ", temp1, ";")
+              for (al in seq_len(agg.no)) {
+                temp <- dbExecute2(dbTempFile, SQL1[al],
+                  verbose = opt_verbosity[["print.debug"]], seed = i_seed)
+                res1 <- res1 && temp
+              }
+
+              do_out[sc, table_name1] <- !res1
             }
-            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
+
+            table_name2 <- paste0(tag_table, "_SD")
+            res2 <- TRUE
+            if (do_out[sc, table_name2]) {
+              res.dailySD[!is.finite(res.dailySD)] <- "NULL"
+
+              if (agg.analysis > 1) {
+                temp2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                    ids <- seq_len(366) + (x - 1) * 366
+                    paste0(do_out[sc, "Pid"], ", ", x, ", ",
+                      paste0(res.dailySD[ids], collapse = ","))
+                  }), ")")
+
+              } else { #no layers
+                temp2 <- paste0("(", do_out[sc, "Pid"], ", ",
+                  paste(res.dailySD, collapse = ","), ")")
+              }
+
+              SQL2 <- paste0("INSERT INTO \"", table_name2, "\" VALUES ", temp2, ";")
+              for (al in seq_len(agg.no)) {
+                temp <- dbExecute2(dbTempFile, SQL2[al],
+                  verbose = opt_verbosity[["print.debug"]], seed = i_seed)
+                res2 <- res2 && temp
+              }
+
+              do_out[sc, table_name2] <- !res2
+            }
+
+            tasks$aggregate[sc] <- if (res1 && res2 && tasks$aggregate[sc] != 0L) {
+                2L
+              } else 0L
+
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
           }#end if resume
         }#doi loop
       }#end if daily output
@@ -5561,7 +5608,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   } #end loop through scenarios
 
   if (any(tasks$aggregate == 0L)) {
-    print(paste0(tag_simfid, ": not all aggregation results successful with",
+    print(paste0(tag_simfid, ": not all aggregation results successful with ",
       paste(tasks$aggregate, collapse = "-")))
   }
 
