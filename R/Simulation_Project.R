@@ -286,6 +286,15 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
     save_to_rds_with_backup(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
+  # Make sure that input-tracker is updated correctly if inputs were re-processed
+  if (!todo_intracker(SFSW2_prj_meta, "table_lookup", "prepared") &&
+    is.null(SFSW2_prj_inputs[["done_prior"]])) {
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "table_lookup", prepared = FALSE)
+  }
+
+
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
     exists("SFSW2_prj_inputs")) {
     # Return if all is prepared (from a previous run) and input object exists and haven't
