@@ -719,6 +719,19 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   }
 
 
+  #------ CREATE OUTPUT DATABASE (IF NOT ALREADY EXISTING)
+  #--- Update todos for simulation project
+  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions,
+    wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
+
+  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+    verbose = opt_verbosity[["verbose"]])
+
+  SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
+  SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+
+
+
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
@@ -922,7 +935,6 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
   }
 
 
-
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
@@ -1051,13 +1063,11 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
 
 
   #--------------------------------------------------------------------------------------#
-  #------------ORGANIZE DATABASES FOR SIMULATION OUTPUT
-  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
-    verbose = opt_verbosity[["verbose"]])
-
-  SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
-  SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
-
+  #------------CHECK ON DATABASES FOR SIMULATION OUTPUT
+  if (!file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
+    temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+      verbose = opt_verbosity[["verbose"]])
+  }
 
   #--------------------------------------------------------------------------------------#
   #------------------------RUN RSOILWAT
