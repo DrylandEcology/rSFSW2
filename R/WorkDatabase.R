@@ -6,8 +6,17 @@ add_dbWork_index <- function(con) {
 
   prev_indices <- DBI::dbGetQuery(con, "SELECT * FROM sqlite_master WHERE type = 'index'")
 
-  if (NROW(prev_indices) == 0L || !("i_runIDs" %in% prev_indices[, "name"])) {
+  if (DBI::dbExistsTable(con, "work") && (NROW(prev_indices) == 0L ||
+    !("i_runIDs" %in% prev_indices[, "name"]))) {
+
     DBI::dbExecute(con, paste("CREATE INDEX i_runIDs ON work (runID_total, runID_sites,",
+      "include_YN)"))
+  }
+
+  if (DBI::dbExistsTable(con, "need_outputs") && (NROW(prev_indices) == 0L ||
+    !("i_needIDs" %in% prev_indices[, "name"]))) {
+
+    DBI::dbExecute(con, paste("CREATE INDEX i_needIDs ON need_outputs (Pid, runID_total,",
       "include_YN)"))
   }
 }
@@ -30,8 +39,8 @@ fname_dbWork <- function(path, dbname = "dbWork.sqlite3") {
 #'  \code{runID_total}, \code{runID_sites}, \code{include_YN} represent a running ID,
 #'  the site_id (row number in master input file), and a flag whether site is being
 #'  simulated or not. See \code{\link{indices}}.
+#'
 #' @return Invisibly \code{TRUE}
-#' @export
 create_dbWork <- function(path, jobs) {
 
   stopifnot(colnames_job_df() %in% dimnames(jobs)[[2]])
@@ -69,9 +78,11 @@ create_dbWork <- function(path, jobs) {
   invisible(TRUE)
 }
 
+
 colnames_job_df <- function() {
   c("runID_total", "runID_sites", "include_YN", "completed", "failed", "inwork", "time_s")
 }
+
 
 create_job_df <- function(sim_size, include_YN) {
   temp <- colnames_job_df()
@@ -88,79 +99,167 @@ create_job_df <- function(sim_size, include_YN) {
 }
 
 
+#' Create new table \code{need_outputs} for granular control of individual
+#' output elements for each \code{Pid x table} combination
+#'
+#' The table \code{need_outputs} has one row/record for each \code{P_id = Pid}
+#' and contains columns \code{Pid}, \code{runID_total} (that links to table \code{work}),
+#' and one column for each output table of \code{dbOutput} with the same names. Those
+#' fields contain values \itemize{
+#'   \item -1 No output is requested, e.g., site is excluded from simulation project by
+#'     input setting of \code{include_YN == 0},
+#'   \item 0 FALSE, output is not needed (any more), i.e., output is already produced,
+#'   \item 1 TRUE, output is needed, i.e., output has not yet been generated.
+#' }
+#'
+#' @inheritParams create_dbWork
+#' @return A logical vector.
+add_granular_dbWork <- function(SFSW2_prj_meta) {
+  dbWork <- fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
+    flags = RSQLite::SQLITE_RWC)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  if (DBI::dbExistsTable(con, "need_outputs")) {
+    res <- TRUE
+
+  } else {
+    #--- Create new table 'need_outputs' for granular control;
+    # with default -1 = no output requested (e.g., Include_YN == 0)
+    stopifnot(file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
+
+    out_tables <- dbOutput_ListOutputTables(
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    temp_tables <- paste(DBI::dbQuoteIdentifier(con, out_tables), "INTEGER DEFAULT -1",
+      collapse = ", ")
+
+    sql <- paste0("CREATE TABLE need_outputs(Pid INTEGER PRIMARY KEY, ",
+      "runID_total INTEGER, include_YN INTEGER, ", temp_tables, ")")
+    DBI::dbExecute(con, sql)
+
+    #--- Create table content: add one row per Pid
+    temp_pids <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
+    temp_runIDs <- it_sim2(temp_pids, SFSW2_prj_meta[["sim_scens"]][["N"]])
+
+    sql <- paste("SELECT runID_total, include_YN FROM work WHERE runID_total IN (?)",
+      "ORDER BY runID_total")
+    rs <- DBI::dbSendStatement(con, sql)
+    RSQLite::dbBind(rs, list(unique(temp_runIDs)))
+    temp_include_YN <- RSQLite::dbFetch(rs)
+    RSQLite::dbClearResult(rs)
+
+    df_granular <- data.frame(matrix(NA, nrow = length(temp_pids),
+      ncol = 3L + length(out_tables), dimnames = list(NULL, c("Pid", "runID_total",
+        "include_YN", out_tables))))
+
+    df_granular[, "Pid"] <- temp_pids
+    df_granular[, "runID_total"] <- temp_runIDs
+    ids <- match(temp_runIDs, temp_include_YN[, "runID_total"], nomatch = 0)
+    df_granular[, "include_YN"] <- temp_include_YN[ids, "include_YN"]
+    df_granular[, out_tables] <- ifelse(df_granular[, "include_YN"] > 0, 1L, -1L)
+
+    res <- RSQLite::dbWriteTable(con, "need_outputs", value = df_granular,
+      row.names = FALSE, append = TRUE)
+  }
+
+  add_dbWork_index(con)
+
+  invisible(res)
+}
+
+
+#' Update include_YN
+dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
+  should_include_YN) {
+
+  if (!identical(has_include_YN, should_include_YN)) {
+    Yes <- 1L
+    No <- 0L
+
+    sql <- paste("UPDATE", DBI::dbQuoteIdentifier(con, table),
+      "SET include_YN = :yn WHERE", DBI::dbQuoteIdentifier(con, id_name), "= :x")
+    rs <- DBI::dbSendStatement(con, sql)
+
+    # now excluded and previously included
+    iwork <- which(has_include_YN == Yes & should_include_YN == No)
+    n <- length(iwork)
+    if (n > 0) {
+      DBI::dbBind(rs, param = list(yn = rep(No, n), x = iwork))
+    }
+
+    # now included and previously excluded
+    iwork <- which(has_include_YN == No & should_include_YN == Yes)
+    n <- length(iwork)
+    if (n > 0) {
+      DBI::dbBind(rs, param = list(yn = rep(Yes, n), x = iwork))
+    }
+
+    DBI::dbClearResult(rs)
+  }
+}
+
+
 #' Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
 #'  project
+#'
+#' \code{dbWork} tracks completion of each \code{runID} with table \code{work},
+#' i.e., an entire call to \code{\link{do_OneSite}}. If your project requires a finer
+#' granularity of output management, then set the \code{use_granular_control} in the
+#' project description and call the function \code{\link{add_granular_dbWork}} to add
+#' the table \code{need_outputs} to \code{dbWork}.
 #'
 #' @inheritParams create_dbWork
 #' @param resume A logical value. If \code{TRUE} and \code{dbWork} exists,
 #'  then function connects to the existing database. If \code{FALSE}, then a new database
 #'  is created (possibly overwriting an existing one).
+#' @param SFSW2_prj_meta An environment. Required for creating a new \code{dbWork} and
+#'  if \code{use_granular_control} is set or if \code{sim_size} is missing. If passed
+#'  as argument and \code{resume} and \code{dbWork} exists, then
+#'  \code{\link{recreate_dbWork}} is called.
+#'
 #' @return A logical value indicating success/failure of setting up/connecting to
 #'  \code{dbWork} and initializing with \code{runIDs}.
 #' @export
-setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE) {
+setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE,
+  SFSW2_prj_meta = NULL) {
 
   dbWork <- fname_dbWork(path)
-  success <- create <- FALSE
-  jobs <- create_job_df(sim_size, include_YN)
+  success <- FALSE
+  create <- TRUE
 
   if (resume) {
     if (file.exists(dbWork)) {
-      con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
-
-      if (any(!(dimnames(jobs)[[2]] %in% DBI::dbListFields(con, "work")))) {
-        stop("'setup_dbWork': dbWork is misspecified or outdated; you may fix ",
-          "this by first calling the function 'recreate_dbWork'")
-      }
-      prev_work <- DBI::dbGetQuery(con, paste("SELECT runID_total, runID_sites,",
-        "include_YN FROM work ORDER BY runID_total"))
-
-      # check whether same design
-      success <- all(sapply(c("runID_total", "runID_sites"), function(x)
-        identical(prev_work[, x], as.integer(jobs[, x]))))
-
-      if (success) {
-        # clean-up potentially lingering 'inwork'
-        DBI::dbExecute(con, "UPDATE work SET inwork = 0 WHERE inwork > 0")
-
-        # check whether include_YN has been changed and update if necessary
-        if (!identical(prev_work[, "include_YN"], jobs[, "include_YN"])) {
-          # now excluded
-          iwork <- which(prev_work[, "include_YN"] == 1L & jobs[, "include_YN"] == 0L)
-          if (length(iwork) > 0) {
-            rs <- DBI::dbSendStatement(con, paste("UPDATE work SET include_YN = 0",
-              "WHERE runID_total = :x"))
-            DBI::dbBind(rs, param = list(x = iwork))
-          }
-          # now included
-          iwork <- which(prev_work[, "include_YN"] == 0L & jobs[, "include_YN"] == 1L)
-          if (length(iwork) > 0) {
-            rs <- DBI::dbSendStatement(con, paste("UPDATE work SET include_YN = 1",
-              "WHERE runID_total = :x"))
-            DBI::dbBind(rs, param = list(x = iwork))
-          }
-
-          DBI::dbClearResult(rs)
-        }
-      }
-
-    } else {
-      create <- TRUE
+      create <- FALSE
+      success <- if (!is.null(SFSW2_prj_meta)) {
+          recreate_dbWork(SFSW2_prj_meta)
+        } else TRUE
     }
 
   } else {
     unlink(dbWork)
-    create <- TRUE
   }
 
   if (create) {
-    temp <- create_dbWork(path, jobs)
+    if (missing(sim_size)) {
+      sim_size <- if (!is.null(SFSW2_prj_meta)) {
+        SFSW2_prj_meta[["sim_size"]]
+      } else stop("'setup_dbWork': argument 'sim_size' is missing.")
+    }
+
+    temp <- create_dbWork(path, jobs = create_job_df(sim_size, include_YN))
     success <- !inherits(temp, "try-error")
+
+    if (success && isTRUE(SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]])) {
+      stopifnot(!is.null(SFSW2_prj_meta))
+      success <- add_granular_dbWork(SFSW2_prj_meta)
+    }
   }
 
   success
 }
+
 
 #' Initiate a checkpoint operation on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
 #' @references https://www.sqlite.org/pragma.html#pragma_wal_checkpoint
@@ -203,6 +302,7 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
 
   invisible(res)
 }
+
 
 #' Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
 #'
@@ -280,7 +380,6 @@ dbWork_timing <- function(path) {
 }
 
 
-
 #' Set runs information that need to be redone / simulated (again)
 #'
 #' @inheritParams create_dbWork
@@ -337,19 +436,19 @@ dbWork_check <- function(path, runIDs) {
 }
 
 
-
-#' Re-create dbWork based on dbOutput
+#' Re-create or update dbWork based on dbOutput
 #'
 #' @inheritParams create_dbWork
 #' @param dbOutput A character string. Full name to the output database.
-#' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path} and \code{dbOutput} may
-#'  be missing. If not \code{NULL}, then code checks that no temporary output files remain
-#'  unprocessed.
+#' @param use_granular_control A logical vector.
+#' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path} and
+#'  \code{dbOutput} may be missing. If not \code{NULL}, then code checks that no
+#'  temporary output files remain unprocessed.
 #'
 #' @return A logical vector indicating success.
 #'
 #' @export
-recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
+recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL) {
   if (missing(path)) {
     path <- if (!is.null(SFSW2_prj_meta)) {
         SFSW2_prj_meta[["project_paths"]][["dir_out"]]
@@ -360,6 +459,12 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
     dbOutput <- if (!is.null(SFSW2_prj_meta)) {
         SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]
       } else stop("'recreate_dbWork': argument 'dbOutput' is missing.")
+  }
+
+  if (missing(use_granular_control)) {
+    use_granular_control <- if (!is.null(SFSW2_prj_meta)) {
+        SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]]
+    } else stop("'recreate_dbWork': argument 'use_granular_control' is missing.")
   }
 
   if (!is.null(SFSW2_prj_meta)) {
@@ -380,95 +485,214 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
 
 
   if (file.exists(dbOutput)) {
-    dbWork <- fname_dbWork(path)
+    #--- Infer design of simulation experiment based on dbOutput
+    con_dbOut <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput,
+      flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
 
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
-
-    if (!all(sapply(c("runs", "sites"), function(x) DBI::dbExistsTable(con, x)))) {
+    if (!all(sapply(c("runs", "sites"), function(x) DBI::dbExistsTable(con_dbOut, x)))) {
       stop("'recreate_dbWork': OutputDB ", shQuote(dbOutput), " has ",
         "incomplete structure; dbWork cannot be recreated from it.")
     }
 
-    table_runs <- DBI::dbReadTable(con, "runs")
-    table_sites <- DBI::dbReadTable(con, "sites")
+    # output 'aggregation' tables
+    out_tables <- dbOutput_ListOutputTables(con = con_dbOut)
 
-    # Infer design of simulation experiment
+    # 'runs' table
+    table_runs <- DBI::dbReadTable(con_dbOut, "runs")
     infer_expN <- max(table_runs[, "treatment_id"])
     infer_scN <- max(table_runs[, "scenario_id"])
-    infer_runIDs <- unique(it_sim2(table_runs[, "P_id"], infer_scN))
+    table_runs[, "infer_runIDs"] <- it_sim2(table_runs[, "P_id"], infer_scN)
+
+    infer_runIDs <- unique(table_runs[, "infer_runIDs"])
     infer_runsN_total <- max(infer_runIDs)
+
+    # 'sites' table
+    table_sites <- DBI::dbReadTable(con_dbOut, "sites")
 
     infer_runsN_master <- dim(table_sites)[1]
     infer_include_YN <- as.logical(table_sites[, "Include_YN"])
     infer_runIDmax_sites <- max(table_sites[, "site_id"])
 
-    do_new_dbWork <- TRUE
+
+    #--- If dbWork already exists, then check whether design matches the one from dbOutput
+    do_new_dbWork <- add_needs_table <- TRUE
+    dbWork <- fname_dbWork(path)
 
     if (file.exists(dbWork)) {
-      # If dbWork present, check whether design is current
-      con2 <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
-      on.exit(DBI::dbDisconnect(con2), add = TRUE)
+      con_dbWork <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbWork,
+        flags = RSQLite::SQLITE_RW)
+      on.exit(DBI::dbDisconnect(con_dbWork), add = TRUE)
 
-      if (DBI::dbExistsTable(con2, "work")) {
-        has_work <- DBI::dbReadTable(con2, "work")
+      do_new_dbWork1 <- TRUE
+      if (DBI::dbExistsTable(con_dbWork, "work")) {
+        # Check whether to create new dbWork: number of total runs, number of sites
+        has_work <- DBI::dbReadTable(con_dbWork, "work")
 
         if (all(c("runID_total", "runID_sites") %in% names(has_work))) {
-          # Create new dbWork if number of total runs or number of sites does not match
-          do_new_dbWork <- !(max(has_work[, "runID_total"]) == dim(has_work)[1] &&
+          do_new_dbWork1 <- !(max(has_work[, "runID_total"]) == dim(has_work)[1] &&
             max(has_work[, "runID_total"]) == infer_runsN_total &&
             max(has_work[, "runID_sites"]) == infer_runIDmax_sites)
         }
       }
-    }
 
-    if (do_new_dbWork) {
-      # Create new dbWork
-      infer_sim_size <- list(runsN_master = infer_runsN_master,
-        runsN_total = infer_runsN_total, expN = infer_expN)
-      setup_dbWork(path, infer_sim_size, include_YN = infer_include_YN)
+      if (use_granular_control) {
+        do_new_dbWork2 <- TRUE
 
-    } else {
-      # Check whether include_YN should be updated
-      infer_include_YN2 <- rep(as.integer(infer_include_YN), times = infer_expN)
-      if (!identical(has_work[, "include_YN"], infer_include_YN2)) {
-        con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RW)
-        on.exit(DBI::dbDisconnect(con2), add = TRUE)
+        if (DBI::dbExistsTable(con_dbWork, "need_outputs")) {
+          add_needs_table <- FALSE
 
-        rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET include_YN = :x1",
-          "WHERE runID_total = :x2"))
-        DBI::dbBind(rs, param = list(x1 = infer_include_YN2, x2 = infer_runIDs))
-        DBI::dbClearResult(rs)
+          if (!do_new_dbWork1) {
+            # Check whether to create new dbWork (but we only need to check this table
+            # if table 'work' was ok): fields, Pids, and number of total runs do not match
+            sql <- "SELECT COUNT(Pid) FROM need_outputs"
+            count_need_Pids <- as.integer(DBI::dbGetQuery(con_dbWork, sql))
+
+            sql <- "SELECT MAX(runID_total) FROM need_outputs"
+            max_need_runID_total <- as.integer(DBI::dbGetQuery(con_dbWork, sql))
+
+            has_table_names <- DBI::dbListFields(con_dbWork, "need_outputs")
+
+            do_new_dbWork2 <- !(all(out_tables %in% has_table_names) &&
+              count_need_Pids == NROW(table_runs[, "P_id"]) &&
+              max_need_runID_total == infer_runsN_total)
+          }
+        }
+
+      } else {
+        do_new_dbWork2 <- FALSE
+        if (DBI::dbExistsTable(con_dbWork, "need_outputs")) {
+          DBI::dbExecute(con_dbWork, "DROP need_outputs")
+        }
+      }
+
+      do_new_dbWork <- do_new_dbWork1 || do_new_dbWork2
+
+      if (do_new_dbWork) {
+        DBI::dbDisconnect(con_dbWork)
+        unlink(dbWork)
+
+      } else if (exists("has_work")) {
+        # Check whether include_YN should be updated
+        should_include_YN <- rep(as.integer(infer_include_YN), times = infer_expN)
+
+        # Check table 'work' whether include_YN should be updated
+        dbWork_update_IncludeYN(con_dbWork, table = "work", id_name = "runID_total",
+          has_include_YN = has_work[, "include_YN"],
+          should_include_YN = should_include_YN)
+
+        # Check table 'need_outputs' whether include_YN should be updated, but only
+        # check if not freshly added
+        if (use_granular_control && !add_needs_table) {
+          ids <- match(table_runs[, "site_id"], table_sites[, "site_id"], nomatch = 0)
+
+          dbWork_update_IncludeYN(con_dbWork, table = "need_outputs", id_name = "Pid",
+            has_include_YN = as.integer(DBI::dbGetQuery(con_dbWork,
+              "SELECT include_YN FROM need_outputs")[[1]]),
+            should_include_YN = as.integer(table_sites[ids, "Include_YN"]))
+        }
       }
     }
 
-    #--- Update completed runs
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-    #- Update completed runs based on dbOutput
-    tables <- dbOutput_ListOutputTables(con)
-    # get Pids for which simulation output is in every table of the outputDB
-    has_pids <- lapply(tables, function(x) DBI::dbGetQuery(con,
-      paste0("SELECT P_id FROM \"", x, "\""))[, 1])
-    has_pids <- intersect2(has_pids)
+    #--- Create new dbWork
+    if (do_new_dbWork) {
+      infer_sim_size <- list(runsN_master = infer_runsN_master,
+        runsN_total = infer_runsN_total, expN = infer_expN)
 
-    if (length(has_pids) > 0) {
-      con2 <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
+      stopifnot(create_dbWork(path,
+        jobs = create_job_df(infer_sim_size, infer_include_YN)))
+
+      con_dbWork <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
         flags = RSQLite::SQLITE_RW)
-      on.exit(DBI::dbDisconnect(con2), add = TRUE)
+      on.exit(DBI::dbDisconnect(con_dbWork), add = TRUE)
+    }
 
+    if ((do_new_dbWork || add_needs_table) && use_granular_control) {
+      stopifnot(!is.null(SFSW2_prj_meta))
+      stopifnot(add_granular_dbWork(SFSW2_prj_meta))
+    }
+
+
+    #--- Update dbWork based on completed runs stored in dbOutput
+
+    # TODO(drs): below code is not memory-efficient because of large numbers of Pids
+    #  for large projects
+
+    # Get Pids for which simulation output is in each table of the dbOutput
+    has_pids_per_table <- lapply(out_tables, function(x) DBI::dbGetQuery(con_dbOut,
+      paste0("SELECT P_id FROM \"", x, "\""))[, 1])
+
+    #-- Update table 'work'
+    has_pids_complete <- intersect2(has_pids_per_table)
+    incomplete_all_work <- FALSE
+
+    if (length(has_pids_complete) > 0) {
       # Get runID from Pid
-      temp_runIDs <- it_sim2(has_pids, infer_scN)
+      temp_runIDs <- it_sim2(has_pids_complete, infer_scN)
 
       # runID is complete if present and if count(runID) == number of scenarios
       has_complete_runIDs <- which(tabulate(temp_runIDs) == infer_scN)
 
       if (length(has_complete_runIDs) > 0) {
-        rs <- DBI::dbSendStatement(con2, paste("UPDATE work SET completed = 1,",
+        # set complete
+        rs <- DBI::dbSendStatement(con_dbWork, paste("UPDATE work SET completed = 1,",
           "failed = 0, inwork = 0 WHERE runID_total = :x"))
         DBI::dbBind(rs, param = list(x = has_complete_runIDs))
         DBI::dbClearResult(rs)
+
+        # all other runIDs are incomplete
+        rs <- DBI::dbSendStatement(con_dbWork, paste("UPDATE work SET completed = 0,",
+          "failed = 0, inwork = 0 WHERE runID_total != :x"))
+        DBI::dbBind(rs, param = list(x = has_complete_runIDs))
+        DBI::dbClearResult(rs)
+
+      } else {
+        incomplete_all_work <- TRUE
+      }
+    } else {
+      incomplete_all_work <- TRUE
+    }
+
+    if (incomplete_all_work && !do_new_dbWork) {
+      # all runIDs are incomplete and dbWork was previously existing
+      # i.e., there is the possibility that entries are incorrect --> reset them
+      rs <- DBI::dbSendStatement(con_dbWork, paste("UPDATE work SET completed = 0,",
+        "failed = 0, inwork = 0 WHERE runID_total = :x"))
+      DBI::dbBind(rs, param = list(x = infer_runIDs))
+      DBI::dbClearResult(rs)
+    }
+
+
+    #-- Update table 'need_outputs'
+
+    if (use_granular_control) {
+      for (k in seq_along(out_tables)) {
+        temp_table <- DBI::dbQuoteIdentifier(con_dbWork, out_tables[k])
+
+        if (length(has_pids_per_table[[k]]) > 0) {
+          # don't need output (anymore)
+          sql <- paste("UPDATE need_outputs SET ", temp_table, "= 0 WHERE Pid = :x")
+          rs <- DBI::dbSendStatement(con_dbWork, sql)
+          DBI::dbBind(rs, param = list(x = has_pids_per_table[[k]]))
+          DBI::dbClearResult(rs)
+
+          # all other Pids still need output
+          sql <- paste("UPDATE need_outputs SET ", temp_table, "= 1 WHERE Pid != :x",
+            "AND include_YN = 1")
+          rs <- DBI::dbSendStatement(con_dbWork, sql)
+          DBI::dbBind(rs, param = list(x = has_pids_per_table[[k]]))
+          DBI::dbClearResult(rs)
+
+        } else if (!((do_new_dbWork || add_needs_table) && use_granular_control)) {
+          # all Pids are incomplete and table 'need_outputs' was previously existing
+          # i.e., there is the possibility that entries are incorrect --> reset them
+          sql <- paste("UPDATE need_outputs SET ", temp_table, "= 1 WHERE Pid = :x",
+            "AND include_YN = 1")
+          rs <- DBI::dbSendStatement(con_dbWork, sql)
+          DBI::dbBind(rs, param = list(x = table_runs[, "P_id"]))
+          DBI::dbClearResult(rs)
+        }
       }
     }
 
@@ -476,7 +700,6 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
     stop("OutputDB ", shQuote(dbOutput), " not found on disk.")
   }
 }
-
 
 
 #' Update run information of a rSFSW2 simulation project
@@ -491,7 +714,6 @@ recreate_dbWork <- function(path, dbOutput, SFSW2_prj_meta = NULL) {
 #'  database access are printed
 #'
 #' @return A logical value whether the status was successfully updated.
-#' @export
 dbWork_update_job <- function(path, runID, status, time_s = "NULL", verbose = FALSE) {
 
   dbWork <- fname_dbWork(path)

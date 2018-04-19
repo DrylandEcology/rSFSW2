@@ -292,6 +292,13 @@ opt_sim <- list(
 
 #------ Output options
 opt_out_fix <- list(
+  # Control granularity of tracking the output generation
+  #  - use_granular_control = FALSE (default); dbWork tracks completion of each runID,
+  #    i.e., an entire call to `do_OneSite`
+  #  - use_granular_control = TRUE; dbWork adds a second table `need_outputs` that tracks
+  #    the completion of each Pid (= runID x scenario) x output table combination
+  use_granular_control = FALSE,
+
   # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or NULL:
   #   Selected columns will be part of 'header' table in dbOutput in addition to those of
   #   create_treatments, experimental_treatments, and climate scenario

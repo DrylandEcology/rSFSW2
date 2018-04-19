@@ -412,39 +412,29 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  #--- Setup/connect to dbWork
-  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared") ||
-    !file.exists(fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))) {
-
-    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      sim_size = SFSW2_prj_meta[["sim_size"]], include_YN = SFSW2_prj_inputs[["include_YN"]],
-      resume = opt_behave[["resume"]])
-
-    if (!temp)
-      stop("Work database failed to setup or an existing one is from a different",
-        "simulation design")
-
-    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
-      tracker = "dbWork", prepared = TRUE)
-  }
+  #--- Check that dbWork is available
+  SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+    tracker = "dbWork",
+    prepared = file.exists(fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])))
 
 
+  #------ Return if all is prepared (from a previous run) and input object exists and
+  # haven't been changed since last time
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
     exists("SFSW2_prj_inputs")) {
-    # Return if all is prepared (from a previous run) and input object exists and haven't
-    # been changed since last time ('do_check_include' is FALSE)
 
     return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
   }
 
-  # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated, i.e.,
-  #   save them to disk upon exiting function (by error to save intermediate state) or
-  #   by final 'return'
+
+  #------ Data preparation steps required
+  # From here on: objects 'SFSW2_prj_meta' and 'SFSW2_prj_inputs' will be manipulated,
+  # i.e., save them to disk upon exiting function (by error to save intermediate state)
+  # or by final 'return'
   on.exit(save_to_rds_with_backup(SFSW2_prj_meta,
     file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]), add = TRUE)
   on.exit(save_to_rds_with_backup(SFSW2_prj_inputs,
    file = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]), add = TRUE)
-
 
 
   #--- Setup random number generator streams for each runsN_master
@@ -715,7 +705,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
       tracker = "table_lookup", prepared = TRUE)
 
-    #save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
+    save_to_rds_with_backup(SFSW2_prj_meta, SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
   }
 
 
@@ -729,6 +719,25 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
   SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
   SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+
+
+  #------ CREATE WORK DATABASE (IF NOT ALREADY EXISTING)
+  if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
+
+    # This requires the availability of dbOutput if `use_granular_control`
+    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      include_YN = SFSW2_prj_inputs[["include_YN"]],
+      SFSW2_prj_meta = SFSW2_prj_meta,
+      resume = opt_behave[["resume"]])
+
+    if (!temp) {
+      stop("Work database failed to setup or an existing one is from a different",
+        "simulation design")
+    }
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbWork", prepared = TRUE)
+  }
 
 
 
@@ -978,9 +987,12 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 
   SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions, wipe_dbOutput = FALSE)
 
-  # Create dbWork
-  setup_dbWork(path = path, sim_size = SFSW2_prj_meta[["sim_size"]],
-    include_YN = SFSW2_prj_inputs[["include_YN"]], resume = FALSE)
+  # Create/connect dbWork
+  stopifnot(setup_dbWork(path = path,
+    sim_size = SFSW2_prj_meta[["sim_size"]],
+    include_YN = SFSW2_prj_inputs[["include_YN"]],
+    use_granular_control = SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
+    resume = FALSE))
 
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path, "dbTables.sqlite3")
@@ -1034,15 +1046,17 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   }
 
   #--- Consolidate (partial) output data
-  dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+  if (!opt_out_run[["wipe_dbOutput"]]) {
+    dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
-  if (length(get_fnames_dbTempOut(dir_out_temp)) > 0L) {
-    move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start = t1, opt_parallel, opt_behave,
-      opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
-      check_if_Pid_present = FALSE)
+    if (length(get_fnames_dbTempOut(dir_out_temp)) > 0L) {
+      move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start = t1, opt_parallel, opt_behave,
+        opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
+        check_if_Pid_present = FALSE)
 
-    #--- Make sure that dbWork is up-to-date
-    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+      #--- Make sure that dbWork is up-to-date
+      recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+    }
   }
 
   #--- Determine which runs (still) need to be done for this round

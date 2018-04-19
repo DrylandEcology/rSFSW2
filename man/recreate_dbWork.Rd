@@ -2,22 +2,24 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{recreate_dbWork}
 \alias{recreate_dbWork}
-\title{Re-create dbWork based on dbOutput}
+\title{Re-create or update dbWork based on dbOutput}
 \usage{
-recreate_dbWork(path, dbOutput, SFSW2_prj_meta = NULL)
+recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
 
 \item{dbOutput}{A character string. Full name to the output database.}
 
-\item{SFSW2_prj_meta}{An environment. If not \code{NULL}, then \code{path} and \code{dbOutput} may
-be missing. If not \code{NULL}, then code checks that no temporary output files remain
-unprocessed.}
+\item{use_granular_control}{A logical vector.}
+
+\item{SFSW2_prj_meta}{An environment. If not \code{NULL}, then \code{path} and
+\code{dbOutput} may be missing. If not \code{NULL}, then code checks that no
+temporary output files remain unprocessed.}
 }
 \value{
 A logical vector indicating success.
 }
 \description{
-Re-create dbWork based on dbOutput
+Re-create or update dbWork based on dbOutput
 }
