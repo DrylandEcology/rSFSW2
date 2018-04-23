@@ -438,6 +438,28 @@ fix_rowlabels <- function(x, master, verbose = TRUE) {
 }
 
 
+#' Load pre-processed simulation project inputs
+#'
+#' @param SFSW2_prj_meta A list.
+#' @param verbose A logical value.
+#' @return A list \code{SFSW2_prj_inputs}.
+#' @export
+load_preprocessed_inputs <- function(SFSW2_prj_meta, verbose = FALSE) {
+  if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]) &&
+    todo_intracker(SFSW2_prj_meta, "load_inputs", "prepared")) {
+
+    SFSW2_prj_inputs <- process_inputs(SFSW2_prj_meta[["project_paths"]],
+      SFSW2_prj_meta[["fnames_in"]], use_preprocin = TRUE, verbose = verbose)
+
+  } else {
+    stop("'load_preprocessed_inputs': cannot load pre-processed inputs because ",
+      "they are missing or out of date according to 'SFSW2_prj_meta'.")
+  }
+
+  SFSW2_prj_inputs
+}
+
+
 process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE) {
 
   temp_call <- shQuote(match.call()[1])
