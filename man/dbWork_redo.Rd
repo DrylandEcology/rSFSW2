@@ -4,13 +4,16 @@
 \alias{dbWork_redo}
 \title{Set runs information that need to be redone / simulated (again)}
 \usage{
-dbWork_redo(path, runIDs)
+dbWork_redo(path, runIDs, verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
 
 \item{runIDs}{An integer vector. The identification numbers of queried runs,
 i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
+
+\item{verbose}{A logical value. If \code{TRUE}, status messages about file lock and
+database access are printed}
 }
 \value{
 A logical vector indicating success.

@@ -4,7 +4,7 @@
 \alias{dbWork_clean}
 \title{Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project}
 \usage{
-dbWork_clean(path)
+dbWork_clean(path, verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}

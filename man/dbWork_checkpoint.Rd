@@ -5,7 +5,8 @@
 \title{Initiate a checkpoint operation on a SQLite-database \code{dbWork} of a rSFSW2 simulation project}
 \usage{
 dbWork_checkpoint(path = NULL, con = NULL, mode = c("PASSIVE", "FULL",
-  "RESTART", "TRUNCATE", ""), failure = c("silent", "warning", "error"))
+  "RESTART", "TRUNCATE", ""), failure = c("silent", "warning", "error"),
+  verbose = FALSE)
 }
 \description{
 Initiate a checkpoint operation on a SQLite-database \code{dbWork} of a rSFSW2 simulation project

@@ -67,7 +67,7 @@ opt_parallel <- list(
 #------ Options for printing progress and debugging information
 opt_verbosity <- list(
   # Prints status of progress to standard output
-  verbose = TRUE,
+  verbose = FALSE,
   # Prints details of progress to standard output
   print.debug = FALSE,
   # Calculates and prints estimated time of job completion at end of each call of
@@ -78,7 +78,7 @@ opt_verbosity <- list(
   #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
   debug.warn.level = 0,
   # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
-  debug.dump.objects = TRUE
+  debug.dump.objects = FALSE
 )
 
 

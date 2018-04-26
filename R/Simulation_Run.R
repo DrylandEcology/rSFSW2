@@ -178,21 +178,47 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   sim_seq_scens <- sc1:sim_scens[["N"]]
 
-  # Check which output needs to be generated
-  # TODO(drs): this is currently a stub, but should eventually be replaced with
-  # extracted data from a new dbWork table that offers granular information
+
+  #- Check which output needs to be generated
   temp0 <- c("aggregation_overall", "aggregation_doy")
-  temp1 <- dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]])
 
-  do_out_cols <- list(agg = temp0,
-    overall = grep(temp0[1L], temp1, value = TRUE),
-    daily = grep(temp0[2L], temp1, value = TRUE))
+  if (opt_out_fix[["use_granular_control"]]) {
+    # Use the 'granular' table of dbWorks to check output needs for
+    # each Pid x output table combination
+    temp <- as.matrix(dbWork_check_granular(project_paths[["dir_out"]], runIDs = i_sim))
+    stopifnot(identical(as.integer(temp[, "Pid"]), as.integer(all_Pids)))
 
-  do_out <- lapply(do_out_cols, function(x)
-    matrix(TRUE, nrow = sim_scens[["N"]], ncol = length(x), dimnames = list(NULL, x)))
+    do_out <- list(agg = matrix(NA, nrow = sim_scens[["N"]], ncol = length(temp0),
+      dimnames = list(NULL, temp0)))
 
+    for (k in seq_along(temp0)) {
+      icol <- grep(temp0[k], colnames(temp), value = TRUE)
+      do_out[[temp0[k]]] <- temp[, icol, drop = FALSE] == 1L
+
+      do_out[["agg"]][, temp0[k]] <- if (length(dim(do_out[[temp0[k]]])) == 2L) {
+          apply(do_out[[temp0[k]]], 1L, any)
+        } else {
+          rep(FALSE, sim_scens[["N"]])
+        }
+    }
+
+  } else {
+    # Assume all Pids x output tables need to be done for this runID = i_sim
+    temp1 <- dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]])
+
+    do_out_cols <- list(agg = temp0)
+    for (k in seq_along(temp0)) {
+      do_out_cols[[temp0[k]]] <- grep(temp0[k], temp1, value = TRUE)
+    }
+
+    do_out <- lapply(do_out_cols, function(x)
+      matrix(TRUE, nrow = sim_scens[["N"]], ncol = length(x), dimnames = list(NULL, x)))
+  }
+
+
+  # Exclude_ClimateAmbient
   if (sc1 > 1) for (k in seq_along(do_out)) {
-    do_out[[k]][1L, ] <- FALSE # Exclude_ClimateAmbient
+    do_out[[k]][1L, ] <- FALSE
   }
 
   # Set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
@@ -5340,28 +5366,40 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (sim_size[["ncol_dbOut_overall"]] == nv1 && tasks[sc, "aggregate"] != 0L) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
 
-          if (isTRUE(unname(do_out[["overall"]][sc, "aggregation_overall_mean"]))) {
+          if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"]))) {
             resMeans[!is.finite(resMeans)] <- "NULL"
             temp <- paste0(c(all_Pids[sc], resMeans[seq_len(nv1)]), collapse = ",")
 
             SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
-            do_out[["overall"]][sc, "aggregation_overall_mean"] <- !res
+
+            if (res && opt_out_fix[["use_granular_control"]]) {
+              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                table = "aggregation_overall_mean", Pid = all_Pids[sc], status = FALSE)
+            }
+
+            do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] <- !res
           }
 
-          if (isTRUE(unname(do_out[["overall"]][sc, "aggregation_overall_sd"]))) {
+          if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]))) {
             resSDs[!is.finite(resSDs)] <- "NULL"
             temp <- paste0(c(all_Pids[sc], resSDs[seq_len(nv1)]), collapse = ",")
 
             SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
-            do_out[["overall"]][sc, "aggregation_overall_sd"] <- !res
+
+            if (res && opt_out_fix[["use_granular_control"]]) {
+              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                table = "aggregation_overall_sd", Pid = all_Pids[sc], status = FALSE)
+            }
+
+            do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"] <- !res
           }
 
-          res <- !do_out[["overall"]][sc, "aggregation_overall_mean"] &&
-            !do_out[["overall"]][sc, "aggregation_overall_sd"]
+          res <- !do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] &&
+            !do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]
           tasks[sc, "aggregate"] <- if (res) 2L else 0L
 
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
@@ -5387,9 +5425,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "daily aggregation", doi)
 
           tag_table <- paste0("aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi])
-          icol <- grep(tag_table, colnames(do_out[["daily"]]))
+          icol <- grep(tag_table, colnames(do_out[["aggregation_doy"]]))
 
-          if (length(icol) > 0L && any(do_out[["daily"]][sc, icol])) {
+          if (length(icol) > 0L && any(do_out[["aggregation_doy"]][sc, icol])) {
             #check to see if we are on SWA
             if (regexpr("SWAbulk", prj_todos[["adaily"]][["tag"]][doi]) > 0) {
               agg.resp <- "SWAbulk"
@@ -5537,7 +5575,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: daily")
 
             table_name1 <- paste0(tag_table, "_Mean")
-            if (do_out[["daily"]][sc, table_name1]) {
+            if (do_out[["aggregation_doy"]][sc, table_name1]) {
               res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
 
               if (agg.analysis > 1) {
@@ -5551,20 +5589,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   paste(res.dailyMean, collapse = ","), ")")
               }
 
-              res1 <- TRUE
               SQL1 <- paste0("INSERT INTO \"", table_name1, "\" VALUES ", temp1, ";")
-              for (al in seq_len(agg.no)) {
-                temp <- dbExecute2(dbTempFile, SQL1[al],
-                  verbose = opt_verbosity[["print.debug"]], seed = i_seed)
-                res1 <- res1 && temp
+              res1 <- dbExecute2(dbTempFile, SQL1,
+                verbose = opt_verbosity[["print.debug"]], seed = i_seed)
+
+              if (res1 && opt_out_fix[["use_granular_control"]]) {
+                res1 <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                  table = table_name1, Pid = all_Pids[sc], status = FALSE)
               }
 
-              do_out[["daily"]][sc, table_name1] <- !res1
+              do_out[["aggregation_doy"]][sc, table_name1] <- !res1
             }
 
 
             table_name2 <- paste0(tag_table, "_SD")
-            if (do_out[["daily"]][sc, table_name2]) {
+            if (do_out[["aggregation_doy"]][sc, table_name2]) {
               res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 
               if (agg.analysis > 1) {
@@ -5579,25 +5618,24 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                   paste(res.dailySD, collapse = ","), ")")
               }
 
-              res2 <- TRUE
               SQL2 <- paste0("INSERT INTO \"", table_name2, "\" VALUES ", temp2, ";")
-              for (al in seq_len(agg.no)) {
-                temp <- dbExecute2(dbTempFile, SQL2[al],
-                  verbose = opt_verbosity[["print.debug"]], seed = i_seed)
-                res2 <- res2 && temp
+              res2 <- dbExecute2(dbTempFile, SQL2,
+                verbose = opt_verbosity[["print.debug"]], seed = i_seed)
+
+              if (res2 && opt_out_fix[["use_granular_control"]]) {
+                res2 <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                  table = table_name2, Pid = all_Pids[sc], status = FALSE)
               }
 
-              do_out[["daily"]][sc, table_name2] <- !res2
+              do_out[["aggregation_doy"]][sc, table_name2] <- !res2
             }
 
             print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
           }#end if resume
         }#doi loop
 
-        res <- all(!do_out[["daily"]][sc, ])
-        tasks[sc, "aggregate"] <- if (res1 && res2 && tasks[sc, "aggregate"] != 0L) {
-          2L
-        } else 0L
+        res <- all(!do_out[["aggregation_doy"]][sc, ])
+        tasks[sc, "aggregate"] <- if (res && tasks[sc, "aggregate"] != 0L) 2L else 0L
       }#end if daily output
 
       # Determine success of 'aggregate' section
