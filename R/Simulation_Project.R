@@ -725,10 +725,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
 
     # This requires the availability of dbOutput if `use_granular_control`
-    temp <- setup_dbWork(path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      include_YN = SFSW2_prj_inputs[["include_YN"]],
-      SFSW2_prj_meta = SFSW2_prj_meta,
-      resume = opt_behave[["resume"]])
+    temp <- setup_dbWork(include_YN = SFSW2_prj_inputs[["include_YN"]],
+      SFSW2_prj_meta = SFSW2_prj_meta, resume = opt_behave[["resume"]])
 
     if (!temp) {
       stop("Work database failed to setup or an existing one is from a different",
@@ -987,17 +985,14 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 
   SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions, wipe_dbOutput = FALSE)
 
-  # Create/connect dbWork
-  stopifnot(setup_dbWork(path = path,
-    sim_size = SFSW2_prj_meta[["sim_size"]],
-    include_YN = SFSW2_prj_inputs[["include_YN"]],
-    use_granular_control = SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
-    resume = FALSE))
-
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path, "dbTables.sqlite3")
   temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
     verbose = verbose)
+
+  # Create/connect dbWork
+  stopifnot(setup_dbWork(path = path, include_YN = SFSW2_prj_inputs[["include_YN"]],
+    SFSW2_prj_meta = SFSW2_prj_meta, resume = FALSE))
 
   invisible(temp[["ncol_dbOut_overall"]])
 }

@@ -208,23 +208,29 @@ dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
 #' \code{dbWork} tracks completion of each \code{runID} with table \code{work},
 #' i.e., an entire call to \code{\link{do_OneSite}}. If your project requires a finer
 #' granularity of output management, then set the \code{use_granular_control} in the
-#' project description and call the function \code{\link{add_granular_dbWork}} to add
-#' the table \code{need_outputs} to \code{dbWork}.
+#' project description and pass \code{SFSW2_prj_meta}; in that case, the function
+#' calls \code{\link{add_granular_dbWork}} to add the table \code{need_outputs} to
+#' \code{dbWork}.
 #'
 #' @inheritParams create_dbWork
 #' @param resume A logical value. If \code{TRUE} and \code{dbWork} exists,
 #'  then function connects to the existing database. If \code{FALSE}, then a new database
 #'  is created (possibly overwriting an existing one).
-#' @param SFSW2_prj_meta An environment. Required for creating a new \code{dbWork} and
-#'  if \code{use_granular_control} is set or if \code{sim_size} is missing. If passed
-#'  as argument and \code{resume} and \code{dbWork} exists, then
-#'  \code{\link{recreate_dbWork}} is called.
+#' @param SFSW2_prj_meta An environment. Required if \code{use_granular_control} is set
+#'  or if \code{sim_size} or \code{path} are missing. If passed as argument and
+#'  \code{resume} and \code{dbWork} exists, then \code{\link{recreate_dbWork}} is called.
 #'
 #' @return A logical value indicating success/failure of setting up/connecting to
 #'  \code{dbWork} and initializing with \code{runIDs}.
 #' @export
 setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE,
   SFSW2_prj_meta = NULL) {
+
+  if (missing(path)) {
+    path <- if (!is.null(SFSW2_prj_meta)) {
+        SFSW2_prj_meta[["project_paths"]][["dir_out"]]
+      } else stop("'setup_dbWork': argument 'path' is missing.")
+  }
 
   dbWork <- fname_dbWork(path)
   success <- FALSE
@@ -252,8 +258,8 @@ setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE,
     temp <- create_dbWork(path, jobs = create_job_df(sim_size, include_YN))
     success <- !inherits(temp, "try-error")
 
-    if (success && isTRUE(SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]])) {
-      stopifnot(!is.null(SFSW2_prj_meta))
+    if (success && !is.null(SFSW2_prj_meta) &&
+      isTRUE(SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]])) {
       success <- add_granular_dbWork(SFSW2_prj_meta)
     }
   }
