@@ -2,7 +2,7 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_clean}
 \alias{dbWork_clean}
-\title{Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project}
+\title{Do maintenance work on a SQLite-database \code{dbWork} if it exists}
 \usage{
 dbWork_clean(path, verbose = FALSE)
 }

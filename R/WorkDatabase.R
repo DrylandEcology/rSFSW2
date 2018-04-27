@@ -313,7 +313,7 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
 }
 
 
-#' Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
+#' Do maintenance work on a SQLite-database \code{dbWork} if it exists
 #'
 #' Some code, power, and system failures may leave \code{dbWork} in an incomplete state,
 #' e.g., a rollback journal is present, or runs are marked as 'inwork' even though no
@@ -323,34 +323,37 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
 #' @return A logical value
 #' @export
 dbWork_clean <- function(path, verbose = FALSE) {
+  res <- TRUE
+
   dbWork <- fname_dbWork(path)
-  res <- file.exists(dbWork)
+  if (file.exists(dbWork)) {
 
-  con <- dbConnect2(dbWork, verbose = verbose)
-  res <- inherits(con, "SQLiteConnection")
+    con <- dbConnect2(dbWork, verbose = verbose)
+    res <- inherits(con, "SQLiteConnection")
 
-  if (res) {
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    if (res) {
+      on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-    temp_jmode <- tolower(as.character(DBI::dbGetQuery(con, "PRAGMA journal_mode;")))
+      temp_jmode <- tolower(as.character(DBI::dbGetQuery(con, "PRAGMA journal_mode;")))
 
-    if (temp_jmode == "wal") {
-      dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "error")
+      if (temp_jmode == "wal") {
+        dbWork_checkpoint(con = con, mode = "TRUNCATE", failure = "error")
 
-    } else {
-      dbVacuumRollack(con, dbWork)
+      } else {
+        dbVacuumRollack(con, dbWork)
+      }
+
+      # Are there 'inwork' records?
+      # - mark non-complete and non-failed records as incomplete
+      rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
+          "inwork = 0, time_s = 0 WHERE inwork = 1 AND completed != 1 AND failed != 1"))
+      # - mark completed records as complete
+      rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
+          "inwork = 0 WHERE inwork = 1 AND completed = 1"))
+      # - mark failed records as failed
+      rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
+          "inwork = 0 WHERE inwork = 1 AND failed = 1"))
     }
-
-    # Are there 'inwork' records?
-    # - mark non-complete and non-failed records as incomplete
-    rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 0,",
-        "inwork = 0, time_s = 0 WHERE inwork = 1 AND completed != 1 AND failed != 1"))
-    # - mark completed records as complete
-    rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 1, failed = 0,",
-        "inwork = 0 WHERE inwork = 1 AND completed = 1"))
-    # - mark failed records as failed
-    rs <- DBI::dbExecute(con, paste("UPDATE work SET completed = 0, failed = 1,",
-        "inwork = 0 WHERE inwork = 1 AND failed = 1"))
   }
 
   invisible(res)
@@ -489,19 +492,34 @@ dbWork_check_granular <- function(path, runIDs) {
 
 
 
-#' Re-create or update dbWork based on dbOutput
+#' Re-create or update \code{dbWork} based on \code{dbOutput}
 #'
 #' @inheritParams create_dbWork
 #' @param dbOutput A character string. Full name to the output database.
 #' @param use_granular_control A logical vector.
-#' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path} and
-#'  \code{dbOutput} may be missing. If not \code{NULL}, then code checks that no
-#'  temporary output files remain unprocessed.
+#' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path},
+#'  \code{dbOutput}, and/or \code{use_granular_control} may be missing.
+#'  If not \code{NULL}, then code checks that no temporary output files remain
+#'  unprocessed. This is because this function only checks output in \code{dbOutput}, but
+#'  not in 'dbTempOut.
 #'
 #' @return A logical vector indicating success.
 #'
 #' @export
-recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL) {
+recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
+  verbose = FALSE) {
+
+  res <- FALSE
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit(print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2))), add = TRUE)
+  }
+
   if (missing(path)) {
     path <- if (!is.null(SFSW2_prj_meta)) {
         SFSW2_prj_meta[["project_paths"]][["dir_out"]]
@@ -515,9 +533,10 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
   }
 
   if (missing(use_granular_control)) {
-    use_granular_control <- if (!is.null(SFSW2_prj_meta)) {
+    use_granular_control <- if (!is.null(SFSW2_prj_meta) &&
+      !is.null(SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]])) {
         SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]]
-    } else stop("'recreate_dbWork': argument 'use_granular_control' is missing.")
+      } else stop("'recreate_dbWork': argument 'use_granular_control' is missing.")
   }
 
   if (!is.null(SFSW2_prj_meta)) {
@@ -551,21 +570,21 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
     # List of output 'aggregation' tables
     out_tables <- dbOutput_ListOutputTables(con = con_dbOut)
 
-    # 'runs' table
-    table_runs <- DBI::dbReadTable(con_dbOut, "runs")
-    infer_expN <- max(table_runs[, "treatment_id"])
-    infer_scN <- max(table_runs[, "scenario_id"])
-    table_runs[, "infer_runIDs"] <- it_sim2(table_runs[, "P_id"], infer_scN)
+    # Extract information from dbOutput table 'runs'
+    infer_expN <- as.integer(DBI::dbGetQuery(con_dbOut,
+      "SELECT MAX(treatment_id) FROM runs"))
+    infer_scN <- as.integer(DBI::dbGetQuery(con_dbOut,
+      "SELECT MAX(scenario_id) FROM runs"))
+    infer_runsN_total <- as.integer(DBI::dbGetQuery(con_dbOut,
+      "SELECT MAX(label_id) FROM runs")) # TODO(drs): this field should really be called 'runID'
 
-    infer_runIDs <- unique(table_runs[, "infer_runIDs"])
-    infer_runsN_total <- max(infer_runIDs)
-
-    # 'sites' table
-    table_sites <- DBI::dbReadTable(con_dbOut, "sites")
-
-    infer_runsN_master <- dim(table_sites)[1]
-    infer_include_YN <- as.logical(table_sites[, "Include_YN"])
-    infer_runIDmax_sites <- max(table_sites[, "site_id"])
+    # Extract information from dbOutput table 'sites'
+    infer_runsN_master <- as.integer(DBI::dbGetQuery(con_dbOut,
+      "SELECT COUNT(*) FROM sites"))
+    infer_include_YN <- as.logical(DBI::dbGetQuery(con_dbOut,
+      "SELECT Include_YN FROM sites")[, 1])
+    infer_runIDmax_sites <- as.integer(DBI::dbGetQuery(con_dbOut,
+      "SELECT MAX(site_id) FROM sites"))
 
 
     #--- If dbWork exists, then copy timing information if design is current
@@ -580,19 +599,31 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
 
       if (DBI::dbExistsTable(con_dbWork, "work")) {
         # Check whether to create new dbWork: number of total runs, number of sites
-        has_work <- DBI::dbReadTable(con_dbWork, "work")
-        vtemp <- c("runID_total", "runID_sites", "time_s")
+        has_runsN_total <- as.integer(DBI::dbGetQuery(con_dbWork,
+          "SELECT MAX(runID_total) FROM work"))
+        has_count_work <- as.integer(DBI::dbGetQuery(con_dbWork,
+          "SELECT COUNT(*) FROM work"))
+        has_runIDmax_sites <- as.integer(DBI::dbGetQuery(con_dbWork,
+          "SELECT MAX(runID_sites) FROM work"))
 
-        if (all(vtemp %in% names(has_work)) &&
-            max(has_work[, "runID_total"]) == dim(has_work)[1] &&
-            max(has_work[, "runID_total"]) == infer_runsN_total &&
-            max(has_work[, "runID_sites"]) == infer_runIDmax_sites) {
+        if (has_runsN_total == has_count_work && has_runsN_total == infer_runsN_total &&
+            has_runIDmax_sites == infer_runIDmax_sites) {
 
-          old_timing_s <- has_work[, vtemp]
+          if (verbose) {
+            print(paste0(Sys.time(), ": dbWork is present and of adequate design,",
+              " backup run timing data"))
+          }
+
+          old_timing_s <- DBI::dbGetQuery(con_dbWork,
+            "SELECT runID_total, time_s FROM work ORDER BY runID_total")
         }
       }
 
       DBI::dbDisconnect(con_dbWork)
+
+      if (verbose) {
+        print(paste0(Sys.time(), ": previous dbWork is backed-up."))
+      }
       file.rename(from = dbWork, to = dbWork_backup)
     }
 
@@ -610,69 +641,110 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
 
     if (use_granular_control) {
       stopifnot(!is.null(SFSW2_prj_meta))
+
+      if (verbose) {
+        print(paste0(Sys.time(), ": add 'granular-level' table for new dbWork."))
+      }
       stopifnot(add_granular_dbWork(SFSW2_prj_meta))
     }
 
     # If dbWork existed previously and there was timing information, then insert
-    if (!is.null(old_timing_s) && isTRUE(sum(old_timing_s[, "time_s"]) > 0)) {
+    ids_use <- old_timing_s[, "time_s"] > 0
+    if (length(ids_use) > 0) {
+      if (verbose) {
+        print(paste0(Sys.time(), ": previous timing data is re-inserted into new dbWork"))
+      }
       sql <- paste("UPDATE work SET time_s = :t WHERE runID_total = :x")
       rs <- DBI::dbSendStatement(con_dbWork, sql)
-      DBI::dbBind(rs, param = list(t = old_timing_s[, "time_s"],
-        x = old_timing_s[, "runID_total"]))
+      DBI::dbBind(rs, param = list(t = old_timing_s[ids_use, "time_s"],
+        x = old_timing_s[ids_use, "runID_total"]))
       DBI::dbClearResult(rs)
     }
 
 
     #--- Update dbWork based on completed runs stored in dbOutput
 
-    # TODO(drs): below code is not memory-efficient because of large numbers of Pids
-    #  for large projects
-
-    # Get Pids for which simulation output is in each table of the dbOutput
-    has_pids_per_table <- lapply(out_tables, function(x) DBI::dbGetQuery(con_dbOut,
-      paste0("SELECT DISTINCT P_id FROM \"", x, "\" ORDER BY P_id"))[, 1])
-
-    #-- Update table 'work'
-    has_pids_complete <- intersect2(has_pids_per_table)
-
-    if (length(has_pids_complete) > 0) {
-      # Get runID from Pid
-      temp_runIDs <- it_sim2(has_pids_complete, infer_scN)
-
-      # runID is complete if present and if count(runID) == number of scenarios
-      has_complete_runIDs <- which(tabulate(temp_runIDs) == infer_scN)
-
-      if (length(has_complete_runIDs) > 0) {
-        # set complete runIDs
-        sql <- paste("UPDATE work SET completed = 1, failed = 0, inwork = 0 WHERE",
-          "runID_total = :x")
-        rs <- DBI::dbSendStatement(con_dbWork, sql)
-        DBI::dbBind(rs, param = list(x = has_complete_runIDs))
-        DBI::dbClearResult(rs)
+    if (!use_granular_control) {
+      # Note: below code is not memory-efficient because of large numbers of Pids
+      # for large projects --> use `use_granular_control`
+      if (verbose) {
+        print(paste0(Sys.time(), ": update information on completed runs"))
       }
-    }
 
+      # Get Pids for which simulation output is in each table of the dbOutput
+      has_pids_per_table <- lapply(out_tables, function(x) DBI::dbGetQuery(con_dbOut,
+        paste0("SELECT DISTINCT P_id FROM", DBI::dbQuoteIdentifier(con_dbOut, x),
+        "ORDER BY P_id"))[, 1])
 
-    #-- Update table 'need_outputs'
-    if (use_granular_control) {
-      for (k in seq_along(out_tables)) {
-        temp_table <- DBI::dbQuoteIdentifier(con_dbWork, out_tables[k])
+      #-- Update table 'work'
+      has_pids_complete <- intersect2(has_pids_per_table)
 
-        if (length(has_pids_per_table[[k]]) > 0) {
-          # don't need output (anymore)
-          sql <- paste("UPDATE need_outputs SET ", temp_table, "= 0 WHERE Pid = :x")
+      if (length(has_pids_complete) > 0) {
+        # Get runID from Pid
+        temp_runIDs <- it_sim2(has_pids_complete, infer_scN)
+
+        # runID is complete if present and if count(runID) == number of scenarios
+        has_complete_runIDs <- which(tabulate(temp_runIDs) == infer_scN)
+
+        if (length(has_complete_runIDs) > 0) {
+          # set complete runIDs
+          sql <- paste("UPDATE work SET completed = 1, failed = 0, inwork = 0 WHERE",
+            "runID_total = :x")
           rs <- DBI::dbSendStatement(con_dbWork, sql)
-          DBI::dbBind(rs, param = list(x = has_pids_per_table[[k]]))
+          DBI::dbBind(rs, param = list(x = has_complete_runIDs))
           DBI::dbClearResult(rs)
         }
       }
+
+    } else {
+      quoted_tables <- DBI::dbQuoteIdentifier(con_dbWork, out_tables)
+
+      sql <- paste("ATTACH", DBI::dbQuoteIdentifier(con_dbWork, dbOutput), "AS dbOut")
+      DBI::dbExecute(con_dbWork, sql)
+
+      #-- Update table 'need_outputs'
+      for (k in seq_along(out_tables)) {
+        if (verbose) {
+          print(paste0(Sys.time(), ": update granular-level information for",
+            " output table", quoted_tables[k]))
+        }
+
+        # don't need to generate output (anymore) where output is present in dbOut
+        # TODO(drs): we currently assume that one entry per Pid even
+        # for mean daily tables with soil layers is enough
+        sql <- paste0("UPDATE need_outputs SET ", quoted_tables[k], " = 0 ",
+          "WHERE Pid IN ",
+          "(SELECT DISTINCT P_id FROM dbOut.", quoted_tables[k], ")")
+        DBI::dbExecute(con_dbWork, sql)
+      }
+
+      DBI::dbExecute(con_dbWork, "DETACH dbOut")
+
+      #-- Update table 'work' based on updated 'need_outputs'
+      # a runID is complete if all associated Pids are complete, i.e.,
+      # count(Pids) == infer_scN, for each output table
+      if (verbose) {
+        print(paste0(Sys.time(), ": update information on completed runs"))
+      }
+
+      sql <- paste0("UPDATE work SET completed = 1, failed = 0, inwork = 0 ",
+        "WHERE runID_total IN (",
+        "SELECT oa.runID_total FROM ",
+        "(SELECT runID_total, COUNT(*) FROM need_outputs ",
+        "WHERE ", paste(quoted_tables, "= 0", collapse = " AND "), " ",
+        "GROUP BY runID_total) AS oa ",
+        "WHERE oa.`COUNT(*)` = ", infer_scN, ")")
+      temp <- DBI::dbExecute(con_dbWork, sql)
     }
 
     unlink(dbWork_backup)
+    res <- file.exists(dbWork)
 
   } else {
     stop("OutputDB ", shQuote(dbOutput), " not found on disk.")
   }
+
+  invisible(res)
 }
 
 

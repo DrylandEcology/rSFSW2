@@ -724,13 +724,12 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   #------ CREATE WORK DATABASE (IF NOT ALREADY EXISTING)
   if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
 
-    # This requires the availability of dbOutput if `use_granular_control`
-    temp <- setup_dbWork(include_YN = SFSW2_prj_inputs[["include_YN"]],
-      SFSW2_prj_meta = SFSW2_prj_meta, resume = opt_behave[["resume"]])
+    # This requires the presence of dbOutput
+    temp <- recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta,
+      verbose = opt_verbosity[["print.debug"]])
 
     if (!temp) {
-      stop("Work database failed to setup or an existing one is from a different",
-        "simulation design")
+      stop("Work database failed to setup")
     }
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],

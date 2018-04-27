@@ -2,9 +2,10 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{recreate_dbWork}
 \alias{recreate_dbWork}
-\title{Re-create or update dbWork based on dbOutput}
+\title{Re-create or update \code{dbWork} based on \code{dbOutput}}
 \usage{
-recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL)
+recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
+  verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
@@ -13,13 +14,15 @@ recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL)
 
 \item{use_granular_control}{A logical vector.}
 
-\item{SFSW2_prj_meta}{An environment. If not \code{NULL}, then \code{path} and
-\code{dbOutput} may be missing. If not \code{NULL}, then code checks that no
-temporary output files remain unprocessed.}
+\item{SFSW2_prj_meta}{An environment. If not \code{NULL}, then \code{path},
+\code{dbOutput}, and/or \code{use_granular_control} may be missing.
+If not \code{NULL}, then code checks that no temporary output files remain
+unprocessed. This is because this function only checks output in \code{dbOutput}, but
+not in 'dbTempOut.}
 }
 \value{
 A logical vector indicating success.
 }
 \description{
-Re-create or update dbWork based on dbOutput
+Re-create or update \code{dbWork} based on \code{dbOutput}
 }
