@@ -92,6 +92,10 @@ dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
 
   if (!anyNA(seed)) set.seed(seed)
 
+  if (verbose) {
+    t0 <- Sys.time()
+  }
+
   k <- 1L
   repeat {
     if (verbose) {

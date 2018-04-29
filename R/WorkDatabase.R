@@ -706,7 +706,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
       for (k in seq_along(out_tables)) {
         if (verbose) {
           print(paste0(Sys.time(), ": update granular-level information for",
-            " output table", quoted_tables[k]))
+            " output table ", quoted_tables[k]))
         }
 
         # don't need to generate output (anymore) where output is present in dbOut
