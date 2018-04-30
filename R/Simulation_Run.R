@@ -182,7 +182,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   #- Check which output needs to be generated
   temp0 <- c("aggregation_overall", "aggregation_doy")
 
-  if (opt_out_fix[["use_granular_control"]]) {
+  if (isTRUE(opt_out_fix[["use_granular_control"]])) {
     # Use the 'granular' table of dbWorks to check output needs for
     # each Pid x output table combination
     temp <- as.matrix(dbWork_check_granular(project_paths[["dir_out"]], runIDs = i_sim))
@@ -5374,7 +5374,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
 
-            if (res && opt_out_fix[["use_granular_control"]]) {
+            if (res && isTRUE(opt_out_fix[["use_granular_control"]])) {
               res <- dbWork_update_granular(path = project_paths[["dir_out"]],
                 table = "aggregation_overall_mean", Pid = all_Pids[sc], status = FALSE)
             }
@@ -5390,7 +5390,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
 
-            if (res && opt_out_fix[["use_granular_control"]]) {
+            if (res && isTRUE(opt_out_fix[["use_granular_control"]])) {
               res <- dbWork_update_granular(path = project_paths[["dir_out"]],
                 table = "aggregation_overall_sd", Pid = all_Pids[sc], status = FALSE)
             }
@@ -5593,7 +5593,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               res1 <- dbExecute2(dbTempFile, SQL1,
                 verbose = opt_verbosity[["print.debug"]], seed = i_seed)
 
-              if (res1 && opt_out_fix[["use_granular_control"]]) {
+              if (res1 && isTRUE(opt_out_fix[["use_granular_control"]])) {
                 res1 <- dbWork_update_granular(path = project_paths[["dir_out"]],
                   table = table_name1, Pid = all_Pids[sc], status = FALSE)
               }
@@ -5622,7 +5622,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               res2 <- dbExecute2(dbTempFile, SQL2,
                 verbose = opt_verbosity[["print.debug"]], seed = i_seed)
 
-              if (res2 && opt_out_fix[["use_granular_control"]]) {
+              if (res2 && isTRUE(opt_out_fix[["use_granular_control"]])) {
                 res2 <- dbWork_update_granular(path = project_paths[["dir_out"]],
                   table = table_name2, Pid = all_Pids[sc], status = FALSE)
               }
