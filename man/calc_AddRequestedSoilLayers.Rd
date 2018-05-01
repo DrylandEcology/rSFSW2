@@ -7,7 +7,7 @@
 calc_AddRequestedSoilLayers(df_soils, df_soils_use, df_soildepths,
   requested_soil_layers, verbose = FALSE, sl_vars_mean = c("Matricd",
   "GravelContent", "Sand", "Clay", "SoilTemp"), sl_vars_sub = c("EvapCoeff",
-  "TranspCoeff", "Imperm"))
+  "TranspCoeff", "Imperm"), full_interpolation = FALSE)
 }
 \arguments{
 \item{df_soils}{A data frame with soil data. Column names should match with values of
@@ -33,7 +33,10 @@ columns of \code{df_soils} by name for which values will be interpolated. See
 
 \item{sl_vars_sub}{A vector of strings representing tags that are identifying those
 columns of \code{df_soils} by name for which values will be exhausted. See
-\code{method} argument of function \code{\link{add_layer_to_soil}}.}
+\code{method} argument of function \code{\link{add_layer_to_soil}}.
+@param full_interpolation A logical value determing if layers not in
+\code{requested_soil_layers} should be discarded. If so, also interpolate to the
+next greatest layer, if possible.}
 }
 \value{
 A list with with five elements: \describe{
