@@ -543,14 +543,8 @@ req_out <- list(
     "dailyColdDegreeDays", 1,
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
-<<<<<<< HEAD
-    "yearlyWaterBalanceFluxes", 0,
-||||||| merged common ancestors
-    "yearlyWaterBalanceFluxes", 1,
-=======
     "yearlyWaterBalanceFluxes", 1,
     "yearlyTranspirationBySoilLayer", 1,
->>>>>>> master
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
