@@ -42,7 +42,6 @@ Suggests:
     covr,
     lintr
 Remotes:
-    github::khufkens/daymetr,
     github::dschlaep/weathergen
 LinkingTo:
     Rcpp
