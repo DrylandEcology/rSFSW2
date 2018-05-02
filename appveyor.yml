@@ -2,6 +2,7 @@ environment:
   matrix:
     - R_ARCH: i386
     - R_ARCH: x64
+  PKGTYPE: source
   USE_RTOOLS: true
   _R_CHECK_FORCE_SUGGESTS_: false
 
