@@ -5305,6 +5305,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           tasks$aggregate[sc] <- 0L
           temp1 <- temp2 <- P_id
         }
+
         SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
         SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
 
@@ -5493,6 +5494,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             SQL2 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
               "_SD\" VALUES ", SQL2, ";")
+
+            if (agg.analysis > 1) {
+              SQL1 <- paste(SQL1, collapse = "\n")
+              SQL2 <- paste(SQL2, collapse = "\n")
+            }
+
             SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
 
           }#end if resume
@@ -5511,8 +5518,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     } #end if do aggregate
-
   } #end loop through scenarios
+
 
   if (all(tasks$aggregate > 0L)) {
     print_debug(opt_verbosity, tag_simfid, "writing", "temporary files")
