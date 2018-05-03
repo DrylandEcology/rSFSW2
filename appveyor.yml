@@ -2,7 +2,6 @@ environment:
   matrix:
     - R_ARCH: i386
     - R_ARCH: x64
-  PKGTYPE: source
   USE_RTOOLS: true
   _R_CHECK_FORCE_SUGGESTS_: false
 
@@ -19,7 +18,7 @@ init:
 
 install:
   - ps: Bootstrap
-  - travis-tool.sh install_r blob DBI RSQLite
+  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL C:/tmp/rSOILWAT2
 
