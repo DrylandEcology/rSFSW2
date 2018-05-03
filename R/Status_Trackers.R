@@ -12,17 +12,34 @@ init_intracker <- function() {
 }
 
 
+#' Query whether an input tracker is not yet completed
+#'
+#' @param tracker A character string. One of the rownames of
+#'   \code{SFSW2_prj_meta[["input_status"]]} as returned by function
+#'   \code{\link{init_intracker}}.
+#' @param status A character string. One of \code{"prepared"} and \code{"checked"}.
+#' @return A logical value. \code{TRUE} if \code{tracker} and \code{status} exist in
+#'   \code{SFSW2_prj_meta[["input_status"]]} and their cell is \code{FALSE}
+#'   -- otherwise, \code{FALSE}
 todo_intracker <- function(SFSW2_prj_meta, tracker, status) {
   x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
-  !is.na(x) && identical(x, FALSE)
+  # x is NA for non-existing rowname; x is NULL for non-existing colname
+  !is.na(x) && !is.null(x) && identical(x, FALSE)
 }
 
 
+#' Query whether an input tracker is completed
+#'
+#' @inheritParams todo_intracker
+#' @return A logical value. \code{FALSE} if \code{tracker} and \code{status} exist in
+#'   \code{SFSW2_prj_meta[["input_status"]]} and their cell is \code{TRUE}
+#'   -- otherwise, \code{TRUE}.
 isdone_intracker <- function(SFSW2_prj_meta, tracker, status) {
   x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
-  !is.na(x) && identical(x, TRUE)
+  # x is NA for non-existing rowname; x is NULL for non-existing colname
+  !is.na(x) && !is.null(x) && identical(x, TRUE)
 }
 
 #' Update input tracker status

@@ -1862,29 +1862,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         # delete data so that they are read anew for each scenario; each variable is
         # checked that datafile is read in only once per scenario
-        to_del <- c("temp.yr", "temp.mo", "temp.dy",
-              "prcp.yr", "prcp.mo", "prcp.dy",
-              "PET.yr", "PET.mo", "PET.dy",
-              "vpd.yr", "vpd.mo", "vpd.dy",
-              "AET.yr", "AET.mo", "AET.dy",
-              "soiltemp.yr", "soiltemp.mo", "soiltemp.dy",
-              "soiltemp.yr.all", "soiltemp.mo.all", "soiltemp.dy.all",
-              "swcbulk.yr", "swcbulk.mo", "swcbulk.dy",
-              "swabulk.yr", "swabulk.mo", "swabulk.dy",
-              "swamatric.yr", "swamatric.mo", "swamatric.dy",
-              "vwcbulk.yr", "vwcbulk.mo", "vwcbulk.dy", "vwcbulk.dy.all",
-              "vwcmatric.yr", "vwcmatric.mo", "vwcmatric.dy", "vwcmatric.dy.all",
-              "swpmatric.yr", "swpmatric.mo", "swpmatric.dy", "swpmatric.dy.all",
-              "transp.yr", "transp.mo", "transp.dy", "transp.dy.all",
-              "Esoil.yr", "Esoil.mo", "Esoil.dy", "Esoil.dy.all",
-              "Esurface.yr", "Esurface.mo", "Esurface.dy",
-              "hydred.yr", "hydred.mo", "hydred.dy",
-              "inf.yr", "inf.mo", "inf.dy",
-              "runonoff.yr", "runonoff.mo", "runonoff.dy",
-              "intercept.yr", "intercept.mo", "intercept.dy",
-              "deepDrain.yr", "deepDrain.mo", "deepDrain.dy",
-              "veg.yr", "veg.mo", "veg.dy",
-              "co2effects.yr", "co2effects.mo", "co2effects.dy")
+        to_del <- c("AET.dy", "co2effects.dy", "deepDrain.dy", "Esoil.dy",
+          "Esoil.dy.all", "Esurface.dy", "hydred.dy", "inf.dy", "intercept.dy", "PET.dy",
+          "prcp.dy", "runonoff.dy", "soiltemp.dy", "soiltemp.dy.all", "swcbulk.dy",
+          "SWE.dy", "swpmatric.dy", "swpmatric.dy.all", "temp.dy", "transp.dy",
+          "transp.dy.all", "veg.dy", "vpd.dy", "vwcbulk.dy", "vwcmatric.dy",
+          "vwcmatric.dy.all")
+        to_del <- c(to_del, sub(".dy", ".mo", to_del), sub(".dy", ".yr", to_del))
+        to_del <- c(to_del, "wateryears")
         to_del <- to_del[to_del %in% ls()]
         if (length(to_del) > 0) try(rm(list = to_del), silent = TRUE)
 
@@ -5320,6 +5305,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           tasks$aggregate[sc] <- 0L
           temp1 <- temp2 <- P_id
         }
+
         SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
         SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
 
@@ -5508,6 +5494,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             SQL2 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
               "_SD\" VALUES ", SQL2, ";")
+
+            if (agg.analysis > 1) {
+              SQL1 <- paste(SQL1, collapse = "\n")
+              SQL2 <- paste(SQL2, collapse = "\n")
+            }
+
             SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
 
           }#end if resume
@@ -5526,8 +5518,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     } #end if do aggregate
-
   } #end loop through scenarios
+
 
   if (all(tasks$aggregate > 0L)) {
     print_debug(opt_verbosity, tag_simfid, "writing", "temporary files")
