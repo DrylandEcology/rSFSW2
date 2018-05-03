@@ -18,7 +18,7 @@ init:
 
 install:
   - ps: Bootstrap
-  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
+  - travis-tool.sh install_r blob DBI RSQLite
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL C:/tmp/rSOILWAT2
 

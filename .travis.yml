@@ -28,7 +28,7 @@ script:
   - R CMD build .
   # the extended unit test project (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f)
   # takes too long for the default settings (> 10 min without output)
-  - travis_wait R CMD check *tar.gz --as-cran --no-manual
+  - travis_wait 30 R CMD check *tar.gz --as-cran --no-manual
 
 after_success:
-  - travis_wait Rscript -e 'covr::codecov()'
+  - travis_wait 30 Rscript -e 'covr::codecov()'
