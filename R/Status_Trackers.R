@@ -25,7 +25,7 @@ todo_intracker <- function(SFSW2_prj_meta, tracker, status) {
   x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
   # x is NA for non-existing rowname; x is NULL for non-existing colname
-  !is.na(x) && !is.null(x) && identical(x, FALSE)
+  !is.null(x) && !is.na(x) && identical(x, FALSE)
 }
 
 
@@ -39,7 +39,7 @@ isdone_intracker <- function(SFSW2_prj_meta, tracker, status) {
   x <- SFSW2_prj_meta[["input_status"]][tracker, status]
 
   # x is NA for non-existing rowname; x is NULL for non-existing colname
-  !is.na(x) && !is.null(x) && identical(x, TRUE)
+  !is.null(x) && !is.na(x) && identical(x, TRUE)
 }
 
 #' Update input tracker status
