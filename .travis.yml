@@ -18,11 +18,17 @@ addons:
 before_install:
   # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install' and
   #   thus dependencies are not installed and r_packages has not taken effect yet)
-  - Rscript -e 'utils::install.packages(c("blob", "DBI", "RSQLite"))'
+  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
   # obtain source code of rSOILWAT2 from github
   - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
   # install rSOILWAT2
   - R CMD INSTALL /tmp/rSOILWAT2
 
+script:
+  - R CMD build .
+  # the extended unit test project (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f)
+  # takes too long for the default settings (> 10 min without output)
+  - travis_wait 30 R CMD check *tar.gz --as-cran --no-manual
+
 after_success:
-  - Rscript -e 'covr::codecov()'
+  - travis_wait 30 Rscript -e 'covr::codecov()'

@@ -1400,9 +1400,9 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave,
   opt_out_run, verbose = FALSE) {
 
+  temp_call <- shQuote(match.call()[1])
   if (verbose) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
