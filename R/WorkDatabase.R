@@ -459,6 +459,55 @@ dbWork_check <- function(path, runIDs) {
   res
 }
 
+
+#' Estimate percentage of completed runs
+#'
+#' @inheritParams create_dbWork
+#' @param use_granular_control A logical value. If \code{TRUE} and the granular
+#'   table is present (see \code{\link{add_granular_dbWork}}), then calculate
+#'   percentage of completed runs based on granular table instead of \code{work} table.
+#' @param SFSW2_prj_meta An environment. If \code{use_granular_control}, then required
+#'   as well as presence of \code{dbOutput}.
+#'
+#' @return A numeric value in \code{[0,100]} in percent. The proportion of output units
+#'   that are reported as complete.
+#' @export
+dbWork_report_completion <- function(path, use_granular_control = FALSE,
+  SFSW2_prj_meta = NULL) {
+
+  dbWork <- fname_dbWork(path)
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  if (use_granular_control && "need_outputs" %in% DBI::dbListTables(con) &&
+    !is.null(SFSW2_prj_meta) &&
+    file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
+
+    N1 <- DBI::dbGetQuery(con, "SELECT COUNT(*) FROM need_outputs WHERE include_YN = 1")
+    out_tables <- dbOutput_ListOutputTables(
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    N <- N1 * length(out_tables)
+
+    quoted_tables <- DBI::dbQuoteIdentifier(con, out_tables)
+    n <- 0
+    for (k in quoted_tables) {
+      sql <- paste("SELECT COUNT(*) FROM need_outputs WHERE include_YN = 1 AND",
+        k, "= 0")
+      n <- n + DBI::dbGetQuery(con, sql)
+    }
+
+  } else {
+    N <- DBI::dbGetQuery(con, "SELECT COUNT(*) FROM work WHERE include_YN = 1")
+    n <- DBI::dbGetQuery(con,
+      "SELECT COUNT(*) FROM work WHERE include_YN = 1 AND completed = 1")
+  }
+
+  as.numeric(100 * n / N)
+}
+
+
 #' Check granular run status
 #'
 #' @inheritParams create_dbWork
