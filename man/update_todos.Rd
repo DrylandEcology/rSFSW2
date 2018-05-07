@@ -4,7 +4,14 @@
 \alias{update_todos}
 \title{Update todos for simulation project}
 \usage{
-update_todos(SFSW2_prj_meta, actions, wipe_dbOutput)
+update_todos(SFSW2_prj_meta)
+}
+\arguments{
+\item{SFSW2_prj_meta}{An environment.}
+}
+\value{
+A version of \code{SFSW2_prj_meta} with updated values for element
+  \code{prj_todos}.
 }
 \description{
 Update todos for simulation project

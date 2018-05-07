@@ -342,21 +342,23 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
 
   #--- Determine todos for simulation project
   if (todo_intracker(SFSW2_prj_meta, "prj_todos", "prepared")) {
+    if (is.null(SFSW2_prj_meta[["prj_todos"]])) {
+      SFSW2_prj_meta[["prj_todos"]] <- list()
+    }
 
-    SFSW2_prj_meta[["prj_todos"]] <- list(
-      EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature =
-        SFSW2_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]],
-      EstimateInitialSoilTemperatureForEachSoilLayer =
-        SFSW2_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]],
+    SFSW2_prj_meta[["prj_todos"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]] <-
+      SFSW2_prj_meta[["pcalcs"]][["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]
+    SFSW2_prj_meta[["prj_todos"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]] <-
+      SFSW2_prj_meta[["pcalcs"]][["EstimateInitialSoilTemperatureForEachSoilLayer"]]
 
-      # output aggregate overall
-      aon = convert_to_todo_list(SFSW2_prj_meta[["req_out"]][["overall_out"]]),
-      # output aggregate daily
-      adaily = setup_mean_daily_output_requests(SFSW2_prj_meta[["req_out"]][["mean_daily"]],
-        SFSW2_prj_meta[["opt_agg"]]),
-      # output daily traces
-      otrace = SFSW2_prj_meta[["req_out"]][["traces"]]
-    )
+    # output aggregate overall
+    SFSW2_prj_meta[["prj_todos"]][["aon"]] <- convert_to_todo_list(
+      SFSW2_prj_meta[["req_out"]][["overall_out"]])
+    # output aggregate daily
+    SFSW2_prj_meta[["prj_todos"]][["adaily"]] <- setup_mean_daily_output_requests(
+      SFSW2_prj_meta[["req_out"]][["mean_daily"]], SFSW2_prj_meta[["opt_agg"]])
+    # output daily traces
+    SFSW2_prj_meta[["prj_todos"]][["otrace"]] <- SFSW2_prj_meta[["req_out"]][["traces"]]
 
     #--- Update todo list
     SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <-
@@ -369,6 +371,9 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
       any(SFSW2_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Temperature") ||
       any(SFSW2_prj_inputs[["create_treatments"]] == "AdjMonthlyBioMass_Precipitation") ||
       any(SFSW2_prj_inputs[["create_treatments"]] == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing")
+
+    # Update todos for simulation project
+    SFSW2_prj_meta <- update_todos(SFSW2_prj_meta)
 
     # Check that all 'prj_todos' are TRUE or FALSE except exceptions 'adaily' and 'otrace'
     itemp <- names(SFSW2_prj_meta[["prj_todos"]])
@@ -412,15 +417,19 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  #--- Check that dbWork is available
+  # Check input tracker design
+
+
+  # Check that dbWork is available
   SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
     tracker = "dbWork",
     prepared = file.exists(fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])))
 
 
-  #------ Return if all is prepared (from a previous run) and input object exists and
-  # haven't been changed since last time
+  #------ Return if all is prepared (from a previous run), input tracker design is
+  # up-to-date, and input object exists and haven't been changed since last time
   if (all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "prepared"])) &&
+    check_intracker_design(SFSW2_prj_meta[["input_status"]]) &&
     exists("SFSW2_prj_inputs")) {
 
     return(list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs))
@@ -710,15 +719,21 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
 
   #------ CREATE OUTPUT DATABASE (IF NOT ALREADY EXISTING)
-  #--- Update todos for simulation project
-  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions,
-    wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
+  if (todo_intracker(SFSW2_prj_meta, "dbOut", "prepared")) {
 
-  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
-    verbose = opt_verbosity[["verbose"]])
+    temp <- try(make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+      verbose = opt_verbosity[["verbose"]]), silent = !opt_verbosity[["print.debug"]])
 
-  SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
-  SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+    if (inherits(temp, "try-error")) {
+      stop("Output database failed to setup")
+    }
+
+    SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <- temp[["ncol_dbOut_overall"]]
+    SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+
+    SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+      tracker = "dbOut", prepared = TRUE)
+  }
 
 
   #------ CREATE WORK DATABASE (IF NOT ALREADY EXISTING)
@@ -946,20 +961,47 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 
 
 
+#' Update actions for simulation project
+#'
+#' @param SFSW2_prj_meta An environment.
+#' @param actions A named list of logical elements. See \code{SFSW2_project_code.R}.
+#' @param wipe_dbOutput A logical value
+#' @return A version of \code{SFSW2_prj_meta} with updated values for element
+#'   \code{prj_todos}.
+#' @export
+update_actions <- function(SFSW2_prj_meta, actions = NULL, wipe_dbOutput = FALSE) {
+  if (is.null(SFSW2_prj_meta[["prj_todos"]])) {
+    SFSW2_prj_meta[["prj_todos"]] <- list()
+  }
+
+  if (!is.null(actions)) {
+    SFSW2_prj_meta[["prj_todos"]][["actions"]] <- actions
+    SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(actions[c("sim_create",
+      "sim_execute", "sim_aggregate")]))
+    SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- wipe_dbOutput &&
+      !(sum(actions) == 1 && actions[["ensemble"]])
+  }
+
+  SFSW2_prj_meta
+}
+
+
 #' Update todos for simulation project
-update_todos <- function(SFSW2_prj_meta, actions, wipe_dbOutput) {
-  SFSW2_prj_meta[["prj_todos"]][["actions"]] <- actions
-  SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(actions[c("sim_create",
-    "sim_execute", "sim_aggregate")]))
-  SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <- SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
+#'
+#' @param SFSW2_prj_meta An environment.
+#' @return A version of \code{SFSW2_prj_meta} with updated values for element
+#'   \code{prj_todos}.
+update_todos <- function(SFSW2_prj_meta) {
+  SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <-
+    SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
     SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
-  SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- wipe_dbOutput &&
-    !(sum(actions) == 1 && actions[["ensemble"]])
-  SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <- SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
+  SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <-
+    SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
     SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
 
   SFSW2_prj_meta
 }
+
 
 
 #' Prepare output database without running proper steps of `SFSW2_project_code.R`
@@ -1000,7 +1042,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 
 #' Carry out a rSFSW2 simulation experiment
 #' @export
-simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
+simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
 
   t1 <- Sys.time()
@@ -1028,10 +1070,6 @@ simulate_SOILWAT2_experiment <- function(actions, SFSW2_prj_meta, SFSW2_prj_inpu
   #------------------------CHECK ON DATABASES FOR SIMULATION OUTPUT (FROM PREVIOUS RUN)
   #--- Consolidate dbWork
   stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
-
-  #--- Update todos for simulation project
-  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions,
-    wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
 
   #--- (Re-)create output database if not already present
   if (!file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {

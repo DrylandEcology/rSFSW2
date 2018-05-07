@@ -86,6 +86,8 @@ SFSW2_prj_meta <- init_rSFSW2_project(
 source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
 
+SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
+  wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
 
 
 ##############################################################################
@@ -129,7 +131,7 @@ if (isTRUE(actions[["check_inputs"]])) {
 
 if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
 
-  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
+  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(SFSW2_prj_meta, SFSW2_prj_inputs,
     opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
 }
 

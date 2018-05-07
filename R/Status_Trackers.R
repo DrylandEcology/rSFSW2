@@ -1,14 +1,24 @@
 
 init_intracker <- function() {
-  temp <- c("load_inputs", "calc_size", "spatial_setup", "prj_todos", "rng_setup", "dbWork",
+  temp <- c("load_inputs", "calc_size", "spatial_setup", "prj_todos", "rng_setup",
     "dbW_paths", "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",
-    "climnorm_data", "req_soillayers", "calc_bsevap", "table_lookup")
+    "climnorm_data", "req_soillayers", "calc_bsevap", "table_lookup", "dbOut", "dbWork")
 
   # NA, don't prepare/check
   # TRUE, has been prepared/checked successfully
   # FALSE, needs yet to be prepared/checked
   as.data.frame(matrix(FALSE, nrow = length(temp), ncol = 4, dimnames = list(temp,
     c("prepared", "prep_time", "checked", "check_time"))))
+}
+
+#' Check whether input tracker design is up-to-date
+#'
+#' @inheritParams update_intracker
+#' @return A logical value.
+check_intracker_design <- function(ist) {
+  temp <- init_intracker()
+
+  identical(dimnames(ist), dimnames(temp))
 }
 
 

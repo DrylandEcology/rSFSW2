@@ -2146,10 +2146,10 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
 }
 
 
-dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_scens,
-  meanString, sdString, dailySQL, dailyLayersSQL) {
+dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, sim_scens, meanString,
+  sdString, dailySQL, dailyLayersSQL, do_ensembles = TRUE, wipe_dbOut = FALSE) {
 
-  if (!prj_todos[["do_ensembles"]])
+  if (!do_ensembles)
     return(invisible(NULL))
 
   Tables <- dbOutput_ListOutputTables(con = con_dbOut)
@@ -2164,7 +2164,7 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, prj_todos, sim_s
     ".sqlite3"))
 
   for (i in seq_along(dbEnsemblesFilePaths)) {
-    if (prj_todos[["wipe_dbOut"]] && file.exists(dbEnsemblesFilePaths[i])) {
+    if (wipe_dbOut && file.exists(dbEnsemblesFilePaths[i])) {
       unlink(dbEnsemblesFilePaths[i])
     }
 
@@ -2305,9 +2305,11 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
   if (SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]]) {
     dbOutput_create_EnsembleTables(con_dbOut,
       dbOutput = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
-      prj_todos = SFSW2_prj_meta[["prj_todos"]], sim_scens = SFSW2_prj_meta[["sim_scens"]],
+      sim_scens = SFSW2_prj_meta[["sim_scens"]],
       meanString = res_oa[["meanString"]], sdString = res_oa[["sdString"]],
-      dailySQL = res_da[["dailySQL"]], dailyLayersSQL = res_da[["dailyLayersSQL"]])
+      dailySQL = res_da[["dailySQL"]], dailyLayersSQL = res_da[["dailyLayersSQL"]],
+      do_ensembles = SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]],
+      wipe_dbOut = SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]])
   }
 
   #--- run optimize on database
