@@ -816,35 +816,40 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
       } else {
         # no Pid checks; discard/ignore non-unique records
-
         for (k2 in seq_along(tables)) {
-          sql0 <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
-            "dbTempOut.", tables[k2])
+          # make sure that there is at least one record to transfer
+          sql <- paste0("SELECT COUNT(*) FROM dbTempOut.", tables[k2], " LIMIT 1")
+          has_TempOut <- as.integer(DBI::dbGetQuery(con_dbOut, sql)) > 0
 
-          if (chunk_size > 0) {
-            off <- 0L
-            repeat {
-              sql <- paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
-              temp <- try(DBI::dbExecute(con_dbOut, sql),
-                silent = !opt_verbosity[["verbose"]])
+          if (has_TempOut) {
+            sql0 <- paste0("INSERT OR IGNORE INTO ", tables[k2], " SELECT * FROM ",
+              "dbTempOut.", tables[k2])
 
-              if (inherits(temp, "try-error")) {
-                n <- 0L
-                ok <- FALSE
-              } else {
-                n <- temp
-                off <- off + temp
+            if (chunk_size > 0) {
+              off <- 0L
+              repeat {
+                sql <- paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
+                temp <- try(DBI::dbExecute(con_dbOut, sql),
+                  silent = !opt_verbosity[["verbose"]])
+
+                if (inherits(temp, "try-error")) {
+                  n <- 0L
+                  ok <- FALSE
+                } else {
+                  n <- temp
+                  off <- off + temp
+                }
+
+                if (n == 0) break
               }
 
-              if (n == 0) break
+            } else {
+              # no chunking
+              temp <- try(DBI::dbExecute(con_dbOut, sql0),
+                silent = !opt_verbosity[["verbose"]])
+
+              ok <- ok && !inherits(temp, "try-error")
             }
-
-          } else {
-            # no chunking
-            temp <- try(DBI::dbExecute(con_dbOut, sql0),
-              silent = !opt_verbosity[["verbose"]])
-
-            ok <- !inherits(temp, "try-error")
           }
         }
 
