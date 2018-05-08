@@ -27,6 +27,9 @@ opt_behave <- list(
   resume = TRUE,
   # Use preprocessed input data if available
   use_preprocin = TRUE,
+  # Update dbWork for each output element if TRUE (can cause traffic jams in highly
+  # parallel runs); if FALSE, dbWork is not updated continuously
+  keep_dbWork_updated = FALSE,
   # If action == "check_dbOut" detects missing Pids, then workDB is updated (so that a new run
   #   of the script can be started to add missing runs)
   check_updates_dbWork = TRUE,

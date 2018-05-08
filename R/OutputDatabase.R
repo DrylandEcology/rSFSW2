@@ -1414,9 +1414,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
 
-  #--- CHECK THAT ALL SIMULATION RUNS ARE COMPLETE AND DATA HAVE BEEN MOVED TO dbOutput
-  runsN_todo <- dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
-
+  #--- CHECK THAT ALL TEMPORARY DATA HAVE BEEN MOVED TO dbOutput
   tempN_todo <- length(get_fnames_temporaryOutput(
     dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
     concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
@@ -1425,12 +1423,17 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     resume = opt_behave[["resume"]])) +
     length(get_fnames_dbTempOut(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]))
 
+  runsN_todo <- if (opt_behave[["keep_dbWork_updated"]]) {
+      dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+    } else 0L
+
   if (runsN_todo > 0 || tempN_todo > 0) {
-    stop(temp_call, " can only process `dbOutput` after all simulation runs have completed",
-      " and once all temporary output files have been moved to the database: \n",
+    stop(temp_call, " can only process `dbOutput` after all simulation runs have ",
+      " completed and once all temporary output files have been moved to the database:\n",
       "Currently, n(unfinished runs) = ", runsN_todo,
       " and n(unfinished temporary files) = ", tempN_todo)
   }
+
 
   #--- SET UP PARALLELIZATION
   setup_SFSW2_cluster(opt_parallel,
@@ -1445,19 +1448,16 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     add = TRUE)
 
 
-  Tables <- dbOutput_ListOutputTables(dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  Tables <- dbOutput_ListOutputTables(dbname =
+    SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
   missing_Pids <- missing_Pids_current <- NULL
 
-  update_workDB <- opt_behave[["check_updates_dbWork"]] ||
-    opt_out_run[["deleteTmpSQLFiles"]]
   do_DBcurrent <- SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] ||
     SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]
 
   if (SFSW2_glovars[["p_has"]]) {
-
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
-
       missing_Pids <- Rmpi::mpi.applyLB(Tables, missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
@@ -1467,20 +1467,22 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
       }
 
     } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
-
-      missing_Pids <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables, fun = missing_Pids_outputDB,
+      missing_Pids <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+        x = Tables, fun = missing_Pids_outputDB,
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
       if (do_DBcurrent) {
-        missing_Pids_current <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], x = Tables,
-          fun = missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
+        missing_Pids_current <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+          x = Tables, fun = missing_Pids_outputDB,
+          dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
       }
     }
 
     clean_SFSW2_cluster()
 
   } else {
-    missing_Pids <- lapply(Tables, missing_Pids_outputDB, dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+    missing_Pids <- lapply(Tables, missing_Pids_outputDB,
+      dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
 
     if (do_DBcurrent) {
       missing_Pids_current <- lapply(Tables, missing_Pids_outputDB,
@@ -1488,53 +1490,70 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     }
   }
 
-  missing_Pids <- unique(unlist(missing_Pids))
-  missing_Pids <- as.integer(sort(missing_Pids))
+  missing_Pids <- as.integer(sort(unique(unlist(missing_Pids))))
   missing_runIDs <- NULL
   missing_Pids_current <- unique(unlist(missing_Pids_current))
-  if (!is.null(missing_Pids_current)) missing_Pids_current <- as.integer(sort(missing_Pids_current))
+  if (!is.null(missing_Pids_current)) {
+    missing_Pids_current <- as.integer(sort(missing_Pids_current))
+  }
 
   if (length(missing_Pids) > 0) {
-    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTables_Pids_missing.rds")
+    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      "dbTables_Pids_missing.rds")
+
     if (identical(missing_Pids, -1L)) {
-      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]), "is empty and not complete"))
+      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]),
+        "is empty and not complete"))
 
     } else {
-      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]), "is missing n =",
-        length(missing_Pids), "records"))
+      print(paste("Output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]),
+        "is missing n =", length(missing_Pids), "records"))
 
      # Output missing Pids to rds file
       print(paste("P_id of these records are saved to file", shQuote(ftemp)))
       saveRDS(missing_Pids, file = ftemp)
 
       # Update workDB
-      if (update_workDB) {
+      if (opt_behave[["check_updates_dbWork"]] || opt_out_run[["deleteTmpSQLFiles"]]) {
         print("'workDB' is updated with these missing P_id to be prepared for a re-run")
 
-        stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+        if (opt_behave[["keep_dbWork_updated"]]) {
+          stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-        con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
-          flags = RSQLite::SQLITE_RO)
-        on.exit(DBI::dbDisconnect(con), add = TRUE)
-        scN <- DBI::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
+          con <- RSQLite::dbConnect(RSQLite::SQLite(),
+            dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+            flags = RSQLite::SQLITE_RO)
+          on.exit(DBI::dbDisconnect(con), add = TRUE)
+          scN <- DBI::dbGetQuery(con, "SELECT Max(id) FROM scenario_labels")[1, 1]
 
-        missing_runIDs <- it_sim2(missing_Pids, scN)
-        temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]], runIDs = missing_runIDs)
+          missing_runIDs <- it_sim2(missing_Pids, scN)
+          temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+            runIDs = missing_runIDs)
+
+        } else {
+          # if 'keep_dbWork_updated' is FALSE, then the fastest method to update
+          # missing Pids is to recreate dbWork
+          recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+        }
       }
     }
   }
 
   if (length(missing_Pids_current) > 0) {
-    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], "dbTablesCurrent_Pids_missing.rds")
+    ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      "dbTablesCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
-      print(paste("Current output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is empty",
+      print(paste("Current output DB",
+        shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is empty",
         "and not complete"))
 
     } else {
-      print(paste("Current output DB", shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is missing n =",
+      print(paste("Current output DB",
+        shQuote(SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]), "is missing n =",
         length(missing_Pids_current), "records; P_id of these records are saved to file",
         shQuote(ftemp)))
+
      saveRDS(missing_Pids_current, file = ftemp)
    }
   }

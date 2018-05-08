@@ -1070,6 +1070,7 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #------------------------CHECK ON DATABASES FOR SIMULATION OUTPUT (FROM PREVIOUS RUN)
   #--- Consolidate dbWork
   stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+  do_dbWork <- !opt_behave[["keep_dbWork_updated"]]
 
   #--- (Re-)create output database if not already present
   if (!file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
@@ -1086,9 +1087,13 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
         check_if_Pid_present = FALSE)
 
-      #--- Make sure that dbWork is up-to-date
-      recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+      do_dbWork <- TRUE
     }
+  }
+
+  #--- Make sure that dbWork is up-to-date
+  if (do_dbWork) {
+    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
   }
 
   #--- Determine which runs (still) need to be done for this round
@@ -1171,15 +1176,8 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 #'  If \code{NULL}, then temporary output files are assumed to be located at
 #'  \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]}. This cannot be \code{NULL}
 #'  unless all simulation runs have finished (to prevent overwriting of temporary output
-#'  files of a potential concurrent run).
-#'
-#' @section Notes: 'concatenation' may be much faster if temporary text files are not
-#' constructed around SQL insert statements, but instead as data.frames. Text files
-#' containing data.frames may be much faster with checks for duplicate P_id entries and
-#' could be inserted at once (instead of line by line) with the command
-#'   RSQLite::dbWriteTable(con, name = table, value = "path/to/db-file", append = TRUE)
-#' @section Notes: An alternative idea is to have each core write to its own dbOutput copy
-#' and combine those DBs at the end.
+#'  files of a potential concurrent run). This can however only be checked if
+#'  \code{opt_behave[["keep_dbWork_updated"]]}.
 #'
 #' @section Details: Expectations on how the function locates files on disk: \itemize{
 #'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
@@ -1202,11 +1200,14 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
-  runsN_todo <- dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
 
-  if (runsN_todo > 0 && is.null(dir_out_temp)) {
-    stop("'move_output_to_dbOutput': if 'dir_out_temp' is NULL, then all runs must have",
-      " completed; but runsN_todo = ", runsN_todo)
+  if (opt_behave[["keep_dbWork_updated"]]) {
+    runsN_todo <- dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+
+    if (runsN_todo > 0 && is.null(dir_out_temp)) {
+      stop("'move_output_to_dbOutput': if 'dir_out_temp' is NULL, then all runs must",
+        " have completed; but runsN_todo = ", runsN_todo)
+    }
   }
 
   has_time_to_concat <- {difftime(t.outputDB, t_job_start, units = "secs") +

@@ -108,7 +108,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   list2env(as.list(SimParams), envir = environment())
 
-  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+  if (opt_behave[["keep_dbWork_updated"]] &&
+    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
     stopifnot(dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
       verbose = opt_verbosity[["print.debug"]]))
   }
@@ -5359,7 +5360,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
 
-            if (res && isTRUE(opt_out_fix[["use_granular_control"]])) {
+            if (opt_behave[["keep_dbWork_updated"]] && res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])) {
               res <- dbWork_update_granular(path = project_paths[["dir_out"]],
                 table = "aggregation_overall_mean", Pid = all_Pids[sc], status = FALSE)
             }
@@ -5375,7 +5377,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
               seed = i_seed)
 
-            if (res && isTRUE(opt_out_fix[["use_granular_control"]])) {
+            if (opt_behave[["keep_dbWork_updated"]] && res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])) {
               res <- dbWork_update_granular(path = project_paths[["dir_out"]],
                 table = "aggregation_overall_sd", Pid = all_Pids[sc], status = FALSE)
             }
@@ -5578,7 +5581,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               res1 <- dbExecute2(dbTempFile, SQL1,
                 verbose = opt_verbosity[["print.debug"]], seed = i_seed)
 
-              if (res1 && isTRUE(opt_out_fix[["use_granular_control"]])) {
+              if (opt_behave[["keep_dbWork_updated"]] && res1 &&
+                isTRUE(opt_out_fix[["use_granular_control"]])) {
                 res1 <- dbWork_update_granular(path = project_paths[["dir_out"]],
                   table = table_name1, Pid = all_Pids[sc], status = FALSE)
               }
@@ -5607,7 +5611,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               res2 <- dbExecute2(dbTempFile, SQL2,
                 verbose = opt_verbosity[["print.debug"]], seed = i_seed)
 
-              if (res2 && isTRUE(opt_out_fix[["use_granular_control"]])) {
+              if (opt_behave[["keep_dbWork_updated"]] && res2 &&
+                isTRUE(opt_out_fix[["use_granular_control"]])) {
                 res2 <- dbWork_update_granular(path = project_paths[["dir_out"]],
                   table = table_name2, Pid = all_Pids[sc], status = FALSE)
               }
@@ -5640,7 +5645,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
-  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+  if (opt_behave[["keep_dbWork_updated"]] &&
+    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
     temp <- dbWork_update_job(project_paths[["dir_out"]], i_sim,
       status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
       verbose = opt_verbosity[["print.debug"]])
@@ -5770,10 +5776,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
             t.do_OneSite <- Sys.time()
 
             i_sim <- MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]
-            success <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
-              runID = i_sim, status = "inwork",
-              verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
-            # TODO: do something on failure of 'dbWork_update_job'
+
+            if (MoreArgs[["opt_behave"]][["keep_dbWork_updated"]]) {
+              success <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
+                runID = i_sim, status = "inwork",
+                verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+              # TODO: do something on failure of 'dbWork_update_job'
+            }
 
             i_site <- i_sites[runs.completed]
             dataForRun <- list(do_OneSite = TRUE, i_sim = i_sim,
@@ -5842,7 +5851,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
             "from worker", worker_id, "but doesn't know what this means."))
         }
 
-        if (tag_from_worker %in% c(2L, 4L)) {
+        if (MoreArgs[["opt_behave"]][["keep_dbWork_updated"]] &&
+          tag_from_worker %in% c(2L, 4L)) {
+
           temp <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
             runID = complete[["i"]],
             status = if (complete[["status"]]) "completed" else "failed",
