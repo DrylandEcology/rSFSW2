@@ -1533,7 +1533,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
         } else {
           # if 'keep_dbWork_updated' is FALSE, then the fastest method to update
           # missing Pids is to recreate dbWork
-          recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+          recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta, verbose = verbose)
         }
       }
     }

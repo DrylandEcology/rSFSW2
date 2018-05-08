@@ -1024,7 +1024,8 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta, actions, wipe_dbOutput = FALSE)
+  SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions, wipe_dbOutput = FALSE)
+  SFSW2_prj_meta <- update_todos(SFSW2_prj_meta)
 
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path, "dbTables.sqlite3")
@@ -1093,7 +1094,7 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   #--- Make sure that dbWork is up-to-date
   if (do_dbWork) {
-    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta, verbose = opt_verbosity[["verbose"]])
   }
 
   #--- Determine which runs (still) need to be done for this round
