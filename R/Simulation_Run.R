@@ -5647,20 +5647,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   if (status) {
-    #ETA estimation
-    times <- dbWork_timing(project_paths[["dir_out"]])
-
     if (opt_verbosity[["verbose"]]) {
-      n <- length(times) - 1
+      percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
 
       temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
         delta.do_OneSite, " ", units(delta.do_OneSite), "; simulation project is ",
-        round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
+        round(percent_complete, 2), "% complete")
 
       if (opt_verbosity[["print.eta"]]) {
-        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / SFSW2_glovars[["p_workersN"]]) *
-          sapply(list(mean, stats::sd), function(f) f(times, na.rm = TRUE)))
-        pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) stats::qt(0.975, n) else NA}# 95% prediction interval
+        # ETA estimation
+        n_todo <- ceiling(dbWork_Ntodo(project_paths[["dir_out"]]) /
+          SFSW2_glovars[["p_workersN"]])
+        agg_timing <- dbWork_agg_timing(project_paths[["dir_out"]])
+        deta <- round(n_todo * agg_timing[c("mean", "sd")])
+
+        # 95% prediction interval
+        temp <- if (agg_timing["n"] > 1) stats::qt(0.975, agg_timing["n"]) else NA
+        pi95 <- deta["sd"] * sqrt(1 + 1 / agg_timing["n"]) * temp
         pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
             paste(round(pi95 / 3600), "h")
           } else if (pi95 > 60) {
@@ -5668,8 +5671,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else {
             paste(round(pi95), "s")
           }
+
         temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
-                      Sys.time() + deta[1], " +/- ", pi95)
+          Sys.time() + deta["mean"], " +/- ", pi95)
       }
 
       print(temp)

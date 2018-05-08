@@ -1415,7 +1415,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
   }
 
   #--- CHECK THAT ALL SIMULATION RUNS ARE COMPLETE AND DATA HAVE BEEN MOVED TO dbOutput
-  runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+  runsN_todo <- dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
 
   tempN_todo <- length(get_fnames_temporaryOutput(
     dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],

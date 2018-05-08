@@ -139,8 +139,9 @@ test_that("dbWork: access and manipulation functions", {
   unlink(flock, recursive = TRUE)
   expect_true(setup_dbWork(dbpath, sim_size, include_YN))
 
-  # Testing 'dbWork_todos'
+  # Testing 'dbWork_todos' and 'dbWork_Ntodo'
   expect_identical(dbWork_todos(dbpath), runIDs)
+  expect_identical(dbWork_Ntodo(dbpath), length(runIDs))
 
   # Testing 'dbWork_timing'
   #   - expect length 0 because no runID is completed and timed
@@ -152,6 +153,16 @@ test_that("dbWork: access and manipulation functions", {
     #   - expect timings for the completed runIDs
     expect_identical(dbWork_timing(dbpath), time_set3[seq_len(k)])
   }
+  #   - compare aggregated timing
+  timing <- dbWork_timing(dbpath)
+  agg_timing <- dbWork_agg_timing(dbpath)
+  expect_equivalent(agg_timing["mean"], mean(timing))
+  expect_equivalent(agg_timing["sd"], sd(timing))
+  expect_equivalent(agg_timing["n"], length(timing))
+
+  # Testing 'dbWork_report_completion'
+  expect_equivalent(dbWork_report_completion(dbpath),
+    100 * length(timing) / length(runIDs))
 
   # Testing 'dbWork_check' (part 1 of 2)
   temp <- dbWork_check(dbpath, runIDs = runIDs[seq_along(time_set3)])

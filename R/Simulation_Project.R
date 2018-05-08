@@ -1202,7 +1202,7 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   dir_out_temp = NULL) {
 
   t.outputDB <- Sys.time()
-  runsN_todo <- length(dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+  runsN_todo <- dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
 
   if (runsN_todo > 0 && is.null(dir_out_temp)) {
     stop("'move_output_to_dbOutput': if 'dir_out_temp' is NULL, then all runs must have",

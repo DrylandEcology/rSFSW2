@@ -378,6 +378,26 @@ dbWork_todos <- function(path) {
   as.integer(x[, 1])
 }
 
+
+#' Numbers of runs of a rSFSW2 simulation project which are uncompleted and
+#' not \code{inwork}
+#'
+#' @inheritParams create_dbWork
+#' @return An integer value.
+#' @export
+dbWork_Ntodo <- function(path) {
+  dbWork <- fname_dbWork(path)
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  x <- DBI::dbGetQuery(con, paste("SELECT COUNT(*) FROM work",
+    "WHERE include_YN = 1 AND completed = 0 AND inwork = 0 ORDER BY runID_total"))
+  as.integer(x[, 1])
+}
+
+
 #' Extract stored execution times of completed runs of a rSFSW2 simulation project
 #'
 #' @inheritParams create_dbWork
@@ -394,6 +414,34 @@ dbWork_timing <- function(path) {
     "AND completed > 0"))
   as.numeric(times[, 1])
 }
+
+
+#' Calculate mean and standard deviation of stored execution times of completed runs
+#'
+#' @inheritParams create_dbWork
+#' @return A numeric vector with mean and standard deviation of execution time in seconds
+#'   and number of completed runs.
+#' @seealso \code{\link{dbWork_timing}}
+#' @export
+dbWork_agg_timing <- function(path) {
+  dbWork <- fname_dbWork(path)
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  sql <- paste(
+    "WITH done(time_s) AS (SELECT time_s FROM work",
+      "WHERE include_YN = 1 AND completed > 0)",
+    "SELECT sub.mean AS mean, COUNT(*) AS n,",
+      "SUM((time_s - sub.mean) * (time_s - sub.mean)) AS ss from done,",
+      "(SELECT AVG(time_s) AS mean FROM done) AS sub")
+  temp <- DBI::dbGetQuery(con, sql)
+
+  c(mean = temp[, "mean"], sd = sqrt(temp[, "ss"] / (temp[, "n"] - 1)), n = temp[, "n"])
+}
+
+
 
 
 #' Set runs information that need to be redone / simulated (again)
