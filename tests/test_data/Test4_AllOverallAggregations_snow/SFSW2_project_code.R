@@ -139,7 +139,7 @@ if (isTRUE(actions[["concat_dbOut"]])) {
 
   stopifnot(move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel,
     opt_behave, opt_out_run, opt_verbosity,
-    check_if_Pid_present = opt_verbosity[["print.debug"]]))
+    check_if_Pid_present = FALSE))
 }
 
 

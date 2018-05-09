@@ -812,9 +812,14 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       if (check_if_Pid_present) {
         # obtain Pids/sl that are in dbTempOut but not yet in dbOut
         ok <- FALSE
-        stop("option 'check_if_Pid_present' is not yet implemented")
+        warning("option 'check_if_Pid_present' is not yet implemented; code continues",
+          " without checks")
+        check_if_Pid_present <- FALSE
 
-      } else {
+      #} else {
+      }
+      if (!check_if_Pid_present) {
+
         # no Pid checks; discard/ignore non-unique records
         for (k2 in seq_along(tables)) {
           # make sure that there is at least one record to transfer
