@@ -27,8 +27,7 @@ addons:
 before_install:
   # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install'
   # and thus dependencies are not installed and r_packages has not taken effect yet)
-  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); \
-    if (length(pkgs) > 0) utils::install.packages(pkgs)'
+  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
   # obtain source code of rSOILWAT2 from github
   - git clone -b master --single-branch --recursive \
     https://github.com/DrylandEcology/rSOILWAT2.git DrylandEcology/rSOILWAT2
