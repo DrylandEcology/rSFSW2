@@ -30,7 +30,7 @@
 update <- FALSE ## Initialize simulation project folder?
 
 do_adjust_dir_out <- FALSE ## Adjust `dir_out` element of `project_paths` in local copy of metadata
-dir_temp <- "temp_i1" ## Relative location of temporary output files
+dir_temp <- "temp" ## Relative location of temporary output files
 
 do_use_dbOutput_concat <- FALSE ## If TRUE, use `fname_dbOutput_concat` instead of metadata information
 fname_dbOutput_concat <- "dbTables_concating.sqlite3" ## Name of copy of dbOutput used for moving output data into

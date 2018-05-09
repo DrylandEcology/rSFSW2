@@ -70,18 +70,18 @@ opt_parallel <- list(
 #------ Options for printing progress and debugging information
 opt_verbosity <- list(
   # Prints status of progress to standard output
-  verbose = TRUE,
+  verbose = interactive(),
   # Prints details of progress to standard output
-  print.debug = TRUE,
+  print.debug = interactive(),
   # Calculates and prints estimated time of job completion at end of each call of
   #   'do_OneSite' (a somewhat expensive operation)
-  print.eta = FALSE,
+  print.eta = interactive(),
 
   # Sets global option 'warn' for the duration of a simulation project
   #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
   debug.warn.level = 0,
   # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
-  debug.dump.objects = FALSE
+  debug.dump.objects = interactive()
 )
 
 

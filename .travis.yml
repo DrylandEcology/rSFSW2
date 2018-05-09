@@ -7,7 +7,7 @@ sudo: false
 cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
 
-# next three settings (latex, r_build_args, and r_check_args -- though, the latter two
+# Next three settings (latex, r_build_args, and r_check_args -- though, the latter two
 # are not used because we use our own 'script' section: see there): because unit tests
 # take now too much time due to the extended unit test project; some travis runs fail
 # due to taking longer than the allotted 60-min maximum; for now omit PDF vignettes and
@@ -26,19 +26,19 @@ addons:
 
 before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
-  # install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install'
+  # Install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install'
   # and thus dependencies are not installed and r_packages has not taken effect yet)
   - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
-  # obtain source code of rSOILWAT2 from github and save at DrylandEcology/rSOILWAT2
+  # Obtain source code of rSOILWAT2 from github and save at DrylandEcology/rSOILWAT2
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
-  # install rSOILWAT2 without help pages and without vignettes
+  # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
-  # the extended unit test project (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f)
-  # takes too long for the default settings (> 10 min without output)
-  # on failure, display file 'testthat.Rout.fail' for more information and fail
+  # The extended unit test project (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f)
+  # takes about 16 min which is too long for the default settings of 10-min and times out
+  # On failure, display file 'testthat.Rout.fail' for more information and fail
   - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual || { cat rSFSW2.Rcheck/tests/testthat.Rout* && 1; }
 
 after_success:
