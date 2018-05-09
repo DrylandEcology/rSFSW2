@@ -5654,32 +5654,36 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   if (status) {
     if (opt_verbosity[["verbose"]]) {
-      percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
-
       temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
-        delta.do_OneSite, " ", units(delta.do_OneSite), "; simulation project is ",
-        round(percent_complete, 2), "% complete")
+        delta.do_OneSite, " ", units(delta.do_OneSite))
 
-      if (opt_verbosity[["print.eta"]]) {
-        # ETA estimation
-        n_todo <- ceiling(dbWork_Ntodo(project_paths[["dir_out"]]) /
-          SFSW2_glovars[["p_workersN"]])
-        agg_timing <- dbWork_agg_timing(project_paths[["dir_out"]])
-        deta <- round(n_todo * agg_timing[c("mean", "sd")])
+      if (opt_behave[["keep_dbWork_updated"]]) {
+        percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
 
-        # 95% prediction interval
-        temp <- if (agg_timing["n"] > 1) stats::qt(0.975, agg_timing["n"]) else NA
-        pi95 <- deta["sd"] * sqrt(1 + 1 / agg_timing["n"]) * temp
-        pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
-            paste(round(pi95 / 3600), "h")
-          } else if (pi95 > 60) {
-            paste(round(pi95 / 60), "min")
-          } else {
-            paste(round(pi95), "s")
-          }
+        temp <- paste0(temp, , "; simulation project is ", round(percent_complete, 2),
+          "% complete")
 
-        temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
-          Sys.time() + deta["mean"], " +/- ", pi95)
+        if (opt_verbosity[["print.eta"]]) {
+          # ETA estimation
+          n_todo <- ceiling(dbWork_Ntodo(project_paths[["dir_out"]]) /
+            SFSW2_glovars[["p_workersN"]])
+          agg_timing <- dbWork_agg_timing(project_paths[["dir_out"]])
+          deta <- round(n_todo * agg_timing[c("mean", "sd")])
+
+          # 95% prediction interval
+          temp <- if (agg_timing["n"] > 1) stats::qt(0.975, agg_timing["n"]) else NA
+          pi95 <- deta["sd"] * sqrt(1 + 1 / agg_timing["n"]) * temp
+          pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
+              paste(round(pi95 / 3600), "h")
+            } else if (pi95 > 60) {
+              paste(round(pi95 / 60), "min")
+            } else {
+              paste(round(pi95), "s")
+            }
+
+          temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
+            Sys.time() + deta["mean"], " +/- ", pi95)
+        }
       }
 
       print(temp)
