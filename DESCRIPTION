@@ -38,7 +38,7 @@ Suggests:
       dplyr,
     knitr,
     rmarkdown,
-    testthat,
+    testthat (>= 2.0.0),
     covr,
     lintr
 Remotes:
