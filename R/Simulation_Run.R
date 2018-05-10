@@ -5654,13 +5654,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   if (status) {
     if (opt_verbosity[["verbose"]]) {
-      temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
+      msg <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
         delta.do_OneSite, " ", units(delta.do_OneSite))
 
       if (opt_behave[["keep_dbWork_updated"]]) {
         percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
 
-        temp <- paste0(temp, , "; simulation project is ", round(percent_complete, 2),
+        msg <- paste0(msg, "; simulation project is ", round(percent_complete, 2),
           "% complete")
 
         if (opt_verbosity[["print.eta"]]) {
@@ -5681,12 +5681,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               paste(round(pi95), "s")
             }
 
-          temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
+          msg <- paste0(msg, " with ETA (mean plus/minus 95%-PI) = ",
             Sys.time() + deta["mean"], " +/- ", pi95)
         }
       }
 
-      print(temp)
+      print(msg)
     }
 
   } else {
@@ -5731,6 +5731,14 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
     fields = MoreArgs[["prj_todos"]][["aon_fields"]],
     adaily = MoreArgs[["prj_todos"]][["adaily"]],
     verbose = MoreArgs[["opt_verbosity"]][["verbose"]])
+
+
+  #--- set dbWork as modified if not being kept up-to-date
+  if (!MoreArgs[["opt_behave"]][["keep_dbWork_updated"]]) {
+    dbWork_update_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      status = TRUE, verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+  }
+
 
   #--- call the simulations depending on parallel backend
   if (SFSW2_glovars[["p_has"]]) {

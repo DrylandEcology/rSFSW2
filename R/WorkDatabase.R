@@ -31,6 +31,7 @@ fname_dbWork <- function(path, dbname = "dbWork.sqlite3") {
 }
 
 
+
 #' Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project
 #'
 #' @param path A character string. Path to the folder where the database will be created.
@@ -43,7 +44,7 @@ fname_dbWork <- function(path, dbname = "dbWork.sqlite3") {
 #' @return Invisibly \code{TRUE}
 create_dbWork <- function(path, jobs) {
 
-  stopifnot(colnames_job_df() %in% dimnames(jobs)[[2]])
+  stopifnot(colnames_work_dbWork() %in% dimnames(jobs)[[2]])
   dbWork <- fname_dbWork(path)
 
   con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
@@ -58,6 +59,8 @@ create_dbWork <- function(path, jobs) {
 
   RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
   add_dbWork_index(con)
+
+  add_status_dbWork(con)
 
   # Set WAL-mode (http://www.sqlite.org/wal.html)
   temp_jmode <- DBI::dbGetQuery(con, "PRAGMA journal_mode=WAL;")
@@ -80,13 +83,21 @@ create_dbWork <- function(path, jobs) {
 }
 
 
-colnames_job_df <- function() {
+colnames_work_dbWork <- function() {
   c("runID_total", "runID_sites", "include_YN", "completed", "failed", "inwork", "time_s")
+}
+
+colnames_modification_status_dbWork <- function() {
+  c("status", "time_stamp")
+}
+
+colnames_need_outputs_dbWork <- function() {
+  c("Pid", "runID_total", "include_YN")
 }
 
 
 create_job_df <- function(sim_size, include_YN) {
-  temp <- colnames_job_df()
+  temp <- colnames_work_dbWork()
   jobs <- matrix(data = 0L, nrow = sim_size[["runsN_total"]], ncol = length(temp),
     dimnames = list(NULL, temp))
 
@@ -114,7 +125,7 @@ create_job_df <- function(sim_size, include_YN) {
 #' }
 #'
 #' @inheritParams create_dbWork
-#' @return A logical vector.
+#' @return A logical value.
 add_granular_dbWork <- function(SFSW2_prj_meta) {
   dbWork <- fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
   stopifnot(file.exists(dbWork))
@@ -168,6 +179,41 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
   add_dbWork_index(con)
 
   invisible(res)
+}
+
+#' Create a new table \code{modification_status} with one row for status control of
+#' entire \code{dbWork}
+#'
+#' First check whether such a table with one row exists, if so, don't overwrite.
+#'
+#' The table \code{modification_status} consists of one row/record/entry and has two
+#' fields: \itemize{
+#'    \item \code{status} with value FALSE/0 for \code{not modified} and TRUE/1 for
+#'          \code{modified}.
+#'    \item \code{time_stamp} with the \code{\link{POSIXct}} value of the last time
+#'          the \code{status} was updated.
+#' }
+#'
+#' @param con A valid SQLiteConnection database connection to \code{dbWork}.
+add_status_dbWork <- function(con) {
+  has_table <- DBI::dbExistsTable(con, "modification_status")
+  create_new <- !(has_table &&
+    length(DBI::dbGetQuery(con, "SELECT COUNT(*) FROM modification_status")) == 1L)
+
+  if (create_new) {
+    if (has_table) {
+      sql <- "DROP TABLE modification_status"
+      DBI::dbExecute(con, sql)
+    }
+
+    sql <- "CREATE TABLE modification_status(status INTEGER, time_stamp INTEGER)"
+    DBI::dbExecute(con, sql)
+
+    # Set initial status and assume that dbWork is in sync, i.e., dbOut is not modified
+    sql <- paste0("INSERT INTO modification_status ",
+      "VALUES (", 0L, ", ", as.integer(Sys.time()), ")")
+    DBI::dbExecute(con, sql)
+  }
 }
 
 
@@ -486,7 +532,7 @@ dbWork_redo <- function(path, runIDs, verbose = FALSE) {
 #' @return A data.frame with three columns 'completed', 'failed', and 'inwork' and
 #'   one row per \code{runIDs}.
 #' @export
-dbWork_check <- function(path, runIDs) {
+dbWork_check_run <- function(path, runIDs) {
   if (length(runIDs) > 0) {
     dbWork <- fname_dbWork(path)
     stopifnot(file.exists(dbWork))
@@ -587,6 +633,91 @@ dbWork_check_granular <- function(path, runIDs) {
 }
 
 
+#' Check modification status of \code{dbWork} against \code{dbOut} and \code{dbTempOut}
+#'
+#' @inheritParams create_dbWork
+#' @param SFSW2_prj_meta An environment.
+#'
+#' @return A logical value. \code{TRUE} if the status of \code{dbWork} claims to be
+#'  modified (out of sync) or if its time stamp is older (and suggest to be out of sync)
+#'  than any modification time of the output generated for \code{dbOut} and/or
+#'  \code{dbTempOut} -- the later is only checked if \code{SFSW2_prj_meta} is not null;
+#'  \code{FALSE} if \code{dbWork} is deemed to be in sync with output progress of project.
+#' @export
+dbWork_check_status <- function(path, SFSW2_prj_meta = NULL) {
+  dbWork <- fname_dbWork(path)
+  stopifnot(file.exists(dbWork))
+
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork, flags = RSQLite::SQLITE_RO)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  # Consider modified if status is set to 'modified'
+  sql <- "SELECT * FROM modification_status LIMIT 1"
+  ms <- DBI::dbGetQuery(con, sql)
+
+  res <- as.logical(ms[1, "status"])
+
+  # If status claims to be not modified, then check that time_stamp is also younger than
+  # modification times of dbOut and dbTempOut(s)
+  if (!res && !is.null(SFSW2_prj_meta)) {
+    tstatus <- as.POSIXct(ms[1, "time_stamp"], origin = "1970-01-01")
+
+    ftemps <- c(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+      get_fnames_dbTempOut(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]))
+    mtimes <- file.mtime(ftemps) # returns NA if file doesn't exist
+
+    res <- any(tstatus < mtimes, na.rm = TRUE)
+
+    if (res) {
+      # Status is determined to be modified -> update dbWork
+      dbWork_update_status(path = path, status = TRUE)
+    }
+  }
+
+  res
+}
+
+
+
+
+#' Check that \code{dbWork} has an up-to-date structure of tables and fields
+#'
+#' @inheritParams create_dbWork
+#' @param use_granular_control A logical value. If \code{TRUE} and the granular
+#'   table is present (see \code{\link{add_granular_dbWork}}), then include the optional
+#'   table \code{needs_output} in check.
+#' @return A logical value. \code{FALSE} if no \code{dbWork} can be located or if
+#'   any required table is missing or if not all required fields are present.
+#'
+#' @export
+dbWork_check_design <- function(path, use_granular_control = FALSE) {
+  res <- FALSE
+
+  dbWork <- fname_dbWork(path)
+
+  if (file.exists(dbWork)) {
+    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbWork,
+      flags = RSQLite::SQLITE_RO)
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+    # Check that required tables exist
+    need_tables <- c("work", "modification_status",
+      if (use_granular_control) "need_outputs")
+
+    has_tables <- need_tables %in% DBI::dbListTables(con)
+
+    # If all tables exist, then check that each table has required fields
+    res <- all(has_tables)
+    if (res) for (k in seq_along(need_tables)) {
+      has_fields <- DBI::dbListFields(con, need_tables[k])
+      ftemp <- match.fun(paste("colnames", need_tables[k], "dbWork", sep = "_"))
+      res <- res && all(ftemp() %in% has_fields)
+    }
+  }
+
+  res
+}
+
 
 
 #' Re-create or update \code{dbWork} based on \code{dbOutput}
@@ -604,7 +735,7 @@ dbWork_check_granular <- function(path, runIDs) {
 #'
 #' @export
 recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
-  verbose = FALSE) {
+  verbose = FALSE, print.debug = FALSE) {
 
   res <- FALSE
 
@@ -834,6 +965,9 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
       temp <- DBI::dbExecute(con_dbWork, sql)
     }
 
+    # Set modification status: up-to-date
+    dbWork_update_status(path, status = FALSE, verbose = print.debug)
+
     unlink(dbWork_backup)
     res <- file.exists(dbWork)
 
@@ -1009,6 +1143,70 @@ dbWork_update_granular <- function(path, table, Pid, status, verbose = FALSE) {
         if (verbose) {
           print(paste0("'dbWork_update_granular': ", Sys.time(), " (", Pid, "-", status,
             ") 'dbWork' is locked after ",
+            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+        }
+
+        Sys.sleep(stats::runif(1, 0.02, 0.1))
+      }
+    }
+  }
+
+  identical(res, 1L)
+}
+
+
+
+#' Update modification status of a rSFSW2 simulation project
+#'
+#' @inheritParams create_dbWork
+#' @param status A logical value. \code{FALSE} indicates "not modified", i.e.,
+#'   that \code{dbWork} and generated output \code{dbOutput} and \code{dbTempOut}
+#'   is synchronized; \code{TRUE} indicates "modified".
+#' @param verbose A logical value.
+#'
+#' @seealso \code{\link{add_status_dbWork}}
+#' @return A logical value whether the status was successfully updated.
+dbWork_update_status <- function(path, status, verbose = FALSE) {
+  dbWork <- fname_dbWork(path)
+  success <- FALSE
+  res <- 0L
+
+  # Connect to dbWork
+  con <- dbConnect2(dbWork, verbose = verbose)
+
+  if (inherits(con, "SQLiteConnection")) {
+    on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+    if (verbose) {
+      t0 <- Sys.time()
+    }
+
+    # Update status
+    repeat {
+      if (verbose) {
+        print(paste0("'dbWork_update_status': ", Sys.time(), " (", status, ") attempt ",
+          "to update after ", round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+      }
+
+      sql <- paste("UPDATE modification_status SET ",
+        "status =", if (isTRUE(status)) "1" else "0", ",",
+        "time_stamp =", as.integer(Sys.time()))
+      res <- try(DBI::dbExecute(con, sql), silent = !verbose)
+
+      success <- !inherits(res, "try-error")
+
+      if (success) {
+        if (verbose) {
+          print(paste0("'dbWork_update_status': ", Sys.time(), " (", status, ") ",
+            "transaction confirmed after ",
+            round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
+        }
+        break
+
+      } else {
+        if (verbose) {
+          print(paste0("'dbWork_update_status': ", Sys.time(), " (", status, ") ",
+            "'dbWork' is locked after ",
             round(difftime(Sys.time(), t0, units = "secs"), 2), " s"))
         }
 

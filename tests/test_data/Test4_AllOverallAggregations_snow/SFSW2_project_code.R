@@ -75,7 +75,7 @@ writeLines(c("", "",
 
 SFSW2_prj_meta <- init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
-  verbose = FALSE, print.debug = FALSE)
+  verbose = TRUE, print.debug = FALSE)
 
 
 
@@ -96,14 +96,16 @@ SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
 temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity)
 
-SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
-
-if (isTRUE(opt_verbosity[["verbose"]])) {
-  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
+if (isTRUE(opt_verbosity[["verbose"]]) &&
+  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])) {
+  warning("'SFSW2_prj_meta' has changed: modify/reset input tracker status ",
     "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
     "and re-run project.", call. = FALSE, immediate. = TRUE)
 }
+
+SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+
 
 
 ##############################################################################
@@ -117,10 +119,10 @@ if (isTRUE(actions[["check_inputs"]])) {
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  if (isTRUE(opt_verbosity[["verbose"]])) {
-    warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-      "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
-      "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
+  if (isTRUE(opt_verbosity[["verbose"]]) &&
+    !all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "checked"]))) {
+    warning("'SFSW2_prj_meta[['input_status']]': some input tracker checks failed; ",
+      "fix inputs, if needed, and re-run project.", call. = FALSE, immediate. = TRUE)
   }
 }
 
@@ -161,7 +163,7 @@ if (isTRUE(actions[["ensemble"]])) {
 if (isTRUE(actions[["check_dbOut"]])) {
 
   check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
-    opt_out_run, verbose = opt_verbosity[["verbose"]])
+    opt_out_run, opt_verbosity)
 }
 
 

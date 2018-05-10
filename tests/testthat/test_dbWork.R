@@ -164,8 +164,8 @@ test_that("dbWork: access and manipulation functions", {
   expect_equivalent(dbWork_report_completion(dbpath),
     100 * length(timing) / length(runIDs))
 
-  # Testing 'dbWork_check' (part 1 of 2)
-  temp <- dbWork_check(dbpath, runIDs = runIDs[seq_along(time_set3)])
+  # Testing 'dbWork_check_run' (part 1 of 2)
+  temp <- dbWork_check_run(dbpath, runIDs = runIDs[seq_along(time_set3)])
   expect_dbWork_check(temp, length(time_set3), length(time_set3))
 
   # Testing 'dbWork_redo'
@@ -180,11 +180,11 @@ test_that("dbWork: access and manipulation functions", {
   expect_true(dbWork_redo(dbpath, runIDs = runIDs[seq_along(time_set3)]))
   expect_identical(dbWork_todos(dbpath), runIDs)
 
-  # Testing 'dbWork_check' (part 2)
-  temp <- dbWork_check(dbpath, runIDs = runIDs[seq_along(time_set3)])
+  # Testing 'dbWork_check_run' (part 2)
+  temp <- dbWork_check_run(dbpath, runIDs = runIDs[seq_along(time_set3)])
   expect_dbWork_check(temp, length(time_set3), 0L)
   #   - incorrect runIDs arguments returns a 0-row data.frame
-  temp <- dbWork_check(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE,
+  temp <- dbWork_check_run(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE,
     TRUE, "a", -1, runsN_total + 1))
   expect_dbWork_check(temp, 0L, 0L)
 

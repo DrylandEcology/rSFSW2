@@ -417,13 +417,15 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  # Check input tracker design
-
-
-  # Check that dbWork is available
+  # Check that dbWork is available and has up-to-date structure of tables/fields
   SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
     tracker = "dbWork",
-    prepared = file.exists(fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])))
+    prepared = dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+  # Check that dbOut is available
+  SFSW2_prj_meta[["input_status"]] <- update_intracker(SFSW2_prj_meta[["input_status"]],
+    tracker = "dbOut",
+    prepared = file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
 
 
   #------ Return if all is prepared (from a previous run), input tracker design is
@@ -1069,33 +1071,35 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   #--------------------------------------------------------------------------------------#
   #------------------------CHECK ON DATABASES FOR SIMULATION OUTPUT (FROM PREVIOUS RUN)
-  #--- Consolidate dbWork
-  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
-  do_dbWork <- !opt_behave[["keep_dbWork_updated"]]
 
-  #--- (Re-)create output database if not already present
-  if (!file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
-    temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
-      verbose = opt_verbosity[["verbose"]])
-  }
+  #--- Check whether dbWork is up-to-date:
+  # recreate if (i) it is not being kept updated and (ii) status suggest being out of sync,
+  # or (iii) design structure is bad, or (iv) move_dbTempOut_to_dbOut() is called
+  # and processed at least one dbTempOut
+  do_dbWork <- (!opt_behave[["keep_dbWork_updated"]] &&
+    dbWork_check_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]], SFSW2_prj_meta)) ||
+    !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
 
   #--- Consolidate (partial) output data
   if (!opt_out_run[["wipe_dbOutput"]]) {
     dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
     if (length(get_fnames_dbTempOut(dir_out_temp)) > 0L) {
-      move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start = t1, opt_parallel, opt_behave,
-        opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = dir_out_temp,
-        check_if_Pid_present = FALSE)
+      temp <- move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start = t1, opt_parallel,
+        opt_behave, opt_out_run, opt_verbosity, chunk_size = -1L,
+        dir_out_temp = dir_out_temp, check_if_Pid_present = FALSE)
 
-      do_dbWork <- TRUE
+      do_dbWork <- do_dbWork || temp > 0
     }
   }
 
   #--- Make sure that dbWork is up-to-date
+  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
   if (do_dbWork) {
     recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta, verbose = opt_verbosity[["verbose"]])
   }
+
 
   #--- Determine which runs (still) need to be done for this round
   SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <-

@@ -749,6 +749,7 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
 #' Speed tests suggest that the chunking option slows the process down considerably;
 #' thus, the default for \code{chunk_size} turns the chunking off.
 #'
+#' @return Invisibly the number of temporary SQL-databases.
 move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = NULL,
   check_if_Pid_present = FALSE) {
@@ -884,7 +885,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   #--- run optimize on database
   DBI::dbExecute(con_dbOut, "PRAGMA optimize")
 
-  invisible(TRUE)
+  invisible(length(theFileList))
 }
 
 #' Moves simulation output that was written to temporary text files to a SQL-database
@@ -1408,10 +1409,10 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 #' Check whether dbOutput contains a complete set of output/simulation results
 #' @export
 check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave,
-  opt_out_run, verbose = FALSE) {
+  opt_out_run, opt_verbosity) {
 
   temp_call <- shQuote(match.call()[1])
-  if (verbose) {
+  if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
@@ -1502,6 +1503,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
     missing_Pids_current <- as.integer(sort(missing_Pids_current))
   }
 
+  do_update_status <- FALSE
+
   if (length(missing_Pids) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
       "dbTables_Pids_missing.rds")
@@ -1535,14 +1538,28 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave
           temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
             runIDs = missing_runIDs)
 
+          do_update_status <- TRUE
+
         } else {
           # if 'keep_dbWork_updated' is FALSE, then the fastest method to update
           # missing Pids is to recreate dbWork
-          recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta, verbose = verbose)
+          recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta,
+            verbose = opt_verbosity[["verbose"]],
+            print.debug = opt_verbosity[["print.debug"]])
         }
       }
     }
+
+  } else {
+     do_update_status <- TRUE
   }
+
+  if (do_update_status) {
+    # Set modification status: up-to-date
+    dbWork_update_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      status = FALSE, verbose = opt_verbosity[["print.debug"]])
+  }
+
 
   if (length(missing_Pids_current) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],

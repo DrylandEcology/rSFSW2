@@ -8,7 +8,7 @@ output elements for each \code{Pid x table} combination}
 add_granular_dbWork(SFSW2_prj_meta)
 }
 \value{
-A logical vector.
+A logical value.
 }
 \description{
 The table \code{need_outputs} has one row/record for each \code{P_id = Pid}

@@ -5,7 +5,7 @@
 \title{Re-create or update \code{dbWork} based on \code{dbOutput}}
 \usage{
 recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
-  verbose = FALSE)
+  verbose = FALSE, print.debug = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
