@@ -107,7 +107,7 @@ fnames_in <- list(
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
-  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData1.sqlite3"),
+  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData3.sqlite3"),
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
@@ -160,7 +160,7 @@ opt_input <- list(
       #   used for ensembles; if using climatewizard, climate condition names must be
       #   equal to what is in the respective directories
       #   - data expected at file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios")
-      "ExtractClimateChangeScenarios", 0,
+      "ExtractClimateChangeScenarios", 1,
 
       # Mean monthly wind, relative humidity, and 100% - sunshine
       #   - NCDC 2005: data expected at file.path(project_paths[["dir_ex_weather"]],
@@ -366,7 +366,7 @@ req_scens <- list(
   #   - If climate datafiles used, then in the order of data in the those datafiles
   #   - This is a list of all GCMs for CMIP5 provided by GDO-DCP-UC-LLNL: 37 RCP4.5, 35 RCP8.5
   #     Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
-  models = c(),
+  models = c("RCP45.ACCESS1-0", "RCP85.ACCESS1-0"),
 
   sources = c(
     # For each climate data set from which to extract, add an element like 'dataset1'
@@ -566,7 +566,7 @@ req_out <- list(
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
   #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
-  mean_daily = NULL,
+  mean_daily = c("AET", "VWCbulk"),
   # Select variables to output as aggregated yearly time series
   #  options: NULL or a selection of c("dailyRegeneration_GISSM")
   traces = NULL

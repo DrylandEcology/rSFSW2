@@ -27,7 +27,9 @@ install:
 
 # Adapt as necessary starting from here
 cache:
-  - C:\RLibrary
+# clearing the cache: https://github.com/appveyor/ci/issues/985
+# change .appveyor_clear_cache.txt to invalidate cache
+  - C:\RLibrary -> .appveyor_clear_cache.txt
 
 build_script:
   - 
