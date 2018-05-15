@@ -54,7 +54,6 @@ update_soils_input <- function(MMC, sim_size, digits = 2, i_Done, ldepths_cm,
       MMC[["use"]][icol[-lys]] <- FALSE
     }
   }
-
   #write data to disk
   utils::write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]),
     file = fnames_in[["fsoils"]], row.names = FALSE)
@@ -241,7 +240,6 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
       MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
         ldepths_cm = ldepth_CONUS[-1], lys, fnames_in)
     }
-
     if (verbose)
       print(paste("Soil data from 'CONUSSOILFromSTATSGO_USA' was extracted for n =",
         sum(i_good), "out of", n_extract, "sites"))
@@ -733,6 +731,244 @@ do_ExtractSoilDataFromISRICWISE_Global <- function(MMC, sim_size, sim_space,
 }
 
 
+########################## START SSURGO EXTRACTION #############################
+#' @author Zachary Kramer, \email{kramer.zachary.nau@gmail.com}
+#' @title Download and extract SSURGO data
+#' @description Download the respective SSURGO area for each site, extract
+#' the data into both spatial and tabular files, choose the most prominent keys,
+#' extract the respective data within the keys, and populate the soil layers and soil texture
+#' slots in the MMC variable with that data.
+#' @note \preformatted{Gridded STATSGO data is extracted for sites with the following issues:
+#' 1. The site failed to download or extract
+#' 2. Keys could not be chosen due to incomplete data
+#' 3. No horizons existed
+#' 4. The soil texture lacked data for any given layer of a site}
+#' @export
+do_ExtractSoilDataFromSSURGO <- function(MMC, dir_data_SSURGO, fnames_in, verbose, print.debug = FALSE,
+                                         resume, SWRunInformation, sim_size, sim_space, dir_ex_soil,
+                                         do_interpolate, req_soil_lyrs) {
+
+  #' @title Error/Warning Message
+  #' @description Prints out why a function call failed
+  #' @note Will also enable the extraction of STATSGO once all sites are finished
+  error_warning_msg <- function(lat, lon, msg) {
+    # Print the raw error
+    if (FALSE) {
+      cat("\n        > Raw errors were manually enabled:")
+      cat(paste("\n          ", msg))
+    }
+    # Print the summarized error
+    if (print.debug) {
+      cat("\n        > Warning:")
+      cat(paste0("\n             > Coordinates (", lat, ", ", lon, ") failed."))
+      cat(paste("\n             > Please check whether or not SSURGO supports the coordinates."))
+      cat(paste("\n             > STATSGO data will be extracted for this site once the other sites are finished.\n\n"))
+    }
+    do_STATSGO <<- TRUE
+    NULL
+  }
+
+  ##############################################################################
+  # Prepare for the extraction
+  ##############################################################################
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                          round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+  }
+
+  # Require FedData library
+  stopifnot(requireNamespace("FedData"))
+
+  # Initialize settings
+  do_STATSGO <- FALSE  # Indicates that STATSGO should be extracted to fill in missing data
+  MMC[["idone"]]["SSURGO"] <- FALSE  # Meaning before the run, SSURGO has not finished
+  # Determine which sites to extract for
+  todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "SSURGO"
+  names(todos) <- NULL
+  # Determine the number of sites to extract for
+  n_extract <- sum(todos)
+  if (n_extract == 0) MMC
+  if (verbose) print(paste("Soil data from 'SSURGO' will be extracted for n =", n_extract, "sites"))
+  
+  ############################################################################
+  # Start by setting the directory and extracting site info from Input Master
+  ############################################################################
+  library(FedData)
+  old_wd <- getwd()
+  dir.create(dir_data_SSURGO, showWarnings = F, recursive = T)
+  setwd(dir_data_SSURGO)
+  for (i in which(todos)) {
+   tryCatch({
+      lat <- SWRunInformation[i, "Y_WGS84"]
+      lon <- SWRunInformation[i, "X_WGS84"]
+      # Create a spatial polygon object to serve as an area to download because get_ssurgo() 
+      # cannot work with single points
+      site <- polygon_from_extent(raster::extent(lon, lon + .00000001, lat, lat + .00000001),
+                                  proj4string = "+proj=longlat +datum=NAD83 +no_defs")
+      
+      #########################################################################
+      # Download this site and extract it into spatial and tabular data
+      #########################################################################
+      if (print.debug) cat(paste("Site", i))
+      if (print.debug) cat("\n    > Downloading SSURGO data...")
+      # Get the NRCS SSURGO data (USA ONLY)
+      # Download to a folder: "SSURGO-[LAT]-[LON]"
+      x <- suppressMessages(get_ssurgo(template = site, label = paste0("SSURGO-", lat, "-", lon)))
+      # Check if FedData was able to download and extract the files
+      if (is.null(x)) next
+      
+      ########################################################################
+      # Find the most prominent mukey, cokey, and the corresponding chkeys
+      ########################################################################
+      if (print.debug) cat("\n    > Choosing keys...")
+      
+      # Create a merged data frame with component percent, mukey, cokey, chkey
+      keys <- merge(x$tabular$component[, ][, c('comppct.r', 'mukey', 'cokey')], x$tabular$chorizon[, ][, c('cokey', 'chkey')])  # Join by cokey
+      keys <- merge(keys, x$tabular$chfrags[, ][, 'chkey', drop=FALSE])  # Join by chkey
+      
+      # Ensure a mukey exists
+      if (length(keys$mukey) == 0) {
+        if (print.debug) cat("\n        > Error")
+        if (print.debug) cat(paste("\n             > No mukey; STATSGO will be used\n\n"))
+        next
+      }
+      
+      # Grab the mukey with the largest summed component percent
+      mukey <- keys$mukey[which.max(tapply(keys$comppct.r, keys$mukey, sum))]
+      # Grab the cokey with the largest individual component percent within the above mukey
+      mukey_indices <- which(keys$mukey == mukey)
+      cokey <- keys$cokey[mukey_indices[which.max(keys$comppct.r[mukey_indices])]]
+      # Grab all chkeys within the above cokey
+      chkeys <- keys$chkey[which(keys$cokey == cokey)]
+      
+      # New combination of keys
+      keys <- c(mukey, cokey, chkeys)
+      
+      # Check if any key was extracted
+      if (is.null(keys) || length(keys) < 3) {
+        do_STATSGO <<- TRUE
+        next  # No keys exist, so move on to the next site
+      }
+      
+      ######################################################################
+      # Merge extracted data into one structure via the selected keys
+      ######################################################################
+      if (print.debug) cat("\n    > Extracting needed data from SSURGO CSVs...")
+      
+      # Extract data
+      chorizon_data     <- x$tabular$chorizon[x$tabular$chorizon$chkey %in% keys, ][, c('sandtotal.r', 'claytotal.r', 'dbthirdbar.r','hzdepb.r', 'chkey')]
+      chfrags_data      <- x$tabular$chfrags[x$tabular$chfrags$chkey %in% keys, ][, c('fragvol.r', 'chkey')]
+      component_data    <- x$tabular$component[x$tabular$component$cokey %in% keys, ][, 'comppct.r', drop=FALSE]
+      # Merge chfrags and chorizon
+      horizon_frags     <- as.data.frame(merge(chorizon_data, chfrags_data, all = TRUE))
+      # Mean fragvol.r
+      horizon_frags     <- aggregate(horizon_frags[, -1], list(chkey = horizon_frags$chkey), mean)
+      # Sort by horizon depth
+      horizon_frags     <- horizon_frags[order(horizon_frags$hzdepb.r), ]
+      # Create final data
+      x <- c(horizon_frags, component_data)
+      
+      # Do any horizons exist?
+      if (length(x$hzdepb.r) == 0) {
+        if (print.debug) cat("\n        > No horizons exist for this site; will fill with STATSGO\n\n")
+        next  # This key lacked too much data, move on to the next
+      }
+      
+      ######################################################################
+      # Convert SSURGO units to our units
+      ######################################################################
+      # Percents to fractions
+      x$sandtotal.r <- x$sandtotal.r / 100
+      x$claytotal.r <- x$claytotal.r / 100
+      x$fragvol.r   <- x$fragvol.r   / 100
+      # g/cm^3 to mg/m^3
+      x$dbthirdbar  <- x$dbthirdbar * 10^9
+      
+      ######################################################################
+      # Update input file values (soil layers, soil texture, input master)
+      ######################################################################
+      if (print.debug) cat("\n    > Writing to MMC variable...")
+
+      # Insert site names
+      r1 <- as.integer(rownames(MMC[["input"]][i, ]))
+      r2 <- as.integer(rownames(MMC[["input2"]][i, ]))
+      MMC[["input"]][r1, "Label"]   <<- SWRunInformation[i, "Label"]
+      MMC[["input2"]][r2, "Label"] <<- SWRunInformation[i, "Label"]
+      # Insert the max soil depth
+      MMC[["input2"]][r1, "SoilDepth_cm"] <<- x$hzdepb.r[length(x$hzdepb.r)]
+      # Insert key info (SEE ISSUE #288)
+      # MMC[["input2"]][r2, "Mukey"]   <<- keys[1]
+      # MMC[["input2"]][r2, "Cokey"]   <<- keys[2]
+      # MMC[["input2"]][r2, "Comppct"] <<- x$comppct.r
+      
+      # Soil texture data -- if missing, use STATSGO
+      lyrs <- 1:length(x$hzdepb.r)
+      if (any(is.na(x$sandtotal.r[lyrs])) || any(is.na(x$claytotal.r[lyrs])) || any(is.na(x$dbthirdbar.r[lyrs])))
+      {
+        if (print.debug) cat("\n        > Soil texture data incomplete; STATSGO will be used\n\n")
+        do_STATSGO <<- TRUE
+        next
+      }
+      
+      # Gravel content -- if missing, add a value of .01 so SOILWAT2 will not fail
+      missingData <- which(is.na(x$fragvol.r) | x$fragvol.r == 0 | is.null(x$fragvol.r))
+      if (length(missingData) > 0)
+      {
+        gravel[missingData] <- 0.01
+        if (print.debug) cat(paste0("\n        > Gravel content is missing for layer ", missingData, "; replaced with 0.01"))
+      }
+      
+      # Insert incremented fields
+      for (j in lyrs) {
+        col_names <- paste0(c("Sand_L", "Clay_L", "Matricd_L", "GravelContent_L"), j)
+        # Input use
+        MMC[["use"]][col_names] <<- TRUE
+        # Soil texture
+        MMC[["input"]][r1, col_names[1]] <- x$sandtotal.r[j]
+        MMC[["input"]][r1, col_names[2]] <- x$claytotal.r[j]
+        MMC[["input"]][r1, col_names[3]] <- x$dbthirdbar.r[j]
+        MMC[["input"]][r1, col_names[4]] <- x$fragvol.r[j]
+        # Soil layer depth
+        MMC[["input2"]][r2, paste0("depth_L", j)] <- x$hzdepb.r[j]
+      }
+      
+      # If any site completes an extraction without errors, we consider SSURGO to have worked
+      MMC[["idone"]]["SSURGO"] <<- TRUE
+      MMC[["source"]][i] <<- "SSURGO"
+      if (print.debug) cat("\n    > Done!\n\n")
+    },
+    error   = function(e) { error_warning_msg(lat, lon, e) },
+    warning = function(w) { error_warning_msg(lat, lon, w) })
+  }
+
+  
+  ########################################################################
+  # Extract STATSGO based on described cases
+  ########################################################################
+  if (do_STATSGO)
+    MMC <<- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC = MMC, sim_size = sim_size, sim_space = sim_space,
+                                                           dir_ex_soil = dir_ex_soil,
+                                                           fnames_in = fnames_in, resume = resume, verbose = verbose)
+  
+
+  ########################################################################
+  # Write to the CSVs
+  ########################################################################
+  utils::write.csv(reconstitute_inputfile(MMC[["use"]], MMC[["input"]]), file = fnames_in[["fsoils"]], row.names = FALSE)
+  utils::write.csv(MMC[["input2"]], file = fnames_in[["fslayers"]], row.names = FALSE)
+  
+  ########################################################################
+  # Exit
+  ########################################################################
+  setwd(old_wd)
+  MMC
+}
+
+############################ END SSURGO EXTRACTION #############################
 
 #' Extract soil characteristics
 #' @export
@@ -762,6 +998,22 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
     sw_input_soillayers = SFSW2_prj_inputs[["sw_input_soillayers"]],
     sw_input_soils_use = SFSW2_prj_inputs[["sw_input_soils_use"]],
     sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]])
+
+  # SSURGO has to come before STATSGO, because any incomplete SSURGO data is filled by STATSGO
+  if (exinfo$ExtractSoilDataFromSSURGO) {
+    MMC <- do_ExtractSoilDataFromSSURGO(
+      MMC              = MMC,
+      dir_data_SSURGO  = SFSW2_prj_meta[["project_paths"]][["dir_data_SSURGO"]],
+      fnames_in        = SFSW2_prj_meta[["fnames_in"]],
+      verbose          = verbose,
+      resume           = resume,
+      print.debug      = opt_verbosity[["print.debug"]],
+      SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+      sim_size         = SFSW2_prj_meta[["sim_size"]],
+      sim_space        = SFSW2_prj_meta[["sim_space"]],
+      dir_ex_soil      = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]]
+    )
+  }
 
   if (exinfo$ExtractSoilDataFromCONUSSOILFromSTATSGO_USA) {
     MMC <- do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC,
@@ -804,4 +1056,3 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
 
 #------END OF SOIL CHARACTERISTICS------
 #----------------------------------------------------------------------------------------#
-

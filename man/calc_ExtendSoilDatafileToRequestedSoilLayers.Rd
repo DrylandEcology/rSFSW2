@@ -2,11 +2,14 @@
 % Please edit documentation in R/PriorCalculations.R
 \name{calc_ExtendSoilDatafileToRequestedSoilLayers}
 \alias{calc_ExtendSoilDatafileToRequestedSoilLayers}
-\title{Add soil layers (by interpolation) if not already present}
+\title{Add soil layers to soil datafile (by interpolation) if layers are not already present}
 \usage{
 calc_ExtendSoilDatafileToRequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
-  runIDs_adjust, verbose = FALSE)
+  runIDs_adjust, verbose = FALSE, full_interpolation = FALSE)
 }
 \description{
-Add soil layers (by interpolation) if not already present
+Add soil layers to soil datafile (by interpolation) if layers are not already present
+}
+\seealso{
+\code{\link{calc_AddRequestedSoilLayers}}
 }
