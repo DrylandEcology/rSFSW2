@@ -1,8 +1,5 @@
 environment:
   matrix:
-    - R_VERSION: oldrel
-      RTOOLS_VERSION: 34
-      CRAN: http://cran.rstudio.com
     - R_ARCH: i386
     - R_ARCH: x64
   USE_RTOOLS: true
