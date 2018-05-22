@@ -8,7 +8,7 @@ entire \code{dbWork}}
 add_status_dbWork(con)
 }
 \arguments{
-\item{con}{A valid SQLiteConnection database connection to \code{dbWork}.}
+\item{con}{A valid \code{SQLiteConnection} database connection to \code{dbWork}.}
 }
 \description{
 First check whether such a table with one row exists, if so, don't overwrite.

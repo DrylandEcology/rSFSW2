@@ -2,8 +2,8 @@
 % Please edit documentation in R/Miscellaneous_Functions.R
 \name{adjust.WindspeedHeight}
 \alias{adjust.WindspeedHeight}
-\title{Function to extrapolate windspeeds measured at a height different from the SOILWAT2
- required 2-m above ground}
+\title{Function to extrapolate windspeeds measured at a height different from the
+2-m above ground that are assumed by \pkg{SOILWAT2}}
 \usage{
 adjust.WindspeedHeight(uz, height)
 }
@@ -17,11 +17,11 @@ measured.}
 Windspeed [m/s] at a height of 2 m above ground.
 }
 \description{
-Based on eqn. 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
+Based on equation 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
  other than clipped grass, the user should apply the full logarithmic equation B.14".
 }
 \references{
-Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005)
- The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
+Allen R.G., Walter I.A., Elliott R., Howell T., Itenfisu D., Jensen M.
+ (2005) The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
  Committee Report.
 }

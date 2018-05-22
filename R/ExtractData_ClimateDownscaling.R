@@ -106,7 +106,8 @@ climscen_metadata <- function() {
 }
 
 
-#Helper functions
+#------Helper functions
+
 unique_times <- function(timeSlices, slice) {
   starts <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
   ends <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
@@ -148,14 +149,23 @@ fill_bounding_box <- function(box, vals) {
 #' The value of \code{addDelta} will be evenly split up among \code{ind_events}.
 #'
 #' @param data A numeric vector. Daily values of precipitation.
-#' @param ind_events A logical or integer vector of the same length as \code{data} or \code{NULL}. If logical, then TRUE/FALSE for each element/day of \code{data} whether it precipitates or not. If integer, then the indices of \code{data} on which it precipitates. If \code{NULL}, then it will be calculated as \code{data > 0}.
-#' @param addDelta A numeric value or \code{NULL}. The total amount of precipitation that is to be added/removed from \code{data[ind_events]} together (divided among events), i.e., it requires the same unit as \code{data}.
-#' @param deltaPerEvent A numeric vector of the length equal to \code{sum(ind_events)} or \code{NULL}. The daily amount of precipitation that is to be added/removed from each \code{data[ind_events]}, i.e., it requires the same unit as \code{data}.
+#' @param ind_events A logical or integer vector of the same length as \code{data} or
+#'    \code{NULL}. If logical, then \code{TRUE}/\code{FALSE} for each element/day of
+#'    \code{data}  whether it precipitates or not. If integer, then the indices of
+#'    \code{data} on which it precipitates. If \code{NULL}, then it will be calculated as
+#'    \code{data > 0}.
+#' @param addDelta A numeric value or \code{NULL}. The total amount of precipitation
+#'    that is to be added/removed from \code{data[ind_events]} together
+#'    (divided among events), i.e., it requires the same unit as \code{data}.
+#' @param deltaPerEvent A numeric vector of the length equal to \code{sum(ind_events)} or
+#'    \code{NULL}. The daily amount of precipitation that is to be added/removed from
+#'    each \code{data[ind_events]}, i.e., it requires the same unit as \code{data}.
 #'
 #' @return A list with two elements
 #'  \describe{
 #'    \item{data}{A copy of \code{data} with adjusted values.}
-#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
+#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed
+#'      from \code{data} due to lack of precipitation.}
 #'  }
 add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerEvent = NULL) {
   stopifnot(xor(is.null(deltaPerEvent), is.null(addDelta)))
@@ -205,8 +215,8 @@ add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerE
 #' @param data A numeric vector. Daily values of precipitation.
 #' @param targetLength An integer value.
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-#'  are passed to \code{\link{set.seed}}.
+#'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+#'  and all other values are passed to \code{\link{set.seed}}.
 #'
 #' @return A copy of \code{data} with adjusted length.
 fix_PPTdata_length <- function(data, targetLength, seed = NA) {
@@ -243,15 +253,15 @@ fix_PPTdata_length <- function(data, targetLength, seed = NA) {
 #'  consider.
 #' @param this_newPPTevent_N An integer value. The number of days which will received
 #'  'spill-over' precipitation.
-#' @param sigmaN An integer value. The multiplicator of \code{this_newPPTevent_N} to
+#' @param sigmaN An integer value. The multiplier of \code{this_newPPTevent_N} to
 #'  determine the range of days to consider.
 #' @param this_i_extreme An integer value. The index indicating for which day in the
 #'  precipitation record, precipitation is removed and redistributed.
 #' @param this_pptToDistribute An integer value. The amount of precipitation that was
 #'  removed from day \code{this_i_extreme} and is now redistributed to other days.
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-#'  are passed to \code{\link{set.seed}}.
+#'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+#'  and all other values are passed to \code{\link{set.seed}}.
 calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme,
   this_pptToDistribute, seed = NA) {
 
@@ -284,11 +294,11 @@ calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_
 #' @param dailyPPTceiling A numeric value. The maximum value of daily precipitation.
 #'  Values above this limit will be removed and redistributed to other days.
 #' @param do_checks A logical value. See details.
-#' @param sigmaN An integer value. A multiplicator of \code{stats::sd} for data checks.
+#' @param sigmaN An integer value. A multiplier of \code{stats::sd} for data checks.
 #' @param mfact A numeric value. See details.
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-#'  are passed to \code{\link{set.seed}}.
+#'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+#'  and all other values are passed to \code{\link{set.seed}}.
 #'
 #' @details If \code{do_check == TRUE} and any daily precipitation is equal or larger than
 #'  \code{mfact * dailyPPTceiling}, then the code will error out.
@@ -330,7 +340,9 @@ controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = F
   data
 }
 
-#' Add/multiply deltas to historic daily data to generate future daily SOILWAT2-formatted weather.
+#' Add/multiply deltas to historic daily data to generate future daily
+#' \pkg{rSOILWAT2}-formatted weather.
+#'
 #' Used by \code{downscale.raw}, \code{downscale.delta}, and \code{downscale.deltahybrid}
 applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks = FALSE) {
   dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN = function(obs) max(obs@data[, 4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by "spreading out" very large daily precipitation values into one or more adjacent days"
@@ -402,8 +414,8 @@ applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sig
 #' Add/multiply deltas to historic daily precipitation to generate future daily
 #'  precipitation without checks
 #'
-#' @param m An integer vector. Each element corresponds to a day (i.e., length(m) is 365
-#'  or 366 days) and the values are the number of the month.
+#' @param m An integer vector. Each element corresponds to a day (i.e., \code{length(m)}
+#'  is 365 or 366 days) and the values are the number of the month.
 #' @param data A numeric vector. Precipitation of each day.
 #' @param ydelta A numeric vector. Delta values for each day. If computed deltas are
 #'  monthly, then they must be repeated for each day before passed as argument to this
@@ -446,14 +458,16 @@ applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
   ppt
 }
 
-#' Add/multiply deltas to historic daily precipitation to generate future daily precipitation with checks
+#' Add/multiply deltas to historic daily precipitation to generate future daily
+#' precipitation with checks
 #'
 #' @inheritParams applyPPTdelta_simple
 #' @inheritParams downscale
 #' @return A list with two elements
 #'  \describe{
 #'    \item{data}{A copy of \code{data} with adjusted values.}
-#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
+#'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed
+#'      from \code{data} due to lack of precipitation.}
 #'  }
 applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, monthly) {
   ppt <- rep(0, length(data))
@@ -641,18 +655,18 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
 #' @section Details: Units are [degree Celsius] for temperature and [cm / day] or
 #'  [cm / month], respectively, for precipitation
 #'
-#' @param obs.hist.daily A list. Each element corresponds to one year of simstartyr:endyr
+#' @param obs.hist.daily A list. Each element corresponds to one year of
+#'  \code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.
+#' @param daily A list. Each element corresponds to one year of \code{simstartyr:endyr}
 #'  is an object of class \linkS4class{swWeatherData}.
-#' @param daily A list. Each element corresponds to one year of simstartyr:endyr is an
-#'  object of class \linkS4class{swWeatherData}.
 #' @param obs.hist.monthly A numeric matrix. Monthly time-series of observed weather
-#'  calculated from \code{obs.hist.daily} for the years simstartyr:endyr.
+#'  calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.
 #' @param monthly A numeric matrix. Monthly time-series of observed weather calculated
-#'  from \code{daily} for the years simstartyr:endyr.
+#'  from \code{daily} for the years \code{simstartyr:endyr}.
 #' @param scen.hist.monthly A numeric matrix. Monthly time-series of scenario weather
-#'  during the historic time period DScur_startyr:DScur_endyr
+#'  during the historic time period \code{DScur_startyr:DScur_endyr}
 #' @param scen.fut.monthly A numeric matrix. Monthly time-series of scenario weather
-#'  during the projected time period DSfut_startyr:DSfut_endyr
+#'  during the projected time period \code{DSfut_startyr:DSfut_endyr}
 #' @param opt_DS A named list.
 #' @param do_checks A logical value. If \code{TRUE} perform several sanity checks on the
 #'  data.
@@ -834,7 +848,7 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
 #' @inheritParams downscale
 #'
 #' @references Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta
-#'  change and downscaled gcm scenarios for three mountainous basins in the United States.
+#'  change and downscaled GCM scenarios for three mountainous basins in the United States.
 #'  Journal of the American Water Resources Association 36:387-397.
 #' @references Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical
 #'  downscaling techniques for global climate model simulations of temperature and
@@ -922,7 +936,7 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+#'  Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.
@@ -1040,39 +1054,39 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #' Apply a quantile mapping
 #'
 #' Whereas the function \code{\link[qmap]{fitQmapQUANT}} estimates values of the empirical
-#' cumulative distribution function of observed and modelled time series for regularly
+#' cumulative distribution function of observed and modeled time series for regularly
 #' spaced quantiles. \code{doQmapQUANT.default_drs} uses these estimates to perform
 #' quantile mapping.
 #'
 #' @section Details: \itemize{
 #'  \item \code{type} takes one of two possible values \itemize{
-#'    \item "linear": linear interpolation using \code{\link[stats]{approx}}
-#'    \item "tricub": monotonic tricubic spline interpolation using
+#'    \item \var{\dQuote{linear}}: linear interpolation using \code{\link[stats]{approx}}
+#'    \item \var{\dQuote{tricub}}: monotonic tricubic spline interpolation using
 #'      \code{\link[stats]{splinefun}}. Splines may result in abnormally high output
 #'      values which appears to be due to at least two reasons: \enumerate{
 #'        \item extrapolation errors
 #'        \item huge oscillations in the spline-function which arise from non-monotone
-#'          splines (\code{spline_method} is 'fmm' or 'natural') or which arise from
-#'          numerical instabilities in the exact monotonicity if \code{spline_method} is
-#'          'monoH.FC'
+#'          splines (\code{spline_method} is \var{\dQuote{fmm}} or \var{\dQuote{natural}})
+#'          or which arise from numerical instabilities in the exact monotonicity if
+#'          \code{spline_method} is \var{\dQuote{monoH.FC}}.
 #'        }
 #'  }
 #'  \item \code{lin_extrapol} is the extrapolation for values of \code{x} that are outside
 #'    \code{range(fobj[["par"]]$modq)}. This argument is only in effect if \code{type}
-#'    is "linear" and takes one of three possible values \itemize{
-#'    \item "none": no linear extrapolation is performed, i.e., output of
-#'      \code{\link[stats]{approx}}" for type = 2 is return; that is 'values at the
+#'    is \var{\dQuote{linear}} and takes one of three possible values \itemize{
+#'    \item \var{\dQuote{none}}: no linear extrapolation is performed, i.e., output of
+#'      \code{\link[stats]{approx}} for type = 2 is return; that is 'values at the
 #'      closest data extreme'.
-#'    \item "Boe": constant extrapolation from Boe et al. 2007
-#'    \item "Thermessl2012CC.QMv1b": same extrapolation as Boe et al. 2007, but not
-#'      not including three largest/smallest values, from Thermessl et al. 2012.
+#'    \item \var{\dQuote{Boe}}: constant extrapolation from Boe et al. 2007
+#'    \item \var{\dQuote{Thermessl2012CC.QMv1b}}: same extrapolation as Boe et al. 2007,
+#'      but not including three largest/smallest values, from Themessl et al. 2012.
 #'  }
 #'  \item \code{fix_spline} takes one of three values \itemize{
-#'    \item "none": No correction to mapped values is applied.
-#'    \item "fail": If mapped values fall outside the range suggested by
+#'    \item \var{\dQuote{none}}: No correction to mapped values is applied.
+#'    \item \var{\dQuote{fail}}: If mapped values fall outside the range suggested by
 #'      \code{monthly_extremes}, then an error is generated.
-#'    \item "attempt": The spline-based mapping is repeated up to ten times where the
-#'      values of the quantile map \code{fobj} are jittered.
+#'    \item \var{\dQuote{attempt}}: The spline-based mapping is repeated up to ten times
+#'      where the values of the quantile map \code{fobj} are jittered.
 #'  }
 #'  }
 #'
@@ -1087,8 +1101,8 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #'  transformations - a comparison of methods. Hydrology and Earth System Sciences
 #'  16:3383-3390.
 #'
-#' @seealso Based on code from \code{\link[qmap]{doQmapQUANT}} v1.0.4 (Gudmundson et al.
-#'  2012), but with additional methods and more granual control. See details.
+#' @seealso Based on code from \code{\link[qmap]{doQmapQUANT}} v1.0.4 (Gudmundsson et al.
+#'  2012), but with additional methods and more granular control. See details.
 #'
 #' @param x A numeric vector. The values to map.
 #' @param fobj An object of class \code{\link[qmap]{fitQmapQUANT}}.
@@ -1097,9 +1111,9 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #' @param lin_extrapol A character string. Type of extrapolation when interpolation is
 #'  linear. See details.
 #' @param spline_method A character string. Type of spline, passed to
-#'  \code{\link[stats]{splinefun}} as \code{method} argument. The type "monoH.FC" is the
-#'  only appropriate method here because quantile mapping requires a monotone function
-#'  if possible.
+#'  \code{\link[stats]{splinefun}} as \code{method} argument. The type
+#'  \var{\dQuote{monoH.FC}} is the only appropriate method here because quantile mapping
+#'  requires a monotone function if possible.
 #' @param monthly_extremes A numeric vector of length two. The first element suggests a
 #'  monthly minimum value and the second element a monthly maximum value for the mapped
 #'  output.
@@ -1108,8 +1122,9 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #'
 #' @return A numeric vector of the length of \code{x}. Return values differ among repeated
 #'  calls with identical input arguments if jitter correction (using random numbers) is
-#'  applied, i.e., \code{type} is 'spline', \code{fix_spline} is 'attempt' and there are
-#'  values outside the range suggested by \code{monthly_extremes}.
+#'  applied, i.e., \code{type} is \var{\dQuote{spline}}, \code{fix_spline} is
+#'  \var{\dQuote{attempt}} and there are values outside the range suggested by
+#'  \code{monthly_extremes}.
 #'
 #' @name doQmapQUANT
 doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
@@ -1197,15 +1212,16 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
 
 #' @rdname doQmapQUANT
 #' @inheritParams doQmapQUANT
-#' @param type_map A character vector. The type of interpolation, extrapolation, and spline
-#'  passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include "linear_Boe",
-#'  "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC",
-#'  "tricub_natural", and "normal_anomalies". See details.
+#' @param type_map A character vector. The type of interpolation, extrapolation, and
+#'  spline passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include
+#'  \var{\dQuote{linear_Boe}}, \var{\dQuote{linear_Thermessl2012CC.QMv1b}},
+#'  \var{\dQuote{linear_none}}, \var{\dQuote{tricub_fmm}}, \var{\dQuote{tricub_monoH.FC}},
+#'  \var{\dQuote{tricub_natural}}, and \var{\dQuote{normal_anomalies}}. See details.
 #' @param monthly_obs_base A numeric vector. Base values used to calculate t-scores of
-#'  \code{x} which are only used if \code{type_map} is "normal_anomalies".
+#'  \code{x} which are only used if \code{type_map} is \var{\dQuote{normal_anomalies}}.
 #'
 #' @section Details: \itemize{
-#'  \item \code{type_map} with "normal_anomalies" represents a 'linear
+#'  \item \code{type_map} with \var{\dQuote{normal_anomalies}} represents a 'linear
 #'  interpolation with extrapolation following Boe et al. 2007 and a correction using
 #'  standard anomalies (i.e. number of standard deviations from the mean) for values
 #'  outside the observed quantile map that is based on Tohver et al. 2014 (Appendix A)}
@@ -1263,7 +1279,8 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
 
 #------------------------
 
-#' Downscale with the 'delta-hybrid approach' new version (post to May 2016)
+#' Downscale with the new version of the \var{sQuote{delta-hybrid approach}}
+#' (post to May 2016)
 #'
 #' Hybrid-delta downscaling developed by Hamlet et al. 2010 and Tohver et al. 2014.
 #' Applied, e.g., by Dickerson-Lange et al. 2014.
@@ -1285,13 +1302,14 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+#'  Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.
 #' @references Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012).
 #'  Technical Note: Downscaling RCM precipitation to the station scale using statistical
-#'  transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+#'  transformations - a comparison of methods. Hydrology and Earth System Sciences, 16,
+#'  3383-3390.
 #'
 #' @export
 downscale.deltahybrid3mod <- function(
@@ -1677,11 +1695,13 @@ extract_variable_NEX <- function(i_tag, variable, scen, gcm, rip, lon, lat, bbox
   dat
 }
 
-#' Download downscaled GCM projections from NEX
+#' Download downscaled \var{GCM} projections from \var{NEX}
 #'
 #' @return A list of one data.frame object with 5 columns and names of
-#' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
-#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
+#'   \var{\dQuote{year}}, \var{\dQuote{month}}, \var{\dQuote{tmax}}, \var{\dQuote{tmin}},
+#'   and \var{\dQuote{prcp}}. Each row is one day.
+#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month],
+#' respectively, for precipitation.
 get_GCMdata_NEX <- function(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat,
   startyear, endyear, climDB_meta, ...) {
   dots <- list(...) # dir_out_temp
@@ -1759,9 +1779,9 @@ get_time_unit <- function(tunit) {
 }
 
 
-#' Read and interpret time dimension of a netCDF file with CF 1 or larger
+#' Read and interpret time dimension of a \var{netCDF} file with \acronym{CF} 1 or larger
 #'
-#' @param filename A character string. The name of a netCDF file.
+#' @param filename A character string. The name of a \var{netCDF} file.
 #'
 #' @return A list with six elements:
 #'  \describe{
@@ -1772,9 +1792,9 @@ get_time_unit <- function(tunit) {
 #'    \item{N}{The number of steps along the time dimension.}
 #'    \item{base}{The start date of the time dimension.}
 #'    \item{start}{A numeric vector representing the first date with named elements
-#'      'year' and 'month'.}
-#'    \item{end}{A numeric vector representing the last date with named elements 'year'
-#'      and 'month'.}
+#'      \var{\dQuote{year}} and \var{\dQuote{month}}.}
+#'    \item{end}{A numeric vector representing the last date with named elements
+#'      \var{\dQuote{year}} and \var{\dQuote{month}}.}
 #'  }
 #'
 #' @export
@@ -1958,11 +1978,13 @@ extract_variable_netCDF <- function(filepath, variable, unit, ncg, nct, lon, lat
   res
 }
 
-#' Extract GCM projection from a netCDF file
+#' Extract \var{GCM} projection from a \var{netCDF} file
 #'
 #' @return A list of one data.frame object with 5 columns and names of
-#' "year", "month", "tmax", "tmin", and "prcp". Each row is one day.
-#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
+#'   \var{\dQuote{year}}, \var{\dQuote{month}}, \var{\dQuote{tmax}}, \var{\dQuote{tmin}},
+#'   and \var{\dQuote{prcp}}. Each row is one day.
+#' Units are [degree Celsius] for temperature and [cm / day] and [cm / month],
+#' respectively, for precipitation.
 get_GCMdata_netCDF <- function(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, startyear,
   endyear, climDB_meta, ...) {
 
@@ -2541,14 +2563,14 @@ try.ScenarioWeather <- function(i, clim_source, use_CF, use_NEX, climDB_meta,
 }
 
 #' Organizes the calls (in parallel) which obtain specified scenario weather for the
-#'  weather database from one of the available GCM sources
+#'  weather database from one of the available \var{GCM} sources
 #'
 #' This function assumes that a whole bunch of global variables exist and contain
 #'  appropriate values.
 #'
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-#'  are passed to \code{\link{set.seed}}.
+#'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+#'  and all other values are passed to \code{\link{set.seed}}.
 tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations, getYears,
   assocYears, project_paths, dir_failed, fdbWeather, climate.ambient,
@@ -2720,7 +2742,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp, verbose 
 #' Determine climate scenario data sources
 #'
 #' Allow for multiple data sources among sites but not multiple sources per site
-#' (for that you need a new row in the MasterInput spreadsheet)
+#' (for that you need a new row in the \var{\sQuote{MasterInput}} spreadsheet)
 climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs) {
 
   xy <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
@@ -2764,12 +2786,12 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
 }
 
 
-#' @references http://cfconventions.org/
+#' @references \url{http://cfconventions.org/}
 is_ClimateForecastConvention <- function(x, ignore.case = TRUE) {
   grepl("(BCSD_GDODCPUCLLNL)|(SageSeer)|(ESGF)", x, ignore.case = ignore.case)
 }
 
-#' @references https://nex.nasa.gov/nex/projects/1356/
+#' @references \url{https://nex.nasa.gov/nex/projects/1356/}
 is_NEX <- function(x, ignore.case = TRUE) {
   grepl("NEX", x, ignore.case = ignore.case)
 }
@@ -3191,7 +3213,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
 }
 
 
-#' Extract climate scenarios from downloaded ClimateWizard.org data
+#' Extract climate scenarios from downloaded \url{ClimateWizard.org} data
 #' @export
 ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs, todos,
   verbose = FALSE) {

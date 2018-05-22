@@ -24,12 +24,12 @@ Move temporary output data to output databases
   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
     \code{dbWork}
   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
-    \code{concatFile} and \code{SQL_tmptxt_failed.txt}
+    \code{concatFile} and \file{SQL_tmptxt_failed.txt}
   \item \code{dir_out_temp} is the path to temporary output files
-  \item SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] is the full file name of
+  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]} is the full file name of
     \code{dbOutput}
-  \item SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]] is the full file name of
-    \code{dbOutput_current}
+  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]} is the full
+    file name of \code{dbOutput_current}
 }
 
  The code executes \code{opt_out} option

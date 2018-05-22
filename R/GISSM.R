@@ -95,10 +95,12 @@ get_modifiedHardegree2006NLR <- function(RYdoy, Estimate_TimeToGerminate, TmeanJ
   if (out <= durations[RYdoy] & RYdoy + out <= 365) out else NA #test whether enough time to germinate
 }
 
-#' Function to estimate time to germinate for each day of a given year and conditions (temperature, top soil SWP)
+#' Function to estimate time to germinate for each day of a given year and conditions
+#' (temperature, top soil \var{SWP})
+#'
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-#'  the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-#'  are passed to \code{\link{set.seed}}.
+#'  the state of the \var{RNG}; \code{NULL} will re-initialize the \var{RNG};
+#'  and all other values are passed to \code{\link{set.seed}}.
 calculate_TimeToGerminate_modifiedHardegree2006NLR <- function(RYyear,
   Germination_DuringFavorableConditions, LengthDays_FavorableConditions,
   RYyear_ForEachUsedDay, soilTmeanSnow, swp.TopMean, TmeanJan, param, seed = NA) {

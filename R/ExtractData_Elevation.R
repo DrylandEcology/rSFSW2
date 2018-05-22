@@ -38,7 +38,7 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 }
 
 
-#' @references National Elevation Dataset (ned.usgs.gov)
+#' @references National Elevation Dataset \url{ned.usgs.gov}
 do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fnames_in,
   resume, verbose) {
 

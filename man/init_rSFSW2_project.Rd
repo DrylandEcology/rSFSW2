@@ -2,7 +2,7 @@
 % Please edit documentation in R/Simulation_Project.R
 \name{init_rSFSW2_project}
 \alias{init_rSFSW2_project}
-\title{Initialize a rSFSW2 project (setup description file)}
+\title{Initialize a \pkg{rSFSW2} project (setup description file)}
 \usage{
 init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
   print.debug = FALSE)

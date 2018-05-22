@@ -73,7 +73,7 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
 }
 
 
-#' Connect to SQLite-database
+#' Connect to \var{SQLite}-database
 #'
 #' A wrapper around \code{\link[RSQLite]{dbConnect}} that catches errors and attempts
 #' to connect up to \code{repeats} before giving up.

@@ -30,14 +30,14 @@ Function that checks whether all relevant (those with roots) soil layers are und
  roots and over which layers \code{kill.conditions} will be evaluated.
 }
 \section{Note}{
- The Rcpp version of the function is about 165x faster than the version
- previous to commit 6344857a9cdb08acf68fa031c43cf4a596613aad 'Small speed improvements'
- and about 70x faster than the R version. The Rcpp version also reduced the memory
- footprint by a factor of 200.
+ The \pkg{Rcpp} version of the function is about 165x faster than the
+ version previous to commit \var{6344857a9cdb08acf68fa031c43cf4a596613aad}
+ 'Small speed improvements' and about 70x faster than the R version. The \pkg{Rcpp}
+ version also reduced the memory footprint by a factor of 200.
 }
 
 \examples{
- # The Rcpp function is equivalent to the following R version
+ # The \\pkg{Rcpp} function is equivalent to the following R version
     get_KilledBySoilLayers_R <- function(relevantLayers, kill.conditions) {
       vapply(seq_along(relevantLayers), function(k) {
           if (all(is.finite(relevantLayers[k]))) {

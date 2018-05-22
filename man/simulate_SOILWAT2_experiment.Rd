@@ -2,11 +2,11 @@
 % Please edit documentation in R/Simulation_Project.R
 \name{simulate_SOILWAT2_experiment}
 \alias{simulate_SOILWAT2_experiment}
-\title{Carry out a rSFSW2 simulation experiment}
+\title{Carry out a \pkg{rSFSW2} simulation experiment}
 \usage{
 simulate_SOILWAT2_experiment(SFSW2_prj_meta, SFSW2_prj_inputs, opt_behave,
   opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
 }
 \description{
-Carry out a rSFSW2 simulation experiment
+Carry out a \pkg{rSFSW2} simulation experiment
 }

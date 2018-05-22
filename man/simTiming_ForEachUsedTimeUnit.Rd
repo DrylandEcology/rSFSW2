@@ -15,14 +15,14 @@ simTiming_ForEachUsedTimeUnit(st, sim_tscales = c("daily", "weekly",
 "weekly", "monthly", "yearly")}.}
 
 \item{use_doy_range}{A logical value. If \code{TRUE}, then the result is
-additional daily indices indicating whether the DOY is within the days indicated
+additional daily indices indicating whether the \var{DOY} is within the days indicated
 in the \code{doy_ranges}.}
 
-\item{doy_ranges}{A named list. Aggregation output variables and the daily \code{c(min, max)}
-of days you wish to calculate the aggregation over.}
+\item{doy_ranges}{A named list. Aggregation output variables and the daily
+\code{c(min, max)} of days you wish to calculate the aggregation over.}
 
-\item{latitude}{A numeric value. The latitude in decimal degrees for which a hemispheric
-adjustment is requested; however, the code extracts only the sign.}
+\item{latitude}{A numeric value. The latitude in decimal degrees for which a
+hemispheric adjustment is requested; however, the code extracts only the sign.}
 
 \item{account_NorthSouth}{A logical value. If \code{TRUE}, then the result is
 corrected for locations on the southern vs. northern hemisphere.}

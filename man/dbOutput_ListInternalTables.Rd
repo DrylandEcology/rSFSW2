@@ -2,10 +2,10 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOutput_ListInternalTables}
 \alias{dbOutput_ListInternalTables}
-\title{List the SQLite internal tables of dbOutput}
+\title{List the \var{SQLite} internal tables of \var{\sQuote{dbOutput}}}
 \usage{
 dbOutput_ListInternalTables()
 }
 \description{
-List the SQLite internal tables of dbOutput
+List the \var{SQLite} internal tables of \var{\sQuote{dbOutput}}
 }

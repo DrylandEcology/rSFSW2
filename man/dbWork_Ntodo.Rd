@@ -2,8 +2,8 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_Ntodo}
 \alias{dbWork_Ntodo}
-\title{Numbers of runs of a rSFSW2 simulation project which are uncompleted and
-not \code{inwork}}
+\title{Numbers of runs of a \pkg{rSFSW2} simulation project which are uncompleted and
+not \var{\dQuote{inwork}}}
 \usage{
 dbWork_Ntodo(path)
 }
@@ -14,6 +14,6 @@ dbWork_Ntodo(path)
 An integer value.
 }
 \description{
-Numbers of runs of a rSFSW2 simulation project which are uncompleted and
-not \code{inwork}
+Numbers of runs of a \pkg{rSFSW2} simulation project which are uncompleted and
+not \var{\dQuote{inwork}}
 }

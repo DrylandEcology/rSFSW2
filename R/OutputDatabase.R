@@ -9,7 +9,8 @@
 #MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #---------------------------------------------------------------------------------------#
 
-#' Identify P_id for which output is not completely available in the dbOutput
+#' Identify \var{P_id} for which output is not completely available in the database
+#' \var{\sQuote{dbOutput}}
 #' @export
 missing_Pids_outputDB <- function(Table, dbname) {
   mP_ids <- -1L
@@ -63,20 +64,20 @@ add_dbOutput_index <- function(con) {
 }
 
 
-#' List the design tables of dbOutput
+#' List the design tables of \var{\sQuote{dbOutput}}
 #' @export
 dbOutput_ListDesignTables <- function() c("runs", "header", "run_labels",
   "scenario_labels", "sites", "experimental_labels", "treatments", "simulation_years",
   "weatherfolders")
 
 
-#' List the SQLite internal tables of dbOutput
+#' List the \var{SQLite} internal tables of \var{\sQuote{dbOutput}}
 #' @export
 dbOutput_ListInternalTables <- function() c("sqlite_sequence", "sqlite_stat1",
   "sqlite_stat4")
 
 
-#' List the available output tables of dbOutput
+#' List the available output tables of \var{\sQuote{dbOutput}}
 #' @export
 dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") && DBI::dbIsValid(con)
@@ -97,8 +98,8 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 }
 
 
-#' List the available output tables of dbOutput which record output of variables per
-#'  soil layer
+#' List the available output tables of \var{\sQuote{dbOutput}} which record output of
+#' variables per soil layer
 #' @export
 dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, dbname = NULL) {
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") && DBI::dbIsValid(con)
@@ -132,7 +133,7 @@ getSiteIds <- function(con, folderNames) {
   wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
 }
 
-#' Get name of weather file from output database
+#' Get name of weather file from database \var{\sQuote{dbOutput}}
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput, flags = RSQLite::SQLITE_RO)
@@ -323,7 +324,9 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, respon
   dat[, iColumns[["outOrder"]]]
 }
 
-#' Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
+#' Get data of variables in the overall aggregation table for one of the
+#' \code{climCat} rows (combining 'Current' and ensembles)
+#'
 #' @export
 get.SeveralOverallVariables <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
   MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL, climate.ambient = "Current") {
@@ -406,7 +409,7 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
     DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
     DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
     temp <- unlist(DBI::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
-    iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
+    iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = TRUE) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = TRUE)]
     if (length(iTable) == 1) {
       column_names_iTable <- DBI::dbExecute(con, paste("PRAGMA X.table_info(", iTable, ");"))$name
       column_names_iTable <- column_names_iTable[-1]#Remove P_id
@@ -433,7 +436,8 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD =
   dat
 }
 
-#' Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
+#' Get data-part for an entire table for one of the \code{climCat} rows
+#' (combining 'Current' and ensembles)
 #' @export
 get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
   i_climCat = 1, whereClause = NULL, addPid = FALSE, climate.ambient = "Current") {
@@ -468,7 +472,7 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD =
       DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
       DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
       temp <- unlist(DBI::dbGetQuery(con, "SELECT name FROM X.sqlite_master WHERE type = 'table';"))
-      iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = T) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = T)]
+      iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = TRUE) & grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0", width = 2)), x = temp) & grepl(pattern = MeanOrSD, x = temp, ignore.case = TRUE)]
       if (length(iTable) == 1) {
         fields <- DBI::dbExecute(con, paste0("PRAGMA X.table_info(", iTable, ");"))$name
         fields <- fields[-1]
@@ -593,7 +597,7 @@ get_fnames_temporaryOutput <- function(dir_out_temp, concatFile, deleteTmpSQLFil
   theFileList
 }
 
-#' Extract names of dbOutput tables from content of temporary output files
+#' Extract names of \var{\sQuote{dbOutput}} tables from content of temporary output files
 #'
 #' Table names are expected to be wrapped by '\"',
 #' e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
@@ -638,9 +642,9 @@ get_DF_from_temptxt <- function(str, k = -1) {
 }
 
 
-#' Extract P_id from content of temporary output files
+#' Extract \var{P_id} from content of temporary output files
 #'
-#' P_id values are expected to be at the first position of values,
+#' \var{P_id} values are expected to be at the first position of values,
 #' e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
 #' \code{P_id = 1139776}
 get_Pid_from_temptxt <- function(str, k = -1, verbose = FALSE) {
@@ -743,13 +747,13 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
 }
 
 
-#' Moves simulation output that was written to temporary SQL-databases to a final
-#' output SQL-database
+#' Moves simulation output that was written to temporary \var{SQL}-databases to a final
+#' output \var{SQL}-database
 #'
 #' Speed tests suggest that the chunking option slows the process down considerably;
 #' thus, the default for \code{chunk_size} turns the chunking off.
 #'
-#' @return Invisibly the number of temporary SQL-databases.
+#' @return Invisibly the number of temporary \var{SQL}-databases.
 move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = NULL,
   check_if_Pid_present = FALSE) {
@@ -888,12 +892,13 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   invisible(length(theFileList))
 }
 
-#' Moves simulation output that was written to temporary text files to a SQL-database
+#' Moves simulation output that was written to temporary text files to a
+#' \var{SQL}-database
 #'
 #' @section Details: \code{move_temporary_to_outputDB}: no checking of temporary text
-#'   files is done. Any line that fails to be added to
-#'   the database (for whatever reason including a record with identical P_id/SoilLayerID
-#'   is already present) is written to a new file \code{'SQL_tmptxt_failed.txt'}.
+#'   files is done. Any line that fails to be added to the database (for whatever reason
+#'   including a record with identical combination of \var{P_id} and \var{SoilLayerID}
+#'   is already present) is written to a new file \file{SQL_tmptxt_failed.txt}.
 #' @section Details: Initial tests suggest that performance degrades if \code{chunk_size}
 #'   was small (e.g., 10); values around 1000 have been successful; values of 10,000
 #'   work about as fast as those of 1000, but memory usage is a bit larger -- and the risk
@@ -1060,20 +1065,22 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start, opt_parallel
 
 
 #' @section Details: \code{move_temporary_to_outputDB_withChecks}: temporary text files
-#'   are checked for presence of table names and identification values (P_id and
-#'   soil layer ID). If argument \code{check_if_Pid_present} is true and the record ID
-#'   already exists in the database, then values are checked for agreement. The speed
+#'   are checked for presence of table names and identification values (\var{P_id} and
+#'   \var{soil layer ID}). If argument \code{check_if_Pid_present} is true and the record
+#'   ID already exists in the database, then values are checked for agreement. The speed
 #'   penalty for running the checks vs. \code{\link{move_temporary_to_outputDB}} was
 #'   about 20% in a set of tests.
 #'   \itemize{
 #'    \item Lines that have insufficient information or that fail to be added to the
-#'        database are written to a new file \code{'SQL_tmptxt_failed.txt'}.
-#'    \item Lines with record identified by Pid (+sl) that are already in database and data
-#'        does agree (agreement information only available if \code{check_if_Pid_present})
-#'        are written to a new file \code{'SQL_tmptxt_duplicates.txt'}.
-#'    \item Lines with record identified by Pid (+sl) is already in database, but data
-#'        do not agree (agreement information only available if \code{check_if_Pid_present})
-#'        are written to a new file \code{'SQL_tmptxt_repeats.txt'}.
+#'        database are written to a new file \file{SQL_tmptxt_failed.txt}.
+#'    \item Lines with record identified by \var{Pid} (and \var{sl}) that are already in
+#'        database and data does agree (agreement information only available if
+#'        \code{check_if_Pid_present}) are written to a new file
+#'        \file{SQL_tmptxt_duplicates.txt}.
+#'    \item Lines with record identified by \var{Pid} (and \var{sl}) is already in
+#'        database, but data do not agree (agreement information only available if
+#'        \code{check_if_Pid_present}) are written to a new file
+#'        \file{SQL_tmptxt_repeats.txt}.
 #'    }
 #'
 #' @rdname move_temporary_to_outputDB
@@ -1406,7 +1413,8 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
 }
 
 
-#' Check whether dbOutput contains a complete set of output/simulation results
+#' Check whether \var{\sQuote{dbOutput}} contains a complete set of
+#' output/simulation results
 #' @export
 check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel, opt_behave,
   opt_out_run, opt_verbosity) {
@@ -2272,12 +2280,13 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, sim_scens, meanS
 }
 
 
-#' Create dbOutput if requested and/or not already present
+#' Create \var{\sQuote{dbOutput}} if requested and/or not already present
 #'
-#' @section NOTE: Do not change the design of the output database without adjusting the index
-#'   functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
-#' @return An integer value. The number of fields in the 'overall_aggregation' tables
-#'   minus 1 (i.e., 'P_id' is not counted here)
+#' @section NOTE: Do not change the design of the output database without adjusting the
+#'   index functions \code{it_Pid}, \code{it_exp}, and \code{it_site} (see part 4)
+#' @return An integer value. The number of fields in the
+#'   \var{\sQuote{overall_aggregation}} tables minus 1 (i.e., the field
+#'   \var{\dQuote{P_id}} is not counted here)
 #' @export
 make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
@@ -2425,12 +2434,13 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 }
 
 
-#' Add fields to an existing dbOutput
+#' Add fields to an existing \var{\sQuote{dbOutput}}
 #'
 #' You realize that you want additional output fields after starting a simulation project;
 #' or, the package is updated while you are working on a simulation, and produces now
 #' additional output fields for output options that are active in your simulation project.
-#' In either case, you don't want to discard data that is already in dbOutput.
+#' In either case, you don't want to discard data that is already in
+#' \var{\sQuote{dbOutput}}.
 #'
 #' @param SFSW2_prj_meta See elsewhere
 #' @param col_ids An integer vector. If \code{NULL} then the code will match old and new

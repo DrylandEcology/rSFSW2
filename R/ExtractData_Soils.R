@@ -74,15 +74,16 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 
 
 
-#' CONUS-SOIL is a rasterized and controlled STATSGO data set; information for 11 soil
-#' are layers available.
+#' \var{\sQuote{CONUS-SOIL}} is a rasterized and controlled \var{\sQuote{STATSGO}} data
+#' set; information for 11 soil are layers available.
 #'
-#' @param default_TOC_GperKG A numeric value. The default value is 0 g TOC per kg soil.
+#' @param default_TOC_GperKG A numeric value. The default value is
+#'   0 g \var{TOC} per kg soil.
 #'
 #' @references Miller, D. A. and R. A. White. 1998. A conterminous United States
 #'  multilayer soil characteristics dataset for regional climate and hydrology modeling.
 #'  Earth Interactions 2:1-26.
-#' @section Note(drs): it appears that NODATA values are recorded as 0
+#' @section Note: It appears that \var{NODATA} values are recorded as 0s.
 #'
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_space,
   dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0) {
@@ -250,7 +251,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 
 
 #' A wrapper for \code{reaggregate_raster} designed to work with the rasters of the
-#' ISRIC-WISE datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
+#' \var{\sQuote{ISRIC-WISE}} datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
 #'
 #' @param i An integer value. The index to select a location from among \code{sp_sites}
 #'  and the corresponding resolution \code{res}.
@@ -260,7 +261,7 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'  values are extracted.
 #' @param sp_sites A \linkS4class{SpatialPoints} object. This object is used to extract
 #'  the coordinates of the i-th location.
-#' @param att A character string. Which variable in the RAT table should be returned.
+#' @param att A character string. Which variable in the \var{RAT} table should be returned.
 #'  If \code{NULL} then extracted values of \code{grid} are returned.
 #'
 #' @seealso \code{\link{reaggregate_raster}}
@@ -349,8 +350,10 @@ max_depth_byPRIDs <- function(this_soil, var_ids, val_rocks) {
   }
 }
 
-#' Calculate weighted mean soil variables from one of the ISRIC-WISE data bases for one
-#'    simulation cell; areas with no soil are 'removed' and the remaining data 'scaled' to 1
+#' Calculate weighted mean soil variables from one of the \var{\sQuote{ISRIC-WISE}}
+#'  data bases for one simulation cell
+#'
+#' Areas with no soil are 'removed' and the remaining data 'scaled' to 1.
 #'
 #' @param i An integer value. The number of the simulation site/cell location.
 #' @param i_sim_cells_SUIDs A named numeric vector. A row of of the data.frame returned
@@ -362,17 +365,19 @@ max_depth_byPRIDs <- function(this_soil, var_ids, val_rocks) {
 #'    Input is an empty template.
 #' @param layer_N An integer value. The number of soil layers in the dataset (i.e., 5,
 #'    see \code{\link{do_ExtractSoilDataFromISRICWISE_Global}}).
-#' @param layer_Nsim An integer value. The number of soil layers of a \code{rSFSW2} project
+#' @param layer_Nsim An integer value. The number of soil layers of a \pkg{rSFSW2} project
 #'    representing the dataset (i.e., 6, see
 #'    \code{\link{do_ExtractSoilDataFromISRICWISE_Global}}).
 #' @param ldepth An integer vector. The depth limits of the extracted \code{rSFSW2}
 #'    project soil layers including zero where \code{layer_Nsim + 1 == length(ldepth)}.
-#' @param dat_wise A data.frame representing the main ISRIC-WISE database.
-#' @param nvars An integer value. The number of soil variables extracted from a ISRIC-WISE
-#'    dataset (currently, 5; see \code{\link{prepare_ExtractData_Soils}}).
-#' @param var_tags A vector of character string. The column names for 'suid', bulk
-#'    density ('density'), 'sand', 'clay', coarse fragments ('rock'), and organic carbon
-#'    content ('carbon').
+#' @param dat_wise A data.frame representing the main \var{\sQuote{ISRIC-WISE}} database.
+#' @param nvars An integer value. The number of soil variables extracted from a
+#'    \var{\sQuote{ISRIC-WISE}} dataset (currently, 5; see
+#'    \code{\link{prepare_ExtractData_Soils}}).
+#' @param var_tags A vector of character string. The column names for \var{\dQuote{suid}},
+#'    bulk density (\var{\dQuote{density}}), \var{\dQuote{sand}}, \var{\dQuote{clay}},
+#'    coarse fragments (\var{\dQuote{rock}}), and organic carbon content
+#'    (\var{\dQuote{carbon}}).
 #' @param val_rocks An integer vector. The (negative) values which correspond to rocky
 #'    outcrops and/or rocky subsoils. Soil depth is limited to above layers that have
 #'    values in \code{val_rocks}.
@@ -468,43 +473,43 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 }
 
 
-#' Extract soil data from one of the ISRIC-WISE datasets
+#' Extract soil data from one of the \var{\sQuote{ISRIC-WISE}} datasets
 #'
-#' @param dataset A character string. Identifies the ISRIC-WISE dataset from which
-#'  soil data are extracted. See details.
+#' @param dataset A character string. Identifies the \var{\dQuote{ISRIC-WISE}} dataset
+#'  from which soil data are extracted. See details.
 #'
 #' @section Details: \code{dataset} is current implemented for values: \describe{
-#'    \item{"ISRICWISEv12"}{Dataset 'ISRIC-WISE 5-arcmin v1.2' (Batjes 2012)}
-#'    \item{"ISRICWISE30secV1a"}{Dataset 'ISRIC-WISE 30-arcsec v1.0' (Batjes 2015, 2016)}
+#'    \item{"ISRICWISEv12"}{Dataset \var{\sQuote{ISRIC-WISE 5-arcmin v1.2}} (Batjes 2012)}
+#'    \item{"ISRICWISE30secV1a"}{Dataset \var{\sQuote{ISRIC-WISE 30-arcsec v1.0}}
+#'        (Batjes 2015, 2016)}
 #'  }
 #'
 #' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
-#'  arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
-#'  www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
-#'  http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
+#'  arc-minutes global grid (version 1.2). Report 2012/01 (with data set, available at
+#'  \url{www.isric.org}). ISRIC-World Soil Information, Wageningen, The Netherlands.
+#'  \url{http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12}
 #' @references Batjes N.H. 2016. Harmonised soil property values for broad-scale
 #'   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,
-#'   61-68 (http://dx.doi.org/10.1016/j.geoderma.2016.01.034).
+#'   61-68 (\url{http://dx.doi.org/10.1016/j.geoderma.2016.01.034}).
 #' @references Batjes N.H. 2015. World soil property estimates for broad-scale modelling
-#'   (WISE30sec, ver. 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
-#'   [available at ISRIC Soil Data Hub](http://geonode.isric.org/search/?title__icontains=World%20soil%20property%20estimates%20for%20broad-scale%20modelling%20(WISE30sec)&limit=100&offset=0),
-#'   with addendum and corrigendum.
+#'   (WISE30sec, version 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
+#'   [available at ISRIC Soil Data Hub], with addendum and corrigendum.
 #'
 #' @section Note: Cells with negative soil values indicate non-soils and are eliminated
 #'   before aggregations: \enumerate{
-#'   \item 1) ISRIC-WISE 5-arcmin v1.2 (Batjes 2012) \itemize{
-#'       \item -1: Oceans and inland waters (SUIDS %in% c(0, 1972, 6997))
-#'       \item -2: Glaciers and snow caps (SUIDS %in% 6998)
+#'   \item ISRIC-WISE 5-arcmin v1.2 (Batjes 2012) \itemize{
+#'       \item -1: Oceans and inland waters (\var{SUIDS} %in% c(0, 1972, 6997))
+#'       \item -2: Glaciers and snow caps (\var{SUIDS} %in% 6998)
 #'       \item -3: No/insufficient data
-#'       \item -7: Rock outcrops (or shallow subsoils) (SUIDS %in% 6694)
+#'       \item -7: Rock outcrops (or shallow subsoils) (\var{SUIDS} %in% 6694)
 #'     }
-#'   \item 2) ISRIC-WISE 30-arcsec v1.0 (Batjes 2015) \itemize{
+#'   \item ISRIC-WISE 30-arcsec v1.0 (Batjes 2015) \itemize{
 #'       \item -1: Oceans and inland waters
 #'       \item -2: Glaciers and snow caps
 #'       \item -3: Rock outcrops
 #'       \item -4: Dunes/Shifting sands
 #'       \item -5: Salt flats
-#'       \item -7: 'Rocky' subsoils as for Leptosols
+#'       \item -7: Rocky subsoils as for Leptosols
 #'       \item -9: Remaining miscellaneous units
 #'     }
 #'   }

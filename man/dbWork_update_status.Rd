@@ -2,7 +2,7 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_update_status}
 \alias{dbWork_update_status}
-\title{Update modification status of a rSFSW2 simulation project}
+\title{Update modification status of a \pkg{rSFSW2} simulation project}
 \usage{
 dbWork_update_status(path, status, verbose = FALSE)
 }
@@ -19,7 +19,7 @@ is synchronized; \code{TRUE} indicates "modified".}
 A logical value whether the status was successfully updated.
 }
 \description{
-Update modification status of a rSFSW2 simulation project
+Update modification status of a \pkg{rSFSW2} simulation project
 }
 \seealso{
 \code{\link{add_status_dbWork}}

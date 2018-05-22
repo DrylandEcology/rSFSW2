@@ -2,7 +2,7 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOutput_update_OverallAggregationTable}
 \alias{dbOutput_update_OverallAggregationTable}
-\title{Add fields to an existing dbOutput}
+\title{Add fields to an existing \var{\sQuote{dbOutput}}}
 \usage{
 dbOutput_update_OverallAggregationTable(SFSW2_prj_meta, col_ids = NULL,
   chunksize = 1000, verbose = FALSE)
@@ -23,5 +23,6 @@ case: field names have changed, but they represent the same output.}
 You realize that you want additional output fields after starting a simulation project;
 or, the package is updated while you are working on a simulation, and produces now
 additional output fields for output options that are active in your simulation project.
-In either case, you don't want to discard data that is already in dbOutput.
+In either case, you don't want to discard data that is already in
+\var{\sQuote{dbOutput}}.
 }

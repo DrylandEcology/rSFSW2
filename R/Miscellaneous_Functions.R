@@ -3,7 +3,7 @@
 #' @param debug.warn.level An integer value. Sets the \code{warn} option.
 #' @param debug.dump.objects A logical value. Sets the \code{error} option.
 #'  See \code{details} section.
-#' @param dir_prj A character string. The path at which the RData file are saved if
+#' @param dir_prj A character string. The path at which the \var{RData} file are saved if
 #'  \code{debug.dump.objects} is turned on.
 #' @param verbose A logical value.
 #'
@@ -19,9 +19,9 @@
 #'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
 #'  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
 #'  view the dumped frames first attach them with
-#'      `load(file.path(dir_prj, "last.dump.rda"))`
+#'      \code{load(file.path(dir_prj, "last.dump.rda"))}
 #'  and then browse them with
-#'      `debugger(`path/to/file/last.dump.rda`)`
+#'      \code{debugger(`path/to/file/last.dump.rda`)}
 #'
 #' @export
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
@@ -76,11 +76,13 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 
 #' Expression for dumping of objects from an evaluation stack
 #'
-#' Create an expression for functions 'f' to set on.exit() such that all objects from the
-#' evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+#' Create an expression for functions 'f' to set \code{on.exit()} such that all objects
+#' from the evaluation frame stack of function 'f' are collected and stored in a
+#' \var{RData} file
 #'
-#' @param dir_out A character string. The path to where the 'RData' file is dumped.
-#' @param file_tag A character string. Will become final part of the 'RData' file name.
+#' @param dir_out A character string. The path to where the \var{RData} file is dumped.
+#' @param file_tag A character string. Will become final part of the \var{RData} file
+#'   name.
 #'
 #' @return Expression.
 #' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
@@ -338,24 +340,27 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
 #'   \code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if \code{isTRUE(do.C4vars)}.
 #'
 #' @return A list with named elements \itemize{
-#'   \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
-#'     temperature in degree Celsius.}
-#'   \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
-#'     temperature in degree Celsius.}
-#'   \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
-#'     temperature in degree Celsius.}
-#'   \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
+#'   \item{\var{\dQuote{meanMonthlyTempC}}} {A numeric vector of length 12.
+#'    Mean monthly mean daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{minMonthlyTempC}}} {A numeric vector of length 12.
+#'     Mean monthly minimum daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{maxMonthlyTempC}}} {A numeric vector of length 12.
+#'     Mean monthly maximum daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{meanMonthlyPPTcm}}} {A numeric vector of length 12.
+#'     Mean monthly precipitation in centimeters.}
+#'   \item{\var{\dQuote{MAP_cm}}} {A numeric value. Mean annual precipitation in
 #'     centimeters.}
-#'   \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
-#'   \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
-#'   \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
-#'     daily air temperature in degree Celsius for each day of time period between
-#'     \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
+#'   \item{\var{\dQuote{MAT_C}}} {A numeric value. Mean annual air temperature in
+#'     degree Celsius.}
+#'   \item{\var{\dQuote{dailyTempMin}}} {A numeric vector. If \code{isTRUE(do.C4vars)},
+#'     then minimum daily air temperature in degree Celsius for each day of time period
+#'     between \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
 #'     \code{NA}.}
-#'   \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
-#'     mean daily air temperature.}
-#'   \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
-#'     containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+#'   \item{\var{\dQuote{dailyTempMean}}} {A numeric vector. Similar as for
+#'     \code{dailyTempMin} but for mean daily air temperature.}
+#'   \item{\var{\dQuote{dailyC4vars}}} {If \code{isTRUE(do.C4vars)}, then a named
+#'     numeric vector containing the output of \code{\link{sw_dailyC4_TempVar}}, else
+#'     \code{NA}.}
 #' }
 #' @export
 calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE,
@@ -406,9 +411,12 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
 #' Saturation vapor pressure
 #'
 #' @param T A numeric vector of temperature(s) (deg C)
-#' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at
+#' @return A numeric vector of length \code{T} of saturation vapor pressure (\var{kPa}) at
 #'    temperature T
-#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+#'    Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of
+#'    Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and
+#'    Drainage Engineering 131:228-237.
 vp0 <- function(T) {
   0.6108 * exp(17.27 * T / (T + 273.3))  # eq. 5 of Yoder et al. 2005
 }
@@ -419,8 +427,11 @@ vp0 <- function(T) {
 #' @param Tmin A numeric vector of daily minimum temperature(s) (deg C)
 #' @param Tmax A numeric vector of daily maximum temperature(s) (deg C)
 #' @param RHmean A numeric vector of daily mean relative humidity (percentage)
-#' @return A numeric vector of length \code{T} of vapor pressure deficit (kPa)
-#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+#' @return A numeric vector of length \code{T} of vapor pressure deficit (\var{kPa})
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+#'    Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of
+#'    Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and
+#'    Drainage Engineering 131:228-237.
 vpd <- function(Tmin, Tmax, RHmean = NULL) {
   if (is.null(RHmean)) {
     (vp0(Tmax) - vp0(Tmin)) / 2  # eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
@@ -509,17 +520,20 @@ endDoyAfterDuration <- function(x, duration = 10) {
 #' @param annualPPT A numeric vector. Annual precipitation values.
 #' @param annualPET A numeric vector. Annual potential evapotranspiration values.
 #'  The values must be in the same units as those of \code{annualPPT}, e.g., \code{mm}.
-#' @param monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius for each
-#'  year for which precipitation and PET values are provided.
+#' @param monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius
+#'  for each year for which precipitation and PET values are provided.
 #' @param ai_limit A numeric value. Used for return item \code{criteria_12}.
 #'
 #' @references
-#' Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
-#' Trewartha GT, Horn LH (1980) An introduction to climate. McGraw-Hill, New York, page 284: Temperate Areas
+#' Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation
+#'   studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations
+#'   Environment Programme (UNEP), Nairobi, Kenya.
+#' Trewartha G.T., Horn L.H. (1980) An introduction to climate. McGraw-Hill, New York,
+#'   page 284: Temperate Areas
 #'
 #' @return
-#'  A list with three items: UN-aridity index (numeric value), temperateness (logical value),
-#'  and temperate drylands (logical value).
+#'  A list with three items: UN-aridity index (numeric value), temperateness
+#'  (logical value), and temperate drylands (logical value).
 calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
   ai <- annualPPT / annualPET  #Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
   temp <- matrix(monthlyTemp >= 10, nrow = 12)
@@ -616,10 +630,10 @@ regenerationThisYear_YN <- function(x, params) {
 
 
 
-#' Function to extrapolate windspeeds measured at a height different from the SOILWAT2
-#'  required 2-m above ground
+#' Function to extrapolate windspeeds measured at a height different from the
+#' 2-m above ground that are assumed by \pkg{SOILWAT2}
 #'
-#' Based on eqn. 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
+#' Based on equation 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
 #'  other than clipped grass, the user should apply the full logarithmic equation B.14".
 #'
 #' @param uz A numeric vector. Windspeed [m/s] at \code{height}.
@@ -628,8 +642,8 @@ regenerationThisYear_YN <- function(x, params) {
 #'
 #' @return Windspeed [m/s] at a height of 2 m above ground.
 #'
-#' @references Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005)
-#'  The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
+#' @references Allen R.G., Walter I.A., Elliott R., Howell T., Itenfisu D., Jensen M.
+#'  (2005) The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
 #'  Committee Report.
 adjust.WindspeedHeight <- function(uz, height) {
 
@@ -1030,7 +1044,7 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 #' Check availability and version of a command-line tool
 #'
 #' The function throws an error if the command-line tool cannot be run and its version
-#' querried by a call to \code{\link{system2}}. Otherwise, the function compares the
+#' queried by a call to \code{\link{system2}}. Otherwise, the function compares the
 #' return version value with the argument \code{v_expected}. If it does not match and
 #' the argument \code{stop_on_mismatch} has a \code{TRUE} value, then an error is thrown
 #' with a suitable message; otherwise, a warning is issued.

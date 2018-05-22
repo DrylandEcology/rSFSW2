@@ -332,8 +332,8 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 #' Run checks on the values of the output database table \code{aggregation_overall_mean}
 #'
 #' The implemented water-balance checks correspond to unit tests of \itemize{
-#'  \item SOILWAT2/test/test_WaterBalance.cc
-#'  \item rSOILWAT2/tests/testthat/test_WaterBalance.R
+#'  \item \file{SOILWAT2/test/test_WaterBalance.cc}
+#'  \item \file{rSOILWAT2/tests/testthat/test_WaterBalance.R}
 #' }
 #'
 #' @param x A data.frame. The content of the table \code{aggregation_overall_mean}.

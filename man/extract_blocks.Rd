@@ -2,14 +2,17 @@
 % Please edit documentation in R/Spatial_Functions.R
 \name{extract_blocks}
 \alias{extract_blocks}
-\title{Extract values from Raster* objects that are covered by an extent rectangle.}
+\title{Extract values from \linkS4class{Raster*} objects that are covered by an
+extent rectangle.}
 \usage{
 extract_blocks(x, y, weights = FALSE)
 }
 \arguments{
 \item{x}{Raster* object}
 
-\item{y}{A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the}
+\item{y}{A matrix with four columns: \var{\dQuote{xmin}}, \var{\dQuote{xmax}},
+\var{\dQuote{ymin}}, \var{\dQuote{ymax}}; each row represents the corners of an
+\code{\linkS4class{Extent}} object.}
 
 \item{weights}{logical. If \code{TRUE} and \code{normalizeWeights=FALSE}, the function returns, for each polygon, a matrix with the cell values and the approximate fraction of each cell that is covered by the polygon(rounded to 1/100). If \code{TRUE} and  \code{normalizeWeights=TRUE} the weights are normalized such that they add up to one. The weights can be used for averaging; see examples. This option can be useful (but slow) if the polygons are small relative to the cells size of the Raster* object}
 }

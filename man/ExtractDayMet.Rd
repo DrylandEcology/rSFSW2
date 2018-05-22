@@ -4,7 +4,7 @@
 \alias{ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather}
 \alias{ExtractDayMet}
 \alias{ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW}
-\title{Extract gridded daily weather from DayMet for North American sites}
+\title{Extract gridded daily weather from \var{\dQuote{DayMet}} for North American sites}
 \usage{
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(dir_data, site_ids,
   coords_WGS84, start_year, end_year, dbW_digits)
@@ -25,14 +25,19 @@ An invisible zero. A list of which each element represents one year of daily
 Data are available for years 1980-(last full calendar year) at a 1-km resolution.
 }
 \references{
-\href{https://daymet.ornl.gov/}{daymet website}
- publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of
-   daily meteorological variables over large regions of complex terrain. Journal of
-   Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
- dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S.
-   Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for
-   North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD,
-   YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N = DD.DD, S = DD.DD,
-   E = DDD.DD, W = DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
- \href{https://github.com/khufkens/daymetr}{daymetr package}
+\url{https://daymet.ornl.gov/}
+
+publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating
+   surfaces of daily meteorological variables over large regions of complex terrain.
+   Journal of Hydrology 190: 214 - 251.
+   \url{http://dx.doi.org/10.1016/S0022-1694(96)03128-9}
+
+Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S.
+   Vose, and R.B. Cook. 2016. \var{Daymet}: Daily Surface Weather Data on a 1-km Grid
+   for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed
+   \var{Month DD, YYYY}. Time period: \var{YYYY-MM-DD} to \var{YYYY-MM-DD}.
+   Spatial Range: N = \var{DD.DD}, S = \var{DD.DD}, E = \var{DDD.DD}, W = \var{DDD.DD}.
+   \url{http://dx.doi.org/10.3334/ORNLDAAC/1328}
+
+\url{https://github.com/khufkens/daymetr}
 }

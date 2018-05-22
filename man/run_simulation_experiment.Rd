@@ -2,10 +2,10 @@
 % Please edit documentation in R/Simulation_Run.R
 \name{run_simulation_experiment}
 \alias{run_simulation_experiment}
-\title{Run a rSFSW2 simulation experiment}
+\title{Run a \pkg{rSFSW2} simulation experiment}
 \usage{
 run_simulation_experiment(sim_size, SFSW2_prj_inputs, MoreArgs)
 }
 \description{
-Run a rSFSW2 simulation experiment
+Run a \pkg{rSFSW2} simulation experiment
 }

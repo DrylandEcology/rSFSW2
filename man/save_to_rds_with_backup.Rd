@@ -19,8 +19,8 @@ save_to_rds_with_backup(object, file, tag_backup = "backup", ...)
 Function to write a single object to file, but create a backup file first if an older
 version of the file exists. This backup is restored in case the writing to the file
 fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
-the running R process (e.g., HPC schedulers); those situations likely will not allow
-that the original file be restored from the backup -- this will have to be done
+the running R process (e.g., \var{HPC} schedulers); those situations likely will not
+allow that the original file be restored from the backup -- this will have to be done
 manually.
 }
 \seealso{

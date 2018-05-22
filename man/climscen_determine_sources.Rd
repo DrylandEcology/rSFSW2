@@ -8,5 +8,5 @@ climscen_determine_sources(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs)
 }
 \description{
 Allow for multiple data sources among sites but not multiple sources per site
-(for that you need a new row in the MasterInput spreadsheet)
+(for that you need a new row in the \var{\sQuote{MasterInput}} spreadsheet)
 }

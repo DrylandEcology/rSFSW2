@@ -24,24 +24,27 @@ climate variables should be calculated.}
 }
 \value{
 A list with named elements \itemize{
-  \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
-    temperature in degree Celsius.}
-  \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
-    temperature in degree Celsius.}
-  \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
-    temperature in degree Celsius.}
-  \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
+  \item{\var{\dQuote{meanMonthlyTempC}}} {A numeric vector of length 12.
+   Mean monthly mean daily air temperature in degree Celsius.}
+  \item{\var{\dQuote{minMonthlyTempC}}} {A numeric vector of length 12.
+    Mean monthly minimum daily air temperature in degree Celsius.}
+  \item{\var{\dQuote{maxMonthlyTempC}}} {A numeric vector of length 12.
+    Mean monthly maximum daily air temperature in degree Celsius.}
+  \item{\var{\dQuote{meanMonthlyPPTcm}}} {A numeric vector of length 12.
+    Mean monthly precipitation in centimeters.}
+  \item{\var{\dQuote{MAP_cm}}} {A numeric value. Mean annual precipitation in
     centimeters.}
-  \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
-  \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
-  \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
-    daily air temperature in degree Celsius for each day of time period between
-    \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
+  \item{\var{\dQuote{MAT_C}}} {A numeric value. Mean annual air temperature in
+    degree Celsius.}
+  \item{\var{\dQuote{dailyTempMin}}} {A numeric vector. If \code{isTRUE(do.C4vars)},
+    then minimum daily air temperature in degree Celsius for each day of time period
+    between \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
     \code{NA}.}
-  \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
-    mean daily air temperature.}
-  \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
-    containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+  \item{\var{\dQuote{dailyTempMean}}} {A numeric vector. Similar as for
+    \code{dailyTempMin} but for mean daily air temperature.}
+  \item{\var{\dQuote{dailyC4vars}}} {If \code{isTRUE(do.C4vars)}, then a named
+    numeric vector containing the output of \code{\link{sw_dailyC4_TempVar}}, else
+    \code{NA}.}
 }
 }
 \description{

@@ -9,7 +9,7 @@ inputFileValue <- "/Users/drschlaep/Documents/drschlaepfer/2_Research/200907_Uof
 outFileChange <- sub(pattern = "v10.", replacement = "v11.", inputFileChange)
 outFileValue <- sub(pattern = "v10.", replacement = "v11.", inputFileValue)
 
-sw_input_climscen_use <- tryCatch(utils::read.csv(temp <- file.path(inputFileChange), nrows = 1, stringsAsFactors = F), error = function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
+sw_input_climscen_use <- tryCatch(utils::read.csv(temp <- file.path(inputFileChange), nrows = 1, stringsAsFactors = FALSE), error = function(e) { print("datafile.climatescenarios: Bad Path"); print(e)})
 sw_input_climscen <- utils::read.csv(temp, skip = 1)
 colnames(sw_input_climscen) <- colnames(sw_input_climscen_use)
 

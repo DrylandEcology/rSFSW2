@@ -2,10 +2,10 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{local_weatherDirName}
 \alias{local_weatherDirName}
-\title{Get name of weather file from output database}
+\title{Get name of weather file from database \var{\sQuote{dbOutput}}}
 \usage{
 local_weatherDirName(i_sim, runN, scN, dbOutput)
 }
 \description{
-Get name of weather file from output database
+Get name of weather file from database \var{\sQuote{dbOutput}}
 }

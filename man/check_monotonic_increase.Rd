@@ -13,15 +13,15 @@ check_monotonic_increase(x, MARGIN = 1, increase = TRUE, strictly = FALSE,
 \item{MARGIN}{An integer value giving the subscripts over which the monotonicity will
 be checked; 1 indicates rows, 2 indicates columns.}
 
-\item{increase}{A logical value. If \code{TRUE}, check monotic increase; if
+\item{increase}{A logical value. If \code{TRUE}, check monotonic increase; if
 \code{FALSE}, check monotonic decrease.}
 
-\item{strictly}{A logical value. If \code{TRUE}, check for a strict monotic pattern.}
+\item{strictly}{A logical value. If \code{TRUE}, check for a strict monotonic pattern.}
 
-\item{fail}{A logical value. If \code{TRUE}, throw error if monotic check fails.}
+\item{fail}{A logical value. If \code{TRUE}, throw error if monotonic check fails.}
 
-\item{replacement}{A value that replaces non-(strictly) monotically increasing/decreasing
-values if \code{fail} is \code{FALSE}.}
+\item{replacement}{A value that replaces non-(strictly) monotonically
+increasing/decreasing values if \code{fail} is \code{FALSE}.}
 
 \item{na.rm}{A logical value. If \code{TRUE}, then ignore \code{NA}s; if \code{FALSE},
 then fail if \code{strictly} or replace with \code{replacement}.}

@@ -2,10 +2,10 @@
 % Please edit documentation in R/IO_datafiles.R
 \name{read_SOILWAT2_FileDefaults}
 \alias{read_SOILWAT2_FileDefaults}
-\title{Read from disk the default input files of SOILWAT2}
+\title{Read from disk the default input files of \pkg{SOILWAT2}}
 \usage{
 read_SOILWAT2_FileDefaults(dir_in_sw, swFiles_tag = "file")
 }
 \description{
-Read from disk the default input files of SOILWAT2
+Read from disk the default input files of \pkg{SOILWAT2}
 }

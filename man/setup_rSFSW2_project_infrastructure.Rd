@@ -2,7 +2,7 @@
 % Please edit documentation in R/Simulation_Project.R
 \name{setup_rSFSW2_project_infrastructure}
 \alias{setup_rSFSW2_project_infrastructure}
-\title{Setup infrastructure (skeleton) for a new rSFSW2 simulation experiment}
+\title{Setup infrastructure (skeleton) for a new \pkg{rSFSW2} simulation experiment}
 \usage{
 setup_rSFSW2_project_infrastructure(dir_prj, verbose = TRUE,
   print.debug = FALSE)
@@ -19,5 +19,5 @@ recursively created if not already existing.}
 Invisibly \code{dir_prj} on success
 }
 \description{
-Setup infrastructure (skeleton) for a new rSFSW2 simulation experiment
+Setup infrastructure (skeleton) for a new \pkg{rSFSW2} simulation experiment
 }

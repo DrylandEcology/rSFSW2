@@ -53,7 +53,7 @@ check_lock_content <- function(lock) {
 
 #' Remove the files associated with a backing store lock
 #'
-#' @return The return value of unlinking the directory associated with \code{lock}.
+#' @return The return value of deleting the directory associated with \code{lock}.
 #' @rdname synchronicity
 #' @export
 remove_lock <- function(lock) {

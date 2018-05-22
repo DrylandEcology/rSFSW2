@@ -11,10 +11,10 @@ using namespace Rcpp;
 //'  simulated soil layers. The number indicates the depth to which a seedling has grown
 //'  roots and over which layers \code{kill.conditions} will be evaluated.
 //'
-//' @section Note: The Rcpp version of the function is about 165x faster than the version
-//'  previous to commit 6344857a9cdb08acf68fa031c43cf4a596613aad 'Small speed improvements'
-//'  and about 70x faster than the R version. The Rcpp version also reduced the memory
-//'  footprint by a factor of 200.
+//' @section Note: The \pkg{Rcpp} version of the function is about 165x faster than the
+//'  version previous to commit \var{6344857a9cdb08acf68fa031c43cf4a596613aad}
+//'  'Small speed improvements' and about 70x faster than the R version. The \pkg{Rcpp}
+//'  version also reduced the memory footprint by a factor of 200.
 //'
 //' @param relevantLayers An integer vector, usually of length 365 or 366 (days).
 //' @param kill.conditions A m x p logical matrix with \code{m >= length(relevantLayers)}
@@ -31,7 +31,7 @@ using namespace Rcpp;
 //'  \code{FALSE} otherwise
 //'
 //' @examples
-//'  # The Rcpp function is equivalent to the following R version
+//'  # The \pkg{Rcpp} function is equivalent to the following R version
 //'     get_KilledBySoilLayers_R <- function(relevantLayers, kill.conditions) {
 //'       vapply(seq_along(relevantLayers), function(k) {
 //'           if (all(is.finite(relevantLayers[k]))) {

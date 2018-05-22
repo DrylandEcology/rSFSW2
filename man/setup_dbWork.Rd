@@ -2,8 +2,8 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{setup_dbWork}
 \alias{setup_dbWork}
-\title{Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
- project}
+\title{Setup or connect to \var{SQLite}-database \code{dbWork} to manage runs of a
+\pkg{rSFSW2} simulation project}
 \usage{
 setup_dbWork(path, sim_size, include_YN, resume = FALSE,
   SFSW2_prj_meta = NULL)

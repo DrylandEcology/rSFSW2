@@ -13,8 +13,8 @@ dbWork_check_run(path, runIDs)
 i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
 }
 \value{
-A data.frame with three columns 'completed', 'failed', and 'inwork' and
-  one row per \code{runIDs}.
+A data.frame with three columns \var{\dQuote{completed}},
+  \var{\dQuote{failed}}, and \var{\dQuote{inwork}} and one row per \code{runIDs}.
 }
 \description{
 Check run status

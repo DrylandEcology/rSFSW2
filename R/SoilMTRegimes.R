@@ -1,14 +1,19 @@
 ########################
 #------ SMTR functions
 
-# Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant, C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel. 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse: A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
+# Based on references provided by Chambers, J. C., D. A. Pyke, J. D. Maestas, M. Pellant,
+# C. S. Boyd, S. B. Campbell, S. Espinosa, D. W. Havlina, K. E. Mayer, and A. Wuenschel.
+# 2014. Using Resistance and Resilience Concepts to Reduce Impacts of Invasive Annual
+# Grasses and Altered Fire Regimes on the Sagebrush Ecosystem and Greater Sage-Grouse:
+# A Strategic Multi-Scale Approach. Gen. Tech. Rep. RMRS-GTR-326. U.S. Department of
+# Agriculture, Forest Service, Rocky Mountain Research Station, Fort Collins, CO.
 #
 
 #' Categories of soil temperature regimes and soil moisture regimes
 #'
 #' @section Definitions: Soil temperature and moisture regimes are defined in
 #'  SSS 2014. Our operationalization is explained in the vignette
-#'  'SoilMoistureRegimes_SoilTemperatureRegimes'.
+#'  \var{SoilMoistureRegimes_SoilTemperatureRegimes}.
 #'
 #' @references Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural
 #'  Resources Conservation Service, Washington, DC.

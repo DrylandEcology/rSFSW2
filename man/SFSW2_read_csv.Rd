@@ -2,7 +2,7 @@
 % Please edit documentation in R/IO_datafiles.R
 \name{SFSW2_read_csv}
 \alias{SFSW2_read_csv}
-\title{Read a comma-separated value (csv) file}
+\title{Read a comma-separated value (\var{csv}) file}
 \usage{
 SFSW2_read_csv(file, stringsAsFactors = FALSE, use_iotools = TRUE, ...)
 }

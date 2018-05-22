@@ -2,10 +2,10 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_update_IncludeYN}
 \alias{dbWork_update_IncludeYN}
-\title{Update include_YN}
+\title{Update \var{\sQuote{include_YN}}}
 \usage{
 dbWork_update_IncludeYN(con, table, id_name, has_include_YN, should_include_YN)
 }
 \description{
-Update include_YN
+Update \var{\sQuote{include_YN}}
 }

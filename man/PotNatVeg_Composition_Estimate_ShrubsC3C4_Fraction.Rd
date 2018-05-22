@@ -88,10 +88,10 @@ Equations by Paruelo & Lauenroth 1996 are used to estimate shrub, C3 grass, and 
  C4 grasses.
 }
 \references{
-Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional
+Paruelo J.M., Lauenroth W.K. (1996) Relative abundance of plant functional
  types in grasslands and shrublands of North America. Ecological Applications, 6,
  1212-1224.
 
-Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4
+Teeri J.A., Stowe L.G. (1976) Climatic patterns and the distribution of C4
  grasses in North America. Oecologia, 23, 1-12.
 }

@@ -1,26 +1,32 @@
-#' Pedotransfer functions to convert between soil moisture (volumetric water content, VWC)
-#'  and soil water potential (SWP)
+#' Pedotransfer functions to convert between soil moisture
+#' (volumetric water content, \var{VWC}) and soil water potential (\var{SWP})
 #'
-#' @param sand A numeric value or vector. Sand content of the soil layer(s) (fraction 0-1).
-#' @param clay A numeric value or vector. Clay content of the soil layer(s) (fraction 0-1).
+#' @param sand A numeric value or vector. Sand content of the soil layer(s) as
+#'   fractional value in \code{[0,1]}.
+#' @param clay A numeric value or vector. Clay content of the soil layer(s) as
+#'   fractional value in \code{[0,1]}.
 #'
 #' @references
-#'  Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical exploration of the relationships of soil moisture characteristics to the physical properties of soils. Water Resources Research 20:682-690.
+#'  Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn. 1984. A statistical
+#'  exploration of the relationships of soil moisture characteristics to the physical
+#'  properties of soils. Water Resources Research 20:682-690.
 #'
 #' @name pedotransfer
 NULL
 
 #' @rdname pedotransfer
-#' @section Note:
-#'  either swp or sand/clay needs be a single value
-pdf_to_vwc <- function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10, bar_conversion = 1024) {
+#' @section Note: either \code{swp} or \code{sand}/\code{clay} needs be a single value
+pdf_to_vwc <- function(swp, sand, clay, thetas, psis, b, MPa_toBar = -10,
+  bar_conversion = 1024) {
+
   thetas * (psis / (swp * MPa_toBar * bar_conversion)) ^ (1 / b) / 100
 }
 
 #' @rdname pedotransfer
-#' @section Note:
-#'  either vwc or sand/clay needs be a single value
-pdf_to_swp <- function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1, bar_conversion = 1024) {
+#' @section Note: either \code{vwc} or \code{sand}/\code{clay} needs be a single value
+pdf_to_swp <- function(vwc, sand, clay, thetas, psis, b, bar_toMPa = -0.1,
+  bar_conversion = 1024) {
+
   psis / ((vwc * 100 / thetas) ^ b * bar_conversion) * bar_toMPa
 }
 
@@ -80,29 +86,36 @@ pedotransfer <- function(x, sand, clay, pdf) {
 #' Calculate volumetric water content from soil water potential and soil texture
 #' @rdname pedotransfer
 #' @param swp A numeric value, vector, or 2-dimensional object (matrix or data.frame).
-#'  The soil water potential (of the soil matrix) in units of MPa, i.e.,
+#'  The soil water potential (of the soil matrix) in units of \var{MPa}, i.e.,
 #'  the soil without the volume of rock and gravel.
 #'
-#' @return Volumetric water content in units of m^3 (of water) / m^3 (of soil) [0, 1].
-#'  There are six use cases:\enumerate{
+#' @return Volumetric water content in units of m^3 (of water) / m^3 (of soil)
+#'  \code{[0, 1]}. There are six use cases:\enumerate{
 #'    \item 1) \itemize{
-#'                \item Input: SWP [single value]; sand and clay [single values]
-#'                \item Output: VWC [single value]}
+#'      \item Input: \code{SWP} [single value]; \code{sand} and \code{clay} [single values]
+#'      \item Output: \code{VWC} [single value]}
 #'    \item 2) \itemize{
-#'                \item Input: SWP [single value]; sand and clay [vectors of length d]
-#'                \item Output: VWC [vector of length d]}
+#'      \item Input: \code{SWP} [single value]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{VWC} [vector of length d]}
 #'    \item 3) \itemize{
-#'                \item Input: SWP [vector of length l]; sand and clay in fraction [single values]
-#'                \item Output: VWC [vector of length l]}
+#'      \item Input: \code{SWP} [vector of length l]; \code{sand} and \code{clay} in
+#'            fraction [single values]
+#'      \item Output: \code{VWC} [vector of length l]}
 #'    \item 4) \itemize{
-#'                \item Input: SWP [vector of length l]; sand and clay [vectors of length d]
-#'                \item Output: VWC [l x d matrix] where SWP is repeated for each column}
+#'      \item Input: \code{SWP} [vector of length l]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{VWC} [l x d matrix] where \code{SWP} is repeated for each
+#'            column}
 #'    \item 5) \itemize{
-#'                \item Input: SWP [l x d matrix]; sand and clay [single values]
-#'                \item Output: VWC [l x d matrix]}
+#'      \item Input: \code{SWP} [l x d matrix]; \code{sand} and \code{clay}
+#'            [single values]
+#'      \item Output: \code{VWC} [l x d matrix]}
 #'    \item 6) \itemize{
-#'                \item Input: SWP [l x d matrix]; sand and clay [vectors of length d]
-#'                \item Output: VWC [l x d matrix], sand and clay vectors are repeated for each row}
+#'      \item Input: \code{SWP} [l x d matrix]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{VWC} [l x d matrix], \code{sand} and \code{clay} vectors are
+#'            repeated for each row}
 #'  }
 #' @export
 SWPtoVWC <- function(swp, sand, clay) {
@@ -115,26 +128,34 @@ SWPtoVWC <- function(swp, sand, clay) {
 #' @param vwc A numeric value, vector, or 2-dimensional object (matrix or data.frame).
 #'  The matric soil moisture, i.e., reduced by the volume of rock and gravel.
 #'
-#' @return Soil water potential in units of MPa [-Inf, 0]. There are six use cases:
-#'  \enumerate{
+#' @return Soil water potential in units of \var{MPa} \code{[-Inf, 0]}. There are six
+#'  use cases: \enumerate{
 #'    \item 1) \itemize{
-#'                \item Input: VWC [single value]; sand and clay [single values]
-#'                \item Output: SWP [single value]}
+#'      \item Input: \code{VWC} [single value]; \code{sand} and \code{clay}
+#'            [single values]
+#'      \item Output: \code{SWP} [single value]}
 #'    \item 2) \itemize{
-#'                \item Input: VWC [single value]; sand and clay [vectors of length d]
-#'                \item Output: SWP [vector of length d]}
+#'      \item Input: \code{VWC} [single value]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{SWP} [vector of length d]}
 #'    \item 3) \itemize{
-#'                \item Input: VWC [vector of length l]; sand and clay in fraction [single values]
-#'                \item Output: SWP [vector of length l]}
+#'      \item Input: \code{VWC} [vector of length l]; \code{sand} and \code{clay} in
+#'            fraction [single values]
+#'      \item Output: \code{SWP} [vector of length l]}
 #'    \item 4) \itemize{
-#'                \item Input: VWC [vector of length l]; sand and clay [vectors of length d]
-#'                \item Output: SWP [l x d matrix] where VWC is repeated for each column}
+#'      \item Input: \code{VWC} [vector of length l]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{SWP} [l x d matrix] where \code{VWC} is repeated for
+#'            each column}
 #'    \item 5) \itemize{
-#'                \item Input: VWC [l x d matrix]; sand and clay [single values]
-#'                \item Output: SWP [l x d matrix]}
+#'      \item Input: \code{VWC} [l x d matrix]; \code{sand} and \code{clay}
+#'            [single values]
+#'      \item Output: \code{SWP} [l x d matrix]}
 #'    \item 6) \itemize{
-#'                \item Input: VWC [l x d matrix]; sand and clay [vectors of length d]
-#'                \item Output: SWP [l x d matrix], sand and clay vectors are repeated for each row}
+#'      \item Input: \code{VWC} [l x d matrix]; \code{sand} and \code{clay}
+#'            [vectors of length d]
+#'      \item Output: \code{SWP} [l x d matrix], \code{sand} and \code{clay} vectors
+#'            are repeated for each row}
 #'  }
 #' @export
 VWCtoSWP <- function(vwc, sand, clay) {

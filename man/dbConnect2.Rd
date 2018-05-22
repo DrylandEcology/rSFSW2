@@ -2,7 +2,7 @@
 % Please edit documentation in R/IO_databases.R
 \name{dbConnect2}
 \alias{dbConnect2}
-\title{Connect to SQLite-database}
+\title{Connect to \var{SQLite}-database}
 \usage{
 dbConnect2(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
   repeats = 10L, sleep_s = 5, seed = NA)

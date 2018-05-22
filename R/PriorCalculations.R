@@ -118,10 +118,11 @@ calc_ExtendSoilDatafileToRequestedSoilLayers <- function(SFSW2_prj_meta, SFSW2_p
 #'
 #' @references Torres EA, Calera A (2010) Bare soil evaporation under high evaporation
 #'  demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-
-#'  Journal Des Sciences Hydrologiques, 55, 303-315.
+#'  Journal des Sciences Hydrologiques, 55, 303-315.
 #'
-#' @references Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under
-#'  Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
+#' @references Wythers K.R., Lauenroth W.K., Paruelo J.M. (1999) Bare-Soil Evaporation
+#'  Under Semiarid Field Conditions. Soil Science Society of America Journal, 63,
+#'  1341-1349.
 #'
 #' @param layers_depth A numeric vector, matrix, or data.frame. Values describe the lower
 #'  soil layer depths in units of centimeters.

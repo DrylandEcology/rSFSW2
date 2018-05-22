@@ -1,5 +1,5 @@
 
-#' Compare two netCDF files
+#' Compare two \var{netCDF} files
 do_compare_nc <- function(fnc1, fnc2, var) {
   stopifnot(requireNamespace("ncdf4"))
 
@@ -203,7 +203,9 @@ time_agrees_with_ncfilename <- function(filename, ftime) {
   )
 }
 
-#' Process downloaded netCDF files to concatenate if needed otherwise move to dedicated directory
+#' Process downloaded \var{netCDF} files to concatenate if needed otherwise move to
+#' dedicated directory
+#''
 #' @examples
 #' \dontrun{
 #' dir_prj <- file.path("/Volumes", "BookDuo_12TB", "BigData", "GIS", "Data",

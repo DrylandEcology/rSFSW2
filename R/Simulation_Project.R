@@ -1,5 +1,5 @@
 
-#' Setup infrastructure (skeleton) for a new rSFSW2 simulation experiment
+#' Setup infrastructure (skeleton) for a new \pkg{rSFSW2} simulation experiment
 #'
 #' @param dir_prj A character string. The path to the new simulation project. Folders are
 #'  recursively created if not already existing.
@@ -150,7 +150,7 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
 }
 
 
-#' Initialize a rSFSW2 project (setup description file)
+#' Initialize a \pkg{rSFSW2} project (setup description file)
 #'
 #' This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
 #' containing the descriptions/metadata for this simulation project. The file should be
@@ -393,7 +393,7 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
 }
 
 
-#' Populate rSFSW2 project with input data
+#' Populate \pkg{rSFSW2} project with input data
 #' @export
 populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity) {
@@ -760,7 +760,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
 
 
-#' Attempt to check input data of a rSFSW2 project for consistency
+#' Attempt to check input data of a \pkg{rSFSW2} project for consistency
 #' @export
 check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
   opt_verbosity) {
@@ -1006,12 +1006,12 @@ update_todos <- function(SFSW2_prj_meta) {
 
 
 
-#' Prepare output database without running proper steps of `SFSW2_project_code.R`
+#' Prepare output database without running proper steps of \file{SFSW2_project_code.R}
 #'
 #' The need may arise if all/some of input data of your simulation project is located
 #' on a remote server and you want to create the output database and work database locally.
-#' This function can be called before executing step 3 (\code{populate_rSFSW2_project_with_data})
-#' in the demo code "SFSW2_project_code.R".
+#' This function can be called before executing step 3
+#' (\code{populate_rSFSW2_project_with_data}) in the demo code \file{SFSW2_project_code.R}.
 #'
 #' @param path A character string. The path at which the databases will be created --
 #'  ignoring the path information from \code{SFSW2_prj_meta} used otherwise.
@@ -1043,7 +1043,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
 
 
 
-#' Carry out a rSFSW2 simulation experiment
+#' Carry out a \pkg{rSFSW2} simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
@@ -1188,12 +1188,12 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 #'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
 #'     \code{dbWork}
 #'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
-#'     \code{concatFile} and \code{SQL_tmptxt_failed.txt}
+#'     \code{concatFile} and \file{SQL_tmptxt_failed.txt}
 #'   \item \code{dir_out_temp} is the path to temporary output files
-#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] is the full file name of
+#'   \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]} is the full file name of
 #'     \code{dbOutput}
-#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]] is the full file name of
-#'     \code{dbOutput_current}
+#'   \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]} is the full
+#'     file name of \code{dbOutput_current}
 #' }
 #'
 #' @section Details: The code executes \code{opt_out} option

@@ -2,7 +2,7 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_update_granular}
 \alias{dbWork_update_granular}
-\title{Update granular run information of a rSFSW2 simulation project}
+\title{Update granular run information of a \pkg{rSFSW2} simulation project}
 \usage{
 dbWork_update_granular(path, table, Pid, status, verbose = FALSE)
 }
@@ -24,5 +24,5 @@ that the output for \code{table} has successfully been generated (see
 A logical value whether the status was successfully updated.
 }
 \description{
-Update granular run information of a rSFSW2 simulation project
+Update granular run information of a \pkg{rSFSW2} simulation project
 }

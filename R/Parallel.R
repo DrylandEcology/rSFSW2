@@ -36,7 +36,8 @@ do_import_objects <- function(obj_env) {
 #' Export objects to workers
 #'
 #' @param obj_env An environment containing R objects to export.
-#' @param parallel_backend A character vector, either 'mpi' or 'socket'
+#' @param parallel_backend A character vector, either \var{\dQuote{mpi}}' or
+#'   \var{\dQuote{socket}}
 #' @param cl A parallel (socket) cluster object
 #'
 #' @return A logical value. \code{TRUE} if every object was exported successfully.
@@ -107,7 +108,7 @@ dbW_disconnectConnection_local <- function(...) rSOILWAT2::dbW_disconnectConnect
 
 #' Setting values of package-level global variables on workers
 #' @param x A character string. The name of a global variable.
-#' #param value A R object. The value to be assigned to the global variable identified by
+#' @param value A R object. The value to be assigned to the global variable identified by
 #'  \code{x}.
 #' @seealso \code{\link{assign}}
 set_glovar <- function(x, value) {
@@ -153,12 +154,12 @@ export_parallel_glovars <- function(verbose = FALSE) {
 
 
 
-#' Rmpi work function for calling \code{do_OneSite}
+#' \pkg{Rmpi} work function for calling \code{do_OneSite}
 #'
 #' @param verbose A logical value.
 #'
 #' @references
-#'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
+#'   based on the example file \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}
 #' @section Notes:
 #'  If an error occurs, then the worker will likely not report back to master because
 #'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
@@ -252,7 +253,7 @@ mpi_work <- function(verbose = FALSE) {
 }
 
 
-#' Properly end mpi workers before quitting R (e.g., at a crash)
+#' Properly end \var{\dQuote{mpi}} workers before quitting R (e.g., at a crash)
 #' @section Notes: Code is based on
 #'  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
 #' @section Details: \code{gv} will
@@ -287,7 +288,7 @@ mpi_last <- function(gv) {
 }
 
 
-#' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
+#' Clean up and terminate a parallel cluster used for a \pkg{rSFSW2} simulation project
 #'
 #' @param verbose A logical value.
 #' @export
@@ -389,7 +390,7 @@ init_SFSW2_cluster <- function() {
 }
 
 
-#' Set-up a parallel cluster to be used for a rSFSW2 simulation project
+#' Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project
 #' @export
 setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
   print.debug = FALSE) {

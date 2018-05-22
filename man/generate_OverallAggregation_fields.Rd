@@ -20,7 +20,7 @@ A data.frame with two columns \code{N} and \code{fields}. Each (named) row
 Generate field names (and their numbers) for overall aggregation options
 }
 \section{Notes}{
- All '.' will be translated to "_" because of sqlite field name
+ All '.' will be translated to "_" because of \var{sqlite} field name
 constraints.
 }
 

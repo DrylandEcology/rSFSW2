@@ -32,13 +32,14 @@ fname_dbWork <- function(path, dbname = "dbWork.sqlite3") {
 
 
 
-#' Create a SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation project
+#' Create a \var{SQLite}-database \code{dbWork} to manage runs of a \pkg{rSFSW2}
+#' simulation project
 #'
 #' @param path A character string. Path to the folder where the database will be created.
 #' @param jobs An integer matrix. Each row corresponds to one call of the simulation
 #'  function \code{do_OneSite}, i.e., \code{runsN_master} x \code{expN}. The columns
 #'  \code{runID_total}, \code{runID_sites}, \code{include_YN} represent a running ID,
-#'  the site_id (row number in master input file), and a flag whether site is being
+#'  the \code{site_id} (row number in master input file), and a flag whether site is being
 #'  simulated or not. See \code{\link{indices}}.
 #'
 #' @return Invisibly \code{TRUE}
@@ -194,7 +195,7 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
 #'          the \code{status} was updated.
 #' }
 #'
-#' @param con A valid SQLiteConnection database connection to \code{dbWork}.
+#' @param con A valid \code{SQLiteConnection} database connection to \code{dbWork}.
 add_status_dbWork <- function(con) {
   has_table <- DBI::dbExistsTable(con, "modification_status")
   create_new <- !(has_table &&
@@ -217,7 +218,7 @@ add_status_dbWork <- function(con) {
 }
 
 
-#' Update include_YN
+#' Update \var{\sQuote{include_YN}}
 dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
   should_include_YN) {
 
@@ -248,8 +249,8 @@ dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
 }
 
 
-#' Setup or connect to SQLite-database \code{dbWork} to manage runs fo a rSFSW2 simulation
-#'  project
+#' Setup or connect to \var{SQLite}-database \code{dbWork} to manage runs of a
+#' \pkg{rSFSW2} simulation project
 #'
 #' \code{dbWork} tracks completion of each \code{runID} with table \code{work},
 #' i.e., an entire call to \code{\link{do_OneSite}}. If your project requires a finer
@@ -314,8 +315,10 @@ setup_dbWork <- function(path, sim_size, include_YN, resume = FALSE,
 }
 
 
-#' Initiate a checkpoint operation on a SQLite-database \code{dbWork} of a rSFSW2 simulation project
-#' @references https://www.sqlite.org/pragma.html#pragma_wal_checkpoint
+#' Initiate a checkpoint operation on a \var{SQLite}-database \code{dbWork} of a
+#' \pkg{rSFSW2} simulation project
+#'
+#' @references \url{https://www.sqlite.org/pragma.html#pragma_wal_checkpoint}
 dbWork_checkpoint <- function(path = NULL, con = NULL,
   mode = c("PASSIVE", "FULL", "RESTART", "TRUNCATE", ""),
   failure = c("silent", "warning", "error"), verbose = FALSE) {
@@ -359,11 +362,12 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
 }
 
 
-#' Do maintenance work on a SQLite-database \code{dbWork} if it exists
+#' Do maintenance work on a \var{SQLite}-database \code{dbWork} if it exists
 #'
 #' Some code, power, and system failures may leave \code{dbWork} in an incomplete state,
-#' e.g., a rollback journal is present, or runs are marked as 'inwork' even though no
-#' runs are currently being worked on. This function cleans such situations up.
+#' e.g., a rollback journal is present, or runs are marked as \var{\dQuote{inwork}}
+#' even though no runs are currently being worked on. This function cleans such
+#' situations up.
 #'
 #' @inheritParams create_dbWork
 #' @return A logical value
@@ -406,8 +410,8 @@ dbWork_clean <- function(path, verbose = FALSE) {
 }
 
 
-#' Extract identification numbers of runs of a rSFSW2 simulation project which are
-#'  uncompleted and not \code{inwork}
+#' Extract identification numbers of runs of a \pkg{rSFSW2} simulation project which are
+#'  uncompleted and not \var{\dQuote{inwork}}
 #'
 #' @inheritParams create_dbWork
 #' @return An integer vector of \code{runIDs}.
@@ -425,8 +429,8 @@ dbWork_todos <- function(path) {
 }
 
 
-#' Numbers of runs of a rSFSW2 simulation project which are uncompleted and
-#' not \code{inwork}
+#' Numbers of runs of a \pkg{rSFSW2} simulation project which are uncompleted and
+#' not \var{\dQuote{inwork}}
 #'
 #' @inheritParams create_dbWork
 #' @return An integer value.
@@ -444,7 +448,7 @@ dbWork_Ntodo <- function(path) {
 }
 
 
-#' Extract stored execution times of completed runs of a rSFSW2 simulation project
+#' Extract stored execution times of completed runs of a \pkg{rSFSW2} simulation project
 #'
 #' @inheritParams create_dbWork
 #' @return A numeric vector of execution time in seconds.
@@ -529,8 +533,8 @@ dbWork_redo <- function(path, runIDs, verbose = FALSE) {
 #' @inheritParams create_dbWork
 #' @inheritParams dbWork_update_job
 #' @inheritParams dbWork_redo
-#' @return A data.frame with three columns 'completed', 'failed', and 'inwork' and
-#'   one row per \code{runIDs}.
+#' @return A data.frame with three columns \var{\dQuote{completed}},
+#'   \var{\dQuote{failed}}, and \var{\dQuote{inwork}} and one row per \code{runIDs}.
 #' @export
 dbWork_check_run <- function(path, runIDs) {
   if (length(runIDs) > 0) {
@@ -720,7 +724,7 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
 
 
 
-#' Re-create or update \code{dbWork} based on \code{dbOutput}
+#' Re-create or update \var{\sQuote{dbWork}} based on \var{\sQuote{dbOutput}}
 #'
 #' @inheritParams create_dbWork
 #' @param dbOutput A character string. Full name to the output database.
@@ -728,8 +732,9 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
 #' @param SFSW2_prj_meta An environment. If not \code{NULL}, then \code{path},
 #'  \code{dbOutput}, and/or \code{use_granular_control} may be missing.
 #'  If not \code{NULL}, then code checks that no temporary output files remain
-#'  unprocessed. This is because this function only checks output in \code{dbOutput}, but
-#'  not in 'dbTempOut.
+#'  unprocessed. This is because this function only checks output in
+#'  the database \var{\sQuote{dbOutput}}, but not in the database(s) files
+#'  \var{\sQuote{dbTempOut}}.
 #'
 #' @return A logical vector indicating success.
 #'
@@ -979,14 +984,15 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control, SFSW2_prj_meta
 }
 
 
-#' Update run information of a rSFSW2 simulation project
+#' Update run information of a \pkg{rSFSW2} simulation project
 #'
 #' @inheritParams create_dbWork
 #' @param runID An integer value. The identification number of the current run,
 #'  i.e., a value out of \code{runIDs_total}, see \code{\link{indices}}.
-#' @param status A character string. One of "completed", "failed", "inwork".
-#' @param time_s A numeric value. The execution time in seconds; used if \code{status} is one of
-#'  "completed" and "failed".
+#' @param status A character string. One of \var{\dQuote{completed}},
+#   \var{\dQuote{failed}}, \var{\dQuote{inwork}}.
+#' @param time_s A numeric value. The execution time in seconds; used if \code{status}
+#'  is one of \var{\dQuote{completed}} and \var{\dQuote{failed}}.
 #' @param verbose A logical value. If \code{TRUE}, status messages about file lock and
 #'  database access are printed
 #'
@@ -1089,7 +1095,7 @@ dbWork_update_job <- function(path, runID, status, time_s = "NULL", verbose = FA
 }
 
 
-#' Update granular run information of a rSFSW2 simulation project
+#' Update granular run information of a \pkg{rSFSW2} simulation project
 #'
 #' @inheritParams create_dbWork
 #' @param table A character string.
@@ -1156,7 +1162,7 @@ dbWork_update_granular <- function(path, table, Pid, status, verbose = FALSE) {
 
 
 
-#' Update modification status of a rSFSW2 simulation project
+#' Update modification status of a \pkg{rSFSW2} simulation project
 #'
 #' @inheritParams create_dbWork
 #' @param status A logical value. \code{FALSE} indicates "not modified", i.e.,

@@ -4,7 +4,7 @@
 required_colnames_SWRunInformation <- function()
   c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN")
 
-#' Read a comma-separated value (csv) file
+#' Read a comma-separated value (\var{csv}) file
 #'
 #' Call function \code{\link[iotools]{read.csv.raw}}, if available, or else,
 #' \code{\link[utils]{read.csv}}. \code{\link[iotools]{read.csv.raw}} can be much faster,
@@ -60,12 +60,13 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 }
 
 
-#' Read the data from a 'rSFSW2-inputfile'
+#' Read the data from a \var{\sQuote{rSFSW2-inputfile}}
 #'
-#' 'rSFSW2-inputfiles' are comma-separated value files with \itemize{
-#'  \item First row: field names of which the first one is 'Label'
+#' \var{\sQuote{rSFSW2-inputfiles}} are comma-separated value files with \itemize{
+#'  \item First row: field names of which the first one is \var{\dQuote{Label}}
 #'  \item Second row: flags indicating which column information is applied (1) or not (0);
-#'    the first entry is the character string 'UseInformationToCreateSoilWatRuns'.
+#'    the first entry is the character string
+#'    \var{\dQuote{UseInformationToCreateSoilWatRuns}}.
 #'  \item Third - last row: values of the input file; first column: site labels.
 #' }
 #'
@@ -75,8 +76,8 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}
 #'    and the values are \code{FALSE} if the second row of the \code{file} contains a 0
-#'    and \code{TRUE} otherwise. The first entry, corresponding to column 'Label' is
-#'    always \code{FALSE}.}
+#'    and \code{TRUE} otherwise. The first entry, corresponding to column
+#'    \var{\dQuote{Label}} is always \code{FALSE}.}
 #'  \item{data}{A data frame (\code{\link[base]{data.frame}}) containing a representation
 #'    of the values in the \code{file} with column names from the first row of the
 #'    \code{file}.}
@@ -85,7 +86,9 @@ SFSW2_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   ...) {
 
   sw_use <- tryCatch(SFSW2_read_csv(file, nrows = header_rows, use_iotools = use_iotools),
-    error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
+    error = function(e)
+    print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
+
   sw <- SFSW2_read_csv(file, skip = header_rows, use_iotools = use_iotools, ...)
   names(sw) <- names(sw_use)
   sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
@@ -95,19 +98,19 @@ SFSW2_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   list(use = sw_use, data = sw)
 }
 
-#' Re-combine elements to create a 'rSFSW2-inputfile'
+#' Re-combine elements to create a \var{\sQuote{rSFSW2-inputfile}}
 #'
 #' Combines the output of \code{\link{SFSW2_read_inputfile}} to a data frame
-#' (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile' format. This can be
-#'  written back to disk.
+#' (\code{\link[base]{data.frame}}) with proper \var{\sQuote{rSFSW2-inputfile}} format.
+#'  This can be written back to disk.
 #'
 #' @param sw_use A named logical vector. See element \code{use} described under the
 #'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #' @param data A named logical vector. See element \code{data} described under the
 #'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #'
-#' @return A data frame (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile'
-#'  format.
+#' @return A data frame (\code{\link[base]{data.frame}}) with proper
+#'  \var{\sQuote{rSFSW2-inputfile}} format.
 reconstitute_inputfile <- function(sw_use, data) {
   temp <- as.data.frame(matrix(as.integer(sw_use), nrow = 1L))
   colnames(temp) <- names(sw_use)
@@ -324,7 +327,7 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
   invisible(TRUE)
 }
 
-#' Read from disk the default input files of SOILWAT2
+#' Read from disk the default input files of \pkg{SOILWAT2}
 #' @export
 read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
   temp <- list.files(dir_in_sw)
@@ -701,8 +704,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 #' Function to write a single object to file, but create a backup file first if an older
 #' version of the file exists. This backup is restored in case the writing to the file
 #' fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
-#' the running R process (e.g., HPC schedulers); those situations likely will not allow
-#' that the original file be restored from the backup -- this will have to be done
+#' the running R process (e.g., \var{HPC} schedulers); those situations likely will not
+#' allow that the original file be restored from the backup -- this will have to be done
 #' manually.
 #'
 #' @inheritParams base::saveRDS

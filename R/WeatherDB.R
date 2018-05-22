@@ -32,7 +32,7 @@ update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData, fdbWeather =
 }
 
 
-#' Create and populate a 'rSOILWAT2' daily weather SQLite database
+#' Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database
 #' @export
 make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   opt_behave, deleteTmpSQLFiles, verbose = FALSE, print.debug = FALSE) {
@@ -299,7 +299,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 }
 
 
-#' Check that version of dbWeather suffices
+#' Check that version of \var{\sQuote{dbWeather}} suffices
 check_dbWeather_version <- function(fdbWeather) {
   rSOILWAT2::dbW_setConnection(fdbWeather)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
@@ -670,7 +670,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
     dbW_digits)
 }
 
-#' Extract gridded daily weather from DayMet for North American sites
+#' Extract gridded daily weather from \var{\dQuote{DayMet}} for North American sites
 #'
 #' Data are available for years 1980-(last full calendar year) at a 1-km resolution.
 #'
@@ -678,17 +678,18 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
 #'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
 #'    precipitation.
-#' @references
-#'  \href{https://daymet.ornl.gov/}{daymet website}
-#'  publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating surfaces of
-#'    daily meteorological variables over large regions of complex terrain. Journal of
-#'    Hydrology 190: 214 - 251. http://dx.doi.org/10.1016/S0022-1694(96)03128-9
-#'  dataset v3: Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S.
-#'    Vose, and R.B. Cook. 2016. Daymet: Daily Surface Weather Data on a 1-km Grid for
-#'    North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed Month DD,
-#'    YYYY. Time period: YYYY-MM-DD to YYYY-MM-DD. Spatial Range: N = DD.DD, S = DD.DD,
-#'    E = DDD.DD, W = DDD.DD. http://dx.doi.org/10.3334/ORNLDAAC/1328
-#'  \href{https://github.com/khufkens/daymetr}{daymetr package}
+#' @references \url{https://daymet.ornl.gov/}
+#' @references publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating
+#'    surfaces of daily meteorological variables over large regions of complex terrain.
+#'    Journal of Hydrology 190: 214 - 251.
+#'    \url{http://dx.doi.org/10.1016/S0022-1694(96)03128-9}
+#' @references Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R. Devarakonda, R.S.
+#'    Vose, and R.B. Cook. 2016. \var{Daymet}: Daily Surface Weather Data on a 1-km Grid
+#'    for North America, Version 3. ORNL DAAC, Oak Ridge, Tennessee, USA. Accessed
+#'    \var{Month DD, YYYY}. Time period: \var{YYYY-MM-DD} to \var{YYYY-MM-DD}.
+#'    Spatial Range: N = \var{DD.DD}, S = \var{DD.DD}, E = \var{DDD.DD}, W = \var{DDD.DD}.
+#'    \url{http://dx.doi.org/10.3334/ORNLDAAC/1328}
+#' @references \url{https://github.com/khufkens/daymetr}
 #'
 #' @name ExtractDayMet
 #' @export
@@ -1122,16 +1123,16 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 
 #' Extract gridded daily weather from NCEP/CFSR for sites globally
 #'
-#' @section Daily data: (http://rda.ucar.edu/datasets/ds093.1/):
-#'  ds093.1 NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series
-#'  Products, January 1979 to December 2010, 0.313-deg: 6-hourly.
+#' @section Daily data: \url{http://rda.ucar.edu/datasets/ds093.1/}:
+#'  \var{ds093.1} NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly
+#'  Time-Series Products, January 1979 to December 2010, 0.313-deg: 6-hourly.
 #'  \describe{
-#'    \item{maximum temperature}{2 m above ground (Kelvin): 'tmax.gdas.yyyymm.grb2'
+#'    \item{maximum temperature}{2 m above ground (Kelvin): \var{tmax.gdas.yyyymm.grb2}
 #'        --> max of 4 values per day}
-#'    \item{minimum temperature}{2 m above ground (Kelvin): 'tmin.gdas.yyyymm.grb2'
+#'    \item{minimum temperature}{2 m above ground (Kelvin): \var{tmin.gdas.yyyymm.grb2}
 #'        --> max of 4 values per day}
 #'    \item{precipitation rate}{ground or water surface (kg m-2 s-1):
-#'        'prate.gdas.yyyymm.grb2' --> sum of 4 values per day which are converted to
+#'        \var{prate.gdas.yyyymm.grb2} --> sum of 4 values per day which are converted to
 #'        cm / 6-hour}
 #'  }
 #'
@@ -1139,12 +1140,11 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
 #'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
 #'    precipitation.
-#' @references
-#'  \href{http://rda.ucar.edu/datasets/ds093.1/}{NCEP/CFSR website}
-#'  publication: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR)
+#' @references \href{http://rda.ucar.edu/datasets/ds093.1/}{NCEP/CFSR website}
+#' @references Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR)
 #'    Selected Hourly Time-Series Products, January 1979 to December 2010. Research
 #'    Data Archive at the National Center for Atmospheric Research, Computational and
-#'    Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
+#'    Information Systems Laboratory. \url{http://dx.doi.org/10.5065/D6513W89}.
 #' @export
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, dat_sites,
   tag_WeatherFolder, start_year, end_year, meta_cfsr, n_site_per_core = 100,
@@ -1230,21 +1230,21 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, da
 #' @param    dir_data        directory containing Livneh data
 #' @param    dir_temp          the database directory
 #' @param    site_ids        the sites to gather weather data for
-#' @param    coords          the coordinates for each site in WGS84 format
+#' @param    coords          the coordinates for each site in \var{WGS84} format
 #' @param    start_year      the start year in the sequence of data to gather
 #' @param    end_year        the end year in the sequence of data to gather
-#' @param    f_check         flag to check for errors in file structure - TRUE
+#' @param    f_check         flag to check for errors in file structure - \code{TRUE}
 #'                            for check else no integrity check
 #' @param    backup          flag to create a backup of the weather data prior
 #'                            to insertion in the database
-#'                            (can create large files) - TRUE for backup
+#'                            (can create large files) - \code{TRUE} for backup
 #'                            else no backup
 #' @param    comp_type       the compression type of the data to
 #'                            be inserted into the database
 #' @param    run_parallel    whether the extraction should be ran in parallel
-#' @param    num_cores       the num of cores to use if parallel
+#' @param    num_cores       the number of cores to use if parallel
 #'
-#' @author   Charles Duso    <cd622@@nau.edu>
+#' @author   Charles Duso    \email{cd622@@nau.edu}
 #' @export
 extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
   site_ids_by_dbW, coords, start_year, end_year, f_check = TRUE, backup = TRUE,

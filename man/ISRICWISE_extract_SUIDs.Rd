@@ -3,7 +3,7 @@
 \name{ISRICWISE_extract_SUIDs}
 \alias{ISRICWISE_extract_SUIDs}
 \title{A wrapper for \code{reaggregate_raster} designed to work with the rasters of the
-ISRIC-WISE datasets versions 5-arcmin v1.2 and 30-arcsec v1.0}
+\var{\sQuote{ISRIC-WISE}} datasets versions 5-arcmin v1.2 and 30-arcsec v1.0}
 \usage{
 ISRICWISE_extract_SUIDs(i, res = c(0, 0), grid, sp_sites, att = NULL)
 }
@@ -20,7 +20,7 @@ values are extracted.}
 \item{sp_sites}{A \linkS4class{SpatialPoints} object. This object is used to extract
 the coordinates of the i-th location.}
 
-\item{att}{A character string. Which variable in the RAT table should be returned.
+\item{att}{A character string. Which variable in the \var{RAT} table should be returned.
 If \code{NULL} then extracted values of \code{grid} are returned.}
 }
 \value{
@@ -36,7 +36,7 @@ A list with four elements
 }
 \description{
 A wrapper for \code{reaggregate_raster} designed to work with the rasters of the
-ISRIC-WISE datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
+\var{\sQuote{ISRIC-WISE}} datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
 }
 \seealso{
 \code{\link{reaggregate_raster}}

@@ -4,7 +4,7 @@
 #' @param aon A named logical list. Names are the output options.
 #' @param opt_agg A named list. Additional information for aggregation functions.
 #'
-#' @section Notes: All '.' will be translated to "_" because of sqlite field name
+#' @section Notes: All '.' will be translated to "_" because of \var{sqlite} field name
 #' constraints.
 #'
 #' @return A data.frame with two columns \code{N} and \code{fields}. Each (named) row

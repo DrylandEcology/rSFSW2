@@ -104,7 +104,7 @@ dbW_sites_with_missingClimScens <- function(fdbWeather, site_labels = NULL,
 
 #' Checks data in a weather database
 #'
-#' @param dir_prj A character string. The directory path the rSFSW2 simulation project.
+#' @param dir_prj A character string. The directory path the \pkg{rSFSW2} simulation project.
 #' @param fdbWeather A character string. The file path of weather database.
 #' @param repeats An integer value. The number of times each weather object is extracted
 #   (repeats > 1 enable comparison of the duplicates).

@@ -2,7 +2,7 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_timing}
 \alias{dbWork_timing}
-\title{Extract stored execution times of completed runs of a rSFSW2 simulation project}
+\title{Extract stored execution times of completed runs of a \pkg{rSFSW2} simulation project}
 \usage{
 dbWork_timing(path)
 }
@@ -13,5 +13,5 @@ dbWork_timing(path)
 A numeric vector of execution time in seconds.
 }
 \description{
-Extract stored execution times of completed runs of a rSFSW2 simulation project
+Extract stored execution times of completed runs of a \pkg{rSFSW2} simulation project
 }

@@ -2,26 +2,26 @@
 % Please edit documentation in R/RcppExports.R
 \name{setFALSE_SeedlingSurvival_1stSeason}
 \alias{setFALSE_SeedlingSurvival_1stSeason}
-\title{Determine seedling survival in the first season (ss1s)}
+\title{Determine seedling survival in the first season (\var{\sQuote{ss1s}})}
 \usage{
 setFALSE_SeedlingSurvival_1stSeason(ss1s, ry_year_day, ry_useyrs, y, doy)
 }
 \description{
-Determine seedling survival in the first season (ss1s)
+Determine seedling survival in the first season (\var{\sQuote{ss1s}})
 }
 \section{Note}{
- The Rcpp version of the function is about 270x faster for vectors of
- length 365 and 12,000x faster for vectors of length 11,000 than the R version.
- The Rcpp version also reduced the memory footprint by a factor of >> 3080.
+ The \pkg{Rcpp} version of the function is about 270x faster for vectors
+ of length 365 and 12,000x faster for vectors of length 11,000 than the R version.
+ The \pkg{Rcpp} version also reduced the memory footprint by a factor of >> 3080.
 }
 
 \section{C code}{
- ss1s is a pointer to the data and the original vector will get
- altered;one would need for a deep copy: LogicalVector out = clone(ss1s)
+ \code{ss1s} is a pointer to the data and the original vector will get
+ altered; one would need for a deep copy: \code{LogicalVector out = clone(ss1s)}
 }
 
 \examples{
- # The Rcpp function is equivalent to the following R version
+ # The \\pkg{Rcpp} function is equivalent to the following R version
    setFALSE_SeedlingSurvival_1stSeason_R <- function(ss1s, ry_year_day, ry_useyrs, y,
      doy) {
      ss1s[ry_year_day == ry_useyrs[y]][doy] <- FALSE

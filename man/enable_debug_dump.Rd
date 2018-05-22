@@ -7,16 +7,18 @@
 enable_debug_dump(dir_out = ".", file_tag = "debug")
 }
 \arguments{
-\item{dir_out}{A character string. The path to where the 'RData' file is dumped.}
+\item{dir_out}{A character string. The path to where the \var{RData} file is dumped.}
 
-\item{file_tag}{A character string. Will become final part of the 'RData' file name.}
+\item{file_tag}{A character string. Will become final part of the \var{RData} file
+name.}
 }
 \value{
 Expression.
 }
 \description{
-Create an expression for functions 'f' to set on.exit() such that all objects from the
-evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+Create an expression for functions 'f' to set \code{on.exit()} such that all objects
+from the evaluation frame stack of function 'f' are collected and stored in a
+\var{RData} file
 }
 \examples{
 \dontrun{

@@ -16,7 +16,8 @@ upgrade_soilsin_v11_to_v12(file, new_name = NULL)
 \item{file}{A character string. The file path to the datafile to upgrade.}
 
 \item{new_name}{A character string. The basename of the upgraded file. If \code{NULL}
-then the code attempts to replace 'vOLD' with 'vNEW' in \code{file}.}
+then the code attempts to replace \var{\sQuote{vOLD}} with \var{\sQuote{vNEW}} in
+\code{file}.}
 
 \item{insert_after_tag}{A character string. A string identifying existing column(s)
 after which new columns are added.}
@@ -29,7 +30,7 @@ A logical value. \code{TRUE} if upgrade was successful.
 \description{
 Add (a) new column(s)
 
-Add a column of critical soil water potential (SWPcrit) for each functional type
+Add a column of critical soil water potential (\var{SWPcrit}) for each functional type
 
-Add a column of total organic content (TOC) for each soil layer
+Add a column of total organic content (\var{TOC}) for each soil layer
 }

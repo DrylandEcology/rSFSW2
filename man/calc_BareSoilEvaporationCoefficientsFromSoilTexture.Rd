@@ -41,8 +41,9 @@ Default of \code{depth_max_bs_evap} = 15 cm from Torres et al. 2010.
 \references{
 Torres EA, Calera A (2010) Bare soil evaporation under high evaporation
  demand: a proposed modification to the FAO-56 model. Hydrological Sciences Journal-
- Journal Des Sciences Hydrologiques, 55, 303-315.
+ Journal des Sciences Hydrologiques, 55, 303-315.
 
-Wythers KR, Lauenroth WK, Paruelo JM (1999) Bare-Soil Evaporation Under
- Semiarid Field Conditions. Soil Science Society of America Journal, 63, 1341-1349.
+Wythers K.R., Lauenroth W.K., Paruelo J.M. (1999) Bare-Soil Evaporation
+ Under Semiarid Field Conditions. Soil Science Society of America Journal, 63,
+ 1341-1349.
 }

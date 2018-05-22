@@ -7,21 +7,22 @@
 extract_from_external_raster_old(x, data, ...)
 }
 \arguments{
-\item{x}{A RasterLayer object for which !NA cells, values of 'data' are resampled and
-extracted}
+\item{x}{A \linkS4class{RasterLayer} object for which !NA cells, values of \code{data}
+are resampled and extracted}
 
-\item{data}{A raster* object from which data are extracted}
+\item{data}{A \linkS4class{raster*} object from which data are extracted}
 
 \item{\dots}{\describe{
   \item{method}{A character string. The method used to resample values for the new
-    RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using
-    the nearest neighbor.}
-  \item{coords}{graphics::points represented by a two-column matrix or data.frame, or
-    SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector
+    \linkS4class{RasterLayer}, should be \var{\dQuote{bilinear}} for bilinear
+    interpolation, or \var{\dQuote{ngb}} for using the nearest neighbor.}
+  \item{coords}{\code{points} represented by a two-column matrix or data.frame, or
+    \linkS4class{SpatialPoints*}; \linkS4class{SpatialPolygons*};
+    \linkS4class{SpatialLines}; \linkS4class{Extent}; or a numeric vector
     representing cell numbers.}
   \item{crit_v_exclude}{A character string representing a logical expression based
-    on a variable named 'v'. If present, then the condition(s) are applied to 'data'
-    before resampling.}
+    on a variable named 'v'. If present, then the condition(s) are applied to
+    \code{data} before resampling.}
 }}
 }
 \value{

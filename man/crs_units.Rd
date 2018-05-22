@@ -2,17 +2,17 @@
 % Please edit documentation in R/Spatial_Functions.R
 \name{crs_units}
 \alias{crs_units}
-\title{Extracts the 'units' argument from a CRS object}
+\title{Extracts the \var{sQuote{units}} argument from a \var{CRS} object}
 \usage{
 crs_units(CRS)
 }
 \arguments{
-\item{CRS}{A Raster*, Spatial*, CRS, or character object with a coordinate reference
-system (CRS).}
+\item{CRS}{A \linkS4class{Raster*}, \linkS4class{Spatial*}, \linkS4class{CRS}, or
+character object with a coordinate reference system (\var{CRS}).}
 }
 \value{
 A character string or \code{NA}.
 }
 \description{
-Extracts the 'units' argument from a CRS object
+Extracts the \var{sQuote{units}} argument from a \var{CRS} object
 }

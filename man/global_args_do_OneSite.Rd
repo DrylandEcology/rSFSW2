@@ -2,12 +2,12 @@
 % Please edit documentation in R/Simulation_Run.R
 \name{global_args_do_OneSite}
 \alias{global_args_do_OneSite}
-\title{List of objects to export which are required by do_OneSite and are not in rSFSW2
- (sorted alphabetically)}
+\title{List of objects to export which are required by \code{do_OneSite} and are not in
+ \pkg{rSFSW2} (sorted alphabetically)}
 \usage{
 global_args_do_OneSite()
 }
 \description{
-List of objects to export which are required by do_OneSite and are not in rSFSW2
- (sorted alphabetically)
+List of objects to export which are required by \code{do_OneSite} and are not in
+ \pkg{rSFSW2} (sorted alphabetically)
 }

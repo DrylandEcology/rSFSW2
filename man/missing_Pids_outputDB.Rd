@@ -2,10 +2,12 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{missing_Pids_outputDB}
 \alias{missing_Pids_outputDB}
-\title{Identify P_id for which output is not completely available in the dbOutput}
+\title{Identify \var{P_id} for which output is not completely available in the database
+\var{\sQuote{dbOutput}}}
 \usage{
 missing_Pids_outputDB(Table, dbname)
 }
 \description{
-Identify P_id for which output is not completely available in the dbOutput
+Identify \var{P_id} for which output is not completely available in the database
+\var{\sQuote{dbOutput}}
 }

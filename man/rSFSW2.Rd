@@ -5,22 +5,22 @@
 \alias{rSFSW2}
 \alias{rSFSW2-package}
 \alias{rSFSW2-package}
-\title{rSFSW2: Framework for SOILWAT2 simulations: creating simulation runs, executing
- simulations, and aggregating outputs}
+\title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation runs,
+ executing simulations, and aggregating outputs}
 \description{
-rSFSW2: Framework for SOILWAT2 simulations: creating simulation runs, executing
- simulations, and aggregating outputs
+\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation runs,
+ executing simulations, and aggregating outputs
 }
 \section{FORCING}{
- SOILWAT2 is forced by \itemize{
+ \pkg{SOILWAT2} is forced by \itemize{
    \item daily time traces: \itemize{
            \item rainfall (cm)
            \item minimum air temperature at 2-m height (C)
            \item maximum air temperature at 2-m height (C)
          }
    \item mean monthly values (climate normals): \itemize{
-           \item wind speed at 2-m height (miles/h before SOILWAT v24;
-                 m/s starting with SOILWAT v24)
+           \item wind speed at 2-m height (miles/h before \pkg{SOILWAT} v24;
+                 m/s starting with \pkg{SOILWAT} v24)
            \item relative humidity at 2-m height (\%)
            \item cloud cover (\%)
          }
@@ -65,7 +65,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@yale.edu}
+\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@yale.edu} (0000-0001-9973-2065)
 
 Other contributors:
 \itemize{

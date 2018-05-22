@@ -2,7 +2,7 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{recreate_dbWork}
 \alias{recreate_dbWork}
-\title{Re-create or update \code{dbWork} based on \code{dbOutput}}
+\title{Re-create or update \var{\sQuote{dbWork}} based on \var{\sQuote{dbOutput}}}
 \usage{
 recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
   verbose = FALSE, print.debug = FALSE)
@@ -17,12 +17,13 @@ recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
 \item{SFSW2_prj_meta}{An environment. If not \code{NULL}, then \code{path},
 \code{dbOutput}, and/or \code{use_granular_control} may be missing.
 If not \code{NULL}, then code checks that no temporary output files remain
-unprocessed. This is because this function only checks output in \code{dbOutput}, but
-not in 'dbTempOut.}
+unprocessed. This is because this function only checks output in
+the database \var{\sQuote{dbOutput}}, but not in the database(s) files
+\var{\sQuote{dbTempOut}}.}
 }
 \value{
 A logical vector indicating success.
 }
 \description{
-Re-create or update \code{dbWork} based on \code{dbOutput}
+Re-create or update \var{\sQuote{dbWork}} based on \var{\sQuote{dbOutput}}
 }

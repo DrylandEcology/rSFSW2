@@ -57,13 +57,13 @@ i.e., \eqn{scN == sim_scens[["N"]]}.}
 The function \code{it_exp} returns an integer value of the index in loop 1
  based on the position across loops 1+2b; invariant to \code{include_YN}.
 
-The function \code{it_site} returns an integer value out of 'runIDs_sites',
-  i.e., the position in loop 2b based on position across loops 1+2b; invariant to
-  \code{include_YN}.
+The function \code{it_site} returns an integer value out of
+  \code{runIDs_sites}, i.e., the position in loop 2b based on position across
+  loops 1+2b; invariant to \code{include_YN}.
 
 The function \code{it_Pid} returns an integer value of the index across all
  loops 1+2a+3, invariant to \code{include_YN}. A consecutive identification number
- for each possible rSFSW2 simulation--used as the ID for the output database.
+ for each possible \pkg{rSFSW2} simulation--used as the ID for the output database.
 }
 \description{
 Index functions
@@ -76,52 +76,61 @@ Index functions
 \section{Simulation runs}{
  \itemize{
  \item Simulations are run over three nested loops \itemize{
-   \item loop1 (1...expN) nested in loop2b (1...runsN_sites) nested in loop3 (1...scN)
-       - Note: loop3 (along scenarios) occurs within the function 'do_OneSite'
-       - Note: loop2b is a subset of loop2a (1...runsN_master)
-   \item column 'include_YN' reduces 'site_id' to 'runIDs_sites'
-   \item 'site_id' and 'P_id' are invariant to 'include_YN'}
+   \item loop1 \code{(1...expN)} nested in loop2b \code{(1...runsN_sites)} nested in
+       loop3 \code{(1...scN)}
+       - Note: loop3 (along scenarios) occurs within the function
+         \code{\link{do_OneSite}}
+       - Note: loop2b is a subset of loop2a \code{(1...runsN_master)}
+   \item column \var{\sQuote{include_YN}} reduces \code{site_id} to \code{runIDs_sites}
+   \item \code{site_id} and \code{P_id} are invariant to \var{\sQuote{include_YN}}}
 
- \item Master input file: column 'include_YN' selects rows which are included in the
-   simulation \itemize{
-   \item Note: rows of the master input file correspond to rows of the treatment input file
-   \item column 'site_id' == consecutive identification numbers of all rows in the master
-     file; this is treated as a unique (and stable) identifier of a site
-   \item runsN_master == number of rows in the master file
-   \item runIDs_master == consecutive identification numbers along runsN_master
-   \item runsN_sites == number of rows in the master file that are included;
-     runsN_sites <= max(site_id) and runsN_sites == length(runIDs_sites)
-   \item runIDs_sites == values of runIDs_master which are included}
+ \item Master input file: column \var{\sQuote{include_YN}} selects rows which are
+   included in the simulation \itemize{
+   \item Note: rows of the master input file correspond to rows of the treatment
+    input file
+   \item column \code{site_id} == consecutive identification numbers of all rows in
+     the master file; this is treated as a unique (and stable) identifier of a site
+   \item \code{runsN_master} == number of rows in the master file
+   \item \code{runIDs_master} == consecutive identification numbers along
+     \code{runsN_master}
+   \item \code{runsN_sites} == number of rows in the master file that are included;
+     \code{runsN_sites <= max(site_id)} and \code{runsN_sites == length(runIDs_sites)}
+   \item \code{runIDs_sites} == values of \code{runIDs_master} which are included}
 
  \item Experimental input file: each row defines a condition which is applied to every
-   runIDs_sites \itemize{
-   \item expN == number of experimental treatments}
+   \code{runIDs_sites} \itemize{
+   \item \code{expN} == number of experimental treatments}
 
- \item The function 'do_OneSite' will be called n-times with n = runsN_call \itemize{
-   \item runsN_job == (number of included sites) x (number of experimental treatments)
-     == runsN_sites x expN
-   \item runIDs_job == consecutive identification numbers along runsN_job
-   \item runsN_total == (number of sites) x (number of experimental treatments)
-     == runsN_master x expN
-   \item runIDs_total == consecutive identification numbers along runsN_total
-   \item runIDs_done == values of runIDs_total that have already been processed by
-     'do_OneSite'
-   \item runIDs_todo == values of runIDs_total that await simulation by 'do_OneSite'
-   \item runsN_todo == number of runIDs_total that await simulation by 'do_OneSite'}
+ \item The function \code{\link{do_OneSite}} will be called n-times with
+   \code{n = runsN_call} \itemize{
+   \item \code{runsN_job == (number of included sites) x
+     (number of experimental treatments) == runsN_sites x expN}
+   \item \code{runIDs_job} == consecutive identification numbers along \code{runsN_job}
+   \item \code{runsN_total == (number of sites) x (number of experimental treatments)
+     == runsN_master x expN}
+   \item \code{runIDs_total} == consecutive identification numbers along
+    \code{runsN_total}
+   \item \code{runIDs_done} == values of \code{runIDs_total} that have already been
+     processed by \code{\link{do_OneSite}}
+   \item \code{runIDs_todo} == values of \code{runIDs_total} that await simulation
+    by \code{\link{do_OneSite}}
+   \item \code{runsN_todo} == number of \code{runIDs_total} that await simulation
+    by \code{\link{do_OneSite}}}
 
- \item The function 'do_OneSite' could be called n-times with n = runsN_incl if all
-   'include_YN' were on \itemize{
-   \item runsN_incl == runsN_total}
+ \item The function \code{\link{do_OneSite}} could be called n-times with
+   \code{n = runsN_incl} if all \var{\sQuote{include_YN}} were on \itemize{
+   \item \code{runsN_incl} == \code{runsN_total}}
 
- \item The variable 'climate.conditions' defines climate conditions that are applied to
-   each 'runIDs_total' \itemize{
-   \item scN == number of climate conditions}
+ \item The variable \code{climate.conditions} defines climate conditions that are
+   applied to each \code{runIDs_total} \itemize{
+   \item \code{scN} == number of climate conditions}
 
- \item A grand total of n = runsN_Pid rSFSW2 runs could be carried out (n == number of
-   rows in the output database) \itemize{
-   \item runsN_Pid == max(P_id) == runsN_total x scN == runsN_master x expN x scN
-   \item P_id == a unique consecutive identification number for each possible rSFSW2
-     simulation; used as the ID for the output database}
+ \item A grand total of \code{n = runsN_Pid} \pkg{rSFSW2} runs could be carried out
+   (\var{n} == number of rows in the output database) \itemize{
+   \item \code{runsN_Pid == max(P_id) == runsN_total x \code{scN} ==
+      runsN_master x expN x scN}
+   \item \code{P_id} == a unique consecutive identification number for each
+     possible \pkg{rSFSW2} simulation; used as the ID for the output database}
 }
 }
 
