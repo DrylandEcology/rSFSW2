@@ -15,6 +15,7 @@ warnings_are_errors: false # turn this back on for more severe testing
 latex: false
 r_build_args: '--no-build-vignettes --no-manual'
 r_check_args: '--ignore-vignettes --no-manual'
+r_packages: hunspell
 
 addons:
   apt:
@@ -33,6 +34,7 @@ before_install:
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
   # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
+
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
