@@ -11,7 +11,6 @@
 
 # NOTE: The values cannot be changed once a rSFSW2 simulation project is set up. The
 #  values of settings (file demo/SFSW2_project_settings.R) may be changed from run to run.
-print('Start SFSW2_project_description')
 
 #----- Metainformation about computing platform
 opt_platform <- list(
@@ -293,6 +292,13 @@ opt_sim <- list(
 
 #------ Output options
 opt_out_fix <- list(
+  # Control granularity of tracking the output generation
+  #  - use_granular_control = FALSE (default); dbWork tracks completion of each runID,
+  #    i.e., an entire call to `do_OneSite`
+  #  - use_granular_control = TRUE; dbWork adds a second table `need_outputs` that tracks
+  #    the completion of each Pid (= runID x scenario) x output table combination
+  use_granular_control = FALSE,
+
   # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or NULL:
   #   Selected columns will be part of 'header' table in dbOutput in addition to those of
   #   create_treatments, experimental_treatments, and climate scenario
@@ -362,20 +368,6 @@ sim_time <- list(
   future_yrs = list(
     c(d <- 40, startyr + d, endyr + d),
     c(d <- 90, startyr + d, endyr + d - 1) # most GCMs don't have data for 2100
-  )
-)
-
-sim_time <- c(
-  sim_time,
-
-  # Named list of current time windows to aggregate over
-  # Note: add multiple current time windows by adding named elements 'currentX' with
-  #   X a whole positive number
-  # Note: future time windows are defined by elements of the list 'future_yrs' and added
-  #   to 'agg_years' by the code via function 'setup_simulation_time'
-  agg_years = c(
-    current1 = list(sim_time[["startyr"]]:sim_time[["endyr"]])
-#   current2 = list((sim_time[["endyr"]] - 10):(sim_time[["endyr"]] + 10))
   )
 )
 
@@ -510,22 +502,8 @@ req_scens <- list(
 
 
 #------ Requested output
+# Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
-  # Functions which aggregate output across years
-  #  don't delete names, only set \code{TRUE}/\code{FALSE}
-  agg_funs = list(
-    mean = TRUE,
-    SD  = TRUE,
-    quantile = TRUE,
-    median = TRUE,
-    mad = TRUE,
-    yearly = TRUE
-  ),
-  agg_fun_options = list(
-    quantile = list(probs = c(0, 0.025, 0.5, 0.975, 1))
-  ),
-
-  # Turn aggregation for variable groups on (1) or off (0), don't delete any names
   # Overall aggregated output table
   overall_out = c(
   #---Aggregation: SOILWAT2 inputs
@@ -564,6 +542,7 @@ req_out <- list(
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
+    "yearlyTranspirationBySoilLayer", 1,
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
@@ -592,6 +571,7 @@ req_out <- list(
     "dailySWPdrynessEventSizeDistribution", 1,
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
+    "periodicVWCmatricFirstLayer", 1,
   #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
@@ -658,17 +638,13 @@ opt_agg <- list(
     fourth_cm = NULL
   ),
 
-  # The counting of timing variables is shifted by 6 months (e.g., July becomes 1st
+  # The ccounting of timing variables is shifted by 6 months (e.g., July becomes 1st
   #   month, etc.) if TRUE and latitude < 0 (i.e., southern hemisphere)
   adjust_NorthSouth = TRUE,
 
   # Critical soil water potential(s) [MPa] to calculate 'dry' and 'wet' soils
   #   (cf. wilting point) and available soil water
   SWPcrit_MPa = c(-1.5, -3.0, -3.5, -3.9),
-
-  # Number of days a certain conditions must be continuously met before such a period
-  # is identified as of that conditions, e.g., 'dry' and 'wet' soils
-  define_period_min_cont_days = 10,
 
   # Critical temperatures [Celsius degrees]
   Tmin_crit_C = c(-15, -9, 0),
@@ -680,17 +656,24 @@ opt_agg <- list(
 
   # Base temperature (degree C) below which cold-degree-days are accumulated
   Tbase_coldDD_C = 0,
-  
-  # Calculation of the Standardized Precipitation-Evapotranspiration Index (SPEI)
-  SPEI_tscales_months = c(1, 12, 24, 48), # time scales for SPEI::spei in units of months
 
   # Options for calculating daily aggregation options over a specific range of days
+  ## Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S), will be used if no values are specified for the other specific value (i.e. NULL)
+  ## Variables that are calculated within water-years (Begin Oct 1st in N, DOY 275, April 1st in S, DOY 92),
+  ### as opposed to typical years (Begin Jan 1st, DOY 1), the doy specific values need to be set within the bounds
+  ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
   use_doy_range = FALSE,
   doy_ranges = list(
-    dailyFrostinSnowPeriod = c(1, 250), #water year
-    default = c(1, 250),
-    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
-    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+    yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
+    defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
   ),
 
   # Daily weather frequency distributions

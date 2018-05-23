@@ -1,3 +1,4 @@
+print('Ran OutputAggregation file\n')
 #---------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
@@ -41,6 +42,7 @@
 #' f <- create_aggregation_function(d)
 #' x <- c(1:10, 1, NA)
 #' f(x, na.rm = TRUE)
+
 create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   envf <- new.env()
 
@@ -148,6 +150,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
 
 
   #---Create the function/closure
+  # create list of values quoted for input into enviornment and set up the skelaton for the function f in order to allow for function manipulation
   # 1) part: formals, i.e. input arguments
   if (circular) {
     f <- function(x, int, na.rm = FALSE, omit_yearly = FALSE, return_ids = FALSE, ...) {}
@@ -160,7 +163,9 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   # 2) part: environment; make it empty to have as little baggage as possible
   environment(f) <- new.env()
   # 3) part: body
+  # change the function f's body
   body(f) <- substitute({
+    # apply a function to every element in listf and save the resulting list as res
     res <- lapply(listf, function(f) {
       agg <- do.call(f$fun, args = fargs)
       id <- if (length(f$aggfun_id) == 1) {
@@ -173,7 +178,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
 
     out <- unlist(lapply(res, function(x) x$x), use.names = FALSE)
     if (omit_yearly || return_ids) {
-      aggfun_ids <- unlist(lapply(res, function(x) x$aggfun_id))
+      aggfun_ids <- unlist(lapply(res, function(x) x$aggfun_id)) # apply aggfunction to all elements in list then flatten list
     }
 
     if (omit_yearly && yearly_id > 0) {

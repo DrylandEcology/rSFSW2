@@ -1,6 +1,6 @@
 #---------------------------------------------------------------------------------------#
 #------------------------FUNCTIONS FOR SOILWAT2 SIMULATIONS
-
+print('Start running Simulation_Run')
 #' List of objects to export which are required by do_OneSite and are not in rSFSW2
 #'  (sorted alphabetically)
 #' @export
@@ -1870,8 +1870,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               "intercept.yr", "intercept.mo", "intercept.dy",
               "deepDrain.yr", "deepDrain.mo", "deepDrain.dy",
               "veg.yr", "veg.mo", "veg.dy",
-              "co2effects.yr", "co2effects.mo", "co2effects.dy")
-
+              "co2effects.yr", "co2effects.mo", "co2effects.dy",
               "degday_dy",
               "dry_soil_dy", "dry_soil_mo",
               "wet_soil_dy",
@@ -2124,7 +2123,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 #TODO(feature_OverhaulAggregationCode):
                 resAgg[nv:(nv+1), ] <- t(apply(res.snow[, 2:3], 2, agg_fun_circular, int = 365, na.rm = TRUE))
-                resAgg[(nv+2):(nv+4), ] <- t(apply(res.snow[, 4:6], 2, agg_fun, na.rm = TRUE))
+                resAgg[(nv+2):(nv+4), ] <- t(apply(res.snow[, 4:6], 2, agg_fun, na.rm = TRUE),
                                        apply(res.snow[, 5:7], 2, stats::sd, na.rm = TRUE),
                                        apply(res.snow[, 8:9], 2, circ_sd, int = 365, na.rm = TRUE))
 

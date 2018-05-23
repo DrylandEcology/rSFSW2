@@ -59,7 +59,7 @@ actions <- list(
 
 
 ##############################################################################
-#------ 1) CREATE A NEW SIMULATION PROJECT (DO ONCE) -------------------------
+#------ 1) CREATE A NEW / LOAD AN EXISTING SIMULATION PROJECT -------------------------
 
 # If code is run non-interactively or if this is a test project:
 # then current working directory must be folder of projects,
@@ -72,45 +72,22 @@ writeLines(c("", "",
   paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run started at",
     t_job_start),
   "##############################################################################", ""))
-fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
-fmetar <- file.path(dir_prj, "SFSW2_project_descriptions.R")
 
-if (file.exists(fmeta)) {
-
-  # Load pre-prepared project description if it was setup previously
-  SFSW2_prj_meta <- readRDS(fmeta)
-
-  # Ensure that all necessary paths do exists
-  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
-
-} else {
-
-  # 1a) Setup default project infrastructure
-  setup_rSFSW2_project_infrastructure(dir_prj)
-
-  # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
-  warning("'SFSW2_project_code.R': Check/adjust project description/metadata in file ",
-    shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
-    immediate. = TRUE)
-
-  # 1c) Load and prepare project description
-  SFSW2_prj_meta <- new.env(parent = baseenv())
-  sys.source(fmetar, envir = SFSW2_prj_meta, keep.source = FALSE)
-
-  SFSW2_prj_meta <- init_rSFSW2_project(SFSW2_prj_meta, fmeta)
-
-  saveRDS(SFSW2_prj_meta, file = fmeta)
-}
+SFSW2_prj_meta <- init_rSFSW2_project(
+  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
+  verbose = TRUE, print.debug = FALSE)
 
 
 
 ##############################################################################
-#------ 2) LOAD SETTINGS FOR THIS RUN ----------------------------------------
+#------ 2) LOAD THE SETTINGS FOR THIS RUN ----------------------------------------
 # Setting objects:
 #   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
 source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
   keep.source = FALSE)
 
+SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
+  wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
 
 
 ##############################################################################
@@ -119,19 +96,22 @@ source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
 temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity)
 
+if (isTRUE(opt_verbosity[["verbose"]]) &&
+  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])) {
+  warning("'SFSW2_prj_meta' has changed: modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
+    "and re-run project.", call. = FALSE, immediate. = TRUE)
+}
+
 SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
 SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
-
-warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-  "'SFSW2_prj_meta[['input_status']]', if needed (see help `?update_intracker`) ",
-  "and re-run project.", call. = FALSE, immediate. = TRUE)
 
 
 
 ##############################################################################
 #------ 4) ATTEMPT TO CHECK INPUT DATA ---------------------------------------
 
-if (actions[["check_inputs"]]) {
+if (isTRUE(actions[["check_inputs"]])) {
 
   temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
     opt_verbosity)
@@ -139,9 +119,11 @@ if (actions[["check_inputs"]]) {
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  warning("'SFSW2_project_code.R': Modify/reset input tracker status ",
-    "'SFSW2_prj_meta[['input_status']]', if needed, manually or by calling function ",
-    "'update_intracker' and re-run project.", call. = FALSE, immediate. = TRUE)
+  if (isTRUE(opt_verbosity[["verbose"]]) &&
+    !all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "checked"]))) {
+    warning("'SFSW2_prj_meta[['input_status']]': some input tracker checks failed; ",
+      "fix inputs, if needed, and re-run project.", call. = FALSE, immediate. = TRUE)
+  }
 }
 
 
@@ -149,10 +131,17 @@ if (actions[["check_inputs"]]) {
 ##############################################################################
 #------ 5) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -----------------
 
-if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_dbOut")]))) {
+if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
 
-  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(actions, SFSW2_prj_meta, SFSW2_prj_inputs,
-    t_job_start, opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(SFSW2_prj_meta, SFSW2_prj_inputs,
+    opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+}
+
+if (isTRUE(actions[["concat_dbOut"]])) {
+
+  stopifnot(move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel,
+    opt_behave, opt_out_run, opt_verbosity,
+    check_if_Pid_present = opt_verbosity[["print.debug"]]))
 }
 
 
@@ -160,7 +149,7 @@ if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate", "concat_d
 ##############################################################################
 #------ 6) ENSEMBLE GENERATION -----------------------------------------------
 
-if (actions[["ensemble"]]) {
+if (isTRUE(actions[["ensemble"]])) {
 
   rSFSW2:::generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
     verbose = opt_verbosity[["verbose"]])
@@ -171,10 +160,10 @@ if (actions[["ensemble"]]) {
 ##############################################################################
 #------ 7) CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION --------------
 
-if (actions[["check_dbOut"]]) {
+if (isTRUE(actions[["check_dbOut"]])) {
 
   check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
-    opt_out_run, verbose = opt_verbosity[["verbose"]])
+    opt_out_run, opt_verbosity)
 }
 
 

@@ -24,6 +24,8 @@
 #'      `debugger(`path/to/file/last.dump.rda`)`
 #'
 #' @export
+print('Start Misc_Functions')
+
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".", verbose = FALSE) {
 
@@ -294,18 +296,18 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode 
   invisible(temp)
 }
 
-
-
+future_time_window_aggregation <- function(sim_time){
   # Add future time windows for aggregation of simulation output
-  sim_time[["agg_years"]] <- c(agg_years,
-    future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  sim_time[["agg_years"]] <- c(sim_time[["agg_years.current1"]],
+                               future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
   )
-
+  
   # Time windows of current and future simulation periods
   sim_time[["sim_windows"]] <- c(
     current = list(sim_time[["simstartyr"]]:sim_time[["endyr"]]),
     future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
   )
+}
 
 
 degree_days <- function(temp_C, base_C = 0) {
