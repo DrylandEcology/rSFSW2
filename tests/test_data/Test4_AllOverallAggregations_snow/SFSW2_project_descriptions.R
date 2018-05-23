@@ -56,10 +56,10 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-  } else if (identical(opt_platform[["host"]], "hpc")) {
-    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-  },
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+    },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -68,11 +68,7 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography"),
-  # Path to where extracted and downloaded data are held
-  dir_data = dir_data <- file.path("C:/GIT/My_Data"),
-  # SSURGO data is not held on a per-site basis, and instead accumlates with each run
-  dir_data_SSURGO = file.path(dir_data, "SSURGO")
+  dir_ex_dem = file.path(dir_ex, "Topography")
 )
 
 
@@ -177,6 +173,7 @@ opt_input <- list(
       #   - Harmonized World Soil Database: 30-arcsec res; data expected
       #     at project_paths[["dir_ex_dem"]], "HWSD")
       "ExtractElevation_HWSD_Global", 0,
+
       # Soil texture
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
@@ -184,10 +181,6 @@ opt_input <- list(
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
-      #   - Contains information about soil as collected by the National Cooperative Soil Survey.
-      #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
-      #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
-      "ExtractSoilDataFromSSURGO", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
       "ExtractSoilDataFromISRICWISE30secV1a_Global", 0

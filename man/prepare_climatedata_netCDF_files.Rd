@@ -13,7 +13,7 @@ Process downloaded netCDF files to concatenate if needed otherwise move to dedic
 }
 \examples{
 \dontrun{
-dir_prj <- file.path("/media", "usgs", "SOILWAT_DATA", "GIS", "Data",
+dir_prj <- file.path("/Volumes", "BookDuo_12TB", "BigData", "GIS", "Data",
   "Weather_Future", "ESGF")
 dir_code <- file.path(dir_prj, "Scripts")
 dir_data <- file.path(dir_prj, "Downloads")
