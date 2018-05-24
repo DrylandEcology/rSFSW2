@@ -7,7 +7,8 @@
 extract_SFSW2_points_from_shp(x, y, fields = NULL, code = NULL, ...)
 }
 \arguments{
-\item{x}{An object inheriting from \linkS4class{SpatialPolygons} from which data are
+\item{x}{An object inheriting from
+\code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} from which data are
 extracted.}
 
 \item{y}{graphics::points represented by an object inheriting from

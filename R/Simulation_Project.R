@@ -108,6 +108,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
 #'   new environment.
 #' @return A logical value.
 #'
+#' @examples
 #' \dontrun{
 #' is_project_script_file_recent(
 #'   dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}

@@ -18,12 +18,13 @@ new environment.}
 }
 \value{
 A logical value.
-
-\dontrun{
-is_project_script_file_recent(
-  dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}
 }
 \description{
 Compare elements and 1-st level structure of project script file with
 installed \pkg{rSFSW2}-package version
+}
+\examples{
+\dontrun{
+is_project_script_file_recent(
+  dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}
 }

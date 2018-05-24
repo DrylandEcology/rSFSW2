@@ -151,7 +151,8 @@ setMethod("extract_rSFSW2",
 
 #' Extract spatial polygon data for point locations
 #'
-#' @param x An object inheriting from \linkS4class{SpatialPolygons} from which data are
+#' @param x An object inheriting from
+#'  \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} from which data are
 #'  extracted.
 #' @param y graphics::points represented by an object inheriting from
 #'  \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}}.
@@ -204,13 +205,15 @@ setMethod("extract_rSFSW2",
 
 #' Extract spatial polygon data for polygons or rectangles.
 #'
-#' @param x A object inheriting from \linkS4class{SpatialPolygons} from which data are
+#' @param x A object inheriting from
+#   \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} from which data are
 #'  extracted.
-#' @param y Either an object inheriting from \linkS4class{SpatialPolygons} OR
+#' @param y Either an object inheriting from
+#'  \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} OR
 #'  resolution(s) of rectangles as a numeric vector of length two or a matrix with two
 #'  columns. \itemize{
-#'    \item If \linkS4class{SpatialPolygons}, then values of \code{data} are extracted per
-#'          polygon and weighted by area.
+#'    \item If \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}, then
+#'          values of \code{data} are extracted per polygon and weighted by area.
 #'    \item If the latter, then \code{coords} must be provided. \code{y} is the vector or
 #'          matrix representing the rectangle extents in x- and y-coordinates.
 #'    \item If a matrix, then rows must match \code{coords}.
@@ -222,10 +225,12 @@ setMethod("extract_rSFSW2",
 #' @param ... \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
 #'      that are represented by a two-column matrix of \var{xy}-coordinates. Ignored if
-#'      \code{y} is inheriting from \linkS4class{SpatialPolygons}.
-#'    \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object indicating the coordinate reference
-#'      system (\var{CRS}) of \code{y} and \code{coords}. Ignored if \code{y} is
-#'      inheriting from \linkS4class{SpatialPolygons}.
+#'      \code{y} is inheriting from
+#'      \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
+#'    \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object indicating the
+#'      coordinate reference system (\var{CRS}) of \code{y} and \code{coords}.
+#'      Ignored if \code{y} is inheriting from
+#'      \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
 #'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
@@ -251,7 +256,8 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) 
   weighted.agg(reagg, probs = dots[["probs"]])
 }
 
-#' Convert resolution/rectangles into \linkS4class{SpatialPolygons}
+#' Convert resolution/rectangles into
+#' \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}
 res_to_polygons <- function(x, y, ...) {
 
   dots <- list(...)
@@ -351,7 +357,7 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
 #'
 #' @return A list with one item for each extent of \code{y}.
 #'   Each element is a matrix where each row corresponds to one of the cells of \code{x}
-#     contained in a \linkS4class{SpatialPolygon}
+#     contained in a \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}
 #'   and where columns correspond to layers of \code{x}.
 #'  If \code{weights} is \code{TRUE}, then an additional last column is added which
 #    contains the weights of the rows.
@@ -607,9 +613,10 @@ extract_from_external_raster_old <- function(x, data, ...) {
 #' Code based on \file{sp:::aggregatePolyWeighted} version 1.2.3 and modified to return
 #' complete information and not the area-weighted sum.
 #'
-#' @param x A \linkS4class{SpatialPolygons} object from which data are extracted.
-#' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the
-#'  rectangle(s) for which data are re-aggregated.
+#' @param x A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} object
+#'  from which data are extracted.
+#' @param by A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} object. The
+#'  'extents' representing the rectangle(s) for which data are re-aggregated.
 #' @param fields A character vector. If not \code{NULL}, then \code{fields} selects
 #'  columns of the extracted object.
 #' @param code A vector. If not \code{NULL}, then the extracted data are treated as

@@ -7,14 +7,15 @@
 extract_SFSW2_cells_from_shp(x, y, fields = NULL, code = NULL, ...)
 }
 \arguments{
-\item{x}{A object inheriting from \linkS4class{SpatialPolygons} from which data are
+\item{x}{A object inheriting from
 extracted.}
 
-\item{y}{Either an object inheriting from \linkS4class{SpatialPolygons} OR
+\item{y}{Either an object inheriting from
+\code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} OR
 resolution(s) of rectangles as a numeric vector of length two or a matrix with two
 columns. \itemize{
-  \item If \linkS4class{SpatialPolygons}, then values of \code{data} are extracted per
-        polygon and weighted by area.
+  \item If \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}, then
+        values of \code{data} are extracted per polygon and weighted by area.
   \item If the latter, then \code{coords} must be provided. \code{y} is the vector or
         matrix representing the rectangle extents in x- and y-coordinates.
   \item If a matrix, then rows must match \code{coords}.
@@ -29,10 +30,12 @@ integer codes of a factor whose levels are encoded by \code{code}.}
 \item{...}{\itemize{
   \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
     that are represented by a two-column matrix of \var{xy}-coordinates. Ignored if
-    \code{y} is inheriting from \linkS4class{SpatialPolygons}.
-  \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object indicating the coordinate reference
-    system (\var{CRS}) of \code{y} and \code{coords}. Ignored if \code{y} is
-    inheriting from \linkS4class{SpatialPolygons}.
+    \code{y} is inheriting from
+    \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
+  \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object indicating the
+    coordinate reference system (\var{CRS}) of \code{y} and \code{coords}.
+    Ignored if \code{y} is inheriting from
+    \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
   \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
     which sample quantiles are returned.
 }}

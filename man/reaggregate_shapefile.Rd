@@ -7,10 +7,11 @@
 reaggregate_shapefile(x, by, fields = NULL, code = NULL)
 }
 \arguments{
-\item{x}{A \linkS4class{SpatialPolygons} object from which data are extracted.}
+\item{x}{A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} object
+from which data are extracted.}
 
-\item{by}{A \linkS4class{SpatialPolygons} object. The 'extents' representing the
-rectangle(s) for which data are re-aggregated.}
+\item{by}{A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} object. The
+'extents' representing the rectangle(s) for which data are re-aggregated.}
 
 \item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
 columns of the extracted object.}
