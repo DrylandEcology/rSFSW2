@@ -70,9 +70,9 @@ opt_parallel <- list(
 #------ Options for printing progress and debugging information
 opt_verbosity <- list(
   # Prints status of progress to standard output
-  verbose = interactive(),
+  verbose = TRUE, #interactive(),
   # Prints details of progress to standard output
-  print.debug = interactive(),
+  print.debug = TRUE, #interactive(),
   # Calculates and prints estimated time of job completion at end of each call of
   #   'do_OneSite' (a somewhat expensive operation)
   print.eta = interactive(),
