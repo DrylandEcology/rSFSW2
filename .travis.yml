@@ -28,12 +28,15 @@ addons:
 before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
   # Install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install'
-  # and thus dependencies are not installed and r_packages has not taken effect yet)
+  #   and thus dependencies are not installed and r_packages has not taken effect yet)
   - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
   # Obtain source code of rSOILWAT2 from github and save at DrylandEcology/rSOILWAT2
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
   # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
+  # Instead of `r_packages`, install dependencies of unit tests only if not already
+  #   available in cached packages
+  - Rscript -e 'pkgs <- setdiff(c("hunspell"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
 
 
 script:
