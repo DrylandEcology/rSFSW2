@@ -545,7 +545,8 @@ TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
   trco
 }
 
-#' Replace selected biomass values of a \linkS4class{swProd}-object
+#' Replace selected biomass values of a
+#' \link[rSOILWAT2:swProd-class]{rSOILWAT2::swProd} object
 #'
 #' @param fg A character string. One of the functional groups represented by
 #'  \code{rSOILWAT2}

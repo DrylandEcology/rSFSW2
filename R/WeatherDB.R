@@ -456,9 +456,10 @@ ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername, dbW_digit
 #' Data are available for years 1949-2010 at a 1/12-degree resolution.
 #'
 #' @return An invisible zero. A list of which each element represents one year of daily
-#'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
-#'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-#'    precipitation.
+#'    weather data of class
+#'    \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.
+#'    The list is copied to the weather database. Units are [degree Celsius] for
+#'    temperature and [cm / day] and for precipitation.
 #'
 #' @references Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen.
 #'  2002. A long-term hydrologically based dataset of land surface fluxes and states for
@@ -650,7 +651,8 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84, star
 }
 
 
-#' @return A list of class \linkS4class{swWeatherData} objects.
+#' @return A list of class
+#'   \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}} objects.
 #' @rdname ExtractDayMet
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data,
@@ -675,9 +677,10 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(dir_data
 #' Data are available for years 1980-(last full calendar year) at a 1-km resolution.
 #'
 #' @return An invisible zero. A list of which each element represents one year of daily
-#'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
-#'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-#'    precipitation.
+#'    weather data of class
+#'    \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.
+#'    The list is copied to the weather database. Units are [degree Celsius] for
+#'    temperature and [cm / day] and for precipitation.
 #' @references \url{https://daymet.ornl.gov/}
 #' @references publication: Thornton, P.E., Running, S.W., White, M.A. 1997. Generating
 #'    surfaces of daily meteorological variables over large regions of complex terrain.
@@ -778,9 +781,10 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, site
 #'  Society 92:1611-1622.
 #'
 #' @return An invisible zero. A list of which each element represents one year of daily
-#'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
-#'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-#'    precipitation.
+#'    weather data of class
+#'    \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}. The list
+#'    is copied to the weather database. Units are [degree Celsius] for temperature
+#'    and [cm / day] and for precipitation.
 #' @export
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
@@ -1137,9 +1141,10 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE, dbW_dig
 #'  }
 #'
 #' @return An invisible zero. A list of which each element represents one year of daily
-#'    weather data of class \linkS4class{swWeatherData}. The list is copied to the
-#'    weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-#'    precipitation.
+#'    weather data of class
+#'    \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}. The list
+#'    is copied to the weather database. Units are [degree Celsius] for temperature and
+#'    [cm / day] and for precipitation.
 #' @references \href{http://rda.ucar.edu/datasets/ds093.1/}{NCEP/CFSR website}
 #' @references Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR)
 #'    Selected Hourly Time-Series Products, January 1979 to December 2010. Research

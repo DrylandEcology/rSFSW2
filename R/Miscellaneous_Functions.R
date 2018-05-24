@@ -299,9 +299,12 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode 
 }
 
 
-
+#' Calculate variables required to estimate percent C4 species in North America
+#'
+#' @return A named numeric vector of length 6.
+#' @references Teeri J.A., Stowe L.G. (1976) Climatic patterns and the distribution of
+#'   C4 grasses in North America. Oecologia, 23, 1-12.
 sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
-  #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
   Month7th_MinTemp_C <- tapply(dailyTempMin[temp7], simTime2$year_ForEachUsedDay_NSadj[temp7], min)
@@ -330,7 +333,7 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
 #' Calculate climate variables from daily weather
 #'
 #' @param weatherList A list. Each element is an object of class
-#'   \linkS4class{swWeatherData} containing daily weather data of a specific year.
+#'   \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}} containing daily weather data of a specific year.
 #' @param year.start An integer value. The first year of the range of years for which
 #'   climate variables should be calculated.
 #' @param year.end An integer value. The last year of the range of years for which

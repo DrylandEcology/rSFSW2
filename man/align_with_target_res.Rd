@@ -11,15 +11,17 @@ align_with_target_res(res_from, crs_from, sp, crs_sp, crs_to)
 \item{res_from}{A numeric vector of length two. The resolution in x and y direction in
 the coordinate system \code{crs_from}.}
 
-\item{crs_from}{A \linkS4class{CRS} object. The coordinate system of \code{res_from}.}
+\item{crs_from}{A \code{\link[sp:CRS-class]{sp::CRS}} object. The coordinate system
+of \code{res_from}.}
 
-\item{sp}{A \linkS4class{SpatialPoints} object. Cell center points for which new
-resolutions will be calculated.}
+\item{sp}{A \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}} object.
+Cell center points for which new resolutions will be calculated.}
 
-\item{crs_sp}{A \linkS4class{CRS} object. The coordinate system of \code{sp}.}
+\item{crs_sp}{A \code{\link[sp:CRS-class]{sp::CRS}} object. The coordinate system
+of \code{sp}.}
 
-\item{crs_to}{A \linkS4class{CRS} object. The coordinate system in which the resulting
-resolution will be calculated.}
+\item{crs_to}{A \code{\link[sp:CRS-class]{sp::CRS}} object. The coordinate system in
+which the resulting resolution will be calculated.}
 }
 \value{
 A numeric vector of length two (if resolution is constant for each point) or a

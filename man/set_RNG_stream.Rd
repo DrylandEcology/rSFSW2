@@ -8,7 +8,7 @@ set_RNG_stream(seed = NA)
 }
 \arguments{
 \item{seed}{A vector appropriate for \code{\link{.Random.seed}} of the current
-var{RNG}; a single integer or \code{NULL} that will be passed to \code{set.seed()};
+var{RNG}; a single integer or \code{NULL} that will be passed to \code{set.seed};
 or \code{NA} which will not affect the random number generator.}
 }
 \description{

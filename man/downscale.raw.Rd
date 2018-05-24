@@ -10,7 +10,8 @@ downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, itime,
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of
-\code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.}
+\code{simstartyr:endyr} is an object of
+\code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
 calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}

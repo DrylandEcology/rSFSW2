@@ -1,6 +1,6 @@
 #' \pkg{rSOILWAT2} data access functions
 #'
-#' @param x An object of class \code{\linkS4class{swOutput}}.
+#' @param x An object of class \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.
 #' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
 #'
 #' @name swOutput_access

@@ -10,9 +10,10 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada(dir_data, site_ids,
 }
 \value{
 An invisible zero. A list of which each element represents one year of daily
-   weather data of class \linkS4class{swWeatherData}. The list is copied to the
-   weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-   precipitation.
+   weather data of class
+   \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}. The list
+   is copied to the weather database. Units are [degree Celsius] for temperature
+   and [cm / day] and for precipitation.
 }
 \description{
 Data are available for years 1950-2013 at a 10-km resolution.

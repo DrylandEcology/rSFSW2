@@ -127,7 +127,7 @@ Index functions
 
  \item A grand total of \code{n = runsN_Pid} \pkg{rSFSW2} runs could be carried out
    (\var{n} == number of rows in the output database) \itemize{
-   \item \code{runsN_Pid == max(P_id) == runsN_total x \code{scN} ==
+   \item \code{runsN_Pid == max(P_id) == runsN_total x scN ==
       runsN_master x expN x scN}
    \item \code{P_id} == a unique consecutive identification number for each
      possible \pkg{rSFSW2} simulation; used as the ID for the output database}

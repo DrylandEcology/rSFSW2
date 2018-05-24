@@ -14,12 +14,14 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(dir_data, site_ids,
   dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
 }
 \value{
-A list of class \linkS4class{swWeatherData} objects.
+A list of class
+  \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}} objects.
 
 An invisible zero. A list of which each element represents one year of daily
-   weather data of class \linkS4class{swWeatherData}. The list is copied to the
-   weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-   precipitation.
+   weather data of class
+   \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.
+   The list is copied to the weather database. Units are [degree Celsius] for
+   temperature and [cm / day] and for precipitation.
 }
 \description{
 Data are available for years 1980-(last full calendar year) at a 1-km resolution.

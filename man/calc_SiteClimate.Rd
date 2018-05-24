@@ -9,7 +9,7 @@ calc_SiteClimate(weatherList, year.start, year.end, do.C4vars = FALSE,
 }
 \arguments{
 \item{weatherList}{A list. Each element is an object of class
-\linkS4class{swWeatherData} containing daily weather data of a specific year.}
+\code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}} containing daily weather data of a specific year.}
 
 \item{year.start}{An integer value. The first year of the range of years for which
 climate variables should be calculated.}

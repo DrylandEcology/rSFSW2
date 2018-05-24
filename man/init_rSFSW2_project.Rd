@@ -8,10 +8,11 @@ init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
   print.debug = FALSE)
 }
 \arguments{
-\item{fmetar}{A character string. The path name to the project description file.}
+\item{fmetar}{A character string. The path name to the project description
+file.}
 
-\item{update}{A logical value. If \code{TRUE}, the path names are re-scanned from
-\code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.}
+\item{update}{A logical value. If \code{TRUE}, the path names are re-scanned
+from \code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.}
 
 \item{verbose}{A logical value.}
 
@@ -21,7 +22,8 @@ init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
 The object \code{SFSW2_prj_meta} of type environment.
 }
 \description{
-This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
-containing the descriptions/metadata for this simulation project. The file should be
-comparable to \code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}
+This function creates/loads an object \code{SFSW2_prj_meta} based on the file
+\code{fmetar} containing the descriptions/metadata for this simulation
+project. The file should be comparable to \code{file.path(system.file("demo",
+package = "rSFSW2"), "SFSW2_project_descriptions.R")}
 }

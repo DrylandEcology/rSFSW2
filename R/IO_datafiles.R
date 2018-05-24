@@ -337,7 +337,7 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 #' simulated by \pkg{rSFSW2}); turns on soil temperature simulations; and
 #' removes any weather data.
 #'
-#' @return A \linkS4class{swInputData} object.
+#' @return A \code{\link[rSOILWAT2:swInputData-class]{rSOILWAT2::swInputData}} object.
 #' @export
 read_SOILWAT2_DefaultInputs <- function() {
   # 'example1' of rSOILWAT2 package is defined as 'default' from SOILWAT2
@@ -473,7 +473,9 @@ load_preprocessed_inputs <- function(SFSW2_prj_meta, verbose = FALSE) {
 }
 
 
-process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE) {
+#' Load and prepare inputs for a \pkg{rSFSW2} simulation project
+process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
+  verbose = FALSE) {
 
   temp_call <- shQuote(match.call()[1])
   if (verbose) {

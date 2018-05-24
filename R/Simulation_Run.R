@@ -335,8 +335,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
         account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
-        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
-        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]])
+        use_doy_range = opt_agg[["use_doy_range"]],
+        doy_ranges = opt_agg[["doy_ranges"]])
 
     } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
@@ -4575,11 +4575,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             periodicVWCsums <- tapply(vwclayervals[,3], vwclayervals[,1], sum)
 
             resMeans[nv:(nv+1)] <- mean(periodicVWCmeans, na.rm = TRUE)
-            resSDs[nv:(nv+1)] <- sd(periodicVWCmeans, na.rm = TRUE)
+            resSDs[nv:(nv+1)] <- stats::sd(periodicVWCmeans, na.rm = TRUE)
             nv <- nv + 1
 
             resMeans[nv:(nv+1)] <- mean(periodicVWCsums, na.rm = TRUE)
-            resSDs[nv:(nv+1)] <- sd(periodicVWCsums, na.rm = TRUE)
+            resSDs[nv:(nv+1)] <- stats::sd(periodicVWCsums, na.rm = TRUE)
             nv <- nv + 1
 
             rm(vwclayervals, doy.trim, year.trim, periodicVWCmeans, periodicVWCsums)
@@ -5735,7 +5735,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   #--- set dbWork as modified if not being kept up-to-date
   if (!MoreArgs[["opt_behave"]][["keep_dbWork_updated"]]) {
-    dbWork_update_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+    dbWork_update_status(MoreArgs[["project_paths"]][["dir_out"]],
       status = TRUE, verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
   }
 

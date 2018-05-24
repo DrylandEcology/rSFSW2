@@ -14,10 +14,10 @@ and the corresponding resolution \code{res}.}
 \item{res}{A numeric vector of length two or a matrix with two columns. The x- and
 y-extent of the rectangle(s) for which to extract values.}
 
-\item{grid}{A \linkS4class{RasterLayer} object with one layer. The raster from which
+\item{grid}{A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} object with one layer. The raster from which
 values are extracted.}
 
-\item{sp_sites}{A \linkS4class{SpatialPoints} object. This object is used to extract
+\item{sp_sites}{A \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}} object. This object is used to extract
 the coordinates of the i-th location.}
 
 \item{att}{A character string. Which variable in the \var{RAT} table should be returned.

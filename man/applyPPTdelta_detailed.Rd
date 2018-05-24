@@ -24,7 +24,7 @@ applied additively.}
 applied multiplicatively.}
 
 \item{daily}{A list. Each element corresponds to one year of \code{simstartyr:endyr}
-is an object of class \linkS4class{swWeatherData}.}
+is an object of class \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{monthly}{A numeric matrix. Monthly time-series of observed weather calculated
 from \code{daily} for the years \code{simstartyr:endyr}.}

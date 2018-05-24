@@ -10,7 +10,7 @@ dbConnect2(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
 \arguments{
 \item{dbname}{A character string. The path including name to the database.}
 
-\item{flags}{An integer value. See \code{\link[RSQLite]{dbConnect}}. Defaults to
+\item{flags}{An integer value. See \code{\link[DBI]{dbConnect}}. Defaults to
 read/write mode.}
 
 \item{verbose}{A logical value.}
@@ -24,13 +24,13 @@ execute the \code{SQL} statement(s) if the database was locked.}
 \item{seed}{An R object. Passed to \code{\link{set.seed}} if not \code{NA}.}
 }
 \value{
-A \linkS4class{SQLiteConnection} object on success; an object of class
-  \code{\link[base:try]{try-error}} on failure.
+A \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+  object on success; an object of class \code{\link[base:try]{try-error}} on failure.
 }
 \description{
-A wrapper around \code{\link[RSQLite]{dbConnect}} that catches errors and attempts
+A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and attempts
 to connect up to \code{repeats} before giving up.
 }
 \seealso{
-\code{\link[RSQLite]{dbConnect}}
+\code{\link[DBI]{dbConnect}}
 }

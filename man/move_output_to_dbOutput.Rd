@@ -11,28 +11,29 @@ move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
 \arguments{
 \item{dir_out_temp}{A character string. The path to temporary output files.
 If \code{NULL}, then temporary output files are assumed to be located at
-\code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]}. This cannot be \code{NULL}
-unless all simulation runs have finished (to prevent overwriting of temporary output
-files of a potential concurrent run). This can however only be checked if
-\code{opt_behave[["keep_dbWork_updated"]]}.}
+\code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]}. This cannot be
+\code{NULL} unless all simulation runs have finished (to prevent
+overwriting of temporary output files of a potential concurrent run). This
+can however only be checked if \code{opt_behave[["keep_dbWork_updated"]]}.}
 }
 \description{
 Move temporary output data to output databases
 }
 \section{Details}{
- Expectations on how the function locates files on disk: \itemize{
-  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
-    \code{dbWork}
-  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
-    \code{concatFile} and \file{SQL_tmptxt_failed.txt}
+ Expectations on how the function locates files on disk:
+  \itemize{
+  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is
+    the path to \code{dbWork}
+  \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]}
+    is the path to \code{concatFile} and \file{SQL_tmptxt_failed.txt}
   \item \code{dir_out_temp} is the path to temporary output files
-  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]} is the full file name of
-    \code{dbOutput}
-  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]} is the full
-    file name of \code{dbOutput_current}
-}
+  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]} is the full
+    file name of \code{dbOutput}
+  \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]} is the
+    full file name of \code{dbOutput_current} }
 
  The code executes \code{opt_out} option
-\code{dbOutCurrent_from_dbOut} only, once all simulation runs are completed.
+  \code{dbOutCurrent_from_dbOut} only, once all simulation runs are
+  completed.
 }
 

@@ -2,7 +2,8 @@
 % Please edit documentation in R/Vegetation.R
 \name{update_biomass}
 \alias{update_biomass}
-\title{Replace selected biomass values of a \linkS4class{swProd}-object}
+\title{Replace selected biomass values of a
+\link[rSOILWAT2:swProd-class]{rSOILWAT2::swProd} object}
 \usage{
 update_biomass(fg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input,
   prod_default)
@@ -14,5 +15,6 @@ update_biomass(fg = c("Grass", "Shrub", "Tree", "Forb"), use, prod_input,
 \item{use}{A logical vector.}
 }
 \description{
-Replace selected biomass values of a \linkS4class{swProd}-object
+Replace selected biomass values of a
+\link[rSOILWAT2:swProd-class]{rSOILWAT2::swProd} object
 }

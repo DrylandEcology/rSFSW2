@@ -8,8 +8,8 @@ setup_rSFSW2_project_infrastructure(dir_prj, verbose = TRUE,
   print.debug = FALSE)
 }
 \arguments{
-\item{dir_prj}{A character string. The path to the new simulation project. Folders are
-recursively created if not already existing.}
+\item{dir_prj}{A character string. The path to the new simulation project.
+Folders are recursively created if not already existing.}
 
 \item{verbose}{A logical value.}
 

@@ -7,7 +7,8 @@
 #' to execute the SQL statement up to \code{repeats} before giving up if the database
 #' was locked.
 #'
-#' @param con A \linkS4class{DBIConnection} or \linkS4class{SQLiteConnection} object.
+#' @param con A \code{\link[DBI:DBIConnection-class]{DBI::DBIConnection}} or
+#'  \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}} object.
 #' @param SQL A character string or vector of character strings. The SQL statement(s) to
 #'   execute on \code{con}. If \code{SQL} is a vector of character strings, then the
 #'   loop across individual executions is wrapped in a transaction.
@@ -75,17 +76,17 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
 
 #' Connect to \var{SQLite}-database
 #'
-#' A wrapper around \code{\link[RSQLite]{dbConnect}} that catches errors and attempts
+#' A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and attempts
 #' to connect up to \code{repeats} before giving up.
 #'
 #' @param dbname A character string. The path including name to the database.
-#' @param flags An integer value. See \code{\link[RSQLite]{dbConnect}}. Defaults to
+#' @param flags An integer value. See \code{\link[DBI]{dbConnect}}. Defaults to
 #'   read/write mode.
 #' @inheritParams dbExecute2
-#' @return A \linkS4class{SQLiteConnection} object on success; an object of class
-#'   \code{\link[base:try]{try-error}} on failure.
+#' @return A \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+#'   object on success; an object of class \code{\link[base:try]{try-error}} on failure.
 #'
-#' @seealso \code{\link[RSQLite]{dbConnect}}
+#' @seealso \code{\link[DBI]{dbConnect}}
 #' @export
 dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
   repeats = 10L, sleep_s = 5, seed = NA) {

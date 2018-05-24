@@ -7,22 +7,22 @@
 align_with_target_grid(grid_from, coords, grid_to, crs_to = NULL)
 }
 \arguments{
-\item{grid_from}{A \linkS4class{RasterLayer} object.}
+\item{grid_from}{A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} object.}
 
-\item{coords}{A matrix of x and y coordinates, or a \linkS4class{SpatialPoints} or
-\linkS4class{SpatialPointsDataFrame} object indicating which cells of projected
-\code{grid_from} will be used.}
+\item{coords}{A matrix of x and y coordinates, or a
+\code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}} object indicating which
+cells of projected \code{grid_from} will be used.}
 
-\item{grid_to}{A \linkS4class{RasterLayer} object.}
+\item{grid_to}{A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} object.}
 
-\item{crs_to}{A \linkS4class{CRS} object or \code{NULL} in which case it will be
+\item{crs_to}{A \code{\link[sp:CRS-class]{sp::CRS}} object or \code{NULL} in which case it will be
 extracted from \code{grid_to}.}
 }
 \value{
 A list with two elements
  \describe{
-   \item{x}{A \linkS4class{RasterLayer} object. Cells values are \code{NA} or 1
-     if they contain \code{points} of \code{coords}.}
+   \item{x}{A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} object.
+     Cells values are \code{NA} or 1 if they contain \code{points} of \code{coords}.}
    \item{index}{An integer vector. The cell numbers of \code{x} that correspond to
      \code{coords}.}
 }

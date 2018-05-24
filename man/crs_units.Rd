@@ -7,7 +7,8 @@
 crs_units(CRS)
 }
 \arguments{
-\item{CRS}{A \linkS4class{Raster*}, \linkS4class{Spatial*}, \linkS4class{CRS}, or
+\item{CRS}{A \code{\link[raster:Raster-class]{raster::Raster}},
+\code{\link[sp:Spatial-class]{sp::Spatial}}, \code{\link[sp:CRS-class]{sp::CRS}}, or
 character object with a coordinate reference system (\var{CRS}).}
 }
 \value{

@@ -7,12 +7,14 @@
 extract_SFSW2_cells_from_raster(x, y, ...)
 }
 \arguments{
-\item{x}{A \linkS4class{raster*} object from which data are extracted}
+\item{x}{A \code{\link[raster:Raster-class]{raster::Raster}} object from which data
+are extracted}
 
-\item{y}{Either A \linkS4class{RasterLayer} OR raster resolution (of rectangles) as
-a numeric vector of length two or a matrix with two columns.
-If a \linkS4class{RasterLayer}, then values of \code{data} are resampled and
-extracted for !NA cells.
+\item{y}{Either A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} OR
+raster resolution (of rectangles) as a numeric vector of length two or a matrix
+with two columns.
+If a \code{\link[raster:RasterLayer-class]{raster::RasterLayer}}, then values of
+\code{data} are resampled and extracted for \code{!NA} cells.
 If the latter, then the vector or matrix represents the rectangle extent/resolution
 in x- and y-coordinates.
 If a matrix, then rows must match \code{coords}.}

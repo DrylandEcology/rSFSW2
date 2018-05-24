@@ -48,7 +48,7 @@ Extract soil data from one of the \var{\sQuote{ISRIC-WISE}} datasets
 Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
  arc-minutes global grid (version 1.2). Report 2012/01 (with data set, available at
  \url{www.isric.org}). ISRIC-World Soil Information, Wageningen, The Netherlands.
- \url{http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12}
+ \url{http://library.wur.nl/WebQuery/wurpubs/443845}
 
 Batjes N.H. 2016. Harmonised soil property values for broad-scale
   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,

@@ -44,7 +44,8 @@
 
 \item{type}{A character string. One of 'point' or 'cell'. \itemize{
 \item If \code{type == "point"}, then y represents point locations
-      by a two-column matrix or data.frame, by \linkS4class{SpatialPoints},
+      by a two-column matrix or data.frame, by
+      \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}},
       or by a numeric vector of cell numbers.
 \item If \code{type == "cell"}, then y represents cells locations, see
       \code{\link{extract_SFSW2_cells_from_raster}}.

@@ -8,7 +8,8 @@ reaggregate_raster(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 0.01)
 }
 \arguments{
-\item{x}{A \linkS4class{raster*} object from which data are extracted.}
+\item{x}{A \code{\link[raster:Raster-class]{raster::Raster}} object from which data
+are extracted.}
 
 \item{coords}{A numeric vector of length two or a matrix with two columns. The x and
 y coordinates of the center(s) of the rectangle(s).}

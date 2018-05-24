@@ -1,4 +1,6 @@
 
+#' Initialize a new input status tracker object
+#' @return A data.frame
 init_intracker <- function() {
   temp <- c("load_inputs", "calc_size", "spatial_setup", "prj_todos", "rng_setup",
     "dbW_paths", "dbW_sources", "dbW_current", "dbW_scenarios", "soil_data", "elev_data",

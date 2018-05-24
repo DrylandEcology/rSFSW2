@@ -80,7 +80,7 @@ set_full_RNG <- function(seed = NULL, kind = "default", normal.kind = "default")
 #'  \var{RNGkind} accordingly to the first element of seed.
 #'
 #' @param seed A vector appropriate for \code{\link{.Random.seed}} of the current
-#'  var{RNG}; a single integer or \code{NULL} that will be passed to \code{set.seed()};
+#'  var{RNG}; a single integer or \code{NULL} that will be passed to \code{set.seed};
 #'  or \code{NA} which will not affect the random number generator.
 #'
 #' @seealso \code{\link{set.seed}}, \code{\link{RNGkind}}
@@ -133,7 +133,7 @@ set_RNG_stream <- function(seed = NA) {
 #'  \var{RngStreams} according to Pierre L'Ecuyer should be generated.
 #' @param global_seed A vector appropriate for \code{\link{.Random.seed}} of the current
 #'  \var{RNG}; a single integer or \code{NULL} that will be passed to
-#'  \code{\link{set.seed()}}.
+#'  \code{\link{set.seed}}.
 #' @param reproducible A logical value. If \code{TRUE}, then \code{streams_N} are
 #'  prepared. If \code{FALSE}, then instead \code{NA}s are returned.
 #'

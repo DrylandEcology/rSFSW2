@@ -12,7 +12,7 @@ setup_RNG(streams_N, global_seed = NULL, reproducible = TRUE)
 
 \item{global_seed}{A vector appropriate for \code{\link{.Random.seed}} of the current
 \var{RNG}; a single integer or \code{NULL} that will be passed to
-\code{\link{set.seed()}}.}
+\code{\link{set.seed}}.}
 
 \item{reproducible}{A logical value. If \code{TRUE}, then \code{streams_N} are
 prepared. If \code{FALSE}, then instead \code{NA}s are returned.}

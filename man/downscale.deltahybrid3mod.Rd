@@ -13,7 +13,8 @@ downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of
-\code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.}
+\code{simstartyr:endyr} is an object of
+\code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
 calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}
@@ -52,7 +53,7 @@ Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
 
 Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
  climate change projections on streamflow in the Nooksack River basin, Northwest
- Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
+ Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
 
 Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
  matching as an improvement to the equidistant approach in bias correction of

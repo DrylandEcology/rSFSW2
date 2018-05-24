@@ -9,7 +9,8 @@ update_actions(SFSW2_prj_meta, actions = NULL, wipe_dbOutput = FALSE)
 \arguments{
 \item{SFSW2_prj_meta}{An environment.}
 
-\item{actions}{A named list of logical elements. See \code{SFSW2_project_code.R}.}
+\item{actions}{A named list of logical elements. See
+\file{SFSW2_project_code.R}.}
 
 \item{wipe_dbOutput}{A logical value}
 }

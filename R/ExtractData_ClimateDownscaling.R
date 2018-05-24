@@ -656,9 +656,10 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
 #'  [cm / month], respectively, for precipitation
 #'
 #' @param obs.hist.daily A list. Each element corresponds to one year of
-#'  \code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.
+#'  \code{simstartyr:endyr} is an object of
+#'  \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.
 #' @param daily A list. Each element corresponds to one year of \code{simstartyr:endyr}
-#'  is an object of class \linkS4class{swWeatherData}.
+#'  is an object of class \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.
 #' @param obs.hist.monthly A numeric matrix. Monthly time-series of observed weather
 #'  calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.
 #' @param monthly A numeric matrix. Monthly time-series of observed weather calculated
@@ -936,7 +937,7 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
+#'  Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.
@@ -1302,7 +1303,7 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
+#'  Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.

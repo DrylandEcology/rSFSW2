@@ -1282,7 +1282,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, o
               paste(shQuote(unique(tablenames)), collapse = " / "),
               "of output DB: P_id =", paste(Pids[ids], collapse = " / "),
               if (!is.null(sl)) {
-                paste("and soil layer =", paste(sd[ids], collapse = " / "))
+                paste("and soil layer =", paste(sl[ids], collapse = " / "))
               } else NULL,
               "from rows", k, "to", k + nlineread - 1, "of file",
               shQuote(theFileList[j])))
@@ -2472,7 +2472,7 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, col_ids = NU
 
   temp <- dbOutput_create_OverallAggregationTable(con_dbOut, fields)
 
-  for (k in seq_along(overall_tables)) {
+  for (k in seq_along(tdata)) {
     hasfields <- DBI::dbListFields(con_dbOut, told[k])
     newfields <- DBI::dbListFields(con_dbOut, tdata[k])
     col_ids_use <- if (length(col_ids) == length(hasfields)) {

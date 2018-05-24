@@ -257,9 +257,9 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
 #'  and the corresponding resolution \code{res}.
 #' @param res A numeric vector of length two or a matrix with two columns. The x- and
 #'  y-extent of the rectangle(s) for which to extract values.
-#' @param grid A \linkS4class{RasterLayer} object with one layer. The raster from which
+#' @param grid A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}} object with one layer. The raster from which
 #'  values are extracted.
-#' @param sp_sites A \linkS4class{SpatialPoints} object. This object is used to extract
+#' @param sp_sites A \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}} object. This object is used to extract
 #'  the coordinates of the i-th location.
 #' @param att A character string. Which variable in the \var{RAT} table should be returned.
 #'  If \code{NULL} then extracted values of \code{grid} are returned.
@@ -487,7 +487,7 @@ ISRICWISE_try_weightedMeanForSimulationCell <- function(i, sim_cells_SUIDs,
 #' @references Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
 #'  arc-minutes global grid (version 1.2). Report 2012/01 (with data set, available at
 #'  \url{www.isric.org}). ISRIC-World Soil Information, Wageningen, The Netherlands.
-#'  \url{http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12}
+#'  \url{http://library.wur.nl/WebQuery/wurpubs/443845}
 #' @references Batjes N.H. 2016. Harmonised soil property values for broad-scale
 #'   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,
 #'   61-68 (\url{http://dx.doi.org/10.1016/j.geoderma.2016.01.034}).

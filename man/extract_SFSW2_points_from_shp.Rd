@@ -11,7 +11,7 @@ extract_SFSW2_points_from_shp(x, y, fields = NULL, code = NULL, ...)
 extracted.}
 
 \item{y}{graphics::points represented by an object inheriting from
-\linkS4class{SpatialPoints}.}
+\code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}}.}
 
 \item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
 columns of the extracted object.}
