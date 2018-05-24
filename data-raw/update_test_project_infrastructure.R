@@ -11,7 +11,6 @@ dir_testprj <- file.path("tests", "test_data", "Test4_AllOverallAggregations_sno
 dir_backup <- sub("Test4_AllOverallAggregations_snow",
   "Test4_AllOverallAggregations_snow_backup", dir_testprj)
 dtestin <- file.path(dir_testprj, "1_Data_SWInput")
-dtestsw <- file.path(dtestin, "SoilWat2_defaults")
 
 # List of files that need manual checking/updating
 fupdate_manual <- c()
@@ -24,13 +23,6 @@ file.copy(from = dir_testprj, to = dir_backup, recursive = TRUE, copy.mode = TRU
   copy.date = TRUE)
 
 
-#--- Update SOILWAT2 defaults
-unlink(dtestsw, recursive = TRUE)
-dir.create(dtestsw, showWarnings = FALSE)
-stopifnot(dir.exists(dtestsw))
-file.copy(from = file.path(ddefin, "SoilWat2_defaults"), to = dtestin, recursive = TRUE,
-  copy.mode = TRUE, copy.date = TRUE)
-
 
 #--- Update code files
 fupdate_manual <- c(fupdate_manual, "SFSW2_project_descriptions.R",
@@ -42,8 +34,6 @@ file.copy(from = file.path(dir_demo, "SFSW2_project_code.R"),
 
 #--- Input files
 fnew <- list.files(ddefin, recursive = TRUE)
-fnew <- grep("SoilWat2_defaults", fnew, value = TRUE, invert = TRUE)
-
 
 for (k in seq_along(fnew)) {
   if (file.exists(file.path(dtestin, fnew[k]))) {

@@ -98,9 +98,63 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
   invisible(dir_prj)
 }
 
-load_project_description <- function(fmetar) {
-  meta <- new.env(parent = baseenv())
+
+#' Compare elements and 1-st level structure of project script file with
+#' installed \pkg{rSFSW2}-package version
+#'
+#' @param dir_prj A character string. Path the simulation project folder.
+#' @param script A character string. Name of the script file to compare.
+#' @param ... Passed to \code{\link{load_project_description}} to pre-fill
+#'   new environment.
+#' @return A logical value.
+#'
+#' \dontrun{
+#' is_project_script_file_recent(
+#'   dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}
+is_project_script_file_recent <- function(dir_prj,
+  script = "SFSW2_project_descriptions.R", ...) {
+
+  is_recent <- TRUE
+
+  # Location of demo scripts of the installed package
+  dir_demo <- system.file("demo", package = "rSFSW2")
+
+  # Load from installed package
+  installed <- load_project_description(file.path(dir_demo, script), ...)
+
+  # Load from project folder
+  has <- load_project_description(file.path(dir_prj, script), ...)
+
+  # Compare elements and 1st-level structure
+  installed_names <- names(installed)
+
+  is_recent <- is_recent && all(installed_names %in% names(has))
+
+  for (k in installed_names) {
+    xnames <- names(installed[[k]])
+    is_recent <- is_recent && all(xnames %in% names(has[[k]]))
+  }
+
+  is_recent
+}
+
+
+load_project_description <- function(fmetar, ...) {
+  dots <- list(...)
+
+  # Prepare new environmenet
+  meta <- if (length(dots) > 0) {
+      list2env(dots, parent = baseenv())
+    } else {
+      new.env(parent = baseenv())
+    }
+
+  # Source file into environment
   sys.source(fmetar, envir = meta, keep.source = FALSE)
+
+  # Delete objects from environemnt which were used to create initial input
+  suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out",
+    "dir_prj", "endyr", "scorp", "startyr", "temp"), envir = meta))
 
   meta
 }
@@ -218,11 +272,6 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
 
     # 1c) Load and prepare project description
     SFSW2_prj_meta <- load_project_description(fmetar)
-
-
-    #--- Delete objects from 'SFSW2_prj_meta' which were used to create initial input
-    suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
-      "endyr", "scorp", "startyr", "temp"), envir = SFSW2_prj_meta))
 
     #--- Update project paths and file names
     dir_safe_create(SFSW2_prj_meta[["project_paths"]], showWarnings = print.debug)

@@ -34,8 +34,8 @@ project_paths <- list(
     if (dir.exists(temp)) {
       if (interactive()) setwd(temp)
     } else {
-      print(paste("'project_paths[['dir_prj']]' =", shQuote(temp), "does not exist. Code",
-        "uses", shQuote(getwd()), "instead."))
+      warning("'project_paths[['dir_prj']]' = ", shQuote(temp), "does not exist. ",
+        "Code uses ", shQuote(getwd()), " instead.", call. = FALSE, immediate. = TRUE)
     }
     getwd()
   },
