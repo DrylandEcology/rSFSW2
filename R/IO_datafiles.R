@@ -327,26 +327,36 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
   invisible(TRUE)
 }
 
-#' Read from disk the default input files of \pkg{SOILWAT2}
+
+
+#' Prepare default inputs from \pkg{rSOILWAT2}
+#'
+#' This function loads the data \code{\link[rSOILWAT2]{sw_exampleData}} from
+#' \pkg{rSOILWAT2}; removes all but one soil layer (to prevent carry-over
+#' effects of deeper layers in sites that have a shallower soil profile
+#' simulated by \pkg{rSFSW2}); turns on soil temperature simulations; and
+#' removes any weather data.
+#'
+#' @return A \linkS4class{swInputData} object.
 #' @export
-read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
-  temp <- list.files(dir_in_sw)
-  swFilesIn <- grep(swFiles_tag, temp, value = TRUE)[1]
+read_SOILWAT2_DefaultInputs <- function() {
+  # 'example1' of rSOILWAT2 package is defined as 'default' from SOILWAT2
+  swData <- rSOILWAT2::sw_exampleData
 
-  if (length(swFilesIn) == 0 || is.na(swFilesIn))
-    stop("'read_SOILWAT2_FileDefaults': cannot find SOILWAT2's overview file ",
-      shQuote(swFiles_tag), " in folder ", shQuote(dir_in_sw))
+  # Delete all but one soil layer
+  temp <- rSOILWAT2::swSoils_Layers(swData)[1, , drop = FALSE]
+  rSOILWAT2::swSoils_Layers(swData) <- temp
 
-  # 'swDataFromFiles' acts as the basis for all runs
-  swDataFromFiles <- rSOILWAT2::sw_inputDataFromFiles(dir = dir_in_sw,
-    files.in = swFilesIn)
+  # Turn soil temperature on
+  rSOILWAT2::swSite_SoilTemperatureFlag(swData) <- TRUE
 
-  # we don't need the example weather data; the code will get weather data separately
-  if (length(swDataFromFiles@weatherHistory) > 0)
-    swDataFromFiles@weatherHistory <- list(new("swWeatherData"))
+  # Delete weather data folder (all rSFSW2 projects get their own weather data)
+  rSOILWAT2::set_swWeatherData(swData) <- new("swWeatherData")
 
-  swDataFromFiles
+  swData
 }
+
+
 
 complete_with_defaultpaths <- function(project_paths, fnames_in) {
   # full names of files located in 'dir_in'
