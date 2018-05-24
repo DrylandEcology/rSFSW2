@@ -75,9 +75,9 @@ writeLines(c("", "",
 
 SFSW2_prj_meta <- init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
-  verbose = TRUE, print.debug = TRUE)
+  verbose = TRUE, print.debug = FALSE)
 
-print("init_rSFSW2_project done")
+
 
 ##############################################################################
 #------ 2) LOAD THE SETTINGS FOR THIS RUN ----------------------------------------
@@ -88,7 +88,6 @@ source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
 
 SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
   wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
-print("update_actions done")
 
 
 ##############################################################################
@@ -96,7 +95,6 @@ print("update_actions done")
 
 temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity)
-print("populate_rSFSW2_project_with_data done")
 
 if (isTRUE(opt_verbosity[["verbose"]]) &&
   !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])) {
