@@ -13,7 +13,45 @@ test_that("Package code style", {
   # with `lintr::expect_lint_free`
   if (TRUE) {
     files_ready_tolint <- c(
-      "../../R/Aggregation_Functions.R"
+      "../../R/Aggregation_Functions.R",
+#      "../../R/ExtractData_ClimateDownscaling.R",
+      "../../R/ExtractData_Elevation.R",
+#      "../../R/ExtractData_MeanMonthlyClimate.R",
+#      "../../R/ExtractData_Soils.R",
+#      "../../R/GISSM.R",
+#      "../../R/Indices.R",
+#      "../../R/IO_databases.R",
+#      "../../R/IO_datafiles.R",
+#      "../../R/Mathematical_Functions.R",
+#      "../../R/Miscellaneous_Functions.R",
+#      "../../R/netCDF_prepare_climatedata_files.R",
+#      "../../R/OutputDatabase_Ensembles.R",
+#      "../../R/OutputDatabase.R",
+#      "../../R/Parallel.R",
+#      "../../R/Pedotransfer_Functions.R",
+#      "../../R/PriorCalculations.R",
+#      "../../R/RandomNumberGenerator.R",
+#      "../../R/RcppExports.R",
+#      "../../R/rSFSW2-package.R",
+#      "../../R/rSOILWAT2_DataAccess.R",
+#      "../../R/Simulation_Project.R",
+#      "../../R/Simulation_Run.R",
+#      "../../R/SoilMTRegimes.R",
+#      "../../R/Soils_Functions.R",
+#      "../../R/Spatial_Functions.R",
+#      "../../R/Status_Trackers.R",
+#      "../../R/Synchronicity.R",
+#      "../../R/sysdata.rda",
+#      "../../R/Testproject_Functions.R",
+#      "../../R/Time_SimulationWorld.R",
+#      "../../R/Timing_Calls.R",
+#      "../../R/upgraders.R",
+#      "../../R/Vegetation.R",
+#      "../../R/WeatherDB_Check.R",
+#      "../../R/WeatherDB.R",
+#      "../../R/WorkDatabase.R",
+#      "../../R/zzz.R",
+      NULL
     )
 
     for (f in files_ready_tolint) {
