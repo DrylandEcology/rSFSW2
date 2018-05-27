@@ -30,7 +30,7 @@ test_that("Package code style", {
 #      "../../R/OutputDatabase.R",
       "../../R/Parallel.R",
       "../../R/Pedotransfer_Functions.R",
-#      "../../R/PriorCalculations.R",
+      "../../R/PriorCalculations.R",
 #      "../../R/RandomNumberGenerator.R",
 #      "../../R/RcppExports.R",
 #      "../../R/rSFSW2-package.R",

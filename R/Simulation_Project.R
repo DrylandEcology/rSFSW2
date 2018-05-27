@@ -705,7 +705,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
     if (todo_intracker(SFSW2_prj_meta, "req_soillayers", "prepared")) {
 
-      temp <- calc_ExtendSoilDatafileToRequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
+      temp <- calc_RequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
         runIDs_adjust, verbose = opt_verbosity[["verbose"]])
 
       SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
@@ -726,7 +726,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
   if (SFSW2_prj_meta[["pcalcs"]][["CalculateBareSoilEvaporationCoefficientsFromSoilTexture"]]) {
     if (todo_intracker(SFSW2_prj_meta, "calc_bsevap", "prepared")) {
 
-      SFSW2_prj_inputs <- get_BareSoilEvaporationCoefficientsForSoilInputFile(
+      SFSW2_prj_inputs <- get_BareSoilEvapCoefs(
         SFSW2_prj_meta, SFSW2_prj_inputs, runIDs_adjust, resume = opt_behave[["resume"]],
         verbose = opt_verbosity[["verbose"]])
 

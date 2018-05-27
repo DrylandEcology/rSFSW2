@@ -69,10 +69,10 @@ test_that("Bare-soil evaporation coefficients", {
           if (print_debug) {
             print(paste0(k1, k2, k3, ": ", info, ": expect error"))
           }
-          expect_error(calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md),
+          expect_error(calc_BareSoilEvapCoefs(ld, sp, cp, md),
             info = info)
         } else {
-          bsevap_coeff <- calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md)
+          bsevap_coeff <- calc_BareSoilEvapCoefs(ld, sp, cp, md)
 
           # Coeffs of each site sum to one
           expect_equal(apply(bsevap_coeff, 1, sum), rep(1, Ns), info = info)
