@@ -8,42 +8,44 @@ extract_SFSW2_cells_from_shp(x, y, fields = NULL, code = NULL, ...)
 }
 \arguments{
 \item{x}{A object inheriting from
-extracted.}
+data are extracted.}
 
 \item{y}{Either an object inheriting from
 \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} OR
-resolution(s) of rectangles as a numeric vector of length two or a matrix with two
-columns. \itemize{
+resolution(s) of rectangles as a numeric vector of length two or a matrix
+with two columns. \itemize{
   \item If \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}, then
-        values of \code{data} are extracted per polygon and weighted by area.
-  \item If the latter, then \code{coords} must be provided. \code{y} is the vector or
-        matrix representing the rectangle extents in x- and y-coordinates.
+    values of \code{data} are extracted per polygon and weighted by area.
+  \item If the latter, then \code{coords} must be provided. \code{y} is the
+    vector or matrix representing the rectangle extents in x- and
+    y-coordinates.
   \item If a matrix, then rows must match \code{coords}.
 }}
 
-\item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
-columns of the extracted object.}
+\item{fields}{A character vector. If not \code{NULL}, then \code{fields}
+selects columns of the extracted object.}
 
-\item{code}{A vector. If not \code{NULL}, then the extracted data are treated as
-integer codes of a factor whose levels are encoded by \code{code}.}
+\item{code}{A vector. If not \code{NULL}, then the extracted data are
+treated as integer codes of a factor whose levels are encoded by
+\code{code}.}
 
 \item{...}{\itemize{
-  \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
-    that are represented by a two-column matrix of \var{xy}-coordinates. Ignored if
-    \code{y} is inheriting from
+  \item \code{coords} Cell centers (corresponding to each resolution of
+    \code{y}) that are represented by a two-column matrix of
+    \var{xy}-coordinates. Ignored if \code{y} is inheriting from
     \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
-  \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object indicating the
-    coordinate reference system (\var{CRS}) of \code{y} and \code{coords}.
-    Ignored if \code{y} is inheriting from
+  \item \code{crs_data} A \code{\link[sp:CRS-class]{sp::CRS}} object
+    indicating the coordinate reference system (\var{CRS}) of \code{y} and
+    \code{coords}. Ignored if \code{y} is inheriting from
     \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}.
-  \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
-    which sample quantiles are returned.
+  \item \code{probs} A numeric vector of probabilities with values in
+    \code{[0, 1]} at which sample quantiles are returned.
 }}
 }
 \value{
-A vector or matrix with length/rows corresponding to the elements of \code{y}
- and available columns requested by \code{fields}. If \code{!is.null(code)}, then the
- encoded 'factor levels' are returned.
+A vector or matrix with length/rows corresponding to the elements of
+  \code{y} and available columns requested by \code{fields}. If
+  \code{!is.null(code)}, then the encoded 'factor levels' are returned.
 }
 \description{
 Extract spatial polygon data for polygons or rectangles.

@@ -8,24 +8,25 @@ extract_SFSW2_points_from_shp(x, y, fields = NULL, code = NULL, ...)
 }
 \arguments{
 \item{x}{An object inheriting from
-\code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} from which data are
-extracted.}
+\code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} from which data
+are extracted.}
 
 \item{y}{graphics::points represented by an object inheriting from
 \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}}.}
 
-\item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
-columns of the extracted object.}
+\item{fields}{A character vector. If not \code{NULL}, then \code{fields}
+selects columns of the extracted object.}
 
-\item{code}{A character vector. If not \code{NULL}, then the extracted data are treated
-as integer codes of a factor whose levels are encoded by \code{code}.}
+\item{code}{A character vector. If not \code{NULL}, then the extracted data
+are treated as integer codes of a factor whose levels are encoded by
+\code{code}.}
 
 \item{\dots}{Ignored.}
 }
 \value{
-A vector or matrix with length/rows corresponding to the elements of \code{y}
- and available columns requested by \code{fields}. If \code{!is.null(code)},
- then the encoded 'factor levels' are returned.
+A vector or matrix with length/rows corresponding to the elements of
+  \code{y} and available columns requested by \code{fields}. If
+  \code{!is.null(code)}, then the encoded 'factor levels' are returned.
 }
 \description{
 Extract spatial polygon data for point locations
