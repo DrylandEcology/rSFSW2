@@ -110,7 +110,7 @@ test_that("Obtain time information", {
       length(names(sim_time[[k]]$sim_time2_North)[grep(paste(N_names, collapse='|'),names(sim_time[[k]]$sim_time2_North))]))#test if doy_range names were created when use_doy_range = TRUE
 
     # Overall span of simulation period
-    expect_silent(sim_time[[k]] <- determine_overall_simulation_time(sim_time[[k]],
+    expect_silent(sim_time[[k]] <- get_simulation_time(sim_time[[k]],
       SFSW2_prj_inputs))
     expect_equal(sim_time[[k]][["overall_simstartyr"]], sim_time[[k]][["simstartyr"]])
     expect_equal(sim_time[[k]][["overall_endyr"]], sim_time[[k]][["endyr"]])

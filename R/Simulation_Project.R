@@ -392,7 +392,7 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
       SFSW2_prj_inputs[["sw_input_experimentals"]],
       SFSW2_prj_meta[["sim_scens"]])
 
-    SFSW2_prj_meta[["sim_time"]] <- determine_overall_simulation_time(
+    SFSW2_prj_meta[["sim_time"]] <- get_simulation_time(
       st = SFSW2_prj_meta[["sim_time"]], SFSW2_prj_inputs)
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
