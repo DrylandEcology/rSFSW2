@@ -1281,7 +1281,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
         stopifnot(exists("soilTUpper"))
 
-        init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(
+        init.soilTprofile <- init_soiltemperature(
           layers_depth = layers_depth,
           lower.Tdepth = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]),
           soilTupper = soilTUpper,
@@ -1757,7 +1757,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #get soil aggregation layer for daily aggregations
     if (opt_agg[["doy_slyrs"]][["do"]]) {
-      aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth, opt_agg[["doy_slyrs"]])
+      aggLs <- assign_aggregation_soillayers(layers_depth, opt_agg[["doy_slyrs"]])
     } else {
       aggLs <- as.list(ld)
     }

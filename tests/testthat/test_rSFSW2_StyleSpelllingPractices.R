@@ -38,7 +38,7 @@ test_that("Package code style", {
       "../../R/Simulation_Project.R",
 #      "../../R/Simulation_Run.R",
       "../../R/SoilMTRegimes.R",
-#      "../../R/Soils_Functions.R",
+      "../../R/Soils_Functions.R",
 #      "../../R/Spatial_Functions.R",
 #      "../../R/Status_Trackers.R",
 #      "../../R/Synchronicity.R",
