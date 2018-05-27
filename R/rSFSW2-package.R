@@ -1,9 +1,9 @@
-#' \pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation runs,
-#'  executing simulations, and aggregating outputs
+#' \pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
+#'  runs, executing simulations, and aggregating outputs
 #'
-#' @references Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology
-#'  of adjacent sagebrush and lodgepole pine ecosystems: The consequences of climate
-#'  change and disturbance. Ecosystems 17:590-605.
+#' @references Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014.
+#'   Ecohydrology of adjacent sagebrush and lodgepole pine ecosystems: The
+#'   consequences of climate change and disturbance. Ecosystems 17:590-605.
 #' @references Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012.
 #' Ecohydrological niche of sagebrush ecosystems. Ecohydrology 5:453-466.
 #'
@@ -48,7 +48,8 @@ SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
 ## Package uses S3/S4 classes - they are defined in package:methods
-#' @importFrom methods isGeneric setGeneric setMethod signature slot slot<- as new
+#' @importFrom methods isGeneric setGeneric setMethod signature
+#' @importFrom methods slot slot<- as new
 NULL
 
 

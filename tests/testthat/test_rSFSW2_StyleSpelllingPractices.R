@@ -33,7 +33,7 @@ test_that("Package code style", {
       "../../R/PriorCalculations.R",
       "../../R/RandomNumberGenerator.R",
 #      "../../R/RcppExports.R",
-#      "../../R/rSFSW2-package.R",
+      "../../R/rSFSW2-package.R",
 #      "../../R/rSOILWAT2_DataAccess.R",
 #      "../../R/Simulation_Project.R",
 #      "../../R/Simulation_Run.R",

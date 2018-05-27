@@ -5,11 +5,11 @@
 \alias{rSFSW2}
 \alias{rSFSW2-package}
 \alias{rSFSW2-package}
-\title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation runs,
- executing simulations, and aggregating outputs}
+\title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
+ runs, executing simulations, and aggregating outputs}
 \description{
-\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation runs,
- executing simulations, and aggregating outputs
+\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
+ runs, executing simulations, and aggregating outputs
 }
 \section{FORCING}{
  \pkg{SOILWAT2} is forced by \itemize{
@@ -49,9 +49,9 @@
 }
 
 \references{
-Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology
- of adjacent sagebrush and lodgepole pine ecosystems: The consequences of climate
- change and disturbance. Ecosystems 17:590-605.
+Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014.
+  Ecohydrology of adjacent sagebrush and lodgepole pine ecosystems: The
+  consequences of climate change and disturbance. Ecosystems 17:590-605.
 
 Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012.
 Ecohydrological niche of sagebrush ecosystems. Ecohydrology 5:453-466.
