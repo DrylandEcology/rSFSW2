@@ -25,7 +25,7 @@ test_that("Package code style", {
       "../../R/IO_datafiles.R",
       "../../R/Mathematical_Functions.R",
       "../../R/Miscellaneous_Functions.R",
-#      "../../R/netCDF_prepare_climatedata_files.R",
+      "../../R/netCDF_prepare_climatedata_files.R",
 #      "../../R/OutputDatabase_Ensembles.R",
 #      "../../R/OutputDatabase.R",
 #      "../../R/Parallel.R",
