@@ -1206,7 +1206,7 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     on.exit(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]), add = TRUE)
 
     swof <- rSOILWAT2::sw_out_flags()
-    swDataFromFiles <- read_SOILWAT2_DefaultInputs()
+    swDefaultInputs <- read_SOILWAT2_DefaultInputs()
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(sim_size = SFSW2_prj_meta[["sim_size"]],

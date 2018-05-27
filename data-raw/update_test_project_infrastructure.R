@@ -2,8 +2,6 @@
 
 # test project infrastructure
 
-print("Run first './data-raw/update_SoilWat2_defaults.R")
-
 dir_demo <- file.path("demo")
 dir_definf <- file.path("data-raw")
 ddefin <- file.path(dir_definf, "1_Data_SWInput")

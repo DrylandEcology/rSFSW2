@@ -11,7 +11,7 @@ global_args_do_OneSite <- function() {
     "sim_size", "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
-    "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
+    "sw_input_weather_use", "swDefaultInputs", "swof", "t_job_start", "tr_cloud",
     "tr_files", "tr_input_CarbonScenario", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
     "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
     "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
@@ -294,7 +294,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
         } else {
           soil_source <- "default_run"
-          unname(rSOILWAT2::swSoils_Layers(swDataFromFiles)[, 1])
+          unname(rSOILWAT2::swSoils_Layers(swDefaultInputs)[, 1])
         }
       soilLayers_N <- length(layers_depth)
       soildepth <- max(layers_depth)
@@ -364,10 +364,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     ClimatePerturbationsVals <- matrix(c(rep(1, 12), rep(0, 24)),
       nrow = sim_scens[["N"]], ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
 
-    #------1. Step: Information for this SOILWAT2-run from prepared SOILWAT2-run stored in dir_in_sw
+    #------1. Step: Information for this SOILWAT2-run from default rSOILWAT2-input object
     #Make a local copy of the swInput object do not want to destroy orignal
     swRunScenariosData <- list()
-    swRunScenariosData[[1]] <- swDataFromFiles
+    swRunScenariosData[[1]] <- swDefaultInputs
 
     #adjust simulation years
     rSOILWAT2::swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(isim_time[["simstartyr"]])
