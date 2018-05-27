@@ -113,7 +113,7 @@ set_RNG_stream <- function(seed = NA) {
 #'          }
 #'    \item \code{do_OneSite} calls \code{set_RNG_stream} to prepare \var{RNG} for
 #'       functions \itemize{
-#'          \item \code{calculate_TimeToGerminate_modifiedHardegree2006NLR}
+#'          \item \code{calc_TimeToGerminate}
 #'          }
 #'    }
 #'

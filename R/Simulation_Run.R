@@ -135,7 +135,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   # Set RNG seed for random number use by functions
-  #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
+  #   - Aggregation GISSM: calc_TimeToGerminate
   #   - dbExecute2
   i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]]
   set_RNG_stream(seed = i_seed)
@@ -5053,16 +5053,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             }
 
             #Put all limits together
-            Germination_DuringFavorableConditions <- Germination_AtBelowTmax & Germination_AtAboveTmin & Germination_AtMoreThanTopSWPmin
+            Germination_WhileFavorable <- Germination_AtBelowTmax & Germination_AtAboveTmin & Germination_AtMoreThanTopSWPmin
 
             #---2. Time to germinate
             #for each day with favorable conditions, determine whether period of favorable conditions (resumed or reset if broken) is long enough for successful completion of germination under current mean conditions
-            LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN = calculate_DurationFavorableConditions,
+            LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN = calc_DurationFavorableConds,
                 consequences.unfavorable = param$GerminationPeriods_0ResetOr1Resume,
-                Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+                Germination_WhileFavorable = Germination_WhileFavorable,
                 RYyear_ForEachUsedDay = RYyear_ForEachUsedDay))
-            Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN = calculate_TimeToGerminate_modifiedHardegree2006NLR,
-                Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+            Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN = calc_TimeToGerminate,
+                Germination_WhileFavorable = Germination_WhileFavorable,
                 LengthDays_FavorableConditions = LengthDays_FavorableConditions,
                 RYyear_ForEachUsedDay = RYyear_ForEachUsedDay,
                 soilTmeanSnow = soilTmeanSnow,
@@ -5070,7 +5070,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 TmeanJan = TmeanJan, param = param))
 
             Germination_RestrictedByTimeToGerminate <- rep(FALSE, RY_N_usedy)
-            Germination_RestrictedByTimeToGerminate[Germination_DuringFavorableConditions & is.na(Germination_TimeToGerminate)] <- TRUE
+            Germination_RestrictedByTimeToGerminate[Germination_WhileFavorable & is.na(Germination_TimeToGerminate)] <- TRUE
 
             #---3. Successful germinations
             GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
@@ -5092,12 +5092,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #---1. Seedling survival periods:
             #  mortality = !survival: days with conditions which kill a seedling, defined by upper/lower limits
             #  growth: days with conditions which allows a seedling to grow (here, roots), defined by upper/lower limits
-            SeedlingMortality_UnderneathSnowCover <- calculate_SeedlingMortality_ByCondition(kill.conditions = (snow > param$SWE_MaximumForSeedlingGrowth), max.duration.before.kill = param$Days_SnowCover_MaximumForSeedlingSurvival)
-            SeedlingMortality_ByTmin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (airTminSnow < param$Temp_MinimumForSeedlingSurvival), max.duration.before.kill = 0)
-            SeedlingMortality_ByTmax <- calculate_SeedlingMortality_ByCondition(kill.conditions = (airTmax > param$Temp_MaximumForSeedlingSurvival), max.duration.before.kill = 0)
-            SeedlingMortality_ByChronicSWPMax <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp > param$SWP_ChronicMaximumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMaximumForSeedlingSurvival)
-            SeedlingMortality_ByChronicSWPMin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp < param$SWP_ChronicMinimumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMinimumForSeedlingSurvival)
-            SeedlingMortality_ByAcuteSWPMin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp < param$SWP_AcuteMinimumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_UnderneathSnowCover <- calc_SeedlingMortality(kill.conditions = (snow > param$SWE_MaximumForSeedlingGrowth), max.duration.before.kill = param$Days_SnowCover_MaximumForSeedlingSurvival)
+            SeedlingMortality_ByTmin <- calc_SeedlingMortality(kill.conditions = (airTminSnow < param$Temp_MinimumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_ByTmax <- calc_SeedlingMortality(kill.conditions = (airTmax > param$Temp_MaximumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_ByChronicSWPMax <- calc_SeedlingMortality(kill.conditions = (swp > param$SWP_ChronicMaximumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMaximumForSeedlingSurvival)
+            SeedlingMortality_ByChronicSWPMin <- calc_SeedlingMortality(kill.conditions = (swp < param$SWP_ChronicMinimumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMinimumForSeedlingSurvival)
+            SeedlingMortality_ByAcuteSWPMin <- calc_SeedlingMortality(kill.conditions = (swp < param$SWP_AcuteMinimumForSeedlingSurvival), max.duration.before.kill = 0)
 
             SeedlingGrowth_AbsenceOfSnowCover <- (snow <= param$SWE_MaximumForSeedlingGrowth)
             SeedlingGrowth_AtAboveTmin <- (airTminSnow >= param$Temp_MinimumForSeedlingGrowth)
@@ -5141,17 +5141,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
                   #Check growth under above-ground conditions
                   #Snow cover
-                  thisSeedlingGrowth_AbsenceOfSnowCover <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AbsenceOfSnowCover <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
                   #Minimum temperature
-                  thisSeedlingGrowth_AtAboveTmin <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AtAboveTmin <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
                   #Maximum temperature
-                  thisSeedlingGrowth_AtBelowTmax <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AtBelowTmax <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
@@ -5245,7 +5245,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #---Aggregate output
             dat_gissm1 <- cbind(Germination_Emergence, SeedlingSurvival_1stSeason)
             dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin,
-              !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions,
+              !Germination_AtMoreThanTopSWPmin, !Germination_WhileFavorable,
               Germination_RestrictedByTimeToGerminate)
 
             #Fraction of years with success
