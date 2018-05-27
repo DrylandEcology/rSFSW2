@@ -16,7 +16,8 @@ export_objects_to_workers(obj_env, parallel_backend = c("mpi", "socket"),
 \item{cl}{A parallel (socket) cluster object}
 }
 \value{
-A logical value. \code{TRUE} if every object was exported successfully.
+A logical value. \code{TRUE} if every object was exported
+  successfully.
 }
 \description{
 Export objects to workers

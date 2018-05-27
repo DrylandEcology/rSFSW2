@@ -7,21 +7,35 @@
 mpi_last(gv)
 }
 \arguments{
-\item{gv}{A list with at least one named element \code{p_has}. \code{p_has} is a
-logical value and indicates whether call is from a parallel run.}
+\item{gv}{A list with at least one named element \code{p_has}. \code{p_has}
+is a logical value and indicates whether call is from a parallel run.}
 }
 \description{
 Properly end \var{\dQuote{mpi}} workers before quitting R (e.g., at a crash)
 }
 \section{Notes}{
  Code is based on
- \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+
+ Ideally, we use \code{Rmpi::mpi.exit()} on exit, but we
+  cannot as of \pkg{Rmpi} v0.6.6. Because \pkg{rSFSW2} does not attach
+  \pkg{Rmpi}, the function \code{\link[Rmpi::mpi.exit]{mpi.exit}} throws
+  an error when it executes \code{detach(package:Rmpi)} which results in
+  "Error in detach(package:Rmpi) : invalid 'name' argument".
+
+ \code{Rmpi::mpi.comm.size(1)} crashes with a segfault if
+  there are no workers running because of the call
+  \code{.Call("mpi_comm_is_null", as.integer(comm), PACKAGE = "Rmpi")}.
+
+ Ideally, we would use \code{Rmpi::mpi.close.Rslaves()}.
+  Howeer, this function hangs our R session because of its call to
+  \code{Rmpi::mpi.comm.disconnect()}; even wrapping this
+  in \code{\link[base]{try}} doesn't prevent it from hanging.
 }
 
 \section{Details}{
- \code{gv} will
- usually be the package-level global variable environment \code{SFSW2_glovars}. This
- is because this function is registered as finalizer to the object
- \code{SFSW2_glovars}.
+ \code{gv} will usually be the package-level global
+  variable environment \code{SFSW2_glovars}. This is because this function
+  is registered as finalizer to the object \code{SFSW2_glovars}.
 }
 

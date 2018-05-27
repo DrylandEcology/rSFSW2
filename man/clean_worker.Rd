@@ -10,7 +10,8 @@ clean_worker()
 Remove all objects except those with a name starting with a dot '.'
 }
 \section{Notes}{
- Do not call 'ls(all = TRUE)' because there are important (hidden)
-   \code{.X} objects that are important for proper worker functioning!
+ Do not call 'ls(all = TRUE)' because there are important
+  (hidden) \code{.X} objects that are important for proper worker
+  functioning!
 }
 

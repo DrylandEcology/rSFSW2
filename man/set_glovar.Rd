@@ -9,8 +9,8 @@ set_glovar(x, value)
 \arguments{
 \item{x}{A character string. The name of a global variable.}
 
-\item{value}{A R object. The value to be assigned to the global variable identified by
-\code{x}.}
+\item{value}{A R object. The value to be assigned to the global variable
+identified by \code{x}.}
 }
 \description{
 Setting values of package-level global variables on workers

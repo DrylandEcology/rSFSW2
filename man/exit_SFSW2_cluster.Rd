@@ -2,7 +2,8 @@
 % Please edit documentation in R/Parallel.R
 \name{exit_SFSW2_cluster}
 \alias{exit_SFSW2_cluster}
-\title{Clean up and terminate a parallel cluster used for a \pkg{rSFSW2} simulation project}
+\title{Clean up and terminate a parallel cluster used for a \pkg{rSFSW2}
+simulation project}
 \usage{
 exit_SFSW2_cluster(verbose = FALSE)
 }
@@ -10,5 +11,6 @@ exit_SFSW2_cluster(verbose = FALSE)
 \item{verbose}{A logical value.}
 }
 \description{
-Clean up and terminate a parallel cluster used for a \pkg{rSFSW2} simulation project
+Clean up and terminate a parallel cluster used for a \pkg{rSFSW2}
+simulation project
 }
