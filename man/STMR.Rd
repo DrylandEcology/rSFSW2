@@ -24,14 +24,14 @@ Soil moisture regime categories including qualifiers
 }
 \section{Definitions}{
  Soil temperature and moisture regimes are defined in
- SSS 2014. Our operationalization is explained in the vignette
- \var{SoilMoistureRegimes_SoilTemperatureRegimes}.
+  SSS 2014. Our operationalization is explained in the vignette
+  \var{SoilMoistureRegimes_SoilTemperatureRegimes}.
 }
 
 \examples{
  vignette("SoilMoistureRegimes_SoilTemperatureRegimes", package = "rSFSW2")
 }
 \references{
-Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA Natural
- Resources Conservation Service, Washington, DC.
+Soil Survey Staff. 2014. Keys to soil taxonomy, 12th ed., USDA
+  Natural Resources Conservation Service, Washington, DC.
 }
