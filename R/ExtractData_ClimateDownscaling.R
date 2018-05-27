@@ -3191,7 +3191,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
   # Prepare 'include_YN_climscen'
   include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
 
-  temp <- dbW_sites_with_missingClimScens(
+  temp <- find_sites_with_bad_weather(
     fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
     site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
     scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
@@ -3385,7 +3385,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
     }
 
     # Determine which climate scenario extractions and downscalings remain to be done
-    temp <- dbW_sites_with_missingClimScens(
+    temp <- find_sites_with_bad_weather(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
