@@ -2,19 +2,22 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_agg_timing}
 \alias{dbWork_agg_timing}
-\title{Calculate mean and standard deviation of stored execution times of completed runs}
+\title{Calculate mean and standard deviation of stored execution times of
+completed runs}
 \usage{
 dbWork_agg_timing(path)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 }
 \value{
-A numeric vector with mean and standard deviation of execution time in seconds
-  and number of completed runs.
+A numeric vector with mean and standard deviation of execution
+  time in seconds and number of completed runs.
 }
 \description{
-Calculate mean and standard deviation of stored execution times of completed runs
+Calculate mean and standard deviation of stored execution times of
+completed runs
 }
 \seealso{
 \code{\link{dbWork_timing}}

@@ -8,13 +8,15 @@ simulation project}
 create_dbWork(path, jobs)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
-\item{jobs}{An integer matrix. Each row corresponds to one call of the simulation
-function \code{do_OneSite}, i.e., \code{runsN_master} x \code{expN}. The columns
-\code{runID_total}, \code{runID_sites}, \code{include_YN} represent a running ID,
-the \code{site_id} (row number in master input file), and a flag whether site is being
-simulated or not. See \code{\link{indices}}.}
+\item{jobs}{An integer matrix. Each row corresponds to one call of the
+simulation function \code{do_OneSite}, i.e., \code{runsN_master} x
+\code{expN}. The columns \code{runID_total}, \code{runID_sites},
+\code{include_YN} represent a running ID, the \code{site_id} (row number in
+master input file), and a flag whether site is being simulated or not. See
+\code{\link{indices}}.}
 }
 \value{
 Invisibly \code{TRUE}

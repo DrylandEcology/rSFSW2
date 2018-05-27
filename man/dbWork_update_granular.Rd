@@ -7,15 +7,16 @@
 dbWork_update_granular(path, table, Pid, status, verbose = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{table}{A character string.}
 
 \item{Pid}{An integer value. The identification number of the current output,
 i.e., see \code{\link{indices}}.}
 
-\item{status}{A logical value. \code{FALSE} indicates "no longer needed", i.e.,
-that the output for \code{table} has successfully been generated (see
+\item{status}{A logical value. \code{FALSE} indicates "no longer needed",
+i.e., that the output for \code{table} has successfully been generated (see
 \code{\link{add_granular_dbWork}}).}
 
 \item{verbose}{A logical value.}

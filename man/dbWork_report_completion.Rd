@@ -8,18 +8,20 @@ dbWork_report_completion(path, use_granular_control = FALSE,
   SFSW2_prj_meta = NULL)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{use_granular_control}{A logical value. If \code{TRUE} and the granular
 table is present (see \code{\link{add_granular_dbWork}}), then calculate
-percentage of completed runs based on granular table instead of \code{work} table.}
+percentage of completed runs based on granular table instead of \code{work}
+table.}
 
-\item{SFSW2_prj_meta}{An environment. If \code{use_granular_control}, then required
-as well as presence of \code{dbOutput}.}
+\item{SFSW2_prj_meta}{An environment. If \code{use_granular_control}, then
+required as well as presence of \code{dbOutput}.}
 }
 \value{
-A numeric value in \code{[0,100]} in percent. The proportion of output units
-  that are reported as complete.
+A numeric value in \code{[0,100]} in percent. The proportion of
+  output units that are reported as complete.
 }
 \description{
 Estimate percentage of completed runs

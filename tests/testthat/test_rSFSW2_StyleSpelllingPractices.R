@@ -49,7 +49,7 @@ test_that("Package code style", {
       "../../R/Vegetation.R",
       "../../R/WeatherDB_Check.R",
       "../../R/WeatherDB.R",
-#      "../../R/WorkDatabase.R",
+      "../../R/WorkDatabase.R",
       "../../R/zzz.R",
       NULL
     )

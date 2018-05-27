@@ -7,14 +7,15 @@
 dbWork_clean(path, verbose = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 }
 \value{
 A logical value
 }
 \description{
-Some code, power, and system failures may leave \code{dbWork} in an incomplete state,
-e.g., a rollback journal is present, or runs are marked as \var{\dQuote{inwork}}
-even though no runs are currently being worked on. This function cleans such
-situations up.
+Some code, power, and system failures may leave \code{dbWork} in an
+incomplete state, e.g., a rollback journal is present, or runs are marked as
+\var{\dQuote{inwork}} even though no runs are currently being worked on. This
+function cleans such situations up.
 }

@@ -8,7 +8,8 @@ recreate_dbWork(path, dbOutput, use_granular_control, SFSW2_prj_meta = NULL,
   verbose = FALSE, print.debug = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{dbOutput}{A character string. Full name to the output database.}
 

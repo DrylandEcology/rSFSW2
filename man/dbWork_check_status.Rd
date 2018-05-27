@@ -2,22 +2,26 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_check_status}
 \alias{dbWork_check_status}
-\title{Check modification status of \code{dbWork} against \code{dbOut} and \code{dbTempOut}}
+\title{Check modification status of \code{dbWork} against \code{dbOut} and
+\code{dbTempOut}}
 \usage{
 dbWork_check_status(path, SFSW2_prj_meta = NULL)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{SFSW2_prj_meta}{An environment.}
 }
 \value{
-A logical value. \code{TRUE} if the status of \code{dbWork} claims to be
- modified (out of sync) or if its time stamp is older (and suggest to be out of sync)
- than any modification time of the output generated for \code{dbOut} and/or
- \code{dbTempOut} -- the later is only checked if \code{SFSW2_prj_meta} is not null;
- \code{FALSE} if \code{dbWork} is deemed to be in sync with output progress of project.
+A logical value. \code{TRUE} if the status of \code{dbWork} claims to
+  be modified (out of sync) or if its time stamp is older (and suggest to be
+  out of sync) than any modification time of the output generated for
+  \code{dbOut} and/or \code{dbTempOut} -- the later is only checked if
+  \code{SFSW2_prj_meta} is not null; \code{FALSE} if \code{dbWork} is deemed
+  to be in sync with output progress of project.
 }
 \description{
-Check modification status of \code{dbWork} against \code{dbOut} and \code{dbTempOut}
+Check modification status of \code{dbWork} against \code{dbOut} and
+\code{dbTempOut}
 }

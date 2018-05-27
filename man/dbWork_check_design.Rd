@@ -7,15 +7,16 @@
 dbWork_check_design(path, use_granular_control = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{use_granular_control}{A logical value. If \code{TRUE} and the granular
-table is present (see \code{\link{add_granular_dbWork}}), then include the optional
-table \code{needs_output} in check.}
+table is present (see \code{\link{add_granular_dbWork}}), then include the
+optional table \code{needs_output} in check.}
 }
 \value{
-A logical value. \code{FALSE} if no \code{dbWork} can be located or if
-  any required table is missing or if not all required fields are present.
+A logical value. \code{FALSE} if no \code{dbWork} can be located or
+  if any required table is missing or if not all required fields are present.
 }
 \description{
 Check that \code{dbWork} has an up-to-date structure of tables and fields

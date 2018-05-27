@@ -2,16 +2,19 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_timing}
 \alias{dbWork_timing}
-\title{Extract stored execution times of completed runs of a \pkg{rSFSW2} simulation project}
+\title{Extract stored execution times of completed runs of a \pkg{rSFSW2}
+simulation project}
 \usage{
 dbWork_timing(path)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 }
 \value{
 A numeric vector of execution time in seconds.
 }
 \description{
-Extract stored execution times of completed runs of a \pkg{rSFSW2} simulation project
+Extract stored execution times of completed runs of a \pkg{rSFSW2}
+simulation project
 }

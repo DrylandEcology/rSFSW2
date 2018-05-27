@@ -7,14 +7,15 @@
 dbWork_check_granular(path, runIDs)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{runIDs}{An integer vector. The identification numbers of queried runs,
 i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
 }
 \value{
-A data.frame with columns as created by \code{\link{add_granular_dbWork}}
-  and one row per \code{runIDs}.
+A data.frame with columns as created by
+  \code{\link{add_granular_dbWork}} and one row per \code{runIDs}.
 }
 \description{
 Check granular run status

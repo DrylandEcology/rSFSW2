@@ -7,11 +7,12 @@
 dbWork_update_status(path, status, verbose = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{status}{A logical value. \code{FALSE} indicates "not modified", i.e.,
-that \code{dbWork} and generated output \code{dbOutput} and \code{dbTempOut}
-is synchronized; \code{TRUE} indicates "modified".}
+that \code{dbWork} and generated output \code{dbOutput} and
+\code{dbTempOut} is synchronized; \code{TRUE} indicates "modified".}
 
 \item{verbose}{A logical value.}
 }

@@ -7,14 +7,16 @@
 dbWork_check_run(path, runIDs)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{runIDs}{An integer vector. The identification numbers of queried runs,
 i.e., values out of \code{runIDs_total}, see \code{\link{indices}}.}
 }
 \value{
 A data.frame with three columns \var{\dQuote{completed}},
-  \var{\dQuote{failed}}, and \var{\dQuote{inwork}} and one row per \code{runIDs}.
+  \var{\dQuote{failed}}, and \var{\dQuote{inwork}} and one row per
+  \code{runIDs}.
 }
 \description{
 Check run status

@@ -12,12 +12,11 @@ A logical value.
 }
 \description{
 The table \code{need_outputs} has one row/record for each \code{P_id = Pid}
-and contains columns \code{Pid}, \code{runID_total} (that links to table \code{work}),
-and one column for each output table of \code{dbOutput} with the same names. Those
-fields contain values \itemize{
-  \item -1 No output is requested, e.g., site is excluded from simulation project by
-    input setting of \code{include_YN == 0},
-  \item 0 FALSE, output is not needed (any more), i.e., output is already produced,
-  \item 1 TRUE, output is needed, i.e., output has not yet been generated.
-}
+and contains columns \code{Pid}, \code{runID_total} (that links to table
+\code{work}), and one column for each output table of \code{dbOutput} with
+the same names. Those fields contain values \itemize{ \item -1 No output is
+requested, e.g., site is excluded from simulation project by input setting of
+\code{include_YN == 0}, \item 0 FALSE, output is not needed (any more), i.e.,
+output is already produced, \item 1 TRUE, output is needed, i.e., output has
+not yet been generated. }
 }
