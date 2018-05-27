@@ -5232,7 +5232,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                       SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
                     }
 
-                    SeedlingSurvival_1stSeason <- setFALSE_SeedlingSurvival_1stSeason(
+                    SeedlingSurvival_1stSeason <- kill_seedling(
                       SeedlingSurvival_1stSeason, RYyear_ForEachUsedDay,
                       RY.useyrs, y, sg_RYdoy)
                   }

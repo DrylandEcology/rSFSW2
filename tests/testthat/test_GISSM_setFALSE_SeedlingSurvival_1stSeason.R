@@ -1,4 +1,4 @@
-context("GISSM: setFALSE_SeedlingSurvival_1stSeason")
+context("GISSM: kill_seedling")
 
 # Inputs
 test_data <- list(
@@ -25,21 +25,21 @@ test_data <- list(
 
 
 
-test_that("setFALSE_SeedlingSurvival_1stSeason", {
+test_that("kill_seedling", {
 
   for (k in seq_along(test_data))
     with(test_data[[k]],
       expect_equal(
-        setFALSE_SeedlingSurvival_1stSeason(ss1s, ry_year_day, ry_useyrs, y, doy),
+        kill_seedling(ss1s, ry_year_day, ry_useyrs, y, doy),
         ref,
         info = paste("Test dataset =", shQuote(names(test_data)[k]))))
 
   #--- Errors
   if (requireNamespace("Rcpp")) {
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 7), rep(1, 10), 1, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 7), 1, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 7, 1, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 1, 7, 1))
-    expect_error(setFALSE_SeedlingSurvival_1stSeason(rep(TRUE, 10), rep(1, 10), 1, 1, 70))
+    expect_error(kill_seedling(rep(TRUE, 7), rep(1, 10), 1, 1, 1))
+    expect_error(kill_seedling(rep(TRUE, 10), rep(1, 7), 1, 1, 1))
+    expect_error(kill_seedling(rep(TRUE, 10), rep(1, 10), 7, 1, 1))
+    expect_error(kill_seedling(rep(TRUE, 10), rep(1, 10), 1, 7, 1))
+    expect_error(kill_seedling(rep(TRUE, 10), rep(1, 10), 1, 1, 70))
   }
 })

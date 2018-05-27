@@ -2,20 +2,20 @@
 % Please edit documentation in R/RcppExports.R
 \name{germination_wait_times}
 \alias{germination_wait_times}
-\title{Determine wait times until germination based on information on favorable conditions
-  and time required to germinate}
+\title{Determine wait times until germination based on information on favorable
+  conditions and time required to germinate}
 \usage{
 germination_wait_times(time_to_germinate, duration_fave_cond)
 }
 \description{
-Determine wait times until germination based on information on favorable conditions
-  and time required to germinate
+Determine wait times until germination based on information on favorable
+  conditions and time required to germinate
 }
 \section{Note}{
- The \pkg{Rcpp} version of the function is about 270x faster for
- vectors of length 365 and 12,000x faster for vectors of length 11,000 than the
- R version. The \pkg{Rcpp} version also reduced the memory footprint by a factor
- of >> 3080.
+ The \pkg{Rcpp} version of the function is about 270x faster
+ for vectors of length 365 and 12,000x faster for vectors of length 11,000
+ than the R version. The \pkg{Rcpp} version also reduced the memory
+ footprint by a factor of >> 3080.
 }
 
 \examples{
@@ -36,7 +36,7 @@ Determine wait times until germination based on information on favorable conditi
 
 }
 \references{
-Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling
- regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions.
- Ecol Model, 286, 66-77.
+Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014).
+ Modeling regeneration responses of big sagebrush (Artemisia tridentata)
+ to abiotic conditions. Ecol Model, 286, 66-77.
 }

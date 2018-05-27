@@ -1,17 +1,17 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-//' Determine wait times until germination based on information on favorable conditions
-//'   and time required to germinate
+//' Determine wait times until germination based on information on favorable
+//'   conditions and time required to germinate
 //'
-//' @section Note: The \pkg{Rcpp} version of the function is about 270x faster for
-//'  vectors of length 365 and 12,000x faster for vectors of length 11,000 than the
-//'  R version. The \pkg{Rcpp} version also reduced the memory footprint by a factor
-//'  of >> 3080.
+//' @section Note: The \pkg{Rcpp} version of the function is about 270x faster
+//'  for vectors of length 365 and 12,000x faster for vectors of length 11,000
+//'  than the R version. The \pkg{Rcpp} version also reduced the memory
+//'  footprint by a factor of >> 3080.
 //'
-//' @references Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014). Modeling
-//'  regeneration responses of big sagebrush (Artemisia tridentata) to abiotic conditions.
-//'  Ecol Model, 286, 66-77.
+//' @references Schlaepfer, D.R., Lauenroth, W.K. & Bradford, J.B. (2014).
+//'  Modeling regeneration responses of big sagebrush (Artemisia tridentata)
+//'  to abiotic conditions. Ecol Model, 286, 66-77.
 //'
 //' @examples
 //'  # The \pkg{Rcpp} function is equivalent to the following R version
