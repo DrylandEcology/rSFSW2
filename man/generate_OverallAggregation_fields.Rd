@@ -9,18 +9,20 @@ generate_OverallAggregation_fields(aon, opt_agg)
 \arguments{
 \item{aon}{A named logical list. Names are the output options.}
 
-\item{opt_agg}{A named list. Additional information for aggregation functions.}
+\item{opt_agg}{A named list. Additional information for aggregation
+functions.}
 }
 \value{
-A data.frame with two columns \code{N} and \code{fields}. Each (named) row
-  corresponds to one element of \code{aon}. \code{N} represent the number of output
-  fields and \code{fields} contains a list with the names of those output fields.
+A data.frame with two columns \code{N} and \code{fields}. Each
+  (named) row corresponds to one element of \code{aon}. \code{N} represent
+  the number of output fields and \code{fields} contains a list with the
+  names of those output fields.
 }
 \description{
 Generate field names (and their numbers) for overall aggregation options
 }
 \section{Notes}{
- All '.' will be translated to "_" because of \var{sqlite} field name
-constraints.
+ All '.' will be translated to "_" because of \var{sqlite}
+  field name constraints.
 }
 

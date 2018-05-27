@@ -6,7 +6,8 @@ test_that("Package code style", {
   # Check locally and on travis
   skip_on_cran()
   skip_on_appveyor()
-  skip_if_not_installed("lintr")
+  # minimum version of lintr required for: empty commas in array subsetting
+  skip_if_not_installed("lintr", minimum_version = "1.0.2.9000")
 
 
   # Once all files pass, then remove individual `lintr::lint()` and replace
@@ -16,7 +17,7 @@ test_that("Package code style", {
       "../../R/Aggregation_Functions.R",
 #      "../../R/ExtractData_ClimateDownscaling.R",
       "../../R/ExtractData_Elevation.R",
-#      "../../R/ExtractData_MeanMonthlyClimate.R",
+      "../../R/ExtractData_MeanMonthlyClimate.R",
 #      "../../R/ExtractData_Soils.R",
 #      "../../R/GISSM.R",
 #      "../../R/Indices.R",
