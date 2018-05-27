@@ -1324,8 +1324,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-        #TODO: Include forbs and bareground in PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction
-        temp <- try(PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction(MAP_mm, MAT_C,
+        #TODO: Include forbs and bareground in estimate_PotNatVeg_composition
+        temp <- try(estimate_PotNatVeg_composition(MAP_mm, MAT_C,
           mean_monthly_ppt_mm = monthly.ppt, dailyC4vars, isNorth = isNorth,
           shrub_limit = opt_sim[["shrub_limit"]],
           fix_annuals = any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"),
@@ -1361,7 +1361,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
         i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
 
-        temp <- PotNatVeg_MonthlyBiomassPhenology_from_Climate(
+        temp <- estimate_PotNatVeg_biomass(
           tr_VegBiom = tr_VegetationComposition,
           do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
           do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
