@@ -3,27 +3,31 @@
 
 #' Execute a SQL statement on a database connection with safeguards
 #'
-#' A wrapper around \code{\link[DBI]{dbExecute}} that catches errors and attempts
-#' to execute the SQL statement up to \code{repeats} before giving up if the database
-#' was locked.
+#' A wrapper around \code{\link[DBI]{dbExecute}} that catches errors and
+#' attempts to execute the SQL statement up to \code{repeats} before giving up
+#' if the database was locked.
 #'
 #' @param con A \code{\link[DBI:DBIConnection-class]{DBI::DBIConnection}} or
-#'  \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}} object.
-#' @param SQL A character string or vector of character strings. The SQL statement(s) to
-#'   execute on \code{con}. If \code{SQL} is a vector of character strings, then the
-#'   loop across individual executions is wrapped in a transaction.
+#'   \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+#'   object.
+#' @param SQL A character string or vector of character strings. The SQL
+#'   statement(s) to execute on \code{con}. If \code{SQL} is a vector of
+#'   character strings, then the loop across individual executions is wrapped in
+#'   a transaction.
 #' @param verbose A logical value.
-#' @param repeats An integer value. The maximum number of failed attempts to execute the
-#'   \code{SQL} statement(s) if the database is locked.
-#' @param sleep_s A numeric value. The average number to sleep before attempting to
-#'   execute the \code{SQL} statement(s) if the database was locked.
+#' @param repeats An integer value. The maximum number of failed attempts to
+#'   execute the \code{SQL} statement(s) if the database is locked.
+#' @param sleep_s A numeric value. The average number to sleep before attempting
+#'   to execute the \code{SQL} statement(s) if the database was locked.
 #' @param seed An R object. Passed to \code{\link{set.seed}} if not \code{NA}.
-#' @return A logical value. \code{TRUE} if the execution of the \code{SQL} statement(s)
-#'   did not error out.
+#' @return A logical value. \code{TRUE} if the execution of the \code{SQL}
+#'   statement(s) did not error out.
 #'
 #' @seealso \code{\link[DBI]{dbExecute}}
 #' @export
-dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, seed = NA) {
+dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
+  seed = NA) {
+
   if (!anyNA(seed)) set.seed(seed)
 
   N <- length(SQL)
@@ -31,7 +35,8 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
   k <- 1L
   repeat {
     temp_try <- try(if (N > 1) {
-        DBI::dbWithTransaction(con, for (k in seq_len(N)) DBI::dbExecute(con, SQL[k]))
+        DBI::dbWithTransaction(con, for (k in seq_len(N))
+          DBI::dbExecute(con, SQL[k]))
       } else {
         DBI::dbExecute(con, SQL)
       }, silent = !verbose)
@@ -57,10 +62,12 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
     if (do_repeat && k <= repeats) {
       k <- k + 1L
 
-      # sleep on average shape * scale; and hope that afterwards, the db will be available
+      # sleep on average shape * scale; and hope that afterwards, the db will
+      # be available
       temp_sleep <- round(stats::rgamma(1L, shape = sleep_s, scale = 1), 1L)
       if (verbose) {
-        print(paste("'dbExecute2': sleeps for", temp_sleep, "sec before attempt", k))
+        print(paste("'dbExecute2': sleeps for", temp_sleep,
+          "sec before attempt", k))
       }
 
       Sys.sleep(temp_sleep)
@@ -76,15 +83,17 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, se
 
 #' Connect to \var{SQLite}-database
 #'
-#' A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and attempts
-#' to connect up to \code{repeats} before giving up.
+#' A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and
+#' attempts to connect up to \code{repeats} before giving up.
 #'
 #' @param dbname A character string. The path including name to the database.
 #' @param flags An integer value. See \code{\link[DBI]{dbConnect}}. Defaults to
 #'   read/write mode.
 #' @inheritParams dbExecute2
-#' @return A \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
-#'   object on success; an object of class \code{\link[base:try]{try-error}} on failure.
+#' @return A
+#'   \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+#'   object on success; an object of class \code{\link[base:try]{try-error}} on
+#'   failure.
 #'
 #' @seealso \code{\link[DBI]{dbConnect}}
 #' @export
@@ -104,8 +113,8 @@ dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
         round(difftime(Sys.time(), t0, units = "secs"), 2), "s"))
     }
 
-    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbname, flags = flags),
-      silent = !verbose)
+    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbname,
+      flags = flags), silent = !verbose)
 
     if (inherits(con, "SQLiteConnection") || k > repeats) {
       break
@@ -113,10 +122,12 @@ dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
     } else {
       k <- k + 1L
 
-      # sleep on average shape * scale; and hope that afterwards, the db will be available
+      # sleep on average shape * scale; and hope that afterwards, the db will
+      # be available
       temp_sleep <- round(stats::rgamma(1L, shape = sleep_s, scale = 1), 1L)
       if (verbose) {
-        print(paste("'dbConnect2': sleeps for", temp_sleep, "sec before attempt", k))
+        print(paste("'dbConnect2': sleeps for", temp_sleep,
+          "sec before attempt", k))
       }
 
       Sys.sleep(temp_sleep)
@@ -129,21 +140,27 @@ dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
 
 
 
-# PRAGMA, see http://www.sqlite.org/pragma.html
+#' Set some useful \var{\sQuote{PRAGMA}}
+#' @references \url{http://www.sqlite.org/pragma.html}
+#' @name pragmas
 PRAGMA_settings1 <- function() c(
   "PRAGMA cache_size = 400000;",
-  "PRAGMA synchronous = FULL;", # ensures that an operating system crash or power failure will not corrupt the database
+  "PRAGMA synchronous = FULL;", # ensures that an operating system crash or
+    # power failure will not corrupt the database
   "PRAGMA locking_mode = NORMAL;",
   "PRAGMA temp_store = MEMORY;",
   "PRAGMA auto_vacuum = NONE;")
+
+#' @rdname pragmas
 PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
   "PRAGMA page_size = 65536;", # no return value
   "PRAGMA max_page_count = 2147483646;", # returns the maximum page count
   "PRAGMA foreign_keys = ON;") #no return value
 
+#' @rdname pragmas
 set_PRAGMAs <- function(con, settings) {
   temp <- lapply(force(settings), function(x) DBI::dbExecute(con, x))
-  invisible(0)
+  invisible(temp)
 }
 
 
@@ -166,7 +183,8 @@ dbVacuumRollack <- function(con, dbname) {
 #' List tables and variables of a database
 #' @export
 list.dbTables <- function(dbName) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName, flags = RSQLite::SQLITE_RO)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName,
+    flags = RSQLite::SQLITE_RO)
   res <- DBI::dbListTables(con)
   RSQLite::dbDisconnect(con)
 
@@ -176,7 +194,8 @@ list.dbTables <- function(dbName) {
 #' List variables of a database
 #' @export
 list.dbVariables <- function(dbName, dbTable) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName, flags = RSQLite::SQLITE_RO)
+  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName,
+    flags = RSQLite::SQLITE_RO)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   DBI::dbListFields(con, dbTable)
