@@ -7,7 +7,7 @@
 get_Pid_from_temptxt(str, k = -1, verbose = FALSE)
 }
 \description{
-\var{P_id} values are expected to be at the first position of values,
-e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
-\code{P_id = 1139776}
+\var{P_id} values are expected to be at the first position of values, e.g.,
+\code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."}
+where \code{P_id = 1139776}
 }

@@ -15,41 +15,44 @@ move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
   check_if_Pid_present = TRUE, dir_out_temp = NULL)
 }
 \arguments{
-\item{chunk_size}{An integer value. The number of lines that are read at once from
-the temporary text files and processed in one SQL-transaction.}
+\item{chunk_size}{An integer value. The number of lines that are read at once
+from the temporary text files and processed in one SQL-transaction.}
 }
 \description{
 Moves simulation output that was written to temporary text files to a
 \var{SQL}-database
 }
 \section{Details}{
- \code{move_temporary_to_outputDB}: no checking of temporary text
-  files is done. Any line that fails to be added to the database (for whatever reason
-  including a record with identical combination of \var{P_id} and \var{SoilLayerID}
-  is already present) is written to a new file \file{SQL_tmptxt_failed.txt}.
+ \code{move_temporary_to_outputDB}: no checking of temporary
+  text files is done. Any line that fails to be added to the database (for
+  whatever reason including a record with identical combination of \var{P_id}
+  and \var{SoilLayerID} is already present) is written to a new file
+  \file{SQL_tmptxt_failed.txt}.
 
- Initial tests suggest that performance degrades if \code{chunk_size}
-  was small (e.g., 10); values around 1000 have been successful; values of 10,000
-  work about as fast as those of 1000, but memory usage is a bit larger -- and the risk
-  that an entire transaction fails increases with \code{chunk_size}.
+ Initial tests suggest that performance degrades if
+  \code{chunk_size} was small (e.g., 10); values around 1000 have been
+  successful; values of 10,000 work about as fast as those of 1000, but
+  memory usage is a bit larger -- and the risk that an entire transaction
+  fails increases with \code{chunk_size}.
 
- \code{move_temporary_to_outputDB_withChecks}: temporary text files
-  are checked for presence of table names and identification values (\var{P_id} and
-  \var{soil layer ID}). If argument \code{check_if_Pid_present} is true and the record
-  ID already exists in the database, then values are checked for agreement. The speed
-  penalty for running the checks vs. \code{\link{move_temporary_to_outputDB}} was
-  about 20% in a set of tests.
+ \code{move_temporary_to_outputDB_withChecks}: temporary
+  text files are checked for presence of table names and identification
+  values (\var{P_id} and \var{soil layer ID}). If argument
+  \code{check_if_Pid_present} is true and the record ID already exists in the
+  database, then values are checked for agreement. The speed penalty for
+  running the checks vs. \code{\link{move_temporary_to_outputDB}} was about
+  20% in a set of tests.
   \itemize{
-   \item Lines that have insufficient information or that fail to be added to the
-       database are written to a new file \file{SQL_tmptxt_failed.txt}.
-   \item Lines with record identified by \var{Pid} (and \var{sl}) that are already in
-       database and data does agree (agreement information only available if
-       \code{check_if_Pid_present}) are written to a new file
-       \file{SQL_tmptxt_duplicates.txt}.
-   \item Lines with record identified by \var{Pid} (and \var{sl}) is already in
-       database, but data do not agree (agreement information only available if
-       \code{check_if_Pid_present}) are written to a new file
-       \file{SQL_tmptxt_repeats.txt}.
-   }
+    \item Lines that have insufficient information or that fail to be
+      added to the database are written to a new
+      file \file{SQL_tmptxt_failed.txt}.
+    \item Lines with record identified by \var{Pid} (and \var{sl})
+      that are already in database and data does agree (agreement
+      information only available if \code{check_if_Pid_present}) are
+      written to a new file \file{SQL_tmptxt_duplicates.txt}.
+   \item Lines with record identified by \var{Pid} (and \var{sl}) is
+     already in database, but data do not agree (agreement information
+     only available if \code{check_if_Pid_present}) are written to a new file
+     \file{SQL_tmptxt_repeats.txt}.}
 }
 

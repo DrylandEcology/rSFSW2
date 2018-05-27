@@ -15,7 +15,8 @@ An integer value. The number of fields in the
 Create \var{\sQuote{dbOutput}} if requested and/or not already present
 }
 \section{NOTE}{
- Do not change the design of the output database without adjusting the
-  index functions \code{it_Pid}, \code{it_exp}, and \code{it_site} (see part 4)
+ Do not change the design of the output database without
+  adjusting the index functions \code{it_Pid}, \code{it_exp}, and
+  \code{it_site} (see part 4)
 }
 

@@ -10,19 +10,21 @@ dbOutput_update_OverallAggregationTable(SFSW2_prj_meta, col_ids = NULL,
 \arguments{
 \item{SFSW2_prj_meta}{See elsewhere}
 
-\item{col_ids}{An integer vector. If \code{NULL} then the code will match old and new
-fields automatically. If not \code{NULL} and its length is equal to the number of
-fields in the old table, then this information is used to transfer data. Possible use
-case: field names have changed, but they represent the same output.}
+\item{col_ids}{An integer vector. If \code{NULL} then the code will match old
+and new fields automatically. If not \code{NULL} and its length is equal to
+the number of fields in the old table, then this information is used to
+transfer data. Possible use case: field names have changed, but they
+represent the same output.}
 
-\item{chunksize}{An integer value. Chunks used to transfer data to the new table.}
+\item{chunksize}{An integer value. Chunks used to transfer data to the new
+table.}
 
 \item{verbose}{A logical value.}
 }
 \description{
-You realize that you want additional output fields after starting a simulation project;
-or, the package is updated while you are working on a simulation, and produces now
-additional output fields for output options that are active in your simulation project.
-In either case, you don't want to discard data that is already in
-\var{\sQuote{dbOutput}}.
+You realize that you want additional output fields after starting a
+simulation project; or, the package is updated while you are working on a
+simulation, and produces now additional output fields for output options that
+are active in your simulation project. In either case, you don't want to
+discard data that is already in \var{\sQuote{dbOutput}}.
 }
