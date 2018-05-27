@@ -20,7 +20,7 @@ test_that("Package code style", {
       "../../R/ExtractData_MeanMonthlyClimate.R",
       "../../R/ExtractData_Soils.R",
       "../../R/GISSM.R",
-#      "../../R/Indices.R",
+      "../../R/Indices.R",
 #      "../../R/IO_databases.R",
 #      "../../R/IO_datafiles.R",
 #      "../../R/Mathematical_Functions.R",
