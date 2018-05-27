@@ -7,11 +7,11 @@
 remove_from_onexit_expression(sysonexit, tag)
 }
 \arguments{
-\item{sysonexit}{An expression. The returned value of a call to \code{sys.on.exit()}
-from inside the calling function.}
+\item{sysonexit}{An expression. The returned value of a call to
+\code{sys.on.exit()} from inside the calling function.}
 
-\item{tag}{A character string. An string identifying which of the recorded expressions
-should be removed.}
+\item{tag}{A character string. An string identifying which of the recorded
+expressions should be removed.}
 }
 \description{
 Remove one of possibly several expressions recorded by \code{on.exit}

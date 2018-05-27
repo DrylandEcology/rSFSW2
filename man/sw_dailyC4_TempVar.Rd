@@ -13,6 +13,6 @@ A named numeric vector of length 6.
 Calculate variables required to estimate percent C4 species in North America
 }
 \references{
-Teeri J.A., Stowe L.G. (1976) Climatic patterns and the distribution of
-  C4 grasses in North America. Oecologia, 23, 1-12.
+Teeri J.A., Stowe L.G. (1976) Climatic patterns and the
+  distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 }

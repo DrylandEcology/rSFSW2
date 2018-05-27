@@ -412,7 +412,7 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
     SFSW2_prj_meta[["prj_todos"]][["aon"]] <- convert_to_todo_list(
       SFSW2_prj_meta[["req_out"]][["overall_out"]])
     # output aggregate daily
-    SFSW2_prj_meta[["prj_todos"]][["adaily"]] <- setup_mean_daily_output_requests(
+    SFSW2_prj_meta[["prj_todos"]][["adaily"]] <- setup_meandaily_output(
       SFSW2_prj_meta[["req_out"]][["mean_daily"]], SFSW2_prj_meta[["opt_agg"]])
     # output daily traces
     SFSW2_prj_meta[["prj_todos"]][["otrace"]] <- SFSW2_prj_meta[["req_out"]][["traces"]]

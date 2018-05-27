@@ -13,14 +13,15 @@ set_options_warn_error(debug.warn.level = 1L, debug.dump.objects = FALSE,
 \item{debug.dump.objects}{A logical value. Sets the \code{error} option.
 See \code{details} section.}
 
-\item{dir_prj}{A character string. The path at which the \var{RData} file are saved if
-\code{debug.dump.objects} is turned on.}
+\item{dir_prj}{A character string. The path at which the \var{RData}
+file are saved if \code{debug.dump.objects} is turned on.}
 
 \item{verbose}{A logical value.}
 }
 \value{
-A list of length two with elements 'warn' and 'error' containing the status
- of these two global options before resetting them by this function.
+A list of length two with elements 'warn' and 'error' containing
+ the status of these two global options before resetting them by this
+ function.
 }
 \description{
 Setting global 'warn' and 'error' options
@@ -32,9 +33,9 @@ Setting global 'warn' and 'error' options
  \item  warn = 1: warnings are printed as they occur
  \item  warn = 2: all warnings are turned into errors.
 }
- If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
- and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
- view the dumped frames first attach them with
+ If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump
+ objects and frames to files at path \code{dir_prj}, and (if not in
+ interactive mode) quit. To view the dumped frames first attach them with
      \code{load(file.path(dir_prj, "last.dump.rda"))}
  and then browse them with
      \code{debugger(`path/to/file/last.dump.rda`)}
