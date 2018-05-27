@@ -42,7 +42,7 @@ test_that("Package code style", {
       "../../R/Spatial_Functions.R",
       "../../R/Status_Trackers.R",
       "../../R/Synchronicity.R",
-#      "../../R/Testproject_Functions.R",
+      "../../R/Testproject_Functions.R",
 #      "../../R/Time_SimulationWorld.R",
 #      "../../R/Timing_Calls.R",
 #      "../../R/upgraders.R",

@@ -9,7 +9,8 @@ delete_test_output(dir_test, delete_filepaths = NULL)
 \arguments{
 \item{dir_test}{A character string. Path to overall test project folder.}
 
-\item{delete_filepaths}{A vector of character strings or \code{NULL}. Files to delete.}
+\item{delete_filepaths}{A vector of character strings or \code{NULL}. Files
+to delete.}
 }
 \description{
 Delete output of a test project

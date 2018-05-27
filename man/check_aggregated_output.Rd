@@ -2,21 +2,22 @@
 % Please edit documentation in R/Testproject_Functions.R
 \name{check_aggregated_output}
 \alias{check_aggregated_output}
-\title{Run checks on the values of the output database table \code{aggregation_overall_mean}}
+\title{Run checks on the values of the output database table
+\code{aggregation_overall_mean}}
 \usage{
 check_aggregated_output(x)
 }
 \arguments{
-\item{x}{A data.frame. The content of the table \code{aggregation_overall_mean}.}
+\item{x}{A data.frame. The content of the table
+\code{aggregation_overall_mean}.}
 }
 \value{
-If all checks pass, then \code{TRUE}. If at least one check fails, then a
- list of the failing checks where each element is the value of a call to
- \code{\link[base]{all.equal}} and its name describes the check.
+If all checks pass, then \code{TRUE}. If at least one check fails,
+  then a list of the failing checks where each element is the value of a call
+  to \code{\link[base]{all.equal}} and its name describes the check.
 }
 \description{
 The implemented water-balance checks correspond to unit tests of \itemize{
- \item \file{SOILWAT2/test/test_WaterBalance.cc}
- \item \file{rSOILWAT2/tests/testthat/test_WaterBalance.R}
-}
+\item \file{SOILWAT2/test/test_WaterBalance.cc} \item
+\file{rSOILWAT2/tests/testthat/test_WaterBalance.R} }
 }

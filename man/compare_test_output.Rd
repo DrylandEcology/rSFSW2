@@ -12,21 +12,23 @@ compare_test_output(dir_test, dir_ref = NULL, tol = 0.001,
 
 \item{dir_ref}{A character string. Path to folder with reference database.}
 
-\item{tol}{A numeric value. Differences smaller than tolerance are not reported.
-Passed to \code{\link{all.equal}}.}
+\item{tol}{A numeric value. Differences smaller than tolerance are not
+reported. Passed to \code{\link{all.equal}}.}
 
-\item{comp_absolute}{A logical value. If \code{TRUE} then absolute comparisons will be
-reported, otherwise relative differences.
-See argument \code{scale} of function \code{\link{all.equal}}.}
+\item{comp_absolute}{A logical value. If \code{TRUE} then absolute
+comparisons will be reported, otherwise relative differences. See argument
+\code{scale} of function \code{\link{all.equal}}.}
 
 \item{verbose}{A logical value. If \code{TRUE} then messages are printed.}
 }
 \value{
-A (possibly empty) list of character vectors describing differences between
- test and reference databases. A first entry is the file name of the reference database.
+A (possibly empty) list of character vectors describing differences
+  between test and reference databases. A first entry is the file name of the
+  reference database.
 }
 \description{
-Reference database is identified by containing \code{basename(dir_test)} in the file name.
+Reference database is identified by containing \code{basename(dir_test)} in
+the file name.
 }
 \seealso{
 \code{\link{all.equal}}
