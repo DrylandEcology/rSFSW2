@@ -3,13 +3,27 @@ context("Code style, spell checks, and good package practices")
 
 #--- Code style
 test_that("Package code style", {
-  skip("rSFSW2 is not ready for 'lint' testing...")
+  # Check locally and on travis
   skip_on_cran()
-  skip_on_travis()
   skip_on_appveyor()
   skip_if_not_installed("lintr")
 
-  lintr::expect_lint_free()
+
+  # Once all files pass, then remove individual `lintr::lint()` and replace
+  # with `lintr::expect_lint_free`
+  if (TRUE) {
+    files_ready_tolint <- c(
+      "../../R/Aggregation_Functions.R"
+    )
+
+    for (f in files_ready_tolint) {
+      badstyle <- lintr::lint(f)
+      expect_identical(length(badstyle), 0L, info = print(badstyle))
+    }
+
+  } else {
+    lintr::expect_lint_free()
+  }
 })
 
 
