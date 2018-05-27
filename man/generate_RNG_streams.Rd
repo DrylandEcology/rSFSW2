@@ -9,9 +9,9 @@ generate_RNG_streams(N, seed = NULL, reproducible = TRUE)
 \arguments{
 \item{N}{An integer. The number of streams to generate.}
 
-\item{seed}{An integer or \code{NULL}. The seed used by \code{\link{set.seed}} to
-set the (global/master) random generator, i.e., before generating the seeds of the
-streams.}
+\item{seed}{An integer or \code{NULL}. The seed used by
+\code{\link{set.seed}} to set the (global/master) random generator, i.e.,
+before generating the seeds of the streams.}
 
 \item{reproducible}{A logical value. If \code{TRUE}, then \code{N} are
 prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
@@ -20,17 +20,18 @@ prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
 A list of length \code{N} containing the seed for each stream.
 }
 \description{
-The function \code{\link[parallel]{clusterSetRNGStream}} creates a stream for each
- worker/worker, and thus replicability can only be realized if each task is assigned to
- the same worker on repeated runs. This is usually not guaranteed with
- load-balancing parallel computations or when a long computation is being re-started
- from previous partially completed tasks/results.
-This implementation generates a stream for each unique tasks (instead for each worker)
- and thus avoids such problems.
+The function \code{\link[parallel]{clusterSetRNGStream}} creates a stream for
+each worker/worker, and thus replicability can only be realized if each task
+is assigned to the same worker on repeated runs. This is usually not
+guaranteed with load-balancing parallel computations or when a long
+computation is being re-started from previous partially completed
+tasks/results. This implementation generates a stream for each unique tasks
+(instead for each worker) and thus avoids such problems.
 }
 \details{
-The current RNG kind, if required, must be captured before this function is called
- because the function sets the kind to \var{\dQuote{L'Ecuyer-CMRG}} (see examples).
+The current RNG kind, if required, must be captured before this function is
+called because the function sets the kind to \var{\dQuote{L'Ecuyer-CMRG}}
+(see examples).
 }
 \examples{
 RNGkind_prev <- RNGkind()
