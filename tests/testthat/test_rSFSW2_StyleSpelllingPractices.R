@@ -23,7 +23,7 @@ test_that("Package code style", {
       "../../R/Indices.R",
       "../../R/IO_databases.R",
       "../../R/IO_datafiles.R",
-#      "../../R/Mathematical_Functions.R",
+      "../../R/Mathematical_Functions.R",
 #      "../../R/Miscellaneous_Functions.R",
 #      "../../R/netCDF_prepare_climatedata_files.R",
 #      "../../R/OutputDatabase_Ensembles.R",

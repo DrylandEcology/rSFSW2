@@ -16,5 +16,6 @@ A numeric vector of the size of \code{x}.
 }
 \description{
 Values above the mean of \code{x} are made larger and
-values below the mean are made smaller - each by \code{lambda * dist(x, mean(x))}.
+values below the mean are made smaller - each by
+\code{lambda * dist(x, mean(x))}.
 }
