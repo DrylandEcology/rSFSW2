@@ -1,7 +1,9 @@
 #' \pkg{rSOILWAT2} data access functions
 #'
-#' @param x An object of class \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.
-#' @param st An object as returned from the function \code{\link{setup_simulation_time}}.
+#' @param x An object of class
+#'   \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.
+#' @param st An object as returned from the function
+#'   \code{\link{setup_simulation_time}}.
 #'
 #' @name swOutput_access
 NULL
@@ -9,16 +11,17 @@ NULL
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Response_aggL <- function(response,
-                              tscale = c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"),
-                              scaler = 10, FUN, weights = NULL,
-                              x, st, st2, topL, bottomL) {
+  tscale = c("dy", "dyAll", "mo", "moAll", "yr", "yrAll"), scaler = 10,
+  FUN, weights = NULL, x, st, st2, topL, bottomL) {
+
   FUN <- match.fun(FUN)
   tscale <- match.arg(tscale)
   responseRepeats <- if (response %in% c("TRANSP", "HYDRED")) {
-      # divide by 5, because: each soil layer (cm): total, trees, shrubs, forbs, grasses
+      # divide by 5, because each soil layer (cm) has five entries for:
+      # total, trees, shrubs, forbs, grasses
       5L
     } else {
-      # c(sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa)
+      # this case if for: sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa
       1L
     }
 
@@ -29,7 +32,8 @@ get_Response_aggL <- function(response,
       yr = "Year", yrAll = "Year"))
 
   if (inherits(temp1, "try-error"))
-    stop("Necessary SOILWAT2 output files are not present for aggregation of results")
+    stop("Necessary SOILWAT2 output files are not present for aggregation of ",
+      "results")
 
   if (tscale == "dy") {
     index.col <- 2
@@ -59,7 +63,8 @@ get_Response_aggL <- function(response,
 
   layers <- seq_len((ncol(temp1) - index.col) / responseRepeats)
 
-  #adjust topL and bottomL locally in case temp1 doesn't contain information for every layer, e.g., soil evaporation
+  # adjust topL and bottomL locally in case temp1 doesn't contain information
+  # for every layer, e.g., soil evaporation
   if (max(layers) <= max(topL)) {
     topL <- layers
     bottomL <- 0
@@ -72,16 +77,19 @@ get_Response_aggL <- function(response,
       if (is.null(weights)) {
         apply(temp1[index.usetimestep, index.col + topL, drop = FALSE], 1, FUN)
       } else {
-        apply(temp1[index.usetimestep, index.col + topL, drop = FALSE], 1, FUN, weights[topL])
+        apply(temp1[index.usetimestep, index.col + topL, drop = FALSE], 1, FUN,
+          weights[topL])
       }
     } else {
       temp1[index.usetimestep, index.col + topL]
     }
   res[["bottom"]] <- if (length(bottomL) > 1) {
       if (is.null(weights)) {
-        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN)
+        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1,
+          FUN)
       } else {
-        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1, FUN, weights[bottomL])
+        apply(temp1[index.usetimestep, index.col + bottomL, drop = FALSE], 1,
+          FUN, weights[bottomL])
       }
     } else if (is.null(bottomL) || identical(bottomL, 0)) {
       matrix(data = 0, nrow = length(index.usetimestep), ncol = 1)
@@ -91,7 +99,8 @@ get_Response_aggL <- function(response,
 
   if (!is.null(timestep_ForEachEntry)) {
     res[["aggMean.top"]] <- tapply(res[["top"]], timestep_ForEachEntry, mean)
-    res[["aggMean.bottom"]] <- tapply(res[["bottom"]], timestep_ForEachEntry, mean)
+    res[["aggMean.bottom"]] <- tapply(res[["bottom"]], timestep_ForEachEntry,
+      mean)
   }
 
   if (tscale == "dyAll" || tscale == "moAll" || tscale == "yrAll") {
@@ -105,11 +114,14 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
   res <- list()
 
   res[["top"]] <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
-  res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom, texture$clay.bottom)
+  res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom,
+    texture$clay.bottom)
 
   if (!is.null(vwcmatric$aggMean.top)) {
-    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top, texture$clay.top)
-    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom, texture$sand.bottom, texture$clay.bottom)
+    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top,
+      texture$clay.top)
+    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom,
+      texture$sand.bottom, texture$clay.bottom)
   }
 
   if (!is.null(vwcmatric$val)) {
@@ -118,7 +130,8 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
     } else {
       index.header <- 1
     }
-    res[["val"]] <- cbind(vwcmatric$val[, index.header], VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
+    res[["val"]] <- cbind(vwcmatric$val[, index.header],
+      VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
   }
 
   res
@@ -235,7 +248,8 @@ get_SWE_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Inf_yr <- function(x, st) {
-  list(inf = 10 * slot(slot(x, "SOILINFILT"), "Year")[st$index.useyr, 2, drop = FALSE])
+  list(inf = 10 * slot(slot(x, "SOILINFILT"), "Year")[st$index.useyr, 2,
+    drop = FALSE])
 }
 
 #' @inheritParams swOutput_access
@@ -273,7 +287,8 @@ get_Esurface_dy <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Interception_yr <- function(x, st) {
-  x <- 10 * slot(slot(x, "INTERCEPTION"), "Year")[st$index.useyr, , drop = FALSE]
+  x <- 10 * slot(slot(x, "INTERCEPTION"), "Year")[st$index.useyr, ,
+    drop = FALSE]
   list(sum = x[, 2, drop = FALSE],
        veg = rowSums(x[, 3:6, drop = FALSE]),
        litter = x[, 7, drop = FALSE])
@@ -335,7 +350,3 @@ get_CO2effects_yr <- function(x, st) {
   x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
   list(val = x[, 11 + seq_len(2 * 4), drop = FALSE])
 }
-
-
-
-

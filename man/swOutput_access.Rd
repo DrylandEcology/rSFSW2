@@ -87,9 +87,11 @@ get_Vegetation_yr(x, st)
 get_CO2effects_yr(x, st)
 }
 \arguments{
-\item{x}{An object of class \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.}
+\item{x}{An object of class
+\code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.}
 
-\item{st}{An object as returned from the function \code{\link{setup_simulation_time}}.}
+\item{st}{An object as returned from the function
+\code{\link{setup_simulation_time}}.}
 }
 \description{
 \pkg{rSOILWAT2} data access functions

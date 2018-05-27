@@ -34,7 +34,7 @@ test_that("Package code style", {
       "../../R/RandomNumberGenerator.R",
 #      "../../R/RcppExports.R",
       "../../R/rSFSW2-package.R",
-#      "../../R/rSOILWAT2_DataAccess.R",
+      "../../R/rSOILWAT2_DataAccess.R",
 #      "../../R/Simulation_Project.R",
 #      "../../R/Simulation_Run.R",
 #      "../../R/SoilMTRegimes.R",
@@ -50,7 +50,7 @@ test_that("Package code style", {
 #      "../../R/WeatherDB_Check.R",
 #      "../../R/WeatherDB.R",
 #      "../../R/WorkDatabase.R",
-#      "../../R/zzz.R",
+      "../../R/zzz.R",
       NULL
     )
 
