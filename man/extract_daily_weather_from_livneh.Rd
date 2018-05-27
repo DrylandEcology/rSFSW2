@@ -21,8 +21,9 @@ extract_daily_weather_from_livneh(dir_data, dir_temp, site_ids, site_ids_by_dbW,
 
 \item{end_year}{the end year in the sequence of data to gather}
 
-\item{f_check}{flag to check for errors in file structure - \code{TRUE}
-for check else no integrity check}
+\item{f_check}{flag to check for errors in file structure -
+\code{TRUE}
+                          for check else no integrity check}
 
 \item{backup}{flag to create a backup of the weather data prior
 to insertion in the database
@@ -43,7 +44,7 @@ Extracts daily gridded weather data, including precipitation,
              data for the years 1915 - 2011.
 }
 \references{
-\href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
+\href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website} # nolint
 }
 \author{
 Charles Duso    \email{cd622@nau.edu}
