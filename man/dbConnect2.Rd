@@ -15,21 +15,23 @@ read/write mode.}
 
 \item{verbose}{A logical value.}
 
-\item{repeats}{An integer value. The maximum number of failed attempts to execute the
-\code{SQL} statement(s) if the database is locked.}
+\item{repeats}{An integer value. The maximum number of failed attempts to
+execute the \code{SQL} statement(s) if the database is locked.}
 
-\item{sleep_s}{A numeric value. The average number to sleep before attempting to
-execute the \code{SQL} statement(s) if the database was locked.}
+\item{sleep_s}{A numeric value. The average number to sleep before attempting
+to execute the \code{SQL} statement(s) if the database was locked.}
 
 \item{seed}{An R object. Passed to \code{\link{set.seed}} if not \code{NA}.}
 }
 \value{
-A \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
-  object on success; an object of class \code{\link[base:try]{try-error}} on failure.
+A
+  \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+  object on success; an object of class \code{\link[base:try]{try-error}} on
+  failure.
 }
 \description{
-A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and attempts
-to connect up to \code{repeats} before giving up.
+A wrapper around \code{\link[DBI]{dbConnect}} that catches errors and
+attempts to connect up to \code{repeats} before giving up.
 }
 \seealso{
 \code{\link[DBI]{dbConnect}}

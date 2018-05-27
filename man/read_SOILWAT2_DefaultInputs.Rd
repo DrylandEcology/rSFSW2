@@ -7,7 +7,8 @@
 read_SOILWAT2_DefaultInputs()
 }
 \value{
-A \code{\link[rSOILWAT2:swInputData-class]{rSOILWAT2::swInputData}} object.
+A \code{\link[rSOILWAT2:swInputData-class]{rSOILWAT2::swInputData}}
+  object.
 }
 \description{
 This function loads the data \code{\link[rSOILWAT2]{sw_exampleData}} from

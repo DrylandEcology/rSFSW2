@@ -1624,7 +1624,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta, SFSW2_prj_inputs) 
 
   #############Site Table############################
   # Note: invariant to 'include_YN', i.e., do not subset rows of 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  index_sites <- sort(unique(c(sapply(required_colnames_SWRunInformation(),
+  index_sites <- sort(unique(c(sapply(req_fields_SWRunInformation(),
       function(x) which(x == colnames(SFSW2_prj_inputs[["SWRunInformation"]]))),
     SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]])))
   sites_data <- data.frame(SFSW2_prj_inputs[["SWRunInformation"]][, index_sites], row.names = NULL,

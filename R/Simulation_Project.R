@@ -54,7 +54,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
         fim_ok <- FALSE
         for (kfim in fim) {
           fim_fields <- utils::read.csv(file.path(dtemp, kfim), nrows = 1)
-          fim_ok <- fim_ok || all(sapply(required_colnames_SWRunInformation(),
+          fim_ok <- fim_ok || all(sapply(req_fields_SWRunInformation(),
             function(x) x %in% names(fim_fields)))
         }
 
