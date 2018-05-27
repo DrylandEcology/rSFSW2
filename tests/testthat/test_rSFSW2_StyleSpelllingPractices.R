@@ -29,7 +29,7 @@ test_that("Package code style", {
 #      "../../R/OutputDatabase_Ensembles.R",
 #      "../../R/OutputDatabase.R",
       "../../R/Parallel.R",
-#      "../../R/Pedotransfer_Functions.R",
+      "../../R/Pedotransfer_Functions.R",
 #      "../../R/PriorCalculations.R",
 #      "../../R/RandomNumberGenerator.R",
 #      "../../R/RcppExports.R",
