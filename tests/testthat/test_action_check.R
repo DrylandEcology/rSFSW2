@@ -9,7 +9,8 @@ init_testDB <- function(test_table. = test_table) {
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   # A zero row data frame just creates a table definition
-  temp <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL, c("P_id", "Include_YN")))
+  temp <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL,
+    c("P_id", "Include_YN")))
   RSQLite::dbWriteTable(con, "header", as.data.frame(temp))
 
   temp <- matrix(NA, nrow = 0, ncol = 1, dimnames = list(NULL, c("P_id")))
@@ -115,8 +116,8 @@ test_that("missing_Pids_outputDB", {
   testDB_add_to_testtable(dbtest2, P_id = 2)
   expect_identical(missing_Pids_outputDB(test_table, dbtest2), 3L)
 
-  # missing records in test table and header indicates Include_YN as well as records in
-  # test table which are not in header
+  # missing records in test table and header indicates Include_YN as well as
+  # records in test table which are not in header
   testDB_add_to_testtable(dbtest2, P_id = 6)
   expect_identical(missing_Pids_outputDB(test_table, dbtest2), 3L)
 })

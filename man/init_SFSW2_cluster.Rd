@@ -13,6 +13,6 @@ environment of the package: \itemize{
   \item \code{p_cl}: Parallel cluster
   \item \code{p_has}: Do we have a parallel cluster set up?
   \item \code{p_pids}: Process IDs of workers
-  \item \code{lockfile}: Set lockfile to \code{NULL}
+  \item \code{lockfile}: Set \code{lockfile} to \code{NULL}
 }
 }

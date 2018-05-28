@@ -280,12 +280,12 @@ mpi_work <- function(verbose = FALSE) {
 #'   cannot as of \pkg{Rmpi} v0.6.6. Because \pkg{rSFSW2} does not attach
 #'   \pkg{Rmpi}, the function \code{\link[Rmpi::mpi.exit]{mpi.exit}} throws
 #'   an error when it executes \code{detach(package:Rmpi)} which results in
-#'   "Error in detach(package:Rmpi) : invalid 'name' argument".
+#'   \code{"Error in detach(package:Rmpi) : invalid 'name' argument"}.
 #' @section Notes: \code{Rmpi::mpi.comm.size(1)} crashes with a segfault if
 #'   there are no workers running because of the call
 #'   \code{.Call("mpi_comm_is_null", as.integer(comm), PACKAGE = "Rmpi")}.
 #' @section Notes: Ideally, we would use \code{Rmpi::mpi.close.Rslaves()}.
-#'   Howeer, this function hangs our R session because of its call to
+#'   However, this function hangs our R session because of its call to
 #'   \code{Rmpi::mpi.comm.disconnect()}; even wrapping this
 #'   in \code{\link[base]{try}} doesn't prevent it from hanging.
 #'
@@ -407,7 +407,7 @@ clean_worker <- function() {
 #'   \item \code{p_cl}: Parallel cluster
 #'   \item \code{p_has}: Do we have a parallel cluster set up?
 #'   \item \code{p_pids}: Process IDs of workers
-#'   \item \code{lockfile}: Set lockfile to \code{NULL}
+#'   \item \code{lockfile}: Set \code{lockfile} to \code{NULL}
 #' }
 #'
 #' @export

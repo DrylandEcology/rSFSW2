@@ -1371,7 +1371,9 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
 #'              maximum temperature and minimum temperature from the Livneh
 #'              database: a 1/16 degree gridded weather database that contains
 #'              data for the years 1915 - 2011.
-#' @references  \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website} # nolint
+# nolint start
+#' @references  \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
+# nolint end
 #'
 #' @param    dir_data        directory containing Livneh data
 #' @param    dir_temp          the database directory

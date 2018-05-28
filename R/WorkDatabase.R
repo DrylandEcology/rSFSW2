@@ -94,7 +94,7 @@ colnames_work_dbWork <- function() {
     "inwork", "time_s")
 }
 
-colnames_status_dbWork <- function() {
+colnames_modification_status_dbWork <- function() { # nolint
   c("status", "time_stamp")
 }
 

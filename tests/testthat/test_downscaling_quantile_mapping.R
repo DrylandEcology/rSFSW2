@@ -1,9 +1,10 @@
 context("Quantile mapping for downscaling climate data")
 
 #---TESTS
-fix_spline <- c(NA, "fail", "none") # cannot reliably test option "attempt" because not predicatable when it fails
-type <- c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm",
-  "tricub_monoH.FC", "tricub_natural", "normal_anomalies")
+# cannot reliably test option "attempt" because not predicatable when it fails
+fix_spline <- c(NA, "fail", "none")
+type <- c("linear_Boe", "linear_Thermessl2012CC.QMv1b", "linear_none",
+  "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies")
 
 qmaps <- list(
   qmap::fitQmapQUANT(1:10, 5:15, wet.day = FALSE),
@@ -11,15 +12,21 @@ qmaps <- list(
   qmap::fitQmapQUANT(1:10, c(rep(1, 10), 5:15), wet.day = FALSE),
   qmap::fitQmapQUANT(1:10, rep(0, 10), wet.day = FALSE)
 )
-# k2 <- 3; plot(qmaps[[k2]][["par"]][["modq"]], qmaps[[k2]][["par"]][["fitq"]])
+# to plot:
+if (FALSE) {
+  k2 <- 3
+  plot(qmaps[[k2]][["par"]][["modq"]], qmaps[[k2]][["par"]][["fitq"]])
+}
 
 xs <- list(inter = 5:15, extra = 0:30)
 
 tests <- rbind(
-  expand.grid(fix_spline = fix_spline[1], type = grep("tricub", type, invert = TRUE,
-    value = TRUE), stringsAsFactors = FALSE),
-  expand.grid(fix_spline = fix_spline[-1], type = grep("tricub", type, invert = FALSE,
-    value = TRUE), stringsAsFactors = FALSE))
+  expand.grid(fix_spline = fix_spline[1],
+    type = grep("tricub", type, invert = TRUE, value = TRUE),
+    stringsAsFactors = FALSE),
+  expand.grid(fix_spline = fix_spline[-1],
+    type = grep("tricub", type, invert = FALSE, value = TRUE),
+    stringsAsFactors = FALSE))
 
 set.seed(124)
 test_that("Test applying a quantile map", {
@@ -38,12 +45,13 @@ test_that("Test applying a quantile map", {
           fix_spline = tests[k2, "fix_spline"])
 
         if (has_novar) {
-          expect_message(do.call("doQmapQUANT_drs", do_args), "values are identical",
-            info = info)
-          expect_equal(do.call("doQmapQUANT_drs", do_args), rep(mean(fitq), length(x)),
-            info = info)
+          expect_message(do.call("doQmapQUANT_drs", do_args),
+            "values are identical", info = info)
+          expect_equal(do.call("doQmapQUANT_drs", do_args), rep(mean(fitq),
+            length(x)), info = info)
 
-        } else if (identical(tests[k2, "fix_spline"], "fail") && !(k0 == 3 && k1 == 1)) {
+        } else if (identical(tests[k2, "fix_spline"], "fail") &&
+            !(k0 == 3 && k1 == 1)) {
           expect_error(do.call("doQmapQUANT_drs", do_args), info = info)
 
         } else {

@@ -22,7 +22,8 @@ if (!file.exists(ftemp)) {
 f_rds_orig <- tempfile(fileext = ".rds")
 temp <- strsplit(basename(f_rds_orig), split = ".", fixed = TRUE)[[1]]
 f_rds_backup <- file.path(dirname(f_rds_orig),
-  paste0(paste(temp[-length(temp)], collapse = ""), "_backup.", temp[length(temp)]))
+  paste0(paste(temp[-length(temp)], collapse = ""), "_backup.",
+    temp[length(temp)]))
 
 
 #---TESTS

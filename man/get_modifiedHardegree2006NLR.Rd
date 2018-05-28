@@ -2,7 +2,7 @@
 % Please edit documentation in R/GISSM.R
 \name{get_modifiedHardegree2006NLR}
 \alias{get_modifiedHardegree2006NLR}
-\title{Based on the NLR model (equation 5) in Hardegree SP (2006) and modified
+\title{Based on the \var{NLR} model (equation 5) in Hardegree (2006) and modified
 by Schlaepfer et al. (2014) by making time to germinate dependent on
 mean January temperature and soil water potential}
 \usage{
@@ -11,12 +11,12 @@ get_modifiedHardegree2006NLR(RYdoy, Estimate_TimeToGerminate, TmeanJan, a, b, c,
   Tgerm.year, SWPgerm.year, durations, rec.delta = 1, nrec.max = 10L)
 }
 \description{
-Based on the NLR model (equation 5) in Hardegree SP (2006) and modified
+Based on the \var{NLR} model (equation 5) in Hardegree (2006) and modified
 by Schlaepfer et al. (2014) by making time to germinate dependent on
 mean January temperature and soil water potential
 }
 \references{
-Hardegree SP, et al. (2006) Predicting Germination Response to
+Hardegree SP (2006) Predicting Germination Response to
   Temperature. I. Cardinal-temperature Models and Subpopulation-specific
   Regression. Annals of Botany, 97, 1115-1125.
 }

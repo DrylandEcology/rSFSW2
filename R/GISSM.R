@@ -65,11 +65,11 @@ calc_DurationFavorableConds <- function(RYyear, consequences.unfavorable,
   out
 }
 
-#' Based on the NLR model (equation 5) in Hardegree SP (2006) and modified
+#' Based on the \var{NLR} model (equation 5) in Hardegree (2006) and modified
 #' by Schlaepfer et al. (2014) by making time to germinate dependent on
 #' mean January temperature and soil water potential
 #'
-#' @references Hardegree SP, et al. (2006) Predicting Germination Response to
+#' @references Hardegree SP (2006) Predicting Germination Response to
 #'   Temperature. I. Cardinal-temperature Models and Subpopulation-specific
 #'   Regression. Annals of Botany, 97, 1115-1125.
 get_modifiedHardegree2006NLR <- function(RYdoy, Estimate_TimeToGerminate,

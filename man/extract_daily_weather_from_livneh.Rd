@@ -44,7 +44,7 @@ Extracts daily gridded weather data, including precipitation,
              data for the years 1915 - 2011.
 }
 \references{
-\href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website} # nolint
+\href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
 }
 \author{
 Charles Duso    \email{cd622@nau.edu}

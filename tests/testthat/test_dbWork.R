@@ -10,9 +10,9 @@ expN <- 4L
 runsN_total <- runsN_master * expN
 runIDs_total <- seq_len(runsN_total)
 runIDs <- runIDs_total[rep(include_YN, times = expN)]
-sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total, expN = expN)
+sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total,
+  expN = expN)
 time_set3 <- c(50, 75, 125)
-#fname_log <- "log_dbWork.txt"
 verbose <- FALSE
 
 test_update <- function(i, dbpath, flock = NULL, verbose) {
@@ -25,7 +25,8 @@ test_update <- function(i, dbpath, flock = NULL, verbose) {
       dbWork_update_job(dbpath, i, "failed", verbose = verbose)
 
     } else {
-      dbWork_update_job(dbpath, i, "completed", time_s = .node_id, verbose = verbose)
+      dbWork_update_job(dbpath, i, "completed", time_s = .node_id,
+        verbose = verbose)
     }
 
   } else {
@@ -45,7 +46,8 @@ expect_dbWork_check <- function(x, len, sum) {
 pretend_sim <- function(cl, runIDs, dbpath, flock, verbose) {
 
   temp <- if (is.null(cl)) {
-      sapply(runIDs, test_update, dbpath = dbpath, flock = flock, verbose = verbose)
+      sapply(runIDs, test_update, dbpath = dbpath, flock = flock,
+        verbose = verbose)
 
     } else {
       parallel::clusterApplyLB(cl, runIDs, test_update,
@@ -64,10 +66,10 @@ pretend_sim <- function(cl, runIDs, dbpath, flock, verbose) {
 
 #--- Unit tests
 test_that("dbWork: mock simulation in parallel", {
-  # Run these tests not in parallel on CIs and CRAN because parallel code will likely
-  # fail on CIs and on CRAN
-  #  - travis  on July 21, 2017: "Error in .check_ncores(length(names)) : 10 simultaneous
-  #    processes spawned"
+  # Run these tests not in parallel on CIs and CRAN because parallel code
+  # will likely fail on CIs and on CRAN
+  #  - travis  on July 21, 2017: "Error in .check_ncores(length(names)) :
+  #    10 simultaneous processes spawned"
 
   skip_on_cran()
   skip_on_travis()
@@ -86,14 +88,14 @@ test_that("dbWork: mock simulation in parallel", {
     # Parallel setup
     temp <- max(2L, min(10L, parallel::detectCores() - 2L))
     ncores <- if (is.finite(temp)) temp else 2L
-    #cl <- parallel::makePSOCKcluster(ncores, outfile = fname_log)
     cl <- parallel::makePSOCKcluster(ncores)
     temp <- parallel::clusterApply(cl, seq_len(ncores),
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
-    parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork", "dbWork_todos",
-      "dbWork_timing", "dbWork_update_job", "lock_access", "unlock_access", "lock_attempt",
-      "lock_init", "check_lock_content", "remove_lock"))
+    parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork",
+      "dbWork_todos", "dbWork_timing", "dbWork_update_job", "lock_access",
+      "unlock_access", "lock_attempt", "lock_init", "check_lock_content",
+      "remove_lock"))
     # End parallel setup
   }
 
@@ -106,8 +108,8 @@ test_that("dbWork: mock simulation in parallel", {
   if (packageVersion("rSFSW2") <= "2.5.5") {
     # This should fail with
     #Error in checkForRemoteErrors(val) :
-    #  100 nodes produced errors; first error: rsqlite_query_send: could not execute1:
-    #  database is locked
+    #  100 nodes produced errors; first error: rsqlite_query_send: could not
+    #  execute1: database is locked
     expect_error(pretend_sim(cl, runIDs, dbpath, flock = NULL, verbose))
   } else {
     # PR #256 introduced code to prevent such failures
@@ -129,7 +131,6 @@ test_that("dbWork: mock simulation in parallel", {
   }
   unlink(file.path(dbpath, "dbWork.sqlite3*"))
   unlink(flock, recursive = TRUE)
-  #unlink(fname_log)
 })
 
 
@@ -170,8 +171,8 @@ test_that("dbWork: access and manipulation functions", {
 
   # Testing 'dbWork_redo'
   #   - incorrect runIDs arguments doesn't change dbWork
-  expect_true(dbWork_redo(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE,
-    TRUE, "a", -1, runsN_total + 1)))
+  expect_true(dbWork_redo(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA,
+    NaN, FALSE, TRUE, "a", -1, runsN_total + 1)))
   expect_identical(dbWork_todos(dbpath), runIDs[-seq_along(time_set3)])
   #   - attempt to reset runIDs which haven't completed yet
   expect_true(dbWork_redo(dbpath, runIDs = runIDs[-seq_along(time_set3)]))
@@ -184,8 +185,8 @@ test_that("dbWork: access and manipulation functions", {
   temp <- dbWork_check_run(dbpath, runIDs = runIDs[seq_along(time_set3)])
   expect_dbWork_check(temp, length(time_set3), 0L)
   #   - incorrect runIDs arguments returns a 0-row data.frame
-  temp <- dbWork_check_run(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA, NaN, FALSE,
-    TRUE, "a", -1, runsN_total + 1))
+  temp <- dbWork_check_run(dbpath, runIDs = c(NULL, numeric(), -Inf, Inf, NA,
+    NaN, FALSE, TRUE, "a", -1, runsN_total + 1))
   expect_dbWork_check(temp, 0L, 0L)
 
   # Testing 'dbWork_clean'
@@ -197,4 +198,3 @@ test_that("dbWork: access and manipulation functions", {
 #--- Clean up
 # remove "dbWork.sqlite3", "dbWork.sqlite3-shm", "dbWork.sqlite3-wal"
 unlink(file.path(dbpath, "dbWork.sqlite3*"))
-

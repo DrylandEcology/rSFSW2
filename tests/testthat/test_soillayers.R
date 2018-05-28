@@ -1,7 +1,9 @@
 context("Manipulate soil layers")
 
 #---INPUTS
-#set.seed(1234L)
+if (FALSE) {
+  set.seed(1234L)
+}
 
 nrows <- 10L
 test_space <- 1000L
@@ -19,7 +21,8 @@ test_data <- list(
   make_test_x(10)
 )
 
-test_weights <- list(c(NA, 1), c(0, 1), c(0.5, 0.5), c(1, 0), c(1, NA), c(NA, NA))
+test_weights <- list(c(NA, 1), c(0, 1), c(0.5, 0.5), c(1, 0), c(1, NA),
+  c(NA, NA))
 
 
 #---TESTS
@@ -30,10 +33,11 @@ test_that("add_layer_to_soil", {
     for (il in c(0, seq_len(ncol(test_data[[k]]))))
       for (iw in seq_along(test_weights))
         for (im in c("interpolate", "exhaust")) {
-          loop_info <- paste("test", k, "/ layer", il, "/ w", iw, "/ method", im)
+          loop_info <- paste("test", k, "/ layer", il, "/ w", iw,
+            "/ method", im)
 
-          res <- add_layer_to_soil(x = test_data[[k]], il = il, w = test_weights[[iw]],
-            method = im)
+          res <- add_layer_to_soil(x = test_data[[k]], il = il,
+            w = test_weights[[iw]], method = im)
 
           # Test dimensions
           expect_equal(ncol(res), ncol(test_data[[k]]) + 1L, info = loop_info)
@@ -41,11 +45,13 @@ test_that("add_layer_to_soil", {
 
           # Test data consistency of new layer
           lnew <- res[, il + 1]
-          ilo <- if (isTRUE(all.equal(il, 0L))) {il + 1L} else il
+          ilo <- if (isTRUE(all.equal(il, 0L))) il + 1L else il
           weights_not_used <- im == "interpolate" &&
-            (isTRUE(all.equal(il, 0)) || isTRUE(all.equal(il, ncol(test_data[[k]]))))
+            (isTRUE(all.equal(il, 0)) ||
+                isTRUE(all.equal(il, ncol(test_data[[k]]))))
 
-          expect_equal(all(is.finite(lnew)), all(is.finite(test_data[[k]][, ilo])) &&
+          expect_equal(all(is.finite(lnew)),
+            all(is.finite(test_data[[k]][, ilo])) &&
             if (weights_not_used) TRUE else all(is.finite(test_weights[[iw]])),
             info = loop_info)
   }

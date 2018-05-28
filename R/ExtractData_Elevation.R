@@ -138,7 +138,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
 
 
 #' @references Harmonized World Soil Database
-do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
+do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, # nolint
   dir_ex_dem, fnames_in, resume, verbose) {
 
   if (verbose) {

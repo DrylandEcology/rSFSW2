@@ -13,7 +13,7 @@
 #'   the number of output fields and \code{fields} contains a list with the
 #'   names of those output fields.
 #' @export
-generate_OverallAggregation_fields <- function(aon, opt_agg) {
+generate_OverallAggregation_fields <- function(aon, opt_agg) { # nolint
   field_args <- list(
     aon = aon,
     opt_agg = opt_agg,
@@ -53,7 +53,7 @@ coerce_sqlNames <- function(x) {
 
 
 #0.
-fields_input_SoilProfile <- function(aon, ...) {
+fields_input_SoilProfile <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_SoilProfile"
 
@@ -68,7 +68,7 @@ fields_input_SoilProfile <- function(aon, ...) {
 }
 
 #1.
-fields_input_FractionVegetationComposition <- function(aon, ...) {
+fields_input_FractionVegetationComposition <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_FractionVegetationComposition"
 
@@ -82,7 +82,7 @@ fields_input_FractionVegetationComposition <- function(aon, ...) {
 }
 
 #2b
-fields_input_VegetationBiomassMonthly <- function(aon, ...) {
+fields_input_VegetationBiomassMonthly <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_VegetationBiomassMonthly"
 
@@ -97,7 +97,7 @@ fields_input_VegetationBiomassMonthly <- function(aon, ...) {
 }
 
 #2b
-fields_input_VegetationBiomassTrends <- function(aon, ...) {
+fields_input_VegetationBiomassTrends <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_VegetationBiomassTrends"
 
@@ -111,7 +111,7 @@ fields_input_VegetationBiomassTrends <- function(aon, ...) {
 }
 
 #3.
-fields_input_VegetationPeak <- function(aon, ...) {
+fields_input_VegetationPeak <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_VegetationPeak"
 
@@ -124,7 +124,7 @@ fields_input_VegetationPeak <- function(aon, ...) {
 }
 
 #4.
-fields_input_Phenology <- function(aon, ...) {
+fields_input_Phenology <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_Phenology"
 
@@ -136,7 +136,7 @@ fields_input_Phenology <- function(aon, ...) {
 }
 
 #5.
-fields_input_TranspirationCoeff <- function(aon, opt_agg, ...) {
+fields_input_TranspirationCoeff <- function(aon, opt_agg, ...) { # nolint
   temp <- NULL
   id <- "input_TranspirationCoeff"
 
@@ -191,7 +191,7 @@ fields_input_TranspirationCoeff <- function(aon, opt_agg, ...) {
 }
 
 #6.
-fields_input_ClimatePerturbations <- function(aon, ...) {
+fields_input_ClimatePerturbations <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_ClimatePerturbations"
 
@@ -206,7 +206,7 @@ fields_input_ClimatePerturbations <- function(aon, ...) {
 }
 
 #6b
-fields_input_CO2Effects <- function(aon, ...) {
+fields_input_CO2Effects <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "input_CO2Effects"
 
@@ -222,7 +222,7 @@ fields_input_CO2Effects <- function(aon, ...) {
 #------Aggregation: Climate and weather---###################################
 
 #7.
-fields_yearlyTemp <- function(aon, ...) {
+fields_yearlyTemp <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyTemp"
 
@@ -282,7 +282,7 @@ fields_dailySnowpack <- function(aon, opt_agg, ...) {
 }
 
 #11
-fields_dailyFrostInSnowfreePeriod <- function(aon, opt_agg,
+fields_dailyFrostInSnowfreePeriod <- function(aon, opt_agg,  # nolint
   fieldtag_Tmin_crit_C, ...) {
 
   temp <- NULL
@@ -352,7 +352,7 @@ fields_dailyCoolDays <- function(aon, fieldtag_Tmean_crit_C, ...) {
 }
 
 #13
-fields_dailyPrecipitationEventSizeDistribution <- function(aon, opt_agg, ...) {
+fields_dailyPrecipitationEventSizeDistribution <- function(aon, opt_agg, ...) {  # nolint
   temp <- NULL
   id <- "dailyPrecipitationEventSizeDistribution"
 
@@ -366,7 +366,7 @@ fields_dailyPrecipitationEventSizeDistribution <- function(aon, opt_agg, ...) {
 }
 
 #15
-fields_yearlyPET <- function(aon, ...) {
+fields_yearlyPET <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyPET"
 
@@ -378,7 +378,7 @@ fields_yearlyPET <- function(aon, ...) {
 }
 
 #16
-fields_monthlySeasonalityIndices <- function(aon, ...) {
+fields_monthlySeasonalityIndices <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySeasonalityIndices"
 
@@ -393,7 +393,7 @@ fields_monthlySeasonalityIndices <- function(aon, ...) {
 
 #---Aggregation: Climatic dryness
 #17
-fields_yearlymonthlyTemperateDrylandIndices <- function(aon, ...) {
+fields_yearlymonthlyTemperateDrylandIndices <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlymonthlyTemperateDrylandIndices"
 
@@ -407,7 +407,7 @@ fields_yearlymonthlyTemperateDrylandIndices <- function(aon, ...) {
 }
 
 #18
-fields_yearlyDryWetPeriods <- function(aon, ...) {
+fields_yearlyDryWetPeriods <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyDryWetPeriods"
 
@@ -420,7 +420,7 @@ fields_yearlyDryWetPeriods <- function(aon, ...) {
 }
 
 #19
-fields_dailyWeatherGeneratorCharacteristics <- function(aon, ...) {
+fields_dailyWeatherGeneratorCharacteristics <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyWeatherGeneratorCharacteristics"
 
@@ -434,7 +434,7 @@ fields_dailyWeatherGeneratorCharacteristics <- function(aon, ...) {
 }
 
 #20
-fields_dailyPrecipitationFreeEventDistribution <- function(aon, opt_agg, ...) {
+fields_dailyPrecipitationFreeEventDistribution <- function(aon, opt_agg, ...) {  # nolint
   temp <- NULL
   id <- "dailyPrecipitationFreeEventDistribution"
 
@@ -449,7 +449,7 @@ fields_dailyPrecipitationFreeEventDistribution <- function(aon, opt_agg, ...) {
 }
 
 #21
-fields_monthlySPEIEvents <- function(aon, ...) {
+fields_monthlySPEIEvents <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySPEIEvents"
 
@@ -473,7 +473,7 @@ fields_monthlySPEIEvents <- function(aon, ...) {
 
 #---Aggregation: Climatic control
 #22
-fields_monthlyPlantGrowthControls <- function(aon, ...) {
+fields_monthlyPlantGrowthControls <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyPlantGrowthControls"
 
@@ -486,7 +486,7 @@ fields_monthlyPlantGrowthControls <- function(aon, ...) {
 }
 
 #23
-fields_dailyC4_TempVar <- function(aon, ...) {
+fields_dailyC4_TempVar <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyC4_TempVar"
 
@@ -529,7 +529,7 @@ fields_dailyColdDegreeDays <- function(aon, opt_agg, ...) {
 #------Aggregation: Yearly water balance---##################################
 
 #27.0
-fields_yearlyAET <- function(aon, ...) {
+fields_yearlyAET <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyAET"
 
@@ -541,7 +541,7 @@ fields_yearlyAET <- function(aon, ...) {
 }
 
 #27
-fields_yearlyWaterBalanceFluxes <- function(aon, ...) {
+fields_yearlyWaterBalanceFluxes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyWaterBalanceFluxes"
 
@@ -565,7 +565,7 @@ fields_yearlyWaterBalanceFluxes <- function(aon, ...) {
 }
 
 #27.1
-fields_yearlyTranspirationBySoilLayer <- function(aon, ...) {
+fields_yearlyTranspirationBySoilLayer <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "yearlyTranspirationBySoilLayer"
 
@@ -581,7 +581,7 @@ fields_yearlyTranspirationBySoilLayer <- function(aon, ...) {
 }
 
 #27.2
-fields_dailySoilWaterPulseVsStorage <- function(aon, ...) {
+fields_dailySoilWaterPulseVsStorage <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailySoilWaterPulseVsStorage"
 
@@ -597,7 +597,7 @@ fields_dailySoilWaterPulseVsStorage <- function(aon, ...) {
 
 #------Aggregation: Daily extreme values---##################################
 #28
-fields_dailyTranspirationExtremes <- function(aon, ...) {
+fields_dailyTranspirationExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyTranspirationExtremes"
 
@@ -610,7 +610,7 @@ fields_dailyTranspirationExtremes <- function(aon, ...) {
 }
 
 #29
-fields_dailyTotalEvaporationExtremes <- function(aon, ...) {
+fields_dailyTotalEvaporationExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyTotalEvaporationExtremes"
 
@@ -624,7 +624,7 @@ fields_dailyTotalEvaporationExtremes <- function(aon, ...) {
 }
 
 #30
-fields_dailyDrainageExtremes <- function(aon, ...) {
+fields_dailyDrainageExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyDrainageExtremes"
 
@@ -637,7 +637,7 @@ fields_dailyDrainageExtremes <- function(aon, ...) {
 }
 
 #31
-fields_dailyInfiltrationExtremes <- function(aon, ...) {
+fields_dailyInfiltrationExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyInfiltrationExtremes"
 
@@ -650,7 +650,7 @@ fields_dailyInfiltrationExtremes <- function(aon, ...) {
 }
 
 #32
-fields_dailyAETExtremes <- function(aon, ...) {
+fields_dailyAETExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyAETExtremes"
 
@@ -663,7 +663,7 @@ fields_dailyAETExtremes <- function(aon, ...) {
 }
 
 #33
-fields_dailySWPextremes <- function(aon, ...) {
+fields_dailySWPextremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailySWPextremes"
 
@@ -678,7 +678,7 @@ fields_dailySWPextremes <- function(aon, ...) {
 }
 
 #34
-fields_dailyRechargeExtremes <- function(aon, ...) {
+fields_dailyRechargeExtremes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyRechargeExtremes"
 
@@ -704,7 +704,7 @@ fields_dailyRechargeExtremes <- function(aon, ...) {
 #'   \item ACS = AnhydrousControlSection
 #'   \item consec = consecutive
 #' }
-fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates <- function(aon,
+fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates <- function(aon,  # nolint
   ...) {
 
   temp <- NULL
@@ -774,7 +774,7 @@ fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates <- function(aon,
 
 #' @seealso
 #' \code{\link{fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates}}
-fields_dailyNRCS_SoilMoistureTemperatureRegimes <- function(aon, ...) {
+fields_dailyNRCS_SoilMoistureTemperatureRegimes <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyNRCS_SoilMoistureTemperatureRegimes"
 
@@ -789,7 +789,7 @@ fields_dailyNRCS_SoilMoistureTemperatureRegimes <- function(aon, ...) {
 }
 
 #35b
-fields_dailyNRCS_Chambers2014_ResilienceResistance <- function(aon, ...) {
+fields_dailyNRCS_Chambers2014_ResilienceResistance <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyNRCS_Chambers2014_ResilienceResistance"
 
@@ -803,7 +803,7 @@ fields_dailyNRCS_Chambers2014_ResilienceResistance <- function(aon, ...) {
 }
 
 #35c
-fields_dailyNRCS_Maestas2016_ResilienceResistance <- function(aon, ...) {
+fields_dailyNRCS_Maestas2016_ResilienceResistance <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyNRCS_Maestas2016_ResilienceResistance"
 
@@ -830,7 +830,7 @@ fields_dailyWetDegreeDays <- function(aon, opt_agg, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #35.3
-fields_dailyThermalDrynessStartEnd <- function(aon, fieldtag_SWPcrit_MPa, ...) {
+fields_dailyThermalDrynessStartEnd <- function(aon, fieldtag_SWPcrit_MPa, ...) {  # nolint
   temp <- NULL
   id <- "dailyThermalDrynessStartEnd"
 
@@ -845,7 +845,7 @@ fields_dailyThermalDrynessStartEnd <- function(aon, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #35.4
-fields_dailyThermalSWPConditionCount <- function(aon, opt_agg,
+fields_dailyThermalSWPConditionCount <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, fieldtag_Tmean_crit_C, ...) {
 
   temp <- NULL
@@ -885,7 +885,7 @@ fields_monthlySWPdryness <- function(aon, opt_agg, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #37
-fields_dailySWPdrynessANDwetness <- function(aon, fieldtag_SWPcrit_MPa, ...) {
+fields_dailySWPdrynessANDwetness <- function(aon, fieldtag_SWPcrit_MPa, ...) {  # nolint
   temp <- NULL
   id <- "dailySWPdrynessANDwetness"
 
@@ -908,7 +908,7 @@ fields_dailySWPdrynessANDwetness <- function(aon, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #38
-fields_dailySuitablePeriodsDuration <- function(aon, opt_agg,
+fields_dailySuitablePeriodsDuration <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -927,7 +927,7 @@ fields_dailySuitablePeriodsDuration <- function(aon, opt_agg,
 }
 
 #39
-fields_dailySuitablePeriodsAvailableWater <- function(aon, opt_agg,
+fields_dailySuitablePeriodsAvailableWater <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -944,7 +944,7 @@ fields_dailySuitablePeriodsAvailableWater <- function(aon, opt_agg,
 }
 
 #40
-fields_dailySuitablePeriodsDrySpells <- function(aon, opt_agg,
+fields_dailySuitablePeriodsDrySpells <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -965,7 +965,7 @@ fields_dailySuitablePeriodsDrySpells <- function(aon, opt_agg,
 }
 
 #41
-fields_dailySWPdrynessDurationDistribution <- function(aon, opt_agg,
+fields_dailySWPdrynessDurationDistribution <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -990,7 +990,7 @@ fields_dailySWPdrynessDurationDistribution <- function(aon, opt_agg,
 }
 
 #42
-fields_dailySWPdrynessEventSizeDistribution <- function(aon,
+fields_dailySWPdrynessEventSizeDistribution <- function(aon,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -1014,7 +1014,7 @@ fields_dailySWPdrynessEventSizeDistribution <- function(aon,
 }
 
 #43
-fields_dailySWPdrynessIntensity <- function(aon, fieldtag_SWPcrit_MPa, ...) {
+fields_dailySWPdrynessIntensity <- function(aon, fieldtag_SWPcrit_MPa, ...) {  # nolint
   temp <- NULL
   id <- "dailySWPdrynessIntensity"
 
@@ -1031,7 +1031,7 @@ fields_dailySWPdrynessIntensity <- function(aon, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #43.2
-fields_dailyThermalDrynessStress <- function(aon, opt_agg,
+fields_dailyThermalDrynessStress <- function(aon, opt_agg,  # nolint
   fieldtag_SWPcrit_MPa, ...) {
 
   temp <- NULL
@@ -1059,7 +1059,7 @@ fields_dailyThermalDrynessStress <- function(aon, opt_agg,
 }
 
 #43.3
-fields_periodicVWCmatricFirstLayer <- function(aon, opt_agg, ...) {
+fields_periodicVWCmatricFirstLayer <- function(aon, opt_agg, ...) {  # nolint
   temp <- NULL
   id <- "periodicVWCmatricFirstLayer"
 
@@ -1085,7 +1085,7 @@ fields_periodicVWCmatricFirstLayer <- function(aon, opt_agg, ...) {
 #------Aggregation: Mean monthly values---###################################
 
 #44
-fields_monthlyTemp <- function(aon, ...) {
+fields_monthlyTemp <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyTemp"
 
@@ -1097,7 +1097,7 @@ fields_monthlyTemp <- function(aon, ...) {
 }
 
 #45
-fields_monthlyPPT <- function(aon, ...) {
+fields_monthlyPPT <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyPPT"
 
@@ -1109,7 +1109,7 @@ fields_monthlyPPT <- function(aon, ...) {
 }
 
 #46
-fields_monthlySnowpack <- function(aon, ...) {
+fields_monthlySnowpack <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySnowpack"
 
@@ -1121,7 +1121,7 @@ fields_monthlySnowpack <- function(aon, ...) {
 }
 
 #47
-fields_monthlySoilTemp <- function(aon, ...) {
+fields_monthlySoilTemp <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySoilTemp"
 
@@ -1135,7 +1135,7 @@ fields_monthlySoilTemp <- function(aon, ...) {
 }
 
 #48
-fields_monthlyRunoff <- function(aon, ...) {
+fields_monthlyRunoff <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyRunoff"
 
@@ -1146,7 +1146,7 @@ fields_monthlyRunoff <- function(aon, ...) {
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
 }
 
-fields_monthlyRunon <- function(aon, ...) {
+fields_monthlyRunon <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyRunon"
 
@@ -1158,7 +1158,7 @@ fields_monthlyRunon <- function(aon, ...) {
 }
 
 #49
-fields_monthlyHydraulicRedistribution <- function(aon, ...) {
+fields_monthlyHydraulicRedistribution <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyHydraulicRedistribution"
 
@@ -1172,7 +1172,7 @@ fields_monthlyHydraulicRedistribution <- function(aon, ...) {
 }
 
 #50
-fields_monthlyInfiltration <- function(aon, ...) {
+fields_monthlyInfiltration <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyInfiltration"
 
@@ -1184,7 +1184,7 @@ fields_monthlyInfiltration <- function(aon, ...) {
 }
 
 #51
-fields_monthlyDeepDrainage <- function(aon, ...) {
+fields_monthlyDeepDrainage <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyDeepDrainage"
 
@@ -1196,7 +1196,7 @@ fields_monthlyDeepDrainage <- function(aon, ...) {
 }
 
 #52
-fields_monthlySWPmatric <- function(aon, ...) {
+fields_monthlySWPmatric <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySWPmatric"
 
@@ -1210,7 +1210,7 @@ fields_monthlySWPmatric <- function(aon, ...) {
 }
 
 #53 a.)
-fields_monthlyVWCbulk <- function(aon, ...) {
+fields_monthlyVWCbulk <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyVWCbulk"
 
@@ -1224,7 +1224,7 @@ fields_monthlyVWCbulk <- function(aon, ...) {
 }
 
 #53 b.)
-fields_monthlyVWCmatric <- function(aon, ...) {
+fields_monthlyVWCmatric <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyVWCmatric"
 
@@ -1238,7 +1238,7 @@ fields_monthlyVWCmatric <- function(aon, ...) {
 }
 
 #54
-fields_monthlySWCbulk <- function(aon, ...) {
+fields_monthlySWCbulk <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySWCbulk"
 
@@ -1268,7 +1268,7 @@ fields_monthlySWAbulk <- function(aon, fieldtag_SWPcrit_MPa, ...) {
 }
 
 #56
-fields_monthlyTranspiration <- function(aon, ...) {
+fields_monthlyTranspiration <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyTranspiration"
 
@@ -1282,7 +1282,7 @@ fields_monthlyTranspiration <- function(aon, ...) {
 }
 
 #57
-fields_monthlySoilEvaporation <- function(aon, ...) {
+fields_monthlySoilEvaporation <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlySoilEvaporation"
 
@@ -1294,7 +1294,7 @@ fields_monthlySoilEvaporation <- function(aon, ...) {
 }
 
 #58
-fields_monthlyAET <- function(aon, ...) {
+fields_monthlyAET <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyAET"
 
@@ -1306,7 +1306,7 @@ fields_monthlyAET <- function(aon, ...) {
 }
 
 #59
-fields_monthlyPET <- function(aon, ...) {
+fields_monthlyPET <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyPET"
 
@@ -1318,7 +1318,7 @@ fields_monthlyPET <- function(aon, ...) {
 }
 
 #59.2
-fields_monthlyVPD <- function(aon, ...) {
+fields_monthlyVPD <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyVPD"
 
@@ -1330,7 +1330,7 @@ fields_monthlyVPD <- function(aon, ...) {
 }
 
 #60
-fields_monthlyAETratios <- function(aon, ...) {
+fields_monthlyAETratios <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyAETratios"
 
@@ -1343,7 +1343,7 @@ fields_monthlyAETratios <- function(aon, ...) {
 }
 
 #61
-fields_monthlyPETratios <- function(aon, ...) {
+fields_monthlyPETratios <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "monthlyPETratios"
 
@@ -1358,7 +1358,7 @@ fields_monthlyPETratios <- function(aon, ...) {
 #------Aggregation: Potential regeneration---################################
 
 #62
-fields_dailyRegeneration_bySWPSnow <- function(aon, ...) {
+fields_dailyRegeneration_bySWPSnow <- function(aon, ...) { # nolint
   temp <- NULL
   id <- "dailyRegeneration_bySWPSnow"
 

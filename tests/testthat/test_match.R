@@ -2,9 +2,11 @@ context("Match for appending data")
 
 # Inputs
 xs <- data.frame(a = 4:6, b = letters[4:6], stringsAsFactors = FALSE)
-xl <- rbind(data.frame(a = 14:24, b = letters[14:24], stringsAsFactors = FALSE), xs)
+xl <- rbind(data.frame(a = 14:24, b = letters[14:24], stringsAsFactors = FALSE),
+  xs)
 
-ref_template <- data.frame(a = 10:1, b = letters[10:1], c = rep(NA, 10), stringsAsFactors = FALSE)
+ref_template <- data.frame(a = 10:1, b = letters[10:1], c = rep(NA, 10),
+  stringsAsFactors = FALSE)
 
 test_that("Match", {
   #--- Correct use of match to append data
@@ -15,7 +17,7 @@ test_that("Match", {
       ref$c[use_r] <- xs$b[id_x]
       ref$c[use_r]
     }, ref$b[use_r])
-    
+
   ref <- ref_template
   expect_equal({
       id_x <- match(ref$a, xl$a, nomatch = 0)
@@ -24,7 +26,8 @@ test_that("Match", {
       ref$c[use_r]
     }, ref$b[use_r])
 
-  #--- Incorrect use of match (first test works because nrow(xs) <= nrow(ref); second test fails)
+  #--- Incorrect use of match (first test works because nrow(xs) <= nrow(ref);
+  # second test fails)
   ref <- ref_template
   expect_equal({
       id_r <- match(xs$a, ref$a, nomatch = 0)
@@ -35,6 +38,7 @@ test_that("Match", {
   ref <- ref_template
   expect_warning({
       id_r <- match(xl$a, ref$a, nomatch = 0)
-      ref$c[id_r] <- xl$b  # number of items to replace is not a multiple of replacement length
+      # number of items to replace is not a multiple of replacement length
+      ref$c[id_r] <- xl$b
     })
 })

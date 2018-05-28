@@ -54,4 +54,3 @@ test_that("Test projects", {
     is.null(tp[["report"]]),
     info = info_env)
 })
-

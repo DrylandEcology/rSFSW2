@@ -75,7 +75,7 @@ writeLines(c("", "",
 
 SFSW2_prj_meta <- init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
-  verbose = TRUE, print.debug = FALSE)
+  verbose = FALSE, print.debug = FALSE)
 
 
 
