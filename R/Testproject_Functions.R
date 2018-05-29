@@ -17,6 +17,7 @@
 #'   be saved as new reference.
 #' @param write_report_to_disk A logical value. If \code{TRUE} then report of
 #'   differences against reference databases is written to disk.
+#' @param verbose A logical value.
 #'
 #' @return A list with two elements: \describe{
 #'   \item{res}{A data.frame where each row represents the outcomes of a
@@ -31,7 +32,7 @@
 run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
   dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
   delete_output = FALSE, force_delete_output = FALSE, make_new_ref = FALSE,
-  write_report_to_disk = TRUE) {
+  write_report_to_disk = TRUE, verbose = FALSE) {
 
   # Locate paths
   if (is.null(dir_prev)) {
@@ -96,8 +97,10 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
       it <- which_tests_torun[k]
       setwd(dir_tests[it])
 
-      print(paste0(Sys.time(), ": running test project '",
-        basename(dir_tests[it]), "'"))
+      if (verbose) {
+        print(paste0(Sys.time(), ": running test project '",
+          basename(dir_tests[it]), "'"))
+      }
       files_to_delete <- NULL
 
       test_code <- list.files(dir_tests[it], pattern = "project_code")
@@ -165,9 +168,10 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
           }
           # nolint end
 
-          if (!is.null(temp))
+          if (verbose && !is.null(temp)) {
             print(paste("Will delete input files:", paste0(basename(temp),
               collapse = ", ")))
+          }
 
           files_to_delete <- temp
         }
@@ -207,10 +211,10 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
   # Write report of problems to disk file
   if (any(res[, "has_problems"])) {
     if (delete_output && !force_delete_output) {
-      print("Test output not be deleted because problems were detected.")
+      warning("Test output not be deleted because problems were detected.")
     }
     if (make_new_ref) {
-      print(paste("Test output not be used as future reference because",
+      warning(paste("Test output not be used as future reference because",
         "problems were detected."))
     }
 
@@ -221,7 +225,9 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
     if (write_report_to_disk) {
       fname_report <- paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_",
         fname_report)
-      print(paste("See problem report in file", shQuote(fname_report)))
+      if (verbose) {
+        print(paste("See problem report in file", shQuote(fname_report)))
+      }
       writeLines(report, con = file.path(dir_prj_tests, fname_report))
     }
 

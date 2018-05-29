@@ -7,7 +7,7 @@
 run_test_projects(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
   dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
   delete_output = FALSE, force_delete_output = FALSE,
-  make_new_ref = FALSE, write_report_to_disk = TRUE)
+  make_new_ref = FALSE, write_report_to_disk = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{dir_tests}{A vector of character strings. Paths to individual test
@@ -35,6 +35,8 @@ be saved as new reference.}
 
 \item{write_report_to_disk}{A logical value. If \code{TRUE} then report of
 differences against reference databases is written to disk.}
+
+\item{verbose}{A logical value.}
 }
 \value{
 A list with two elements: \describe{
