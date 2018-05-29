@@ -132,7 +132,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   name_wid <- ".wid"
 
   vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
-  vars_mult <- c("MAP_mm")
+  vars_mult <- "MAP_mm"
 
   #---Paths
   dir.create(dir_out <- file.path(dir_prj, "6_Results", "Weather_summary"),
@@ -155,7 +155,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   #---Calculate in parallel
   cl <- parallel::makeCluster(n_cores, type = "PSOCK",
     outfile = "workers_log.txt")
-  temp <- parallel::clusterExport(cl, c("name_wid"))
+  temp <- parallel::clusterExport(cl, "name_wid")
 
   # TODO (drs): it is ok to load into globalenv() because this happens on
   # workers and not on master -> R CMD CHECK reports this nevertheless as issue
@@ -566,16 +566,15 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   dat <- dat[do.call(order, dat), ]
 
   dat_cur <- copy_matches(out = dat, data = dat_cur[do.call(order, dat_cur), ],
-          match_vars = c("Site_id_by_dbW"),
-          copy_vars = vars)[["out"]]
+    match_vars = "Site_id_by_dbW", copy_vars = vars)[["out"]]
 
   dat_diff <- dat
   for (iv in vars) {
     dat_diff[, iv] <- if (iv %in% vars_mult) {
-                dat[, iv] / dat_cur[, iv]
-              } else {
-                dat[, iv] - dat_cur[, iv]
-              }
+        dat[, iv] / dat_cur[, iv]
+      } else {
+        dat[, iv] - dat_cur[, iv]
+      }
   }
 
   for (iv in vars) {

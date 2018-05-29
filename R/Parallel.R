@@ -278,7 +278,7 @@ mpi_work <- function(verbose = FALSE) {
 #'   is registered as finalizer to the object \code{SFSW2_glovars}.
 #' @section Notes: Ideally, we use \code{Rmpi::mpi.exit()} on exit, but we
 #'   cannot as of \pkg{Rmpi} v0.6.6. Because \pkg{rSFSW2} does not attach
-#'   \pkg{Rmpi}, the function \code{\link[Rmpi::mpi.exit]{mpi.exit}} throws
+#'   \pkg{Rmpi}, the function \code{\link[Rmpi]{mpi.exit}} throws
 #'   an error when it executes \code{detach(package:Rmpi)} which results in
 #'   \code{"Error in detach(package:Rmpi) : invalid 'name' argument"}.
 #' @section Notes: \code{Rmpi::mpi.comm.size(1)} crashes with a segfault if

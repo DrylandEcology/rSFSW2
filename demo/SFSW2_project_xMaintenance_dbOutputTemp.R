@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
-#----------------------------------------------------------------------------------------#
-# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS, EXECUTING
-#        SIMULATIONS, AND AGGREGATING OUTPUTS
+#------------------------------------------------------------------------------#
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS,
+#         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
 #    Copyright (C) 2017 by `r packageDescription("rSFSW2")[["Author"]]`
@@ -21,21 +21,28 @@
 #------ NOTES:
 #  - You get an overview by: `r package?rSFSW2`
 #  - An index of functionality is displayed by: `r help(package = "rSFSW2")`
-#----------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 
-##############################################################################
+################################################################################
+
 
 #--- USER INPUTS
-update <- FALSE ## Initialize simulation project folder?
+## Initialize simulation project folder?
+update <- FALSE
 
-do_adjust_dir_out <- FALSE ## Adjust `dir_out` element of `project_paths` in local copy of metadata
-dir_temp <- "temp" ## Relative location of temporary output files
+## Adjust `dir_out` element of `project_paths` in local copy of metadata:
+do_adjust_dir_out <- FALSE
+## Relative location of temporary output files
+dir_temp <- "temp"
 
-do_use_dbOutput_concat <- FALSE ## If TRUE, use `fname_dbOutput_concat` instead of metadata information
-fname_dbOutput_concat <- "dbTables_concating.sqlite3" ## Name of copy of dbOutput used for moving output data into
+## If TRUE, use `fname_dbOutput_concat` instead of metadata information
+do_use_dbOutput_concat <- FALSE
+## Name of copy of dbOutput used for moving output data into
+fname_dbOutput_concat <- "dbTables_concating.sqlite3"
 
-check_if_Pid_present <- FALSE ## Check data for possible duplicates or deviation in values?
+## Check data for possible duplicates or deviation in values?
+check_if_Pid_present <- FALSE
 
 
 
@@ -48,8 +55,8 @@ fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
 
 
 SFSW2_prj_meta <- if (update || !file.exists(fmeta)) {
-  init_rSFSW2_project(fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"),
-    update = TRUE)
+  init_rSFSW2_project(
+    fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = TRUE)
   } else {
     readRDS(fmeta)
   }
@@ -86,7 +93,8 @@ if (do_use_dbOutput_concat) {
 }
 
 # Location of temporary output files
-dir_out_temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]], dir_temp)
+dir_out_temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+  dir_temp)
 stopifnot(dir.exists(dir_out_temp))
 
 

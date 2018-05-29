@@ -13,7 +13,7 @@ extract_blocks(x, y, weights = FALSE)
 \item{y}{A matrix with four columns: \var{\dQuote{xmin}},
 \var{\dQuote{xmax}}, \var{\dQuote{ymin}}, \var{\dQuote{ymax}}; each row
 represents the corners of an
-\code{\code{\link[raster:Extent-class]{raster::Extent}}} object.}
+\code{\link[raster:Extent-class]{raster::Extent}} object.}
 
 \item{weights}{logical. If \code{TRUE} and \code{normalizeWeights=FALSE}, the function returns, for each polygon, a matrix with the cell values and the approximate fraction of each cell that is covered by the polygon(rounded to 1/100). If \code{TRUE} and  \code{normalizeWeights=TRUE} the weights are normalized such that they add up to one. The weights can be used for averaging; see examples. This option can be useful (but slow) if the polygons are small relative to the cells size of the Raster* object}
 }

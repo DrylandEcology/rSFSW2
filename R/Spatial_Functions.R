@@ -367,7 +367,7 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
 #' @param y A matrix with four columns: \var{\dQuote{xmin}},
 #'   \var{\dQuote{xmax}}, \var{\dQuote{ymin}}, \var{\dQuote{ymax}}; each row
 #'   represents the corners of an
-#'   \code{\code{\link[raster:Extent-class]{raster::Extent}}} object.
+#'   \code{\link[raster:Extent-class]{raster::Extent}} object.
 #' @seealso \code{\link[raster]{extract}}
 #'
 #' @return A list with one item for each extent of \code{y}.

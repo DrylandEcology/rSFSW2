@@ -429,15 +429,15 @@ calc_SiteClimate <- function(weatherList, year.start, year.end,
 
 #' Saturation vapor pressure
 #'
-#' @param T A numeric vector of temperature(s) (deg C)
+#' @param Temp A numeric vector of temperature(s) (deg C)
 #' @return A numeric vector of length \code{T} of saturation vapor pressure
 #'   (\var{kPa}) at temperature T
 #' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
 #'   Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy
 #'   of Standardized Penman-Monteith Equation in a Humid Climate Journal of
 #'   Irrigation and Drainage Engineering 131:228-237.
-vp0 <- function(T) {
-  0.6108 * exp(17.27 * T / (T + 273.3))  # eq. 5 of Yoder et al. 2005
+vp0 <- function(Temp) {
+  0.6108 * exp(17.27 * Temp / (Temp + 273.3))  # eq. 5 of Yoder et al. 2005
 }
 
 

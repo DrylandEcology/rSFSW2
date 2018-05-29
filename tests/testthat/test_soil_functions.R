@@ -7,12 +7,12 @@ get_siteN <- function(x) if (is.null(dim(x))) 1L else dim(x)[1]
 get_layerN <- function(x) if (is.null(dim(x))) length(x) else dim(x)[2]
 
 layers_depth <- list(
-  c(5),
+  5,
   c(5, 10, 15, 30),
   c(5, 10, 30, 50),
   c(15, 50),
-  c(50),
-  c(200),
+  50,
+  200,
   c(5, NA, 30, 50),
   c(0, 5, 30, 50),
   c(-5, 5, 30),

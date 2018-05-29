@@ -1150,8 +1150,10 @@ update_actions <- function(SFSW2_prj_meta, actions = NULL,
 
   if (!is.null(actions)) {
     SFSW2_prj_meta[["prj_todos"]][["actions"]] <- actions
+
     SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] <- any(unlist(
       actions[c("sim_create", "sim_execute", "sim_aggregate")]))
+
     SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- wipe_dbOutput &&
       !(sum(actions) == 1 && actions[["ensemble"]])
   }
@@ -1169,6 +1171,7 @@ update_todos <- function(SFSW2_prj_meta) {
   SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <-
     SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
     SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
+
   SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <-
     SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
     SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]

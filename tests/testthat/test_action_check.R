@@ -13,7 +13,7 @@ init_testDB <- function(test_table. = test_table) {
     c("P_id", "Include_YN")))
   RSQLite::dbWriteTable(con, "header", as.data.frame(temp))
 
-  temp <- matrix(NA, nrow = 0, ncol = 1, dimnames = list(NULL, c("P_id")))
+  temp <- matrix(NA, nrow = 0, ncol = 1, dimnames = list(NULL, "P_id"))
   RSQLite::dbWriteTable(con, test_table., as.data.frame(temp))
 
   dbtest

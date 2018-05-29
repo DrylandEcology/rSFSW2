@@ -1509,7 +1509,7 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current, # n
   con <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
-  for (i in 1:length(sqlTables)) {
+  for (i in seq_along(sqlTables)) {
     #Create the tables
     res <- DBI::dbSendStatement(con, sqlTables[i])
     DBI::dbClearResult(res)
@@ -1993,7 +1993,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       } else nrow(db_treatments)
     temp_numberColumns <- (if (useExperimentals) 3 else 2) +
       length(SFSW2_prj_inputs[["create_treatments"]])
-    temp_columnNames <- c("id", if (useExperimentals) c("experimental_id"),
+    temp_columnNames <- c("id", if (useExperimentals) "experimental_id",
       "simulation_years_id", SFSW2_prj_inputs[["create_treatments"]])
     db_combined_exp_treatments <- data.frame(matrix(data = NA,
       nrow = temp_numberRows, ncol = temp_numberColumns,

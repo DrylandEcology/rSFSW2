@@ -4,10 +4,10 @@
 \alias{vp0}
 \title{Saturation vapor pressure}
 \usage{
-vp0(T)
+vp0(Temp)
 }
 \arguments{
-\item{T}{A numeric vector of temperature(s) (deg C)}
+\item{Temp}{A numeric vector of temperature(s) (deg C)}
 }
 \value{
 A numeric vector of length \code{T} of saturation vapor pressure
