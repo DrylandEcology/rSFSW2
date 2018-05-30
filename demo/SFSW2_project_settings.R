@@ -23,8 +23,8 @@ opt_behave <- list(
   #  - It doesn't re-extract external information (soils, elevation, climate
   #    normals, climate scenarios) if already extracted
   #  - It doesn't lookup values from tables if already available in input
-  #    datafiles, i.e., 'LookupEvapCoeffFromTable',
-  #    'LookupTranspRegionsFromTable', and 'LookupSnowDensityFromTable'
+  #    datafiles, i.e., 'LookupEvapCoefs',
+  #    'LookupTranspRegions', and 'LookupSnowDensity'
   #  - It doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
   resume = TRUE,
   # Use preprocessed input data if available

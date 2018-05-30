@@ -64,7 +64,7 @@ actions <- list(
 
 # If code is run non-interactively or if this is a test project:
 # then current working directory must be folder of projects,
-# e.g., rSFSW2_tools/Test_projects/Test4_AllOverallAggregations_snow
+# e.g., rSFSW2_tools/Test_projects/TestPrj4
 dir_prj <- getwd()
 
 

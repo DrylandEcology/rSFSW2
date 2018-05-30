@@ -365,9 +365,9 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   }
 
   do_prior_lookup <- list(
-    LookupEvapCoeffFromTable = list(),
-    LookupTranspRegionsFromTable = list(),
-    LookupSnowDensityFromTable = list()
+    LookupEvapCoefs = list(),
+    LookupTranspRegions = list(),
+    LookupSnowDensity = list()
   )
 
   done_prior <- rep(FALSE, length(do_prior_lookup))
@@ -376,8 +376,8 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   temp <- SFSW2_prj_inputs[["create_treatments"]] %in% names(do_prior_lookup)
   if (any(temp)) {
 
-    do_prior_lookup[["LookupEvapCoeffFromTable"]] <- list(
-      flag = "LookupEvapCoeffFromTable",
+    do_prior_lookup[["LookupEvapCoefs"]] <- list(
+      flag = "LookupEvapCoefs",
       pattern = "EvapCoeff",
       tr_input = SFSW2_prj_inputs[["tr_input_EvapCoeff"]],
       sw_input_use = "sw_input_soils_use",
@@ -386,8 +386,8 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       do_fill = FALSE,
       datafile = SFSW2_prj_meta[["fnames_in"]][["fsoils"]])
 
-    do_prior_lookup[["LookupTranspRegionsFromTable"]] <- list(
-      flag = "LookupTranspRegionsFromTable",
+    do_prior_lookup[["LookupTranspRegions"]] <- list(
+      flag = "LookupTranspRegions",
       pattern = "TranspRegion",
       tr_input = SFSW2_prj_inputs[["tr_input_TranspRegions"]],
       sw_input_use = "sw_input_soils_use",
@@ -396,8 +396,8 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       do_fill = FALSE,
       datafile = SFSW2_prj_meta[["fnames_in"]][["fsoils"]])
 
-    do_prior_lookup[["LookupSnowDensityFromTable"]] <- list(
-      flag = "LookupSnowDensityFromTable",
+    do_prior_lookup[["LookupSnowDensity"]] <- list(
+      flag = "LookupSnowDensity",
       pattern = "(snowd)|(SnowD_Hemisphere)",
       tr_input = SFSW2_prj_inputs[["tr_input_SnowD"]],
       sw_input_use = "sw_input_cloud_use",

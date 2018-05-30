@@ -1664,7 +1664,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
 
   if (length(missing_Pids) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      "dbTables_Pids_missing.rds")
+      "dbOutput_Pids_missing.rds")
 
     if (identical(missing_Pids, -1L)) {
       print(paste("Output DB",
@@ -1726,7 +1726,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
 
   if (length(missing_Pids_current) > 0) {
     ftemp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      "dbTablesCurrent_Pids_missing.rds")
+      "dbOutputCurrent_Pids_missing.rds")
 
     if (identical(missing_Pids_current, -1L)) {
       print(paste("Current output DB",

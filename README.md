@@ -99,7 +99,7 @@ __Setup a new simulation project__:
    rSOILWAT2 must already be present)
 2) Create a skeleton project `setup_rSFSW2_project_infrastructure(dir_prj =
    "path/to/project_folder")
-    - This function will copy a default version of '1_Data_SWInput' and the three demo R
+    - This function will copy a default version of '1_Input' and the three demo R
     files to your directory
 3) Work your way through 'SFSW2_project_code.R', i.e., define paths and actions, and
    provide simulation project description in 'SFSW2_project_descriptions.R' and run
@@ -137,14 +137,14 @@ Please follow our [guidelines](https://github.com/DrylandEcology/workflow_guidel
 ### __Updates to input files and/or demo code__
 - If `SOILWAT2` and `rSOILWAT2` update input files, then we have to propagate these changes
   to the default inputs of `rSFSW2` which are residing in the source package at
-  `data-raw/1_Data_SWInput/SoilWat2_defaults/` by running the Rscript from terminal
+  `data-raw/1_Input/SoilWat2_defaults/` by running the Rscript from terminal
   `data-raw/update_SoilWat2_defaults.R`.
-- If you change 'input files' in `data-raw/1_Data_SWInput` (e.g., updated `SoilWat2_defaults/`,
+- If you change 'input files' in `data-raw/1_Input` (e.g., updated `SoilWat2_defaults/`,
   added a new column to experimental/design treatment file) then update the `R/sysdata.rda`
   object by running the Rscript from terminal `./data-raw/prepare_default_project_infrastructure.R`.
   The file `R/sysdata.rda` is used to setup a new simulation project.
 - Additionally, if 'input files' and/or 'demo code' in `demo/` changes, then update the
-  unit test 'test project' `tests/test_data/Test4_AllOverallAggregations_snow/` by
+  unit test 'test project' `tests/test_data/TestPrj4/` by
   running the Rscript from terminal `./data-raw/update_test_project_infrastructure.R`.
 
 

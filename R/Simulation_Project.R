@@ -1212,7 +1212,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
 
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path,
-    "dbTables.sqlite3")
+    "dbOutput.sqlite3")
   temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
     verbose = verbose)
 

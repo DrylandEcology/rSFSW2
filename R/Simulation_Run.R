@@ -12,7 +12,7 @@ global_args_do_OneSite <- function() {
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
     "sw_input_weather_use", "swDefaultInputs", "swof", "t_job_start", "tr_cloud",
-    "tr_files", "tr_input_CarbonScenario", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+    "tr_files", "tr_input_CO2data", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
     "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
     "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
     "tr_VegetationComposition", "tr_weather")
@@ -412,14 +412,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
     # End carbon effects -----
 
-    if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
-                                     "LookupTranspRegionsFromTable",
-                                     "LookupSnowDensityFromTable")]) &&
-        any(!done_prior)) {
+    # Table lookups
+    lookup_names <- c("LookupEvapCoefs", "LookupTranspRegions",
+      "LookupSnowDensity")
+
+    if (any(sw_input_experimentals_use[lookup_names]) && any(!done_prior)) {
 
       do_lookup <- list(
-        LookupEvapCoeffFromTable = list(
-          flag = "LookupEvapCoeffFromTable",
+        LookupEvapCoefs = list(
+          flag = "LookupEvapCoefs",
           pattern = "EvapCoeff",
           tr_input = tr_input_EvapCoeff,
           sw_input_use = sw_input_soils_use,
@@ -427,8 +428,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
           do_fill = FALSE),
 
-        LookupTranspRegionsFromTable = list(
-          flag = "LookupTranspRegionsFromTable",
+        LookupTranspRegions = list(
+          flag = "LookupTranspRegions",
           pattern = "TranspRegion",
           tr_input = tr_input_TranspRegions,
           sw_input_use = sw_input_soils_use,
@@ -436,8 +437,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
           do_fill = FALSE),
 
-        LookupSnowDensityFromTable = list(
-          flag = "LookupSnowDensityFromTable",
+        LookupSnowDensity = list(
+          flag = "LookupSnowDensity",
           pattern = "(snowd)|(SnowD_Hemisphere)",
           tr_input = tr_input_SnowD,
           sw_input_use = sw_input_cloud_use,
@@ -445,13 +446,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = 12 + 1,
           do_fill = TRUE,
           fill_pattern = "snowd",
-          fill_value = 76)  # 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
+          # 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming:
+          # Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in
+          # the Central Rocky Mountains. Bulletin of the American Meteorological
+          # Society, 81, 1577-1587.
+          fill_value = 76)
       )
 
       for (pc in do_lookup) {
         if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
           if (any(is.na(i_sw_input_treatments[[pc$flag]])) ||
-             !all(unique(i_sw_input_treatments[[pc$flag]]) %in% rownames(pc$tr_input))) {
+             !all(unique(i_sw_input_treatments[[pc$flag]]) %in%
+             rownames(pc$tr_input))) {
 
             print(paste0(tag_simfid, ": ERROR: ", shQuote(pc$flag), " column in ",
               "experimental table cannot have any NAs or name is not in tr_input table."))
@@ -488,8 +494,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     print_debug(opt_verbosity, tag_simfid, "creating", "LookupTranspCoeff")
     do_vegs <- list(
       veg = c("Grass", "Shrub", "Tree", "Forb"),
-      flag = c("LookupTranspCoeffFromTable_Grass", "LookupTranspCoeffFromTable_Shrub",
-                "LookupTranspCoeffFromTable_Tree", "LookupTranspCoeffFromTable_Forb"),
+      flag = c("LookupTranspCoefs_Grass", "LookupTranspCoefs_Shrub",
+                "LookupTranspCoefs_Tree", "LookupTranspCoefs_Forb"),
       adjustType = c("positive", "inverse", "inverse", "inverse"))
 
     for (k in seq_along(do_vegs[["veg"]])) {
@@ -535,20 +541,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #the monthly ppt-shifts are extracted, but written to the weathersetup input file only at the end of the create section 'copy and make climate scenarios from datafiles', because they are multiplied with any climate change factors
     ppt_scShift <- rep(1, times = 12)
-    if (any(create_treatments == "LookupShiftedPPTScenarios")) {
-      ppt_scShift <- tr_input_shiftedPPT[which(rownames(tr_input_shiftedPPT) == i_sw_input_treatments[1, "LookupShiftedPPTCategory"]), (ts <- which(colnames(tr_input_shiftedPPT) == paste0(i_sw_input_treatments$LookupShiftedPPTScenarios, "_m1"))):(ts+11)][SFSW2_glovars[["st_mo"]]]
+    if (any(create_treatments == "LookupShiftedPPT")) {
+      ppt_scShift <- tr_input_shiftedPPT[which(rownames(tr_input_shiftedPPT) == i_sw_input_treatments[1, "LookupShiftedPPTCategory"]), (ts <- which(colnames(tr_input_shiftedPPT) == paste0(i_sw_input_treatments$LookupShiftedPPT, "_m1"))):(ts+11)][SFSW2_glovars[["st_mo"]]]
     }
 
-    if (any(create_treatments == "LookupClimatePPTScenarios") | any(create_treatments == "LookupClimateTempScenarios")) {
+    if (any(create_treatments == "LookupClimatePPT") | any(create_treatments == "LookupClimateTemp")) {
       clim_scale <- rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3]
 
       #Treatment chunk = climate precipitation scenarios
-      if (any(create_treatments == "LookupClimatePPTScenarios")) {
-        clim_scale[, 1] <- tr_input_climPPT[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPTScenarios)]
+      if (any(create_treatments == "LookupClimatePPT")) {
+        clim_scale[, 1] <- tr_input_climPPT[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPT)]
       }
       #Treatment chunk = climate temperature scenarios
-      if (any(create_treatments == "LookupClimateTempScenarios")) {
-        clim_scale[, 2] <- clim_scale[, 3] <- tr_input_climTemp[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTempScenarios)]
+      if (any(create_treatments == "LookupClimateTemp")) {
+        clim_scale[, 2] <- clim_scale[, 3] <- tr_input_climTemp[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTemp)]
       }
 
       rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3] <- clim_scale
@@ -998,10 +1004,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #----- Begin CO2 effects
       # CO2 effects rely on the information of the current scenario, so the extraction of its Lookup data
       # doesn't occur until now
-      if (sw_input_experimentals_use["LookupCarbonScenarios"]) {
-        if (is.na(i_sw_input_treatments$LookupCarbonScenarios)) {
+      if (sw_input_experimentals_use["LookupCO2data"]) {
+        if (is.na(i_sw_input_treatments$LookupCO2data)) {
           tasks[sc, "create"] <- 0L
-          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCarbonScenarios"))
+          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCO2data"))
           break
         }
 
@@ -1010,24 +1016,24 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         # Are we modeling a scenario?
         if (sc > 1) {
           # Did the user request to use the built-in scenario information?
-          if (toupper(i_sw_input_treatments$LookupCarbonScenarios) == "FILL")
+          if (toupper(i_sw_input_treatments$LookupCO2data) == "FILL")
             scenario_CO2 <- sim_scens[["df"]][sc - 1, "ConcScen"]
         }
 
         # Did the user override the scenario name?
-        if (toupper(i_sw_input_treatments$LookupCarbonScenarios) != "FILL")
-          scenario_CO2 <- i_sw_input_treatments$LookupCarbonScenarios
+        if (toupper(i_sw_input_treatments$LookupCO2data) != "FILL")
+          scenario_CO2 <- i_sw_input_treatments$LookupCO2data
 
         # Save the scenario to the input object just so that the user can see it
         rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario_CO2
 
-        scenario_index <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario_CO2))
+        scenario_index <- which(toupper(colnames(tr_input_CO2data)) == toupper(scenario_CO2))
 
         # Was a scenario found?
         if (length(scenario_index) == 0) {
           tasks[sc, "create"] <- 0L
           print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
-            " was not found in LookupCarbonScenarios.csv"))
+            " was not found in `LookupCO2data` table"))
           break
         }
 
@@ -1037,10 +1043,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         # Extract CO2 concentration values in units of ppm into swCarbon
         ids_years <- match(isim_time$simstartyr:isim_time$endyr + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
-          tr_input_CarbonScenario[, "Year"], nomatch = 0)
+          tr_input_CO2data[, "Year"], nomatch = 0)
         # Convert possible integers to numeric
-        tr_input_CarbonScenario[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CarbonScenario[ids_years, scenario_index]))
-        scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
+        tr_input_CO2data[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CO2data[ids_years, scenario_index]))
+        scenarioCO2_ppm <- tr_input_CO2data[ids_years, c(1, scenario_index)]
         colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
         rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(scenarioCO2_ppm,
@@ -1241,7 +1247,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       }
 
-      if (any(create_treatments == "LookupShiftedPPTScenarios")) {
+      if (any(create_treatments == "LookupShiftedPPT")) {
         ppt_f <- rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1]
         ppt_f <- ppt_f * as.numeric(ppt_scShift)
         rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1] <- ppt_f
@@ -1416,10 +1422,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "SchenkJackson2003_PCdry_forbs"
           }
 
-        tro_type_tree <- if (any(create_treatments == "LookupTranspCoeffFromTable_Tree") &&
-          is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) {
-            i_sw_input_treatments$LookupTranspCoeffFromTable_Tree
+        tro_type_tree <- if (any(create_treatments == "LookupTranspCoefs_Tree") &&
+          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)) {
+            i_sw_input_treatments$LookupTranspCoefs_Tree
           } else {
             "FILL"
           }

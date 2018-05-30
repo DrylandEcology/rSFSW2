@@ -246,7 +246,7 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
 
     # Delete designated files and folders: include files which the test
     # project will re-create
-    ftemp <- file.path(dir_tests[k], "1_Data_SWInput",
+    ftemp <- file.path(dir_tests[k], "1_Input",
       "Test_referenceinputfiles_which_will_be_deleted")
     delete_filepaths <- if (dir.exists(ftemp)) {
         temp <- basename(list.files(ftemp))
@@ -261,7 +261,7 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
       delete_filepaths)
 
     # Replace files with their initial state
-    ftemp <- file.path(dir_tests[k], "1_Data_SWInput",
+    ftemp <- file.path(dir_tests[k], "1_Input",
       "Test_referenceinputfiles_which_will_be_replaced")
     if (dir.exists(ftemp)) {
       init_files <- list.files(ftemp)
@@ -311,9 +311,9 @@ make_test_output_reference <- function(dir_test, dir_ref = NULL,
   if (!file.exists(dir_ref))
     dir.create(dir_ref, recursive = TRUE, showWarnings = FALSE)
 
-  fdb <- file.path(dir_test, "4_Data_SWOutputAggregated", "dbTables.sqlite3")
+  fdb <- file.path(dir_test, "4_Simulation", "dbOutput.sqlite3")
   if (file.exists(fdb)) {
-    fdb_ref <- paste0("dbTables_", basename(dir_test), "_v", SFSW2_version,
+    fdb_ref <- paste0("dbOutput_", basename(dir_test), "_v", SFSW2_version,
       ".sqlite3")
     res <- file.rename(fdb, file.path(dir_ref, fdb_ref))
 
@@ -355,13 +355,13 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
       full.names = TRUE),
 
     file.path(dir_test, "SFSW2_project_descriptions.rds"),
-    file.path(dir_test, "1_Data_SWInput", "dbWeatherData_test.sqlite3"),
-    file.path(dir_test, "1_Data_SWInput", "SWRuns_InputAll_PreProcessed.rds")
+    file.path(dir_test, "1_Input", "dbWeatherData_test.sqlite3"),
+    file.path(dir_test, "1_Input", "SWRuns_InputAll_PreProcessed.rds")
   )
 
   dirs_to_delete <- c(
     file.path(dir_test, "3_Runs"),
-    file.path(dir_test, "4_Data_SWOutputAggregated"))
+    file.path(dir_test, "4_Simulation"))
 
   try(unlink(unlist(files_to_delete)), silent = TRUE)
   try(unlink(unlist(dirs_to_delete), recursive = TRUE), silent = TRUE)
@@ -532,8 +532,7 @@ compare_test_output <- function(dir_test, dir_ref = NULL, tol = 1e-3,
     file.path(dir_ref, fname_refDB))
 
   #---Identify and connect to test data base
-  ftemp_test <- file.path(dir_test, "4_Data_SWOutputAggregated",
-    "dbTables.sqlite3")
+  ftemp_test <- file.path(dir_test, "4_Simulation", "dbOutput.sqlite3")
   if (!file.exists(ftemp_test)) {
     diff_msgs <- c(diff_msgs, paste(Sys.time(), "no test database found for",
       shQuote(basename(dir_test))))

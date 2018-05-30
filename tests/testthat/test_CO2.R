@@ -1,15 +1,14 @@
 context("Gathering of CO2 ppm data")
 
 # Inputs
-LookupCarbonScenarios <- file.path("..", "test_data",
-  "Test4_AllOverallAggregations_snow", "1_Data_SWInput", "treatments",
-  "LookupCarbonScenarios", "LookupCarbonScenarios.csv")
+LookupCO2data <- file.path("..", "test_data", "TestPrj4", "1_Input",
+  "treatments", "LookupCO2data", "AtmosCO2.csv")
 
 # Tests
-test_that("LookupCarbonScenario: read_csv", {
+test_that("LookupCO2data: read_csv", {
 
   # Check that the CSV could be read in
-  ppm_data <- SFSW2_read_csv(LookupCarbonScenarios)
+  ppm_data <- SFSW2_read_csv(LookupCO2data)
   expect_is(ppm_data, "data.frame")
 
   # Check the columns...

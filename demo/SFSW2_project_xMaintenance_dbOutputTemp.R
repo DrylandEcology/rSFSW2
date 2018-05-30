@@ -39,7 +39,7 @@ dir_temp <- "temp"
 ## If TRUE, use `fname_dbOutput_concat` instead of metadata information
 do_use_dbOutput_concat <- FALSE
 ## Name of copy of dbOutput used for moving output data into
-fname_dbOutput_concat <- "dbTables_concating.sqlite3"
+fname_dbOutput_concat <- "dbOutput_concating.sqlite3"
 
 ## Check data for possible duplicates or deviation in values?
 check_if_Pid_present <- FALSE
@@ -69,7 +69,7 @@ source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
 if (do_adjust_dir_out) {
   # Location of dbWork
   SFSW2_prj_meta[["project_paths"]][["dir_out"]] <- file.path(
-    SFSW2_prj_meta[["project_paths"]][["dir_prj"]], "4_Data_SWOutputAggregated")
+    SFSW2_prj_meta[["project_paths"]][["dir_prj"]], "4_Simulation")
 
   # Location of concatFile and failedFile
   SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]] <- file.path(

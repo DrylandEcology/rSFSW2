@@ -44,7 +44,7 @@ project_paths <- list(
   },
 
   # Path to inputs
-  dir_in = dir_in <- file.path(dir_prj, "1_Data_SWInput"),
+  dir_in = dir_in <- file.path(dir_prj, "1_Input"),
   # Folder with data input files
   dir_in_dat = file.path(dir_in, "datafiles"),
   # Folder with treatment input files according to treatment instructions
@@ -62,7 +62,7 @@ project_paths <- list(
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
   # Path to outputs produced by rSFSW2
-  dir_out = dir_out <- file.path(dir_big, "4_Data_SWOutputAggregated"),
+  dir_out = dir_out <- file.path(dir_big, "4_Simulation"),
   # Path to where rSFSW2 will store temporary files
   dir_out_temp = file.path(dir_out, "temp"),
   # Path to various other output
@@ -92,8 +92,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v15.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v07.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v16.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v08.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
@@ -103,15 +103,15 @@ fnames_in <- list(
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
   fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
 
-  LookupClimatePPTScenarios = "climate.ppt.csv",
-  LookupClimateTempScenarios = "climate.temp.csv",
-  LookupShiftedPPTScenarios = "shifted.ppt.csv",
-  LookupEvapCoeffFromTable = "BareSoilEvaporationCoefficientsPerSoilLayer.csv",
-  LookupTranspCoeffFromTable = "TranspirationCoefficients_v2.csv",
-  LookupTranspRegionsFromTable = "TranspirationRegionsPerSoilLayer.csv",
-  LookupSnowDensityFromTable = "MeanMonthlySnowDensities_v2.csv",
-  LookupVegetationComposition = "VegetationComposition_MeanMonthly_v5.csv",
-  LookupCarbonScenarios = "LookupCarbonScenarios.csv",
+  LookupClimatePPT = "climate_ppt.csv",
+  LookupClimateTemp = "climate_temp.csv",
+  LookupShiftedPPT = "shifted_ppt.csv",
+  LookupEvapCoefs = "EvaporationCoefs_v2.csv",
+  LookupTranspCoefs = "TranspirationCoefs_v2.csv",
+  LookupTranspRegions = "TranspirationRegions.csv",
+  LookupSnowDensity = "SnowDensities_v2.csv",
+  LookupVegBiomass = "Vegetation_MeanMonthly_v5.csv",
+  LookupCO2data = "AtmosCO2.csv",
 
   # Pre-processed input: storage file of input data for (faster) access
   #   if flag 'use_preprocin' is TRUE; otherwise, code will be re-reading
@@ -133,9 +133,9 @@ fnames_in <- list(
 
 #------ Full names of output files
 fnames_out <- list(
-  dbOutput = file.path(project_paths[["dir_out"]], "dbTables.sqlite3"),
+  dbOutput = file.path(project_paths[["dir_out"]], "dbOutput.sqlite3"),
   dbOutput_current = file.path(project_paths[["dir_out"]],
-    "dbTables_current.sqlite3"),
+    "dbOutput_current.sqlite3"),
   timerfile = file.path(project_paths[["dir_out"]], "Timing_Simulation.csv")
 )
 
@@ -465,7 +465,7 @@ req_scens <- list(
   #   - "delta" (Hay et al. 2002)
   #   - "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod"
   #   - "wgen-package" (Steinschneider & Brown 2013 WRR, doi:10.1002/wrcr.20528
-  method_DS = c("hybrid-delta-3mod"),
+  method_DS = "hybrid-delta-3mod",
 
   # Downscaling parameters
   opt_DS = list(

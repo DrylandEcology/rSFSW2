@@ -29,7 +29,7 @@ vignette: >
   version of [rSOILWAT2][rSOILWAT2] must already be installed on your computer).
 2) Create a skeleton project by calling the function
   `setup_rSFSW2_project_infrastructure(dir_prj = "path/to/project_folder")`. This
-  function will copy a default version of input data to '1_Data_SWInput' and three
+  function will copy a default version of input data to '1_Input' and three
   demo R files to your directory.
 3) Work your way through the file 'SFSW2_project_code.R', i.e., define paths and actions,
   and provide simulation project description in 'SFSW2_project_descriptions.R' and run

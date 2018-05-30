@@ -409,11 +409,9 @@ complete_with_defaultpaths <- function(project_paths, fnames_in) {
   }
 
   # full names of files located in 'dir_in_treat'
-  ftemp <- c("LookupCarbonScenarios", "LookupClimatePPTScenarios",
-    "LookupClimateTempScenarios", "LookupShiftedPPTScenarios",
-    "LookupEvapCoeffFromTable", "LookupTranspCoeffFromTable",
-    "LookupTranspRegionsFromTable", "LookupSnowDensityFromTable",
-    "LookupVegetationComposition")
+  ftemp <- c("LookupCO2data", "LookupClimatePPT", "LookupClimateTemp",
+    "LookupShiftedPPT", "LookupEvapCoefs", "LookupTranspCoefs",
+    "LookupTranspRegions", "LookupSnowDensity", "LookupVegBiomass")
 
   for (f in ftemp) {
     if (f %in% names(fnames_in) &&
@@ -658,62 +656,62 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     tr_cloud <- load_Rsw_treatment_templates(project_paths, create_treatments,
       "cloudin", "swCloud")
 
-    tr_input_CarbonScenario <- tr_input_climPPT <- list()
+    tr_input_CO2data <- tr_input_climPPT <- list()
     tr_input_climTemp <- tr_input_shiftedPPT <- list()
     tr_input_EvapCoeff <- tr_input_TranspCoeff_Code <- list()
     tr_input_TranspRegions <- tr_input_TranspCoeff <- list()
     tr_input_SnowD <- tr_VegetationComposition <- list()
 
-    if (any(create_treatments == "LookupClimatePPTScenarios")) {
+    if (any(create_treatments == "LookupClimatePPT")) {
       tr_input_climPPT <- SFSW2_read_csv(
-        fnames_in[["LookupClimatePPTScenarios"]])
+        fnames_in[["LookupClimatePPT"]])
     }
 
-    if (any(create_treatments == "LookupCarbonScenarios")) {
-      tr_input_CarbonScenario <- SFSW2_read_csv(
-        fnames_in[["LookupCarbonScenarios"]])
+    if (any(create_treatments == "LookupCO2data")) {
+      tr_input_CO2data <- SFSW2_read_csv(
+        fnames_in[["LookupCO2data"]])
     }
 
-    if (any(create_treatments == "LookupClimateTempScenarios")) {
+    if (any(create_treatments == "LookupClimateTemp")) {
       tr_input_climTemp <- SFSW2_read_csv(
-        fnames_in[["LookupClimateTempScenarios"]])
+        fnames_in[["LookupClimateTemp"]])
     }
 
-    if (any(create_treatments == "LookupShiftedPPTScenarios")) {
+    if (any(create_treatments == "LookupShiftedPPT")) {
       tr_input_shiftedPPT <- SFSW2_read_csv(
-        fnames_in[["LookupShiftedPPTScenarios"]], row.names = 1)
+        fnames_in[["LookupShiftedPPT"]], row.names = 1)
     }
 
-    if (any(create_treatments == "LookupEvapCoeffFromTable")) {
+    if (any(create_treatments == "LookupEvapCoefs")) {
       tr_input_EvapCoeff <- SFSW2_read_csv(
-        fnames_in[["LookupEvapCoeffFromTable"]], row.names = 1)
+        fnames_in[["LookupEvapCoefs"]], row.names = 1)
     }
 
-    if (any(grepl("LookupTranspCoeffFromTable_", create_treatments),
+    if (any(grepl("LookupTranspCoefs_", create_treatments),
         create_treatments == "AdjRootProfile")) {
       tr_input_TranspCoeff_Code <- tryCatch(utils::read.csv(
-        fnames_in[["LookupTranspCoeffFromTable"]], nrows = 2,
+        fnames_in[["LookupTranspCoefs"]], nrows = 2,
         stringsAsFactors = FALSE), error = print)
       tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2, ]
       tr_input_TranspCoeff <- utils::read.csv(
-        fnames_in[["LookupTranspCoeffFromTable"]], skip = 2,
+        fnames_in[["LookupTranspCoefs"]], skip = 2,
         stringsAsFactors = FALSE)
       colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
     }
 
-    if (any(create_treatments == "LookupTranspRegionsFromTable"))
+    if (any(create_treatments == "LookupTranspRegions"))
       tr_input_TranspRegions <- utils::read.csv(
-        fnames_in[["LookupTranspRegionsFromTable"]], row.names = 1,
+        fnames_in[["LookupTranspRegions"]], row.names = 1,
         stringsAsFactors = FALSE)
 
-    if (any(create_treatments == "LookupSnowDensityFromTable"))
+    if (any(create_treatments == "LookupSnowDensity"))
       tr_input_SnowD <- utils::read.csv(
-        fnames_in[["LookupSnowDensityFromTable"]], row.names = 1,
+        fnames_in[["LookupSnowDensity"]], row.names = 1,
         stringsAsFactors = FALSE)
 
     if (any(create_treatments == "AdjMonthlyBioMass_Temperature"))
       tr_VegetationComposition <- utils::read.csv(
-        fnames_in[["LookupVegetationComposition"]], skip = 1, row.names = 1,
+        fnames_in[["LookupVegBiomass"]], skip = 1, row.names = 1,
         stringsAsFactors = FALSE)
 
 
@@ -769,7 +767,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
       sw_input_climscen_values = sw_input_climscen_values,
       tr_files = tr_files, tr_prod = tr_prod, tr_site = tr_site,
       tr_soil = tr_soil, tr_weather = tr_weather, tr_cloud = tr_cloud,
-      tr_input_CarbonScenario = tr_input_CarbonScenario,
+      tr_input_CO2data = tr_input_CO2data,
       tr_input_climPPT = tr_input_climPPT,
       tr_input_climTemp = tr_input_climTemp,
       tr_input_shiftedPPT = tr_input_shiftedPPT,

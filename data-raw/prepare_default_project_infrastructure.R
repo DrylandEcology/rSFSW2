@@ -2,7 +2,7 @@
 
 # default (input) infrastructure of a rSFSW2 simulation project
 
-dir_definf <- file.path("data-raw", "1_Data_SWInput")
+dir_definf <- file.path("data-raw", "1_Input")
 
 
 ftemp <- list.files(dir_definf, recursive = TRUE, full.names = TRUE)
