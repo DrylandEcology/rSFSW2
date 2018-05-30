@@ -1353,7 +1353,8 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
           if (any(OKs[[tg]][["hasSL"]])) {
             ids <- OKs[[tg]][["hasSL"]]
             sl <- OK_ndefault
-            sl[ids] <- as.integer(dat[["val"]][, 2L]) # nolint
+            stop("I don't know variable 'dat' in: ",
+              'sl[ids] <- as.integer(dat[["val"]][, 2L])') # nolint
 
             OKs[[tg]][["hasSL"]][ids] <- OK_line[ids] & is.finite(sl[ids])
             ids <- OKs[[tg]][["hasSL"]]
@@ -1447,7 +1448,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
               print(paste("The output DB has problems with inserting P_id =",
                 paste(Pids[ids], collapse = " / "),
                 if (!is.null(sl)) {
-                  paste("and soil layer =", paste(sd[ids], collapse = " / "))
+                  paste("and soil layer =", paste(sl[ids], collapse = " / "))
                 } else NULL,
                 "from rows", k, "to", k + nlineread - 1, "of file",
                 shQuote(theFileList[j])))
