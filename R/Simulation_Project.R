@@ -144,7 +144,7 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
     SFSW2_prj_meta[["opt_platform"]][[k]] <- SFSW2_prj_meta2[["opt_platform"]][[k]]
   }
 
-
+  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
 
   SFSW2_prj_meta
 }
@@ -224,9 +224,17 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
     suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
       "endyr", "scorp", "startyr", "temp"), envir = SFSW2_prj_meta))
 
+    #--- Functionality to aggregate simulation output		
+	  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)		
+
+	  SFSW2_prj_meta		
+  	}
+    
     #--- Update project paths and file names
     dir_safe_create(SFSW2_prj_meta[["project_paths"]], showWarnings = print.debug)
 
+    
+    
     SFSW2_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
     SFSW2_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(
       SFSW2_prj_meta[["project_paths"]], SFSW2_prj_meta[["fnames_in"]])
@@ -255,14 +263,12 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
 
     #--- Matrix to track progress with input preparations
     SFSW2_prj_meta[["input_status"]] <- init_intracker()
-  }
 
   save_to_rds_with_backup(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
   SFSW2_prj_meta
+
 }
-
-
 
 
 gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose = FALSE) {
@@ -1140,7 +1146,7 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     on.exit(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]), add = TRUE)
 
     swof <- rSOILWAT2::sw_out_flags()
-    swDataFromFiles <- read_SOILWAT2_DefaultInputs()
+    swDataFromFiles <- read_SOILWAT2_DefaultInputs(dir_in_sw = SFSW2_prj_meta[["project_paths"]][["dir_in_sw"]])
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(sim_size = SFSW2_prj_meta[["sim_size"]],
