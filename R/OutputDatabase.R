@@ -2851,3 +2851,186 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
 
   invisible(TRUE)
 }
+
+
+
+
+#' Compare one output database with another output database
+#'
+#' @param dbOut1 A character string. Path to first output database used as
+#'   referefence.
+#' @param dbOut2 A character string. Path to second output database.
+#' @param tol A numeric value. Differences smaller than tolerance are not
+#'   reported. Passed to \code{\link{all.equal}}.
+#' @param comp_absolute A logical value. If \code{TRUE} then absolute
+#'   comparisons will be reported, otherwise relative differences. See argument
+#'   \code{scale} of function \code{\link{all.equal}}.
+#' @param verbose A logical value. If \code{TRUE} then messages are printed.
+#'
+#' @return A (possibly empty) list of character vectors describing differences
+#'   between \code{dbOut2} and \code{dbOut1} databases.
+#'   A first entry is the file name of the reference database.
+#'
+#' @seealso \code{\link{all.equal}}
+#' @export
+compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
+  comp_absolute = TRUE, verbose = FALSE) {
+
+  diff_msgs <- list()
+  if (verbose)
+    on.exit(print(diff_msgs[-1]))
+
+  if (!file.exists(dbOut1)) {
+    diff_msgs <- c(diff_msgs, paste(Sys.time(), shQuote(basename(dbOut1)),
+      "cannot be located."))
+    return(diff_msgs)
+  }
+  refDB <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut1)
+
+  if (!file.exists(dbOut2)) {
+    diff_msgs <- c(diff_msgs, paste(Sys.time(), shQuote(basename(dbOut2)),
+      "cannot be located."))
+    return(diff_msgs)
+  }
+  testDB <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut2)
+
+  #---Identify set of shared tables
+  refDB_tables <- setdiff(RSQLite::dbListTables(refDB),
+    dbOutput_ListInternalTables())
+  testDB_tables <- setdiff(RSQLite::dbListTables(testDB),
+    dbOutput_ListInternalTables())
+  tocomp_tables <- intersect(refDB_tables, testDB_tables)
+  if (length(tocomp_tables) == 0L) {
+    diff_msgs <- c(diff_msgs,
+      paste(Sys.time(), shQuote(basename(dbOut1)), "and",
+        shQuote(basename(dbOut2)), "do not contain shared tables"))
+    return(diff_msgs)
+  }
+
+  testDB_tables_comp <- testDB_tables %in% tocomp_tables
+  if (any(!testDB_tables_comp)) {
+    diff_msgs <- c(diff_msgs, paste0(shQuote(basename(dbOut2)),
+      " contains tables without analog in ", shQuote(basename(dbOut1)), ": ",
+      paste(shQuote(testDB_tables[!testDB_tables_comp]), collapse = ", ")))
+  }
+  refDB_tables_comp <- refDB_tables %in% tocomp_tables
+  if (any(!refDB_tables_comp)) {
+    diff_msgs <- c(diff_msgs, paste0(shQuote(basename(dbOut1)),
+      " contains tables without analog in ", shQuote(basename(dbOut2)), ": ",
+      paste(shQuote(refDB_tables[!refDB_tables_comp]), collapse = ", ")))
+  }
+
+  #---Confirm that 'design' of test agrees with reference
+  has_samedesign <- dbOutput_ListDesignTables() %in% tocomp_tables
+  diff_design <- NULL
+
+  if (all(has_samedesign)) {
+    diff_design <- sapply(dbOutput_ListDesignTables(), function(desT) {
+      temp <- RSQLite::dbReadTable(refDB, desT)
+      x_ref <- temp[do.call("order", unname(temp)), ]
+
+      temp <- RSQLite::dbReadTable(testDB, desT)
+      x_test <- temp[do.call("order", unname(temp)), ]
+
+      all.equal(x_ref, x_test)
+    })
+
+    has_samedesign <- sapply(diff_design, function(x)
+      is.logical(x) && isTRUE(x))
+  }
+
+  if (any(!has_samedesign)) {
+    diff_msgs <- c(diff_msgs,
+      paste(Sys.time(), shQuote(basename(dbOut1)), "and",
+        shQuote(basename(dbOut2)), "have a different design"),
+      if (!is.null(diff_design)) diff_design[!has_samedesign] else NULL)
+  }
+
+  temp <- !(tocomp_tables %in% dbOutput_ListDesignTables())
+  tocomp_tables <- tocomp_tables[temp]
+
+
+  #---Loop over shared result tables and compare shared fields
+  for (k in seq_along(tocomp_tables)) {
+    #---Identify set of shared fields
+    refDB_fields <- RSQLite::dbListFields(refDB, tocomp_tables[k])
+    testDB_fields <- RSQLite::dbListFields(testDB, tocomp_tables[k])
+    tocomp_fields <- intersect(refDB_fields, testDB_fields)
+    if (length(tocomp_fields) == 0L) {
+      diff_msgs <- c(diff_msgs, paste("Table", shQuote(tocomp_tables[k]),
+        "contains no shared fields between the databases"))
+      next
+    }
+
+    # Must have 'P_id' as first field
+    if (!("P_id" %in% tocomp_fields)) {
+      diff_msgs <- c(diff_msgs, paste("The unique identifier 'P_id' is not a ",
+        "shared field in table", shQuote(tocomp_tables[k]),
+        "preventing any comparison"))
+      next
+    }
+    tocomp_fields <- c("P_id", tocomp_fields[!("P_id" == tocomp_fields)])
+
+    # If field 'Soil_Layer' is present, then it must be shared and be the
+    # second field
+    ref_has_sl <- any("Soil_Layer" %in% refDB_fields)
+    test_has_sl <- any("Soil_Layer" %in% testDB_fields)
+    if (xor(ref_has_sl, test_has_sl)) {
+      diff_msgs <- c(diff_msgs, paste("The soil layer identifier 'Soil_Layer'",
+        "is not a shared field in table", shQuote(tocomp_tables[k]),
+        "preventing any comparison"))
+      next
+    }
+    if (ref_has_sl && test_has_sl) {
+      tocomp_fields <- tocomp_fields[!("Soil_Layer" == tocomp_fields)]
+      tocomp_fields <- c(tocomp_fields[1], "Soil_Layer",
+        if (length(tocomp_fields) > 1) tocomp_fields[2:length(tocomp_fields)])
+    }
+
+    # Fields that are not shared
+    testDB_fields_comp <- testDB_fields %in% tocomp_fields
+    if (any(!testDB_fields_comp)) {
+      diff_msgs <- c(diff_msgs, paste0("Table ", shQuote(tocomp_tables[k]),
+        " of ", shQuote(basename(dbOut2)), " contains fields without an ",
+        " analog in ", shQuote(basename(dbOut1)), ": ",
+        paste(shQuote(testDB_fields[!testDB_fields_comp]), collapse = ", ")))
+    }
+    refDB_fields_comp <- refDB_fields %in% tocomp_fields
+    if (any(!refDB_fields_comp)) {
+      diff_msgs <- c(diff_msgs, paste0("Table ", shQuote(tocomp_tables[k]),
+        " of ", shQuote(basename(dbOut1)), " contains fields without an ",
+        " analog in ", shQuote(basename(dbOut2)), ": ",
+        paste(shQuote(refDB_fields[!refDB_fields_comp]), collapse = ", ")))
+    }
+
+    #---Extract field data, sorted by 'P_id' (and 'Soil_Layer')
+    sql <- paste0("SELECT ",
+      paste0("\"", tocomp_fields, "\"", collapse = ", "),
+      " FROM ", tocomp_tables[k],
+      " ORDER BY P_id",
+      if (ref_has_sl && test_has_sl) ", Soil_Layer",
+      ";")
+
+    x_ref <- RSQLite::dbGetQuery(refDB, sql)
+    x_test <- RSQLite::dbGetQuery(testDB, sql)
+
+    #---Compare field data and report if differences were found
+    ident <- all.equal(x_ref, x_test, tol = tol,
+      scale = if (comp_absolute) 1 else NULL)
+    if (!isTRUE(ident)) {
+      temp <- list(ident)
+      names(temp) <- tocomp_tables[k]
+      diff_msgs <- c(diff_msgs, temp)
+    }
+
+    #---Run additional checks on aggregated output
+    if (tocomp_tables[k] == "aggregation_overall_mean") {
+      temp <- check_aggregated_output(x_test)
+      if (!isTRUE(temp)) {
+        diff_msgs <- c(diff_msgs, temp)
+      }
+    }
+  }
+
+  diff_msgs
+}
