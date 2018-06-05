@@ -3106,6 +3106,4 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
   add_dbOutput_index(con_dbOut)
 
   invisible(TRUE)
-}
-
-
+}}}

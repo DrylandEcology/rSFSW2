@@ -772,7 +772,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 
 
 #' Attempt to check input data of a \pkg{rSFSW2} project for consistency
-#' @export
+#' Exporting crashes program, TODO: need to look into it
 check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
   opt_verbosity) {
   print('Called check_rSFSW2 function in Simulation_project file')
@@ -1302,5 +1302,4 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     time_sec = delta.outputDB)
 
   invisible(TRUE)
-}
-print('End Simulation_project file\n')
+}}

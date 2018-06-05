@@ -50,8 +50,6 @@
   invisible()
 }
 
-
-
 .onUnload <- function(libpath) {
   #--- Remove package options
   op_old <- options()
