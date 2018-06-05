@@ -72,42 +72,10 @@ writeLines(c("", "",
   paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run started at",
     t_job_start),
   "##############################################################################", ""))
-<<<<<<< HEAD
 
 SFSW2_prj_meta <- init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
   verbose = TRUE, print.debug = FALSE)
-=======
-fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
-fmetar <- file.path(dir_prj, "SFSW2_project_descriptions.R")
-
-if (file.exists(fmeta)) {
-
-  # Load pre-prepared project description if it was setup previously
-  SFSW2_prj_meta <- readRDS(fmeta)
-
-  # Ensure that all necessary paths do exists
-  dir_safe_create(SFSW2_prj_meta[["project_paths"]])
-
-} else {
-
-  # 1a) Setup default project infrastructure
-  setup_rSFSW2_project_infrastructure(dir_prj)
-
-  # 1b) In text editor: specify project description/metadata ("SFSW2_project_description.R")
-  warning("'SFSW2_project_code.R': Check/adjust project description/metadata in file ",
-    shQuote(basename(fmetar)), " before further steps are executed.", call. = FALSE,
-    immediate. = TRUE)
-
-  # 1c) Load and prepare project description
-  SFSW2_prj_meta <- new.env(parent = baseenv())
-  sys.source(fmetar, envir = SFSW2_prj_meta, keep.source = FALSE)
-
-  SFSW2_prj_meta <- init_rSFSW2_project(SFSW2_prj_meta, fmeta)
-
-  saveRDS(SFSW2_prj_meta, file = fmeta)
-}
->>>>>>> feature_OverhaulAggregationCode
 
 
 

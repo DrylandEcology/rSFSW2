@@ -1,3 +1,4 @@
+print('Start Simulation_project file\n')
 
 #' Setup infrastructure (skeleton) for a new \pkg{rSFSW2} simulation experiment
 #'
@@ -10,6 +11,8 @@
 #' @export
 setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
   print.debug = FALSE) {
+
+  print('Called setup_rSFSW2_project_infrastructure function in Simulation_project file')
 
   masterinput_pattern <- "_InputMaster_"
   masterinput_pattern_demo <- "_InputMaster_YOURPROJECT_"
@@ -106,6 +109,8 @@ load_project_description <- function(fmetar) {
 }
 
 update_project_paths <- function(SFSW2_prj_meta, fmetar) {
+
+  print('Called update_project_paths function in Simulation_project file')
   SFSW2_prj_meta2 <- load_project_description(fmetar)
 
   #--- Update paths of 'project_paths'
@@ -145,12 +150,16 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
   }
 
   SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
-
+  
   SFSW2_prj_meta
 }
 
 
 #' Initialize a \pkg{rSFSW2} project (setup description file)
+#'
+#' This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
+#' containing the descriptions/metadata for this simulation project. The file should be
+#' comparable to \code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}
 #'
 #' This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
 #' containing the descriptions/metadata for this simulation project. The file should be
@@ -167,7 +176,7 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
 #' @export
 init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
   print.debug = FALSE) {
-
+  print('Called init_rSFSW2 function in Simulation_project file')
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -224,17 +233,15 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
     suppressWarnings(rm(list = c("d", "dir_big", "dir_ex", "dir_in", "dir_out", "dir_prj",
       "endyr", "scorp", "startyr", "temp"), envir = SFSW2_prj_meta))
 
-    #--- Functionality to aggregate simulation output		
-	  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)		
+  #--- Functionality to aggregate simulation output
+  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
 
-	  SFSW2_prj_meta		
-  	}
-    
+    # 1c) Load and prepare project description
+    SFSW2_prj_meta <- load_project_description(fmetar)
+
     #--- Update project paths and file names
     dir_safe_create(SFSW2_prj_meta[["project_paths"]], showWarnings = print.debug)
 
-    
-    
     SFSW2_prj_meta[["fnames_in"]][["fmeta"]] <- fmeta
     SFSW2_prj_meta[["fnames_in"]] <- complete_with_defaultpaths(
       SFSW2_prj_meta[["project_paths"]], SFSW2_prj_meta[["fnames_in"]])
@@ -264,15 +271,15 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
     #--- Matrix to track progress with input preparations
     SFSW2_prj_meta[["input_status"]] <- init_intracker()
 
+  }
+
   save_to_rds_with_backup(SFSW2_prj_meta, file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
   SFSW2_prj_meta
 
-}
-
 
 gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose = FALSE) {
-
+  print('Called gather_project_inputs function in Simulation_project file')
   #--- Import data
   if (!exists("SFSW2_prj_inputs") || is.null(SFSW2_prj_inputs) ||
     todo_intracker(SFSW2_prj_meta, "load_inputs", "prepared")) {
@@ -399,11 +406,11 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE, verbose 
 }
 
 
-#' Populate \pkg{rSFSW2} project with input data
+#' Populate rSFSW2 project with input data
 #' @export
 populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_parallel,
   opt_chunks, opt_out_run, opt_verbosity) {
-
+  print('Called populate_rSFSW2 function in Simulation_project file')
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -759,8 +766,6 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
       tracker = "dbWork", prepared = TRUE)
   }
 
-
-
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
@@ -770,7 +775,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, opt_pa
 #' @export
 check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
   opt_verbosity) {
-
+  print('Called check_rSFSW2 function in Simulation_project file')
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -978,6 +983,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs, op
 #'   \code{prj_todos}.
 #' @export
 update_actions <- function(SFSW2_prj_meta, actions = NULL, wipe_dbOutput = FALSE) {
+  print('Called update_actions function in Simulation_project file')
   if (is.null(SFSW2_prj_meta[["prj_todos"]])) {
     SFSW2_prj_meta[["prj_todos"]] <- list()
   }
@@ -1000,6 +1006,7 @@ update_actions <- function(SFSW2_prj_meta, actions = NULL, wipe_dbOutput = FALSE
 #' @return A version of \code{SFSW2_prj_meta} with updated values for element
 #'   \code{prj_todos}.
 update_todos <- function(SFSW2_prj_meta) {
+  print('Called update_todos function in Simulation_project file')
   SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] <-
     SFSW2_prj_meta[["prj_todos"]][["need_cli_means"]] &&
     SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]]
@@ -1012,21 +1019,22 @@ update_todos <- function(SFSW2_prj_meta) {
 
 
 
-#' Prepare output database without running proper steps of \file{SFSW2_project_code.R}
+#' Prepare output database without running proper steps of `SFSW2_project_code.R`
 #'
 #' The need may arise if all/some of input data of your simulation project is located
 #' on a remote server and you want to create the output database and work database locally.
-#' This function can be called before executing step 3
-#' (\code{populate_rSFSW2_project_with_data}) in the demo code \file{SFSW2_project_code.R}.
+#' This function can be called before executing step 3 (\code{populate_rSFSW2_project_with_data})
+#' in the demo code "SFSW2_project_code.R".
 #'
 #' @param path A character string. The path at which the databases will be created --
 #'  ignoring the path information from \code{SFSW2_prj_meta} used otherwise.
 #'
 #' @return Invisibly the number of output fields in the overall aggregation table. Side
 #'   effect: creation of \code{dbOutput} and \code{dbWork}.
+
 #' @export
 quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose = FALSE) {
-
+  print('Called quickprepare function in Simulation_project file')
   # Prepare arguments
   temp <- gather_project_inputs(SFSW2_prj_meta, use_preprocin = TRUE, verbose = verbose)
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
@@ -1047,13 +1055,11 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta, verbose 
   invisible(temp[["ncol_dbOut_overall"]])
 }
 
-
-
-#' Carry out a \pkg{rSFSW2} simulation experiment
+#' Carry out a rSFSW2 simulation experiment
 #' @export
 simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
-
+  print('Called simulate_SOILWAT2_experiment function in Simulation_project file')
   t1 <- Sys.time()
   si <- utils::sessionInfo()
 
@@ -1146,7 +1152,9 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     on.exit(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]), add = TRUE)
 
     swof <- rSOILWAT2::sw_out_flags()
-    swDataFromFiles <- read_SOILWAT2_DefaultInputs(dir_in_sw = SFSW2_prj_meta[["project_paths"]][["dir_in_sw"]])
+
+    swDataFromFiles <- read_SOILWAT2_FileDefaults(dir_in_sw =
+      SFSW2_prj_meta[["project_paths"]][["dir_in_sw"]])
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(sim_size = SFSW2_prj_meta[["sim_size"]],
@@ -1193,12 +1201,12 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 #'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out"]]} is the path to
 #'     \code{dbWork}
 #'   \item \code{SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]} is the path to
-#'     \code{concatFile} and \file{SQL_tmptxt_failed.txt}
+#'     \code{concatFile} and \code{SQL_tmptxt_failed.txt}
 #'   \item \code{dir_out_temp} is the path to temporary output files
-#'   \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]} is the full file name of
+#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] is the full file name of
 #'     \code{dbOutput}
-#'   \item \code{SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]]} is the full
-#'     file name of \code{dbOutput_current}
+#'   \item SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]] is the full file name of
+#'     \code{dbOutput_current}
 #' }
 #'
 #' @section Details: The code executes \code{opt_out} option
@@ -1209,6 +1217,8 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, check_if_Pid_present = FALSE,
   dir_out_temp = NULL) {
 
+  print('Called move_output_to_dbOutput function in Simulation_project file')
+  
   t.outputDB <- Sys.time()
 
   if (opt_behave[["keep_dbWork_updated"]]) {
@@ -1293,3 +1303,4 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
   invisible(TRUE)
 }
+print('End Simulation_project file\n')

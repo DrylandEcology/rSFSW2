@@ -384,7 +384,7 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs, resume = TRU
               SFSW2_prj_inputs[["sw_input_treatments"]][, pc$flag]
             }
 
-          if (any(is.na(trtype)))
+          if (anyNA(trtype))
             stop("ERROR: ", pc$flag, " column cannot have any NAs.")
           if (!all(unique(trtype) %in% rownames(pc$tr_input)))
             stop("ERROR: ", pc$flag, " column values do not match up with trfile. ",
