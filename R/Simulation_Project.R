@@ -1,4 +1,3 @@
-print('Start Simulation_project file\n')
 
 #' Setup infrastructure (skeleton) for a new \pkg{rSFSW2} simulation experiment
 #'

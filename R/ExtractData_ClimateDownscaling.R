@@ -1,5 +1,4 @@
 #---Downscaling/bias-correction functions
-print('Start ExtractData_ClimateDOwn')
 #' Meta data for climate scenarios
 #' @export
 climscen_metadata <- function() {

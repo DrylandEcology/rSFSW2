@@ -1,7 +1,6 @@
 #---------------------------------------------------------------------------------------#
 #------------------------FUNCTIONS FOR SOILWAT2 SIMULATIONS
 
-print('Start running Simulation_Run')
 #' List of objects to export which are required by do_OneSite and are not in rSFSW2
 #'  (sorted alphabetically)
 #' @export

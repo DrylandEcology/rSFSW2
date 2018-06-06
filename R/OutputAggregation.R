@@ -1,4 +1,3 @@
-print('Ran OutputAggregation file\n')
 #---------------------------------------------------------------------------------------#
 
 #------CODE developed and written by

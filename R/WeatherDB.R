@@ -1,5 +1,4 @@
 #------------------------DAILY WEATHER
-print('Start WeatherDB')
 
 #' Lookup IDs of sites as found in a weather database
 #'

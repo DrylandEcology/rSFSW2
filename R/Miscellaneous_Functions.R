@@ -24,7 +24,6 @@
 #'      \code{debugger(`path/to/file/last.dump.rda`)}
 #'
 #' @export
-print('Start Misc_Functions')
 
 set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
   dir_prj = ".", verbose = FALSE) {
