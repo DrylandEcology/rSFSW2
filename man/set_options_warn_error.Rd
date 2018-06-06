@@ -13,7 +13,7 @@ set_options_warn_error(debug.warn.level = 1L, debug.dump.objects = FALSE,
 \item{debug.dump.objects}{A logical value. Sets the \code{error} option.
 See \code{details} section.}
 
-\item{dir_prj}{A character string. The path at which the RData file are saved if
+\item{dir_prj}{A character string. The path at which the \var{RData} file are saved if
 \code{debug.dump.objects} is turned on.}
 
 \item{verbose}{A logical value.}
@@ -35,8 +35,8 @@ Setting global 'warn' and 'error' options
  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
  view the dumped frames first attach them with
-     `load(file.path(dir_prj, "last.dump.rda"))`
+     \code{load(file.path(dir_prj, "last.dump.rda"))}
  and then browse them with
-     `debugger(`path/to/file/last.dump.rda`)`
+     \code{debugger(`path/to/file/last.dump.rda`)}
 }
 

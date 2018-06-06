@@ -1,4 +1,3 @@
-print('Ran OutputAggregation file\n')
 #---------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
@@ -53,6 +52,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   itemp <- grepl("mean", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
+
       list(mean = list(
         fun = if (circular) {
             function(x, int, na.rm = FALSE, ...) circ_mean(x, int = int, na.rm = na.rm)
@@ -102,6 +102,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
       }, envf)
     }
 
+
     listf <- c(listf,
       list(quantile = list(
         fun = tempf,
@@ -112,6 +113,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   itemp <- grepl("median", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
+
       list(median = list(
         fun = if (circular) {
             function(x, int, na.rm = FALSE, ...) circ_median(x, int = int, na.rm = na.rm)
@@ -124,6 +126,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
   itemp <- grepl("mad", agg_fun_defs[, "agg_fun"], ignore.case = TRUE)
   if (any(itemp))
     listf <- c(listf,
+
       list(mad = list(
         fun = if (circular) {
             function(x, int, na.rm = FALSE, ...) circ_mad(x, int = int, na.rm = na.rm)
@@ -169,6 +172,7 @@ create_aggregation_function <- function(agg_fun_defs, circular = FALSE) {
     res <- lapply(listf, function(f) {
       agg <- do.call(f$fun, args = fargs)
       id <- if (length(f$aggfun_id) == 1) {
+
           rep(f$aggfun_id, length(agg))
         } else {
           f$aggfun_id
@@ -203,6 +207,7 @@ setup_aggregations <- function(SFSW2_prj_meta) {
   agg_funs <- SFSW2_prj_meta[["req_out"]][["agg_funs"]]
   agg_fun_options <- SFSW2_prj_meta[["req_out"]][["agg_fun_options"]]
   agg_years <- SFSW2_prj_meta[["sim_time"]][["agg_years"]]
+
 
   aggs <- list()
 
@@ -272,5 +277,3 @@ setup_aggregations <- function(SFSW2_prj_meta) {
 
   aggs
 }
-
-

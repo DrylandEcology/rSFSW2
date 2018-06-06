@@ -2,12 +2,12 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{read_time_netCDF}
 \alias{read_time_netCDF}
-\title{Read and interpret time dimension of a netCDF file with CF 1 or larger}
+\title{Read and interpret time dimension of a \var{netCDF} file with \acronym{CF} 1 or larger}
 \usage{
 read_time_netCDF(filename)
 }
 \arguments{
-\item{filename}{A character string. The name of a netCDF file.}
+\item{filename}{A character string. The name of a \var{netCDF} file.}
 }
 \value{
 A list with six elements:
@@ -19,11 +19,11 @@ A list with six elements:
    \item{N}{The number of steps along the time dimension.}
    \item{base}{The start date of the time dimension.}
    \item{start}{A numeric vector representing the first date with named elements
-     'year' and 'month'.}
-   \item{end}{A numeric vector representing the last date with named elements 'year'
-     and 'month'.}
+     \var{\dQuote{year}} and \var{\dQuote{month}}.}
+   \item{end}{A numeric vector representing the last date with named elements
+     \var{\dQuote{year}} and \var{\dQuote{month}}.}
  }
 }
 \description{
-Read and interpret time dimension of a netCDF file with CF 1 or larger
+Read and interpret time dimension of a \var{netCDF} file with \acronym{CF} 1 or larger
 }

@@ -2,8 +2,8 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_todos}
 \alias{dbWork_todos}
-\title{Extract identification numbers of runs of a rSFSW2 simulation project which are
- uncompleted and not \code{inwork}}
+\title{Extract identification numbers of runs of a \pkg{rSFSW2} simulation project which are
+ uncompleted and not \var{\dQuote{inwork}}}
 \usage{
 dbWork_todos(path)
 }
@@ -14,6 +14,6 @@ dbWork_todos(path)
 An integer vector of \code{runIDs}.
 }
 \description{
-Extract identification numbers of runs of a rSFSW2 simulation project which are
- uncompleted and not \code{inwork}
+Extract identification numbers of runs of a \pkg{rSFSW2} simulation project which are
+ uncompleted and not \var{\dQuote{inwork}}
 }

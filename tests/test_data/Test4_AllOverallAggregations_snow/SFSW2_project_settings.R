@@ -27,6 +27,9 @@ opt_behave <- list(
   resume = TRUE,
   # Use preprocessed input data if available
   use_preprocin = TRUE,
+  # Update dbWork for each output element if TRUE (can cause traffic jams in highly
+  # parallel runs); if FALSE, dbWork is not updated continuously
+  keep_dbWork_updated = FALSE,
   # If action == "check_dbOut" detects missing Pids, then workDB is updated (so that a new run
   #   of the script can be started to add missing runs)
   check_updates_dbWork = TRUE,
@@ -67,18 +70,18 @@ opt_parallel <- list(
 #------ Options for printing progress and debugging information
 opt_verbosity <- list(
   # Prints status of progress to standard output
-  verbose = FALSE,
+  verbose = interactive(),
   # Prints details of progress to standard output
-  print.debug = FALSE,
+  print.debug = interactive(),
   # Calculates and prints estimated time of job completion at end of each call of
   #   'do_OneSite' (a somewhat expensive operation)
-  print.eta = FALSE,
+  print.eta = interactive(),
 
   # Sets global option 'warn' for the duration of a simulation project
   #   Possible values: -1, 0, 1, 2; for details: ?options -> Value: warn
   debug.warn.level = 0,
   # Should R objects be dumped to disk on error (including for each call to 'do_OneSite')
-  debug.dump.objects = FALSE
+  debug.dump.objects = interactive()
 )
 
 

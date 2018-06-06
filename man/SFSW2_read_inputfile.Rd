@@ -2,7 +2,7 @@
 % Please edit documentation in R/IO_datafiles.R
 \name{SFSW2_read_inputfile}
 \alias{SFSW2_read_inputfile}
-\title{Read the data from a 'rSFSW2-inputfile'}
+\title{Read the data from a \var{\sQuote{rSFSW2-inputfile}}}
 \usage{
 SFSW2_read_inputfile(file, header_rows = 1, use_iotools = TRUE, ...)
 }
@@ -22,18 +22,19 @@ used to read the \code{file}.}
 A list of length two with the elements \describe{
  \item{use}{A named logical vector. The names are from the first row of the \code{file}
    and the values are \code{FALSE} if the second row of the \code{file} contains a 0
-   and \code{TRUE} otherwise. The first entry, corresponding to column 'Label' is
-   always \code{FALSE}.}
+   and \code{TRUE} otherwise. The first entry, corresponding to column
+   \var{\dQuote{Label}} is always \code{FALSE}.}
  \item{data}{A data frame (\code{\link[base]{data.frame}}) containing a representation
    of the values in the \code{file} with column names from the first row of the
    \code{file}.}
 }
 }
 \description{
-'rSFSW2-inputfiles' are comma-separated value files with \itemize{
- \item First row: field names of which the first one is 'Label'
+\var{\sQuote{rSFSW2-inputfiles}} are comma-separated value files with \itemize{
+ \item First row: field names of which the first one is \var{\dQuote{Label}}
  \item Second row: flags indicating which column information is applied (1) or not (0);
-   the first entry is the character string 'UseInformationToCreateSoilWatRuns'.
+   the first entry is the character string
+   \var{\dQuote{UseInformationToCreateSoilWatRuns}}.
  \item Third - last row: values of the input file; first column: site labels.
 }
 }

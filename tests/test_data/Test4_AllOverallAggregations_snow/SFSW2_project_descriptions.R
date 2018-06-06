@@ -103,7 +103,7 @@ fnames_in <- list(
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
   # Database with daily weather data
-  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData1.sqlite3"),
+  fdbWeather = file.path(project_paths[["dir_in"]], "dbWeatherData3.sqlite3"),
 
   # Raster describing spatial interpretation of simulation experiment if scorp == "cell"
   fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
@@ -156,7 +156,7 @@ opt_input <- list(
       #   used for ensembles; if using climatewizard, climate condition names must be
       #   equal to what is in the respective directories
       #   - data expected at file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios")
-      "ExtractClimateChangeScenarios", 0,
+      "ExtractClimateChangeScenarios", 1,
 
       # Mean monthly wind, relative humidity, and 100% - sunshine
       #   - NCDC 2005: data expected at file.path(project_paths[["dir_ex_weather"]],
@@ -274,6 +274,13 @@ opt_sim <- list(
 
 #------ Output options
 opt_out_fix <- list(
+  # Control granularity of tracking the output generation
+  #  - use_granular_control = FALSE (default); dbWork tracks completion of each runID,
+  #    i.e., an entire call to `do_OneSite`
+  #  - use_granular_control = TRUE; dbWork adds a second table `need_outputs` that tracks
+  #    the completion of each Pid (= runID x scenario) x output table combination
+  use_granular_control = TRUE,
+
   # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or NULL:
   #   Selected columns will be part of 'header' table in dbOutput in addition to those of
   #   create_treatments, experimental_treatments, and climate scenario
@@ -359,7 +366,7 @@ req_scens <- list(
   #   - If climate datafiles used, then in the order of data in the those datafiles
   #   - This is a list of all GCMs for CMIP5 provided by GDO-DCP-UC-LLNL: 37 RCP4.5, 35 RCP8.5
   #     Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
-  models = c(),
+  models = c("RCP45.ACCESS1-0", "RCP85.ACCESS1-0"),
 
   sources = c(
     # For each climate data set from which to extract, add an element like 'dataset1'
@@ -496,6 +503,7 @@ req_out <- list(
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
+    "yearlyTranspirationBySoilLayer", 1,
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
@@ -524,6 +532,7 @@ req_out <- list(
     "dailySWPdrynessEventSizeDistribution", 1,
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
+    "periodicVWCmatricFirstLayer", 1,
   #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
@@ -557,7 +566,7 @@ req_out <- list(
   #   "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall", "Snowmelt", "SnowLoss",
   #   "Runoff", "Runon", "Infiltration", "DeepDrainage", "PET", "TotalPrecipitation",
   #   "TemperatureMin", "TemperatureMax", "SoilTemperature")
-  mean_daily = NULL,
+  mean_daily = c("AET", "VWCbulk"),
   # Select variables to output as aggregated yearly time series
   #  options: NULL or a selection of c("dailyRegeneration_GISSM")
   traces = NULL
@@ -610,12 +619,22 @@ opt_agg <- list(
   Tbase_coldDD_C = 0,
 
   # Options for calculating daily aggregation options over a specific range of days
+  ## Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S), will be used if no values are specified for the other specific value (i.e. NULL)
+  ## Variables that are calculated within water-years (Begin Oct 1st in N, DOY 275, April 1st in S, DOY 92),
+  ### as opposed to typical years (Begin Jan 1st, DOY 1), the doy specific values need to be set within the bounds
+  ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
   use_doy_range = TRUE,
   doy_ranges = list(
-    dailyFrostinSnowPeriod = c(1,250),
-    default = c(1, 250),
-    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
-    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+    yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
+    defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
   ),
 
   # Daily weather frequency distributions

@@ -12,13 +12,14 @@ Determine wait times until germination based on information on favorable conditi
   and time required to germinate
 }
 \section{Note}{
- The Rcpp version of the function is about 270x faster for vectors of
- length 365 and 12,000x faster for vectors of length 11,000 than the R version.
- The Rcpp version also reduced the memory footprint by a factor of >> 3080.
+ The \pkg{Rcpp} version of the function is about 270x faster for
+ vectors of length 365 and 12,000x faster for vectors of length 11,000 than the
+ R version. The \pkg{Rcpp} version also reduced the memory footprint by a factor
+ of >> 3080.
 }
 
 \examples{
- # The Rcpp function is equivalent to the following R version
+ # The \\pkg{Rcpp} function is equivalent to the following R version
    germination_wait_times_R <- function(time_to_germinate, duration_fave_cond) {
      N <- length(time_to_germinate)
      stats::na.exclude(unlist(lapply(seq_len(N), function(t) {

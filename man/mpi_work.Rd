@@ -2,7 +2,7 @@
 % Please edit documentation in R/Parallel.R
 \name{mpi_work}
 \alias{mpi_work}
-\title{Rmpi work function for calling \code{do_OneSite}}
+\title{\pkg{Rmpi} work function for calling \code{do_OneSite}}
 \usage{
 mpi_work(verbose = FALSE)
 }
@@ -10,7 +10,7 @@ mpi_work(verbose = FALSE)
 \item{verbose}{A logical value.}
 }
 \description{
-Rmpi work function for calling \code{do_OneSite}
+\pkg{Rmpi} work function for calling \code{do_OneSite}
 }
 \section{Notes}{
 
@@ -33,5 +33,5 @@ Message tags from master which this function can receive and understand: \itemiz
 }
 
 \references{
-based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
+based on the example file \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}
 }

@@ -57,10 +57,10 @@
 #'      \code{grasses.c3c4ann.fractions} is 1.}
 #' }
 #'
-#' @references Paruelo JM, Lauenroth WK (1996) Relative abundance of plant functional
+#' @references Paruelo J.M., Lauenroth W.K. (1996) Relative abundance of plant functional
 #'  types in grasslands and shrublands of North America. Ecological Applications, 6,
 #'  1212-1224.
-#' @references Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4
+#' @references Teeri J.A., Stowe L.G. (1976) Climatic patterns and the distribution of C4
 #'  grasses in North America. Oecologia, 23, 1-12.
 #'
 #' @export
@@ -328,12 +328,12 @@ adjBiom_by_ppt <- function(biom_shrubs, biom_C3, biom_C4, biom_annuals, biom_max
 #'  in Celsius. The default inputs considered March-October as growing season.
 #'
 #' @section Default inputs: \itemize{
-#'    \item Shrubs are based on location 'IM_USC00107648_Reynolds' which resulted in a
-#'      vegetation composition of 70 \% shrubs and 30 \% C3-grasses. Default monthly
-#'      biomass values were estimated for MAP = 450 mm yr-1.
-#'    \item Grasses are based on location 'GP_SGSLTER' (shortgrass steppe) which resulted
-#'      in 12 \% shrubs, 22 \% C3-grasses, and 66 \% C4-grasses. Default biomass values
-#'      were estimated for MAP = 340 mm yr-1.
+#'    \item Shrubs are based on location \var{\sQuote{IM_USC00107648_Reynolds}} which
+#'      resulted in a vegetation composition of 70 \% shrubs and 30 \% C3-grasses.
+#'      Default monthly biomass values were estimated for MAP = 450 mm yr-1.
+#'    \item Grasses are based on location \var{\sQuote{GP_SGSLTER}} (shortgrass steppe)
+#'      which resulted in 12 \% shrubs, 22 \% C3-grasses, and 66 \% C4-grasses.
+#'      Default biomass values were estimated for MAP = 340 mm yr-1.
 #'  }
 #'
 #' @return A list with two elements \code{grass}, \code{shrub}. Each element is a matrix
@@ -486,13 +486,18 @@ PotNatVeg_MonthlyBiomassPhenology_from_Climate <- function(tr_VegBiom,
        shrub = as.matrix(biom_shrubs))
 }
 
-#' Lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'
+#' Lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or
+#' per soil depth increment of 1 cm per distribution type for each simulation run and
+#' copy values to \var{\sQuote{datafile.soils}}
 #'
-#' first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
-#' second row of datafile is source of data
-#' the other rows contain the data for each distribution type = columns
+#' \itemize{
+#'    \item first row of datafile is label for per soil layer \var{\dQuote{Layer}} or
+#'          per soil depth increment of 1 cm \var{\dQuote{DepthCM}}
+#'    \item second row of datafile is source of data
+#'    \item the other rows contain the data for each distribution type = columns
+#' }
 #' @section Note:
-#'  cannot write data from sw_input_soils to datafile.soils
+#'  cannot write data from \var{\sQuote{sw_input_soils}} to \var{\sQuote{datafile.soils}}
 #' @export
 TranspCoeffByVegType <- function(tr_input_code, tr_input_coeff,
   soillayer_no, trco_type, layers_depth,

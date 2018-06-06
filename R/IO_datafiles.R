@@ -4,7 +4,7 @@
 required_colnames_SWRunInformation <- function()
   c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m", "Include_YN")
 
-#' Read a comma-separated value (csv) file
+#' Read a comma-separated value (\var{csv}) file
 #'
 #' Call function \code{\link[iotools]{read.csv.raw}}, if available, or else,
 #' \code{\link[utils]{read.csv}}. \code{\link[iotools]{read.csv.raw}} can be much faster,
@@ -60,12 +60,13 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 }
 
 
-#' Read the data from a 'rSFSW2-inputfile'
+#' Read the data from a \var{\sQuote{rSFSW2-inputfile}}
 #'
-#' 'rSFSW2-inputfiles' are comma-separated value files with \itemize{
-#'  \item First row: field names of which the first one is 'Label'
+#' \var{\sQuote{rSFSW2-inputfiles}} are comma-separated value files with \itemize{
+#'  \item First row: field names of which the first one is \var{\dQuote{Label}}
 #'  \item Second row: flags indicating which column information is applied (1) or not (0);
-#'    the first entry is the character string 'UseInformationToCreateSoilWatRuns'.
+#'    the first entry is the character string
+#'    \var{\dQuote{UseInformationToCreateSoilWatRuns}}.
 #'  \item Third - last row: values of the input file; first column: site labels.
 #' }
 #'
@@ -75,8 +76,8 @@ SFSW2_read_csv <- function(file, stringsAsFactors = FALSE,
 #' @return A list of length two with the elements \describe{
 #'  \item{use}{A named logical vector. The names are from the first row of the \code{file}
 #'    and the values are \code{FALSE} if the second row of the \code{file} contains a 0
-#'    and \code{TRUE} otherwise. The first entry, corresponding to column 'Label' is
-#'    always \code{FALSE}.}
+#'    and \code{TRUE} otherwise. The first entry, corresponding to column
+#'    \var{\dQuote{Label}} is always \code{FALSE}.}
 #'  \item{data}{A data frame (\code{\link[base]{data.frame}}) containing a representation
 #'    of the values in the \code{file} with column names from the first row of the
 #'    \code{file}.}
@@ -85,7 +86,9 @@ SFSW2_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   ...) {
 
   sw_use <- tryCatch(SFSW2_read_csv(file, nrows = header_rows, use_iotools = use_iotools),
-    error = function(e) print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
+    error = function(e)
+    print(paste("Failed to read file:", shQuote(basename(file)), "with", e)))
+
   sw <- SFSW2_read_csv(file, skip = header_rows, use_iotools = use_iotools, ...)
   names(sw) <- names(sw_use)
   sw_use <- c(FALSE, as.logical(as.numeric(sw_use[, -1])))
@@ -95,19 +98,19 @@ SFSW2_read_inputfile <- function(file, header_rows = 1, use_iotools = TRUE,
   list(use = sw_use, data = sw)
 }
 
-#' Re-combine elements to create a 'rSFSW2-inputfile'
+#' Re-combine elements to create a \var{\sQuote{rSFSW2-inputfile}}
 #'
 #' Combines the output of \code{\link{SFSW2_read_inputfile}} to a data frame
-#' (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile' format. This can be
-#'  written back to disk.
+#' (\code{\link[base]{data.frame}}) with proper \var{\sQuote{rSFSW2-inputfile}} format.
+#'  This can be written back to disk.
 #'
 #' @param sw_use A named logical vector. See element \code{use} described under the
 #'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #' @param data A named logical vector. See element \code{data} described under the
 #'  section \code{Value} of \code{\link{SFSW2_read_inputfile}}.
 #'
-#' @return A data frame (\code{\link[base]{data.frame}}) with proper 'rSFSW2-inputfile'
-#'  format.
+#' @return A data frame (\code{\link[base]{data.frame}}) with proper
+#'  \var{\sQuote{rSFSW2-inputfile}} format.
 reconstitute_inputfile <- function(sw_use, data) {
   temp <- as.data.frame(matrix(as.integer(sw_use), nrow = 1L))
   colnames(temp) <- names(sw_use)
@@ -324,26 +327,36 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
   invisible(TRUE)
 }
 
-#' Read from disk the default input files of SOILWAT2
+
+
+#' Prepare default inputs from \pkg{rSOILWAT2}
+#'
+#' This function loads the data \code{\link[rSOILWAT2]{sw_exampleData}} from
+#' \pkg{rSOILWAT2}; removes all but one soil layer (to prevent carry-over
+#' effects of deeper layers in sites that have a shallower soil profile
+#' simulated by \pkg{rSFSW2}); turns on soil temperature simulations; and
+#' removes any weather data.
+#'
+#' @return A \linkS4class{swInputData} object.
 #' @export
-read_SOILWAT2_FileDefaults <- function(dir_in_sw, swFiles_tag = "file") {
-  temp <- list.files(dir_in_sw)
-  swFilesIn <- grep(swFiles_tag, temp, value = TRUE)[1]
+read_SOILWAT2_DefaultInputs <- function() {
+  # 'example1' of rSOILWAT2 package is defined as 'default' from SOILWAT2
+  swData <- rSOILWAT2::sw_exampleData
 
-  if (length(swFilesIn) == 0 || is.na(swFilesIn))
-    stop("'read_SOILWAT2_FileDefaults': cannot find SOILWAT2's overview file ",
-      shQuote(swFiles_tag), " in folder ", shQuote(dir_in_sw))
+  # Delete all but one soil layer
+  temp <- rSOILWAT2::swSoils_Layers(swData)[1, , drop = FALSE]
+  rSOILWAT2::swSoils_Layers(swData) <- temp
 
-  # 'swDataFromFiles' acts as the basis for all runs
-  swDataFromFiles <- rSOILWAT2::sw_inputDataFromFiles(dir = dir_in_sw,
-    files.in = swFilesIn)
+  # Turn soil temperature on
+  rSOILWAT2::swSite_SoilTemperatureFlag(swData) <- TRUE
 
-  # we don't need the example weather data; the code will get weather data separately
-  if (length(swDataFromFiles@weatherHistory) > 0)
-    swDataFromFiles@weatherHistory <- list(new("swWeatherData"))
+  # Delete weather data folder (all rSFSW2 projects get their own weather data)
+  rSOILWAT2::set_swWeatherData(swData) <- new("swWeatherData")
 
-  swDataFromFiles
+  swData
 }
+
+
 
 complete_with_defaultpaths <- function(project_paths, fnames_in) {
   # full names of files located in 'dir_in'
@@ -395,7 +408,7 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments, ftag,
   tr_list
 }
 
-fix_rowlabels <- function(x, master) {
+fix_rowlabels <- function(x, master, verbose = TRUE) {
 
   ml <- as.character(master[, "Label"])
 
@@ -411,9 +424,11 @@ fix_rowlabels <- function(x, master) {
     argnames <- as.character(match.call()[2:3])
 
     if (dim(x)[1] == 0L) {
-      print(paste("Datafile", shQuote(argnames[1]), "contains zero rows. 'Label's of the",
-        "master input file", shQuote(argnames[2]), "are used to populate rows and",
-        "'Label's of the datafile."))
+      if (verbose) {
+        print(paste("Datafile", shQuote(argnames[1]), "contains zero rows. 'Label's of the",
+          "master input file", shQuote(argnames[2]), "are used to populate rows and",
+          "'Label's of the datafile."))
+      }
 
       x[seq_along(ml), "Label"] <- ml
 
@@ -433,6 +448,28 @@ fix_rowlabels <- function(x, master) {
   }
 
   x
+}
+
+
+#' Load pre-processed simulation project inputs
+#'
+#' @param SFSW2_prj_meta A list.
+#' @param verbose A logical value.
+#' @return A list \code{SFSW2_prj_inputs}.
+#' @export
+load_preprocessed_inputs <- function(SFSW2_prj_meta, verbose = FALSE) {
+  if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]) &&
+    todo_intracker(SFSW2_prj_meta, "load_inputs", "prepared")) {
+
+    SFSW2_prj_inputs <- process_inputs(SFSW2_prj_meta[["project_paths"]],
+      SFSW2_prj_meta[["fnames_in"]], use_preprocin = TRUE, verbose = verbose)
+
+  } else {
+    stop("'load_preprocessed_inputs': cannot load pre-processed inputs because ",
+      "they are missing or out of date according to 'SFSW2_prj_meta'.")
+  }
+
+  SFSW2_prj_inputs
 }
 
 
@@ -464,7 +501,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 
     sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
       nrowsClasses = nrowsClasses), error = print)
-    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation)
+    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation,
+      verbose = verbose)
     sw_input_soillayers[, -(1:2)] <- check_monotonic_increase(data.matrix(sw_input_soillayers[, -(1:2)]),
       strictly = TRUE, fail = TRUE, na.rm = TRUE)
 
@@ -472,7 +510,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       nrowsClasses = nrowsClasses), error = print)
     sw_input_treatments_use <- temp[["use"]]
     sw_input_treatments <- temp[["data"]]
-    sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation)
+    sw_input_treatments <- fix_rowlabels(sw_input_treatments, SWRunInformation,
+      verbose = verbose)
     stopifnot(
       !grepl("[[:space:]]", sw_input_treatments$LookupWeatherFolder)  # no space-characters in weather-data names
     )
@@ -490,43 +529,46 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
       nrowsClasses = nrowsClasses), error = print)
     sw_input_cloud_use <- temp[["use"]]
     sw_input_cloud <- temp[["data"]]
-    sw_input_cloud <- fix_rowlabels(sw_input_cloud, SWRunInformation)
+    sw_input_cloud <- fix_rowlabels(sw_input_cloud, SWRunInformation, verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fvegetation"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_prod <- temp[["data"]]
-    sw_input_prod <- fix_rowlabels(sw_input_prod, SWRunInformation)
+    sw_input_prod <- fix_rowlabels(sw_input_prod, SWRunInformation, verbose = verbose)
     sw_input_prod_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsite"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_site <- temp[["data"]]
-    sw_input_site <- fix_rowlabels(sw_input_site, SWRunInformation)
+    sw_input_site <- fix_rowlabels(sw_input_site, SWRunInformation, verbose = verbose)
     sw_input_site_use <- temp[["use"]]
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
-    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation)
+    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation, verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_weather_use <- temp[["use"]]
     sw_input_weather <- temp[["data"]]
-    sw_input_weather <- fix_rowlabels(sw_input_weather, SWRunInformation)
+    sw_input_weather <- fix_rowlabels(sw_input_weather, SWRunInformation,
+      verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_delta"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_use <- temp[["use"]]
     sw_input_climscen <- temp[["data"]]
-    sw_input_climscen <- fix_rowlabels(sw_input_climscen, SWRunInformation)
+    sw_input_climscen <- fix_rowlabels(sw_input_climscen, SWRunInformation,
+      verbose = verbose)
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fclimscen_values"]],
       nrowsClasses = nrowsClasses), error = print)
     sw_input_climscen_values_use <- temp[["use"]]
     sw_input_climscen_values <- temp[["data"]]
-    sw_input_climscen_values <- fix_rowlabels(sw_input_climscen_values, SWRunInformation)
+    sw_input_climscen_values <- fix_rowlabels(sw_input_climscen_values, SWRunInformation,
+      verbose = verbose)
 
     # update treatment specifications based on experimental design
     create_treatments <- union(names(sw_input_treatments_use)[sw_input_treatments_use],
@@ -672,8 +714,8 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE, verbo
 #' Function to write a single object to file, but create a backup file first if an older
 #' version of the file exists. This backup is restored in case the writing to the file
 #' fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
-#' the running R process (e.g., HPC schedulers); those situations likely will not allow
-#' that the original file be restored from the backup -- this will have to be done
+#' the running R process (e.g., \var{HPC} schedulers); those situations likely will not
+#' allow that the original file be restored from the backup -- this will have to be done
 #' manually.
 #'
 #' @inheritParams base::saveRDS

@@ -49,7 +49,7 @@ An object of class \code{SFSW2_lock}.
 
 A logical value. \code{TRUE} if lock file contains proper code of the lock.
 
-The return value of unlinking the directory associated with \code{lock}.
+The return value of deleting the directory associated with \code{lock}.
 
 The updated \code{lock} object of class \code{SFSW2_lock}.
 

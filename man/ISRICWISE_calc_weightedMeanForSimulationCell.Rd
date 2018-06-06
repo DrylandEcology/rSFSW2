@@ -2,8 +2,8 @@
 % Please edit documentation in R/ExtractData_Soils.R
 \name{ISRICWISE_calc_weightedMeanForSimulationCell}
 \alias{ISRICWISE_calc_weightedMeanForSimulationCell}
-\title{Calculate weighted mean soil variables from one of the ISRIC-WISE data bases for one
-   simulation cell; areas with no soil are 'removed' and the remaining data 'scaled' to 1}
+\title{Calculate weighted mean soil variables from one of the \var{\sQuote{ISRIC-WISE}}
+ data bases for one simulation cell}
 \usage{
 ISRICWISE_calc_weightedMeanForSimulationCell(i, i_sim_cells_SUIDs, sim_soils,
   layer_N, layer_Nsim, ldepth, dat_wise, nvars, var_tags, val_rocks = NULL)
@@ -23,27 +23,28 @@ Input is an empty template.}
 \item{layer_N}{An integer value. The number of soil layers in the dataset (i.e., 5,
 see \code{\link{do_ExtractSoilDataFromISRICWISE_Global}}).}
 
-\item{layer_Nsim}{An integer value. The number of soil layers of a \code{rSFSW2} project
+\item{layer_Nsim}{An integer value. The number of soil layers of a \pkg{rSFSW2} project
 representing the dataset (i.e., 6, see
 \code{\link{do_ExtractSoilDataFromISRICWISE_Global}}).}
 
 \item{ldepth}{An integer vector. The depth limits of the extracted \code{rSFSW2}
 project soil layers including zero where \code{layer_Nsim + 1 == length(ldepth)}.}
 
-\item{dat_wise}{A data.frame representing the main ISRIC-WISE database.}
+\item{dat_wise}{A data.frame representing the main \var{\sQuote{ISRIC-WISE}} database.}
 
-\item{nvars}{An integer value. The number of soil variables extracted from a ISRIC-WISE
-dataset (currently, 5; see \code{\link{prepare_ExtractData_Soils}}).}
+\item{nvars}{An integer value. The number of soil variables extracted from a
+\var{\sQuote{ISRIC-WISE}} dataset (currently, 5; see
+\code{\link{prepare_ExtractData_Soils}}).}
 
-\item{var_tags}{A vector of character string. The column names for 'suid', bulk
-density ('density'), 'sand', 'clay', coarse fragments ('rock'), and organic carbon
-content ('carbon').}
+\item{var_tags}{A vector of character string. The column names for \var{\dQuote{suid}},
+bulk density (\var{\dQuote{density}}), \var{\dQuote{sand}}, \var{\dQuote{clay}},
+coarse fragments (\var{\dQuote{rock}}), and organic carbon content
+(\var{\dQuote{carbon}}).}
 
 \item{val_rocks}{An integer vector. The (negative) values which correspond to rocky
 outcrops and/or rocky subsoils. Soil depth is limited to above layers that have
 values in \code{val_rocks}.}
 }
 \description{
-Calculate weighted mean soil variables from one of the ISRIC-WISE data bases for one
-   simulation cell; areas with no soil are 'removed' and the remaining data 'scaled' to 1
+Areas with no soil are 'removed' and the remaining data 'scaled' to 1.
 }

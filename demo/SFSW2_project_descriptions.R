@@ -293,6 +293,13 @@ opt_sim <- list(
 
 #------ Output options
 opt_out_fix <- list(
+  # Control granularity of tracking the output generation
+  #  - use_granular_control = FALSE (default); dbWork tracks completion of each runID,
+  #    i.e., an entire call to `do_OneSite`
+  #  - use_granular_control = TRUE; dbWork adds a second table `need_outputs` that tracks
+  #    the completion of each Pid (= runID x scenario) x output table combination
+  use_granular_control = FALSE,
+
   # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or NULL:
   #   Selected columns will be part of 'header' table in dbOutput in addition to those of
   #   create_treatments, experimental_treatments, and climate scenario
@@ -564,6 +571,7 @@ req_out <- list(
   #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
+    "yearlyTranspirationBySoilLayer", 1,
     "dailySoilWaterPulseVsStorage", 1,
   #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
@@ -592,6 +600,7 @@ req_out <- list(
     "dailySWPdrynessEventSizeDistribution", 1,
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
+    "periodicVWCmatricFirstLayer", 1,
   #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
@@ -685,12 +694,22 @@ opt_agg <- list(
   SPEI_tscales_months = c(1, 12, 24, 48), # time scales for SPEI::spei in units of months
 
   # Options for calculating daily aggregation options over a specific range of days
+  ## Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S), will be used if no values are specified for the other specific value (i.e. NULL)
+  ## Variables that are calculated within water-years (Begin Oct 1st in N, DOY 275, April 1st in S, DOY 92),
+  ### as opposed to typical years (Begin Jan 1st, DOY 1), the doy specific values need to be set within the bounds
+  ### of a water-year. For example, in the N., c(300, 30), is an acceptable input, but c(200, 30) is not.
   use_doy_range = FALSE,
   doy_ranges = list(
-    dailyFrostinSnowPeriod = c(1, 250), #water year
-    default = c(1, 250),
-    defaultWateryear_N = c(274, 273), # default water year aggregation in the N. Hemisphere -  a full year Oct1st - Sept31st
-    defaultWateryear_S = c(92, 91) # default water year aggregation in the S. Hemisphere
+    yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
+    defaultWateryear_N = c(274, 60), # default doy_range water-year aggregation in the N. Hemisphere
+    defaultWateryear_S = c(92, 213)  # default doy_range water-year aggregation in the S. Hemisphere
   ),
 
   # Daily weather frequency distributions

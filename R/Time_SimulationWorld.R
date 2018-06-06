@@ -86,15 +86,16 @@ determine_overall_simulation_time <- function(st, SFSW2_prj_inputs) {
 
 #' Describe the time of a simulation project
 #'
-#' @param sim_time A list with at least values for three named elements: 'simstartyr' and
-#'  'endyr' and one of the following two: 'startyr' or 'spinup_N'.
+#' @param sim_time A list with at least values for three named elements:
+#'  \var{\dQuote{simstartyr}} and \var{\dQuote{endyr}} and one of the following two:
+#'  \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}.
 #' @param add_st2 A logical value. If \code{TRUE}, the output of calling the function
 #'  \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the returned list.
 #' @param use_doy_range A logical value. If \code{TRUE}, then the result is
-#' additional daily indices indicating whether the DOY is within the days indicated
+#' additional daily indices indicating whether the \var{DOY} is within the days indicated
 #' in the \code{doy_ranges}.
-#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
-#' of days you wish to calculate the aggregation over.
+#' @param doy_ranges A named list. Aggregation output variables and the daily
+#'  \code{c(min, max)} of days you wish to calculate the aggregation over.
 #' @param adjust_NS A logical value. If \code{TRUE}, then the result is corrected for
 #'  locations on the southern vs. northern hemisphere. Only used if \code{add_st2} is
 #'  \code{TRUE}.
@@ -175,12 +176,12 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
 #' @param sim_tscales A vector of character strings. One or multiple of \code{c("daily",
 #'  "weekly", "monthly", "yearly")}.
 #' @param use_doy_range A logical value. If \code{TRUE}, then the result is
-#' additional daily indices indicating whether the DOY is within the days indicated
-#' in the \code{doy_ranges}.
-#' @param doy_ranges A named list. Aggregation output variables and the daily \code{c(min, max)}
-#' of days you wish to calculate the aggregation over.
-#' @param latitude A numeric value. The latitude in decimal degrees for which a hemispheric
-#'  adjustment is requested; however, the code extracts only the sign.
+#'  additional daily indices indicating whether the \var{DOY} is within the days indicated
+#'  in the \code{doy_ranges}.
+#' @param doy_ranges A named list. Aggregation output variables and the daily
+#'  \code{c(min, max)} of days you wish to calculate the aggregation over.
+#' @param latitude A numeric value. The latitude in decimal degrees for which a
+#'  hemispheric adjustment is requested; however, the code extracts only the sign.
 #' @param account_NorthSouth A logical value. If \code{TRUE}, then the result is
 #'  corrected for locations on the southern vs. northern hemisphere.
 #' @return A named list.
@@ -237,51 +238,38 @@ simTiming_ForEachUsedTimeUnit <- function(st,
       res$no.useyr_NSadj <- st$no.useyr
     }
 
-    #Adjust for Years To Account For Water-yea
-    if(latitude > 0){
-      #Water year starting Oct 1
-      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 273, 1, 0)
-    }else{
-      #Water year starting April 1
-      res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > 91, 1, 0)
-    }
-    adjDays <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 365 - 272, -90)
+    #Adjust years to water-years
+    #In North, Water year starting Oct 1 - Using DOY 274, which is Oct 1st in Leap Years, but Oct 2nd in typical years
+    #In South, Water year starting April 1 - Using DOY 92, which is April 1st in Leap Years, but April 2nd in typical years
 
-    if(use_doy_range){
+    FirstDOY_WaterYear <- ifelse(res$doy_ForEachUsedDay[1] == res$doy_ForEachUsedDay_NSadj[1], 274, 92)
+    res$year_ForEachUsedDay_NSadj_WaterYearAdj <- res$year_ForEachUsedDay_NSadj + ifelse(res$doy_ForEachUsedDay_NSadj > FirstDOY_WaterYear, 1, 0)
+
+    if (isTRUE(use_doy_range)) {
       #North or Southern hemisphere? eliminate unnecessary water years values
-            if(latitude > 0){
-              doy_ranges[["defaultWateryear_S"]] <- NULL
-            }else{
-              doy_ranges[["defaultWateryear_N"]] <- NULL
-            }
+      if (latitude > 0) {
+        Idx <- grep("_S",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      } else {
+        Idx <- grep("_N",names(doy_ranges))
+        doy_ranges[Idx] <- NULL
+      }
 
-      for(dr in seq_along(doy_ranges)){
-        if(!is.null(doy_ranges[[dr]])){
-        # Should the range years be adjusted for water years? If the aggregation uses
-        # water year logic in its calculation, then yes.
-          if(names(doy_ranges)[dr] %in% c("dailyFrostinSnowPeriod", "defaultWateryear_N", "defaultWateryear_S")){
-            doy_range_values <- doy_ranges[[dr]] + adjDays
-          }else{
-            doy_range_values <- doy_ranges[[dr]]
-       }
-
-        if(doy_range_values[1] > 365)   doy_range_values[1] <- abs(doy_range_values[1] - 365)
-
-       #check that value doy_range_values[1] is now less than value [doy_range_values[2]
-       if(doy_range_values[1] >= doy_range_values[2]){
-         print(paste('The doy_range values for ', names(doy_ranges)[dr], 'are out of range.
-                     The second value must exceed the first after water years adjustment. Current values are:',
-                     doy_range_values[1], 'and', doy_range_values[2]))
-         break
-       }
+      for (dr in seq_along(doy_ranges)) {
+        if (!is.null(doy_ranges[[dr]])) { #for all non-NULL doy_range values
+          doy_range_values <- doy_ranges[[dr]]
 
        # Create daily logical vector indicating whether that doy is within range or not
         res[[paste0('doy_NSadj_', names(doy_ranges[dr]),"_doyRange")]] <- #dynamic name
-          ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
+        if (doy_range_values[1] > doy_range_values[2]) {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:366, 1:doy_range_values[2]), TRUE, FALSE)
+          } else {
+           ifelse(res$doy_ForEachUsedDay_NSadj %in% c(doy_range_values[1]:doy_range_values[2]), TRUE, FALSE)
         }
       }
-      }
+    }
   }
+}
 
 
 

@@ -7,20 +7,22 @@
 setup_RNG(streams_N, global_seed = NULL, reproducible = TRUE)
 }
 \arguments{
-\item{streams_N}{An integer value representing the number of tasks for which Pierre
-L'Ecuyer's RngStreams should be generated.}
+\item{streams_N}{An integer value representing the number of tasks for which
+\var{RngStreams} according to Pierre L'Ecuyer should be generated.}
 
 \item{global_seed}{A vector appropriate for \code{\link{.Random.seed}} of the current
-RNG; a single integer or NULL that will be passed to set.seed().}
+\var{RNG}; a single integer or \code{NULL} that will be passed to
+\code{\link{set.seed()}}.}
 
 \item{reproducible}{A logical value. If \code{TRUE}, then \code{streams_N} are
 prepared. If \code{FALSE}, then instead \code{NA}s are returned.}
 }
 \value{
 A list with four elements: \itemize{
-   \item \code{seed_prev} captures the previous state of the RNG seed.
-   \item \code{RNGkind_prev} captures the previous kind of the RNG.
-   \item \code{global_seed} is the seed used to set the RNG for stream generation.
+   \item \code{seed_prev} captures the previous state of the \var{RNG} seed.
+   \item \code{RNGkind_prev} captures the previous kind of the \var{RNG}.
+   \item \code{global_seed} is the seed used to set the \var{RNG} for stream
+         generation.
    \item \code{seeds_runN} is a list with a stream of \code{streams_N} seeds.
    \item \code{seeds_DS} is an empty list -- a placeholder for a list with a stream
          of seeds for climate scenario downscaling.
@@ -30,23 +32,23 @@ A list with four elements: \itemize{
 Organizing previous state and streams of random number generator
 }
 \section{Usage}{
- RNG - parallelized function calls by \code{rSFSW2}
+ \var{RNG} - parallelized function calls by \pkg{rSFSW2}
  \itemize{
    \item \code{try.ScenarioWeather} wraps \code{calc.ScenarioWeather} which calls
-         \code{set_RNG_stream} to prepare RNG for functions \itemize{
+         \code{set_RNG_stream} to prepare \var{RNG} for functions \itemize{
          \item \code{fix_PPTdata_length}
          \item \code{calc_Days_withLoweredPPT}
          \item \code{controlExtremePPTevents}
          }
-   \item \code{do_OneSite} calls \code{set_RNG_stream} to prepare RNG for functions
-         \itemize{
+   \item \code{do_OneSite} calls \code{set_RNG_stream} to prepare \var{RNG} for
+      functions \itemize{
          \item \code{calculate_TimeToGerminate_modifiedHardegree2006NLR}
          }
    }
 }
 
 \section{Note}{
- Parallelized function calls without using RNG
+ Parallelized function calls without using \var{RNG}
  \itemize{
    \item \code{ISRICWISE5minV1b_extract_SUIDs}
    \item \code{ISRICWISE5minV1b_try_weightedMeanForSimulationCell}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Parallel.R
 \name{mpi_last}
 \alias{mpi_last}
-\title{Properly end mpi workers before quitting R (e.g., at a crash)}
+\title{Properly end \var{\dQuote{mpi}} workers before quitting R (e.g., at a crash)}
 \usage{
 mpi_last(gv)
 }
@@ -11,7 +11,7 @@ mpi_last(gv)
 logical value and indicates whether call is from a parallel run.}
 }
 \description{
-Properly end mpi workers before quitting R (e.g., at a crash)
+Properly end \var{\dQuote{mpi}} workers before quitting R (e.g., at a crash)
 }
 \section{Notes}{
  Code is based on

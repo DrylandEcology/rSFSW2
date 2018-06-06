@@ -2,21 +2,22 @@
 % Please edit documentation in R/ExtractData_Soils.R
 \name{do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA}
 \alias{do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA}
-\title{CONUS-SOIL is a rasterized and controlled STATSGO data set; information for 11 soil
-are layers available.}
+\title{\var{\sQuote{CONUS-SOIL}} is a rasterized and controlled \var{\sQuote{STATSGO}} data
+set; information for 11 soil are layers available.}
 \usage{
 do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA(MMC, sim_size, sim_space,
   dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0)
 }
 \arguments{
-\item{default_TOC_GperKG}{A numeric value. The default value is 0 g TOC per kg soil.}
+\item{default_TOC_GperKG}{A numeric value. The default value is
+0 g \var{TOC} per kg soil.}
 }
 \description{
-CONUS-SOIL is a rasterized and controlled STATSGO data set; information for 11 soil
-are layers available.
+\var{\sQuote{CONUS-SOIL}} is a rasterized and controlled \var{\sQuote{STATSGO}} data
+set; information for 11 soil are layers available.
 }
-\section{Note(drs)}{
- it appears that NODATA values are recorded as 0
+\section{Note}{
+ It appears that \var{NODATA} values are recorded as 0s.
 }
 
 \references{

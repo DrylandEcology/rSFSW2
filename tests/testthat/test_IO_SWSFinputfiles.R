@@ -73,5 +73,9 @@ test_that("Save to disk with backup", {
   expect_equal(readRDS(f_rds_backup), x1)
 })
 
+test_that("rSOILWAT2 default inputs", {
+  expect_s4_class(read_SOILWAT2_DefaultInputs(), "swInputData")
+})
+
 unlink(f_rds_orig)
 unlink(f_rds_backup)

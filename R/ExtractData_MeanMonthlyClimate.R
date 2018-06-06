@@ -43,8 +43,8 @@ update_meanmonthlyclimate_input <- function(MMC, use_site, sim_size, digits = 2,
 
 
 #' @references National Climatic Data Center. 2005. Climate maps of the United States.
-#'  Available online http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl. Last accessed
-#'  May 2010.
+#'  Available online \url{http://cdo.ncdc.noaa.gov/cgi-bin/climaps/climaps.pl}.
+#'  Last accessed May 2010.
 do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
   project_paths, fnames_in, opt_chunks, resume, verbose) {
 
@@ -56,8 +56,6 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-
-  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NCDC1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -113,8 +111,11 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
     #locations of simulation runs
     sites_noaaca <- sim_space[["run_sites"]][todos, ]
     # Align with data crs
-    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]), layer = files_shp[["RH"]][1], verbose = FALSE)
+    stopifnot(requireNamespace("rgdal"))
+    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]),
+      layer = files_shp[["RH"]][1], verbose = FALSE)
     crs_data <- raster::crs(noaaca)
+
     if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
       sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)  #transform graphics::points to grid-coords
     }
@@ -222,19 +223,20 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 }
 
 
-#' Extract gridded mean monthly data from NCEP/CFSR for sites globally
+#' Extract gridded mean monthly data from \var{NCEP/CFSR} for sites globally
 #'
-#' @section Monthly data: (http://rda.ucar.edu/datasets/ds093.2/):
-#'  ds093.2 - NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products, January
-#'  1979 to December 2010, 0.313-deg: monthly mean (4 per day) of forecasts of 6-hour
-#'  average.
+#' @section Monthly data: \url{http://rda.ucar.edu/datasets/ds093.2/}:
+#'  \var{ds093.2} - NCEP Climate Forecast System Reanalysis (CFSR) Monthly Products,
+#'  January 1979 to December 2010, 0.313-deg: monthly mean (4 per day) of forecasts of
+#'  6-hour average.
 #'  \describe{
 #'    \item{relative humidity}{percentage for entire atmosphere at 2 m above ground
-#'        [0.5-deg]: 'pgbh06.gdas.R_H.2m.grb2' --> means for Jan-Dec}
+#'        [0.5-deg]: \var{\sQuote{pgbh06.gdas.R_H.2m.grb2}} --> means for Jan-Dec}
 #'    \item{wind (m s-1)}{u- and v-component at 10 m above ground in m s-1:
-#'        'flxf06.gdas.WND.10m.grb2' (u- and v-component) --> means for Jan-Dec}
+#'        \var{\sQuote{flxf06.gdas.WND.10m.grb2}} (u- and v-component)
+#'        --> means for Jan-Dec}
 #'    \item{total cloud cover}{percentage of entire atmosphere as a single layer:
-#'        'flxf06.gdas.T_CDC.EATM.grb2' --> means for Jan-Dec}
+#'        \var{\sQuote{flxf06.gdas.T_CDC.EATM.grb2}} --> means for Jan-Dec}
 #'  }
 #'
 #' @references Environmental Modeling Center/National Centers for Environmental
@@ -242,7 +244,7 @@ do_ExtractSkyDataFromNOAAClimateAtlas_USA <- function(MMC, sim_size, sim_space,
 #'  Climate Forecast System Reanalysis (CFSR) Monthly Products, January 1979 to December
 #'  2010. Research Data Archive at the National Center for Atmospheric Research,
 #'  Computational and Information Systems Laboratory.
-#'  http://rda.ucar.edu/datasets/ds093.2/. Accessed 8 March 2012.
+#'  \url{http://rda.ucar.edu/datasets/ds093.2/}. Accessed 8 March 2012.
 #' @export
 do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_prj_meta,
   opt_parallel, opt_chunks, resume, verbose) {
@@ -297,8 +299,6 @@ do_ExtractSkyDataFromNCEPCFSR_Global <- function(MMC, SWRunInformation, SFSW2_pr
     }
 
     stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
-    stopifnot(requireNamespace("rgdal"))
-
 
     #locations of simulation runs
     locations <- SWRunInformation[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos], c("WeatherFolder", "X_WGS84", "Y_WGS84")]

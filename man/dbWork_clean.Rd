@@ -2,9 +2,9 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_clean}
 \alias{dbWork_clean}
-\title{Do maintenance work on a SQLite-database \code{dbWork} of a rSFSW2 simulation project}
+\title{Do maintenance work on a \var{SQLite}-database \code{dbWork} if it exists}
 \usage{
-dbWork_clean(path)
+dbWork_clean(path, verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be created.}
@@ -14,6 +14,7 @@ A logical value
 }
 \description{
 Some code, power, and system failures may leave \code{dbWork} in an incomplete state,
-e.g., a rollback journal is present, or runs are marked as 'inwork' even though no
-runs are currently being worked on. This function cleans such situations up.
+e.g., a rollback journal is present, or runs are marked as \var{\dQuote{inwork}}
+even though no runs are currently being worked on. This function cleans such
+situations up.
 }

@@ -10,17 +10,26 @@ add_delta_to_PPT(data, ind_events = NULL, addDelta = NULL,
 \arguments{
 \item{data}{A numeric vector. Daily values of precipitation.}
 
-\item{ind_events}{A logical or integer vector of the same length as \code{data} or \code{NULL}. If logical, then TRUE/FALSE for each element/day of \code{data} whether it precipitates or not. If integer, then the indices of \code{data} on which it precipitates. If \code{NULL}, then it will be calculated as \code{data > 0}.}
+\item{ind_events}{A logical or integer vector of the same length as \code{data} or
+\code{NULL}. If logical, then \code{TRUE}/\code{FALSE} for each element/day of
+\code{data}  whether it precipitates or not. If integer, then the indices of
+\code{data} on which it precipitates. If \code{NULL}, then it will be calculated as
+\code{data > 0}.}
 
-\item{addDelta}{A numeric value or \code{NULL}. The total amount of precipitation that is to be added/removed from \code{data[ind_events]} together (divided among events), i.e., it requires the same unit as \code{data}.}
+\item{addDelta}{A numeric value or \code{NULL}. The total amount of precipitation
+that is to be added/removed from \code{data[ind_events]} together
+(divided among events), i.e., it requires the same unit as \code{data}.}
 
-\item{deltaPerEvent}{A numeric vector of the length equal to \code{sum(ind_events)} or \code{NULL}. The daily amount of precipitation that is to be added/removed from each \code{data[ind_events]}, i.e., it requires the same unit as \code{data}.}
+\item{deltaPerEvent}{A numeric vector of the length equal to \code{sum(ind_events)} or
+\code{NULL}. The daily amount of precipitation that is to be added/removed from
+each \code{data[ind_events]}, i.e., it requires the same unit as \code{data}.}
 }
 \value{
 A list with two elements
  \describe{
    \item{data}{A copy of \code{data} with adjusted values.}
-   \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
+   \item{PPT_to_remove}{The total amount of precipitation that could not be removed
+     from \code{data} due to lack of precipitation.}
  }
 }
 \description{

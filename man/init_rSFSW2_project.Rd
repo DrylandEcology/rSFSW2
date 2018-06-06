@@ -2,17 +2,26 @@
 % Please edit documentation in R/Simulation_Project.R
 \name{init_rSFSW2_project}
 \alias{init_rSFSW2_project}
-\title{Initialize a rSFSW2 project (setup description file)}
+\title{Initialize a \pkg{rSFSW2} project (setup description file)}
 \usage{
-init_rSFSW2_project(SFSW2_prj_meta, fmeta, verbose = TRUE)
+init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
+  print.debug = FALSE)
 }
 \arguments{
-\item{SFSW2_prj_meta}{A list or environment as generated from a file comparable to
-\code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}}
+\item{fmetar}{A character string. The path name to the project description file.}
+
+\item{update}{A logical value. If \code{TRUE}, the path names are re-scanned from
+\code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.}
+
+\item{verbose}{A logical value.}
+
+\item{print.debug}{A logical value.}
 }
 \value{
-An updated version of \code{SFSW2_prj_meta}
+The object \code{SFSW2_prj_meta} of type environment.
 }
 \description{
-Initialize a rSFSW2 project (setup description file)
+This function creates/loads an object \code{SFSW2_prj_meta} based on the file \code{fmetar}
+containing the descriptions/metadata for this simulation project. The file should be
+comparable to \code{file.path(system.file("demo", package = "rSFSW2"), "SFSW2_project_descriptions.R")}
 }

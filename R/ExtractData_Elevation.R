@@ -38,7 +38,7 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 }
 
 
-#' @references National Elevation Dataset (ned.usgs.gov)
+#' @references National Elevation Dataset \url{ned.usgs.gov}
 do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fnames_in,
   resume, verbose) {
 
@@ -50,8 +50,6 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem, fn
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-
-  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["NEDUSA1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
@@ -138,8 +136,6 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space, dir_ex_dem
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
   }
-
-  stopifnot(requireNamespace("rgdal"))
 
   MMC[["idone"]]["HWSD1"] <- FALSE
   todos <- has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |

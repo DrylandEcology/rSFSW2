@@ -223,7 +223,7 @@ generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_ch
   on.exit(DBI::dbDisconnect(con), add = TRUE)
 
   Tables <- dbOutput_ListOutputTables(con)
-  Tables <- Tables[-grep(pattern = "_sd", Tables, ignore.case = T)]
+  Tables <- Tables[-grep(pattern = "_sd", Tables, ignore.case = TRUE)]
 
   if (SFSW2_glovars[["p_has"]]) {
     #call the simulations depending on parallel backend

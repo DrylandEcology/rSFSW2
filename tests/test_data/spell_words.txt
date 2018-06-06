@@ -1,0 +1,167 @@
+###---- Spell checking
+# Sections:
+#   - Jargon
+#   - Abbreviations
+#   - Names of people, e.g., authors of cited articles
+#   - Stupid stuff to avoid false positive hits
+
+
+#------------------------------------
+#------ Jargon
+abiotic
+additively
+arcmin
+arcsec
+Climatological
+corrigendum
+des
+disaggregation
+doi
+downscale
+downscaled
+downscales
+downscaling
+dryland
+Ecohydrological
+Ecohydrology
+Equiratio
+et cetera
+evapotranspiration
+finalizer
+forb
+gridded
+Gridding
+Harmonised
+Hydrologic
+Hydrological
+hydrologically
+Hydrologiques
+Irradiance
+iso
+jitter
+lodgepole
+matric
+MERCHANTABILITY
+modelling
+monotonicity
+multilayer
+multiplicatively
+normals
+operationalization
+Pedotransfer
+phenology
+pre
+programme
+rasterized
+rasters
+replicability
+shortgrass
+shrublands
+spinup
+streamflow
+subsoils
+th
+todo
+tricubic
+windspeed
+
+
+#------------------------------------
+#------ Abbreviations (mostly from cited articles)
+# Keep as short as possible, use \var{} etc. instead
+al
+ASCE
+CFSR
+DAAC
+EWRI
+FAO
+GCM
+ISRIC
+NCEP
+NOAA
+ORNL
+RCM
+UNEP
+
+
+
+#------------------------------------
+#------ Names
+# Keep as short as possible, use \var{} etc. instead
+Anandhi
+Artemisia tridentata
+Batjes
+Boe
+Bremnes
+Buishand
+Calera
+Carrasco
+Choi
+Clapp
+DayMet
+Deichmann
+Deursen
+Devarakonda
+Duso
+Eklundh
+Engen
+Frei
+Geoderma
+Ginn
+Gobiet
+Gudmundsson
+Habets
+Haugen
+Hopkinson
+Hornberger
+Itenfisu
+L'Ecuyer
+Lange
+Lauenroth
+Leavesley
+Lenderink
+Leptosols
+Lettenmaier
+Livneh
+Lounsbury
+Matonse
+Maurer
+McGraw
+McKenney
+Milchunas
+Milewska
+Monteith
+Nijssen
+Nooksack
+Odhiambo
+Oecologia
+Papadopol
+Paruelo
+Pedlar
+Pierson
+Saha
+Salathe
+Schlaepfer
+Schneiderman
+Skaugen
+SOILWAT
+Technometrics
+Teeri
+Terray
+Themessl
+Thermessl # wrong spelling; correct is Themessl
+Tohver
+Trewartha
+Vose
+Wageningen
+Wette
+Wilby
+Wythers
+Yoder
+Zach
+
+
+#------------------------------------
+#------ Stupid stuff to avoid false positive hits
+# Keep as short as possible, use \var{} etc. instead
+

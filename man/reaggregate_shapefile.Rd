@@ -31,6 +31,6 @@ A list of length corresponding to the number of rectangles. Each element is a
  }
 }
 \description{
-Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
- information and not the area-weighted sum.
+Code based on \code{\link[sp]{aggregatePolyWeighted}} version 1.2.3 and modified to
+ return complete information and not the area-weighted sum.
 }

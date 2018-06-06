@@ -49,12 +49,12 @@ Adjust mean monthly biomass values of grass and shrub functional groups by clima
 }
 \section{Default inputs}{
  \itemize{
-   \item Shrubs are based on location 'IM_USC00107648_Reynolds' which resulted in a
-     vegetation composition of 70 \% shrubs and 30 \% C3-grasses. Default monthly
-     biomass values were estimated for MAP = 450 mm yr-1.
-   \item Grasses are based on location 'GP_SGSLTER' (shortgrass steppe) which resulted
-     in 12 \% shrubs, 22 \% C3-grasses, and 66 \% C4-grasses. Default biomass values
-     were estimated for MAP = 340 mm yr-1.
+   \item Shrubs are based on location \var{\sQuote{IM_USC00107648_Reynolds}} which
+     resulted in a vegetation composition of 70 \% shrubs and 30 \% C3-grasses.
+     Default monthly biomass values were estimated for MAP = 450 mm yr-1.
+   \item Grasses are based on location \var{\sQuote{GP_SGSLTER}} (shortgrass steppe)
+     which resulted in 12 \% shrubs, 22 \% C3-grasses, and 66 \% C4-grasses.
+     Default biomass values were estimated for MAP = 340 mm yr-1.
  }
 }
 

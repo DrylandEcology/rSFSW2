@@ -21,6 +21,7 @@ if (!any(do_skip) && is_online) {
 
   #--- Inputs
   dir_temp <- tempdir()
+
   test_ncs <- list(
     list(filename = file.path(dir_temp,
         "pr_Amon_CESM-CAM5.1-FV_1pctCO2_r1i1p1_000101-015012.nc"),
@@ -44,7 +45,9 @@ if (!any(do_skip) && is_online) {
 
     list(filename = file.path(dir_temp,
         "pr_Amon_CSIRO-Mk3L-1-2_G1_r1i1p1_000101-007012.nc"),
-      url = "https://esgf.nci.org.au/thredds/fileServer/geomip/authoritative/IPCC/GeoMIP/UNSW/CSIRO-Mk3L-1-2/G1/mon/atmos/pr/r1i1p1/pr_Amon_CSIRO-Mk3L-1-2_G1_r1i1p1_000101-007012.nc",
+      url = paste("http://esgf.nci.org.au/thredds/fileServer/geomip/output/UNSW",
+        "CSIRO-Mk3L-1-2/G1/mon/atmos/Amon/r1i1p1/v20170728/pr",
+        "pr_Amon_CSIRO-Mk3L-1-2_G1_r1i1p1_000101-007012.nc", sep = "/"),
       expect = structure(list(calendar = "365_day", unit = 1, N = 840L,
         base = structure(-719162, class = "Date"), start = structure(c(1, 1),
         .Names = c("year", "month")), end = structure(c(70, 12),
@@ -53,7 +56,9 @@ if (!any(do_skip) && is_online) {
 
     list(filename = file.path(dir_temp,
         "tasmin_Amon_NorESM1-M_rcp45_r1i1p1_200601-210012.nc"),
-      url = "https://aims3.llnl.gov/thredds/fileServer/cmip5_css02_data/cmip5/output1/NCC/NorESM1-M/rcp45/mon/atmos/Amon/r1i1p1/v20120412/tasmin/tasmin_Amon_NorESM1-M_rcp45_r1i1p1_200601-210012.nc",
+      url = paste("http://noresg.norstore.no/thredds/fileServer/esg_dataroot/cmor",
+        "CMIP5/output1/NCC/NorESM1-M/rcp45/mon/atmos/Amon/r1i1p1/v20120412/tasmin",
+        "tasmin_Amon_NorESM1-M_rcp45_r1i1p1_200601-210012.nc", sep = "/"),
       expect = structure(list(calendar = "noleap", unit = 1, N = 1140L,
         base = structure(13149, class = "Date"), start = structure(c(2006, 1),
         .Names = c("year", "month")), end = structure(c(2100, 12),

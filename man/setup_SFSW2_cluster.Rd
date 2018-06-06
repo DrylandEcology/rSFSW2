@@ -2,11 +2,11 @@
 % Please edit documentation in R/Parallel.R
 \name{setup_SFSW2_cluster}
 \alias{setup_SFSW2_cluster}
-\title{Set-up a parallel cluster to be used for a rSFSW2 simulation project}
+\title{Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project}
 \usage{
 setup_SFSW2_cluster(opt_parallel, dir_out, verbose = FALSE,
   print.debug = FALSE)
 }
 \description{
-Set-up a parallel cluster to be used for a rSFSW2 simulation project
+Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project
 }

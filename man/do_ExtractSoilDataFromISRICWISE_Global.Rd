@@ -2,42 +2,43 @@
 % Please edit documentation in R/ExtractData_Soils.R
 \name{do_ExtractSoilDataFromISRICWISE_Global}
 \alias{do_ExtractSoilDataFromISRICWISE_Global}
-\title{Extract soil data from one of the ISRIC-WISE datasets}
+\title{Extract soil data from one of the \var{\sQuote{ISRIC-WISE}} datasets}
 \usage{
 do_ExtractSoilDataFromISRICWISE_Global(MMC, sim_size, sim_space, dir_ex_soil,
   fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), resume,
   verbose)
 }
 \arguments{
-\item{dataset}{A character string. Identifies the ISRIC-WISE dataset from which
-soil data are extracted. See details.}
+\item{dataset}{A character string. Identifies the \var{\dQuote{ISRIC-WISE}} dataset
+from which soil data are extracted. See details.}
 }
 \description{
-Extract soil data from one of the ISRIC-WISE datasets
+Extract soil data from one of the \var{\sQuote{ISRIC-WISE}} datasets
 }
 \section{Details}{
  \code{dataset} is current implemented for values: \describe{
-   \item{"ISRICWISEv12"}{Dataset 'ISRIC-WISE 5-arcmin v1.2' (Batjes 2012)}
-   \item{"ISRICWISE30secV1a"}{Dataset 'ISRIC-WISE 30-arcsec v1.0' (Batjes 2015, 2016)}
+   \item{"ISRICWISEv12"}{Dataset \var{\sQuote{ISRIC-WISE 5-arcmin v1.2}} (Batjes 2012)}
+   \item{"ISRICWISE30secV1a"}{Dataset \var{\sQuote{ISRIC-WISE 30-arcsec v1.0}}
+       (Batjes 2015, 2016)}
  }
 }
 
 \section{Note}{
  Cells with negative soil values indicate non-soils and are eliminated
   before aggregations: \enumerate{
-  \item 1) ISRIC-WISE 5-arcmin v1.2 (Batjes 2012) \itemize{
-      \item -1: Oceans and inland waters (SUIDS %in% c(0, 1972, 6997))
-      \item -2: Glaciers and snow caps (SUIDS %in% 6998)
+  \item ISRIC-WISE 5-arcmin v1.2 (Batjes 2012) \itemize{
+      \item -1: Oceans and inland waters (\var{SUIDS} %in% c(0, 1972, 6997))
+      \item -2: Glaciers and snow caps (\var{SUIDS} %in% 6998)
       \item -3: No/insufficient data
-      \item -7: Rock outcrops (or shallow subsoils) (SUIDS %in% 6694)
+      \item -7: Rock outcrops (or shallow subsoils) (\var{SUIDS} %in% 6694)
     }
-  \item 2) ISRIC-WISE 30-arcsec v1.0 (Batjes 2015) \itemize{
+  \item ISRIC-WISE 30-arcsec v1.0 (Batjes 2015) \itemize{
       \item -1: Oceans and inland waters
       \item -2: Glaciers and snow caps
       \item -3: Rock outcrops
       \item -4: Dunes/Shifting sands
       \item -5: Salt flats
-      \item -7: 'Rocky' subsoils as for Leptosols
+      \item -7: Rocky subsoils as for Leptosols
       \item -9: Remaining miscellaneous units
     }
   }
@@ -45,16 +46,15 @@ Extract soil data from one of the ISRIC-WISE datasets
 
 \references{
 Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a 5 by 5
- arc-minutes global grid (ver. 1.2). Report 2012/01 (with data set, available at
- www.isric.org). ISRIC-World Soil Information, Wageningen, The Netherlands.
- http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12
+ arc-minutes global grid (version 1.2). Report 2012/01 (with data set, available at
+ \url{www.isric.org}). ISRIC-World Soil Information, Wageningen, The Netherlands.
+ \url{http://www.isric.org/data/isric-wise-derived-soil-properties-5-5-arc-minutes-global-grid-version-12}
 
 Batjes N.H. 2016. Harmonised soil property values for broad-scale
   modelling (WISE30sec) with estimates of global soil carbon stocks. Geoderma 269,
-  61-68 (http://dx.doi.org/10.1016/j.geoderma.2016.01.034).
+  61-68 (\url{http://dx.doi.org/10.1016/j.geoderma.2016.01.034}).
 
 Batjes N.H. 2015. World soil property estimates for broad-scale modelling
-  (WISE30sec, ver. 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
-  [available at ISRIC Soil Data Hub](http://geonode.isric.org/search/?title__icontains=World%20soil%20property%20estimates%20for%20broad-scale%20modelling%20(WISE30sec)&limit=100&offset=0),
-  with addendum and corrigendum.
+  (WISE30sec, version 1.0). Report 2015/01, ISRIC-World Soil Information, Wageningen
+  [available at ISRIC Soil Data Hub], with addendum and corrigendum.
 }

@@ -30,27 +30,28 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 
 #' Extract the weighted mean (and sample quantiles) for raster cells or rectangles.
 #'
-#' @param x A raster* object from which data are extracted
-#' @param y Either A \code{RasterLayer} OR raster resolution (of rectangles) as a numeric vector
-#'    of length two or a matrix with two columns.
-#'    If a RasterLayer, then values of \code{data} are resampled and extracted for !NA
-#'    cells.
+#' @param x A \linkS4class{raster*} object from which data are extracted
+#' @param y Either A \linkS4class{RasterLayer} OR raster resolution (of rectangles) as
+#'    a numeric vector of length two or a matrix with two columns.
+#'    If a \linkS4class{RasterLayer}, then values of \code{data} are resampled and
+#'    extracted for !NA cells.
 #'    If the latter, then the vector or matrix represents the rectangle extent/resolution
 #'    in x- and y-coordinates.
 #'    If a matrix, then rows must match \code{coords}.
 #' @param \dots
 #'  \itemize{
 #'    \item \code{method} A character string. The method argument passed to
-#'      \code{reaggregate_raster}. Default is 'block' which is the fastest.
-#'    \item \code{coords} Cell centers (corresponding to !NA cells of \code{y}) that are
-#'      represented by a two-column matrix of xy coordinates. If not provided, then
-#'      \code{y} must be a \code{RasterLayer} and cell centers are extracted from \code{y}.
+#'      \code{reaggregate_raster}. Default is \var{\dQuote{block}} which is the fastest.
+#'    \item \code{coords} Cell centers (corresponding to \code{!NA} cells of \code{y})
+#'      that are represented by a two-column matrix of \var{xy}-coordinates. If not
+#'      provided, then \code{y} must be a \code{RasterLayer} and cell centers are
+#'      extracted from \code{y}.
 #'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
 #' @seealso \code{\link[raster]{extract}}
-#' @return A matrix with rows corresponding to the !NA cells of \code{y} and columns to
-#'   layers of \code{x}.
+#' @return A matrix with rows corresponding to the \code{!NA} cells of \code{y} and
+#'   columns to layers of \code{x}.
 #' @export
 extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
@@ -186,7 +187,7 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "character", y = "ANY", type = "character"),
   function(x, y, type, ...) {
-    if (!requireNamespace("rgdal"))
+    if (!requireNamespace("rgdal", quietly = TRUE))
       stop("'extract_rSFSW2' requires package 'rgdal' but it is not available")
 
     dots <- list(...)
@@ -217,11 +218,11 @@ setMethod("extract_rSFSW2",
 #'  integer codes of a factor whose levels are encoded by \code{code}.
 #' @param ... \itemize{
 #'    \item \code{coords} Cell centers (corresponding to each resolution of \code{y})
-#'      that are represented by a two-column matrix of xy coordinates. Ignored if \code{y}
-#'      is inheriting from \linkS4class{SpatialPolygons}.
+#'      that are represented by a two-column matrix of \var{xy}-coordinates. Ignored if
+#'      \code{y} is inheriting from \linkS4class{SpatialPolygons}.
 #'    \item \code{crs_data} A \linkS4class{CRS} object indicating the coordinate reference
-#'      system (CRS) of \code{y} and coords. Ignored if \code{y} is inheriting from
-#'      \linkS4class{SpatialPolygons}.
+#'      system (\var{CRS}) of \code{y} and \code{coords}. Ignored if \code{y} is
+#'      inheriting from \linkS4class{SpatialPolygons}.
 #'    \item \code{probs} A numeric vector of probabilities with values in \code{[0, 1]} at
 #'      which sample quantiles are returned.
 #'  }
@@ -247,7 +248,7 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL, ...) 
   weighted.agg(reagg, probs = dots[["probs"]])
 }
 
-#' Convert resolution/rectangles into SpatialPolygons
+#' Convert resolution/rectangles into \linkS4class{SpatialPolygons}
 res_to_polygons <- function(x, y, ...) {
 
   dots <- list(...)
@@ -333,19 +334,21 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
   }
 }
 
-#' Extract values from Raster* objects that are covered by an extent rectangle.
+#' Extract values from \linkS4class{Raster*} objects that are covered by an
+#' extent rectangle.
 #'
 #' A cell is covered if its center is inside the polygon (but see the weights option for
 #'  considering partly covered cells).
 #'
 #' @inheritParams raster::extract
-#' @param y A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the
-#   corners of an \code{\linkS4class{Extent}} object.
+#' @param y A matrix with four columns: \var{\dQuote{xmin}}, \var{\dQuote{xmax}},
+#'   \var{\dQuote{ymin}}, \var{\dQuote{ymax}}; each row represents the corners of an
+#'   \code{\linkS4class{Extent}} object.
 #' @seealso \code{\link[raster]{extract}}
 #'
 #' @return A list with one item for each extent of \code{y}.
 #'   Each element is a matrix where each row corresponds to one of the cells of \code{x}
-#     contained in a SpatialPolygon
+#     contained in a \linkS4class{SpatialPolygon}
 #'   and where columns correspond to layers of \code{x}.
 #'  If \code{weights} is \code{TRUE}, then an additional last column is added which
 #    contains the weights of the rows.
@@ -401,7 +404,7 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 #' The weighted mean of the extracted values can be calculated as
 #'  stats::weighted.mean(values, w = weights)
 #'
-#' @param x A raster* object from which data are extracted.
+#' @param x A \linkS4class{raster*} object from which data are extracted.
 #' @param coords A numeric vector of length two or a matrix with two columns. The x and
 #'   y coordinates of the center(s) of the rectangle(s).
 #' @param to_res A numeric vector of length two. The x- and y-extent of the rectangle(s).
@@ -555,20 +558,21 @@ weighted.agg <- function(reagg, probs = NA) {
 #'  The result is also too smooth because of 'two' smoothing steps: (i) aggregation and
 #'  (ii) 'bilinear' resampling method.
 #'
-#' @param x A RasterLayer object for which !NA cells, values of 'data' are resampled and
-#'  extracted
-#' @param data A raster* object from which data are extracted
+#' @param x A \linkS4class{RasterLayer} object for which !NA cells, values of \code{data}
+#'  are resampled and extracted
+#' @param data A \linkS4class{raster*} object from which data are extracted
 #' @param \dots
 #'  \describe{
 #'    \item{method}{A character string. The method used to resample values for the new
-#'      RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using
-#'      the nearest neighbor.}
-#'    \item{coords}{graphics::points represented by a two-column matrix or data.frame, or
-#'      SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector
+#'      \linkS4class{RasterLayer}, should be \var{\dQuote{bilinear}} for bilinear
+#'      interpolation, or \var{\dQuote{ngb}} for using the nearest neighbor.}
+#'    \item{coords}{\code{points} represented by a two-column matrix or data.frame, or
+#'      \linkS4class{SpatialPoints*}; \linkS4class{SpatialPolygons*};
+#'      \linkS4class{SpatialLines}; \linkS4class{Extent}; or a numeric vector
 #'      representing cell numbers.}
 #'    \item{crit_v_exclude}{A character string representing a logical expression based
-#'      on a variable named 'v'. If present, then the condition(s) are applied to 'data'
-#'      before resampling.}
+#'      on a variable named 'v'. If present, then the condition(s) are applied to
+#'      \code{data} before resampling.}
 #'  }
 #' @seealso \code{\link[raster]{extract}}
 #' @return A vector or matrix with length/rows corresponding to the !NA cells of \code{x}
@@ -592,8 +596,8 @@ extract_from_external_raster_old <- function(x, data, ...) {
 
 #' Re-aggregation of spatial polygon data by spatial rectangles/polygons
 #'
-#' Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
-#'  information and not the area-weighted sum.
+#' Code based on \code{\link[sp]{aggregatePolyWeighted}} version 1.2.3 and modified to
+#'  return complete information and not the area-weighted sum.
 #'
 #' @param x A \linkS4class{SpatialPolygons} object from which data are extracted.
 #' @param by A \linkS4class{SpatialPolygons} object. The 'extents' representing the
@@ -656,17 +660,18 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 
 
 
-#' Extracts the 'units' argument from a CRS object
+#' Extracts the \var{sQuote{units}} argument from a \var{CRS} object
 #'
-#' @param CRS A Raster*, Spatial*, CRS, or character object with a coordinate reference
-#'  system (CRS).
+#' @param CRS A \linkS4class{Raster*}, \linkS4class{Spatial*}, \linkS4class{CRS}, or
+#'  character object with a coordinate reference system (\var{CRS}).
 #' @return A character string or \code{NA}.
 #' @export
 crs_units <- function(CRS) {
-  stopifnot(requireNamespace("rgdal"))
-
   args_crs <- raster::crs(CRS, asText = TRUE)
-  stopifnot(inherits(args_crs, "character") && rgdal::checkCRSArgs(args_crs)[[1]])
+  stopifnot(inherits(args_crs, "character"))
+  if (requireNamespace("rgdal", quietly = TRUE)) {
+    stopifnot(rgdal::checkCRSArgs(args_crs)[[1]])
+  }
 
   args2 <- strsplit(args_crs, split = "+", fixed = TRUE)[[1]]
   units <- trimws(args2[grep("units", args2)])
@@ -675,20 +680,20 @@ crs_units <- function(CRS) {
   } else NA
 }
 
-#' Aligns 'grid_from' with 'grid_to' for certain cells
+#' Aligns \code{grid_from} with \code{grid_to} for certain cells
 #'
-#' @param grid_from A RasterLayer object.
-#' @param coords A matrix of x and y coordinates, or a SpatialPoints or
-#'  SpatialPointsDataFrame object indicating which cells of projected 'grid_from' will
-#'  be used.
-#' @param grid_to A RasterLayer object.
-#' @param crs_to A CRS object or \code{NULL} in which case it will be extracted from
-#'  \code{grid_to}.
+#' @param grid_from A \linkS4class{RasterLayer} object.
+#' @param coords A matrix of x and y coordinates, or a \linkS4class{SpatialPoints} or
+#'  \linkS4class{SpatialPointsDataFrame} object indicating which cells of projected
+#'  \code{grid_from} will be used.
+#' @param grid_to A \linkS4class{RasterLayer} object.
+#' @param crs_to A \linkS4class{CRS} object or \code{NULL} in which case it will be
+#'  extracted from \code{grid_to}.
 #'
 #' @return A list with two elements
 #'  \describe{
-#'    \item{x}{A RasterLayer object. Cells values are \code{NA} or 1 if they contain
-#'      graphics::points of \code{coords}.}
+#'    \item{x}{A \linkS4class{RasterLayer} object. Cells values are \code{NA} or 1
+#'      if they contain \code{points} of \code{coords}.}
 #'    \item{index}{An integer vector. The cell numbers of \code{x} that correspond to
 #'      \code{coords}.}
 #' }
@@ -723,12 +728,12 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #'
 #' @param res_from A numeric vector of length two. The resolution in x and y direction in
 #'  the coordinate system \code{crs_from}.
-#' @param crs_from A CRS object. The coordinate system of \code{res_from}.
-#' @param sp A SpatialPoints object. Cell center graphics::points for which new
+#' @param crs_from A \linkS4class{CRS} object. The coordinate system of \code{res_from}.
+#' @param sp A \linkS4class{SpatialPoints} object. Cell center points for which new
 #'  resolutions will be calculated.
-#' @param crs_sp A CRS object. The coordinate system of \code{sp}.
-#' @param crs_to A CRS object. The coordinate system in which the resulting resolution
-#'  will be calculated.
+#' @param crs_sp A \linkS4class{CRS} object. The coordinate system of \code{sp}.
+#' @param crs_to A \linkS4class{CRS} object. The coordinate system in which the resulting
+#'  resolution will be calculated.
 #'
 #' @return A numeric vector of length two (if resolution is constant for each point) or a
 #'  matrix with two columns for the x- and y-resolutions per row for each point.
@@ -773,7 +778,7 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 #' Set-up information for a spatially aware simulation project
 #' @export
 setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  use_sim_spatial = FALSE) {
+  use_sim_spatial = FALSE, verbose = FALSE) {
 
   sim_space <- list(scorp = NA, run_sites = NA, sim_raster = NA, crs_sites = NA,
     sim_res = NA, sim_crs = NA)
@@ -782,8 +787,6 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]], c("point", "cell"))
 
   if (use_sim_spatial) {
-    stopifnot(requireNamespace("rgdal"))
-
     if (sim_space[["scorp"]] == "cell") {
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
         # Make sure sim_raster agrees with sim_res and sim_crs; sim_raster takes priority
@@ -806,10 +809,20 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     if (is.na(sim_space[["sim_crs"]]) && is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])) {
       sim_space[["sim_crs"]] <- sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
     }
-    #   - package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
-    temp <- rgdal::checkCRSArgs(as.character(sim_space[["sim_crs"]]))
-    stopifnot(temp[[1]])
-    sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+
+    # package 'raster' must be loaded so that method 'CRS' for 'as.character' is available
+    temp_crs <- as.character(sim_space[["sim_crs"]])
+    if (requireNamespace("rgdal", quietly = TRUE)) {
+      temp <- rgdal::checkCRSArgs(temp_crs)
+      stopifnot(temp[[1]])
+      sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+
+    } else {
+      if (verbose) {
+        print(paste("'setup_spatial_simulation': validity of 'sim_crs' is not checked",
+          "because package 'rgdal' is not available:", shQuote(temp_crs)))
+      }
+    }
 
     #--- SpatialPoints of simulation cell centers/sites in WGS84
     sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")  # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")

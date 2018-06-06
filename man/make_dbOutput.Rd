@@ -2,19 +2,20 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{make_dbOutput}
 \alias{make_dbOutput}
-\title{Create dbOutput if requested and/or not already present}
+\title{Create \var{\sQuote{dbOutput}} if requested and/or not already present}
 \usage{
 make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE)
 }
 \value{
-An integer value. The number of fields in the 'overall_aggregation' tables
-  minus 1 (i.e., 'P_id' is not counted here)
+An integer value. The number of fields in the
+  \var{\sQuote{overall_aggregation}} tables minus 1 (i.e., the field
+  \var{\dQuote{P_id}} is not counted here)
 }
 \description{
-Create dbOutput if requested and/or not already present
+Create \var{\sQuote{dbOutput}} if requested and/or not already present
 }
 \section{NOTE}{
- Do not change the design of the output database without adjusting the index
-  functions 'it_Pid', 'it_exp', and 'it_site' (see part 4)
+ Do not change the design of the output database without adjusting the
+  index functions \code{it_Pid}, \code{it_exp}, and \code{it_site} (see part 4)
 }
 

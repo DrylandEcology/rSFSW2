@@ -4,7 +4,8 @@
 #'
 #' @param file A character string. The file path to the datafile to upgrade.
 #' @param new_name A character string. The basename of the upgraded file. If \code{NULL}
-#'  then the code attempts to replace 'vOLD' with 'vNEW' in \code{file}.
+#'  then the code attempts to replace \var{\sQuote{vOLD}} with \var{\sQuote{vNEW}} in
+#'  \code{file}.
 #' @param insert_after_tag A character string. A string identifying existing column(s)
 #'  after which new columns are added.
 #' @param inserted_colnames A character vector. Column name(s) to be added to \code{file}.
@@ -54,9 +55,9 @@ upgrade_datafile <- function(file, new_name, insert_after_tag, inserted_colnames
 }
 
 
-#' Upgrade 'datafile.prod' from version 10 to version 11
+#' Upgrade \var{\sQuote{datafile.prod}} from version 10 to version 11
 #'
-#' Add a column of critical soil water potential (SWPcrit) for each functional type
+#' Add a column of critical soil water potential (\var{SWPcrit}) for each functional type
 #'
 #' @rdname upgrade_datafile
 #' @export
@@ -70,9 +71,9 @@ upgrade_prodin_v10_to_v11 <- function(file, new_name = NULL) {
 }
 
 
-#' Upgrade 'datafile.soils' from version 11 to version 12
+#' Upgrade \var{\sQuote{datafile.soils}} from version 11 to version 12
 #'
-#' Add a column of total organic content (TOC) for each soil layer
+#' Add a column of total organic content (\var{TOC}) for each soil layer
 #'
 #' @rdname upgrade_datafile
 #' @export

@@ -2,10 +2,10 @@
 % Please edit documentation in R/Spatial_Functions.R
 \name{res_to_polygons}
 \alias{res_to_polygons}
-\title{Convert resolution/rectangles into SpatialPolygons}
+\title{Convert resolution/rectangles into \linkS4class{SpatialPolygons}}
 \usage{
 res_to_polygons(x, y, ...)
 }
 \description{
-Convert resolution/rectangles into SpatialPolygons
+Convert resolution/rectangles into \linkS4class{SpatialPolygons}
 }

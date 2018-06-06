@@ -200,7 +200,7 @@ cor2 <- function(y) {
 #' Check that data are within range of normal distribution
 #'
 #' @param data A numeric vector. Daily values of temperature.
-#' @param sigmaN An integer value. A multiplicator of \code{stats::sd}.
+#' @param sigmaN An integer value. A multiplier of \code{stats::sd}.
 test_sigmaNormal <- function(data, sigmaN = 6) {
   md <- mean(data)
   sdd <- stats::sd(data) * sigmaN
@@ -211,9 +211,10 @@ test_sigmaNormal <- function(data, sigmaN = 6) {
 #' Check that data are within range of an approximated gamma distribution
 #'
 #' @param data A numeric vector. Daily values of precipitation.
-#' @param sigmaN An integer value. A multiplicator of \code{stats::sd}.
-#' @references Choi, S. C., and R. Wette. 1969. Maximum Likelihood Estimation of the Parameters of the Gamma Distribution and Their Bias. Technometrics 11:683-690.
-#' @references http://en.wikipedia.org/wiki/Gamma_distribution#Maximum_likelihood_estimation
+#' @param sigmaN An integer value. A multiplier of \code{stats::sd}.
+#' @references Choi, S. C., and R. Wette. 1969. Maximum Likelihood Estimation of the
+#'   Parameters of the Gamma Distribution and Their Bias. Technometrics 11:683-690.
+#' @references \url{http://en.wikipedia.org/wiki/Gamma_distribution#Maximum_likelihood_estimation}
 test_sigmaGamma <- function(data, sigmaN = 6) {
   tempD <- data[data > 0]
 
@@ -333,12 +334,12 @@ do_compare <- function(x1, x2) {
 #' @param x A numeric matrix like object.
 #' @param MARGIN An integer value giving the subscripts over which the monotonicity will
 #'   be checked; 1 indicates rows, 2 indicates columns.
-#' @param increase A logical value. If \code{TRUE}, check monotic increase; if
+#' @param increase A logical value. If \code{TRUE}, check monotonic increase; if
 #'   \code{FALSE}, check monotonic decrease.
-#' @param strictly A logical value. If \code{TRUE}, check for a strict monotic pattern.
-#' @param fail A logical value. If \code{TRUE}, throw error if monotic check fails.
-#' @param replacement A value that replaces non-(strictly) monotically increasing/decreasing
-#'   values if \code{fail} is \code{FALSE}.
+#' @param strictly A logical value. If \code{TRUE}, check for a strict monotonic pattern.
+#' @param fail A logical value. If \code{TRUE}, throw error if monotonic check fails.
+#' @param replacement A value that replaces non-(strictly) monotonically
+#'   increasing/decreasing values if \code{fail} is \code{FALSE}.
 #' @param na.rm A logical value. If \code{TRUE}, then ignore \code{NA}s; if \code{FALSE},
 #'   then fail if \code{strictly} or replace with \code{replacement}.
 #' @return The updated \code{x}.
@@ -365,7 +366,7 @@ check_monotonic_increase <- function(x, MARGIN = 1, increase = TRUE, strictly = 
   if (any(ord, na.rm = TRUE) || (has_na && !na.rm && strictly)) {
     if (fail) {
       stop(paste0("'check_monotonic_increase': data are not ", if (strictly) "strictly ",
-        "monotically ", if (increase) "increasing " else "decreasing ",
+        "monotonically ", if (increase) "increasing " else "decreasing ",
         if (MARGIN == 1) "in rows." else "in columns."))
 
     } else {

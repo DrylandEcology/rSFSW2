@@ -3,7 +3,7 @@
 \name{tryToGet_ClimDB}
 \alias{tryToGet_ClimDB}
 \title{Organizes the calls (in parallel) which obtain specified scenario weather for the
- weather database from one of the available GCM sources}
+ weather database from one of the available \var{GCM} sources}
 \usage{
 tryToGet_ClimDB(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
   climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
@@ -13,8 +13,8 @@ tryToGet_ClimDB(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
 }
 \arguments{
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+and all other values are passed to \code{\link{set.seed}}.}
 }
 \description{
 This function assumes that a whole bunch of global variables exist and contain

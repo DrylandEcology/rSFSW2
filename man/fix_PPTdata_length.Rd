@@ -12,8 +12,8 @@ fix_PPTdata_length(data, targetLength, seed = NA)
 \item{targetLength}{An integer value.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+and all other values are passed to \code{\link{set.seed}}.}
 }
 \value{
 A copy of \code{data} with adjusted length.

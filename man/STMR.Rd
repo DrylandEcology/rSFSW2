@@ -25,7 +25,7 @@ Soil moisture regime categories including qualifiers
 \section{Definitions}{
  Soil temperature and moisture regimes are defined in
  SSS 2014. Our operationalization is explained in the vignette
- 'SoilMoistureRegimes_SoilTemperatureRegimes'.
+ \var{SoilMoistureRegimes_SoilTemperatureRegimes}.
 }
 
 \examples{

@@ -2,11 +2,11 @@
 % Please edit documentation in R/Simulation_Project.R
 \name{check_rSFSW2_project_input_data}
 \alias{check_rSFSW2_project_input_data}
-\title{Attempt to check input data of a rSFSW2 project for consistency}
+\title{Attempt to check input data of a \pkg{rSFSW2} project for consistency}
 \usage{
 check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
   opt_verbosity)
 }
 \description{
-Attempt to check input data of a rSFSW2 project for consistency
+Attempt to check input data of a \pkg{rSFSW2} project for consistency
 }

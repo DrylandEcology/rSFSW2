@@ -2,7 +2,7 @@
 % Please edit documentation in R/RandomNumberGenerator.R
 \name{generate_RNG_streams}
 \alias{generate_RNG_streams}
-\title{Implementation of Pierre L'Ecuyer's RngStreams for N tasks}
+\title{Implementation \var{RngStreams} for N tasks according to Pierre L'Ecuyer}
 \usage{
 generate_RNG_streams(N, seed = NULL, reproducible = TRUE)
 }
@@ -30,7 +30,7 @@ This implementation generates a stream for each unique tasks (instead for each w
 }
 \details{
 The current RNG kind, if required, must be captured before this function is called
- because the function sets the kind to "L'Ecuyer-CMRG" (see examples).
+ because the function sets the kind to \var{\dQuote{L'Ecuyer-CMRG}} (see examples).
 }
 \examples{
 RNGkind_prev <- RNGkind()

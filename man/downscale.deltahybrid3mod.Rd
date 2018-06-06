@@ -2,7 +2,8 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{downscale.deltahybrid3mod}
 \alias{downscale.deltahybrid3mod}
-\title{Downscale with the 'delta-hybrid approach' new version (post to May 2016)}
+\title{Downscale with the new version of the \var{sQuote{delta-hybrid approach}}
+(post to May 2016)}
 \usage{
 downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
   scen.fut.monthly, itime, years = NULL, sim_time = NULL,
@@ -11,17 +12,17 @@ downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
   dailyPPTceiling, monthly_extremes, do_checks = TRUE, ...)
 }
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
-is an object of class \linkS4class{swWeatherData}.}
+\item{obs.hist.daily}{A list. Each element corresponds to one year of
+\code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.}
 
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
-calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}
 
 \item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the historic time period DScur_startyr:DScur_endyr}
+during the historic time period \code{DScur_startyr:DScur_endyr}}
 
 \item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the projected time period DSfut_startyr:DSfut_endyr}
+during the projected time period \code{DSfut_startyr:DSfut_endyr}}
 
 \item{opt_DS}{A named list.}
 
@@ -51,7 +52,7 @@ Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
 
 Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
  climate change projections on streamflow in the Nooksack River basin, Northwest
- Washington. Hydrological Processes:doi: 10.1002/hyp.10012.
+ Washington. Hydrological Processes: \url{doi:10.1002/hyp.10012}.
 
 Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
  matching as an improvement to the equidistant approach in bias correction of
@@ -59,5 +60,6 @@ Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 
 Gudmundsson, L., Bremnes, J.B., Haugen, J.E. & Engen-Skaugen, T. (2012).
  Technical Note: Downscaling RCM precipitation to the station scale using statistical
- transformations - a comparison of methods. Hydrol Earth Syst Sci, 16, 3383-3390.
+ transformations - a comparison of methods. Hydrology and Earth System Sciences, 16,
+ 3383-3390.
 }

@@ -2,10 +2,10 @@
 % Please edit documentation in R/netCDF_prepare_climatedata_files.R
 \name{do_compare_nc}
 \alias{do_compare_nc}
-\title{Compare two netCDF files}
+\title{Compare two \var{netCDF} files}
 \usage{
 do_compare_nc(fnc1, fnc2, var)
 }
 \description{
-Compare two netCDF files
+Compare two \var{netCDF} files
 }

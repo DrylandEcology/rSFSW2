@@ -16,7 +16,7 @@ If all checks pass, then \code{TRUE}. If at least one check fails, then a
 }
 \description{
 The implemented water-balance checks correspond to unit tests of \itemize{
- \item SOILWAT2/test/test_WaterBalance.cc
- \item rSOILWAT2/tests/testthat/test_WaterBalance.R
+ \item \file{SOILWAT2/test/test_WaterBalance.cc}
+ \item \file{rSOILWAT2/tests/testthat/test_WaterBalance.R}
 }
 }

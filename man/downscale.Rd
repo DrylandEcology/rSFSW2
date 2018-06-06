@@ -4,23 +4,23 @@
 \alias{downscale}
 \title{Downscale and temporal disaggregation}
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
+\item{obs.hist.daily}{A list. Each element corresponds to one year of
+\code{simstartyr:endyr} is an object of class \linkS4class{swWeatherData}.}
+
+\item{daily}{A list. Each element corresponds to one year of \code{simstartyr:endyr}
 is an object of class \linkS4class{swWeatherData}.}
 
-\item{daily}{A list. Each element corresponds to one year of simstartyr:endyr is an
-object of class \linkS4class{swWeatherData}.}
-
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
-calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}
 
 \item{monthly}{A numeric matrix. Monthly time-series of observed weather calculated
-from \code{daily} for the years simstartyr:endyr.}
+from \code{daily} for the years \code{simstartyr:endyr}.}
 
 \item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the historic time period DScur_startyr:DScur_endyr}
+during the historic time period \code{DScur_startyr:DScur_endyr}}
 
 \item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the projected time period DSfut_startyr:DSfut_endyr}
+during the projected time period \code{DSfut_startyr:DSfut_endyr}}
 
 \item{opt_DS}{A named list.}
 
