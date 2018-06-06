@@ -29,7 +29,6 @@ cache:
   - C:\RLibrary -> .appveyor_clear_cache.txt
 
 build_script:
-  - 
   - travis-tool.sh install_deps
 
 test_script:

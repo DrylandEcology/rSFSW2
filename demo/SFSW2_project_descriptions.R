@@ -82,12 +82,7 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography"),
-  
-  # Path to where extracted and downloaded data are held
-  dir_data = dir_data <- file.path("C:/GIT/My_Data"),
-  # SSURGO data is not held on a per-site basis, and instead accumlates with each run
-  dir_data_SSURGO = file.path(dir_data, "SSURGO")
+  dir_ex_dem = file.path(dir_ex, "Topography")
 )
 
 
@@ -204,10 +199,6 @@ opt_input <- list(
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
-      #   - Contains information about soil as collected by the National Cooperative Soil Survey.
-      #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
-      #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
-      "ExtractSoilDataFromSSURGO", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
       "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
@@ -234,8 +225,8 @@ opt_input <- list(
   #   position of 'dw_source_priority' if available, if not then second etc.
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-                         "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
-                         "NCEPCFSR_Global"),
+    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
+    "NCEPCFSR_Global"),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
@@ -557,8 +548,8 @@ req_out <- list(
   #---Aggregation: Ecological dryness
     # Note: 'dailyNRCS_SoilMoistureTemperatureRegimes*' require at least soil layers at
     #   10, 20, 30, 50, 60, 90 cm
-    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 0,
-    "dailyNRCS_SoilMoistureTemperatureRegimes", 0,
+    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 1,
+    "dailyNRCS_SoilMoistureTemperatureRegimes", 1,
     "dailyNRCS_Chambers2014_ResilienceResistance", 1,
     "dailyNRCS_Maestas2016_ResilienceResistance", 1,
     "dailyWetDegreeDays", 1,
