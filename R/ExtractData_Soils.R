@@ -64,7 +64,6 @@ update_soils_input <- function(MMC, sim_size, digits = 2, i_Done, ldepths_cm,
 
 adjust_soils_todos <- function(todos, MMC, sim_size) {
   temp <- is.na(MMC[["input2"]][sim_size[["runIDs_sites"]], MMC[["vars"]][1, "input"]])
-
   for (k in 1 + seq_len(MMC[["nvars"]])) {
     temp <- temp | has_nodata(MMC[["input"]][sim_size[["runIDs_sites"]], ], MMC[["vars"]][k, "input"])
   }
@@ -248,6 +247,127 @@ do_ExtractSoilDataFromCONUSSOILFromSTATSGO_USA <- function(MMC, sim_size, sim_sp
   MMC
 }
 
+do_ExtractSoilDataFrom100m <- function(tifFile, soilType, soilLayer, MMC, sim_size, sim_space,
+                                       dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
+  
+  print(paste0(paste0(tifFile, " =========== started")))
+  if (verbose) {
+   t1 <- Sys.time()
+   temp_call <- shQuote(match.call()[1])
+   print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+   on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                         round(difftime(Sys.time(), t1, units = "secs"), 2), " s")) ; cat("\n")}, add = TRUE)
+  }
+  stopifnot(requireNamespace("rgdal"))
+  print(paste("MMC[[idone]][GriddedFROM100m]:", MMC[["idone"]]["GriddedFROM100m"]))
+  MMC[["idone"]]["GriddedFROM100m"] <- FALSE
+  
+  MMC[["source"]] = "GriddedFROM100m";
+  todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m" #true x5
+  if (resume) {
+    todos <- adjust_soils_todos(todos, MMC, sim_size) # false x5
+  }
+  
+  names(todos) <- NULL
+  n_extract <- sum(todos)
+  if (n_extract > 0) {
+    if (verbose)
+      print(paste("Soil data from 'Gridded100m' will be extracted for n =",
+                  n_extract, "sites"))
+  
+  print(paste0("todos length:",length(todos)))
+  dir.ex.gridded <- file.path(dir_ex_soil)
+  print(paste0("File path: ",dir.ex.gridded))
+  stopifnot(file.exists(dir.ex.gridded))
+  ldepth_gridded <- c(0, 5, 15, 30, 60, 100, 200)  #in cm
+  layer_N <- length(ldepth_gridded) - 1
+  ils <- seq_len(layer_N) # 1 2 3 4 5 6
+  
+  g = raster::brick(tifFile)
+  soilData = raster::crs(g)
+  
+  print(paste("todos:",todos))
+
+  #locations of simulation runs
+  sites_conus <- sim_space[["run_sites"]][todos, ]
+  print(paste("todos type:",typeof(todos)))
+  #print(paste("site_conus:",sites_conus))
+  
+  if (!raster::compareCRS(sim_space[["crs_sites"]], soilData)) {
+    sites_conus = sp::spTransform(sites_conus, CRS = soilData)
+  }
+  if (sim_space[["scorp"]] == "point") {
+    cell_res_conus = NULL
+    args_extract = list(y = sites_conus, type = sim_space[["scorp"]])
+    
+  } else if (sim_space[["scorp"]] == "cell") {
+    cell_res_conus <- align_with_target_res(res_from = sim_space[["sim_res"]],
+                                            crs_from = sim_space[["sim_crs"]], sp = sim_space[["run_sites"]][todos, ],
+                                            crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
+    args_extract <- list(y = cell_res_conus, coords = sites_conus, method = "block",
+                         type = sim_space[["scorp"]])
+  }
+  
+
+  # actually extract the sand values from the sites
+  #message("NOTE: soil density values extracted from CONUS-soil (gridded STATSGO) may ",
+  #       "be too low!")
+  cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
+  ftemp <- tifFile
+  g <- if (file.exists(ftemp)) {
+    raster::brick(ftemp)
+  } else {
+    # bulk density of less than 0.3 g / cm3 should be treated as no soil
+    raster::calc(g, fun = cond30, filename = ftemp)
+  }
+  
+  #testBrick = raster::brick('../bd_cond30.tif')
+  #test = do.call("extract_rSFSW2", args = c(args_extract, x = list(testBrick)))
+  #print(paste0("bd_cond30:", test))
+  soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
+  #soil = na.omit(soil)
+  #MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]] <- soil / 100
+  #print(paste("Soil:",soil))
+  # write to environment
+  layer= paste(c("_L", soilLayer))
+  print(paste("soilFrame:", soil))
+  if(soilType == "density"){
+    soilFrame = t(soil[1,5:9]) # get only first row
+  }
+  else{
+    soilFrame = t(soil[1,]) # get only first row
+  }
+  print(paste("frameToInsertInto:",MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,1]))
+  MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,soilLayer] <- soilFrame / 100
+  
+    #print(paste0("Layer:", layer))
+  # There is no organic carbon data, set all values to a default
+  MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
+  # Determine successful extractions
+  MMC[["idone"]]["GriddedFROM100m"] <- TRUE
+  i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
+  MMC[["source"]][which(todos)[!i_good]] <- NA
+  if (any(i_good)) {
+    i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
+    i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+    
+    MMC[["source"]][i_Done] <- "GriddedFROM100m"
+    MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
+                              ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
+  }
+  if (verbose){
+    print(paste("Soil data from 'GriddedFrom100m' was extracted for n =",
+                sum(i_good), "out of", n_extract, "sites"))
+  }
+  print(paste0(paste0(tifFile, " =========== finished")))
+  if(soilLayer < 7){
+    do_ExtractSoilDataFrom100m(paste0(paste0("../sand_M_sl",soilLayer),"_100m.tif"), "sand", soilLayer, MMC, sim_size, sim_space,
+                               dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0)
+    soilLayer = soilLayer + 1;
+  }
+  }
+}
 
 #' A wrapper for \code{reaggregate_raster} designed to work with the rasters of the
 #' ISRIC-WISE datasets versions 5-arcmin v1.2 and 30-arcsec v1.0
@@ -1020,6 +1140,13 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
       sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+  }
+  
+  if(exinfo$ExtractSoilDataFromGriddedGlobalFrom100m){
+    MMC <- do_ExtractSoilDataFrom100m("../bd_cond30.tif", "density", 1, MMC,
+      sim_size = SFSW2_prj_meta[["sim_size"]], sim_space = SFSW2_prj_meta[["sim_space"]],
+      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, !verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISE30secV1a_Global) {

@@ -3,3 +3,5 @@
 ^codecov\.yml$
 ^CONDUCT\.md$
 ^data-raw$
+^.*\.Rproj$
+^\.Rproj\.user$

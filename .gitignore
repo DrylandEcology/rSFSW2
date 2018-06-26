@@ -11,3 +11,4 @@ inst/doc
 
 # Package check files
 ..Rcheck
+.Rproj.user
