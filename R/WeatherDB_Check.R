@@ -39,13 +39,13 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
   n_todos <- max(si_ltemp)
   todos <- rep(TRUE, n_todos)
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = fdbWeather,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = fdbWeather,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  if (DBI::dbExistsTable(con, "WeatherData")) {
+  if (dbExistsTable(con, "WeatherData")) {
     if (is.null(siteID_by_dbW)) {
       if (verbose) {
         print(paste0("rSFSW2's ", temp_call, ": is calling potentially ",
@@ -69,8 +69,8 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
     sql <- paste0("SELECT Site_id, Scenario FROM WeatherData ",
       "WHERE Site_id IN (:x1) ",
       "AND Scenario IN (:x2) ORDER BY Site_id, Scenario")
-    rs <- DBI::dbSendStatement(con, sql)
-    on.exit(RSQLite::dbClearResult(rs), add = TRUE)
+    rs <- dbSendStatement(con, sql)
+    on.exit(dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
       if (verbose) {
@@ -80,10 +80,10 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
       }
 
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      RSQLite::dbBind(rs, params = as.list(expand.grid(
+      dbBind(rs, params = as.list(expand.grid(
         x1 = siteID_by_dbW[do_chunks[[k]]],
         x2 = scenID_by_dbW, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)))
-      res <- RSQLite::dbFetch(rs)
+      res <- dbFetch(rs)
 
       if (dim(res)[1] > 0) {
         temp <- tapply(res[, "Scenario"], res[, "Site_id"], length)

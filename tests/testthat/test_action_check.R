@@ -5,28 +5,28 @@ test_table <- "test"
 
 init_testDB <- function(test_table. = test_table) {
   dbtest <- tempfile()
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbtest)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   # A zero row data frame just creates a table definition
   temp <- matrix(NA, nrow = 0, ncol = 2, dimnames = list(NULL,
     c("P_id", "Include_YN")))
-  RSQLite::dbWriteTable(con, "header", as.data.frame(temp))
+  dbWriteTable(con, "header", as.data.frame(temp))
 
   temp <- matrix(NA, nrow = 0, ncol = 1, dimnames = list(NULL, "P_id"))
-  RSQLite::dbWriteTable(con, test_table., as.data.frame(temp))
+  dbWriteTable(con, test_table., as.data.frame(temp))
 
   dbtest
 }
 
 testDB_add_to_header <- function(dbtest, P_id, Include_YN) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbtest)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   dat <- data.frame(P_id = P_id, Include_YN = Include_YN)
 
-  if ("header" %in% DBI::dbListTables(con)) {
-    temp <- RSQLite::dbReadTable(con, "header")
+  if ("header" %in% dbListTables(con)) {
+    temp <- dbReadTable(con, "header")
     dat2 <- data.frame(P_id = sort(unique(c(temp$P_id, dat$P_id))))
     dat2[, "Include_YN"] <- NA
     irows <- match(temp$P_id, dat2$P_id, nomatch = 0)
@@ -36,10 +36,10 @@ testDB_add_to_header <- function(dbtest, P_id, Include_YN) {
     if (length(irows) > 0)
       dat2[dat2$P_id %in% dat$P_id, "Include_YN"] <- dat[irows, "Include_YN"]
 
-    temp <- RSQLite::dbWriteTable(con, "header", dat2, overwrite = TRUE)
+    temp <- dbWriteTable(con, "header", dat2, overwrite = TRUE)
 
   } else {
-    temp <- RSQLite::dbWriteTable(con, "header", dat)
+    temp <- dbWriteTable(con, "header", dat)
   }
 
 
@@ -47,19 +47,19 @@ testDB_add_to_header <- function(dbtest, P_id, Include_YN) {
 }
 
 testDB_add_to_testtable <- function(dbtest, P_id, test_table. = test_table) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbtest)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbtest)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   dat <- data.frame(P_id = P_id)
 
-  if (test_table. %in% DBI::dbListTables(con)) {
-    temp <- RSQLite::dbReadTable(con, test_table.)
+  if (test_table. %in% dbListTables(con)) {
+    temp <- dbReadTable(con, test_table.)
     dat2 <- data.frame(P_id = sort(unique(c(temp$P_id, dat$P_id))))
 
-    temp <- RSQLite::dbWriteTable(con, test_table., dat2, overwrite = TRUE)
+    temp <- dbWriteTable(con, test_table., dat2, overwrite = TRUE)
 
   } else {
-    temp <- RSQLite::dbWriteTable(con, test_table., dat)
+    temp <- dbWriteTable(con, test_table., dat)
   }
 
   invisible(temp)

@@ -2,25 +2,25 @@
 #------ dbWork functions
 
 add_dbWork_index <- function(con) {
-  stopifnot(DBI::dbIsValid(con))
+  stopifnot(dbIsValid(con))
 
-  prev_indices <- DBI::dbGetQuery(con,
+  prev_indices <- dbGetQuery(con,
     "SELECT * FROM sqlite_master WHERE type = 'index'")
 
-  if (DBI::dbExistsTable(con, "work") && (NROW(prev_indices) == 0L ||
+  if (dbExistsTable(con, "work") && (NROW(prev_indices) == 0L ||
     !("i_runIDs" %in% prev_indices[, "name"]))) {
 
     sql <- paste("CREATE INDEX i_runIDs ON work (runID_total, runID_sites,",
       "include_YN)")
-    DBI::dbExecute(con, sql)
+    dbExecute(con, sql)
   }
 
-  if (DBI::dbExistsTable(con, "need_outputs") && (NROW(prev_indices) == 0L ||
+  if (dbExistsTable(con, "need_outputs") && (NROW(prev_indices) == 0L ||
     !("i_needIDs" %in% prev_indices[, "name"]))) {
 
     sql <- paste("CREATE INDEX i_needIDs ON need_outputs (Pid, runID_total,",
       "include_YN)")
-    DBI::dbExecute(con, sql)
+    dbExecute(con, sql)
   }
 }
 
@@ -53,23 +53,23 @@ create_dbWork <- function(path, jobs) {
   stopifnot(colnames_work_dbWork() %in% dimnames(jobs)[[2]])
   dbWork <- fname_dbWork(path)
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RWC)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RWC)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  DBI::dbExecute(con,
+  dbExecute(con,
     paste("CREATE TABLE work(runID_total INTEGER PRIMARY KEY,",
     "runID_sites INTEGER NOT NULL, include_YN INTEGER NOT NULL,",
     "completed INTEGER NOT NULL, failed INTEGER NOT NULL,",
     "inwork INTEGER NOT NULL, time_s REAL)"))
 
-  RSQLite::dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
+  dbWriteTable(con, "work", append = TRUE, value = as.data.frame(jobs))
   add_dbWork_index(con)
 
   add_status_dbWork(con)
 
   # Set WAL-mode (http://www.sqlite.org/wal.html)
-  temp_jmode <- DBI::dbGetQuery(con, "PRAGMA journal_mode=WAL;")
+  temp_jmode <- dbGetQuery(con, "PRAGMA journal_mode=WAL;")
   if (!(tolower(as.character(temp_jmode)) == "wal")) {
     print(paste("'create_dbWork': setting WAL mode for dbWork failed;",
       "journal mode is instead", shQuote(temp_jmode)))
@@ -78,11 +78,11 @@ create_dbWork <- function(path, jobs) {
   # Set synchronous mode to OFF=0
   #   (https://www.sqlite.org/pragma.html#pragma_synchronous)
   # Fast but data may be lost if power fails
-  # no need to set this PRAGMA, because `RSQLite::dbConnect` does it by default
+  # no need to set this PRAGMA, because `dbConnect` does it by default
 
   # Turn off busy timeout
   #   (https://www.sqlite.org/pragma.html#pragma_busy_timeout)
-  # no need to set this PRAGMA, because `RSQLite::dbConnect` does it by default
+  # no need to set this PRAGMA, because `dbConnect` does it by default
 
 
   invisible(TRUE)
@@ -136,11 +136,11 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
   dbWork <- fname_dbWork(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RW)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RW)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  if (DBI::dbExistsTable(con, "need_outputs")) {
+  if (dbExistsTable(con, "need_outputs")) {
     res <- TRUE
 
   } else {
@@ -150,12 +150,12 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
 
     out_tables <- dbOutput_ListOutputTables(
       dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    temp_tables <- paste(DBI::dbQuoteIdentifier(con, out_tables),
+    temp_tables <- paste(dbQuoteIdentifier(con, out_tables),
       "INTEGER DEFAULT -1", collapse = ", ")
 
     sql <- paste0("CREATE TABLE need_outputs(Pid INTEGER PRIMARY KEY, ",
       "runID_total INTEGER, include_YN INTEGER, ", temp_tables, ")")
-    DBI::dbExecute(con, sql)
+    dbExecute(con, sql)
 
     #--- Create table content: add one row per Pid
     temp_pids <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
@@ -164,10 +164,10 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
     sql <- paste("SELECT runID_total, include_YN FROM work",
       "WHERE runID_total IN (?)",
       "ORDER BY runID_total")
-    rs <- DBI::dbSendStatement(con, sql)
-    RSQLite::dbBind(rs, list(unique(temp_runIDs)))
-    temp_include_YN <- RSQLite::dbFetch(rs)
-    RSQLite::dbClearResult(rs)
+    rs <- dbSendStatement(con, sql)
+    dbBind(rs, list(unique(temp_runIDs)))
+    temp_include_YN <- dbFetch(rs)
+    dbClearResult(rs)
 
     df_granular <- data.frame(matrix(NA, nrow = length(temp_pids),
       ncol = 3L + length(out_tables), dimnames = list(NULL,
@@ -180,7 +180,7 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
     df_granular[, out_tables] <-
       ifelse(df_granular[, "include_YN"] > 0, 1L, -1L)
 
-    res <- RSQLite::dbWriteTable(con, "need_outputs", value = df_granular,
+    res <- dbWriteTable(con, "need_outputs", value = df_granular,
       row.names = FALSE, append = TRUE)
   }
 
@@ -205,25 +205,25 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
 #' @param con A valid \code{SQLiteConnection} database connection to
 #'   \code{dbWork}.
 add_status_dbWork <- function(con) {
-  has_table <- DBI::dbExistsTable(con, "modification_status")
+  has_table <- dbExistsTable(con, "modification_status")
   sql <- "SELECT COUNT(*) FROM modification_status"
-  create_new <- !(has_table && length(DBI::dbGetQuery(con, sql)) == 1L)
+  create_new <- !(has_table && length(dbGetQuery(con, sql)) == 1L)
 
   if (create_new) {
     if (has_table) {
       sql <- "DROP TABLE modification_status"
-      DBI::dbExecute(con, sql)
+      dbExecute(con, sql)
     }
 
     sql <- paste("CREATE TABLE modification_status(status INTEGER,",
       "time_stamp INTEGER)")
-    DBI::dbExecute(con, sql)
+    dbExecute(con, sql)
 
     # Set initial status and assume that dbWork is in sync,
     # i.e., dbOut is not modified
     sql <- paste0("INSERT INTO modification_status ",
       "VALUES (", 0L, ", ", as.integer(Sys.time()), ")")
-    DBI::dbExecute(con, sql)
+    dbExecute(con, sql)
   }
 }
 
@@ -236,26 +236,26 @@ dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
     Yes <- 1L
     No <- 0L
 
-    sql <- paste("UPDATE", DBI::dbQuoteIdentifier(con, table),
-      "SET include_YN = :yn WHERE", DBI::dbQuoteIdentifier(con, id_name),
+    sql <- paste("UPDATE", dbQuoteIdentifier(con, table),
+      "SET include_YN = :yn WHERE", dbQuoteIdentifier(con, id_name),
       "= :x")
-    rs <- DBI::dbSendStatement(con, sql)
+    rs <- dbSendStatement(con, sql)
 
     # now excluded and previously included
     iwork <- which(has_include_YN == Yes & should_include_YN == No)
     n <- length(iwork)
     if (n > 0) {
-      DBI::dbBind(rs, param = list(yn = rep(No, n), x = iwork))
+      dbBind(rs, param = list(yn = rep(No, n), x = iwork))
     }
 
     # now included and previously excluded
     iwork <- which(has_include_YN == No & should_include_YN == Yes)
     n <- length(iwork)
     if (n > 0) {
-      DBI::dbBind(rs, param = list(yn = rep(Yes, n), x = iwork))
+      dbBind(rs, param = list(yn = rep(Yes, n), x = iwork))
     }
 
-    DBI::dbClearResult(rs)
+    dbClearResult(rs)
   }
 }
 
@@ -347,10 +347,10 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
     con <- dbConnect2(dbWork, verbose = verbose)
 
     stopifnot(inherits(con, "SQLiteConnection"))
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    on.exit(dbDisconnect(con), add = TRUE)
 
   } else {
-    stopifnot(DBI::dbIsValid(con))
+    stopifnot(dbIsValid(con))
   }
 
   sql <- if (nchar(mode) > 0) {
@@ -359,7 +359,7 @@ dbWork_checkpoint <- function(path = NULL, con = NULL,
       "PRAGMA wal_checkpoint"
     }
 
-  res <- try(DBI::dbGetQuery(con, sql), silent = TRUE)
+  res <- try(dbGetQuery(con, sql), silent = TRUE)
 
   if (!identical(failure, "silent") && (inherits(res, "try-error") ||
       res["busy"] > 0)) {
@@ -397,9 +397,9 @@ dbWork_clean <- function(path, verbose = FALSE) {
     res <- inherits(con, "SQLiteConnection")
 
     if (res) {
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
+      on.exit(dbDisconnect(con), add = TRUE)
 
-      temp_jmode <- tolower(as.character(DBI::dbGetQuery(con,
+      temp_jmode <- tolower(as.character(dbGetQuery(con,
         "PRAGMA journal_mode;")))
 
       if (temp_jmode == "wal") {
@@ -413,15 +413,15 @@ dbWork_clean <- function(path, verbose = FALSE) {
       # - mark non-complete and non-failed records as incomplete
       sql <- paste("UPDATE work SET completed = 0, failed = 0, inwork = 0,",
         "time_s = 0 WHERE inwork = 1 AND completed != 1 AND failed != 1")
-      DBI::dbExecute(con, sql)
+      dbExecute(con, sql)
       # - mark completed records as complete
       sql <- paste("UPDATE work SET completed = 1, failed = 0, inwork = 0",
         "WHERE inwork = 1 AND completed = 1")
-      DBI::dbExecute(con, sql)
+      dbExecute(con, sql)
       # - mark failed records as failed
       sql <- paste("UPDATE work SET completed = 0, failed = 1, inwork = 0",
         "WHERE inwork = 1 AND failed = 1")
-      DBI::dbExecute(con, sql)
+      dbExecute(con, sql)
     }
   }
 
@@ -439,11 +439,11 @@ dbWork_todos <- function(path) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  x <- DBI::dbGetQuery(con, paste("SELECT runID_total FROM work ",
+  x <- dbGetQuery(con, paste("SELECT runID_total FROM work ",
     "WHERE include_YN = 1 AND completed = 0 AND inwork = 0",
     "ORDER BY runID_total"))
   as.integer(x[, 1])
@@ -460,11 +460,11 @@ dbWork_Ntodo <- function(path) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  x <- DBI::dbGetQuery(con, paste("SELECT COUNT(*) FROM work",
+  x <- dbGetQuery(con, paste("SELECT COUNT(*) FROM work",
     "WHERE include_YN = 1 AND completed = 0 AND inwork = 0",
     "ORDER BY runID_total"))
   as.integer(x[, 1])
@@ -481,11 +481,11 @@ dbWork_timing <- function(path) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  times <- DBI::dbGetQuery(con, paste("SELECT time_s FROM work",
+  times <- dbGetQuery(con, paste("SELECT time_s FROM work",
     "WHERE include_YN = 1 AND completed > 0"))
   as.numeric(times[, 1])
 }
@@ -503,9 +503,9 @@ dbWork_agg_timing <- function(path) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   sql <- paste(
     "WITH done(time_s) AS (SELECT time_s FROM work",
@@ -513,7 +513,7 @@ dbWork_agg_timing <- function(path) {
     "SELECT sub.mean AS mean, COUNT(*) AS n,",
       "SUM((time_s - sub.mean) * (time_s - sub.mean)) AS ss from done,",
       "(SELECT AVG(time_s) AS mean FROM done) AS sub")
-  temp <- DBI::dbGetQuery(con, sql)
+  temp <- dbGetQuery(con, sql)
 
   c(mean = temp[, "mean"],
     sd = sqrt(temp[, "ss"] / (temp[, "n"] - 1)),
@@ -543,13 +543,13 @@ dbWork_redo <- function(path, runIDs, verbose = FALSE) {
       res <- inherits(con, "SQLiteConnection")
 
       if (res) {
-        on.exit(DBI::dbDisconnect(con), add = TRUE)
+        on.exit(dbDisconnect(con), add = TRUE)
 
         sql <- paste("UPDATE work SET completed = 0, failed = 0,",
           "inwork = 0, time_s = 0 WHERE include_YN = 1 AND runID_total = :x")
-        rs <- DBI::dbSendStatement(con, sql)
-        DBI::dbBind(rs, param = list(x = runIDs))
-        res <- DBI::dbClearResult(rs)
+        rs <- dbSendStatement(con, sql)
+        dbBind(rs, param = list(x = runIDs))
+        res <- dbClearResult(rs)
       }
     }
   }
@@ -572,15 +572,15 @@ dbWork_check_run <- function(path, runIDs) {
     dbWork <- fname_dbWork(path)
     stopifnot(file.exists(dbWork))
 
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbWork,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     sql <- "SELECT completed, failed, inwork FROM work WHERE runID_total = :x"
-    rs <- DBI::dbSendStatement(con, sql)
-    DBI::dbBind(rs, param = list(x = runIDs))
-    res <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
+    rs <- dbSendStatement(con, sql)
+    dbBind(rs, param = list(x = runIDs))
+    res <- dbFetch(rs)
+    dbClearResult(rs)
 
   } else {
     res <- data.frame(completed = numeric(0), failed = numeric(0),
@@ -610,31 +610,31 @@ dbWork_report_completion <- function(path, use_granular_control = FALSE,
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  if (use_granular_control && "need_outputs" %in% DBI::dbListTables(con) &&
+  if (use_granular_control && "need_outputs" %in% dbListTables(con) &&
     !is.null(SFSW2_prj_meta) &&
     file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
 
     sql <- "SELECT COUNT(*) FROM need_outputs WHERE include_YN = 1"
-    N1 <- DBI::dbGetQuery(con, sql)
+    N1 <- dbGetQuery(con, sql)
     out_tables <- dbOutput_ListOutputTables(
       dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
     N <- N1 * length(out_tables)
 
-    quoted_tables <- DBI::dbQuoteIdentifier(con, out_tables)
+    quoted_tables <- dbQuoteIdentifier(con, out_tables)
     n <- 0
     for (k in quoted_tables) {
       sql <- paste("SELECT COUNT(*) FROM need_outputs WHERE include_YN = 1 AND",
         k, "= 0")
-      n <- n + DBI::dbGetQuery(con, sql)
+      n <- n + dbGetQuery(con, sql)
     }
 
   } else {
-    N <- DBI::dbGetQuery(con, "SELECT COUNT(*) FROM work WHERE include_YN = 1")
-    n <- DBI::dbGetQuery(con,
+    N <- dbGetQuery(con, "SELECT COUNT(*) FROM work WHERE include_YN = 1")
+    n <- dbGetQuery(con,
       "SELECT COUNT(*) FROM work WHERE include_YN = 1 AND completed = 1")
   }
 
@@ -654,20 +654,20 @@ dbWork_check_granular <- function(path, runIDs) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   if (length(runIDs) > 0) {
     sql <- "SELECT * FROM need_outputs WHERE runID_total = :x"
-    rs <- DBI::dbSendStatement(con, sql)
-    DBI::dbBind(rs, param = list(x = runIDs))
-    res <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
+    rs <- dbSendStatement(con, sql)
+    dbBind(rs, param = list(x = runIDs))
+    res <- dbFetch(rs)
+    dbClearResult(rs)
 
   } else {
     sql <- "SELECT * FROM need_outputs LIMIT 0"
-    res <- DBI::dbGetQuery(con, sql)
+    res <- dbGetQuery(con, sql)
   }
 
   res
@@ -691,13 +691,13 @@ dbWork_check_status <- function(path, SFSW2_prj_meta = NULL) {
   dbWork <- fname_dbWork(path)
   stopifnot(file.exists(dbWork))
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbWork,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   # Consider modified if status is set to 'modified'
   sql <- "SELECT * FROM modification_status LIMIT 1"
-  ms <- DBI::dbGetQuery(con, sql)
+  ms <- dbGetQuery(con, sql)
 
   res <- as.logical(ms[1, "status"])
 
@@ -740,20 +740,20 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
   dbWork <- fname_dbWork(path)
 
   if (file.exists(dbWork)) {
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbWork,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     # Check that required tables exist
     need_tables <- c("work", "modification_status",
       if (use_granular_control) "need_outputs")
 
-    has_tables <- need_tables %in% DBI::dbListTables(con)
+    has_tables <- need_tables %in% dbListTables(con)
 
     # If all tables exist, then check that each table has required fields
     res <- all(has_tables)
     if (res) for (k in seq_along(need_tables)) {
-      has_fields <- DBI::dbListFields(con, need_tables[k])
+      has_fields <- dbListFields(con, need_tables[k])
       ftemp <- match.fun(paste("colnames", need_tables[k], "dbWork", sep = "_"))
       res <- res && all(ftemp() %in% has_fields)
     }
@@ -838,12 +838,12 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
 
   if (file.exists(dbOutput)) {
     #--- Infer design of simulation experiment based on dbOutput
-    con_dbOut <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+    con_dbOut <- dbConnect(SQLite(), dbname = dbOutput,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con_dbOut), add = TRUE)
 
     if (!all(sapply(c("runs", "sites"), function(x)
-      DBI::dbExistsTable(con_dbOut, x)))) {
+      dbExistsTable(con_dbOut, x)))) {
       stop("'recreate_dbWork': OutputDB ", shQuote(dbOutput), " has ",
         "incomplete structure; dbWork cannot be recreated from it.")
     }
@@ -852,20 +852,20 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
     out_tables <- dbOutput_ListOutputTables(con = con_dbOut)
 
     # Extract information from dbOutput table 'runs'
-    infer_expN <- as.integer(DBI::dbGetQuery(con_dbOut,
+    infer_expN <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(treatment_id) FROM runs"))
-    infer_scN <- as.integer(DBI::dbGetQuery(con_dbOut,
+    infer_scN <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(scenario_id) FROM runs"))
-    infer_runsN_total <- as.integer(DBI::dbGetQuery(con_dbOut,
+    infer_runsN_total <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(label_id) FROM runs")) # TODO(drs): this field should really
       # be called 'runID'
 
     # Extract information from dbOutput table 'sites'
-    infer_runsN_master <- as.integer(DBI::dbGetQuery(con_dbOut,
+    infer_runsN_master <- as.integer(dbGetQuery(con_dbOut,
       "SELECT COUNT(*) FROM sites"))
-    infer_include_YN <- as.logical(DBI::dbGetQuery(con_dbOut,
+    infer_include_YN <- as.logical(dbGetQuery(con_dbOut,
       "SELECT Include_YN FROM sites")[, 1])
-    infer_runIDmax_sites <- as.integer(DBI::dbGetQuery(con_dbOut,
+    infer_runIDmax_sites <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(site_id) FROM sites"))
 
 
@@ -875,18 +875,18 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
     dbWork_backup <- paste0(dbWork, "_backup")
 
     if (file.exists(dbWork)) {
-      con_dbWork <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-        flags = RSQLite::SQLITE_RW)
-      on.exit(DBI::dbDisconnect(con_dbWork), add = TRUE)
+      con_dbWork <- dbConnect(SQLite(), dbname = dbWork,
+        flags = SQLITE_RW)
+      on.exit(dbDisconnect(con_dbWork), add = TRUE)
 
-      if (DBI::dbExistsTable(con_dbWork, "work")) {
+      if (dbExistsTable(con_dbWork, "work")) {
         # Check whether to create new dbWork: number of total runs,
         # number of sites
-        has_runsN_total <- as.integer(DBI::dbGetQuery(con_dbWork,
+        has_runsN_total <- as.integer(dbGetQuery(con_dbWork,
           "SELECT MAX(runID_total) FROM work"))
-        has_count_work <- as.integer(DBI::dbGetQuery(con_dbWork,
+        has_count_work <- as.integer(dbGetQuery(con_dbWork,
           "SELECT COUNT(*) FROM work"))
-        has_runIDmax_sites <- as.integer(DBI::dbGetQuery(con_dbWork,
+        has_runIDmax_sites <- as.integer(dbGetQuery(con_dbWork,
           "SELECT MAX(runID_sites) FROM work"))
 
         if (has_runsN_total == has_count_work &&
@@ -898,12 +898,12 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
               "adequate design, backup run timing data"))
           }
 
-          old_timing_s <- DBI::dbGetQuery(con_dbWork,
+          old_timing_s <- dbGetQuery(con_dbWork,
             "SELECT runID_total, time_s FROM work ORDER BY runID_total")
         }
       }
 
-      DBI::dbDisconnect(con_dbWork)
+      dbDisconnect(con_dbWork)
 
       if (verbose) {
         print(paste0(Sys.time(), ": previous dbWork is backed-up."))
@@ -919,9 +919,9 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
     stopifnot(create_dbWork(path,
       jobs = create_job_df(infer_sim_size, infer_include_YN)))
 
-    con_dbWork <- RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbWork,
-      flags = RSQLite::SQLITE_RW)
-    on.exit(DBI::dbDisconnect(con_dbWork), add = TRUE)
+    con_dbWork <- dbConnect(SQLite(), dbname = dbWork,
+      flags = SQLITE_RW)
+    on.exit(dbDisconnect(con_dbWork), add = TRUE)
 
     if (use_granular_control) {
       stopifnot(!is.null(SFSW2_prj_meta))
@@ -941,10 +941,10 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
           "into new dbWork"))
       }
       sql <- paste("UPDATE work SET time_s = :t WHERE runID_total = :x")
-      rs <- DBI::dbSendStatement(con_dbWork, sql)
-      DBI::dbBind(rs, param = list(t = old_timing_s[ids_use, "time_s"],
+      rs <- dbSendStatement(con_dbWork, sql)
+      dbBind(rs, param = list(t = old_timing_s[ids_use, "time_s"],
         x = old_timing_s[ids_use, "runID_total"]))
-      DBI::dbClearResult(rs)
+      dbClearResult(rs)
     }
 
 
@@ -960,8 +960,8 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
       # Get Pids for which simulation output is in each table of the dbOutput
       has_pids_per_table <- lapply(out_tables, function(x) {
           sql <- paste0("SELECT DISTINCT P_id FROM",
-            DBI::dbQuoteIdentifier(con_dbOut, x), "ORDER BY P_id")
-          DBI::dbGetQuery(con_dbOut, sql)[, 1]
+            dbQuoteIdentifier(con_dbOut, x), "ORDER BY P_id")
+          dbGetQuery(con_dbOut, sql)[, 1]
         })
 
       #-- Update table 'work'
@@ -979,18 +979,18 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
           # set complete runIDs
           sql <- paste("UPDATE work SET completed = 1, failed = 0, inwork = 0",
             "WHERE runID_total = :x")
-          rs <- DBI::dbSendStatement(con_dbWork, sql)
-          DBI::dbBind(rs, param = list(x = has_complete_runIDs))
-          DBI::dbClearResult(rs)
+          rs <- dbSendStatement(con_dbWork, sql)
+          dbBind(rs, param = list(x = has_complete_runIDs))
+          dbClearResult(rs)
         }
       }
 
     } else {
-      quoted_tables <- DBI::dbQuoteIdentifier(con_dbWork, out_tables)
+      quoted_tables <- dbQuoteIdentifier(con_dbWork, out_tables)
 
-      sql <- paste("ATTACH", DBI::dbQuoteIdentifier(con_dbWork, dbOutput),
+      sql <- paste("ATTACH", dbQuoteIdentifier(con_dbWork, dbOutput),
         "AS dbOut")
-      DBI::dbExecute(con_dbWork, sql)
+      dbExecute(con_dbWork, sql)
 
       #-- Update table 'need_outputs'
       for (k in seq_along(out_tables)) {
@@ -1006,10 +1006,10 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
         sql <- paste0("UPDATE need_outputs SET ", quoted_tables[k], " = 0 ",
           "WHERE Pid IN ",
           "(SELECT DISTINCT P_id FROM dbOut.", quoted_tables[k], ")")
-        DBI::dbExecute(con_dbWork, sql)
+        dbExecute(con_dbWork, sql)
       }
 
-      DBI::dbExecute(con_dbWork, "DETACH dbOut")
+      dbExecute(con_dbWork, "DETACH dbOut")
 
       #-- Update table 'work' based on updated 'need_outputs'
       # a runID is complete if all associated Pids are complete, i.e.,
@@ -1025,7 +1025,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
         "WHERE ", paste(quoted_tables, "= 0", collapse = " AND "), " ",
         "GROUP BY runID_total) AS oa ",
         "WHERE oa.`COUNT(*)` = ", infer_scN, ")")
-      DBI::dbExecute(con_dbWork, sql)
+      dbExecute(con_dbWork, sql)
     }
 
     # Set modification status: up-to-date
@@ -1066,7 +1066,7 @@ dbWork_update_job <- function(path, runID, status, time_s = "NULL",
   con <- dbConnect2(dbWork, verbose = verbose)
 
   if (inherits(con, "SQLiteConnection")) {
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     if (verbose) {
       t0 <- Sys.time()
@@ -1081,12 +1081,12 @@ dbWork_update_job <- function(path, runID, status, time_s = "NULL",
       }
 
       if (status == "completed") {
-        res <- try(DBI::dbExecute(con, paste("UPDATE work SET completed = 1,",
+        res <- try(dbExecute(con, paste("UPDATE work SET completed = 1,",
           "failed = 0, inwork = 0, time_s =", time_s,
           "WHERE runID_total =", runID)), silent = !verbose)
 
       } else if (status == "failed") {
-        res <- try(DBI::dbExecute(con, paste("UPDATE work SET completed = 0,",
+        res <- try(dbExecute(con, paste("UPDATE work SET completed = 0,",
           "failed = 1, inwork = 0, time_s =", time_s,
           "WHERE runID_total =", runID)), silent = !verbose)
 
@@ -1095,15 +1095,15 @@ dbWork_update_job <- function(path, runID, status, time_s = "NULL",
         # no other database connection will be able to write to the database or
         # do a BEGIN IMMEDIATE or BEGIN EXCLUSIVE. Other processes can continue
         # to read from the database, however."
-        res <- try(DBI::dbExecute(con, "BEGIN IMMEDIATE"), silent = !verbose)
+        res <- try(dbExecute(con, "BEGIN IMMEDIATE"), silent = !verbose)
 
         if (!inherits(res, "try-error")) {
           # Transaction with reserved lock established
-          prev_status <- DBI::dbGetQuery(con,
+          prev_status <- dbGetQuery(con,
             paste("SELECT inwork FROM work WHERE runID_total =", runID))$inwork
 
           res <- if (prev_status == 0) {
-              try(DBI::dbExecute(con, paste("UPDATE work SET completed = 0,",
+              try(dbExecute(con, paste("UPDATE work SET completed = 0,",
                 "failed = 0, inwork = 1, time_s = 0",
                 "WHERE runID_total =", runID)), silent = !verbose)
             } else {
@@ -1113,9 +1113,9 @@ dbWork_update_job <- function(path, runID, status, time_s = "NULL",
 
         # End transaction
         if (inherits(res, "try-error")) {
-          try(DBI::dbExecute(con, "ROLLBACK"), silent = !verbose)
+          try(dbExecute(con, "ROLLBACK"), silent = !verbose)
         } else {
-          try(DBI::dbExecute(con, "COMMIT"), silent = !verbose)
+          try(dbExecute(con, "COMMIT"), silent = !verbose)
 
           if (verbose && prev_status != 0) {
             print(paste("'dbWork_update_job':", runID, "is already in work"))
@@ -1178,7 +1178,7 @@ dbWork_update_granular <- function(path, table, Pid, status, verbose = FALSE) {
   con <- dbConnect2(dbWork, verbose = verbose)
 
   if (inherits(con, "SQLiteConnection")) {
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     if (verbose) {
       t0 <- Sys.time()
@@ -1195,7 +1195,7 @@ dbWork_update_granular <- function(path, table, Pid, status, verbose = FALSE) {
       sql <- paste("UPDATE need_outputs SET", shQuote(table), "=",
         if (isTRUE(status)) "1" else "0",
         "WHERE Pid =", as.integer(Pid))
-      res <- try(DBI::dbExecute(con, sql), silent = !verbose)
+      res <- try(dbExecute(con, sql), silent = !verbose)
 
       success <- !inherits(res, "try-error")
 
@@ -1243,7 +1243,7 @@ dbWork_update_status <- function(path, status, verbose = FALSE) {
   con <- dbConnect2(dbWork, verbose = verbose)
 
   if (inherits(con, "SQLiteConnection")) {
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     if (verbose) {
       t0 <- Sys.time()
@@ -1260,7 +1260,7 @@ dbWork_update_status <- function(path, status, verbose = FALSE) {
       sql <- paste("UPDATE modification_status SET ",
         "status =", if (isTRUE(status)) "1" else "0", ",",
         "time_stamp =", as.integer(Sys.time()))
-      res <- try(DBI::dbExecute(con, sql), silent = !verbose)
+      res <- try(dbExecute(con, sql), silent = !verbose)
 
       success <- !inherits(res, "try-error")
 

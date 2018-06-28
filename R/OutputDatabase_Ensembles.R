@@ -67,8 +67,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     dir_out, sim_scens, ensemble.families, ensemble.levels, save.scenario.ranks,
     opt_chunks) {
 
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = name.OutputDB)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = name.OutputDB)
+    on.exit(dbDisconnect(con), add = TRUE)
 
     #########TIMING#########
     TableTimeStop <- Sys.time() - t.overall
@@ -88,12 +88,12 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
 
       sql <- paste0("INSERT INTO ", outfile, " VALUES (", paste0(paste(":", colnames(dat)),
           collapse = ", "), ")")
-      rs <- DBI::dbSendStatement(conEnsembleDB, sql)
-      DBI::dbBind(rs, param = as.list(dat))
-      DBI::dbClearResult(rs)
+      rs <- dbSendStatement(conEnsembleDB, sql)
+      dbBind(rs, param = as.list(dat))
+      dbClearResult(rs)
 
       written <- 1
-      #written <- RSQLite::dbWriteTable(conEnsembleDB, name = outfile, dat, row.names = FALSE, append = TRUE)#
+      #written <- dbWriteTable(conEnsembleDB, name = outfile, dat, row.names = FALSE, append = TRUE)#
       if (written)
         return(1)
       else
@@ -101,20 +101,20 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     }
     read.scenarios <- function(Table, start, stop, ensemble.family, export.header = TRUE) {
       #Read first file
-      columns <- DBI::dbListFields(con, Table)[-1]
+      columns <- dbListFields(con, Table)[-1]
       if (Layers <- any(temp <- grepl(pattern = "Soil_Layer", x = columns))) columns <- columns[-temp]
       columns <- paste0("\"", columns, "\"", collapse = ", ")
       sqlString <- paste0("SELECT '", Table, "'.P_id AS P_id, header.Scenario AS Scenario, ", columns, " FROM '", Table, "' INNER JOIN header ON '", Table, "'.P_id = header.P_id WHERE header.P_id BETWEEN ", start, " AND ", stop, " AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;")
-      res <- DBI::dbSendStatement(con, sqlString)
-      dataScen.Mean <- DBI::dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
-      DBI::dbClearResult(res)
+      res <- dbSendStatement(con, sqlString)
+      dataScen.Mean <- dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
+      dbClearResult(res)
 
       columnCutoff <- match("Scenario", colnames(dataScen.Mean))
       if (export.header) {
         sqlString <- paste0("SELECT '", Table, "'.P_id AS P_id ", if (Layers) ", Soil_Layer ", "FROM '", Table, "', header WHERE '", Table, "'.P_id = header.P_id AND header.P_id BETWEEN ", start, " AND ", stop, " AND header.Scenario = 'Current' ORDER BY P_id;")
-        res <- DBI::dbSendStatement(con, sqlString)
-        headerInfo <- DBI::dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
-        DBI::dbClearResult(res)
+        res <- dbSendStatement(con, sqlString)
+        headerInfo <- dbFetch(res, n = -1) #dataToQuantilize get the data from the query n = -1 to get all rows
+        dbClearResult(res)
       }
       col.names <- colnames(dataScen.Mean[, -(1:columnCutoff)])
       #We have all the scenarios in the family. We need to get unique scenario names and group them by that
@@ -132,13 +132,13 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
 
     if (!(TableTimeStop > (opt_job_time[["wall_time_s"]]-1*60)) | !SFSW2_glovars[["p_has"]] | !identical(SFSW2_glovars[["p_type"]], "mpi")) {#figure need at least 3 hours for big ones
       tfile <- file.path(dir_out, paste0("dbEnsemble_", sub(pattern = "_Mean", replacement = "", Table, ignore.case = TRUE), ".sqlite3"))
-      conEnsembleDB <- DBI::dbConnect(RSQLite::SQLite(), dbname = tfile)
-      on.exit(DBI::dbDisconnect(conEnsembleDB), add = TRUE)
+      conEnsembleDB <- dbConnect(SQLite(), dbname = tfile)
+      on.exit(dbDisconnect(conEnsembleDB), add = TRUE)
 
       nfiles <- 0
       #Grab x rows at a time
       SQL <- paste0("SELECT MAX(P_id) FROM '", Table, "';")
-      maxP_id <- as.integer(DBI::dbGetQuery(con, SQL))
+      maxP_id <- as.integer(dbGetQuery(con, SQL))
       maxRun_id <- (maxP_id/sim_scens[["N"]])
 
       for (j in 1:length(ensemble.families)) {
@@ -155,7 +155,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
         LastPid <- integer(length = length(EnsembleFamilyLevelTables))
         for (i in 1:length(LastPid)) {
           SQL <- paste0("SELECT MAX(P_id) FROM '", EnsembleFamilyLevelTables[i], "';")
-          LastPid[i] <- as.integer(DBI::dbGetQuery(conEnsembleDB, SQL))+(sim_scens[["N"]]-1)#Need to add all the scenarios because last P_id will always be Current
+          LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB, SQL))+(sim_scens[["N"]]-1)#Need to add all the scenarios because last P_id will always be Current
         }
         if (any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
           minRun_id <- 1
@@ -218,9 +218,9 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
 generate_ensembles <- function(SFSW2_prj_meta, t_job_start, opt_parallel, opt_chunks,
   verbose = FALSE) {
 
-  con <- DBI::dbConnect(RSQLite::SQLite(),
+  con <- dbConnect(SQLite(),
     dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   Tables <- dbOutput_ListOutputTables(con)
   Tables <- Tables[-grep(pattern = "_sd", Tables, ignore.case = TRUE)]

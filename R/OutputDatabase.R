@@ -17,15 +17,15 @@ missing_Pids_outputDB <- function(Table, dbname) {
   mP_ids <- -1L
 
   if (file.exists(dbname)) {
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbname,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
-    if (DBI::dbExistsTable(con, "header") && DBI::dbExistsTable(con, Table)) {
+    if (dbExistsTable(con, "header") && dbExistsTable(con, Table)) {
       sql <- paste0("SELECT header.P_id FROM header LEFT JOIN ", Table,
         " ON (header.P_id=", Table, ".P_id) WHERE header.Include_YN = 1 AND ",
         Table, ".P_id is NULL ", "ORDER BY header.P_id")
-      mP_ids <- DBI::dbGetQuery(con, sql)[, 1]
+      mP_ids <- dbGetQuery(con, sql)[, 1]
     }
   }
 
@@ -36,17 +36,17 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
   res <- data.frame(site_id = -1L, treatment_id = -1L)[-1, ]
 
   if (file.exists(dbname)) {
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbname,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
-    if (DBI::dbExistsTable(con, "runs")) {
+    if (dbExistsTable(con, "runs")) {
       sql <- paste("SELECT site_id, treatment_id FROM runs WHERE P_id IN (?)",
         "ORDER BY site_id")
-      rs <- DBI::dbSendStatement(con, sql)
-      RSQLite::dbBind(rs, list(Pids))
-      res <- RSQLite::dbFetch(rs)
-      RSQLite::dbClearResult(rs)
+      rs <- dbSendStatement(con, sql)
+      dbBind(rs, list(Pids))
+      res <- dbFetch(rs)
+      dbClearResult(rs)
     }
   }
 
@@ -55,17 +55,17 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
 
 add_dbOutput_index <- function(con) {
   sql <- "SELECT * FROM sqlite_master WHERE type = 'index'"
-  prev_indices <- DBI::dbGetQuery(con, sql)
+  prev_indices <- dbGetQuery(con, sql)
 
   if (NROW(prev_indices) == 0L ||
       !("index_aomean_Pid" %in% prev_indices[, "name"])) {
-    DBI::dbExecute(con, paste("CREATE INDEX index_aomean_Pid ON",
+    dbExecute(con, paste("CREATE INDEX index_aomean_Pid ON",
       "aggregation_overall_mean (P_id)"))
   }
 
   if (NROW(prev_indices) == 0L ||
       !("index_aosd_Pid" %in% prev_indices[, "name"])) {
-    DBI::dbExecute(con, paste("CREATE INDEX index_aosd_Pid ON",
+    dbExecute(con, paste("CREATE INDEX index_aosd_Pid ON",
       "aggregation_overall_sd (P_id)"))
   }
 }
@@ -88,7 +88,7 @@ dbOutput_ListInternalTables <- function() c("sqlite_sequence", "sqlite_stat1",
 #' @export
 dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") &&
-    DBI::dbIsValid(con)
+    dbIsValid(con)
 
   if (!use_con) {
     if (is.null(dbname)) {
@@ -96,12 +96,12 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
         "cannot both be NULL"))
       return(NULL)
     }
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbname,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
   }
 
-  temp <- DBI::dbListTables(con)
+  temp <- dbListTables(con)
   tables <- temp[!(temp %in% c(dbOutput_ListDesignTables(),
     dbOutput_ListInternalTables()))]
 
@@ -116,7 +116,7 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
   dbname = NULL) {
 
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") &&
-    DBI::dbIsValid(con)
+    dbIsValid(con)
 
   if (!use_con) {
     if (is.null(dbname)) {
@@ -124,16 +124,16 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
         "cannot both be NULL"))
       return(NULL)
     }
-    con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), dbname = dbname,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
   }
 
   if (!is.null(tables))
     tables <- dbOutput_ListOutputTables(con)
 
   has_soillayers <- sapply(tables, function(table) {
-    temp <- DBI::dbListFields(con, table)
+    temp <- dbListFields(con, table)
     any(temp == "Soil_Layer")
   })
   names(has_soillayers) <- tables
@@ -145,18 +145,18 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
 
 
 getSiteIds <- function(con, folderNames) {
-  wf_ids <- DBI::dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
+  wf_ids <- dbGetQuery(con, "SELECT id, folder FROM weatherfolders")
   wf_ids[match(folderNames, wf_ids[, "folder"], nomatch = NA), "id"]
 }
 
 #' Get name of weather file from database \var{\sQuote{dbOutput}}
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbOutput,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  DBI::dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
+  dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
     it_Pid(i_sim, runN, 1, scN)))[1, 1]
 }
 
@@ -187,10 +187,10 @@ addHeaderToWhereClause <- function(whereClause, headers = NULL,
   fdbrSFSW2 = NULL) {
 
   if (is.null(headers) && file.exists(fdbrSFSW2)) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
-    headers <- DBI::dbListFields(con, name = "header")
+    con <- dbConnect(SQLite(), fdbrSFSW2,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
+    headers <- dbListFields(con, name = "header")
   }
 
   #Locate all "Label = 'x'"
@@ -256,18 +256,18 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # noli
   iColumns <- list()
 
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), fdbrSFSW2,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
-    iTable <- DBI::dbListTables(con)
+    iTable <- dbListTables(con)
     iTable <- grep(paste0("Overall_", MeanOrSD), iTable, ignore.case = TRUE,
       fixed = FALSE, value = TRUE)
 
     if (length(iTable) == 1) {
       iColumns <- get_fieldnames(responseName,
-        fields.header = DBI::dbListFields(con, "header"),
-        fields.iTable = DBI::dbListFields(con, iTable))
+        fields.header = dbListFields(con, "header"),
+        fields.iTable = dbListFields(con, iTable))
 
       if (iColumns[["has_columns"]] || iColumns[["addPid"]]) {
         sql <- paste0("SELECT ",
@@ -290,7 +290,7 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # noli
               fdbrSFSW2 = fdbrSFSW2)),
           " ORDER BY header.P_id;")
 
-        dat <- RSQLite::dbGetQuery(con, sql)
+        dat <- dbGetQuery(con, sql)
       }
     }
   }
@@ -308,15 +308,15 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, # noli
   iColumns <- list()
 
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite())
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite())
+    on.exit(dbDisconnect(con), add = TRUE)
 
     temp_fdbrSFSW2ens <- grep("Overall", fdbrSFSW2ens, ignore.case = TRUE,
       value = TRUE)
-    DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
-    DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
+    dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+    dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
     sql <- "SELECT name FROM X.sqlite_master WHERE type = 'table';"
-    temp <- unlist(RSQLite::dbGetQuery(con, sql))
+    temp <- unlist(dbGetQuery(con, sql))
     iTable <- temp[grepl(fam, temp, ignore.case = TRUE) &
            grepl(paste0("rank_", formatC(level, format = "d", flag = "0",
              width = 2)), temp) &
@@ -326,8 +326,8 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, # noli
       sql1 <- "PRAGMA Y.table_info(header);"
       sql2 <- paste0("PRAGMA X.table_info(", iTable, ");")
       iColumns <- get_fieldnames(responseName,
-        fields.header = DBI::dbExecute(con, sql1)$name,
-        fields.iTable = DBI::dbExecute(con, sql2)$name)
+        fields.header = dbExecute(con, sql1)$name,
+        fields.iTable = dbExecute(con, sql2)$name)
 
       if (iColumns[["has_columns"]] || iColumns[["addPid"]]) {
         sql <- paste0("SELECT ",
@@ -349,7 +349,7 @@ get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, # noli
               fdbrSFSW2 = fdbrSFSW2)),
           " ORDER BY Y.header.P_id;")
 
-        dat <- DBI::dbGetQuery(con, sql)
+        dat <- dbGetQuery(con, sql)
       }
     }
   }
@@ -400,17 +400,17 @@ get.Table_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
 
   dat <- NULL
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2,
-      flags = RSQLite::SQLITE_RO)
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite(), fdbrSFSW2,
+      flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
 
-    temp1 <- DBI::dbListTables(con)
+    temp1 <- dbListTables(con)
     temp2 <- grepl(pattern = paste0(responseName, "_", MeanOrSD), x = temp1,
       ignore.case = TRUE, fixed = FALSE)
     iTable <- temp1[temp2]
 
     if (length(iTable) == 1) {
-      fields <- DBI::dbListFields(con, iTable)[-1]
+      fields <- dbListFields(con, iTable)[-1]
 
       sql <- paste0("SELECT ",
         if (header)
@@ -423,7 +423,7 @@ get.Table_Scenario <- function(fdbrSFSW2, responseName, MeanOrSD = "Mean",
           paste0(" AND ", whereClause),
         " ORDER BY header.P_id;")
 
-      dat <- DBI::dbGetQuery(con, sql)
+      dat <- dbGetQuery(con, sql)
     }
   }
 
@@ -437,25 +437,25 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName,
 
   dat <- NULL
   if (length(responseName) > 0) {
-    con <- RSQLite::dbConnect(RSQLite::SQLite())
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    con <- dbConnect(SQLite())
+    on.exit(dbDisconnect(con), add = TRUE)
 
     temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern = paste0("_", responseName),
       x = fdbrSFSW2ens, ignore.case = TRUE)]
-    DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
-    DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
+    dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+    dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
     sql <- "SELECT name FROM X.sqlite_master WHERE type = 'table';"
-    temp <- unlist(DBI::dbGetQuery(con, sql))
+    temp <- unlist(dbGetQuery(con, sql))
     iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = TRUE) &
         grepl(pattern = paste0("rank_", formatC(level, format = "d", flag = "0",
           width = 2)), x = temp) &
         grepl(pattern = MeanOrSD, x = temp, ignore.case = TRUE)]
     if (length(iTable) == 1) {
       sql <- paste("PRAGMA X.table_info(", iTable, ");")
-      column_names_iTable <- DBI::dbExecute(con, sql)$name
+      column_names_iTable <- dbExecute(con, sql)$name
       column_names_iTable <- column_names_iTable[-1]#Remove P_id
       sql <- "PRAGMA Y.table_info(header);"
-      column_names_header <- DBI::dbExecute(con, sql)$name
+      column_names_header <- dbExecute(con, sql)$name
       column_names_header <- column_names_header[-1]#Remove P_id
       #Remove Scenario:
       column_names_header <- column_names_header[-length(column_names_header)]
@@ -473,11 +473,11 @@ get.Table_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, responseName,
         sql <- paste0(sql, " FROM X.", iTable, " INNER JOIN Y.header ON X.",
           iTable, ".P_id = Y.header.P_id WHERE ", whereClause,
           " ORDER BY Y.header.P_id;")
-        dat <- DBI::dbGetQuery(con, sql)
+        dat <- dbGetQuery(con, sql)
       } else {
         sql <- paste0(sql, " FROM X.", iTable, " INNER JOIN Y.header ON X.",
           iTable, ".P_id = Y.header.P_id ORDER BY Y.header.P_id;")
-        dat <- DBI::dbGetQuery(con, sql)
+        dat <- dbGetQuery(con, sql)
       }
     }
   }
@@ -495,15 +495,15 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
   if (length(responseName) > 0 && i_climCat <= nrow(climCat)) {
     if (climCat[i_climCat, 1] == climate.ambient) {
       scenario <- climCat[i_climCat, 1]
-      con <- RSQLite::dbConnect(RSQLite::SQLite(), fdbrSFSW2,
-        flags = RSQLite::SQLITE_RO)
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
+      con <- dbConnect(SQLite(), fdbrSFSW2,
+        flags = SQLITE_RO)
+      on.exit(dbDisconnect(con), add = TRUE)
 
-      iTable <- DBI::dbListTables(con)
+      iTable <- dbListTables(con)
       iTable <- iTable[grepl(pattern = paste0(responseName, "_", MeanOrSD),
         x = iTable, ignore.case = TRUE, fixed = FALSE)]
       if (length(iTable) == 1) {
-        fields <- DBI::dbListFields(con, iTable)
+        fields <- dbListFields(con, iTable)
         fields <- fields[-1]
         if (length(whereClause) > 0) {
           sql <- paste0("SELECT ", if (addPid) "header.P_id AS P_id, ",
@@ -519,28 +519,28 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
             ".P_id = header.P_id WHERE header.Scenario = ", shQuote(scenario),
             " ORDER BY header.P_id;")
         }
-        dat <- DBI::dbGetQuery(con, sql)
+        dat <- dbGetQuery(con, sql)
       }
 
     } else {
       fam <- climCat[i_climCat, 1]
       level <- climCat[i_climCat, 2]
-      con <- RSQLite::dbConnect(RSQLite::SQLite())
-      on.exit(DBI::dbDisconnect(con), add = TRUE)
+      con <- dbConnect(SQLite())
+      on.exit(dbDisconnect(con), add = TRUE)
 
       temp_fdbrSFSW2ens <- fdbrSFSW2ens[grepl(pattern =
           paste0("_", responseName), x = fdbrSFSW2ens, ignore.case = TRUE)]
-      DBI::dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
-      DBI::dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
+      dbExecute(con, paste("ATTACH", shQuote(temp_fdbrSFSW2ens), "AS X;"))
+      dbExecute(con, paste("ATTACH", shQuote(fdbrSFSW2), "AS Y;"))
       sql <- "SELECT name FROM X.sqlite_master WHERE type = 'table';"
-      temp <- unlist(DBI::dbGetQuery(con, sql))
+      temp <- unlist(dbGetQuery(con, sql))
       iTable <- temp[grepl(pattern = fam, x = temp, ignore.case = TRUE) &
           grepl(pattern = paste0("rank_", formatC(level, format = "d",
             flag = "0", width = 2)), x = temp) &
           grepl(pattern = MeanOrSD, x = temp, ignore.case = TRUE)]
       if (length(iTable) == 1) {
         sql <- paste0("PRAGMA X.table_info(", iTable, ");")
-        fields <- DBI::dbExecute(con, sql)$name
+        fields <- dbExecute(con, sql)$name
         fields <- fields[-1]
         if (length(whereClause) > 0) {
           sql <- paste0("SELECT ", if (addPid) "Y.header.P_id AS P_id, ",
@@ -549,13 +549,13 @@ get.Table <- function(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
             ".P_id = Y.header.P_id WHERE ",
             addHeaderToWhereClause(whereClause, fdbrSFSW2 = fdbrSFSW2),
             " ORDER BY Y.header.P_id;")
-          dat <- DBI::dbGetQuery(con, sql)
+          dat <- dbGetQuery(con, sql)
         } else {
           sql <- paste0("SELECT ", if (addPid) paste0("X.", iTable,
             ".P_id AS P_id, "),
             paste0(paste0("\"", fields, "\""), collapse = ", "),
             " FROM X.", iTable, " ORDER BY P_id;")
-          dat <- DBI::dbGetQuery(con, sql)
+          dat <- dbGetQuery(con, sql)
         }
       }
     }
@@ -575,7 +575,7 @@ get_inserted_ids <- function(con, tables, tables_w_soillayers) {
       } else {
         paste("SELECT P_id FROM", tables[k], "ORDER BY P_id;")
       }
-    temp <- DBI::dbGetQuery(con, sql)
+    temp <- dbGetQuery(con, sql)
 
     res <- list(pids = temp[, "P_id"])
     if (tables_w_soillayers[k]) {
@@ -611,10 +611,10 @@ check_data_agreement <- function(con, table_name, id, sl = NULL,
   for (k in seq_len(N)) {
     # check whether data agree
     db_data <- if (is.null(sl)) {
-      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
+      dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
         "\" WHERE P_id = ", id[k]))
     } else {
-      DBI::dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
+      dbGetQuery(con, paste0("SELECT * FROM \"", table_name[k],
         "\" WHERE P_id = ", id[k], " AND Soil_Layer = ", sl[k]))
     }
     db_data <- as.numeric(db_data)
@@ -784,12 +784,12 @@ has_Pid <- function(con, table, Pid) {
     if ((sum(ids) > 1 || ntable == 1) && nPid > 1) {
       sql <- paste("SELECT P_id FROM", utable[k], "WHERE P_id IN (",
         paste(if (ntable > 1) Pid[ids] else Pid, collapse = ","), ")")
-      temp <- DBI::dbGetQuery(con, sql)[, "P_id"]
+      temp <- dbGetQuery(con, sql)[, "P_id"]
       res[ids] <- Pid[ids] %in% temp
     } else {
       sql <- paste("SELECT Count(*) FROM", utable[k], "WHERE P_id =",
         if (nPid > 1) Pid[ids] else Pid)
-      res[ids] <- as.logical(DBI::dbGetQuery(con, sql))
+      res[ids] <- as.logical(dbGetQuery(con, sql))
     }
   }
 
@@ -817,14 +817,14 @@ has_Pid_SoilLayerID <- function(con, table, Pid, sl) {
         paste(if (ntable > 1) Pid[ids] else Pid, collapse = ","),
         ") AND Soil_Layer IN (",
         paste(if (ntable > 1) sl[ids] else sl, collapse = ","), ")")
-      temp <- apply(DBI::dbGetQuery(con, sql)[, c("P_id", "Soil_Layer")], 1,
+      temp <- apply(dbGetQuery(con, sql)[, c("P_id", "Soil_Layer")], 1,
         paste, collapse = "-")
       res[ids] <- idsl[ids] %in% temp
     } else {
       sql <- paste("SELECT Count(*) FROM", utable[k], "WHERE P_id =",
         if (nPid > 1) Pid[ids] else Pid, "AND Soil_Layer =",
         if (nsl > 1) sl[ids] else sl)
-      res[ids] <- as.logical(DBI::dbGetQuery(con, sql))
+      res[ids] <- as.logical(dbGetQuery(con, sql))
     }
   }
 
@@ -865,9 +865,9 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
   if (length(theFileList) > 0) {
     # Connect to the final output database
-    con_dbOut <- DBI::dbConnect(RSQLite::SQLite(),
+    con_dbOut <- dbConnect(SQLite(),
       dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+    on.exit(dbDisconnect(con_dbOut), add = TRUE)
 
     if (check_if_Pid_present) {
       # Connect to the failed output text file
@@ -899,10 +899,10 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
       # Attach temporary DB
       sql <- paste("ATTACH", shQuote(theFileList[k1]), "AS dbTempOut")
-      DBI::dbExecute(con_dbOut, sql)
+      dbExecute(con_dbOut, sql)
 
       # Transfer records for each table from temporary to final output DB
-      tables <- unlist(DBI::dbGetQuery(con_dbOut,
+      tables <- unlist(dbGetQuery(con_dbOut,
         "SELECT name FROM dbTempOut.sqlite_master WHERE type = 'table'"))
 
       if (check_if_Pid_present) {
@@ -921,7 +921,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
           # make sure that there is at least one record to transfer
           sql <- paste0("SELECT COUNT(*) FROM dbTempOut.", tables[k2],
             " LIMIT 1")
-          has_TempOut <- as.integer(DBI::dbGetQuery(con_dbOut, sql)) > 0
+          has_TempOut <- as.integer(dbGetQuery(con_dbOut, sql)) > 0
 
           if (has_TempOut) {
             sql0 <- paste0("INSERT OR IGNORE INTO ", tables[k2],
@@ -931,7 +931,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
               off <- 0L
               repeat {
                 sql <- paste(sql0, "LIMIT", chunk_size, "OFFSET", off)
-                temp <- try(DBI::dbExecute(con_dbOut, sql),
+                temp <- try(dbExecute(con_dbOut, sql),
                   silent = !opt_verbosity[["verbose"]])
 
                 if (inherits(temp, "try-error")) {
@@ -947,7 +947,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
             } else {
               # no chunking
-              temp <- try(DBI::dbExecute(con_dbOut, sql0),
+              temp <- try(dbExecute(con_dbOut, sql0),
                 silent = !opt_verbosity[["verbose"]])
 
               ok <- ok && !inherits(temp, "try-error")
@@ -969,7 +969,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       }
 
       # Detach temporary DB
-      DBI::dbExecute(con_dbOut, "DETACH dbTempOut")
+      dbExecute(con_dbOut, "DETACH dbTempOut")
 
       # Delete temporary DB
       if (opt_out_run[["deleteTmpSQLFiles"]]) {
@@ -979,7 +979,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
   }
 
   #--- run optimize on database
-  DBI::dbExecute(con_dbOut, "PRAGMA optimize")
+  dbExecute(con_dbOut, "PRAGMA optimize")
 
   invisible(length(theFileList))
 }
@@ -1046,9 +1046,9 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
       "SQL_tmptxt_failedCurrent.txt")
 
     # Connect to the Database
-    OKs[["all"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+    OKs[["all"]][["con"]] <- dbConnect(SQLite(),
       dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    on.exit(DBI::dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
+    on.exit(dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
 
     do_DBCurrent <-
       SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]] &&
@@ -1064,13 +1064,13 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
     }
 
     if (do_DBCurrent) {
-      OKs[["cur"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+      OKs[["cur"]][["con"]] <- dbConnect(SQLite(),
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
-      on.exit(DBI::dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
+      on.exit(dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
 
       if (reset_DBCurrent) {
         # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-        DBI::dbExecute(OKs[["cur"]][["con"]],
+        dbExecute(OKs[["cur"]][["con"]],
           "DELETE FROM runs WHERE scenario_id != 1;")
       }
     }
@@ -1118,9 +1118,9 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
             break
           }
 
-          res <- try(DBI::dbWithTransaction(OKs[[tg]][["con"]], {
+          res <- try(dbWithTransaction(OKs[[tg]][["con"]], {
             added <- vapply(ksql_cmd, function(str) {
-                !inherits(try(DBI::dbExecute(OKs[[tg]][["con"]], str),
+                !inherits(try(dbExecute(OKs[[tg]][["con"]], str),
                   silent = !opt_verbosity[["print.debug"]]), "try-error")
               }, FUN.VALUE = NA, USE.NAMES = FALSE)
           }), silent = !opt_verbosity[["print.debug"]])
@@ -1246,9 +1246,9 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
       "SQL_tmptxt_repeats.txt")
 
     # Connect to the Database
-    OKs[["all"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+    OKs[["all"]][["con"]] <- dbConnect(SQLite(),
       dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    on.exit(DBI::dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
+    on.exit(dbDisconnect(OKs[["all"]][["con"]]), add = TRUE)
 
     out_tables_aggr <- dbOutput_ListOutputTables(OKs[["all"]][["con"]])
 
@@ -1266,13 +1266,13 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
     }
 
     if (do_DBCurrent) {
-      OKs[["cur"]][["con"]] <- DBI::dbConnect(RSQLite::SQLite(),
+      OKs[["cur"]][["con"]] <- dbConnect(SQLite(),
         dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput_current"]])
-      on.exit(DBI::dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
+      on.exit(dbDisconnect(OKs[["cur"]][["con"]]), add = TRUE)
 
       if (reset_DBCurrent) {
         # DROP ALL ROWS THAT ARE NOT CURRENT FROM HEADER
-        DBI::dbExecute(OKs[["cur"]][["con"]],
+        dbExecute(OKs[["cur"]][["con"]],
           "DELETE FROM runs WHERE scenario_id != 1;")
       }
     }
@@ -1391,8 +1391,8 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
             for (tab in utables) {
               ids2 <- which(ids & tablenames == tab)
 
-              DBI::dbWithTransaction(OKs[[tg]][["con"]], for (i in ids2) {
-                res <- try(DBI::dbExecute(OKs[[tg]][["con"]], ksql_cmd[i]),
+              dbWithTransaction(OKs[[tg]][["con"]], for (i in ids2) {
+                res <- try(dbExecute(OKs[[tg]][["con"]], ksql_cmd[i]),
                   silent = !opt_verbosity[["verbose"]])
 
                 OKs[[tg]][["added"]][i] <- !inherits(res, "try-error")
@@ -1490,35 +1490,35 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current, # n
     print(paste("Database is copied and subset to ambient condition: start at ",
       Sys.time()))
   #Get sql for tables and index
-  resSQL <- DBI::dbSendStatement(con,
+  resSQL <- dbSendStatement(con,
     "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name;")
-  sqlTables <- DBI::dbFetch(resSQL, n = -1)
+  sqlTables <- dbFetch(resSQL, n = -1)
   sqlTables <- unlist(sqlTables)
   sqlTables <- sqlTables[-grep(pattern = "sqlite_sequence", sqlTables)]
-  DBI::dbClearResult(resSQL)
+  dbClearResult(resSQL)
 
-  resIndex <- DBI::dbSendStatement(con,
+  resIndex <- dbSendStatement(con,
     "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name;")
-  sqlView <- DBI::dbFetch(resIndex, n = -1)
-  DBI::dbClearResult(resIndex)
+  sqlView <- dbFetch(resIndex, n = -1)
+  dbClearResult(resIndex)
 
   sqlView <- unlist(sqlView)
   sqlView <- sqlView[!is.na(sqlView)]
-  Tables <- DBI::dbListTables(con)
+  Tables <- dbListTables(con)
   Tables <- Tables[-grep(pattern = "sqlite_sequence", Tables)]
 
-  con_cur <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
-  on.exit(DBI::dbDisconnect(con_cur), add = TRUE)
+  con_cur <- dbConnect(SQLite(), dbOutput_current)
+  on.exit(dbDisconnect(con_cur), add = TRUE)
 
   for (i in seq_along(sqlTables)) {
     #Create the tables
-    res <- DBI::dbSendStatement(con_cur, sqlTables[i])
-    DBI::dbClearResult(res)
+    res <- dbSendStatement(con_cur, sqlTables[i])
+    dbClearResult(res)
   }
-  DBI::dbExecute(con_cur, sqlView)
+  dbExecute(con_cur, sqlView)
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbname = dbOutput)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   #Get Tables minus ones we do not want
   Tables <- dbOutput_ListOutputTables(con)
@@ -1691,12 +1691,12 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
           stopifnot(dbWork_clean(
             SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-          con <- RSQLite::dbConnect(RSQLite::SQLite(),
+          con <- dbConnect(SQLite(),
             dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
-            flags = RSQLite::SQLITE_RO)
-          on.exit(DBI::dbDisconnect(con), add = TRUE)
+            flags = SQLITE_RO)
+          on.exit(dbDisconnect(con), add = TRUE)
           sql <- "SELECT Max(id) FROM scenario_labels"
-          scN <- DBI::dbGetQuery(con, sql)[1, 1]
+          scN <- dbGetQuery(con, sql)[1, 1]
 
           missing_runIDs <- it_sim2(missing_Pids, scN)
           temp <- dbWork_redo(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
@@ -1760,7 +1760,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   fieldname_weatherf <- "LookupWeatherFolder"
   fieldname_weatherid <- "LookupWeatherFolder_id"
 
-  DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+  dbExecute(con_dbOut, paste("CREATE TABLE",
     "weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "folder TEXT UNIQUE NOT NULL)"))
 
@@ -1776,9 +1776,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
-      rs <- DBI::dbSendStatement(con_dbOut, sql)
-      DBI::dbBind(rs, param = list(folder = temp))
-      DBI::dbClearResult(rs)
+      rs <- dbSendStatement(con_dbOut, sql)
+      dbBind(rs, param = list(folder = temp))
+      dbClearResult(rs)
 
     } else {
       stop("All WeatherFolder names in master input file are NAs.")
@@ -1801,14 +1801,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   colnames(sites_data) <- sub(pattern = "WeatherFolder",
     replacement = "WeatherFolder_id", colnames(sites_data))
   site_col_types <- sapply(sites_data, function(x)
-    RSQLite::dbDataType(con_dbOut, x))
-  DBI::dbExecute(con_dbOut,
+    dbDataType(con_dbOut, x))
+  dbExecute(con_dbOut,
     paste0("CREATE TABLE sites(\"id\" INTEGER PRIMARY KEY AUTOINCREMENT, ",
       paste0('\"', colnames(sites_data), '\" ', site_col_types,
         collapse = ", "),
       ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));"))
 
-  RSQLite::dbWriteTable(con_dbOut, "sites", append = TRUE,
+  dbWriteTable(con_dbOut, "sites", append = TRUE,
     value = cbind(id = NA, sites_data), row.names = FALSE)
 
   useExperimentals <- SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 &&
@@ -1817,7 +1817,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       SFSW2_prj_inputs[["create_experimentals"]]))
 
   #############simulation_years table#########################
-  DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+  dbExecute(con_dbOut, paste("CREATE TABLE",
     "simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL,",
     "EndYear INTEGER NOT NULL);"))
@@ -1826,15 +1826,15 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   ##########Create table experimental_labels only if using experimentals
   if (useExperimentals) {
-    DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+    dbExecute(con_dbOut, paste("CREATE TABLE",
       "experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
       "label TEXT UNIQUE NOT NULL);"))
 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
-    rs <- DBI::dbSendStatement(con_dbOut, sql)
-    DBI::dbBind(rs, param = list(
+    rs <- dbSendStatement(con_dbOut, sql)
+    dbBind(rs, param = list(
       label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
-    DBI::dbClearResult(rs)
+    dbClearResult(rs)
 
   }
   ################################
@@ -1881,7 +1881,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       if (any(is.na(LWF_index$id))) {
         #get max id from weatherfolders table
         isna <- is.na(LWF_index$id)
-        maxid <- as.numeric(DBI::dbGetQuery(con_dbOut,
+        maxid <- as.numeric(dbGetQuery(con_dbOut,
           "SELECT MAX(id) FROM weatherfolders;"))
         weatherfolders_index <- if (is.na(maxid)) 0L else maxid
         LWF_index$id[isna] <- as.integer(seq.int(
@@ -1890,9 +1890,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
         #Write those in
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
-        rs <- DBI::dbSendStatement(con_dbOut, sql)
-        DBI::dbBind(rs, param = as.list(LWF_index[isna, ]))
-        DBI::dbClearResult(rs)
+        rs <- dbSendStatement(con_dbOut, sql)
+        dbBind(rs, param = as.list(LWF_index[isna, ]))
+        dbClearResult(rs)
       }
     }
   }
@@ -2024,10 +2024,10 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       sapply(db_treatments_column_types[, "column"],
       function(columnName) {
         if (columnName %in% SFSW2_prj_inputs[["create_experimentals"]]) {
-          RSQLite::dbDataType(con_dbOut,
+          dbDataType(con_dbOut,
             SFSW2_prj_inputs[["sw_input_experimentals"]][, columnName])
         } else if (columnName %in% temp) {
-          RSQLite::dbDataType(con_dbOut,
+          dbDataType(con_dbOut,
             SFSW2_prj_inputs[["sw_input_treatments"]][, columnName])
         }
       })
@@ -2065,7 +2065,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     }
 
     #Create the table
-    DBI::dbExecute(con_dbOut, paste0("CREATE TABLE treatments(",
+    dbExecute(con_dbOut, paste0("CREATE TABLE treatments(",
       "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
       if (useExperimentals) "experimental_id INTEGER, ",
       "simulation_years_id INTEGER, ",
@@ -2127,7 +2127,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       matrix(data = 1, nrow = 1, ncol = 2,
         dimnames = list(NULL, c("id", "simulation_years_id"))),
       stringsAsFactors = FALSE)
-    DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+    dbExecute(con_dbOut, paste("CREATE TABLE",
       "treatments(id INTEGER PRIMARY KEY AUTOINCREMENT,",
       "simulation_years_id INTEGER);"))
   }
@@ -2216,34 +2216,34 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   # write to the database
   sql <- paste("INSERT INTO simulation_years VALUES(NULL,",
     ":simulationStartYear, :StartYear, :EndYear)")
-  rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(unique_simulation_years))
-  DBI::dbClearResult(rs)
+  rs <- dbSendStatement(con_dbOut, sql)
+  dbBind(rs, param = as.list(unique_simulation_years))
+  dbClearResult(rs)
 
   #Insert the data into the treatments table
   sql <- paste0("INSERT INTO treatments VALUES(", paste0(":",
     colnames(db_combined_exp_treatments), collapse = ", "), ")")
-  rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(db_combined_exp_treatments))
-  DBI::dbClearResult(rs)
+  rs <- dbSendStatement(con_dbOut, sql)
+  dbBind(rs, param = as.list(db_combined_exp_treatments))
+  dbClearResult(rs)
 
 
   ##############scenario_labels table###############
-  DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+  dbExecute(con_dbOut, paste("CREATE TABLE",
     "scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "label TEXT UNIQUE NOT NULL)"))
 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
-  rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
-  DBI::dbClearResult(rs)
+  rs <- dbSendStatement(con_dbOut, sql)
+  dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
+  dbClearResult(rs)
 
   ##################################################
 
   #############run_labels table#########################
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+  dbExecute(con_dbOut, paste("CREATE TABLE",
     "run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "label TEXT UNIQUE NOT NULL);"))
   temp <- if (useExperimentals) {
@@ -2260,16 +2260,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     }
 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
-  rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = list(label = temp))
-  DBI::dbClearResult(rs)
+  rs <- dbSendStatement(con_dbOut, sql)
+  dbBind(rs, param = list(label = temp))
+  dbClearResult(rs)
   ##################################################
 
 
   #####################runs table###################
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  DBI::dbExecute(con_dbOut, paste("CREATE TABLE",
+  dbExecute(con_dbOut, paste("CREATE TABLE",
     "runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL,",
     "site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL,",
     "scenario_id INTEGER NOT NULL,",
@@ -2315,9 +2315,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   sql <- paste("INSERT INTO runs VALUES(:P_id, :label_id, :site_id,",
     ":treatment_id, :scenario_id)")
-  rs <- DBI::dbSendStatement(con_dbOut, sql)
-  DBI::dbBind(rs, param = as.list(db_runs))
-  DBI::dbClearResult(rs)
+  rs <- dbSendStatement(con_dbOut, sql)
+  dbBind(rs, param = as.list(db_runs))
+  dbClearResult(rs)
   ##################################################
 
   ################CREATE VIEW########################
@@ -2355,7 +2355,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "scenario_labels.label AS Scenario"),
     collapse = ", ")
 
-  DBI::dbExecute(con_dbOut, paste0(
+  dbExecute(con_dbOut, paste0(
     "CREATE VIEW header AS SELECT ", header_columns,
     " FROM runs, run_labels, sites, ",
     if (useExperimentals)
@@ -2394,9 +2394,9 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) { # nolin
   sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",
     gsub("_mean", "_sd", fieldnames)), collapse = ", ")
 
-  DBI::dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_mean\"",
+  dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_mean\"",
     "(", meanString, ")"))
-  DBI::dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_sd\" (",
+  dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_sd\" (",
     sdString, ")"))
 
   list(ncol_dbOut_overall = ncol_dbOut_overall, meanString = meanString,
@@ -2464,8 +2464,8 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) { # nolin
           "_SD\" (", dailyLayersSQL, ");")
       }
 
-      DBI::dbExecute(con_dbOut, paste(SQL_Table_Definitions1, collapse = "\n"))
-      DBI::dbExecute(con_dbOut, paste(SQL_Table_Definitions2, collapse = "\n"))
+      dbExecute(con_dbOut, paste(SQL_Table_Definitions1, collapse = "\n"))
+      dbExecute(con_dbOut, paste(SQL_Table_Definitions2, collapse = "\n"))
     }
   }
 
@@ -2496,9 +2496,9 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, sim_scens,
       unlink(dbEnsemblesFilePaths[i])
     }
 
-    con <- RSQLite::dbConnect(RSQLite::SQLite(),
+    con <- dbConnect(SQLite(),
       dbname = dbEnsemblesFilePaths[i])
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
+    on.exit(dbDisconnect(con), add = TRUE)
     set_PRAGMAs(con, PRAGMA_settings2())
 
     for (j in seq_along(sim_scens[["ensemble.families"]])) {
@@ -2570,10 +2570,10 @@ dbOutput_create_EnsembleTables <- function(con_dbOut, dbOutput, sim_scens,
           }
         }
 
-        DBI::dbExecute(con, sql1)
-        DBI::dbExecute(con, sql2)
+        dbExecute(con, sql1)
+        dbExecute(con, sql2)
         if (sim_scens[["save.scenario.ranks"]])
-          DBI::dbExecute(con, sql3)
+          dbExecute(con, sql3)
       }
     }
   }
@@ -2611,9 +2611,9 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
     unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
   }
 
-  con_dbOut <- try(RSQLite::dbConnect(RSQLite::SQLite(),
+  con_dbOut <- try(dbConnect(SQLite(),
     dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
-  on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+  on.exit(dbDisconnect(con_dbOut), add = TRUE)
 
   if (inherits(con_dbOut, "try-error")) {
     unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
@@ -2623,7 +2623,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   set_PRAGMAs(con_dbOut, PRAGMA_settings2())
 
-  tables <- RSQLite::dbListTables(con_dbOut)
+  tables <- dbListTables(con_dbOut)
 
   #--- Check whether dbOutput exists and has a suitable design
   # Has suitable tables?
@@ -2632,7 +2632,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
     "aggregation_overall_mean" %in% tables
 
   if (isgood) {
-    temp <- RSQLite::dbListFields(con_dbOut, "aggregation_overall_mean")
+    temp <- dbListFields(con_dbOut, "aggregation_overall_mean")
     ncol_dbOut_overall <- length(temp) - 1L
 
     fields <- generate_OverallAggregation_fields(
@@ -2674,7 +2674,7 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
   }
 
   #--- run optimize on database
-  DBI::dbExecute(con_dbOut, "PRAGMA optimize")
+  dbExecute(con_dbOut, "PRAGMA optimize")
 
   list(fields = fields, ncol_dbOut_overall = res_oa[["ncol_dbOut_overall"]])
 }
@@ -2707,7 +2707,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
   dbOut_tables <- dbOutput_ListOutputTables(dbname = dbOutput)
 
   # Create temporary dbOutput
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  on.exit(dbDisconnect(con), add = TRUE)
 
   for (k in seq_along(IDs)) {
     if (verbose) {
@@ -2715,7 +2715,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
         shQuote(basename(fnames_dbTempOut[k])), "for node", k))
     }
 
-    con <- try(RSQLite::dbConnect(RSQLite::SQLite(),
+    con <- try(dbConnect(SQLite(),
       dbname = fnames_dbTempOut[k]), silent = !verbose)
 
     if (inherits(con, "try-error")) {
@@ -2724,7 +2724,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
     }
 
     set_PRAGMAs(con, PRAGMA_settings2())
-    tables <- RSQLite::dbListTables(con)
+    tables <- dbListTables(con)
 
     #--- Check whether temporary dbOutput exists and has a suitable design
     # Has suitable tables?
@@ -2733,7 +2733,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
     if (isgood) {
       # Has correct (number of) fields in table `aggregation_overall_mean`
-      temp <- RSQLite::dbListFields(con, "aggregation_overall_mean")
+      temp <- dbListFields(con, "aggregation_overall_mean")
       ncols <- length(temp) - 1L
 
       isgood <- isgood && ncols == sum(fields[, "N"]) &&
@@ -2748,7 +2748,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
     }
 
     # Close connection
-    DBI::dbDisconnect(con)
+    dbDisconnect(con)
   }
 
   # Remove dbDisconnect-call from on.exit
@@ -2782,16 +2782,16 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
   col_ids = NULL, chunksize = 1000, verbose = FALSE) {
 
-  con_dbOut <- RSQLite::dbConnect(RSQLite::SQLite(),
+  con_dbOut <- dbConnect(SQLite(),
     dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-  on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+  on.exit(dbDisconnect(con_dbOut), add = TRUE)
 
   tdata <- c("aggregation_overall_mean", "aggregation_overall_sd")
   told <- c("ao_mean_old", "ao_sd_old")
 
   # rename old tables (potentially) with data
   for (k in seq_along(tdata)) {
-    DBI::dbExecute(con_dbOut, paste("ALTER TABLE", tdata[k], "RENAME TO",
+    dbExecute(con_dbOut, paste("ALTER TABLE", tdata[k], "RENAME TO",
       told[k]))
   }
 
@@ -2803,8 +2803,8 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
   dbOutput_create_OverallAggregationTable(con_dbOut, fields)
 
   for (k in seq_along(tdata)) {
-    hasfields <- DBI::dbListFields(con_dbOut, told[k])
-    newfields <- DBI::dbListFields(con_dbOut, tdata[k])
+    hasfields <- dbListFields(con_dbOut, told[k])
+    newfields <- dbListFields(con_dbOut, tdata[k])
     col_ids_use <- if (length(col_ids) == length(hasfields)) {
         col_ids
       } else {
@@ -2816,7 +2816,7 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
     sql_newfields <- paste(paste0("\"", newfields[col_ids_use], "\""),
       collapse = ", ")
 
-    P_ids <- DBI::dbGetQuery(con_dbOut, paste("SELECT P_id FROM", told[k]))[, 1]
+    P_ids <- dbGetQuery(con_dbOut, paste("SELECT P_id FROM", told[k]))[, 1]
     recordsN <- length(P_ids)
     if (recordsN > 0) {
       seq_ids <- parallel::splitIndices(recordsN, ceiling(recordsN / chunksize))
@@ -2830,8 +2830,8 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
             " to table ", shQuote(tdata[k])))
         }
 
-        DBI::dbWithTransaction(con_dbOut, {
-          DBI::dbExecute(con_dbOut, paste("INSERT INTO", tdata[k], "(",
+        dbWithTransaction(con_dbOut, {
+          dbExecute(con_dbOut, paste("INSERT INTO", tdata[k], "(",
             sql_newfields, ")",
             "SELECT", sql_hasfields, "FROM", told[k], "WHERE P_id = :x"),
             params = list(x = seq_ids[[chunk_ids]]))
@@ -2839,10 +2839,10 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
       }
 
       # delete old table if new table contains same P_ids
-      P_ids_new <- DBI::dbGetQuery(con_dbOut,
+      P_ids_new <- dbGetQuery(con_dbOut,
         paste("SELECT P_id FROM", tdata[k]))[, 1]
       if (identical(sort(P_ids), sort(P_ids_new))) {
-        DBI::dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
+        dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
       } else {
         stop("Updated table", shQuote(tdata[k]), " is missing n= ",
           length(setdiff(P_ids, P_ids_new)), " Pids")
@@ -2850,12 +2850,12 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
 
     } else {
       # delete empty old table
-      DBI::dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
+      dbExecute(con_dbOut, paste("DROP TABLE", told[k]))
     }
   }
 
   # Clean up database
-  DBI::dbExecute(con_dbOut, "VACUUM")
+  dbExecute(con_dbOut, "VACUUM")
   add_dbOutput_index(con_dbOut)
 
   invisible(TRUE)
@@ -2893,19 +2893,19 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
       "cannot be located."))
     return(diff_msgs)
   }
-  refDB <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut1)
+  refDB <- dbConnect(SQLite(), dbOut1)
 
   if (!file.exists(dbOut2)) {
     diff_msgs <- c(diff_msgs, paste(Sys.time(), shQuote(basename(dbOut2)),
       "cannot be located."))
     return(diff_msgs)
   }
-  testDB <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut2)
+  testDB <- dbConnect(SQLite(), dbOut2)
 
   #---Identify set of shared tables
-  refDB_tables <- setdiff(RSQLite::dbListTables(refDB),
+  refDB_tables <- setdiff(dbListTables(refDB),
     dbOutput_ListInternalTables())
-  testDB_tables <- setdiff(RSQLite::dbListTables(testDB),
+  testDB_tables <- setdiff(dbListTables(testDB),
     dbOutput_ListInternalTables())
   tocomp_tables <- intersect(refDB_tables, testDB_tables)
   if (length(tocomp_tables) == 0L) {
@@ -2934,10 +2934,10 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
 
   if (all(has_samedesign)) {
     diff_design <- sapply(dbOutput_ListDesignTables(), function(desT) {
-      temp <- RSQLite::dbReadTable(refDB, desT)
+      temp <- dbReadTable(refDB, desT)
       x_ref <- temp[do.call("order", unname(temp)), ]
 
-      temp <- RSQLite::dbReadTable(testDB, desT)
+      temp <- dbReadTable(testDB, desT)
       x_test <- temp[do.call("order", unname(temp)), ]
 
       all.equal(x_ref, x_test)
@@ -2961,8 +2961,8 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
   #---Loop over shared result tables and compare shared fields
   for (k in seq_along(tocomp_tables)) {
     #---Identify set of shared fields
-    refDB_fields <- RSQLite::dbListFields(refDB, tocomp_tables[k])
-    testDB_fields <- RSQLite::dbListFields(testDB, tocomp_tables[k])
+    refDB_fields <- dbListFields(refDB, tocomp_tables[k])
+    testDB_fields <- dbListFields(testDB, tocomp_tables[k])
     tocomp_fields <- intersect(refDB_fields, testDB_fields)
     if (length(tocomp_fields) == 0L) {
       diff_msgs <- c(diff_msgs, paste("Table", shQuote(tocomp_tables[k]),
@@ -3019,8 +3019,8 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
       if (ref_has_sl && test_has_sl) ", Soil_Layer",
       ";")
 
-    x_ref <- RSQLite::dbGetQuery(refDB, sql)
-    x_test <- RSQLite::dbGetQuery(testDB, sql)
+    x_ref <- dbGetQuery(refDB, sql)
+    x_test <- dbGetQuery(testDB, sql)
 
     #---Compare field data and report if differences were found
     ident <- all.equal(x_ref, x_test, tol = tol,

@@ -48,10 +48,10 @@ SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
 ## Package uses S3/S4 classes - they are defined in package:methods
-#' @importFrom methods isGeneric setGeneric setMethod signature
-#' @importFrom methods slot slot<- as new
+## Package uses methods from 'RSQLite' package (which re-exports 'DBI' methods)
+#' @import methods
+#' @import RSQLite
 NULL
-
 
 ##------ Support Rcpp
 #' @importFrom Rcpp sourceCpp evalCpp

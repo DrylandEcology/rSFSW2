@@ -14,8 +14,8 @@ Depends:
     R (>= 3.3.0)
 Imports:
     rSOILWAT2 (>= 2.3.0),
-    RSQLite (>= 2.0),
-    DBI (>= 0.7),
+    RSQLite (>= 2.1.1),
+    DBI (>= 1.0),
     Rcpp (>= 0.12.12),
     raster (>= 2.5.8),
     sp (>= 1.2.3),

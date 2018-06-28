@@ -7,8 +7,8 @@
 #' attempts to execute the SQL statement up to \code{repeats} before giving up
 #' if the database was locked.
 #'
-#' @param con A \code{\link[DBI:DBIConnection-class]{DBI::DBIConnection}} or
-#'   \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+#' @param con A \code{\link[DBI:DBIConnection-class]{DBIConnection}} or
+#'   \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
 #'   object.
 #' @param SQL A character string or vector of character strings. The SQL
 #'   statement(s) to execute on \code{con}. If \code{SQL} is a vector of
@@ -35,10 +35,10 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
   k <- 1L
   repeat {
     temp_try <- try(if (N > 1) {
-        DBI::dbWithTransaction(con, for (k in seq_len(N))
-          DBI::dbExecute(con, SQL[k]))
+        dbWithTransaction(con, for (k in seq_len(N))
+          dbExecute(con, SQL[k]))
       } else {
-        DBI::dbExecute(con, SQL)
+        dbExecute(con, SQL)
       }, silent = !verbose)
     success <- !inherits(temp_try, "try-error")
 
@@ -91,13 +91,13 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
 #'   read/write mode.
 #' @inheritParams dbExecute2
 #' @return A
-#'   \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+#'   \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
 #'   object on success; an object of class \code{\link[base:try]{try-error}} on
 #'   failure.
 #'
 #' @seealso \code{\link[DBI]{dbConnect}}
 #' @export
-dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
+dbConnect2 <- function(dbname, flags = SQLITE_RW, verbose = FALSE,
   repeats = 10L, sleep_s = 5, seed = NA) {
 
   if (!anyNA(seed)) set.seed(seed)
@@ -113,7 +113,7 @@ dbConnect2 <- function(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
         round(difftime(Sys.time(), t0, units = "secs"), 2), "s"))
     }
 
-    con <- try(RSQLite::dbConnect(RSQLite::SQLite(), dbname = dbname,
+    con <- try(dbConnect(SQLite(), dbname = dbname,
       flags = flags), silent = !verbose)
 
     if (inherits(con, "SQLiteConnection") || k > repeats) {
@@ -159,7 +159,7 @@ PRAGMA_settings2 <- function() c(PRAGMA_settings1(),
 
 #' @rdname pragmas
 set_PRAGMAs <- function(con, settings) {
-  temp <- lapply(force(settings), function(x) DBI::dbExecute(con, x))
+  temp <- lapply(force(settings), function(x) dbExecute(con, x))
   invisible(temp)
 }
 
@@ -169,7 +169,7 @@ dbVacuumRollack <- function(con, dbname) {
   frj <- paste0(dbname, "-journal")
 
   if (file.exists(frj)) {
-    DBI::dbExecute(con, "VACUUM")
+    dbExecute(con, "VACUUM")
 
     if (file.exists(frj)) {
       stop("'dbVacuumRollack': failed to vacuum rollback journal of ",
@@ -183,10 +183,10 @@ dbVacuumRollack <- function(con, dbname) {
 #' List tables and variables of a database
 #' @export
 list.dbTables <- function(dbName) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName,
-    flags = RSQLite::SQLITE_RO)
-  res <- DBI::dbListTables(con)
-  RSQLite::dbDisconnect(con)
+  con <- dbConnect(SQLite(), dbName,
+    flags = SQLITE_RO)
+  res <- dbListTables(con)
+  dbDisconnect(con)
 
   res
 }
@@ -194,11 +194,11 @@ list.dbTables <- function(dbName) {
 #' List variables of a database
 #' @export
 list.dbVariables <- function(dbName, dbTable) {
-  con <- RSQLite::dbConnect(RSQLite::SQLite(), dbName,
-    flags = RSQLite::SQLITE_RO)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con <- dbConnect(SQLite(), dbName,
+    flags = SQLITE_RO)
+  on.exit(dbDisconnect(con), add = TRUE)
 
-  DBI::dbListFields(con, dbTable)
+  dbListFields(con, dbTable)
 }
 
 #' List tables and variables of a database

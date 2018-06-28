@@ -83,10 +83,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
   # temporary output database
-  dbTempFile <- DBI::dbConnect(RSQLite::SQLite(), dbname =
+  dbTempFile <- dbConnect(SQLite(), dbname =
     file.path(SimParams[["project_paths"]][["dir_out_temp"]],
     paste0("SQL_Node_", fid, ".sqlite3")))
-  on.exit(DBI::dbDisconnect(dbTempFile), add = TRUE)
+  on.exit(dbDisconnect(dbTempFile), add = TRUE)
 
   # Print/tag for function call
   tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")

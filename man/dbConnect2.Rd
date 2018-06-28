@@ -4,8 +4,8 @@
 \alias{dbConnect2}
 \title{Connect to \var{SQLite}-database}
 \usage{
-dbConnect2(dbname, flags = RSQLite::SQLITE_RW, verbose = FALSE,
-  repeats = 10L, sleep_s = 5, seed = NA)
+dbConnect2(dbname, flags = SQLITE_RW, verbose = FALSE, repeats = 10L,
+  sleep_s = 5, seed = NA)
 }
 \arguments{
 \item{dbname}{A character string. The path including name to the database.}
@@ -25,7 +25,7 @@ to execute the \code{SQL} statement(s) if the database was locked.}
 }
 \value{
 A
-  \code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+  \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
   object on success; an object of class \code{\link[base:try]{try-error}} on
   failure.
 }

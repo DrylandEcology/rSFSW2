@@ -8,8 +8,8 @@ dbExecute2(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
   seed = NA)
 }
 \arguments{
-\item{con}{A \code{\link[DBI:DBIConnection-class]{DBI::DBIConnection}} or
-\code{\link[RSQLite:SQLiteConnection-class]{RSQLite::SQLiteConnection}}
+\item{con}{A \code{\link[DBI:DBIConnection-class]{DBIConnection}} or
+\code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
 object.}
 
 \item{SQL}{A character string or vector of character strings. The SQL
