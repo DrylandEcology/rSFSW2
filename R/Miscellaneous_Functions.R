@@ -108,7 +108,7 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 #'   # returning without error
 #'   oe <- sys.on.exit()
 #'   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
-#'   on.exit(eval(oe), add = FALSE)
+#'   do.call(on.exit, args = c(list(oe), add = FALSE))
 #'   # Add to 'on.exit'
 #'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
 #'   res

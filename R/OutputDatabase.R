@@ -1507,15 +1507,15 @@ do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current, # n
   Tables <- DBI::dbListTables(con)
   Tables <- Tables[-grep(pattern = "sqlite_sequence", Tables)]
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
-  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  con_cur <- DBI::dbConnect(RSQLite::SQLite(), dbOutput_current)
+  on.exit(DBI::dbDisconnect(con_cur), add = TRUE)
 
   for (i in seq_along(sqlTables)) {
     #Create the tables
-    res <- DBI::dbSendStatement(con, sqlTables[i])
+    res <- DBI::dbSendStatement(con_cur, sqlTables[i])
     DBI::dbClearResult(res)
   }
-  DBI::dbExecute(con, sqlView)
+  DBI::dbExecute(con_cur, sqlView)
 
   con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
   on.exit(DBI::dbDisconnect(con), add = TRUE)
@@ -2707,6 +2707,8 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
   dbOut_tables <- dbOutput_ListOutputTables(dbname = dbOutput)
 
   # Create temporary dbOutput
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
   for (k in seq_along(IDs)) {
     if (verbose) {
       print(paste("Processing dbTempOut",
@@ -2721,7 +2723,6 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
         collapse = ", "))
     }
 
-    on.exit(DBI::dbDisconnect(con), add = TRUE)
     set_PRAGMAs(con, PRAGMA_settings2())
     tables <- RSQLite::dbListTables(con)
 
@@ -2746,9 +2747,14 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
       temp <- dbOutput_create_DailyAggregationTable(con, adaily)
     }
 
-    # Close connection and remove call from on.exit
+    # Close connection
     DBI::dbDisconnect(con)
   }
+
+  # Remove dbDisconnect-call from on.exit
+  oe <- sys.on.exit()
+  oe <- remove_from_onexit_expression(oe, "dbDisconnect")
+  do.call(on.exit, args = c(list(oe), add = FALSE))
 
   invisible(fnames_dbTempOut)
 }
