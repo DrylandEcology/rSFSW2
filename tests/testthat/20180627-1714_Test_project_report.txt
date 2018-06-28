@@ -1,0 +1,2 @@
+Problem list for test project 'TestPrj4' :
+2018-06-27 17:14:14 'dbOutput_TestPrj4_v2.7.4.sqlite3' cannot be located.

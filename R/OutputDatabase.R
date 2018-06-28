@@ -2859,7 +2859,7 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
 #' Compare one output database with another output database
 #'
 #' @param dbOut1 A character string. Path to first output database used as
-#'   referefence.
+#'   reference.
 #' @param dbOut2 A character string. Path to second output database.
 #' @param tol A numeric value. Differences smaller than tolerance are not
 #'   reported. Passed to \code{\link{all.equal}}.
@@ -2870,7 +2870,6 @@ dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
 #'
 #' @return A (possibly empty) list of character vectors describing differences
 #'   between \code{dbOut2} and \code{dbOut1} databases.
-#'   A first entry is the file name of the reference database.
 #'
 #' @seealso \code{\link{all.equal}}
 #' @export
@@ -2879,7 +2878,7 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
 
   diff_msgs <- list()
   if (verbose)
-    on.exit(print(diff_msgs[-1]))
+    on.exit(if (length(diff_msgs) > 0) print(diff_msgs))
 
   if (!file.exists(dbOut1)) {
     diff_msgs <- c(diff_msgs, paste(Sys.time(), shQuote(basename(dbOut1)),

@@ -479,13 +479,16 @@ check_aggregated_output <- function(x) {
 #'
 #' @param dir_test A character string. Path to test project folder.
 #' @param dir_ref A character string. Path to folder with reference database.
-#' @param verbose A logical value. If \code{TRUE} then messages are printed.
 #'
-#' @return The output from \code{\link{compare_two_dbOutput}}.
+#' @return A list with at least one element:\enumerate{
+#'   \item The basename of the reference database; empty string if not found.
+#'   \item The output from \code{\link{compare_two_dbOutput}}, if any.
+#' }
 #'
 #' @seealso \code{\link{compare_two_dbOutput}}
 #' @export
-compare_test_output <- function(dir_test, dir_ref = NULL, verbose = FALSE) {
+compare_test_output <- function(dir_test, dir_ref = NULL) {
+  diff_msgs <- list()
 
   if (is.null(dir_ref))
     dir_ref <- file.path(dir_test, "..", "0_ReferenceOutput")
@@ -518,7 +521,8 @@ compare_test_output <- function(dir_test, dir_ref = NULL, verbose = FALSE) {
   }
 
   #---Compare
-  compare_two_dbOutput(dbOut1 = fname_refDB,
-    dbOut2 = file.path(dir_test, "4_Simulation", "dbOutput.sqlite3"),
-    verbose = verbose)
+  c(diff_msgs,
+    compare_two_dbOutput(dbOut1 = file.path(dir_ref, fname_refDB),
+      dbOut2 = file.path(dir_test, "4_Simulation", "dbOutput.sqlite3"),
+      verbose = FALSE))
 }

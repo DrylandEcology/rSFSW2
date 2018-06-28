@@ -166,6 +166,12 @@ particularly,
   * Ideally, expand the vignettes.
 
 - Code tests
+  * Notes:
+    * Our code coverage is incomplete as of now at [![codecov status][9]][10];
+      thus, any change may introduce bugs that may not be detected by our
+      testing framework.
+    * Please be careful and considerate and strive to write tests for any new
+      feature.
   * Locally during code development:
     * Interactive execution and exploration
     * Run tests from an individual test file with `testthat::test_file()`.
@@ -175,8 +181,8 @@ particularly,
   * Locally before finalizing a pull-request and/or code review:
     1) Run code from examples and vignettes with `devtools:run_examples()`
     2) Run all tests with the command `devtools::test()`. Note: this combines
-      unit tests and integration tests (e.g., `TestPrj4`); the later take a
-      substantial amount of time to complete.
+       unit tests and integration tests (e.g., `TestPrj4`); the later take a
+       substantial amount of time to complete.
     3) Run command-line checks, i.e., `R CMD check .` or `devtools::check()`.
     4) Fix any problem and repeat.
   * On github:

@@ -4,17 +4,18 @@
 \alias{compare_test_output}
 \title{Compare test project output database with reference database}
 \usage{
-compare_test_output(dir_test, dir_ref = NULL, verbose = FALSE)
+compare_test_output(dir_test, dir_ref = NULL)
 }
 \arguments{
 \item{dir_test}{A character string. Path to test project folder.}
 
 \item{dir_ref}{A character string. Path to folder with reference database.}
-
-\item{verbose}{A logical value. If \code{TRUE} then messages are printed.}
 }
 \value{
-The output from \code{\link{compare_two_dbOutput}}.
+A list with at least one element:\enumerate{
+  \item The basename of the reference database; empty string if not found.
+  \item The output from \code{\link{compare_two_dbOutput}}, if any.
+}
 }
 \description{
 Reference database is identified by containing \code{basename(dir_test)} in

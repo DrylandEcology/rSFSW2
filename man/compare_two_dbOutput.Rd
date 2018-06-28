@@ -9,7 +9,7 @@ compare_two_dbOutput(dbOut1, dbOut2, tol = 0.001, comp_absolute = TRUE,
 }
 \arguments{
 \item{dbOut1}{A character string. Path to first output database used as
-referefence.}
+reference.}
 
 \item{dbOut2}{A character string. Path to second output database.}
 
@@ -25,7 +25,6 @@ comparisons will be reported, otherwise relative differences. See argument
 \value{
 A (possibly empty) list of character vectors describing differences
   between \code{dbOut2} and \code{dbOut1} databases.
-  A first entry is the file name of the reference database.
 }
 \description{
 Compare one output database with another output database
