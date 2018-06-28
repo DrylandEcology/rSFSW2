@@ -2708,6 +2708,11 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
   # Create temporary dbOutput
   for (k in seq_along(IDs)) {
+    if (verbose) {
+      print(paste("Processing dbTempOut",
+        shQuote(basename(fnames_dbTempOut[k])), "for node", k))
+    }
+
     con <- try(RSQLite::dbConnect(RSQLite::SQLite(),
       dbname = fnames_dbTempOut[k]), silent = !verbose)
 
@@ -2743,9 +2748,6 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
     # Close connection and remove call from on.exit
     DBI::dbDisconnect(con)
-    oe <- sys.on.exit()
-    oe <- remove_from_onexit_expression(oe, "dbDisconnect")
-    on.exit(eval(oe), add = FALSE)
   }
 
   invisible(fnames_dbTempOut)

@@ -16,6 +16,11 @@ expressions should be removed.}
 \description{
 Remove one of possibly several expressions recorded by \code{on.exit}
 }
+\section{Note}{
+ don't use inside a loop as this will likely lead to problems
+  such as `evaluation nested too deeply`.
+}
+
 \seealso{
 \code{\link{enable_debug_dump}} for examples
 }

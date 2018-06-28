@@ -158,6 +158,8 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
 #'   \code{sys.on.exit()} from inside the calling function.
 #' @param tag A character string. An string identifying which of the recorded
 #'   expressions should be removed.
+#' @section Note: don't use inside a loop as this will likely lead to problems
+#'   such as `evaluation nested too deeply`.
 #' @seealso \code{\link{enable_debug_dump}} for examples
 #' @export
 remove_from_onexit_expression <- function(sysonexit, tag) {
