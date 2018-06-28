@@ -154,7 +154,7 @@ particularly,
   * *Do not* commit, please:
     * Any changes to settings/inputs etc. in your local copy unless those
       changes are a feature of your coding task
-    * Package bundles or bundles (e.g., as from `R CMD build`)
+    * Package bundles or binaries (e.g., as from `R CMD build`)
     * Package check reports (e.g., as from `R CMD check`)
     * Built vignettes
 
@@ -190,6 +190,9 @@ particularly,
        Note: `R CMD check` requires a built package, i.e.,
        run `R CMD build . && R CMD check *tar.gz`; see `.travis.yml` if the
        build-step fails due to latex-troubles while vignette/help building.
+       For greatest coverage, run checks both with and without option
+       `--as-cran` respectively setting argument `cran` to both `FALSE` and
+       `TRUE` of function `devtools::check()`.
     4) Fix any problem and repeat.
   * On github:
     * The command-line checks which include our unit tests will be run on the

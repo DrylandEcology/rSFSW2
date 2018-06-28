@@ -11,6 +11,7 @@ inst/doc
 
 # Package check files
 ..Rcheck
+rSFSW2.Rcheck
 
 # Package builds
 *tar.gz
