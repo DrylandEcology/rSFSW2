@@ -156,7 +156,8 @@ particularly,
     changes are a feature of your coding task.
 
 - Code documentation
-  * Read the [section 'Object documentation' in Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
+  * Read the section 'Object documentation' in
+    [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
   * Use [roxygen2](https://cran.r-project.org/web/packages/roxygen2/vignettes/formatting.html)
     to write inline code documentation
   * Update help pages and NAMESPACE with the command `devtools::document()`
@@ -165,20 +166,30 @@ particularly,
   * Ideally, expand the vignettes.
 
 - Code tests
-  * Read the [section 'Testing' in Wickham's book 'R packages'](http://r-pkgs.had.co.nz/tests.html)
-  * Use [testthat](https://github.com/hadley/testthat) to add unit tests to
-    the existing framework
-  * Run tests locally with the command `devtools::test()`. Note: this combines
-    unit tests and integration tests (e.g., `TestPrj4`); the later take a
-    substantial amount of time to complete.
-  * These tests will also be run on the command-line with `R CMD check .`
-  * The command-line check will be run on the continuous integration
-    frameworks 'travis' and 'appveyor' when commits are pushed
-  * Development/feature branches can only be merged into master if they pass
-    all checks
-  * Currently defunct: Ideally, run test projects in repository
-    [rSFSW2_tools](https://github.com/DrylandEcology/rSFSW2_tools)
-    and add a new test project, if necessary due to new features.
+  * Locally during code development:
+    * Interactive execution and exploration
+    * Run tests from an individual test file with `testthat::test_file()`.
+    * Currently defunct: Ideally, run test projects in repository
+      [rSFSW2_tools](https://github.com/DrylandEcology/rSFSW2_tools)
+      and add a new test project, if necessary due to new features.
+  * Locally before finalizing a pull-request and/or code review:
+    1) Run code from examples and vignettes with `devtools:run_examples()`
+    2) Run all tests with the command `devtools::test()`. Note: this combines
+      unit tests and integration tests (e.g., `TestPrj4`); the later take a
+      substantial amount of time to complete.
+    3) Run command-line checks, i.e., `R CMD check .` or `devtools::check()`.
+    4) Fix any problem and repeat.
+  * On github:
+    * The command-line checks, i.e., `R CMD check .` or `devtools::check()`,
+      which include our unit tests will be run on the continuous integration
+      frameworks 'travis' and 'appveyor'
+    * Development/feature branches can only be merged into master if they pass
+      all checks
+  * We use the framework of [testthat](https://github.com/hadley/testthat) for
+    unit testing and other tests for the package
+  * Read the section 'Testing' in
+    [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/tests.html)
+    for additional information
 
 ### __Updates to input files and/or demo code__
 - If `SOILWAT2` and `rSOILWAT2` change their `default` inputs, then `rSFSW2`
