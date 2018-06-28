@@ -184,21 +184,25 @@ particularly,
   * Locally before finalizing a pull-request and/or code review:
     1) Run code from examples and vignettes with `devtools:run_examples()`
     2) Run all tests with the command `devtools::test()`. Note: this combines
-       unit tests and integration tests (e.g., `TestPrj4`); the later take a
+       unit tests and integration tests (e.g., `TestPrj4`); the latter take a
        substantial amount of time to complete.
     3) Run command-line checks, i.e., `R CMD check` or `devtools::check()`.
-       Note: `R CMD check` requires a built package, i.e.,
-       run `R CMD build . && R CMD check *tar.gz`; see `.travis.yml` if the
-       build-step fails due to latex-troubles while vignette/help building.
-       For greatest coverage, run checks both with and without option
-       `--as-cran` respectively setting argument `cran` to both `FALSE` and
-       `TRUE` of function `devtools::check()`.
+       - Note: `R CMD check` requires a built package, i.e.,
+         run `R CMD build . && R CMD check *tar.gz`; see `.travis.yml` if the
+         build-step fails due to latex-troubles while vignette/help building.
+       - Different tests/checks are run under different settings depending on
+         the environmental setting `NOT_CRAN` and whether or not integration
+         tests (i.e., those that run `TestPrj4`) are executed in parallel or
+         serial mode. Thus, for greatest coverage, run checks both with and
+         without option `--as-cran` respectively argument `cran` of function
+         `devtools::check()` -- on the command line and interactively.
     4) Fix any problem and repeat.
   * On github:
     * The command-line checks which include our unit tests will be run on the
       continuous integration frameworks 'travis' and 'appveyor'
     * Development/feature branches can only be merged into master if they pass
       all checks
+    * Please, don't use the CIs for debugging -- debug locally
   * We use the framework of [testthat](https://github.com/hadley/testthat) for
     unit testing and other tests for the package
   * Read the section 'Testing' in
