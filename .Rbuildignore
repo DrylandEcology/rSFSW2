@@ -5,3 +5,12 @@
 ^CODE_OF_CONDUCT\.md$
 ^data-raw$
 ^.lintr$
+
+# RStudio stuff
+^.*\.Rproj$
+^\.Rproj\.user$
+
+# CRAN stuff
+^cran-comments\.md$
+^NEWS\.md$
+

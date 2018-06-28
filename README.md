@@ -151,9 +151,12 @@ particularly,
     # Clean up `TestPrj4/`
     delete_test_output(dir_test = ".")
     ```
-  * You will want to change `default` settings/inputs etc. in your local copy
-    to work on code, but, please, *do not* commit those changes unless these
-    changes are a feature of your coding task.
+  * *Do not* commit, please:
+    * Any changes to settings/inputs etc. in your local copy unless those
+      changes are a feature of your coding task
+    * Package bundles or bundles (e.g., as from `R CMD build`)
+    * Package check reports (e.g., as from `R CMD check`)
+    * Built vignettes
 
 - Code documentation
   * Read the section 'Object documentation' in
@@ -183,12 +186,14 @@ particularly,
     2) Run all tests with the command `devtools::test()`. Note: this combines
        unit tests and integration tests (e.g., `TestPrj4`); the later take a
        substantial amount of time to complete.
-    3) Run command-line checks, i.e., `R CMD check .` or `devtools::check()`.
+    3) Run command-line checks, i.e., `R CMD check` or `devtools::check()`.
+       Note: `R CMD check` requires a built package, i.e.,
+       run `R CMD build . && R CMD check *tar.gz`; see `.travis.yml` if the
+       build-step fails due to latex-troubles while vignette/help building.
     4) Fix any problem and repeat.
   * On github:
-    * The command-line checks, i.e., `R CMD check .` or `devtools::check()`,
-      which include our unit tests will be run on the continuous integration
-      frameworks 'travis' and 'appveyor'
+    * The command-line checks which include our unit tests will be run on the
+      continuous integration frameworks 'travis' and 'appveyor'
     * Development/feature branches can only be merged into master if they pass
       all checks
   * We use the framework of [testthat](https://github.com/hadley/testthat) for
