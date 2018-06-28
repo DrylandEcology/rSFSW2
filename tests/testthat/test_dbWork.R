@@ -105,7 +105,7 @@ test_that("dbWork: mock simulation in parallel", {
   expect_identical(dbWork_todos(dbpath), runIDs)
 
   #--- Error due to locked database
-  if (packageVersion("rSFSW2") <= "2.5.5") {
+  if (utils::packageVersion("rSFSW2") <= "2.5.5") {
     # This should fail with
     #Error in checkForRemoteErrors(val) :
     #  100 nodes produced errors; first error: rsqlite_query_send: could not

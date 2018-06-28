@@ -503,7 +503,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
           outfile = if (verbose) {
               temp <- file.path(dir_out,
                 paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))
-              if (packageVersion("parallel") >= "3.5.0") {
+              if (utils::packageVersion("parallel") >= "3.5.0") {
                 temp
               } else {
                 # previous versions of `parallel:::newPSOCKnode` didn't call
