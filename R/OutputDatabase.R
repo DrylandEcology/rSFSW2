@@ -1642,7 +1642,7 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
     # properly (see `move_dbTempOut_to_dbOut`)
     if (tempN_todo > 0 && .Platform$OS.type == "windows") {
       print(msg)
-      print("However, we are on Windows OS and thus it may have not actually"
+      print("However, we are on Windows OS and thus it may have not actually",
         "deleted files confirmed to be deleted. We currently ignore this",
         "and attempt to continue.")
     } else {
