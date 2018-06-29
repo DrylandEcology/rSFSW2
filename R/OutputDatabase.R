@@ -976,6 +976,26 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       if (opt_out_run[["deleteTmpSQLFiles"]]) {
         try(unlink(theFileList[k1], force = TRUE),
           silent = !opt_verbosity[["verbose"]])
+
+        if (file.exists(theFileList[k1])) {
+          # Windows OS has problems with deleting files even if it claims
+          # that `unlink` was successful
+          # Maybe Windows OS thinks that the file is 'open':
+          try(dbDisconnect(theFileList[k1]),
+            silent = !opt_verbosity[["verbose"]])
+          try(close(theFileList[k1]), silent = !opt_verbosity[["verbose"]])
+
+          # Try again and also try deleting with `file.remove`
+          try(unlink(theFileList[k1], force = TRUE),
+            silent = !opt_verbosity[["verbose"]])
+          try(file.remove(theFileList[k1]),
+            silent = !opt_verbosity[["verbose"]])
+
+          if (file.exists(theFileList[k1])) {
+            print(paste("The temporary file", shQuote(theFileList[k1]),
+              "was attempted to be deleted thrice but failed."))
+          }
+        }
       }
     }
   }
