@@ -1576,20 +1576,28 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
   }
 
   #--- CHECK THAT ALL TEMPORARY DATA HAVE BEEN MOVED TO dbOutput
-  tempN_todo <- length(get_fnames_temporaryOutput(
+  temp1_files <- get_fnames_temporaryOutput(
     dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
     concatFile = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       "sqlFilesInserted.txt"),
     deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
-    resume = opt_behave[["resume"]])) +
-    length(get_fnames_dbTempOut(
-      SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]))
+    resume = opt_behave[["resume"]])
+  temp2_files <- get_fnames_dbTempOut(
+    SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]])
+
+  tempN_todo <- length(temp1_files) + length(temp2_files)
 
   runsN_todo <- if (opt_behave[["keep_dbWork_updated"]]) {
       dbWork_Ntodo(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
     } else 0L
 
   if (runsN_todo > 0 || tempN_todo > 0) {
+    if (opt_verbosity[["verbose"]] && tempN_todo) {
+      print(paste("Unfinished temporary files:",
+        paste(shQuote(temp1_files), collapse = ", "),
+        paste(shQuote(temp2_files), collapse = ", ")))
+    }
+
     stop(temp_call, " can only process `dbOutput` after all simulation ",
       "runs have  completed and once all temporary output files have been ",
       "moved to the database:\n",
