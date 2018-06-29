@@ -1009,7 +1009,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
         if (any(to_delete)) {
           print(paste("The temporary file(s)",
             paste(shQuote(theFileList[to_delete]), collapse = ", ",
-            "was/were attempted to be deleted thrice but failed."))
+            "was/were attempted to be deleted thrice but failed.")))
         }
       }
     }
