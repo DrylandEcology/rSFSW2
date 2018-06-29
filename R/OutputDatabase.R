@@ -964,7 +964,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
             substr(temp0, etemp, nchar(temp0)))
 
           try(file.rename(from = theFileList[k1],
-            to = file.path(dirname(theFileList[k1]), ftemp)), silent = TRUE)
+            to = file.path(dirname(theFileList[k1]), ftemp)),
+            silent = !opt_verbosity[["verbose"]])
         }
       }
 
@@ -973,7 +974,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
       # Delete temporary DB
       if (opt_out_run[["deleteTmpSQLFiles"]]) {
-        try(unlink(theFileList[k1]), silent = TRUE)
+        try(unlink(theFileList[k1], force = TRUE),
+          silent = !opt_verbosity[["verbose"]])
       }
     }
   }
