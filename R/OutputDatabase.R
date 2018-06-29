@@ -978,30 +978,42 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
           silent = !opt_verbosity[["verbose"]])
 
         if (file.exists(theFileList[k1])) {
-          # Windows OS has problems with deleting files even if it claims
-          # that `unlink` was successful
-          # Maybe Windows OS thinks that the file is 'open':
-          try(dbDisconnect(theFileList[k1]),
-            silent = !opt_verbosity[["verbose"]])
-          try(close(theFileList[k1]), silent = !opt_verbosity[["verbose"]])
+        }
+      }
+    }
 
-          # Try again and also try deleting with `file.remove`
-          try(unlink(theFileList[k1], force = TRUE),
-            silent = !opt_verbosity[["verbose"]])
-          try(file.remove(theFileList[k1]),
-            silent = !opt_verbosity[["verbose"]])
+    #--- run optimize on database
+    dbExecute(con_dbOut, "PRAGMA optimize")
 
-          if (file.exists(theFileList[k1])) {
-            print(paste("The temporary file", shQuote(theFileList[k1]),
-              "was attempted to be deleted thrice but failed."))
-          }
+    #--- clean up
+    dbDisconnect(con_dbOut)
+
+    oe <- sys.on.exit()
+    oe <- remove_from_onexit_expression(oe, "dbDisconnect")
+    do.call(on.exit, args = c(list(oe), add = FALSE))
+
+    if (opt_out_run[["deleteTmpSQLFiles"]]) {
+      to_delete <- !file.exists(theFileList)
+
+      if (any(to_delete)) {
+        # Windows OS has problems with deleting files even if it claims
+        # that `unlink` was successful
+
+        # Try again and also try deleting with `file.remove`
+        try(unlink(theFileList[to_delete], force = TRUE),
+          silent = !opt_verbosity[["verbose"]])
+        try(file.remove(theFileList[to_delete]),
+          silent = !opt_verbosity[["verbose"]])
+
+        to_delete <- !file.exists(theFileList)
+        if (any(to_delete)) {
+          print(paste("The temporary file(s)",
+            paste(shQuote(theFileList[to_delete]), collapse = ", ",
+            "was/were attempted to be deleted thrice but failed."))
         }
       }
     }
   }
-
-  #--- run optimize on database
-  dbExecute(con_dbOut, "PRAGMA optimize")
 
   invisible(length(theFileList))
 }
@@ -1620,11 +1632,22 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
         paste(shQuote(temp2_files), collapse = ", ")))
     }
 
-    stop(temp_call, " can only process `dbOutput` after all simulation ",
-      "runs have  completed and once all temporary output files have been ",
+    msg <- paste(temp_call, "can only process `dbOutput` after all simulation",
+      "runs have  completed and once all temporary output files have been",
       "moved to the database:\n",
-      "Currently, n(unfinished runs) = ", runsN_todo,
-      " and n(unfinished temporary files) = ", tempN_todo)
+      "Currently, n(unfinished runs) =", runsN_todo,
+      "and n(unfinished temporary files) =", tempN_todo)
+
+    # Check whether we are on Windows OS which has trouble deleting files
+    # properly (see `move_dbTempOut_to_dbOut`)
+    if (tempN_todo > 0 && .Platform$OS.type == "windows") {
+      print(msg)
+      print("However, we are on Windows OS and thus it may have not actually"
+        "deleted files confirmed to be deleted. We currently ignore this",
+        "and attempt to continue.")
+    } else {
+      stop(msg)
+    }
   }
 
 
