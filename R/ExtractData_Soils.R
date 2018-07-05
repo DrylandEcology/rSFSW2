@@ -283,7 +283,7 @@ do_ExtractSoilDataFrom100m <- function(soilType, soilLayer, MMC, sim_size, sim_s
   
   names(todos) <- NULL
   n_extract <- sum(todos)
-  #if (n_extract > 0) {
+  if (n_extract > 0) {
     if (verbose)
       print(paste("Soil data from 'Gridded100m' will be extracted for n =",
                   n_extract, "sites"))
@@ -397,6 +397,7 @@ do_ExtractSoilDataFrom100m <- function(soilType, soilLayer, MMC, sim_size, sim_s
   if (verbose){
     print(paste("Soil data from 'GriddedFrom100m' was extracted for n =",
                 sum(i_good), "out of", n_extract, "sites"))
+  }
   }
   print(paste0(paste0(tifFile, " =========== finished")))
   
@@ -1178,19 +1179,23 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs, opt_para
   
   if(exinfo$ExtractSoilDataFromGriddedGlobalFrom100m){
     soilLayer = 1;
+    MMC <- do_ExtractSoilDataFrom100m("gravel", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]], 
+            sim_space = SFSW2_prj_meta[["sim_space"]],
+            dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+            fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
     for(soilLayer in c(1:7)){
-    MMC <- do_ExtractSoilDataFrom100m("sand", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]], 
-                                      sim_space = SFSW2_prj_meta[["sim_space"]],
-                                      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
-                                      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
-    MMC <- do_ExtractSoilDataFrom100m("clay", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]], 
-                                      sim_space = SFSW2_prj_meta[["sim_space"]],
-                                      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
-                                      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
-    MMC <- do_ExtractSoilDataFrom100m("matricd", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]], 
-                                      sim_space = SFSW2_prj_meta[["sim_space"]],
-                                      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
-                                      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+      MMC <- do_ExtractSoilDataFrom100m("sand", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+                                        sim_space = SFSW2_prj_meta[["sim_space"]],
+                                        dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+                                        fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+      MMC <- do_ExtractSoilDataFrom100m("clay", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+                                        sim_space = SFSW2_prj_meta[["sim_space"]],
+                                        dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+                                        fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+      MMC <- do_ExtractSoilDataFrom100m("matricd", soilLayer, MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+                                        sim_space = SFSW2_prj_meta[["sim_space"]],
+                                        dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+                                        fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
     }
   }
 
