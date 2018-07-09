@@ -324,7 +324,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
   
     #locations of simulation runs
     sites_conus <- sim_space[["run_sites"]][todos, ]
-    print(paste("todos type:",typeof(todos)))
+    #print(paste("todos type:",typeof(todos)))
     #print(paste("site_conus:",sites_conus))
     
     if (!raster::compareCRS(sim_space[["crs_sites"]], soilData)) {
@@ -385,12 +385,16 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,soilLayer] <- soilFrame / percentDiv # write sand or clay data to "data"
     }
     tempSoilType = paste(toupper(substr(soilType, 1, 1)), substr(soilType, 2, nchar(soilType)), sep="") # make soiltype start with capital letter ie. sand --> Sand
-    MMC[["use"]][paste0(paste0(tempSoilType, "_L"),soilLayer)] <- TRUE # update to indicate we want to use this data
+    
+    ###MMC[["use"]][paste0(paste0(tempSoilType, "_L"),soilLayer)] <- TRUE # update to indicate we want to use this data
+    
     tempInput = as.data.frame(c(soilFrame / percentDiv, soilFrame / percentDiv)) # add frame and last row, temporarily the same
     tempInputNames = paste0(paste0(tempSoilType, "_L"),soilLayer); # make column name for insertion, ie. Sand --> Sand_L1
     names(tempInput) = tempInputNames;
-    MMC[["input"]][paste0(paste0(tempSoilType, "_L"),soilLayer)] = tempInput;
-      #print(paste0("Layer:", layer))
+    
+    ####MMC[["input"]][paste0(paste0(tempSoilType, "_L"),soilLayer)] = tempInput;
+    
+    #print(paste0("Layer:", layer))
     # There is no organic carbon data, set all values to a default
     MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
     # Determine successful extractions
@@ -402,9 +406,13 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     if (any(i_good)) {
         i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
         i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+        
+        # temporary, set all i_Done to true because they are all done
+        i_Done = rep(TRUE, 5)
+        
     #   MMC[["source"]][i_Done] <- "GriddedFROM100m"
-    #   MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
-    #                              ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
+        MMC <- update_soils_input(MMC, sim_size, digits = 5, i_Done,
+                                  ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
     }
     
     # print stats
