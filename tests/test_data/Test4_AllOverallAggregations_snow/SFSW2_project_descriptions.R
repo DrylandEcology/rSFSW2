@@ -181,6 +181,10 @@ opt_input <- list(
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
+      # Soil texture
+      #   - Soil data from penn state for the United States; data expected
+      #     at: project_paths[["dir_ex_soil"]], "NRCS", GriddedGlobalV5 
+      "ExtractSoilDataFromGriddedGlobalFrom100m", 1,
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
