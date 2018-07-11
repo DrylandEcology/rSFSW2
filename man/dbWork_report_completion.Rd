@@ -26,3 +26,13 @@ A numeric value in \code{[0,100]} in percent. The proportion of
 \description{
 Estimate percentage of completed runs
 }
+\examples{
+\dontrun{
+# `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
+dbWork_report_completion(
+  path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+  use_granular_control = SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
+  SFSW2_prj_meta = SFSW2_prj_meta)
+}
+
+}
