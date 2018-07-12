@@ -16,6 +16,7 @@ test_that("Test projects", {
         force_delete_output = TRUE, make_new_ref = FALSE, write_report_to_disk = FALSE)
       , silent = FALSE)
   )
+  
 
   # Gather information in printable formatting
   info_res <- paste(names(tp[["res"]]), "=", format(tp[["res"]]), collapse = " / ")
@@ -36,8 +37,12 @@ test_that("Test projects", {
   # Print environmental variables if any problem occurred
   expect_true(
     identical(all(tp[["res"]][, "has_run"]), TRUE) &&
-    identical(any(tp[["res"]][, "has_problems"]), FALSE) &&
-    is.null(tp[["report"]]),
+      identical(any(tp[["res"]][, "has_problems"]), FALSE),
     info = info_env)
+  # expect_true(
+  #   identical(all(tp[["res"]][, "has_run"]), TRUE) &&
+  #     identical(any(tp[["res"]][, "has_problems"]), FALSE) &&
+  #     is.null(tp[["report"]]),
+  #   info = info_env)
 })
 

@@ -252,17 +252,18 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
   
   # set up data files for extraction
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
+  print(dir.ex.gridded)
   fileInGridded = list.files(dir.ex.gridded);
   
   for (tif in (1:length(fileInGridded))){
     tifFile = fileInGridded[tif];
-    
+   #print(tifFile)
     # set soil types
-    if(endsWith(tifFile, ".tif")){
-      if(startsWith(tifFile, "bd")){
+    if(grepl('.tif$', tifFile)){
+      if(grepl('^bd', tifFile)){
         soilType = "matricd";
       }
-      else if(startsWith(tifFile, "gravel")){
+      else if(grepl('^gravel', tifFile)){
         soilType = "GravelContent" # switch soilType to match with MMC for insertion
       }
       else{
