@@ -633,11 +633,14 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, # noli
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
+      # Call to `update_runIDs_sites_by_dbW` does nothing if `dbWeather` does
+      # not exist (first run) and updates information if called repeatedly
       SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
         sim_size = SFSW2_prj_meta[["sim_size"]],
         label_WeatherData =
           SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        verbose = opt_verbosity[["verbose"]])
 
       make_dbW(SFSW2_prj_meta,
         SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
@@ -749,7 +752,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, # noli
         sim_size = SFSW2_prj_meta[["sim_size"]],
         label_WeatherData =
           SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        verbose = opt_verbosity[["verbose"]])
 
       temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, resume = opt_behave[["resume"]], opt_verbosity,

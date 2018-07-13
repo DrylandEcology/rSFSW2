@@ -13,7 +13,7 @@
 #'   \code{runIDs_sites_by_dbW} is only added if there is a current valid
 #'   connection to a weather database or if one can be established.
 update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData,
-  fdbWeather = NULL) {
+  fdbWeather = NULL, verbose = FALSE) {
 
   # Check if there is a weather database
   do_get0 <- rSOILWAT2::dbW_IsValid() ||
@@ -27,6 +27,10 @@ update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData,
       length(sim_size[["runIDs_sites"]]))
 
     if (do_get1 || do_get2 || do_get3) {
+      if (verbose) {
+        print(paste0("rSFSW2's 'update_runIDs_sites_by_dbW': is calling the ",
+          "potentially time-consuming function 'rSOILWAT2::dbW_getSiteId'"))
+      }
       sim_size[["runIDs_sites_by_dbW"]] <- rSOILWAT2::dbW_getSiteId(
         Labels = label_WeatherData[sim_size[["runIDs_sites"]]])
     }

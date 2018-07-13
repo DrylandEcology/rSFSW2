@@ -48,7 +48,7 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
   if (dbExistsTable(con, "WeatherData")) {
     if (is.null(siteID_by_dbW)) {
       if (verbose) {
-        print(paste0("rSFSW2's ", temp_call, ": is calling potentially ",
+        print(paste0("rSFSW2's ", temp_call, ": is calling the potentially ",
           "time-consuming function 'rSOILWAT2::dbW_getSiteId'"))
       }
       siteID_by_dbW <- rSOILWAT2::dbW_getSiteId(Labels = site_labels)
