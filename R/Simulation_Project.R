@@ -1155,7 +1155,7 @@ update_actions <- function(SFSW2_prj_meta, actions = NULL,
       actions[c("sim_create", "sim_execute", "sim_aggregate")]))
 
     SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] <- wipe_dbOutput &&
-      !(sum(actions) == 1 && actions[["ensemble"]])
+      !(sum(unlist(actions)) == 1 && actions[["ensemble"]])
   }
 
   SFSW2_prj_meta
