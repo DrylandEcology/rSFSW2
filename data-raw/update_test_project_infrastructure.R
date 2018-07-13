@@ -24,7 +24,7 @@ file.copy(from = dir_testprj, to = dir_backup, recursive = TRUE,
 
 
 #--- Update code files
-fupdate_manual <- c(fupdate_manual, "SFSW2_project_code.R",
+fupdate_manual <- c(fupdate_manual,
   "SFSW2_project_descriptions.R", "SFSW2_project_settings.R")
 
 

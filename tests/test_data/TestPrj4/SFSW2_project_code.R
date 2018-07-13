@@ -77,7 +77,7 @@ writeLines(c("", "",
 
 SFSW2_prj_meta <- init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
-  verbose = FALSE, print.debug = FALSE)
+  verbose = interactive(), print.debug = FALSE)
 
 
 
@@ -85,7 +85,7 @@ SFSW2_prj_meta <- init_rSFSW2_project(
 #------ 2) LOAD THE SETTINGS FOR THIS RUN --------------------------------------
 # Setting objects:
 #   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
-source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
+source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = interactive(),
   keep.source = FALSE)
 
 SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
