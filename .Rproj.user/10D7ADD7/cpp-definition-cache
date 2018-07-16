@@ -1,0 +1,275 @@
+[
+    {
+        "definitions" : [
+            {
+                "column" : 15,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_germination_wait_times.cpp",
+                "kind" : 6,
+                "line" : 33,
+                "name" : "germination_wait_times(const IntegerVector &, const IntegerVector &)",
+                "parent_name" : "",
+                "usr" : "c:@F@germination_wait_times#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#S0_#"
+            }
+        ],
+        "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_germination_wait_times.cpp",
+        "file_last_write" : 1531408885
+    },
+    {
+        "definitions" : [
+            {
+                "column" : 15,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_get_KilledBySoilLayers.cpp",
+                "kind" : 6,
+                "line" : 45,
+                "name" : "get_KilledBySoilLayers(const IntegerVector &, const LogicalMatrix &)",
+                "parent_name" : "",
+                "usr" : "c:@F@get_KilledBySoilLayers#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#&1$@N@Rcpp@C@Matrix>#VI10#@N@Rcpp@CT>1#T@PreserveStorage#"
+            }
+        ],
+        "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_get_KilledBySoilLayers.cpp",
+        "file_last_write" : 1531408885
+    },
+    {
+        "definitions" : [
+            {
+                "column" : 15,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp",
+                "kind" : 6,
+                "line" : 27,
+                "name" : "setFALSE_SeedlingSurvival_1stSeason(LogicalVector &, const IntegerVector &, const IntegerVector &, int, int)",
+                "parent_name" : "",
+                "usr" : "c:@F@setFALSE_SeedlingSurvival_1stSeason#&$@N@Rcpp@C@Vector>#VI10#@N@Rcpp@CT>1#T@PreserveStorage#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#S2_#I#I#"
+            }
+        ],
+        "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp",
+        "file_last_write" : 1531408885
+    },
+    {
+        "definitions" : [
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/init.c",
+                "kind" : 6,
+                "line" : 44,
+                "name" : "R_init_rSFSW2(DllInfo *)",
+                "parent_name" : "",
+                "usr" : "c:@F@R_init_rSFSW2"
+            }
+        ],
+        "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/init.c",
+        "file_last_write" : 1527178741
+    },
+    {
+        "definitions" : [
+            {
+                "column" : 15,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 5,
+                "line" : 105,
+                "name" : "FALSE",
+                "parent_name" : "",
+                "usr" : "c:@EA@Bool@FALSE"
+            },
+            {
+                "column" : 29,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 5,
+                "line" : 105,
+                "name" : "TRUE",
+                "parent_name" : "",
+                "usr" : "c:@EA@Bool@TRUE"
+            },
+            {
+                "column" : 42,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 8,
+                "line" : 105,
+                "name" : "Bool",
+                "parent_name" : "",
+                "usr" : "c:ncepcfsr_convert.c@T@Bool"
+            },
+            {
+                "column" : 13,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 135,
+                "name" : "uncomment_cstyle(char *)",
+                "parent_name" : "",
+                "usr" : "c:ncepcfsr_convert.c@F@uncomment_cstyle"
+            },
+            {
+                "column" : 7,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 158,
+                "name" : "Str_TrimRight(char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@Str_TrimRight"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 179,
+                "name" : "UnComment(char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@UnComment"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 213,
+                "name" : "GetALine(FILE *, char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@GetALine"
+            },
+            {
+                "column" : 8,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 243,
+                "name" : "OpenFile(const char *, const char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@OpenFile"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 256,
+                "name" : "CloseFile(FILE **)",
+                "parent_name" : "",
+                "usr" : "c:@F@CloseFile"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 275,
+                "name" : "file_exists(const char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@file_exists"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 386,
+                "name" : "removeAFile(char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@removeAFile"
+            },
+            {
+                "column" : 8,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 399,
+                "name" : "kelvinToCelsius(double)",
+                "parent_name" : "",
+                "usr" : "c:@F@kelvinToCelsius"
+            },
+            {
+                "column" : 8,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 406,
+                "name" : "kgToCM(double)",
+                "parent_name" : "",
+                "usr" : "c:@F@kgToCM"
+            },
+            {
+                "column" : 8,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 413,
+                "name" : "getWindSpeed(double, double)",
+                "parent_name" : "",
+                "usr" : "c:@F@getWindSpeed"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 433,
+                "name" : "callSystem(char *, int)",
+                "parent_name" : "",
+                "usr" : "c:@F@callSystem"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 670,
+                "name" : "dailyWeather2(int, double *, double *, int, int, int, int)",
+                "parent_name" : "",
+                "usr" : "c:@F@dailyWeather2"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 703,
+                "name" : "C_dailyWeather2_R(int *, double *, double *, int *, int *, int *, int *)",
+                "parent_name" : "",
+                "usr" : "c:@F@C_dailyWeather2_R"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 712,
+                "name" : "dailyWeather2Write(int, char **, char **, int)",
+                "parent_name" : "",
+                "usr" : "c:@F@dailyWeather2Write"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 769,
+                "name" : "C_dailyWeather2Write_R(int *, char **, char **, int *)",
+                "parent_name" : "",
+                "usr" : "c:@F@C_dailyWeather2Write_R"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 779,
+                "name" : "monthlyClimate2(int, double *, double *, char **, int, int, int, int)",
+                "parent_name" : "",
+                "usr" : "c:@F@monthlyClimate2"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 858,
+                "name" : "C_monthlyClimate2_R(int *, double *, double *, char **, int *, int *, int *, int *)",
+                "parent_name" : "",
+                "usr" : "c:@F@C_monthlyClimate2_R"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 869,
+                "name" : "writeMonthlyClimate2(char *)",
+                "parent_name" : "",
+                "usr" : "c:@F@writeMonthlyClimate2"
+            },
+            {
+                "column" : 6,
+                "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+                "kind" : 6,
+                "line" : 968,
+                "name" : "C_writeMonthlyClimate2_R(char **)",
+                "parent_name" : "",
+                "usr" : "c:@F@C_writeMonthlyClimate2_R"
+            }
+        ],
+        "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
+        "file_last_write" : 1531408885
+    }
+]

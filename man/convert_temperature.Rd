@@ -10,14 +10,15 @@ convert_temperature(x, unit_from, unit_to = "C")
 \item{x}{A numeric vector. Temperature data as monthly series in units of
 \code{unit_from}.}
 
-\item{unit_from}{A character string. Units of data in \code{x}. Currently, supported
-units include "K", "F", and "C".}
+\item{unit_from}{A character string. Units of data in \code{x}. Currently,
+supported units include "K", "F", and "C".}
 
-\item{unit_to}{A character string. Units to which data are converted. Currently,
-supported unit is "C".}
+\item{unit_to}{A character string. Units to which data are converted.
+Currently, supported unit is "C".}
 }
 \value{
-A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+A numeric vector of the same size as \code{x} in units of
+  \code{unit_to}.
 }
 \description{
 Converts units of temperature data

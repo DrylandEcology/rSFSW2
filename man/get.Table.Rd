@@ -2,12 +2,14 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{get.Table}
 \alias{get.Table}
-\title{Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)}
+\title{Get data-part for an entire table for one of the \code{climCat} rows
+(combining 'Current' and ensembles)}
 \usage{
 get.Table(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName, MeanOrSD = "Mean",
   i_climCat = 1, whereClause = NULL, addPid = FALSE,
   climate.ambient = "Current")
 }
 \description{
-Get data-part for an entire table for one of the climCat rows (combining 'Current' and ensembles)
+Get data-part for an entire table for one of the \code{climCat} rows
+(combining 'Current' and ensembles)
 }

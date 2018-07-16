@@ -9,7 +9,7 @@ test_sigmaNormal(data, sigmaN = 6)
 \arguments{
 \item{data}{A numeric vector. Daily values of temperature.}
 
-\item{sigmaN}{An integer value. A multiplicator of \code{stats::sd}.}
+\item{sigmaN}{An integer value. A multiplier of \code{stats::sd}.}
 }
 \description{
 Check that data are within range of normal distribution

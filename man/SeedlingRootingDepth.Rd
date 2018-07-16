@@ -2,10 +2,15 @@
 % Please edit documentation in R/GISSM.R
 \name{SeedlingRootingDepth}
 \alias{SeedlingRootingDepth}
-\title{Function to calculate rooting depth at given age}
+\title{Function to calculate rooting depth at given age
+Units: [age] = days, [P0, K, r] = mm}
 \usage{
 SeedlingRootingDepth(age, P0, K, r)
 }
+\value{
+A numeric vector of rooting depth in units of centimeters.
+}
 \description{
 Function to calculate rooting depth at given age
+Units: [age] = days, [P0, K, r] = mm
 }

@@ -2,27 +2,29 @@
 % Please edit documentation in R/WorkDatabase.R
 \name{dbWork_update_job}
 \alias{dbWork_update_job}
-\title{Update run information of a rSFSW2 simulation project}
+\title{Update run information of a \pkg{rSFSW2} simulation project}
 \usage{
 dbWork_update_job(path, runID, status, time_s = "NULL", verbose = FALSE)
 }
 \arguments{
-\item{path}{A character string. Path to the folder where the database will be created.}
+\item{path}{A character string. Path to the folder where the database will be
+created.}
 
 \item{runID}{An integer value. The identification number of the current run,
 i.e., a value out of \code{runIDs_total}, see \code{\link{indices}}.}
 
-\item{status}{A character string. One of "completed", "failed", "inwork".}
+\item{status}{A character string. One of \var{\dQuote{completed}},
+\var{\dQuote{failed}}, \var{\dQuote{inwork}}.}
 
-\item{time_s}{A numeric value. The execution time in seconds; used if \code{status} is one of
-"completed" and "failed".}
+\item{time_s}{A numeric value. The execution time in seconds; used if
+\code{status} is one of \var{\dQuote{completed}} and \var{\dQuote{failed}}.}
 
-\item{verbose}{A logical value. If \code{TRUE}, status messages about file lock and
-database access are printed}
+\item{verbose}{A logical value. If \code{TRUE}, status messages about file
+lock and database access are printed}
 }
 \value{
 A logical value whether the status was successfully updated.
 }
 \description{
-Update run information of a rSFSW2 simulation project
+Update run information of a \pkg{rSFSW2} simulation project
 }

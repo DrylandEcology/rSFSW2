@@ -29,7 +29,7 @@
 \alias{get_RunOnOff_yr}
 \alias{get_Vegetation_yr}
 \alias{get_CO2effects_yr}
-\title{rSOILWAT2 data access functions}
+\title{\pkg{rSOILWAT2} data access functions}
 \usage{
 get_Response_aggL(response, tscale = c("dy", "dyAll", "mo", "moAll", "yr",
   "yrAll"), scaler = 10, FUN, weights = NULL, x, st, st2, topL, bottomL)
@@ -87,10 +87,12 @@ get_Vegetation_yr(x, st)
 get_CO2effects_yr(x, st)
 }
 \arguments{
-\item{x}{An object of class \code{\linkS4class{swOutput}}.}
+\item{x}{An object of class
+\code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.}
 
-\item{st}{An object as returned from the function \code{\link{setup_simulation_time}}.}
+\item{st}{An object as returned from the function
+\code{\link{setup_simulation_time}}.}
 }
 \description{
-rSOILWAT2 data access functions
+\pkg{rSOILWAT2} data access functions
 }

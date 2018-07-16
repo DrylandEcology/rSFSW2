@@ -2,12 +2,13 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{get_tablename_from_temptxt}
 \alias{get_tablename_from_temptxt}
-\title{Extract names of dbOutput tables from content of temporary output files}
+\title{Extract names of \var{\sQuote{dbOutput}} tables from content of temporary
+output files}
 \usage{
 get_tablename_from_temptxt(str, k = -1, verbose = FALSE)
 }
 \description{
-Table names are expected to be wrapped by '\"',
-e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
-\code{table_name = 'aggregation_overall_sd'}
+Table names are expected to be wrapped by '\"', e.g., \code{"INSERT INTO
+\"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where \code{table_name
+= 'aggregation_overall_sd'}
 }

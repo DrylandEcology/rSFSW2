@@ -11,12 +11,13 @@ todo_intracker(SFSW2_prj_meta, tracker, status)
 \code{SFSW2_prj_meta[["input_status"]]} as returned by function
 \code{\link{init_intracker}}.}
 
-\item{status}{A character string. One of \code{"prepared"} and \code{"checked"}.}
+\item{status}{A character string. One of \code{"prepared"} and
+\code{"checked"}.}
 }
 \value{
-A logical value. \code{TRUE} if \code{tracker} and \code{status} exist in
-  \code{SFSW2_prj_meta[["input_status"]]} and their cell is \code{FALSE}
-  -- otherwise, \code{FALSE}
+A logical value. \code{TRUE} if \code{tracker} and \code{status}
+  exist in \code{SFSW2_prj_meta[["input_status"]]} and their cell is
+  \code{FALSE} -- otherwise, \code{FALSE}
 }
 \description{
 Query whether an input tracker is not yet completed

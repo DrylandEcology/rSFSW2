@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1531341464862.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2720451333",
+    "id" : "61D8A276",
+    "lastKnownWriteTime" : 1531428422,
+    "last_content_update" : 1531428422522,
+    "path" : "~/Desktop/DryLand Ecology/rSFSW2/tests/test_data/Test4_AllOverallAggregations_snow/SFSW2_project_descriptions.R",
+    "project_path" : "tests/test_data/Test4_AllOverallAggregations_snow/SFSW2_project_descriptions.R",
+    "properties" : {
+        "cursorPosition" : "182,54",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

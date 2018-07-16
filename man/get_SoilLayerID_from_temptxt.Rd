@@ -8,6 +8,6 @@ get_SoilLayerID_from_temptxt(str, k = -1)
 }
 \description{
 Soil layer ID values are expected to be at the second position of values,
-e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES (1139776,NULL,..."} where
-\code{sl = NULL}
+e.g., \code{"INSERT INTO \"aggregation_overall_sd\" VALUES
+(1139776,NULL,..."} where \code{sl = NULL}
 }

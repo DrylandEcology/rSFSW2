@@ -29,9 +29,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// setFALSE_SeedlingSurvival_1stSeason
-LogicalVector setFALSE_SeedlingSurvival_1stSeason(LogicalVector& ss1s, const IntegerVector& ry_year_day, const IntegerVector& ry_useyrs, int y, int doy);
-RcppExport SEXP _rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
+// kill_seedling
+LogicalVector kill_seedling(LogicalVector& ss1s, const IntegerVector& ry_year_day, const IntegerVector& ry_useyrs, int y, int doy);
+RcppExport SEXP _rSFSW2_kill_seedling(SEXP ss1sSEXP, SEXP ry_year_daySEXP, SEXP ry_useyrsSEXP, SEXP ySEXP, SEXP doySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -40,7 +40,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const IntegerVector& >::type ry_useyrs(ry_useyrsSEXP);
     Rcpp::traits::input_parameter< int >::type y(ySEXP);
     Rcpp::traits::input_parameter< int >::type doy(doySEXP);
-    rcpp_result_gen = Rcpp::wrap(setFALSE_SeedlingSurvival_1stSeason(ss1s, ry_year_day, ry_useyrs, y, doy));
+    rcpp_result_gen = Rcpp::wrap(kill_seedling(ss1s, ry_year_day, ry_useyrs, y, doy));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -1,21 +1,21 @@
-#' rSFSW2: Framework for SOILWAT2 simulations: creating simulation runs, executing
-#'  simulations, and aggregating outputs
+#' \pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
+#'  runs, executing simulations, and aggregating outputs
 #'
-#' @references Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology
-#'  of adjacent sagebrush and lodgepole pine ecosystems: The consequences of climate
-#'  change and disturbance. Ecosystems 17:590-605.
+#' @references Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014.
+#'   Ecohydrology of adjacent sagebrush and lodgepole pine ecosystems: The
+#'   consequences of climate change and disturbance. Ecosystems 17:590-605.
 #' @references Schlaepfer, D. R., W. K. Lauenroth, and J. B. Bradford. 2012.
 #' Ecohydrological niche of sagebrush ecosystems. Ecohydrology 5:453-466.
 #'
-#' @section FORCING: SOILWAT2 is forced by \itemize{
+#' @section FORCING: \pkg{SOILWAT2} is forced by \itemize{
 #'    \item daily time traces: \itemize{
 #'            \item rainfall (cm)
 #'            \item minimum air temperature at 2-m height (C)
 #'            \item maximum air temperature at 2-m height (C)
 #'          }
 #'    \item mean monthly values (climate normals): \itemize{
-#'            \item wind speed at 2-m height (miles/h before SOILWAT v24;
-#'                  m/s starting with SOILWAT v24)
+#'            \item wind speed at 2-m height (miles/h before \pkg{SOILWAT} v24;
+#'                  m/s starting with \pkg{SOILWAT} v24)
 #'            \item relative humidity at 2-m height (\%)
 #'            \item cloud cover (\%)
 #'          }
@@ -48,9 +48,10 @@ SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
 ## Package uses S3/S4 classes - they are defined in package:methods
-#' @importFrom methods isGeneric setGeneric setMethod signature slot slot<- as new
+## Package uses methods from 'RSQLite' package (which re-exports 'DBI' methods)
+#' @import methods
+#' @import RSQLite
 NULL
-
 
 ##------ Support Rcpp
 #' @importFrom Rcpp sourceCpp evalCpp

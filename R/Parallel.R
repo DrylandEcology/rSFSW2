@@ -28,7 +28,7 @@ gather_objects_for_export <- function(varlist, list_envs) {
 
 
 do_import_objects <- function(obj_env) {
-  temp <- list2env(as.list(obj_env), envir = globalenv())
+  temp <- list2env(as.list(obj_env), envir = globalenv()) # nolint
 
   NULL
 }
@@ -36,10 +36,12 @@ do_import_objects <- function(obj_env) {
 #' Export objects to workers
 #'
 #' @param obj_env An environment containing R objects to export.
-#' @param parallel_backend A character vector, either 'mpi' or 'socket'
+#' @param parallel_backend A character vector, either \var{\dQuote{mpi}}' or
+#'   \var{\dQuote{socket}}
 #' @param cl A parallel (socket) cluster object
 #'
-#' @return A logical value. \code{TRUE} if every object was exported successfully.
+#' @return A logical value. \code{TRUE} if every object was exported
+#'   successfully.
 #' @export
 export_objects_to_workers <- function(obj_env,
   parallel_backend = c("mpi", "socket"), cl = NULL) {
@@ -54,8 +56,8 @@ export_objects_to_workers <- function(obj_env,
 
   if (inherits(cl, "cluster") && identical(parallel_backend, "socket")) {
     # Remove suppressWarnings() when rSFSW2 becomes a R package
-    temp <- suppressWarnings(try(parallel::clusterExport(cl, as.list(ls(obj_env)),
-      envir = obj_env)))
+    temp <- suppressWarnings(try(parallel::clusterExport(cl,
+      as.list(ls(obj_env)), envir = obj_env)))
 
     success <- !inherits(temp, "try-error")
 
@@ -74,7 +76,8 @@ export_objects_to_workers <- function(obj_env,
 
     success <- !inherits(temp, "try-error")
     if (success) {
-      temp <- Rmpi::mpi.remote.exec(cmd = ls, envir = globalenv(), simplify = FALSE)
+      temp <- Rmpi::mpi.remote.exec(cmd = ls, envir = globalenv(),
+        simplify = FALSE)
       done_N <- min(lengths(temp))
     } else {
       print(paste("'export_objects_to_workers': error:", temp))
@@ -90,28 +93,30 @@ export_objects_to_workers <- function(obj_env,
               "secs"))
   } else {
     success <- FALSE
-    print(paste("Export not successful:", done_N, "instead of", N, "objects exported:",
-      temp))
+    print(paste("Export not successful:", done_N, "instead of", N,
+      "objects exported:", temp))
   }
 
   success
 }
 
 # We have to rename rSOILWAT2 functions locally (and export to workers):
-# 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-# handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-# is not the name of a function
+# 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6)
+# does not handle 'what' arguments of a character string format "pkg::fun"
+# because "pkg::fun" is not the name of a function
 dbW_setConnection_local <- function(...) rSOILWAT2::dbW_setConnection(...)
-dbW_disconnectConnection_local <- function(...) rSOILWAT2::dbW_disconnectConnection(...)
+dbW_disconnectConnection_local <- function(...)
+  rSOILWAT2::dbW_disconnectConnection(...)
 
 
 #' Setting values of package-level global variables on workers
 #' @param x A character string. The name of a global variable.
-#' #param value A R object. The value to be assigned to the global variable identified by
-#'  \code{x}.
+#' @param value A R object. The value to be assigned to the global variable
+#'   identified by \code{x}.
 #' @seealso \code{\link{assign}}
 set_glovar <- function(x, value) {
-  # The environment 'SFSW2_glovars' is the one of the package copy on the workers!
+  # The environment 'SFSW2_glovars' is the one of the package copy on the
+  # workers!
   assign(x = x, value = value, envir = SFSW2_glovars)
 }
 
@@ -122,8 +127,11 @@ export_parallel_glovars <- function(verbose = FALSE) {
       temp_call <- shQuote(match.call()[1])
       print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+      on.exit({
+        print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
+        },
+        add = TRUE)
     }
 
     p_varnames <- grep("p_", ls(envir = SFSW2_glovars), value = TRUE)
@@ -136,13 +144,14 @@ export_parallel_glovars <- function(verbose = FALSE) {
 
     } else if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       # We have to rename functions locally (and export to workers):
-      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-      # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-      # is not the name of a function
+      # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi
+      # v0.6.6)  does not handle 'what' arguments of a character string format
+      # "pkg::fun" because "pkg::fun" is not the name of a function
       .set_glovar <- function(x, value) set_glovar(x, value)
       Rmpi::mpi.bcast.Robj2slave(.set_glovar)
       for (x in p_varnames) {
-        Rmpi::mpi.bcast.cmd(cmd = .set_glovar, x = x, value = SFSW2_glovars[[x]])
+        Rmpi::mpi.bcast.cmd(cmd = .set_glovar, x = x,
+          value = SFSW2_glovars[[x]])
       }
     }
   }
@@ -153,15 +162,17 @@ export_parallel_glovars <- function(verbose = FALSE) {
 
 
 
-#' Rmpi work function for calling \code{do_OneSite}
+#' \pkg{Rmpi} work function for calling \code{do_OneSite}
 #'
 #' @param verbose A logical value.
 #'
-#' @references
-#'   based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
-#' @section Notes:
-#'  If an error occurs, then the worker will likely not report back to master because
-#'  it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
+#' @references based on the example file
+# nolint start
+#'   \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}
+# nolint end
+#' @section Notes: If an error occurs, then the worker will likely not report
+#'   back to master because it hangs in miscommunication and remains idle
+#'   (check activity, e.g., with \code{top}).
 #' @section Details:
 #' Message tags sent by this function from workers to master: \itemize{
 #'  \item 1 = worker is ready for master to send a task
@@ -169,7 +180,8 @@ export_parallel_glovars <- function(verbose = FALSE) {
 #'  \item 3 = worker is exiting
 #'  \item 4 = worker failed with task
 #' }
-#' Message tags from master which this function can receive and understand: \itemize{
+#' Message tags from master which this function can receive and understand:
+#' \itemize{
 #'  \item 1 = this communication is a new task
 #'  \item 2 = tells worker to shut down because all tasks are completed
 #' }
@@ -209,16 +221,19 @@ mpi_work <- function(verbose = FALSE) {
 
         result <- try(do.call("do_OneSite", args = dat[-1]))
 
-        delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
+        delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite,
+          units = "secs"), 2)
         status <- !inherits(result, "try-error")
         dat <- list(i = dat$i_sim, r = result,
-          status = if (status) as.logical(result) else FALSE, time_s = delta.do_OneSite)
+          status = if (status) as.logical(result) else FALSE,
+          time_s = delta.do_OneSite)
 
         if (status) {
-          # Send result back to the master and message that task has been completed
+          # Send result back to the master and message that task has been
+          # completed
           if (verbose) {
-            print(paste(Sys.time(), "MPI-worker", worker_id, "successfully completed",
-              "task =", dat$i_sim))
+            print(paste(Sys.time(), "MPI-worker", worker_id,
+              "successfully completed task =", dat$i_sim))
           }
 
           Rmpi::mpi.send.Robj(dat, dest = master, tag = 2L)
@@ -237,13 +252,14 @@ mpi_work <- function(verbose = FALSE) {
       worker_is_done <- TRUE
 
       if (verbose) {
-        print(paste(Sys.time(), "MPI-worker", worker_id, "shuts down 'mpi_work'"))
+        print(paste(Sys.time(), "MPI-worker", worker_id,
+          "shuts down 'mpi_work'"))
       }
 
     } else {
       # We'll just ignore any unknown message from master
-      print(paste(Sys.time(), "MPI-worker", worker_id, "received tag =", tag_from_master,
-        "from master but doesn't know what this means."))
+      print(paste(Sys.time(), "MPI-worker", worker_id, "received tag =",
+        tag_from_master, "from master but doesn't know what this means."))
     }
   }
 
@@ -252,42 +268,45 @@ mpi_work <- function(verbose = FALSE) {
 }
 
 
-#' Properly end mpi workers before quitting R (e.g., at a crash)
+#' Properly end \var{\dQuote{mpi}} workers before quitting R (e.g., at a crash)
 #' @section Notes: Code is based on
-#'  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
-#' @section Details: \code{gv} will
-#'  usually be the package-level global variable environment \code{SFSW2_glovars}. This
-#'  is because this function is registered as finalizer to the object
-#'  \code{SFSW2_glovars}.
+# nolint start
+#'   \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}.
+# nolint end
+#' @section Details: \code{gv} will usually be the package-level global
+#'   variable environment \code{SFSW2_glovars}. This is because this function
+#'   is registered as finalizer to the object \code{SFSW2_glovars}.
+#' @section Notes: Ideally, we use \code{Rmpi::mpi.exit()} on exit, but we
+#'   cannot as of \pkg{Rmpi} v0.6.6. Because \pkg{rSFSW2} does not attach
+#'   \pkg{Rmpi}, the function \code{\link[Rmpi]{mpi.exit}} throws
+#'   an error when it executes \code{detach(package:Rmpi)} which results in
+#'   \code{"Error in detach(package:Rmpi) : invalid 'name' argument"}.
+#' @section Notes: \code{Rmpi::mpi.comm.size(1)} crashes with a segfault if
+#'   there are no workers running because of the call
+#'   \code{.Call("mpi_comm_is_null", as.integer(comm), PACKAGE = "Rmpi")}.
+#' @section Notes: Ideally, we would use \code{Rmpi::mpi.close.Rslaves()}.
+#'   However, this function hangs our R session because of its call to
+#'   \code{Rmpi::mpi.comm.disconnect()}; even wrapping this
+#'   in \code{\link[base]{try}} doesn't prevent it from hanging.
 #'
-#' @param gv A list with at least one named element \code{p_has}. \code{p_has} is a
-#'  logical value and indicates whether call is from a parallel run.
+#' @param gv A list with at least one named element \code{p_has}. \code{p_has}
+#'   is a logical value and indicates whether call is from a parallel run.
 mpi_last <- function(gv) {
   if (requireNamespace("Rmpi")) {
-
-    # Rmpi::mpi.comm.size(1) crashes with a segfault if there are no workers running due
-    # to .Call("mpi_comm_is_null", as.integer(comm), PACKAGE = "Rmpi")
     if (gv[["p_has"]] && Rmpi::mpi.comm.size(1) > 0) {
-      #Rmpi::mpi.close.Rslaves() # This command hangs my session
-      # because of the call to Rmpi::mpi.comm.disconnect(); even wrapping this in try()
-      # doesn't prevent it from hanging.
       Rmpi::mpi.bcast.cmd(cmd = break)
-      #try(Rmpi::mpi.comm.disconnect())
       Rmpi::mpi.bcast.cmd(cmd = .Call("mpi_finalize", PACKAGE = "Rmpi"))
 
     } else {
       # Maybe master still needs to finalize?
       Rmpi::mpi.finalize()
     }
-
-    # I cannot use 'Rmpi::mpi.exit' here because Rmpi v0.6.6, 'mpi.exit' calls \
-    # 'detach(package:Rmpi) which results in "Error in detach(package:Rmpi) : invalid 'name' argument"
-    # since the rSFSW2 package never attaches 'Rmpi'.
   }
 }
 
 
-#' Clean up and terminate a parallel cluster used for a rSFSW2 simulation project
+#' Clean up and terminate a parallel cluster used for a \pkg{rSFSW2}
+#' simulation project
 #'
 #' @param verbose A logical value.
 #' @export
@@ -298,8 +317,11 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
       temp_call <- shQuote(match.call()[1])
       print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+      on.exit({
+        print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
+        },
+        add = TRUE)
     }
 
     if (verbose) {
@@ -315,7 +337,8 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
 
       # Locate remaining R workers
       #   - remove master PID
-      pids <- SFSW2_glovars[["p_pids"]][!(Sys.getpid() == SFSW2_glovars[["p_pids"]])]
+      temp <- Sys.getpid() == SFSW2_glovars[["p_pids"]]
+      pids <- SFSW2_glovars[["p_pids"]][!temp]
       #   - remove PIDs that are properly closed down
       isalive <- if (.Platform$OS.type == "unix") {
           sapply(pids, function(x)
@@ -323,17 +346,18 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
 
         } else if (.Platform$OS.type == "windows") {
           sapply(pids, function(x) {
-            temp <- system2("tasklist", args = paste0('/FI "PID eq ', x, '"'), stdout = TRUE)
+            temp <- system2("tasklist", args = paste0('/FI "PID eq ', x, '"'),
+              stdout = TRUE)
             NROW(temp) > 1
           })
         } else NULL
       pids <- pids[isalive]
 
       if (length(pids) > 0) {
-        print(paste("Something went wrong when taking down the cluster: kill remaining",
-          "R workers with PIDs =", paste(pids, collapse = ", ")))
-        # This is likely because Rmpi::mpi.close.Rslaves() [due to Rmpi::mpi.comm.disconnect()]
-        # doesn't work as of Rmpi v0.6.6
+        print(paste("Something went wrong when taking down the cluster:",
+          "kill remaining R workers with PIDs =", paste(pids, collapse = ", ")))
+        # This is likely because Rmpi::mpi.close.Rslaves()
+        # [due to Rmpi::mpi.comm.disconnect()] doesn't work as of Rmpi v0.6.6
 
         tools::pskill(pids, signal = tools::SIGKILL)
       }
@@ -365,8 +389,9 @@ clean_SFSW2_cluster <- function() {
 #' Remove almost all objects from a worker's global environment
 #'
 #' Remove all objects except those with a name starting with a dot '.'
-#' @section Notes: Do not call 'ls(all = TRUE)' because there are important (hidden)
-#'    \code{.X} objects that are important for proper worker functioning!
+#' @section Notes: Do not call 'ls(all = TRUE)' because there are important
+#'   (hidden) \code{.X} objects that are important for proper worker
+#'   functioning!
 clean_worker <- function() {
   rm(list = ls(envir = globalenv(), all.names = FALSE), envir = globalenv())
   gc()
@@ -375,12 +400,22 @@ clean_worker <- function() {
 }
 
 #' Initialize a parallel cluster
+#'
+#' Call for the side effect of setting values in the global variable
+#' environment of the package: \itemize{
+#'   \item \code{p_workersN}: Number of currently set-up workers
+#'   \item \code{p_cl}: Parallel cluster
+#'   \item \code{p_has}: Do we have a parallel cluster set up?
+#'   \item \code{p_pids}: Process IDs of workers
+#'   \item \code{lockfile}: Set \code{lockfile} to \code{NULL}
+#' }
+#'
 #' @export
 init_SFSW2_cluster <- function() {
-  assign("p_workersN", 1L, envir = SFSW2_glovars) # Number of currently set-up workers
-  assign("p_cl", NULL, envir = SFSW2_glovars) # Parallel cluster
-  assign("p_has", FALSE, envir = SFSW2_glovars) # Do we have a parallel cluster set up?
-  assign("p_pids", NULL, envir = SFSW2_glovars) # Process IDs of workers
+  assign("p_workersN", 1L, envir = SFSW2_glovars)
+  assign("p_cl", NULL, envir = SFSW2_glovars)
+  assign("p_has", FALSE, envir = SFSW2_glovars)
+  assign("p_pids", NULL, envir = SFSW2_glovars)
 
   unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
   assign("lockfile", NULL, envir = SFSW2_glovars)
@@ -389,7 +424,7 @@ init_SFSW2_cluster <- function() {
 }
 
 
-#' Set-up a parallel cluster to be used for a rSFSW2 simulation project
+#' Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project
 #' @export
 setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
   print.debug = FALSE) {
@@ -404,9 +439,12 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
       temp_call <- shQuote(match.call()[1])
       print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
-      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      on.exit({
+        print(paste0("rSFSW2's ", temp_call, ": ended after ",
         round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
-        SFSW2_glovars[["p_workersN"]], " worker(s)")); cat("\n")}, add = TRUE)
+        SFSW2_glovars[["p_workersN"]], " worker(s)")); cat("\n")
+        },
+        add = TRUE)
     }
 
     SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],
@@ -418,32 +456,34 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
       if (!requireNamespace("Rmpi", quietly = TRUE)) {
-        print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available from",
-          shQuote("https://www.open-mpi.org/software/ompi/"),
+        print(paste("'Rmpi' requires a MPI backend, e.g., OpenMPI is available",
+          "from", shQuote("https://www.open-mpi.org/software/ompi/"),
           "with installation instructions at",
-          shQuote("https://www.open-mpi.org/faq/?category=building#easy-build")))
-        stop("If no MPI is available, installation of 'Rmpi' will fail and may print",
-          "the error message: 'Cannot find mpi.h header file'")
+          shQuote("https://www.open-mpi.org/faq/?category=building#easy-build"))) # nolint
+        stop("If no MPI is available, installation of 'Rmpi' will fail and may",
+          "print the error message: 'Cannot find mpi.h header file'")
       }
 
       if (!isTRUE(SFSW2_glovars[["p_cl"]])) {
-        if (verbose)
-          print(paste("Setting up", opt_parallel[["num_cores"]], "mpi cluster workers."))
+        if (verbose) {
+          print(paste("Setting up", opt_parallel[["num_cores"]],
+            "mpi cluster workers."))
+        }
 
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
         Rmpi::mpi.bcast.cmd(library("rSFSW2"))
         Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
 
         SFSW2_glovars[["p_cl"]] <- TRUE
-        SFSW2_glovars[["p_pids"]] <- as.integer(Rmpi::mpi.remote.exec(cmd = Sys.getpid(),
-          simplify = FALSE))
+        SFSW2_glovars[["p_pids"]] <- as.integer(
+          Rmpi::mpi.remote.exec(cmd = Sys.getpid(), simplify = FALSE))
 
         reg.finalizer(SFSW2_glovars, mpi_last, onexit = TRUE)
 
         # We have to rename rSOILWAT2 functions locally (and export to workers):
-        # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi v0.6.6) does not
-        # handle 'what' arguments of a character string format "pkg::fun" because "pkg::fun"
-        # is not the name of a function
+        # 'do.call' (as called by 'mpi.remote.exec'/'mpi.bcast.cmd' of Rmpi
+        # v0.6.6) does not handle 'what' arguments of a character string
+        # format "pkg::fun" because "pkg::fun" is not the name of a function
         Rmpi::mpi.bcast.Robj2slave(dbW_setConnection_local)
         Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection_local)
 
@@ -453,31 +493,46 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
 
     } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
       if (is.null(SFSW2_glovars[["p_cl"]])) {
-        if (verbose)
-          print(paste("Setting up", opt_parallel[["num_cores"]], "socket cluster workers."))
+        if (verbose) {
+          print(paste("Setting up", opt_parallel[["num_cores"]],
+            "socket cluster workers."))
+        }
 
-        SFSW2_glovars[["p_cl"]] <- parallel::makePSOCKcluster(opt_parallel[["num_cores"]],
-          outfile = if (verbose) shQuote(file.path(dir_out, paste0(format(Sys.time(),
-          "%Y%m%d-%H%M"), "_olog_cluster.txt"))) else "")
+        SFSW2_glovars[["p_cl"]] <- parallel::makePSOCKcluster(
+          opt_parallel[["num_cores"]],
+          outfile = if (verbose) {
+              temp <- file.path(dir_out,
+                paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))
+              if (utils::packageVersion("parallel") >= "3.5.0") {
+                temp
+              } else {
+                # previous versions of `parallel:::newPSOCKnode` didn't call
+                # `shQuote` on `outfile` before processing in a shell
+                shQuote(temp)
+              }
+            } else "")
 
-        SFSW2_glovars[["p_pids"]] <- as.integer(parallel::clusterCall(SFSW2_glovars[["p_cl"]],
-          fun = Sys.getpid))
+        SFSW2_glovars[["p_pids"]] <- as.integer(
+          parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = Sys.getpid))
 
-#TODO (drs): it is ok to load into globalenv() because this happens on workers and not on master;
-#  -> R CMD CHECK reports this nevertheless as issue
-      # pos = 1 assigns into globalenv() of the worker
-        parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]], seq_len(opt_parallel[["num_cores"]]),
-          function(x, id) assign(id, x, pos = 1L), id = SFSW2_glovars[["p_wtag"]])
+        # Note (drs): it is ok to load into globalenv() because this happens
+        #  on workers and not on master;
+        #  -> R CMD CHECK reports this nevertheless as issue
+        # pos = 1 assigns into globalenv() of the worker
+        parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
+          seq_len(opt_parallel[["num_cores"]]), function(x, id)
+            assign(id, x, pos = 1L), id = SFSW2_glovars[["p_wtag"]])
 
       } else {
         print("Socket cluster is already set up.")
       }
     }
 
-    SFSW2_glovars[["p_workersN"]] <- if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
+    temp <- identical(SFSW2_glovars[["p_type"]], "mpi")
+    SFSW2_glovars[["p_workersN"]] <- if (temp) {
         Rmpi::mpi.comm.size() - 1
       } else {
-        opt_parallel[["num_cores"]] #parallel::detectCores(all.tests = TRUE)
+        opt_parallel[["num_cores"]]
       }
 
     SFSW2_glovars[["p_has"]] <- !is.null(SFSW2_glovars[["p_cl"]]) &&
@@ -485,7 +540,8 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
 
     if (print.debug) {
       temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
-        function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
+        function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]],
+          collapse = " / ")))
       temp <- paste(temp, collapse = "; ")
 
       print(paste("Workers set up with:", temp))

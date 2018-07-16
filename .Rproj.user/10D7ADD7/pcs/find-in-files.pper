@@ -1,0 +1,10 @@
+{
+    "dialog-state" : {
+        "caseSensitive" : false,
+        "filePatterns" : [
+        ],
+        "path" : "~/Desktop/DryLand Ecology/rSFSW2",
+        "query" : "compare_test_output",
+        "regex" : false
+    }
+}

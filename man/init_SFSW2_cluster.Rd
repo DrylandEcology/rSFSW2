@@ -7,5 +7,12 @@
 init_SFSW2_cluster()
 }
 \description{
-Initialize a parallel cluster
+Call for the side effect of setting values in the global variable
+environment of the package: \itemize{
+  \item \code{p_workersN}: Number of currently set-up workers
+  \item \code{p_cl}: Parallel cluster
+  \item \code{p_has}: Do we have a parallel cluster set up?
+  \item \code{p_pids}: Process IDs of workers
+  \item \code{lockfile}: Set \code{lockfile} to \code{NULL}
+}
 }

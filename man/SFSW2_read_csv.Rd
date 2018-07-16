@@ -2,31 +2,32 @@
 % Please edit documentation in R/IO_datafiles.R
 \name{SFSW2_read_csv}
 \alias{SFSW2_read_csv}
-\title{Read a comma-separated value (csv) file}
+\title{Read a comma-separated value (\var{csv}) file}
 \usage{
 SFSW2_read_csv(file, stringsAsFactors = FALSE, use_iotools = TRUE, ...)
 }
 \arguments{
 \item{file}{A character string. The path to the file which is to be read.}
 
-\item{stringsAsFactors}{A logical value. Should character vectors be converted to
-factors?}
+\item{stringsAsFactors}{A logical value. Should character vectors be
+converted to factors?}
 
-\item{use_iotools}{A logical value. If \code{TRUE} and if \pkg{iotools} available,
-then \code{\link[iotools]{read.csv.raw}} instead of \code{\link[utils]{read.csv}} is
-used to read the \code{file}.}
+\item{use_iotools}{A logical value. If \code{TRUE} and if \pkg{iotools}
+available, then \code{\link[iotools]{read.csv.raw}} instead of
+\code{\link[utils]{read.csv}} is used to read the \code{file}.}
 
-\item{\dots}{Further arguments to be passed to \code{\link[iotools]{read.csv.raw}} or
-\code{\link[utils]{read.csv}}.}
+\item{\dots}{Further arguments to be passed to
+\code{\link[iotools]{read.csv.raw}} or \code{\link[utils]{read.csv}}.}
 }
 \value{
-A data frame (\code{\link[base]{data.frame}}) containing a representation of
- the data in the file.
+A data frame (\code{\link[base]{data.frame}}) containing a
+  representation of the data in the file.
 }
 \description{
 Call function \code{\link[iotools]{read.csv.raw}}, if available, or else,
-\code{\link[utils]{read.csv}}. \code{\link[iotools]{read.csv.raw}} can be much faster,
- particularly for large files. It reads, however, only \code{nrowsClasses} rows to
- determine the class of a column unlike \code{\link[utils]{read.csv}} which uses all
- rows to determine the column class.
+\code{\link[utils]{read.csv}}. \code{\link[iotools]{read.csv.raw}} can be
+much faster, particularly for large files. It reads, however, only
+\code{nrowsClasses} rows to determine the class of a column unlike
+\code{\link[utils]{read.csv}} which uses all rows to determine the column
+class.
 }

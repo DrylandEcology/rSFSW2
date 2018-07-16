@@ -11,33 +11,37 @@ GriddedDailyWeatherFromNCEPCFSR_Global(site_ids, site_ids_by_dbW, dat_sites,
   print.debug = FALSE)
 }
 \value{
-An invisible zero. A list of which each element represents one year of daily
-   weather data of class \linkS4class{swWeatherData}. The list is copied to the
-   weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-   precipitation.
+An invisible zero. A list of which each element represents one year
+  of daily weather data of class
+  \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}. The
+  list is copied to the weather database. Units are [degree Celsius] for
+  temperature and [cm / day] and for precipitation.
 }
 \description{
 Extract gridded daily weather from NCEP/CFSR for sites globally
 }
 \section{Daily data}{
- (http://rda.ucar.edu/datasets/ds093.1/):
- ds093.1 NCEP Climate Forecast System Reanalysis (CFSR) Selected Hourly Time-Series
- Products, January 1979 to December 2010, 0.313-deg: 6-hourly.
- \describe{
-   \item{maximum temperature}{2 m above ground (Kelvin): 'tmax.gdas.yyyymm.grb2'
-       --> max of 4 values per day}
-   \item{minimum temperature}{2 m above ground (Kelvin): 'tmin.gdas.yyyymm.grb2'
-       --> max of 4 values per day}
-   \item{precipitation rate}{ground or water surface (kg m-2 s-1):
-       'prate.gdas.yyyymm.grb2' --> sum of 4 values per day which are converted to
-       cm / 6-hour}
- }
+ \url{http://rda.ucar.edu/datasets/ds093.1/}:
+  \var{ds093.1} NCEP Climate Forecast System Reanalysis (CFSR) Selected
+  Hourly Time-Series Products, January 1979 to December 2010, 0.313-deg:
+  6-hourly.
+  \describe{
+    \item{maximum temperature}{2 m above ground (Kelvin):
+      \var{tmax.gdas.yyyymm.grb2} --> max of 4 values per day}
+    \item{minimum temperature}{2 m above ground (Kelvin):
+      \var{tmin.gdas.yyyymm.grb2} --> max of 4 values per day}
+    \item{precipitation rate}{ground or water surface (kg m-2 s-1):
+      \var{prate.gdas.yyyymm.grb2} --> sum of 4 values per day which
+      are converted to cm / 6-hour}
+  }
 }
 
 \references{
 \href{http://rda.ucar.edu/datasets/ds093.1/}{NCEP/CFSR website}
- publication: Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis (CFSR)
-   Selected Hourly Time-Series Products, January 1979 to December 2010. Research
-   Data Archive at the National Center for Atmospheric Research, Computational and
-   Information Systems Laboratory. http://dx.doi.org/10.5065/D6513W89.
+
+Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis
+  (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010.
+  Research Data Archive at the National Center for Atmospheric Research,
+  Computational and Information Systems Laboratory.
+  \url{http://dx.doi.org/10.5065/D6513W89}.
 }

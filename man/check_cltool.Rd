@@ -9,8 +9,8 @@ check_cltool(tool, v_expected, stop_on_mismatch = FALSE)
 \arguments{
 \item{tool}{A character string. The name of the command-line tool.}
 
-\item{v_expected}{A character string that is or can be converted to represent the
-expected version of the command-line tool.}
+\item{v_expected}{A character string that is or can be converted to represent
+the expected version of the command-line tool.}
 
 \item{stop_on_mismatch}{A logical value.}
 }
@@ -18,11 +18,12 @@ expected version of the command-line tool.}
 An invisible \code{TRUE}.
 }
 \description{
-The function throws an error if the command-line tool cannot be run and its version
-querried by a call to \code{\link{system2}}. Otherwise, the function compares the
-return version value with the argument \code{v_expected}. If it does not match and
-the argument \code{stop_on_mismatch} has a \code{TRUE} value, then an error is thrown
-with a suitable message; otherwise, a warning is issued.
+The function throws an error if the command-line tool cannot be run and its
+version queried by a call to \code{\link{system2}}. Otherwise, the function
+compares the return version value with the argument \code{v_expected}. If it
+does not match and the argument \code{stop_on_mismatch} has a \code{TRUE}
+value, then an error is thrown with a suitable message; otherwise, a warning
+is issued.
 }
 \seealso{
 \code{\link{system2}}

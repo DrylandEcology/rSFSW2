@@ -1,11 +1,14 @@
 context("Calculations of climate variables")
 
 # Inputs
-weatherList_year1980 <- readRDS(file.path("..", "test_data", "weatherList_year1980.rds"))
-simTime2_year1980 <- readRDS(file.path("..", "test_data", "simTime2_year1980.rds"))
+weatherList_year1980 <- readRDS(file.path("..", "test_data",
+  "weatherList_year1980.rds"))
+simTime2_year1980 <- readRDS(file.path("..", "test_data",
+  "simTime2_year1980.rds"))
 
-names_calc_SiteClimate <- c("meanMonthlyTempC", "minMonthlyTempC", "maxMonthlyTempC",
-  "meanMonthlyPPTcm", "MAP_cm", "MAT_C", "dailyTempMin", "dailyTempMean", "dailyC4vars")
+names_calc_SiteClimate <- c("meanMonthlyTempC", "minMonthlyTempC",
+  "maxMonthlyTempC", "meanMonthlyPPTcm", "MAP_cm", "MAT_C", "dailyTempMin",
+  "dailyTempMean", "dailyC4vars")
 lengths_calc_SiteClimate <- c(12L, 12L, 12L, 12L, 1L, 1L, NA, NA, NA)
 
 names_sw_dailyC4_TempVar <- c("Month7th_NSadj_MinTemp_C",

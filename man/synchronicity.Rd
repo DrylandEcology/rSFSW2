@@ -33,23 +33,26 @@ lock_access(lock, verbose = FALSE, seed = NA)
 \arguments{
 \item{fname_lock}{A character string. Path to locking directory.}
 
-\item{id}{A R object. Identifier used to test unique write access in locking directory.}
+\item{id}{A R object. Identifier used to test unique write access in locking
+directory.}
 
 \item{lock}{An object of class \code{SFSW2_lock}.}
 
-\item{verbose}{A logical value. If \code{TRUE}, then each attempt at obtaining the lock
-is printed.}
+\item{verbose}{A logical value. If \code{TRUE}, then each attempt at
+obtaining the lock is printed.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the RNG; \code{NULL} will re-initialize the RNG; and all other
+values are passed to \code{\link{set.seed}}.}
 }
 \value{
 An object of class \code{SFSW2_lock}.
 
-A logical value. \code{TRUE} if lock file contains proper code of the lock.
+A logical value. \code{TRUE} if lock file contains proper code of the
+  lock.
 
-The return value of unlinking the directory associated with \code{lock}.
+The return value of deleting the directory associated with
+  \code{lock}.
 
 The updated \code{lock} object of class \code{SFSW2_lock}.
 
@@ -73,11 +76,11 @@ Attempt to obtain access of a backing store lock
 Access to the backing store lock is attempted until successfully obtained.
 }
 \section{Note}{
- My attempts at using lock/unlock functions from \pkg{flock} failed
- because unlock appeared to not free resources. My attempts at using such functions
- from \pkg{synchronicity} failed because of segfaults with
- \code{GetResourceName(m@mutexInfoAddr)}; additionally, \pkg{synchronicity} is
- restricted to unix systems. Instead, I use here ideas based on functions
- from \pkg{Rdsm} and Samuel.
+ My attempts at using lock/unlock functions from \pkg{flock}
+  failed because unlock appeared to not free resources. My attempts at using
+  such functions from \pkg{synchronicity} failed because of segfaults with
+  \code{GetResourceName(m@mutexInfoAddr)}; additionally, \pkg{synchronicity}
+  is restricted to unix systems. Instead, I use here ideas based on functions
+  from \pkg{Rdsm} and Samuel.
 }
 

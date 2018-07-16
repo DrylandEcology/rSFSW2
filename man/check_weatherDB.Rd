@@ -9,18 +9,20 @@ check_weatherDB(dir_prj, fdbWeather, repeats = 2L,
   endyear = 2010, seed = NA)
 }
 \arguments{
-\item{dir_prj}{A character string. The directory path the rSFSW2 simulation project.}
+\item{dir_prj}{A character string. The directory path the \pkg{rSFSW2}
+simulation project.}
 
 \item{fdbWeather}{A character string. The file path of weather database.}
 
-\item{repeats}{An integer value. The number of times each weather object is extracted}
+\item{repeats}{An integer value. The number of times each weather object
+is extracted (repeats > 1 enable comparison of the duplicates).}
 
-\item{do_preprocess_tempfiles}{A logical value. Set to TRUE, for instance, if a
-previous run was prematurely aborted.}
+\item{do_preprocess_tempfiles}{A logical value. Set to TRUE, for instance,
+if a previous run was prematurely aborted.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the \var{RNG}; \code{NULL} will re-initialize the \var{RNG};
+and all  other values are passed to \code{\link{set.seed}}.}
 }
 \description{
 Checks data in a weather database

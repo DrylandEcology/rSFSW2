@@ -7,30 +7,30 @@
 reaggregate_shapefile(x, by, fields = NULL, code = NULL)
 }
 \arguments{
-\item{x}{A \linkS4class{SpatialPolygons} object from which data are extracted.}
+\item{x}{A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} object
+from which data are extracted.}
 
-\item{by}{A \linkS4class{SpatialPolygons} object. The 'extents' representing the
-rectangle(s) for which data are re-aggregated.}
+\item{by}{A \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}
+object. The 'extents' representing the rectangle(s) for which data are
+re-aggregated.}
 
-\item{fields}{A character vector. If not \code{NULL}, then \code{fields} selects
-columns of the extracted object.}
+\item{fields}{A character vector. If not \code{NULL}, then \code{fields}
+selects columns of the extracted object.}
 
-\item{code}{A vector. If not \code{NULL}, then the extracted data are treated as
-integer codes of a factor whose levels are encoded by \code{code}.}
+\item{code}{A vector. If not \code{NULL}, then the extracted data are treated
+as integer codes of a factor whose levels are encoded by \code{code}.}
 }
 \value{
-A list of length corresponding to the number of rectangles. Each element is a
- list which contains three items each
- \describe{
-   \item{N}{An integer vector. The number of unique values within the rectangle for
-     each layer of \code{x}.}
-   \item{values}{A list of numeric vectors or matrices. The sorted unique values as
-     vector or matrix for each layer.}
-   \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each
-     layer.}
- }
+A list of length corresponding to the number of rectangles. Each
+  element is a list which contains three items each \describe{
+    \item{N}{An integer vector. The number of unique values within the
+      rectangle for each layer of \code{x}.}
+    \item{values}{A list of numeric vectors or matrices. The sorted unique
+      values as vector or matrix for each layer.}
+    \item{weigths}{A list of numeric vectors. The weights of the
+      \code{values} for each layer.}}
 }
 \description{
-Code based on sp:::aggregatePolyWeighted version 1.2.3 and modified to return complete
- information and not the area-weighted sum.
+Code based on \file{sp:::aggregatePolyWeighted} version 1.2.3 and modified to
+return complete information and not the area-weighted sum.
 }

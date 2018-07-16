@@ -2,32 +2,25 @@
 % Please edit documentation in R/Testproject_Functions.R
 \name{compare_test_output}
 \alias{compare_test_output}
-\title{Compare test project output database with reference}
+\title{Compare test project output database with reference database}
 \usage{
-compare_test_output(dir_test, dir_ref = NULL, tol = 0.001,
-  comp_absolute = TRUE, verbose = FALSE)
+compare_test_output(dir_test, dir_ref = NULL)
 }
 \arguments{
 \item{dir_test}{A character string. Path to test project folder.}
 
 \item{dir_ref}{A character string. Path to folder with reference database.}
-
-\item{tol}{A numeric value. Differences smaller than tolerance are not reported.
-Passed to \code{\link{all.equal}}.}
-
-\item{comp_absolute}{A logical value. If \code{TRUE} then absolute comparisons will be
-reported, otherwise relative differences.
-See argument \code{scale} of function \code{\link{all.equal}}.}
-
-\item{verbose}{A logical value. If \code{TRUE} then messages are printed.}
 }
 \value{
-A (possibly empty) list of character vectors describing differences between
- test and reference databases. A first entry is the file name of the reference database.
+A list with at least one element:\enumerate{
+  \item The basename of the reference database; empty string if not found.
+  \item The output from \code{\link{compare_two_dbOutput}}, if any.
+}
 }
 \description{
-Reference database is identified by containing \code{basename(dir_test)} in the file name.
+Reference database is identified by containing \code{basename(dir_test)} in
+the file name.
 }
 \seealso{
-\code{\link{all.equal}}
+\code{\link{compare_two_dbOutput}}
 }

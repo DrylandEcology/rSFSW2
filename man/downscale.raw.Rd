@@ -9,14 +9,15 @@ downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, itime,
   sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks = TRUE, ...)
 }
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
-is an object of class \linkS4class{swWeatherData}.}
+\item{obs.hist.daily}{A list. Each element corresponds to one year of
+\code{simstartyr:endyr} is an object of
+\code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
-calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}
 
 \item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the projected time period DSfut_startyr:DSfut_endyr}
+during the projected time period \code{DSfut_startyr:DSfut_endyr}}
 
 \item{opt_DS}{A named list.}
 

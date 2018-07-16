@@ -9,22 +9,26 @@ calc_drylandindices(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5)
 \arguments{
 \item{annualPPT}{A numeric vector. Annual precipitation values.}
 
-\item{annualPET}{A numeric vector. Annual potential evapotranspiration values.
-The values must be in the same units as those of \code{annualPPT}, e.g., \code{mm}.}
+\item{annualPET}{A numeric vector. Annual potential evapotranspiration
+values. The values must be in the same units as those of \code{annualPPT},
+e.g., \code{mm}.}
 
-\item{monthlyTemp}{A numeric vector. Monthly mean air temperature in degree Celsius for each
-year for which precipitation and PET values are provided.}
+\item{monthlyTemp}{A numeric vector. Monthly mean air temperature in degree
+Celsius for each year for which precipitation and PET values are provided.}
 
 \item{ai_limit}{A numeric value. Used for return item \code{criteria_12}.}
 }
 \value{
-A list with three items: UN-aridity index (numeric value), temperateness (logical value),
- and temperate drylands (logical value).
+A list with three items: UN-aridity index (numeric value),
+temperateness (logical value), and temperate drylands (logical value).
 }
 \description{
 Calculates temperate dryland criteria
 }
 \references{
-Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
-Trewartha GT, Horn LH (1980) An introduction to climate. McGraw-Hill, New York, page 284: Temperate Areas
+Deichmann, U. & L. Eklundh. 1991. Global digital datasets for
+land degradation studies: a GIS approach. Global Environment Monitoring
+System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+Trewartha G.T., Horn L.H. (1980) An introduction to climate. McGraw-Hill, New
+York, page 284: Temperate Areas
 }

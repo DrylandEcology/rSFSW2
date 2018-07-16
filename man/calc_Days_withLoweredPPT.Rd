@@ -14,7 +14,7 @@ consider.}
 \item{this_newPPTevent_N}{An integer value. The number of days which will received
 'spill-over' precipitation.}
 
-\item{sigmaN}{An integer value. The multiplicator of \code{this_newPPTevent_N} to
+\item{sigmaN}{An integer value. The multiplier of \code{this_newPPTevent_N} to
 determine the range of days to consider.}
 
 \item{this_i_extreme}{An integer value. The index indicating for which day in the
@@ -24,8 +24,8 @@ precipitation record, precipitation is removed and redistributed.}
 removed from day \code{this_i_extreme} and is now redistributed to other days.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+and all other values are passed to \code{\link{set.seed}}.}
 }
 \description{
 Distribute precipitation among days without too extreme values

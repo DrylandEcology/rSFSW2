@@ -3,12 +3,13 @@
 #' @param debug.warn.level An integer value. Sets the \code{warn} option.
 #' @param debug.dump.objects A logical value. Sets the \code{error} option.
 #'  See \code{details} section.
-#' @param dir_prj A character string. The path at which the RData file are saved if
-#'  \code{debug.dump.objects} is turned on.
+#' @param dir_prj A character string. The path at which the \var{RData}
+#'  file are saved if \code{debug.dump.objects} is turned on.
 #' @param verbose A logical value.
 #'
-#' @return A list of length two with elements 'warn' and 'error' containing the status
-#'  of these two global options before resetting them by this function.
+#' @return A list of length two with elements 'warn' and 'error' containing
+#'  the status of these two global options before resetting them by this
+#'  function.
 #'
 #' @section Details: Accepted values of \code{debug.warn.level} are \itemize{
 #'  \item  warn < 0: warnings are ignored
@@ -16,23 +17,24 @@
 #'  \item  warn = 1: warnings are printed as they occur
 #'  \item  warn = 2: all warnings are turned into errors.
 #' }
-#'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump objects
-#'  and frames to files at path \code{dir_prj}, and (if not in interactive mode) quit. To
-#'  view the dumped frames first attach them with
-#'      `load(file.path(dir_prj, "last.dump.rda"))`
+#'  If \code{debug.dump.objects} is \code{TRUE}, then code will on error dump
+#'  objects and frames to files at path \code{dir_prj}, and (if not in
+#'  interactive mode) quit. To view the dumped frames first attach them with
+#'      \code{load(file.path(dir_prj, "last.dump.rda"))}
 #'  and then browse them with
-#'      `debugger(`path/to/file/last.dump.rda`)`
+#'      \code{debugger(`path/to/file/last.dump.rda`)}
 #'
 #' @export
-set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = FALSE,
-  dir_prj = ".", verbose = FALSE) {
+set_options_warn_error <- function(debug.warn.level = 1L,
+  debug.dump.objects = FALSE, dir_prj = ".", verbose = FALSE) {
 
   ow_prev <- options("warn", "error")
 
   if (verbose) {
     temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": set options ",
-      "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level, " and 'error' to ",
+      "'warn' from ", ow_prev[["warn"]], " to ", debug.warn.level,
+      " and 'error' to ",
       if (debug.dump.objects) "dump objects to file" else "'traceback'", "."))
   }
 
@@ -76,14 +78,18 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 
 #' Expression for dumping of objects from an evaluation stack
 #'
-#' Create an expression for functions 'f' to set on.exit() such that all objects from the
-#' evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+#' Create an expression for functions 'f' to set \code{on.exit()} such that all
+#' objects from the evaluation frame stack of function 'f' are collected and
+#' stored in a \var{RData} file
 #'
-#' @param dir_out A character string. The path to where the 'RData' file is dumped.
-#' @param file_tag A character string. Will become final part of the 'RData' file name.
+#' @param dir_out A character string. The path to where the \var{RData} file is
+#'   dumped.
+#' @param file_tag A character string. Will become final part of the \var{RData}
+#'   file name.
 #'
 #' @return Expression.
-#' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
+#' @seealso \code{\link{set_options_warn_error}} with \code{debug.dump.objects =
+#'   TRUE}
 #'
 #' @examples
 #' \dontrun{
@@ -98,10 +104,11 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 #'   res <- x + 100
 #'   if (cause_error) stop("Create error and force debug dumping")
 #'
-#'   # Remove debug dumping but not other 'on.exit' expressions before returning without error
+#'   # Remove debug dumping but not other 'on.exit' expressions before
+#'   # returning without error
 #'   oe <- sys.on.exit()
 #'   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
-#'   on.exit(eval(oe), add = FALSE)
+#'   do.call(on.exit, args = c(list(oe), add = FALSE))
 #'   # Add to 'on.exit'
 #'   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
 #'   res
@@ -125,7 +132,7 @@ set_options_warn_error <- function(debug.warn.level = 1L, debug.dump.objects = F
 #'
 #' @export
 enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
-  {
+  { # nolint
     op_prev <- options("warn")
     options(warn = 0)
     env_tosave <- new.env()
@@ -139,17 +146,20 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
     list2env(as.list(globalenv()), envir = env_tosave)
 
     save(list = ls(envir = env_tosave), envir = env_tosave,
-      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag), ".RData")))
+      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag),
+        ".RData")))
     options(op_prev)
-  }
+  }  # nolint
 }
 
 #' Remove one of possibly several expressions recorded by \code{on.exit}
 #'
-#' @param sysonexit An expression. The returned value of a call to \code{sys.on.exit()}
-#'   from inside the calling function.
-#' @param tag A character string. An string identifying which of the recorded expressions
-#'   should be removed.
+#' @param sysonexit An expression. The returned value of a call to
+#'   \code{sys.on.exit()} from inside the calling function.
+#' @param tag A character string. An string identifying which of the recorded
+#'   expressions should be removed.
+#' @section Note: don't use inside a loop as this will likely lead to problems
+#'   such as `evaluation nested too deeply`.
 #' @seealso \code{\link{enable_debug_dump}} for examples
 #' @export
 remove_from_onexit_expression <- function(sysonexit, tag) {
@@ -164,7 +174,8 @@ has_nodata <- function(data, tag = NULL, MARGIN = 1) {
   if (is.null(tag)) {
     apply(data, MARGIN, function(x) all(is.na(x)))
   } else {
-    apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN, function(x) all(is.na(x)))
+    apply(data[, grepl(tag, colnames(data)), drop = FALSE], MARGIN,
+      function(x) all(is.na(x)))
   }
 }
 
@@ -176,56 +187,52 @@ has_incompletedata <- function(data, tag = NULL, MARGIN = 1) {
   }
 }
 
-#custom list.dirs function because the ones in 2.13 and 2.15 are different... this function will behave like the one in 2.15 no matter which version you are using...
-#note: should work on any system where the directory seperator is .Platform$file.sep (ie Unix)
+# custom list.dirs function because the ones in 2.13 and 2.15 are different...
+# this function will behave like the one in 2.15 no matter which version you
+# are using...
+# note: should work on any system where the directory seperator is
+# .Platform$file.sep (ie Unix)
 list.dirs2 <- function(path, full.names = TRUE, recursive = TRUE) {
   dir.list <- list.dirs(path, full.names)
 
   if (is.null(dir.list))
-    return (dir.list)
+    return(dir.list)
   if (length(dir.list) == 0)
-    return (dir.list)
+    return(dir.list)
   if (recursive == TRUE)
-    return (dir.list)
+    return(dir.list)
 
-  nSlash = length(strsplit(dir.list[1], .Platform$file.sep)[[1]]) + 1
+  nSlash <- length(strsplit(dir.list[1], .Platform$file.sep)[[1]]) + 1
   if (nSlash == 1)
     return(dir.list[-1])
 
-  n = length(dir.list)
+  n <- length(dir.list)
   for (i in n:1)
     if (length(strsplit(dir.list[i], .Platform$file.sep)[[1]]) != nSlash)
       dir.list <- dir.list[-i]
 
   dir.list
 }
+
 #custom file.copy2 function, b/c it was giving errors on JANUS when run with MPI
-file.copy2 <- function(from = "", to = "", overwrite = TRUE, copy.mode = TRUE, times = 0) {
+file.copy2 <- function(from = "", to = "", overwrite = TRUE, copy.mode = TRUE,
+  times = 0) {
+
   file.copy(from, to, overwrite, FALSE, copy.mode)
   if (times < 24)
     if (file.exists(from))
       if (!file.exists(to)) {
         print("trying to copy the file again")
-        Recall(from, to, overwrite, copy.mode, (times+1))  #recursively call the function again because when run with MPI the file copying doesn't seem to work everytime...
+        # recursively call the function again because when run with MPI the
+        # file copying doesn't seem to work everytime...
+        Recall(from, to, overwrite, copy.mode, times + 1)
       }
-  #else { #this commented out part copies the file via the system command cp
-  #  if (any(grepl("/", to, fixed = TRUE))) { #this part makes the to directory if it doesn't exist... so pretty much this can copy files to places that don't exist, which generally isn't what you want to do but in this case it might help solve an error I keep getting.
-  #    y <- to
-  #    while (substr(y, nchar(y), nchar(y)) != '/')
-  #      y <- substr(y, 1, nchar(y)-1)
-  #    y <- substr(y, 1, nchar(y)-1)
-  #    if (y != "")
-  #      system(paste("mkdir -p", y), ignore.stdout = FALSE, ignore.stderr = FALSE)
-  #  }
-  #  command <- "cp" #this just calls the system command cp...
-  #  if (overwrite == TRUE) command <- paste(command, "-f")
-  #  if (copy.mode == TRUE) command <- paste(command, "-p")
-  #  system(paste(command, from, to), ignore.stdout = FALSE, ignore.stderr = FALSE)
-  #}
 }
-# made this function b/c dir.create wasn't always working correctly on JANUS for some
-# reason...
-dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "0777") {
+# made this function b/c dir.create wasn't always working correctly on JANUS
+# for some reason...
+dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE,
+  mode = "0777") {
+
   k <- 0
   temp <- NULL
   temp_call <- shQuote(match.call()[1])
@@ -237,87 +244,104 @@ dir.create2 <- function(path, showWarnings = TRUE, recursive = FALSE, mode = "07
       break
 
     k <- k + 1
-
-    # Iteratively call the function b/c when run on JANUS with MPI it doesn't seem to
-    # make the directories everytime... quite aggravating.
-    print(paste0("rSFSW2's ", temp_call, ": failed to create ",
-      shQuote(path), " during ", k, " attempt; new attempt is started at ", Sys.time()))
   }
 
-  return(temp)
+  if (showWarnings && k > 0) {
+    # Iteratively call the function b/c when run on JANUS with MPI it doesn't
+    # seem to make the directories everytime... quite aggravating.
+    print(paste0("rSFSW2's ", temp_call, ": failed to create ",
+      shQuote(path), " during ", k, " attempt(s)"))
+  }
+
+  temp
 }
 
-#copy directory and content as in system(paste("cp -R", shQuote(from), shQuote(to)))
+# copy directory and content as in
+# \code{system(paste("cp -R", shQuote(from), shQuote(to)))}
 dir.copy <- function(dir.from, dir.to, overwrite = FALSE) {
   dir.create2(dir.to, recursive = TRUE)
-  dir.list <- basename(list.dirs2(dir.from, full.names = FALSE, recursive = FALSE))
+  dir.list <- basename(list.dirs2(dir.from, full.names = FALSE,
+    recursive = FALSE))
   file.list <- list.files(dir.from)
   if (length(dir.list) > 0) {
     sapply(dir.list, function(x) {
       dir.copy(dir.from = file.path(dir.from, x), dir.to = file.path(dir.to, x),
       overwrite = overwrite)
     })
-    #file.list <- file.list[-match(dir.list, table = file.list)] #this line gives an error when run in R v. 2.13
-    file.list <- file.list[file.list != dir.list] #this line does the same as the other line, but does not throw the error
+
+    file.list <- file.list[file.list != dir.list]
   }
   if (length(file.list) > 0) {
-    sapply(file.list, function(x) {file.copy2(from = file.path(dir.from, x), to = file.path(dir.to, x), overwrite = overwrite, copy.mode = TRUE)})
+    sapply(file.list, function(x)
+      file.copy2(from = file.path(dir.from, x), to = file.path(dir.to, x),
+        overwrite = overwrite, copy.mode = TRUE))
   }
   invisible(1)
 }
 
 #' Create the elements of paths
 #'
-#' This is a wrapper for the function \code{\link{dir.create}} using different default
-#' settings and allowing multiple path names as input. The function checks if the
-#' provided paths may be valid names and catches any other errors with \code{try}.
+#' This is a wrapper for the function \code{\link{dir.create}} using different
+#' default settings and allowing multiple path names as input. The function
+#' checks if the provided paths may be valid names and catches any other errors
+#' with \code{try}.
 #'
 #' @param paths A list or vector of strings. Path names to be created.
 #' @inheritParams base::dir.create
 #'
-#' @return An invisible list of length equal to the length of \code{paths}. The elements
-#'   are \code{NULL} for invalid elements of \code{paths}, a logical value for the
-#'   elements of \code{paths} with a successful calls to \code{\link{dir.create}}, or
-#'   an object of class \code{try-error} for a failed call to \code{\link{dir.create}}.
+#' @return An invisible list of length equal to the length of \code{paths}. The
+#'   elements are \code{NULL} for invalid elements of \code{paths}, a logical
+#'   value for the elements of \code{paths} with a successful calls to
+#'   \code{\link{dir.create}}, or an object of class \code{try-error} for a
+#'   failed call to \code{\link{dir.create}}.
 #'
 #' @seealso \code{\link{dir.create}}
 #' @export
-dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777") {
-  temp <- lapply(paths, function(path) {
-      if (!is.null(path) && !is.na(path) && is.character(path) && nchar(path) > 0 &&
-        !dir.exists(path))
+dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE,
+  mode = "0777") {
 
-        try(dir.create2(path, showWarnings = showWarnings, recursive = recursive,
-          mode = mode), silent = TRUE)
+  temp <- lapply(paths, function(path) {
+      if (!is.null(path) && !is.na(path) && is.character(path) &&
+          nchar(path) > 0 && !dir.exists(path))
+
+        try(dir.create2(path, showWarnings = showWarnings,
+          recursive = recursive, mode = mode), silent = TRUE)
     })
 
   invisible(temp)
 }
 
 
-
+#' Calculate variables required to estimate percent C4 species in North America
+#'
+#' @return A named numeric vector of length 6.
+#' @references Teeri J.A., Stowe L.G. (1976) Climatic patterns and the
+#'   distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
-  #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
-  Month7th_MinTemp_C <- tapply(dailyTempMin[temp7], simTime2$year_ForEachUsedDay_NSadj[temp7], min)
-  LengthFreezeFreeGrowingPeriod_Days <- tapply(dailyTempMin, simTime2$year_ForEachUsedDay_NSadj,
+  Month7th_MinTemp_C <- tapply(dailyTempMin[temp7],
+    simTime2$year_ForEachUsedDay_NSadj[temp7], min)
+  FrostFree_Days <- tapply(dailyTempMin, simTime2$year_ForEachUsedDay_NSadj,
     function(x) {
       temp <- rle(x > 0)
       if (any(temp$values)) max(temp$lengths[temp$values], na.rm = TRUE) else 0
     })
-  temp_base65F <- dailyTempMean - 18.333  # 18.333 C = 65 F with (65 - 32) * 5 / 9
-  temp_base65F[temp_base65F < 0] <- 0
-  DegreeDaysAbove65F_DaysC <- tapply(temp_base65F, simTime2$year_ForEachUsedDay_NSadj, sum)
 
-  nyrs <- seq_along(Month7th_MinTemp_C) #if southern Hemisphere, then 7th month of last year is not included
-  temp <- cbind(Month7th_MinTemp_C[nyrs],
-                LengthFreezeFreeGrowingPeriod_Days[nyrs],
-                DegreeDaysAbove65F_DaysC[nyrs])
+  # 18.333 C = 65 F with (65 - 32) * 5 / 9
+  temp_base65F <- dailyTempMean - 18.333
+  temp_base65F[temp_base65F < 0] <- 0
+  DegreeDaysAbove65F_DaysC <- tapply(temp_base65F,
+    simTime2$year_ForEachUsedDay_NSadj, sum)
+
+  # if southern Hemisphere, then 7th month of last year is not included
+  nyrs <- seq_along(Month7th_MinTemp_C)
+  temp <- cbind(Month7th_MinTemp_C[nyrs], FrostFree_Days[nyrs],
+    DegreeDaysAbove65F_DaysC[nyrs])
   res <- c(apply(temp, 2, mean), apply(temp, 2, stats::sd))
   temp <- c("Month7th_NSadj_MinTemp_C",
-            "LengthFreezeFreeGrowingPeriod_NSadj_Days",
-            "DegreeDaysAbove65F_NSadj_DaysC")
+    "LengthFreezeFreeGrowingPeriod_NSadj_Days",
+    "DegreeDaysAbove65F_NSadj_DaysC")
   names(res) <- c(temp, paste0(temp, ".sd"))
 
   res
@@ -326,38 +350,44 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
 #' Calculate climate variables from daily weather
 #'
 #' @param weatherList A list. Each element is an object of class
-#'   \linkS4class{swWeatherData} containing daily weather data of a specific year.
-#' @param year.start An integer value. The first year of the range of years for which
-#'   climate variables should be calculated.
-#' @param year.end An integer value. The last year of the range of years for which
-#'   climate variables should be calculated.
-#' @param do.C4vars A logical value. If \code{TRUE} then additional output is returned.
+#'   \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}
+#'   containing daily weather data of a specific year.
+#' @param year.start An integer value. The first year of the range of years for
+#'   which climate variables should be calculated.
+#' @param year.end An integer value. The last year of the range of years for
+#'   which climate variables should be calculated.
+#' @param do.C4vars A logical value. If \code{TRUE} then additional output is
+#'   returned.
 #' @param simTime2 An object as returned from function
-#'   \code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if \code{isTRUE(do.C4vars)}.
+#'   \code{\link{simTiming_ForEachUsedTimeUnit}}. Only needed if
+#'   \code{isTRUE(do.C4vars)}.
 #'
 #' @return A list with named elements \itemize{
-#'   \item{meanMonthlyTempC} {A numeric vector of length 12. Mean monthly mean daily air
-#'     temperature in degree Celsius.}
-#'   \item{minMonthlyTempC} {A numeric vector of length 12. Mean monthly minumum daily air
-#'     temperature in degree Celsius.}
-#'   \item{maxMonthlyTempC} {A numeric vector of length 12. Mean monthly maximum daily air
-#'     temperature in degree Celsius.}
-#'   \item{meanMonthlyPPTcm} {A numeric vector of length 12. Mean monthly precipitation in
-#'     centimeters.}
-#'   \item{MAP_cm} {A numeric value. Mean annual precipitation in centimeters.}
-#'   \item{MAT_C} {A numeric value. Mean annual air temperature in degree Celsius.}
-#'   \item{dailyTempMin} {A numeric vector. If \code{isTRUE(do.C4vars)}, then minimum
-#'     daily air temperature in degree Celsius for each day of time period between
-#'     \code{year.start} and \code{year.end}. If \code{!isTRUE(do.C4vars)}, then
-#'     \code{NA}.}
-#'   \item{dailyTempMean} {A numeric vector. Similar as for \code{dailyTempMin} but for
-#'     mean daily air temperature.}
-#'   \item{dailyC4vars} {If \code{isTRUE(do.C4vars)}, then a named numeric vector
-#'     containing the output of \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
+#'   \item{\var{\dQuote{meanMonthlyTempC}}} {A numeric vector of length 12.
+#'    Mean monthly mean daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{minMonthlyTempC}}} {A numeric vector of length 12.
+#'     Mean monthly minimum daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{maxMonthlyTempC}}} {A numeric vector of length 12.
+#'     Mean monthly maximum daily air temperature in degree Celsius.}
+#'   \item{\var{\dQuote{meanMonthlyPPTcm}}} {A numeric vector of length 12.
+#'     Mean monthly precipitation in centimeters.}
+#'   \item{\var{\dQuote{MAP_cm}}} {A numeric value. Mean annual precipitation
+#'     in centimeters.}
+#'   \item{\var{\dQuote{MAT_C}}} {A numeric value. Mean annual air temperature
+#'     in degree Celsius.}
+#'   \item{\var{\dQuote{dailyTempMin}}} {A numeric vector. If
+#'     \code{isTRUE(do.C4vars)}, then minimum daily air temperature in degree
+#'     Celsius for each day of time period between \code{year.start} and
+#'     \code{year.end}. If \code{!isTRUE(do.C4vars)}, then \code{NA}.}
+#'   \item{\var{\dQuote{dailyTempMean}}} {A numeric vector. Similar as for
+#'     \code{dailyTempMin} but for mean daily air temperature.}
+#'   \item{\var{\dQuote{dailyC4vars}}} {If \code{isTRUE(do.C4vars)}, then a
+#'     named numeric vector containing the output of
+#'     \code{\link{sw_dailyC4_TempVar}}, else \code{NA}.}
 #' }
 #' @export
-calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALSE,
-  simTime2 = NULL) {
+calc_SiteClimate <- function(weatherList, year.start, year.end,
+  do.C4vars = FALSE, simTime2 = NULL) {
 
   x <- rSOILWAT2::dbW_weatherData_to_dataframe(weatherList)
 
@@ -366,16 +396,14 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
   years <- years[year.start <= years & year.end >= years]
 
   x <- x[year.start <= x[, "Year"] & year.end >= x[, "Year"], ]
-  xl <- list(
-          months = as.POSIXlt(seq(from = ISOdate(years[1], 1, 1, tz = "UTC"),
-                                 to = ISOdate(years[length(years)], 12, 31, tz = "UTC"),
-                                 by = "1 day"))$mon + 1,
-          Tmean_C = rowMeans(x[, c("Tmax_C", "Tmin_C")])
-        )
+  temp <- seq(from = ISOdate(years[1], 1, 1, tz = "UTC"),
+    to = ISOdate(years[length(years)], 12, 31, tz = "UTC"), by = "1 day")
+  xl <- list(months = as.POSIXlt(temp)$mon + 1,
+    Tmean_C = rowMeans(x[, c("Tmax_C", "Tmin_C")]))
 
   index <- xl[["months"]] + 100 * x[, "Year"]
-  temp <- vapply(list(xl[["Tmean_C"]], x[, "Tmin_C"], x[, "Tmax_C"]), function(data)
-    matrix(tapply(data, index, mean), nrow = 12),
+  temp <- vapply(list(xl[["Tmean_C"]], x[, "Tmin_C"], x[, "Tmax_C"]),
+    function(data) matrix(tapply(data, index, mean), nrow = 12),
     FUN.VALUE = matrix(NA_real_, nrow = 12, ncol = length(years)))
   tempPPT <- matrix(tapply(x[, "PPT_cm"], index, sum), nrow = 12)
 
@@ -391,8 +419,8 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
     dailyTempMin = if (do.C4vars) x[, "Tmin_C"] else NA,
     dailyTempMean = if (do.C4vars) xl[["Tmean_C"]] else NA,
     dailyC4vars = if (do.C4vars) {
-        sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"], dailyTempMean = xl[["Tmean_C"]],
-          simTime2)
+        sw_dailyC4_TempVar(dailyTempMin = x[, "Tmin_C"],
+          dailyTempMean = xl[["Tmean_C"]], simTime2)
       } else NA
   )
 }
@@ -403,12 +431,15 @@ calc_SiteClimate <- function(weatherList, year.start, year.end, do.C4vars = FALS
 
 #' Saturation vapor pressure
 #'
-#' @param T A numeric vector of temperature(s) (deg C)
-#' @return A numeric vector of length \code{T} of saturation vapor pressure (kPa) at
-#'    temperature T
-#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
-vp0 <- function(T) {
-  0.6108 * exp(17.27 * T / (T + 273.3))  # eq. 5 of Yoder et al. 2005
+#' @param Temp A numeric vector of temperature(s) (deg C)
+#' @return A numeric vector of length \code{T} of saturation vapor pressure
+#'   (\var{kPa}) at temperature T
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+#'   Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy
+#'   of Standardized Penman-Monteith Equation in a Humid Climate Journal of
+#'   Irrigation and Drainage Engineering 131:228-237.
+vp0 <- function(Temp) {
+  0.6108 * exp(17.27 * Temp / (Temp + 273.3))  # eq. 5 of Yoder et al. 2005
 }
 
 
@@ -417,13 +448,19 @@ vp0 <- function(T) {
 #' @param Tmin A numeric vector of daily minimum temperature(s) (deg C)
 #' @param Tmax A numeric vector of daily maximum temperature(s) (deg C)
 #' @param RHmean A numeric vector of daily mean relative humidity (percentage)
-#' @return A numeric vector of length \code{T} of vapor pressure deficit (kPa)
-#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+#' @return A numeric vector of length \code{T} of vapor pressure deficit
+#'   (\var{kPa})
+#' @references Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+#'   Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy
+#'   of Standardized Penman-Monteith Equation in a Humid Climate Journal of
+#'   Irrigation and Drainage Engineering 131:228-237.
 vpd <- function(Tmin, Tmax, RHmean = NULL) {
   if (is.null(RHmean)) {
-    (vp0(Tmax) - vp0(Tmin)) / 2  # eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
+    # eq. 6 - eq. 13 of Yoder et al. 2005 (VPD6 in Table 4)
+    (vp0(Tmax) - vp0(Tmin)) / 2
   } else {
-    (vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)  # eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
+    # eq. 6 - eq. 11 of Yoder et al. 2005 (VPD4 in Table 4)
+    (vp0(Tmax) + vp0(Tmin)) / 2 * (1 - RHmean / 100)
   }
 }
 
@@ -463,63 +500,99 @@ max_duration <- function(x, target_val = 1L, return_doys = FALSE) {
 
 startDoyOfDuration <- function(x, duration = 10) {
   r <- rle(x)
-  if (length(r$lengths) == 1 | sum(r$values == 1 & r$lengths >= duration) == 0) {
-    return (ifelse((length(r$lengths) == 1 & (r$values == 0 | r$lengths<duration)) | sum(r$values == 1 & r$lengths >= 10) == 0, NA, 1)[1])
+  res <- NULL
+
+  if (length(r$lengths) == 1 ||
+      sum(r$values == 1 & r$lengths >= duration) == 0) {
+
+    res <- ifelse(
+      (length(r$lengths) == 1 & (r$values == 0 | r$lengths < duration)) |
+      sum(r$values == 1 & r$lengths >= 10) == 0,
+      NA, 1)[1]
+
   } else {
-    first10dry <- r$lengths[which(r$values == 1 & r$lengths >= duration)][1] #pick first period
+    # pick first period
+    first10dry <- r$lengths[which(r$values == 1 & r$lengths >= duration)][1]
+
     if (!is.na(first10dry)) {
-      ind <- which(r$lengths == first10dry & r$values == 1)[1] #always pick start of first suitable period
+      # always pick start of first suitable period
+      ind <- which(r$lengths == first10dry & r$values == 1)[1]
     } else {
       ind <- -1
     }
-    if (ind == 1) {#start of period at beginning of year
-      return(1)
-    } else if (ind == -1) {#no period this year
-      return(NA)
+
+    if (ind == 1) {
+      # start of period at beginning of year
+      res <- 1
+    } else if (ind == -1) {
+      # no period this year
+      res <- NA
     } else {
-      return(cumsum(r$lengths)[ind-1]+1)
+      res <- cumsum(r$lengths)[ind - 1] + 1
     }
   }
+
+  res
 }
 
 endDoyAfterDuration <- function(x, duration = 10) {
   r <- rle(x)
-  if (length(r$lengths) == 1 | sum(r$values == 1 & r$lengths >= duration) == 0) {
-    return (ifelse((length(r$lengths) == 1 & (r$values == 0 | r$lengths<duration)) | sum(r$values == 1 & r$lengths >= duration) == 0, 365, NA)[1])
+  res <- NULL
+
+  if (length(r$lengths) == 1 ||
+      sum(r$values == 1 & r$lengths >= duration) == 0) {
+    res <- ifelse(
+      (length(r$lengths) == 1 & (r$values == 0 | r$lengths < duration)) |
+      sum(r$values == 1 & r$lengths >= duration) == 0,
+      365, NA)[1]
+
   } else {
-    last10dry <- (rl <- r$lengths[which(r$values == 1 & r$lengths >= duration)])[length(rl)] #pick last period
+    # pick last period
+    rl <- r$lengths[which(r$values == 1 & r$lengths >= duration)]
+    last10dry <- rl[length(rl)]
+
     if (length(last10dry) > 0) {
-      ind <- (temp <- which(r$lengths == last10dry & r$values == 1))[length(temp)]  #always pick end of last suitable period
+      # always pick end of last suitable period
+      temp <- which(r$lengths == last10dry & r$values == 1)
+      ind <- temp[length(temp)]
     } else {
       ind <- -1
     }
-    if (ind == -1) {#no period this year
-      return(NA)
+
+    if (ind == -1) {
+      # no period this year
+      res <- NA
     } else {
-      return(cumsum(r$lengths)[ind])
+      res <- cumsum(r$lengths)[ind]
     }
   }
+
+  res
 }
 
 
 #' Calculates temperate dryland criteria
 #'
 #' @param annualPPT A numeric vector. Annual precipitation values.
-#' @param annualPET A numeric vector. Annual potential evapotranspiration values.
-#'  The values must be in the same units as those of \code{annualPPT}, e.g., \code{mm}.
-#' @param monthlyTemp A numeric vector. Monthly mean air temperature in degree Celsius for each
-#'  year for which precipitation and PET values are provided.
+#' @param annualPET A numeric vector. Annual potential evapotranspiration
+#'   values. The values must be in the same units as those of \code{annualPPT},
+#'   e.g., \code{mm}.
+#' @param monthlyTemp A numeric vector. Monthly mean air temperature in degree
+#'   Celsius for each year for which precipitation and PET values are provided.
 #' @param ai_limit A numeric value. Used for return item \code{criteria_12}.
 #'
-#' @references
-#' Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
-#' Trewartha GT, Horn LH (1980) An introduction to climate. McGraw-Hill, New York, page 284: Temperate Areas
+#' @references Deichmann, U. & L. Eklundh. 1991. Global digital datasets for
+#' land degradation studies: a GIS approach. Global Environment Monitoring
+#' System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+#' Trewartha G.T., Horn L.H. (1980) An introduction to climate. McGraw-Hill, New
+#' York, page 284: Temperate Areas
 #'
-#' @return
-#'  A list with three items: UN-aridity index (numeric value), temperateness (logical value),
-#'  and temperate drylands (logical value).
-calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp, ai_limit = 0.5) {
-  ai <- annualPPT / annualPET  #Deichmann, U. & L. Eklundh. 1991. Global digital datasets for land degradation studies: a GIS approach. Global Environment Monitoring System (GEMS), United Nations Environment Programme (UNEP), Nairobi, Kenya.
+#' @return A list with three items: UN-aridity index (numeric value),
+#' temperateness (logical value), and temperate drylands (logical value).
+calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
+  ai_limit = 0.5) {
+
+  ai <- annualPPT / annualPET  # Deichmann, U. & L. Eklundh. 1991
   temp <- matrix(monthlyTemp >= 10, nrow = 12)
   temp <- .colSums(temp, nrow(temp), ncol(temp))
   TD <- temp >= 4 & temp < 8 #Trewartha & Horn 1980, page 284: temperate areas
@@ -534,8 +607,10 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ_mean(which(abs(x - tmax) < SFSW2_glovars[["tol"]]), int = 365, na.rm = na.rm),
-    circ_mean(which(abs(x - tmin) < SFSW2_glovars[["tol"]]), int = 365, na.rm = na.rm))
+    circ_mean(which(abs(x - tmax) < SFSW2_glovars[["tol"]]), int = 365,
+      na.rm = na.rm),
+    circ_mean(which(abs(x - tmin) < SFSW2_glovars[["tol"]]), int = 365,
+      na.rm = na.rm))
 }
 
 
@@ -553,7 +628,7 @@ regenerationThisYear_YN <- function(x, params) {
     then <- which(rseries == rseries[temp][which.max(r$lengths[temp])])
 
     if (typeof(params[["season.start"]]) == "character") {
-      #calculate last day of the longest snowpack
+      # calculate last day of the longest snowpack
       params[["season.start"]] <- if (then == 1) {
           1
         } else {
@@ -562,8 +637,9 @@ regenerationThisYear_YN <- function(x, params) {
     }
 
     if (typeof(params[["season.end"]]) == "character") {
-      #calculate first day of the longest snowpack
-      params[["season.end"]] <- min(c(cumsum(r$lengths)[then] + 1, length(snowcover)))
+      # calculate first day of the longest snowpack
+      params[["season.end"]] <- min(c(cumsum(r$lengths)[then] + 1,
+        length(snowcover)))
     }
 
     ids <- params[["season.start"]]:params[["season.end"]]
@@ -571,31 +647,37 @@ regenerationThisYear_YN <- function(x, params) {
     if (length(ids) > 0) {
       swp.season <- x[ids, 1]
       gs <- rle(as.integer(swp.season >= params[["germination.swp.surface"]]))
+      gs_cs <- cumsum(gs$lengths)
       es <- rle(as.integer(swp.season >= params[["establishment.swp.surface"]]))
+      es_cs <- cumsum(es$lengths)
 
       # get vector of establishment starts and ends
-      establishment.start.dos <- establishment.end.dos <- NULL
+      estab_starts <- estab_ends <- NULL
       for (esi in seq_along(es$lengths)) {
-        if (es$lengths[esi] >= params[["establishment.duration"]] && es$values[esi] > 0) {
-          establishment.start.dos <- c(establishment.start.dos,
-            if (esi == 1) 1 else {cumsum(es$lengths)[esi - 1] + 1})
-          establishment.end.dos <- c(establishment.end.dos, cumsum(es$lengths)[esi])
+        if (es$lengths[esi] >= params[["establishment.duration"]] &&
+            es$values[esi] > 0) {
+
+          estab_starts <- c(estab_starts,
+            if (esi == 1) 1 else es_cs[esi - 1] + 1)
+          estab_ends <- c(estab_ends, es_cs[esi])
         }
       }
 
       # check if any germination period matches up with an establishment period
-      if (length(establishment.end.dos) > 0) {
+      if (length(estab_ends) > 0) {
         for (gsi in seq_along(gs$lengths)) {
-          if (gs$lengths[gsi] >= params[["germination.duration"]] && gs$values[gsi] > 0) {
-            germination.start.dos <- if (gsi == 1) 1 else {cumsum(gs$lengths)[gsi - 1] + 1}
-            germination.end.dos <- cumsum(gs$lengths)[gsi]
+          if (gs$lengths[gsi] >= params[["germination.duration"]] &&
+              gs$values[gsi] > 0) {
 
-            temp0 <- germination.start.dos + params[["germination.duration"]]
-            temp1 <- germination.end.dos + params[["establishment.delay"]]
-            temp <- (temp0 >= establishment.start.dos &
-                temp0 + params[["establishment.duration"]] <= establishment.end.dos) |
-              (temp1 >= establishment.start.dos &
-                temp1 + params[["establishment.duration"]] <= establishment.end.dos)
+            germ_start <- if (gsi == 1) 1 else gs_cs[gsi - 1] + 1
+            germ_end <- gs_cs[gsi]
+
+            temp0 <- germ_start + params[["germination.duration"]]
+            temp1 <- germ_end + params[["establishment.delay"]]
+            temp <- (temp0 >= estab_starts &
+                temp0 + params[["establishment.duration"]] <= estab_ends) |
+              (temp1 >= estab_starts &
+                temp1 + params[["establishment.duration"]] <= estab_ends)
 
             if (any(temp)) {
               reg <- reg + 1
@@ -614,21 +696,22 @@ regenerationThisYear_YN <- function(x, params) {
 
 
 
-#' Function to extrapolate windspeeds measured at a height different from the SOILWAT2
-#'  required 2-m above ground
+#' Function to extrapolate windspeeds measured at a height different from the
+#' 2-m above ground that are assumed by \pkg{SOILWAT2}
 #'
-#' Based on eqn. 33 in Allen et al. 2005. Note: "For wind measurements above surfaces
-#'  other than clipped grass, the user should apply the full logarithmic equation B.14".
+#' Based on equation 33 in Allen et al. 2005. Note: "For wind measurements above
+#' surfaces other than clipped grass, the user should apply the full logarithmic
+#' equation B.14".
 #'
 #' @param uz A numeric vector. Windspeed [m/s] at \code{height}.
-#' @param height A numeric value. Height above ground at which \code{uz} windspeed was
-#'  measured.
+#' @param height A numeric value. Height above ground at which \code{uz}
+#'   windspeed was measured.
 #'
 #' @return Windspeed [m/s] at a height of 2 m above ground.
 #'
-#' @references Allen RG, Walter IA, Elliott R, Howell T, Itenfisu D, Jensen M (2005)
-#'  The ASCE standardized reference evapotranspiration equation. ASCE-EWRI Task
-#'  Committee Report.
+#' @references Allen R.G., Walter I.A., Elliott R., Howell T., Itenfisu D.,
+#'   Jensen M. (2005) The ASCE standardized reference evapotranspiration
+#'   equation. ASCE-EWRI Task Committee Report.
 adjust.WindspeedHeight <- function(uz, height) {
 
   stopifnot(all(uz >= 0) && height >= 2)
@@ -636,7 +719,9 @@ adjust.WindspeedHeight <- function(uz, height) {
 }
 
 
-get.LookupFromTable <- function(pattern, trtype, tr_input, sw_input_use, sw_input, nvars) {
+get.LookupFromTable <- function(pattern, trtype, tr_input, sw_input_use,
+  sw_input, nvars) {
+
   nruns <- NROW(sw_input)
   if (length(trtype) == 1L && nruns > 1L)
     trtype <- rep(trtype, nruns)
@@ -685,7 +770,9 @@ fill_empty <- function(data, pattern, fill) {
 }
 
 
-#--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
+#--put information from experimental design into appropriate input variables;
+# create_treatments and the _use files were already adjusted for the
+# experimental design when files were read in/created
 transferExpDesignToInput <- function(x, i_exp, df_exp, df_exp_use) {
   temp <- match(names(df_exp)[df_exp_use], names(x), nomatch = 0)
   ctemp <- temp[!(temp == 0)]
@@ -711,7 +798,9 @@ EventDistribution <- function(data, N, size) {
 
 daily_spells_permonth <- function(x, simTime2) {
   temp <- tapply(x,
-    simTime2$month_ForEachUsedDay_NSadj + 100 * simTime2$year_ForEachUsedDay_NSadj,
+    simTime2$month_ForEachUsedDay_NSadj +
+      100 * simTime2$year_ForEachUsedDay_NSadj,
+
     function(xm) {
       temp <- rle(xm)
       if (any(temp$values)) {
@@ -758,7 +847,8 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
     rm(counts.summary)
 
   } else {
-    freq.summary <- matrix(0, nrow = length(bins.summary), ncol = simTime$no.useyr)
+    freq.summary <- matrix(0, nrow = length(bins.summary),
+      ncol = simTime$no.useyr)
     eventsPerYear <- rep(0, simTime$no.useyr)
   }
 
@@ -768,16 +858,21 @@ tabulate_values_in_bins <- function(x, method = c("duration", "values"),
 
 
 benchmark_BLAS <- function(platform, seed = NA) {
-  if (grepl("darwin", platform)) { # apparently this works only on Mac OS X
+  if (grepl("darwin", platform)) {
+    # apparently this works only on Mac OS X
     dir_r <- file.path(Sys.getenv()[["R_HOME"]], "R")
-    blas <- system2(command = dir_r, args = "CMD config BLAS_LIBS", stdout = TRUE)
+    blas <- system2(command = dir_r, args = "CMD config BLAS_LIBS",
+      stdout = TRUE)
     blas <- sub("-L/", "/", strsplit(blas, split = " ")[[1]][1])
-    lapack <- system2(command = dir_r, args = "CMD config LAPACK_LIBS", stdout = TRUE)
+    lapack <- system2(command = dir_r, args = "CMD config LAPACK_LIBS",
+      stdout = TRUE)
     lapack <- sub("-L/", "/", strsplit(lapack, split = " ")[[1]][1])
     get_ls <- if (identical(blas, lapack)) list(blas) else list(blas, lapack)
-    temp <- lapply(get_ls, FUN = function(x) print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
+    temp <- lapply(get_ls, FUN = function(x)
+      print(system2(command = "ls", args = paste("-l", x), stdout = TRUE)))
 
-    print("Check linked BLAS library:") # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
+    # http://simplystatistics.org/2016/01/21/parallel-blas-in-r/#
+    print("Check linked BLAS library:")
     if (!is.na(seed)) set.seed(seed)
     temp <- system.time({
       x <- replicate(5e3, stats::rnorm(5e3))
@@ -799,8 +894,8 @@ benchmark_BLAS <- function(platform, seed = NA) {
     # 59.289   0.465  59.173
 
   } else {
-    print(paste("'benchmark_BLAS' does not benchmark the linked BLAS library on platform",
-      shQuote(platform)))
+    print(paste("'benchmark_BLAS' does not benchmark the linked BLAS library",
+      "on platform", shQuote(platform)))
   }
 }
 
@@ -809,14 +904,16 @@ benchmark_BLAS <- function(platform, seed = NA) {
 #'
 #' @param x A numeric vector. Precipitation data as monthly series in units of
 #'   \code{unit_from}.
-#' @param dpm A numeric vector. Number of days per month in the time series \code{x}.
-#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
-#'   units include "mm/month", "mm month-1", "mm/d", "mm d-1", "kg/m2/s", "kg m-2 s-1",
-#'   "mm/s", "mm s-1", "cm/month", "cm month-1".
-#' @param unit_to A character string. Units to which data are converted. Currently,
-#'   supported unit is "cm month-1" respectively "cm/month".
+#' @param dpm A numeric vector. Number of days per month in the time series
+#'   \code{x}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently,
+#'   supported units include "mm/month", "mm month-1", "mm/d", "mm d-1",
+#'   "kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1", "cm/month", "cm month-1".
+#' @param unit_to A character string. Units to which data are converted.
+#'   Currently, supported unit is "cm month-1" respectively "cm/month".
 #'
-#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @return A numeric vector of the same size as \code{x} in units of
+#'   \code{unit_to}.
 #' @export
 convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
   if (!(unit_to %in% c("cm/month", "cm month-1"))) {
@@ -847,12 +944,13 @@ convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
 #'
 #' @param x A numeric vector. Temperature data as monthly series in units of
 #'   \code{unit_from}.
-#' @param unit_from A character string. Units of data in \code{x}. Currently, supported
-#'   units include "K", "F", and "C".
-#' @param unit_to A character string. Units to which data are converted. Currently,
-#'   supported unit is "C".
+#' @param unit_from A character string. Units of data in \code{x}. Currently,
+#'   supported units include "K", "F", and "C".
+#' @param unit_to A character string. Units to which data are converted.
+#'   Currently, supported unit is "C".
 #'
-#' @return A numeric vector of the same size as \code{x} in units of \code{unit_to}.
+#' @return A numeric vector of the same size as \code{x} in units of
+#'   \code{unit_to}.
 #' @export
 convert_temperature <- function(x, unit_from, unit_to = "C") {
   if (!identical(unit_to, "C")) {
@@ -894,7 +992,8 @@ setup_scenarios <- function(sim_scens, future_yrs) {
 
   if (length(temp) > 0) {
     # add (multiple) future_yrs
-    temp <- paste0(rownames(future_yrs), ".", rep(temp, each = nrow(future_yrs)))
+    temp <- paste0(rownames(future_yrs), ".",
+      rep(temp, each = nrow(future_yrs)))
     # add (multiple) downscaling.method
     temp <- paste0(sim_scens[["method_DS"]], ".",
       rep(temp, each = length(sim_scens[["method_DS"]])))
@@ -908,11 +1007,12 @@ setup_scenarios <- function(sim_scens, future_yrs) {
     #--- Create table with scenario name parts for each scenario
     temp <- strsplit(id[-1], split = ".", fixed = TRUE)
     if (!all(lengths(temp) == 4L))
-      stop("'climate.conditions' are mal-formed: they must contain 4 elements that are ",
-        "concatenated by '.'")
+      stop("'climate.conditions' are mal-formed: they must contain ",
+        "4 elements that are concatenated by '.'")
 
-    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4, byrow = TRUE),
-      stringsAsFactors = FALSE)
+    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4,
+      byrow = TRUE), stringsAsFactors = FALSE)
+
     # ConcScen = concentration scenarios, e.g., SRESs, RCPs
     colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
     # see 'setup_simulation_time' for how 'future_yrs' is created
@@ -936,7 +1036,7 @@ setup_scenarios <- function(sim_scens, future_yrs) {
     reqCSs = reqCSs, reqCSsPerM = reqCSsPerM, reqDSsPerM = reqDSsPerM))
 }
 
-setup_mean_daily_output_requests <- function(req_mean_daily, opt_agg) {
+setup_meandaily_output <- function(req_mean_daily, opt_agg) {
   N <- length(req_mean_daily)
 
   if (N > 0) {
@@ -968,7 +1068,9 @@ setup_aggregation_options <- function(opt_agg, ...) {
 }
 
 
-get_datasource_includefield <- function(SWRunInformation, field_include, sim_size) {
+get_datasource_includefield <- function(SWRunInformation, field_include,
+  sim_size) {
+
   if (field_include %in% names(SWRunInformation)) {
     temp <- SWRunInformation[sim_size[["runIDs_sites"]], field_include]
     is.na(temp) | temp > 0
@@ -978,8 +1080,8 @@ get_datasource_includefield <- function(SWRunInformation, field_include, sim_siz
 }
 
 
-get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size,
-  how_determine_sources) {
+get_datasource_masterfield <- function(SWRunInformation, field_sources,
+  sim_size, how_determine_sources) {
 
   sites_source <- rep(NA, times = sim_size[["runsN_sites"]])
   i_cns_field <- which(field_sources == colnames(SWRunInformation))
@@ -996,13 +1098,14 @@ get_datasource_masterfield <- function(SWRunInformation, field_sources, sim_size
   sites_source
 }
 
-update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fnames_in,
-  field_sources, field_include) {
+update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation,
+  fnames_in, field_sources, field_include) {
 
   notDone <- NULL
 
   if (any(MMC[["idone"]])) {
-    SWRunInformation[sim_size[["runIDs_sites"]], field_sources] <- as.character(MMC[["source"]])
+    SWRunInformation[sim_size[["runIDs_sites"]], field_sources] <-
+      as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
     include_YN_data <- rep(0, sim_size[["runsN_master"]])
@@ -1010,15 +1113,18 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
     SWRunInformation[, field_include] <- include_YN_data
 
     #write data to disk
-    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]], row.names = FALSE)
+    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]],
+      row.names = FALSE)
     unlink(fnames_in[["fpreprocin"]])
 
-    if (any(notDone))
-      print(paste0(shQuote(field_sources), ": no data available for n = ", sum(notDone),
-        " sites."))
+    if (any(notDone)) {
+      print(paste0(shQuote(field_sources), ": no data available for n = ",
+        sum(notDone), " sites."))
+    }
 
   } else {
-      print(paste0(shQuote(field_sources), ": no data extracted because already available"))
+    print(paste0(shQuote(field_sources), ": no data extracted because ",
+      "already available"))
   }
 
   SWRunInformation
@@ -1027,15 +1133,16 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation, fname
 
 #' Check availability and version of a command-line tool
 #'
-#' The function throws an error if the command-line tool cannot be run and its version
-#' querried by a call to \code{\link{system2}}. Otherwise, the function compares the
-#' return version value with the argument \code{v_expected}. If it does not match and
-#' the argument \code{stop_on_mismatch} has a \code{TRUE} value, then an error is thrown
-#' with a suitable message; otherwise, a warning is issued.
+#' The function throws an error if the command-line tool cannot be run and its
+#' version queried by a call to \code{\link{system2}}. Otherwise, the function
+#' compares the return version value with the argument \code{v_expected}. If it
+#' does not match and the argument \code{stop_on_mismatch} has a \code{TRUE}
+#' value, then an error is thrown with a suitable message; otherwise, a warning
+#' is issued.
 #'
 #' @param tool A character string. The name of the command-line tool.
-#' @param v_expected A character string that is or can be converted to represent the
-#'  expected version of the command-line tool.
+#' @param v_expected A character string that is or can be converted to represent
+#'   the expected version of the command-line tool.
 #' @param stop_on_mismatch A logical value.
 #' @seealso \code{\link{system2}}
 #'
@@ -1054,16 +1161,17 @@ check_cltool <- function(tool, v_expected, stop_on_mismatch = FALSE) {
     v_has <- numeric_version(gsub("[^([:digit:][:punct:])]", "", temp[2]))
 
     txt <- if (v_has > v_expected) {
-        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
-          shQuote(v_expected), " but found version ", shQuote(v_has), "; this may work, ",
-          "but likely the code of ", shQuote(fun_calling), " must be updated to work ",
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool),
+          " version ", shQuote(v_expected), " but found version ",
+          shQuote(v_has), "; this may work, ", "but likely the code of ",
+          shQuote(fun_calling), " must be updated to work ",
           "with newer versions of ", shQuote(tool), " properly.")
 
       } else if (v_has < v_expected) {
-        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool), " version ",
-          shQuote(v_expected), " but found an older version ", shQuote(v_has), "; this ",
-          "may work, but likely ", shQuote(tool), " must be updated to work with ",
-          shQuote(fun_calling), "properly.")
+        .makeMessage(shQuote(fun_calling), ": expects ", shQuote(tool),
+          " version ", shQuote(v_expected), " but found an older version ",
+          shQuote(v_has), "; this ", "may work, but likely ", shQuote(tool),
+          " must be updated to work with ", shQuote(fun_calling), "properly.")
       } else NULL
 
     if (!is.null(txt)) {

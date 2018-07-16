@@ -2,10 +2,10 @@
 % Please edit documentation in R/WeatherDB.R
 \name{check_dbWeather_version}
 \alias{check_dbWeather_version}
-\title{Check that version of dbWeather suffices}
+\title{Check that version of \var{\sQuote{dbWeather}} suffices}
 \usage{
 check_dbWeather_version(fdbWeather)
 }
 \description{
-Check that version of dbWeather suffices
+Check that version of \var{\sQuote{dbWeather}} suffices
 }

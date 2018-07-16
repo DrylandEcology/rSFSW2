@@ -2,18 +2,27 @@
 % Please edit documentation in R/Vegetation.R
 \name{TranspCoeffByVegType}
 \alias{TranspCoeffByVegType}
-\title{Lookup transpiration coefficients for grasses, shrubs, and trees per soil layer or per soil depth increment of 1 cm per distribution type for each simulation run and copy values to 'datafile.soils'}
+\title{Lookup transpiration coefficients}
 \usage{
 TranspCoeffByVegType(tr_input_code, tr_input_coeff, soillayer_no, trco_type,
   layers_depth, adjustType = c("positive", "inverse", "allToLast"))
 }
 \description{
-first row of datafile is label for per soil layer 'Layer' or per soil depth increment of 1 cm 'DepthCM'
-second row of datafile is source of data
-the other rows contain the data for each distribution type = columns
+Lookup transpiration coefficients for grasses, shrubs, and trees per soil
+layer or per soil depth increment of 1 cm per distribution type for
+each simulation run and copy values to \var{\sQuote{datafile.soils}}
+}
+\details{
+\itemize{
+   \item first row of datafile is label for per soil layer
+     \var{\dQuote{Layer}} or per soil depth increment of 1 cm
+     \var{\dQuote{DepthCM}}
+   \item second row of datafile is source of data
+   \item the other rows contain the data for each distribution type = columns
+}
 }
 \section{Note}{
-
- cannot write data from sw_input_soils to datafile.soils
+ cannot write data from \var{\sQuote{sw_input_soils}} to
+  \var{\sQuote{datafile.soils}}
 }
 

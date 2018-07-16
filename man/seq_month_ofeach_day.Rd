@@ -18,6 +18,7 @@ The sequence of month numbers for each day in the period from - to
 
 \dontrun{
    if (requireNamespace("microbenchmark", quietly = TRUE))
-     microbenchmark::microbenchmark(month1(), month2())    # barely any difference
+     # barely any difference
+     microbenchmark::microbenchmark(month1(), month2())
  }
 }

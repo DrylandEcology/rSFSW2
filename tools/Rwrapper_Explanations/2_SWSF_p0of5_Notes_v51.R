@@ -83,12 +83,12 @@
 #              - sw, filesin, prodin, siteparamin, soilsin, weathersetupin, cloudin
 #            - Options for information chunks:
 #              - 'LookupWeatherFolder': enter name of weather folder to be copied from 'dir_in_treat' to the SOILWAT2-run folder
-#              - 'LookupClimateTempScenarios' and 'LookupClimatePPTScenarios': enter name of column of table in 'dir_in_treat' that is to be written to the weathersetup input file of the SOILWAT2-run folder
-#              - 'LookupShiftedPPTScenarios': enter name of column-group of table in 'dir_in_treat' that is to be written (multiplied to existing factors) to the weathersetup input file of the SOILWAT2-run folder
+#              - 'LookupClimateTemp' and 'LookupClimatePPT': enter name of column of table in 'dir_in_treat' that is to be written to the weathersetup input file of the SOILWAT2-run folder
+#              - 'LookupShiftedPPT': enter name of column-group of table in 'dir_in_treat' that is to be written (multiplied to existing factors) to the weathersetup input file of the SOILWAT2-run folder
 #              - 'LookupShiftedPPTCategory': enter name of row of table in 'dir_in_treat'
-#              - 'LookupSnowDensityFromTable_Category': enter name of row in snow-density table
-#              - 'LookupTranspRegionsFromTable_Type': enter name of row in transpiration-region table
-#              - 'LookupTranspCoeffFromTable_Type'{Grass, Shrub, Tree}: enter name of column in transpiration coefficient table
+#              - 'LookupSnowDensity_Category': enter name of row in snow-density table
+#              - 'LookupTranspRegions_Type': enter name of row in transpiration-region table
+#              - 'LookupTranspCoefs_Type'{Grass, Shrub, Tree}: enter name of column in transpiration coefficient table
 
 #  'datafile.soillayers':  datafile describes the soil layer structure: soil depth and layers
 #            this datafile is needed if 'source_input' == "datafiles&treatments"
@@ -201,7 +201,7 @@
 #      - stats::sd for climate and weather, for climate correlations, and for water balance fluxes
 #      - group 'dailyWeatherEventSizeDistribution' including frequency distribution of prcp-event size and of duration of dry days (no prcp); also added two constants to determine bin sizes
 #      - group 'dailySWPdrynessDurationDistribution' including cummulative frequency distribution values (i.e., sampled at deciles plus at extremes) of duration of dry soils in top and bottom soils for each of the four seasons for each of the SWP.crit
-#    - improved 'LookupEvapCoeffFromTable' and 'LookupTranspRegionsFromTable': if datafile has from previous run more soil layers than current, these old data are now deleted
+#    - improved 'LookupEvapCoefs' and 'LookupTranspRegions': if datafile has from previous run more soil layers than current, these old data are now deleted
 #    - introduced function 'simTiming' which produces a list 'simTime': to better handle run-specific timing
 #    - fixed bug in 'dailySnowpack': checks now that there are enough snow years available (i.e., 2) to calculate response variables
 #  v40 (20120113-20120123):
@@ -356,12 +356,12 @@
 #    - (drs) output of functions circ.xxx (e.g., xxx = {mean, range, stats::sd}) give now numeric result, instead of class circular; i.e., this caused some inadverted problems converting results to vectors
 #    - (drs) added to aggregation of 'yearlymonthlyTemperateDrylandIndices': indices based on climate normals in addition to mean±stats::sd of time series
 #    - (drs) added columns for source information to datafile.cloud, which will be promoted to the cloudin file
-#    - (drs) function 'get.LookupSnowDensityFromTable' replaces months with NA or 0 with an estimate of density for freshly fallen snow
+#    - (drs) function 'get.LookupSnowDensity' replaces months with NA or 0 with an estimate of density for freshly fallen snow
 #    - (drs) snow density values from datafile.cloud are now tagged with hemisphere, and if different than location adjusted
 #    - (drs) fixed bug that failed daily aggregation of 'EvaporationTotal' and 'EvaporationSoil' if soil evaporation was only one layer deep
 #    - (drs) fixed bug in calculation of 'count.AllConcats': if makeInputForExperimentalDesign was TRUE but trowExperimentals not used, then count.AllConcats was too large
 #    - (drs) fixed bug in ensembles.maker$outputs (wrong dimensions) and created a own section for do_ensembles with timing, pulling together the version for temporary files and the one with the MPI-based sql-database
-#    - (drs) fixed bug in 'get.LookupSnowDensityFromTable': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
+#    - (drs) fixed bug in 'get.LookupSnowDensity': wrong dimension of references; added support of references for 'ExtractSkyDataFromNOAAClimateAtlas_USA'
 #    - (drs) fixed bug in 'AdjRootProfile': formatting of very small numbers was incorrect while writing to soilsin file
 #    - (drs) fixed bug in daily aggregation of response variables with many soil layers: dimension of weight factors was incorrect for weighted means
 #    - (drs) increased precision of climate change values: changed number of digits of monthly PPT and T scalers written to weatherin from 2 to 4 (differences between input and output could be larger than 0.5%)

@@ -10,32 +10,40 @@ merge_2soils(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer2,
 \arguments{
 \item{fmaster}{A character string. Path to the target master file.}
 
-\item{fmaster1}{A character string. Path to master file derived from extracting from
-soil data source 1}
+\item{fmaster1}{A character string. Path to master file derived from
+extracting from soil data source 1}
 
-\item{fmaster2}{A character string. Path to master file derived from extracting from
-soil data source 2}
+\item{fmaster2}{A character string. Path to master file derived from
+extracting from soil data source 2}
 
-\item{fslayer}{A character string. Path to the target soil layer structure file.}
+\item{fslayer}{A character string. Path to the target soil layer structure
+file.}
 
-\item{fslayer1}{A character string. Path to soil layer file derived from data source 1}
+\item{fslayer1}{A character string. Path to soil layer file derived from data
+source 1}
 
-\item{fslayer2}{A character string. Path to soil layer file derived from data source 2}
+\item{fslayer2}{A character string. Path to soil layer file derived from data
+source 2}
 
-\item{fstexture}{A character string. Path to the target soil texture input file.}
+\item{fstexture}{A character string. Path to the target soil texture input
+file.}
 
-\item{fstexture1}{A character string. Path to soil texture file derived from data source 1}
+\item{fstexture1}{A character string. Path to soil texture file derived from
+data source 1}
 
-\item{fstexture2}{A character string. Path to soil texture file derived from data source 2}
+\item{fstexture2}{A character string. Path to soil texture file derived from
+data source 2}
 
-\item{var_from2}{A vector of character strings. Variables of the soil texture file,
-which will be take values from source2 if available even if source1 is available}
+\item{var_from2}{A vector of character strings. Variables of the soil texture
+file, which will be take values from source2 if available even if source1
+is available}
 }
 \value{
-A logical value. This function is called for its side effects, i.e., storing
- updated/new files to \code{fmaster}, \code{fslayer}, and \code{fstexture}.
+A logical value. This function is called for its side effects, i.e.,
+  storing updated/new files to \code{fmaster}, \code{fslayer}, and
+  \code{fstexture}.
 }
 \description{
-Merge datafiles from two soil data sources (source 1 overrides source 2)
- and choose some or none of the variables to come from one source only.
+Merge datafiles from two soil data sources (source 1 overrides source 2) and
+choose some or none of the variables to come from one source only.
 }

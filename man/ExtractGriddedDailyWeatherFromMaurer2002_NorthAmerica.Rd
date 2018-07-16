@@ -2,23 +2,25 @@
 % Please edit documentation in R/WeatherDB.R
 \name{ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica}
 \alias{ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica}
-\title{Extract gridded daily weather from Maurer et al. 2002 (updated in 2010) for North
- American sites}
+\title{Extract gridded daily weather from Maurer et al. 2002 (updated in 2010) for
+North American sites}
 \usage{
 ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(dir_data, cellname,
   start_year, end_year, dbW_digits, verbose = FALSE)
 }
 \value{
-An invisible zero. A list of which each element represents one year of daily
-   weather data of class \linkS4class{swWeatherData}. The list is copied to the
-   weather database. Units are [degree Celsius] for temperature and [cm / day] and for
-   precipitation.
+An invisible zero. A list of which each element represents one year
+  of daily weather data of class
+  \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}. The
+  list is copied to the weather database. Units are [degree Celsius] for
+  temperature and [cm / day] and for precipitation.
 }
 \description{
 Data are available for years 1949-2010 at a 1/12-degree resolution.
 }
 \references{
-Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B. Nijssen.
- 2002. A long-term hydrologically based dataset of land surface fluxes and states for
- the conterminous United States. Journal of Climate 15:3237-3251.
+Maurer, E. P., A. W. Wood, J. C. Adam, D. P. Lettenmaier, and B.
+  Nijssen. 2002. A long-term hydrologically based dataset of land surface
+  fluxes and states for the conterminous United States. Journal of Climate
+  15:3237-3251.
 }

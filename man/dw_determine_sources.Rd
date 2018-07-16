@@ -9,6 +9,6 @@ dw_determine_sources(dw_source, exinfo, dw_avail_sources, SFSW2_prj_inputs,
   verbose = FALSE)
 }
 \description{
-Determine order of priorities (highest priority comes last): i.e., the last entry is
-the one that will be used.
+Determine order of priorities (highest priority comes last): i.e., the
+last entry is the one that will be used.
 }

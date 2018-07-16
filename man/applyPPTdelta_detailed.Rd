@@ -2,13 +2,14 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{applyPPTdelta_detailed}
 \alias{applyPPTdelta_detailed}
-\title{Add/multiply deltas to historic daily precipitation to generate future daily precipitation with checks}
+\title{Add/multiply deltas to historic daily precipitation to generate future daily
+precipitation with checks}
 \usage{
 applyPPTdelta_detailed(m, data, ydelta, add_days, mult_days, daily, monthly)
 }
 \arguments{
-\item{m}{An integer vector. Each element corresponds to a day (i.e., length(m) is 365
-or 366 days) and the values are the number of the month.}
+\item{m}{An integer vector. Each element corresponds to a day (i.e., \code{length(m)}
+is 365 or 366 days) and the values are the number of the month.}
 
 \item{data}{A numeric vector. Precipitation of each day.}
 
@@ -22,19 +23,21 @@ applied additively.}
 \item{mult_days}{A logical vector. \code{TRUE} for each day for which \code{ydelta} is
 applied multiplicatively.}
 
-\item{daily}{A list. Each element corresponds to one year of simstartyr:endyr is an
-object of class \linkS4class{swWeatherData}.}
+\item{daily}{A list. Each element corresponds to one year of \code{simstartyr:endyr}
+is an object of class \code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{monthly}{A numeric matrix. Monthly time-series of observed weather calculated
-from \code{daily} for the years simstartyr:endyr.}
+from \code{daily} for the years \code{simstartyr:endyr}.}
 }
 \value{
 A list with two elements
  \describe{
    \item{data}{A copy of \code{data} with adjusted values.}
-   \item{PPT_to_remove}{The total amount of precipitation that could not be removed from \code{data} due to lack of precipitation.}
+   \item{PPT_to_remove}{The total amount of precipitation that could not be removed
+     from \code{data} due to lack of precipitation.}
  }
 }
 \description{
-Add/multiply deltas to historic daily precipitation to generate future daily precipitation with checks
+Add/multiply deltas to historic daily precipitation to generate future daily
+precipitation with checks
 }

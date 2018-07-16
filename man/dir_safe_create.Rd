@@ -20,15 +20,17 @@ dir_safe_create(paths, showWarnings = FALSE, recursive = TRUE,
     recycled along \code{paths}.}
 }
 \value{
-An invisible list of length equal to the length of \code{paths}. The elements
-  are \code{NULL} for invalid elements of \code{paths}, a logical value for the
-  elements of \code{paths} with a successful calls to \code{\link{dir.create}}, or
-  an object of class \code{try-error} for a failed call to \code{\link{dir.create}}.
+An invisible list of length equal to the length of \code{paths}. The
+  elements are \code{NULL} for invalid elements of \code{paths}, a logical
+  value for the elements of \code{paths} with a successful calls to
+  \code{\link{dir.create}}, or an object of class \code{try-error} for a
+  failed call to \code{\link{dir.create}}.
 }
 \description{
-This is a wrapper for the function \code{\link{dir.create}} using different default
-settings and allowing multiple path names as input. The function checks if the
-provided paths may be valid names and catches any other errors with \code{try}.
+This is a wrapper for the function \code{\link{dir.create}} using different
+default settings and allowing multiple path names as input. The function
+checks if the provided paths may be valid names and catches any other errors
+with \code{try}.
 }
 \seealso{
 \code{\link{dir.create}}
