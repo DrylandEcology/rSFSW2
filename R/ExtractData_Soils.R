@@ -315,7 +315,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     stopifnot(requireNamespace("rgdal"))
     MMC[["idone"]]["GriddedFROM100m"] <- FALSE
     #print(paste("MMC[[idone]][GriddedFROM100m]:", MMC[["idone"]]["GriddedFROM100m"]))
-    # MMC[["source"]] = "GriddedFROM100m"
+    MMC[["source"]] = "GriddedFROM100m"
 
     todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m" #true x5
     #if (resume) {
@@ -340,6 +340,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
     g = raster::brick(tifFile)
     soilData = raster::crs(g)
+    gD = raster::brick(tifFile)
+    
 
     #print(paste("todos:",todos))
 
@@ -359,7 +361,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_conus <- align_with_target_res(res_from = sim_space[["sim_res"]],
                                               crs_from = sim_space[["sim_crs"]], sp = sim_space[["run_sites"]][todos, ],
-                                              crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
+                                              crs_sp = sim_space[["crs_sites"]], crs_to = soilData)
       args_extract <- list(y = cell_res_conus, coords = sites_conus, method = "block",
                            type = sim_space[["scorp"]])
     }
@@ -383,15 +385,16 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       # bulk density of less than 0.3 g / cm3 should be treated as no soil
       raster::calc(gD, fun = cond30, filename = ftempD)
     }
-    soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) # get soil data as a dataframe
-    soilFrameD = t(soilD[,1]) # get only first row
-    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soilFrameD # arbitrary made up data for testing
+    ##soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) # get soil data as a dataframe
+    soilFrameD = rep.int(ldepth_gridded[length(ldepth_gridded)], 5) # t(soilD[,1]) # get only first row
+    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soilFrameD #soilFrameD
     if(soilType != "depth"){
       soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) # get soil data as a dataframe
       #print(paste("Soil:",soil))
 
       #layer= paste(c("_L", soilLayer))
-      soilFrame = t(soil[,1]) # get only first row
+      ##soilFrame = t(soil[,1]) # get only first row
+      soilFrame = soil
 
       #print(paste("soilFrame:", soilFrame))
       #print(paste("frameToInsertInto:",MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,1]))
