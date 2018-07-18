@@ -5,14 +5,14 @@
                 "column" : 15,
                 "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_germination_wait_times.cpp",
                 "kind" : 6,
-                "line" : 33,
+                "line" : 34,
                 "name" : "germination_wait_times(const IntegerVector &, const IntegerVector &)",
                 "parent_name" : "",
                 "usr" : "c:@F@germination_wait_times#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#S0_#"
             }
         ],
         "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_germination_wait_times.cpp",
-        "file_last_write" : 1531408885
+        "file_last_write" : 1531761723
     },
     {
         "definitions" : [
@@ -20,14 +20,14 @@
                 "column" : 15,
                 "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_get_KilledBySoilLayers.cpp",
                 "kind" : 6,
-                "line" : 45,
+                "line" : 49,
                 "name" : "get_KilledBySoilLayers(const IntegerVector &, const LogicalMatrix &)",
                 "parent_name" : "",
                 "usr" : "c:@F@get_KilledBySoilLayers#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#&1$@N@Rcpp@C@Matrix>#VI10#@N@Rcpp@CT>1#T@PreserveStorage#"
             }
         ],
         "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_get_KilledBySoilLayers.cpp",
-        "file_last_write" : 1531408885
+        "file_last_write" : 1531761723
     },
     {
         "definitions" : [
@@ -35,14 +35,14 @@
                 "column" : 15,
                 "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp",
                 "kind" : 6,
-                "line" : 27,
-                "name" : "setFALSE_SeedlingSurvival_1stSeason(LogicalVector &, const IntegerVector &, const IntegerVector &, int, int)",
+                "line" : 30,
+                "name" : "kill_seedling(LogicalVector &, const IntegerVector &, const IntegerVector &, int, int)",
                 "parent_name" : "",
-                "usr" : "c:@F@setFALSE_SeedlingSurvival_1stSeason#&$@N@Rcpp@C@Vector>#VI10#@N@Rcpp@CT>1#T@PreserveStorage#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#S2_#I#I#"
+                "usr" : "c:@F@kill_seedling#&$@N@Rcpp@C@Vector>#VI10#@N@Rcpp@CT>1#T@PreserveStorage#&1$@N@Rcpp@C@Vector>#VI13#@N@Rcpp@CT>1#T@PreserveStorage#S2_#I#I#"
             }
         ],
         "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/GISSM_setFALSE_SeedlingSurvival_1stSeason.cpp",
-        "file_last_write" : 1531408885
+        "file_last_write" : 1531761723
     },
     {
         "definitions" : [
@@ -57,7 +57,7 @@
             }
         ],
         "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/init.c",
-        "file_last_write" : 1527178741
+        "file_last_write" : 1531761723
     },
     {
         "definitions" : [
@@ -270,6 +270,6 @@
             }
         ],
         "file" : "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/src/ncepcfsr_convert.c",
-        "file_last_write" : 1531408885
+        "file_last_write" : 1531761723
     }
 ]

@@ -20,3 +20,4 @@ rSFSW2.Rcheck
 src/*.o
 src/*.so
 src/*.dll
+.Rproj.user

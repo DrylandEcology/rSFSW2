@@ -51,11 +51,7 @@ test_that("Test projects", {
   # Print environmental variables if any problem occurred
   expect_true(
     identical(all(tp[["res"]][, "has_run"]), TRUE) &&
-      identical(any(tp[["res"]][, "has_problems"]), FALSE),
+      identical(any(tp[["res"]][, "has_problems"]), FALSE) &&
+      is.null(tp[["report"]]),
     info = info_env)
-  # expect_true(
-  #   identical(all(tp[["res"]][, "has_run"]), TRUE) &&
-  #     identical(any(tp[["res"]][, "has_problems"]), FALSE) &&
-  #     is.null(tp[["report"]]),
-  #   info = info_env)
 })
