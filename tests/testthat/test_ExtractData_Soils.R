@@ -10,7 +10,8 @@ SWRunInformation = data.frame(row.names = c(1,2,3,4,5,6))
 SWRunInformation[,1] = c(-106.2995, -106.2748, -106.2813, -106.2875, -106.2875, -106.2875)
 SWRunInformation[,2] = c(35.7655, 35.76451, 35.77990, 35.79530, 35.79530, 35.79530)
 SWRunInformation[,3] = rep("GriddedFROM100m", 6)
-colnames(SWRunInformation) = c("X_WGS84", "Y_WGS84", "SoilTexture_source")
+SWRunInformation[,4] = rep.int(1, 6)
+colnames(SWRunInformation) = c("X_WGS84", "Y_WGS84", "SoilTexture_source", "Include_YN_SoilSources")
 sim_size$expN = 2
 sim_size$runsN_master = 6
 sim_size$runIDs_sites = c(1,2,3,5,6)
@@ -34,15 +35,17 @@ fnames_in$fslayers = "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputD
 fnames_in$fprepocin = "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputAll_PreProcessed.rds"
 fnames_in$fsoils = "/home/natemccauslin/Desktop/TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
 
-master_sources = rSFSW2::get_datasource_masterfield(SWRunInformation,
-                                                    "SoilTexture_source", sim_size, "SWRunInformation")
-
 test_that("Get Datasource Masterfield", {
   # create copies of the above variables and change them here for expanding testing,
   # tests rely on the variables above and changing them here will keep them reliable
+  master_sources = rSFSW2::get_datasource_masterfield(SWRunInformation,
+                                                      "SoilTexture_source", sim_size, "SWRunInformation")
   expect_equal(master_sources, rep("GriddedFROM100m", 5))
-  
 })
 test_that("Get Datasource Includefield", {
-  
+  # create copies of the above variables and change them here for expanding testing,
+  # tests rely on the variables above and changing them here will keep them reliable
+  include_sources = rSFSW2::get_datasource_includefield(SWRunInformation, "Include_YN_SoilSources",
+                                                        sim_size)
+  expect_equal(include_sources, rep(TRUE, 5))
 })
