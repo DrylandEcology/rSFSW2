@@ -268,12 +268,10 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
   # set up data files for extraction
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
-  print(dir.ex.gridded)
   fileInGridded = list.files(dir.ex.gridded);
 
   for (tif in (1:length(fileInGridded))){
     tifFile = fileInGridded[tif];
-   #print(tifFile)
     # set soil types
     if(grepl('.tif$', tifFile)){
       if(grepl('^bd', tifFile)){
@@ -301,10 +299,9 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     }
 
     # start extracton process
-    print(paste0(paste0(tifFile, " =========== started")))
-
     # print stats
     if (verbose) {
+     print(paste0(paste0(tifFile, " =========== started")))
      t1 <- Sys.time()
      temp_call <- shQuote(match.call()[1])
      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
@@ -314,7 +311,6 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     }
     stopifnot(requireNamespace("rgdal"))
     MMC[["idone"]]["GriddedFROM100m"] <- FALSE
-    #print(paste("MMC[[idone]][GriddedFROM100m]:", MMC[["idone"]]["GriddedFROM100m"]))
     MMC[["source"]] = "GriddedFROM100m"
 
     todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m" #true x5
@@ -341,14 +337,9 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     g = raster::brick(tifFile)
     soilData = raster::crs(g)
     gD = raster::brick(tifFile)
-    
-
-    #print(paste("todos:",todos))
 
     #locations of simulation runs
     sites_conus <- sim_space[["run_sites"]][todos, ]
-    #print(paste("todos type:",typeof(todos)))
-    #print(paste("site_conus:",sites_conus))
 
     if (!raster::compareCRS(sim_space[["crs_sites"]], soilData)) {
       sites_conus = sp::spTransform(sites_conus, CRS = soilData) #transform graphics::points to grid-coords
@@ -451,10 +442,9 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     if (verbose){
       print(paste("Soil data from 'GriddedFrom100m' was extracted for n =",
                   sum(i_good), "out of", n_extract, "sites"))
+      print(paste0(paste0(tifFile, " =========== finished")))
     }
     }
-
-    print(paste0(paste0(tifFile, " =========== finished")))
     }
   }
   MMC

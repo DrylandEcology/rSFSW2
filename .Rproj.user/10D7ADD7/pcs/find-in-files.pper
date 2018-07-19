@@ -4,7 +4,7 @@
         "filePatterns" : [
         ],
         "path" : "~/Desktop/DryLand Ecology/rSFSW2",
-        "query" : "dboutput_create_Design",
+        "query" : "get_datasource_masterfield",
         "regex" : false
     }
 }

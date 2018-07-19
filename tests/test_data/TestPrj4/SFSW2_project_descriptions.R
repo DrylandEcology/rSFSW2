@@ -392,7 +392,7 @@ req_scens <- list(
   #   - This is a list of all GCMs for CMIP5 provided by GDO-DCP-UC-LLNL:
   #     37 RCP4.5, 35 RCP8.5
   #     Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
-  models = c("RCP45.ACCESS1-0", "RCP85.ACCESS1-0"),
+  models = NULL, #c("RCP45.ACCESS1-0", "RCP85.ACCESS1-0"),
 
   sources = c(
     # For each climate data set from which to extract, add an element like
