@@ -266,42 +266,44 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
-  # set up data files for extraction
+  # set up data files for extraction =============================
+  
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
-  fileInGridded = list.files(dir.ex.gridded);
+  file_in_gridded <- list.files(dir.ex.gridded);
 
-  for (tif in (1:length(fileInGridded))){
-    tifFile = fileInGridded[tif];
+  for (tif in (1:length(file_in_gridded))){
+    tif_file <- file_in_gridded[tif];
     # set soil types
-    if(grepl('.tif$', tifFile)){
-      if(grepl('^bd', tifFile)){
-        soilType = "matricd";
+    if(grepl('.tif$', tif_file)){
+      if(grepl('^bd', tif_file)){
+        soil_type <- "matricd";
       }
-      else if(grepl('^gravel', tifFile)){
-        soilType = "GravelContent" # switch soilType to match with MMC for insertion
+      else if(grepl('^gravel', tif_file)){
+        soil_type <- "GravelContent" # switch soil_type to match with MMC for insertion
       }
       else{
-        soilType = substr(tifFile, 1, regexpr("_", tifFile) - 1);
+        soil_type <- substr(tif_file, 1, regexpr("_", tif_file) - 1);
       }
 
-    # find the layer number of the current file
-    ltemp = strsplit(tifFile, "");
-    foundLayer = FALSE;
-    i = 1;
-    while (!foundLayer){
+    # find the layer number of the current file 
+    ltemp <- strsplit(tif_file, "");
+    found_layer <- FALSE;
+    i <- 1;
+    while (!found_layer){
       if(grepl("[[:digit:]]", ltemp[[1]][i])){
-        soilLayer = type.convert(ltemp[[1]][i]);
-        foundLayer = TRUE;
+        soil_layer <- type.convert(ltemp[[1]][i]);
+        found_layer <- TRUE;
       }
       else{
-        i = i + 1;
+        i <- i + 1;
       }
     }
 
-    # start extracton process
+    # start extracton process =============================
+    
     # print stats
     if (verbose) {
-     print(paste0(paste0(tifFile, " =========== started")))
+     print(paste0(paste0(tif_file, " =========== started")))
      t1 <- Sys.time()
      temp_call <- shQuote(match.call()[1])
      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
@@ -327,41 +329,41 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
     #print(paste0("todos length:",length(todos)))
 
-    tifFile = paste0(paste0(dir.ex.gridded, "/"), tifFile);
+    tif_file <- paste0(paste0(dir.ex.gridded, "/"), tif_file);
     #print(paste0("File path: ",dir.ex.gridded))
     stopifnot(file.exists(dir.ex.gridded))
     ldepth_gridded <- c(1, 5, 15, 30, 60, 100, 200) #in cm, 1 is really 0 but program breaks if it is 0
     layer_N <- length(ldepth_gridded) # conus subtracts 1 from this number here ( length() - 1 ), dont know why?
     ils <- seq_len(layer_N)
 
-    g = raster::brick(tifFile)
-    soilData = raster::crs(g)
-    gD = raster::brick(tifFile)
+    g <- raster::brick(tif_file)
+    soil_data <- raster::crs(g)
+    gD <- raster::brick(tif_file)
 
-    #locations of simulation runs
+    # get locations of simulation runs
     sites_conus <- sim_space[["run_sites"]][todos, ]
 
-    if (!raster::compareCRS(sim_space[["crs_sites"]], soilData)) {
-      sites_conus = sp::spTransform(sites_conus, CRS = soilData) #transform graphics::points to grid-coords
+    if (!raster::compareCRS(sim_space[["crs_sites"]], soil_data)) {
+      sites_conus <- sp::spTransform(sites_conus, CRS = soil_data) #transform graphics::points to grid-coords
     }
 
     if (sim_space[["scorp"]] == "point") {
-      cell_res_conus = NULL
-      args_extract = list(y = sites_conus, type = sim_space[["scorp"]])
+      cell_res_conus <- NULL
+      args_extract <- list(y = sites_conus, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_conus <- align_with_target_res(res_from = sim_space[["sim_res"]],
                                               crs_from = sim_space[["sim_crs"]], sp = sim_space[["run_sites"]][todos, ],
-                                              crs_sp = sim_space[["crs_sites"]], crs_to = soilData)
+                                              crs_sp = sim_space[["crs_sites"]], crs_to = soil_data)
       args_extract <- list(y = cell_res_conus, coords = sites_conus, method = "block",
                            type = sim_space[["scorp"]])
     }
 
     # actually extract the sand values from the sites
-    #message("NOTE: soil density values extracted from CONUS-soil (gridded STATSGO) may ",
+    # message("NOTE: soil density values extracted from CONUS-soil (gridded STATSGO) may ",
     #       "be too low!")
     cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
-    ftemp <- tifFile
+    ftemp <- tif_file
     g <- if (file.exists(ftemp)) {
       raster::brick(ftemp)
     } else {
@@ -376,73 +378,89 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       # bulk density of less than 0.3 g / cm3 should be treated as no soil
       raster::calc(gD, fun = cond30, filename = ftempD)
     }
-    ##soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) # get soil data as a dataframe
-    soilFrameD = rep.int(ldepth_gridded[length(ldepth_gridded)], 5) # t(soilD[,1]) # get only first row
-    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soilFrameD #soilFrameD
-    if(soilType != "depth"){
-      soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) # get soil data as a dataframe
+    # get soil data as a dataframe
+    ##soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) 
+    # get only first row
+    soil_frame_depth <- rep.int(ldepth_gridded[length(ldepth_gridded)], 5) # t(soilD[,1]) 
+    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth #soil_frame_depth
+    if(soil_type != "depth"){
+      # get soil data as a dataframe 
+      soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
       #print(paste("Soil:",soil))
 
-      #layer= paste(c("_L", soilLayer))
-      ##soilFrame = t(soil[,1]) # get only first row
-      soilFrame = soil
+      #layer= paste(c("_L", soil_layer))
+      ##soil_frame = t(soil[,1]) # get only first row
+      soil_frame <- soil
 
-      #print(paste("soilFrame:", soilFrame))
-      #print(paste("frameToInsertInto:",MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,1]))
+      #print(paste("soil_frame:", soil_frame))
+      #print(paste("frameToInsertInto:",MMC[["data"]][todos, 
+      #                                   grep(soil_type, MMC[["cn"]])[ils]][,1]))
 
       # testing, do this sparingly, write depth temp data
-      #if (soilLayer == 1){
-      #  MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = c(5, 15, 30, 60, 100) # arbitrary made up data for testing
+      #if (soil_layer == 1){
+      # arbitrary made up data for testing
+      #  MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = c(5, 15, 30, 60, 100) 
       #}
-      ## MMC[["input2"]][paste0("depth_L",soilLayer)] = ldepth_gridded[soilLayer];
-      percentDiv = 100
+      ## MMC[["input2"]][paste0("depth_L",soil_layer)] = ldepth_gridded[soil_layer];
+      percent_div <- 100
 
       # write density data, MMC[["data"]] requires a different column name to be written then the rest
-      if(soilType == "matricd"){
-        percentDiv = 1000;
-        MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,soilLayer] <- soilFrame / percentDiv # tempory to get good values for testing but needs to be fixed 1000 --> 100
+      if(soil_type == "matricd"){
+        percent_div <- 1000;
+        # tempory to get good values for testing but needs to be fixed 1000 --> 100
+        MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
       }
-      else if(soilType == "GravelContent"){
-        soilFrame = pmax(pmin(soilFrame / 100, 1), 0)
-        MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]][,soilLayer] <- soilFrame / percentDiv # write gravel data to "data"
+      else if(soil_type == "GravelContent"){
+        soil_frame <- pmax(pmin(soil_frame / 100, 1), 0)
+        # write gravel data to "data
+        MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
       }
       else{
-        MMC[["data"]][todos, grep(soilType, MMC[["cn"]])[ils]][,soilLayer] <- soilFrame / percentDiv # write sand or clay data to "data"
+        # write sand or clay data to "data
+        MMC[["data"]][todos, grep(soil_type, MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
       }
-      tempSoilType = paste(toupper(substr(soilType, 1, 1)), substr(soilType, 2, nchar(soilType)), sep="") # make soiltype start with capital letter ie. sand --> Sand
+      # make soil_type start with capital letter ie. sand --> Sand
+      tempsoil_type <- paste(toupper(substr(soil_type, 1, 1)), substr(soil_type, 2, nchar(soil_type)), sep="") 
 
-      tempInput = as.data.frame(c(soilFrame / percentDiv, soilFrame / percentDiv)) # add frame and last row, temporarily the same
-      tempInputNames = paste0(paste0(tempSoilType, "_L"),soilLayer); # make column name for insertion, ie. Sand --> Sand_L1
-      names(tempInput) = tempInputNames;
+      # add frame and last row, temporarily the same
+      temp_input <- as.data.frame(c(soil_frame / percent_div, soil_frame / percent_div)) 
+      # make column name for insertion, ie. Sand --> Sand_L1
+      temp_input_names <- paste0(paste0(tempsoil_type, "_L"),soil_layer); 
+      names(temp_input) <- temp_input_names;
 
-      ####MMC[["input"]][paste0(paste0(tempSoilType, "_L"),soilLayer)] = tempInput;
+      ####MMC[["input"]][paste0(paste0(tempsoil_type, "_L"),soil_layer)] = temp_input;
 
       #print(paste0("Layer:", layer))
       # There is no organic carbon data, set all values to a default
       MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
-      # Determine successful extractions
+      
+      # Determine successful extractions =============================
+      
       MMC[["idone"]]["GriddedFROM100m"] <- TRUE
-      i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) #length(i_good) == sum(todos)
+      i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) 
+      #length(i_good) == sum(todos)
       MMC[["source"]][which(todos)[!i_good]] <- NA
-      lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"], ldepth_gridded), na.rm = TRUE))
+      lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
+                                      ldepth_gridded), na.rm = TRUE))
 
       if (any(i_good)) {
-          i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) #length(i_Done) == length(runIDs_sites) == runsN_sites
-          i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+        i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
+        #length(i_Done) == length(runIDs_sites) == runsN_sites
+        i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
-          # temporary, set all i_Done to true because they are all done
-          i_Done = rep(TRUE, 5)
+        # temporary, set all i_Done to true because they are all done
+        i_Done <- rep(TRUE, 5)
 
-          MMC[["source"]][i_Done] <- "GriddedFROM100m"
-          MMC <- update_soils_input(MMC, sim_size, digits = 5, i_Done,
-                                    ldepths_cm = ldepth_gridded, lys, fnames_in)
+        MMC[["source"]][i_Done] <- "GriddedFROM100m"
+        MMC <- update_soils_input(MMC, sim_size, digits = 5, i_Done,
+                                ldepths_cm = ldepth_gridded, lys, fnames_in)
       }
     }
     # print stats
     if (verbose){
       print(paste("Soil data from 'GriddedFrom100m' was extracted for n =",
                   sum(i_good), "out of", n_extract, "sites"))
-      print(paste0(paste0(tifFile, " =========== finished")))
+      print(paste0(paste0(tif_file, " =========== finished")))
     }
     }
     }

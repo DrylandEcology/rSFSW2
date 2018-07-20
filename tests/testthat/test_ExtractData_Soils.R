@@ -127,13 +127,47 @@ test_that("Get Datasource Includefield", {
 test_that("Prepare Extract Data Soils", {
   # check that the resulting general structure is correct
   expect_is(MMC, "list")
-  expect_is(MMC[["vars"]], "list")
-  expect_is(MMC[["input2"]], "list")
-  expect_is(MMC[["input"]], "list")
+  expect_is(MMC[["vars"]], "data.frame")
+  expect_is(MMC[["input2"]], "data.frame")
+  expect_is(MMC[["input"]], "data.frame")
   expect_is(MMC[["cn"]], "character")
   expect_is(MMC[["source"]], "character")
-  expect_is(MMC[["data"]], "logical")
+  expect_is(MMC[["data"]], "matrix")
   expect_is(MMC[["idone"]], "logical")
-  expect_is(MMC[["use"]], "logical")
+  expect_is(MMC[["use"]], "data.frame")
+  expect_is(MMC[["nvars"]], "integer")
+})
+# TODO: Not finished
+MMC = update_soils_input(MMC, sim_size, digits = 5, i_Done, ldepths_cm,
+                         lys, fnames_in)
+test_that("Update Soils Input", {
+  # check that the resulting general structure is correct
+  expect_is(MMC, "list")
+  expect_is(MMC[["vars"]], "data.frame")
+  expect_is(MMC[["input2"]], "data.frame")
+  expect_is(MMC[["input"]], "data.frame")
+  expect_is(MMC[["cn"]], "character")
+  expect_is(MMC[["source"]], "character")
+  expect_is(MMC[["data"]], "matrix")
+  expect_is(MMC[["idone"]], "logical")
+  expect_is(MMC[["use"]], "data.frame")
+  expect_is(MMC[["nvars"]], "integer")
+})
+
+test_that("Extract 100m Gridded Data", {
+  MMC = do_ExtractSoilDataFrom100m(MMC, sim_size = sim_size,
+                             sim_space = sim_space,
+                             dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
+                             fnames_in = fnames_in, resume, verbose)
+  # check that the resulting general structure is correct
+  expect_is(MMC, "list")
+  expect_is(MMC[["vars"]], "data.frame")
+  expect_is(MMC[["input2"]], "data.frame")
+  expect_is(MMC[["input"]], "data.frame")
+  expect_is(MMC[["cn"]], "character")
+  expect_is(MMC[["source"]], "character")
+  expect_is(MMC[["data"]], "data.frame")
+  expect_is(MMC[["idone"]], "logical")
+  expect_is(MMC[["use"]], "data.frame")
   expect_is(MMC[["nvars"]], "integer")
 })
