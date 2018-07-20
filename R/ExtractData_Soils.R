@@ -396,8 +396,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     }
     # get soil data as a dataframe
     # get only first row
-    soil_frame_depth <- rep.int(ldepth_gridded[length(ldepth_gridded)], 5) # t(soilD[,1]) 
-    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth #soil_frame_depth
+    soil_frame_depth <- rep.int(ldepth_gridded[length(ldepth_gridded)], 5)
+    MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth
     if(soil_type != "depth"){
       # get soil data as a dataframe 
       soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
@@ -406,8 +406,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
       # write density data, MMC[["data"]] requires a different column name to be written then the rest
       if(soil_type == "matricd"){
-        percent_div <- 1000;
         # tempory to get good values for testing but needs to be fixed 1000 --> 100
+        percent_div <- 1000;
         MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
       }
       else if(soil_type == "GravelContent"){
@@ -441,7 +441,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
       if (any(i_good)) {
         i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
-        i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
+        i_Done[which(todos)[i_good]] <- TRUE
 
         # temporary, set all i_Done to true because they are all done
         i_Done <- rep(TRUE, 5)

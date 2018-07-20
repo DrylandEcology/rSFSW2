@@ -1,13 +1,14 @@
 context("Soil data extraction")
 
+# =============================================================================
 # The tests contained here are still in development and not all inclusive (yet); 
 # they do not check for individual value correctness for extraction functions, 
 # instead the goal here is to provide tests that are general enough that changing 
 # the files from which to extract data from won't cause the tests to fail. Ie. the 
 # tests are designed to test the underlining structures created from these functions.
+# =============================================================================
 
 # set stage manually so that future changes won't cause the test to fail ======
-
 resume <- TRUE
 verbose <- FALSE
 MMC <- environment();
@@ -37,7 +38,7 @@ sim_size$digitsN_total <- 3
 sim_size$runIDs_sites_by_dbW <- c(1,2,3,4,5)
 
 sim_space$scorp <- "point"
-sim_space$crs_sites <- sp::CRS("+init<-epsg:4326")
+sim_space$crs_sites <- sp::CRS("+init=epsg:4326")
 sim_space$sim_res <- NA
 sim_space$run_sites <- sp::SpatialPoints(coords <- SWRunInformation[sim_size[["runIDs_sites"]],
                                                  c("X_WGS84", "Y_WGS84")],
@@ -56,7 +57,7 @@ input_soils_use_colnames <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L", 
 newList <- vector("list", (length(input_soils_use_colnames) * 20) + 1)
 j <- 1
 counter <- 1;
-while (j <<- length(newList)){
+while (j <= length(newList)){
   for (i in c(1:20)){
     newList[j] <- paste0(input_soils_use_colnames[[counter]],i)
     if(counter >= length(input_soils_use_colnames)) {
@@ -92,7 +93,7 @@ input_soils <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L", "Grass_Transp
 newList <- vector("list", (length(input_soils) * 20) + 1)
 j <- 1
 counter <- 1;
-while (j <<- length(newList)){
+while (j <= length(newList)){
   for (i in c(1:20)){
     newList[j] <- paste0(input_soils[[counter]], i)
     if(counter >= length(input_soils)) {
