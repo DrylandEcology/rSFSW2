@@ -263,6 +263,24 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
+#' @description Extracts all .tif files' data in dir_ex_soil to an enviornment. 
+#' @param MMC An enviornment containing the structure for extracted data to be
+#'   extracted to
+#' @param sim_size An environment containing information on the runs.
+#' @param sim_space An environment containing information on site locations and
+#'   extraction type, ie. cell or point.
+#' @param dir_ex_soil String for the location of the soil files to be extracted.
+#' @param fnames_in An enviornment containing output file locations.
+#' @param resume Logical whether or not to resume the project if it failed partially through
+#'   before.
+#' @param verbose Logical whether to see additional messages or not as the function executes.
+#' @param default_TOC_GperKG A numeric value. The default value is
+#'   0 g \var{TOC} per kg soil.
+#' @references Miller, D. A. and R. A. White. 1998. A conterminous United States
+#'  multilayer soil characteristics dataset for regional climate and hydrology
+#'  modeling. Earth Interactions 2:1-26.
+#' @author Nathan Payton- McCauslin. July 2018.
+
 do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
@@ -309,7 +327,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
      print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
      on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-                           round(difftime(Sys.time(), t1, units = "secs"), 2), " s")) ; cat("\n")}, add = TRUE)
+                           round(difftime(Sys.time(), t1, units = "secs"), 2),
+                           " s")) ; cat("\n")}, add = TRUE)
     }
     stopifnot(requireNamespace("rgdal"))
     MMC[["idone"]]["GriddedFROM100m"] <- FALSE
