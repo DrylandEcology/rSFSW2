@@ -263,7 +263,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
-#' @description Extracts all .tif files' data in dir_ex_soil to an enviornment. 
+#' @description Extracts all .tif files' data (clay, sand, bd) in dir_ex_soil to an enviornment. 
 #' @param MMC An enviornment containing the structure for extracted data to be
 #'   extracted to
 #' @param sim_size An environment containing information on the runs.
@@ -280,7 +280,6 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 #'  multilayer soil characteristics dataset for regional climate and hydrology
 #'  modeling. Earth Interactions 2:1-26.
 #' @author Nathan Payton- McCauslin. July 2018.
-
 do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
@@ -334,7 +333,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     MMC[["idone"]]["GriddedFROM100m"] <- FALSE
     MMC[["source"]] = "GriddedFROM100m"
 
-    todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m" #true x5
+    todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m"
+    # TODO: Implement resume here
     #if (resume) {
     #  todos <- adjust_soils_todos(todos, MMC, sim_size) # false x5
     #}
@@ -346,10 +346,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
         print(paste("Soil data from 'Gridded100m' will be extracted for n =",
                     n_extract, "sites"))
 
-    #print(paste0("todos length:",length(todos)))
-
     tif_file <- paste0(paste0(dir.ex.gridded, "/"), tif_file);
-    #print(paste0("File path: ",dir.ex.gridded))
     stopifnot(file.exists(dir.ex.gridded))
     ldepth_gridded <- c(1, 5, 15, 30, 60, 100, 200) #in cm, 1 is really 0 but program breaks if it is 0
     layer_N <- length(ldepth_gridded) # conus subtracts 1 from this number here ( length() - 1 ), dont know why?
@@ -398,29 +395,13 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       raster::calc(gD, fun = cond30, filename = ftempD)
     }
     # get soil data as a dataframe
-    ##soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) 
     # get only first row
     soil_frame_depth <- rep.int(ldepth_gridded[length(ldepth_gridded)], 5) # t(soilD[,1]) 
     MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth #soil_frame_depth
     if(soil_type != "depth"){
       # get soil data as a dataframe 
       soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
-      #print(paste("Soil:",soil))
-
-      #layer= paste(c("_L", soil_layer))
-      ##soil_frame = t(soil[,1]) # get only first row
       soil_frame <- soil
-
-      #print(paste("soil_frame:", soil_frame))
-      #print(paste("frameToInsertInto:",MMC[["data"]][todos, 
-      #                                   grep(soil_type, MMC[["cn"]])[ils]][,1]))
-
-      # testing, do this sparingly, write depth temp data
-      #if (soil_layer == 1){
-      # arbitrary made up data for testing
-      #  MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = c(5, 15, 30, 60, 100) 
-      #}
-      ## MMC[["input2"]][paste0("depth_L",soil_layer)] = ldepth_gridded[soil_layer];
       percent_div <- 100
 
       # write density data, MMC[["data"]] requires a different column name to be written then the rest
@@ -447,9 +428,6 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       temp_input_names <- paste0(paste0(tempsoil_type, "_L"),soil_layer); 
       names(temp_input) <- temp_input_names;
 
-      ####MMC[["input"]][paste0(paste0(tempsoil_type, "_L"),soil_layer)] = temp_input;
-
-      #print(paste0("Layer:", layer))
       # There is no organic carbon data, set all values to a default
       MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
       
@@ -457,14 +435,12 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       
       MMC[["idone"]]["GriddedFROM100m"] <- TRUE
       i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) 
-      #length(i_good) == sum(todos)
       MMC[["source"]][which(todos)[!i_good]] <- NA
       lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
                                       ldepth_gridded), na.rm = TRUE))
 
       if (any(i_good)) {
         i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
-        #length(i_Done) == length(runIDs_sites) == runsN_sites
         i_Done[which(todos)[i_good]] <- TRUE #sum(i_Done) == sum(i_good)
 
         # temporary, set all i_Done to true because they are all done
