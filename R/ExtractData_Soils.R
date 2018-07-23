@@ -394,9 +394,10 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       # bulk density of less than 0.3 g / cm3 should be treated as no soil
       raster::calc(gD, fun = cond30, filename = ftempD)
     }
+    soilD <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gD))) 
     # get soil data as a dataframe
     # get only first row
-    soil_frame_depth <- rep.int(ldepth_gridded[length(ldepth_gridded)], 5)
+    soil_frame_depth <- soilD
     MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth
     if(soil_type != "depth"){
       # get soil data as a dataframe 
