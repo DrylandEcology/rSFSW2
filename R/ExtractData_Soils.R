@@ -308,7 +308,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     i <- 1;
     while (!found_layer){
       if(grepl("[[:digit:]]", ltemp[[1]][i])){
-        soil_layer <- type.convert(ltemp[[1]][i]);
+        soil_layer <- type.convert(ltemp[[1]][i]) - 1;
         found_layer <- TRUE;
       }
       else{
@@ -335,9 +335,9 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
     todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m"
     # TODO: Implement resume here
-    #if (resume) {
+    # if (resume) {
     #  todos <- adjust_soils_todos(todos, MMC, sim_size) # false x5
-    #}
+    # }
 
     names(todos) <- NULL
     n_extract <- sum(todos)
@@ -348,8 +348,8 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
     tif_file <- paste0(paste0(dir.ex.gridded, "/"), tif_file);
     stopifnot(file.exists(dir.ex.gridded))
-    ldepth_gridded <- c(1, 5, 15, 30, 60, 100, 200) #in cm, 1 is really 0 but program breaks if it is 0
-    layer_N <- length(ldepth_gridded) # conus subtracts 1 from this number here ( length() - 1 ), dont know why?
+    ldepth_gridded <- c(0, 5, 15, 30, 60, 100, 200) #in cm
+    layer_N <- length(ldepth_gridded) - 1 
     ils <- seq_len(layer_N)
 
     g <- raster::brick(tif_file)
@@ -413,7 +413,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       else if(soil_type == "GravelContent"){
         soil_frame <- pmax(pmin(soil_frame / 100, 1), 0)
         # write gravel data to "data
-        MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
+        MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame # gravel is already in form we want so no need to divide
       }
       else{
         # write sand or clay data to "data
@@ -437,7 +437,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
       i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) 
       MMC[["source"]][which(todos)[!i_good]] <- NA
       lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
-                                      ldepth_gridded), na.rm = TRUE))
+                                      ldepth_gridded[-1]), na.rm = TRUE))
 
       if (any(i_good)) {
         i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
@@ -448,7 +448,7 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
 
         MMC[["source"]][i_Done] <- "GriddedFROM100m"
         MMC <- update_soils_input(MMC, sim_size, digits = 5, i_Done,
-                                ldepths_cm = ldepth_gridded, lys, fnames_in)
+                                ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
       }
     }
     # print stats
