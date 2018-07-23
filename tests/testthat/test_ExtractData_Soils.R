@@ -147,37 +147,41 @@ test_that("Prepare Extract Data Soils", {
   expect_is(MMC[["use"]], "data.frame")
   expect_is(MMC[["nvars"]], "integer")
 })
-# TODO: Not finished
-# MMC <- update_soils_input(MMC, sim_size, digits = 5, i_Done, ldepths_cm,
-#                          lys, fnames_in)
-# test_that("Update Soils Input", {
-#   # check that the resulting general structure is correct
-#   expect_is(MMC, "list")
-#   expect_is(MMC[["vars"]], "data.frame")
-#   expect_is(MMC[["input2"]], "data.frame")
-#   expect_is(MMC[["input"]], "data.frame")
-#   expect_is(MMC[["cn"]], "character")
-#   expect_is(MMC[["source"]], "character")
-#   expect_is(MMC[["data"]], "matrix")
-#   expect_is(MMC[["idone"]], "logical")
-#   expect_is(MMC[["use"]], "data.frame")
-#   expect_is(MMC[["nvars"]], "integer")
-# })
-#
-# test_that("Extract 100m Gridded Data", {
-#   MMC <- do_ExtractSoilDataFrom100m(MMC, sim_size = sim_size,
-#                              sim_space = sim_space,
-#                              dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
-#                              fnames_in = fnames_in, resume, verbose)
-#   # check that the resulting general structure is correct
-#   expect_is(MMC, "list")
-#   expect_is(MMC[["vars"]], "data.frame")
-#   expect_is(MMC[["input2"]], "data.frame")
-#   expect_is(MMC[["input"]], "data.frame")
-#   expect_is(MMC[["cn"]], "character")
-#   expect_is(MMC[["source"]], "character")
-#   expect_is(MMC[["data"]], "data.frame")
-#   expect_is(MMC[["idone"]], "logical")
-#   expect_is(MMC[["use"]], "data.frame")
-#   expect_is(MMC[["nvars"]], "integer")
-# })
+i_Done <- rep(TRUE, 5)
+digits <- 2
+ldepths_cm <- c(5, 15, 30, 60, 100, 200)
+lys <- seq.int(length(ldepths_cm))
+
+test_that("Update Soils Input", {
+  MMC <- update_soils_input(MMC, sim_size, digits, i_Done, ldepths_cm,
+                            lys, fnames_in)
+  # check that the resulting general structure is correct
+  expect_is(MMC, "list")
+  expect_is(MMC[["vars"]], "data.frame")
+  expect_is(MMC[["input2"]], "data.frame")
+  expect_is(MMC[["input"]], "data.frame")
+  expect_is(MMC[["cn"]], "character")
+  expect_is(MMC[["source"]], "character")
+  expect_is(MMC[["data"]], "matrix")
+  expect_is(MMC[["idone"]], "logical")
+  expect_is(MMC[["use"]], "data.frame")
+  expect_is(MMC[["nvars"]], "integer")
+})
+
+test_that("Extract 100m Gridded Data", {
+  MMC <- do_ExtractSoilDataFrom100m(MMC, sim_size = sim_size,
+                             sim_space = sim_space,
+                             dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
+                             fnames_in = fnames_in, resume, verbose)
+  # check that the resulting general structure is correct
+  expect_is(MMC, "list")
+  expect_is(MMC[["vars"]], "data.frame")
+  expect_is(MMC[["input2"]], "data.frame")
+  expect_is(MMC[["input"]], "data.frame")
+  expect_is(MMC[["cn"]], "character")
+  expect_is(MMC[["source"]], "character")
+  expect_is(MMC[["data"]], "data.frame")
+  expect_is(MMC[["idone"]], "logical")
+  expect_is(MMC[["use"]], "data.frame")
+  expect_is(MMC[["nvars"]], "integer")
+})
