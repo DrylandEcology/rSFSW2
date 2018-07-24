@@ -20,7 +20,11 @@
 
 # rSFSW2: A R package to create soil water balance simulation experiment
 
-Some recent references
+Please cite the package if you publish results based on simulations carried
+out with our package, see `citation("rSFSW2")`, and we would like to hear
+about your publication.
+
+Some other references
 
 * Bradford, J. B., D. R. Schlaepfer, and W. K. Lauenroth. 2014. Ecohydrology of
   adjacent sagebrush and lodgepole pine ecosystems: The consequences of climate
@@ -232,6 +236,14 @@ particularly,
 Please note that this project is released with a
 [Contributor Code of Conduct](CONDUCT.md). By participating in this project you
 agree to abide by its terms.
+
+
+<br>
+
+# Funding
+Work on this package has been supported by various funds managed by
+Dr. Bill Lauenroth (Yale University), Dr. John Bradford (USGS), and
+Dr. Daniel Schlaepfer.
 
 
 <br>

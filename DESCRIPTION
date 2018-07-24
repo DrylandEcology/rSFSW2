@@ -7,6 +7,7 @@ Authors@R: c(
     comment = c(ORCID = "0000-0001-9973-2065"), role = c("aut", "cre")),
   person("Caitlin", "Andrews", role = "ctb"),
   person("Zach", "Kramer", role = "ctb"),
+  person("Charlie", "Duso", role = "ctb"),
   person("Ryan", "Murphy", role = "ctb"))
 Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
