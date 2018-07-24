@@ -39,10 +39,20 @@ sim_size$runIDs_sites_by_dbW <- c(1,2,3,4,5)
 
 sim_space$scorp <- "point"
 sim_space$crs_sites <- sp::CRS("+init=epsg:4326")
+
 sim_space$sim_res <- NA
 sim_space$run_sites <- sp::SpatialPoints(coords <- SWRunInformation[sim_size[["runIDs_sites"]],
                                                  c("X_WGS84", "Y_WGS84")],
                                                  proj4string <- sim_space[["crs_sites"]])
+
+sim_space$sim_crs <- sp::CRS("+init=epsg:4326")
+temp_crs <- as.character(sim_space[["sim_crs"]])
+if (requireNamespace("rgdal", quietly = TRUE)) {
+  temp <- rgdal::checkCRSArgs(temp_crs)
+  stopifnot(temp[[1]])
+  sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+}
+
 fnames_in$fslayers <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputData_SoilLayers_v9.csv"
 fnames_in$fprepocin <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputAll_PreProcessed.rds"
 fnames_in$fsoils <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
@@ -53,7 +63,7 @@ how_determine_sources <- "SWRunInformation"
 
 # set up input_soils_use
 input_soils_use_colnames <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L", "Grass_TranspCoeff_L", "Shrub_TranspCoeff_L", "Tree_TranspCoeff_L", "Forb_TranspCoeff_L",
-                                "TranspRegion_L", "Sand_L", "Clay_L", "TOC_GperKg_L", "Imperm_L", "SoilTemp_L")
+                                "TranspRegion_L", "Sand_L", "Clay_L", "TOC_GperKG_L", "Imperm_L", "SoilTemp_L")
 newList <- vector("list", (length(input_soils_use_colnames) * 20) + 1)
 j <- 1
 counter <- 1;
@@ -89,7 +99,7 @@ colnames(sw_input_soillayers) <- soillayer_names
 
 # set up sw_input_soils
 input_soils <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L", "Grass_TranspCoeff_L", "Shrub_TranspCoeff_L", "Tree_TranspCoeff_L", "Forb_TranspCoeff_L",
-                                "TranspRegion_L", "Sand_L", "Clay_L", "TOC_GperKg_L", "Imperm_L", "SoilTemp_L")
+                                "TranspRegion_L", "Sand_L", "Clay_L", "TOC_GperKG_L", "Imperm_L", "SoilTemp_L")
 newList <- vector("list", (length(input_soils) * 20) + 1)
 j <- 1
 counter <- 1;
@@ -172,7 +182,7 @@ test_that("Extract 100m Gridded Data", {
   MMC <- do_ExtractSoilDataFrom100m(MMC, sim_size = sim_size,
                              sim_space = sim_space,
                              dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
-                             fnames_in = fnames_in, resume, verbose)
+                             fnames_in = fnames_in, resume, verbose, default_TOC_GperKG = 0)
   # check that the resulting general structure is correct
   expect_is(MMC, "list")
   expect_is(MMC[["vars"]], "data.frame")
@@ -180,8 +190,47 @@ test_that("Extract 100m Gridded Data", {
   expect_is(MMC[["input"]], "data.frame")
   expect_is(MMC[["cn"]], "character")
   expect_is(MMC[["source"]], "character")
-  expect_is(MMC[["data"]], "data.frame")
+  expect_is(MMC[["data"]], "matrix")
   expect_is(MMC[["idone"]], "logical")
   expect_is(MMC[["use"]], "data.frame")
   expect_is(MMC[["nvars"]], "integer")
+  
+  todos <- TRUE
+  ils <- seq.int(1, 6, 1)
+  
+  # test that extracted values fall within the desired range for layer 1
+  # at the very least, layer 1 should always have its data extracted
+  density_vals <- MMC[["data"]][todos, grep("density", MMC[["cn"]])[1]]
+  sand_vals <- MMC[["data"]][todos, grep("sand", MMC[["cn"]])[1]]
+  clay_vals <- MMC[["data"]][todos, grep("clay", MMC[["cn"]])[1]]
+  gravel_vals <- MMC[["data"]][todos, grep("rock", MMC[["cn"]])[1]]
+  carbon_vals <- MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[1]]
+  depth_vals <- MMC[["data"]][todos, grep("depth", MMC[["cn"]])[1]]
+  for(i in c(1, length(density_vals))){
+    expect_lte(density_vals[[i]], 2.5)
+    expect_gte(density_vals[[i]], 0)
+    expect_lte(sand_vals[[i]], 1)
+    expect_gte(sand_vals[[i]], 0)
+    expect_lte(clay_vals[[i]], 1)
+    expect_gte(clay_vals[[i]], 0)
+    expect_lte(gravel_vals[[i]], 1)
+    expect_gte(gravel_vals[[i]], 0)
+    expect_lte(carbon_vals[[i]], 1)
+    expect_gte(carbon_vals[[i]], 0)
+    expect_gt(depth_vals[[i]], 0)
+  }
+  
+  # test that if one soil type is extracted for a layer, then they all should be
+  # layers 2 - 6, we already checked that layer 1 has all soils above
+  for(j in c(2, 6)){
+    for(i in c(1, length(sand_vals))){
+      if(!is.na(MMC[["data"]][todos, grep("sand", MMC[["cn"]])[j]][[i]])){
+        expect_type(MMC[["data"]][todos, grep("clay", MMC[["cn"]])[j]][[i]], "double")
+        expect_type(MMC[["data"]][todos, grep("density", MMC[["cn"]])[j]][[i]], "double")
+        expect_type(MMC[["data"]][todos, grep("depth", MMC[["cn"]])[j]][[i]], "double")
+        expect_type(MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[j]][[i]], "double")
+        expect_type(MMC[["data"]][todos, grep("rock", MMC[["cn"]])[j]][[i]], "double")
+      }
+  }
+  }
 })
