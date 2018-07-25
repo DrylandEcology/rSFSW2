@@ -179,7 +179,7 @@ test_that("Update Soils Input", {
 })
 
 test_that("Extract 100m Gridded Data", {
-  MMC <- do_ExtractSoilDataFrom100m(MMC, sim_size = sim_size,
+  MMC <- do_ExtractFromIsricSoilGrid_Global_250m(MMC, sim_size = sim_size,
                              sim_space = sim_space,
                              dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
                              fnames_in = fnames_in, resume, verbose, default_TOC_GperKG = 0)

@@ -4,7 +4,7 @@
         "filePatterns" : [
         ],
         "path" : "~/Desktop/DryLand Ecology/rSFSW2",
-        "query" : "compare_two_db",
+        "query" : "SFSW2_prj_meta[[\"exinfo\"]][[\"ExtractSoilDataFromCONUSSOILFromSTATSGO_USA\"]] ||",
         "regex" : false
     }
 }

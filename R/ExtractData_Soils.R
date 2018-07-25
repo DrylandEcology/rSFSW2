@@ -280,14 +280,20 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 #'  multilayer soil characteristics dataset for regional climate and hydrology
 #'  modeling. Earth Interactions 2:1-26.
 #' @author Nathan Payton- McCauslin. July 2018.
-do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
+do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
   # set up data files for extraction =============================
   
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
   file_in_gridded <- list.files(dir.ex.gridded);
-
+  MMC[["source"]] = "GriddedFROM100m"
+  todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m"
+  # TODO: Implement resume here
+  if (resume) {
+    todos <- adjust_soils_todos(todos, MMC, sim_size) # TRUE x5
+  }
+  
   for (tif in (1:length(file_in_gridded))){
     tif_file <- file_in_gridded[tif];
     # set soil types
@@ -331,13 +337,10 @@ do_ExtractSoilDataFrom100m <- function(MMC, sim_size, sim_space,
     }
     stopifnot(requireNamespace("rgdal"))
     MMC[["idone"]]["GriddedFROM100m"] <- FALSE
-    MMC[["source"]] = "GriddedFROM100m"
-
-    todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM100m"
-    # TODO: Implement resume here
-    # if (resume) {
-    #  todos <- adjust_soils_todos(todos, MMC, sim_size) # false x5
-    # }
+    
+    if(soil_type == "sand"){
+      print(paste("sand todos:", todos))
+    }
 
     names(todos) <- NULL
     n_extract <- sum(todos)
@@ -1021,8 +1024,8 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
-  if(exinfo$ExtractSoilDataFromGriddedGlobalFrom100m){
-    MMC <- do_ExtractSoilDataFrom100m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+  if(exinfo$ExtractSoilDataFromIsricSoilGrid_Global_250m){
+    MMC <- do_ExtractFromIsricSoilGrid_Global_250m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
             sim_space = SFSW2_prj_meta[["sim_space"]],
             dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
             fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
