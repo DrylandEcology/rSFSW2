@@ -286,7 +286,6 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
 
   # print stats
   if (verbose) {
-    show_site_info <- TRUE
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
@@ -297,9 +296,11 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
   
   # set up data files for extraction =============================
   
+  show_site_info <- verbose
+  soil_layer <- 1
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
   file_in_gridded <- list.files(dir.ex.gridded);
-  MMC[["source"]] = "GriddedFROM250m"
+  MMC[["source"]] <- "GriddedFROM250m"
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM250m"
   
   # set the todo list to only extract data that doesn't already exist
@@ -443,7 +444,7 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
   }
   # print stats
   if (verbose){
-    print(paste("Soil data from 'GriddedFrom250m' was extracted for n =",
+    print(paste("Soil data from 'Gridded250m' was extracted for", soil_layer, "layers and n =",
                 sum(i_good), "out of", n_extract, "sites"))
   }
   MMC
