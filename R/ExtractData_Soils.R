@@ -284,6 +284,17 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
+  # print stats
+  if (verbose) {
+    show_site_info <- TRUE
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                          round(difftime(Sys.time(), t1, units = "secs"), 2),
+                          " s")) ; cat("\n")}, add = TRUE)
+  }
+  
   # set up data files for extraction =============================
   
   dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
@@ -328,24 +339,16 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
 
     # start extracton process =============================
     
-    # print stats
-    if (verbose) {
-     t1 <- Sys.time()
-     temp_call <- shQuote(match.call()[1])
-     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-                           round(difftime(Sys.time(), t1, units = "secs"), 2),
-                           " s")) ; cat("\n")}, add = TRUE)
-    }
     stopifnot(requireNamespace("rgdal"))
     MMC[["idone"]]["GriddedFROM250m"] <- FALSE
     names(todos) <- NULL
     n_extract <- sum(todos)
     if (n_extract > 0) {
-      if (verbose)
+      if (show_site_info){
         print(paste("Soil data from 'Gridded250m' will be extracted for n =",
                     n_extract, "sites"))
+        show_site_info <- FALSE
+      }
   
       tif_file <- paste0(paste0(dir.ex.gridded, "/"), tif_file);
       stopifnot(file.exists(dir.ex.gridded))
@@ -435,13 +438,13 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
                                   ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
         }
       }
-      # print stats
-      if (verbose){
-        print(paste("Soil data from 'GriddedFrom250m' was extracted for n =",
-                    sum(i_good), "out of", n_extract, "sites"))
-      }
       }
     }
+  }
+  # print stats
+  if (verbose){
+    print(paste("Soil data from 'GriddedFrom250m' was extracted for n =",
+                sum(i_good), "out of", n_extract, "sites"))
   }
   MMC
 }
